@@ -41,6 +41,13 @@ extension DesignStore {
         if !drcResults.isEmpty { runDRC() }
     }
 
+    /// Production panel for the fabrication package (1 × 1 removes it). Undoable.
+    func setPanel(_ panel: PanelInfo) {
+        guard panel != (snapshot.board.panel ?? PanelInfo()) else { return }
+        let name = panel.nx * panel.ny > 1 ? "Panel \(panel.nx) × \(panel.ny)" : "No panel"
+        performChecked(name, invalidatesAnalysis: false) { $0.setPanel(panel) }
+    }
+
     /// A design review command as one undo step; the store's alert shows a refusal (unknown part, empty text).
     func review(_ request: [String: Any], _ actionName: String) {
         var failure: String?

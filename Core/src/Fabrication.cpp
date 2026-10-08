@@ -1,5 +1,6 @@
 #include "sieda/Fabrication.hpp"
 #include "sieda/FabExchange.hpp"
+#include "sieda/Panel.hpp"
 
 #include <algorithm>
 #include <array>
@@ -466,6 +467,7 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");
     add(base + "-ipc2581.xml", exportIpc2581(project), "IPC-2581C: copper, mask, silk, drills, nets, parts and BOM in one file");
     add(base + "-odb.tgz", exportOdbArchive(project), "ODB++ v7 job (.tgz): layers, drills, components and nets");
+    for (auto& f : panelFiles(pcb, base, files)) files.push_back(std::move(f));
     // Notes last, so they list every file (themselves included).
     files.push_back({"fab_notes.txt", "", "Order sheet: these notes"});
     files.back().content = fabricationNotes(project, files);

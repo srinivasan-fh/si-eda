@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Palet Arahan…";
 "Search commands, parts and nets" = "Cari arahan, komponen dan net";
 "End the simulation early" = "Tamatkan simulasi lebih awal";
+"Boards across: %lld" = "Papan melintang: %lld";
+"Boards up: %lld" = "Papan menegak: %lld";
+"Gap" = "Jurang";
+"Rails" = "Rel";
+"Panel preview" = "Pratonton panel";
+"Separation" = "Pemisahan";
+"Tabs and mouse bites" = "Tab dan gigitan tetikus";
+"V-score" = "V-score";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "Pakej fabrikasi menambah folder panel/: setiap lapisan diulang merentas panel, rel dengan tiga fidusial dan empat lubang perkakas, dan garisan V-score atau tab dengan gigitan tetikus.";

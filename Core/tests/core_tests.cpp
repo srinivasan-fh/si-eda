@@ -29,6 +29,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/FabExchange.hpp"
+#include "sieda/Panel.hpp"
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -2936,6 +2937,57 @@ TEST(ipc2581_and_odb_archive_describe_the_same_board) {
         CHECK(tar.find(path) != std::string::npos);
     CHECK(count(tar, "\nCMP ") == parts);
     CHECK(count(tar, "TYPE=SIGNAL") == 4);
+}
+
+TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
+    Project p = amplifierProject();
+    p.name = "Amp";
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    const double W = p.pcb.settings.width, H = p.pcb.settings.height;
+    // No panel: nothing saved, no panel files.
+    CHECK(!p.toJson().get("board").has("panel"));
+    for (const auto& f : fabricationPackage(p)) CHECK(f.path.rfind("panel/", 0) != 0);
+
+    p.pcb.settings.panel = {3, 2, 2.0, 5.0, false};
+    PanelLayout l = panelLayout(p.pcb.settings);
+    CHECK(l.boards.size() == 6);
+    CHECK(std::abs(l.width - (3 * W + 2 * 2.0)) < 1e-9 && std::abs(l.height - (2 * H + 2.0 + 2 * 7.0)) < 1e-9);
+    CHECK(l.fiducials.size() == 3 && l.toolingHoles.size() == 4 && !l.tabs.empty() && l.vscores.empty());
+    CHECK(l.mouseBites.size() % 6 == 0 && l.mouseBites.size() >= 6 * l.tabs.size());
+    for (const Rect& t : l.tabs) CHECK(std::abs(t.width() * t.height() - 5.0 * 2.0) < 1e-9);  // 5 mm × the gap
+
+    auto files = fabricationPackage(p);
+    std::map<std::string, std::string> byName;
+    for (const auto& f : files) byName[f.path] = f.content;
+    const std::string copper = byName["panel/Amp-panel-F_Cu.gbr"];
+    CHECK(copper.find("%SRX3Y2I") != std::string::npos && copper.find("%SR*%") != std::string::npos);
+    CHECK(copper.find("M02*") != std::string::npos && byName.count("panel/Amp-panel.zip") == 1);
+    // Board holes: once per board in the panel drill file.
+    auto holes = [](const std::string& drill) {
+        size_t n = 0;
+        for (size_t at = drill.find("\nX"); at != std::string::npos; at = drill.find("\nX", at + 1)) ++n;
+        return n;
+    };
+    const size_t boardHoles = holes(byName["gerbers/Amp-PTH.drl"]);
+    CHECK(boardHoles > 0 && holes(byName["panel/Amp-panel-PTH.drl"]) == 6 * boardHoles);
+    const std::string npth = byName["panel/Amp-panel-NPTH.drl"];
+    CHECK(npth.find("C2.000") != std::string::npos && npth.find("C0.500") != std::string::npos);
+
+    // Saved and read back; V-score panels butt the boards and score between them.
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.panel.nx == 3 && back.pcb.settings.panel.ny == 2 && !back.pcb.settings.panel.vscore);
+    p.pcb.settings.panel.vscore = true;
+    l = panelLayout(p.pcb.settings);
+    CHECK(l.tabs.empty() && l.mouseBites.empty() && std::abs(l.width - 3 * W) < 1e-9);
+    CHECK(l.vscores.size() == 3 + 2);  // 3 horizontal (rail joints and between rows), 2 vertical
+    files = fabricationPackage(p);
+    bool vscoreFile = false;
+    for (const auto& f : files) vscoreFile |= f.path == "panel/Amp-panel-VScore.gbr";
+    CHECK(vscoreFile);
+    PanelSettings clamped;
+    panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
+    CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
 }
 
 TEST(fabrication_package_is_complete) {

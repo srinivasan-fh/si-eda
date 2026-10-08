@@ -1231,3 +1231,12 @@
 "Command Palette…" = "கட்டளைத் தட்டு…";
 "Search commands, parts and nets" = "கட்டளைகள், பாகங்கள், நெட்களைத் தேடு";
 "End the simulation early" = "உருவகப்படுத்தலை முன்கூட்டியே முடி";
+"Boards across: %lld" = "குறுக்கே பலகைகள்: %lld";
+"Boards up: %lld" = "மேலே பலகைகள்: %lld";
+"Gap" = "இடைவெளி";
+"Rails" = "ரெயில்கள்";
+"Panel preview" = "பேனல் முன்னோட்டம்";
+"Separation" = "பிரிப்பு";
+"Tabs and mouse bites" = "டேப்கள் மற்றும் மவுஸ் பைட்கள்";
+"V-score" = "V-ஸ்கோர்";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "உற்பத்தி தொகுப்பில் panel/ கோப்புறை சேரும்: ஒவ்வொரு அடுக்கும் பேனல் முழுவதும் மீண்டும், மூன்று ஃபிடூஷியல் மற்றும் நான்கு டூலிங் துளைகள் கொண்ட ரெயில்கள், V-ஸ்கோர் கோடுகள் அல்லது மவுஸ் பைட் கொண்ட டேப்கள்.";

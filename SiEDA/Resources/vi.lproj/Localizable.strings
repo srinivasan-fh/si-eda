@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Bảng lệnh…";
 "Search commands, parts and nets" = "Tìm lệnh, linh kiện và net";
 "End the simulation early" = "Kết thúc mô phỏng sớm";
+"Boards across: %lld" = "Số bo ngang: %lld";
+"Boards up: %lld" = "Số bo dọc: %lld";
+"Gap" = "Khe hở";
+"Rails" = "Thanh ray";
+"Panel preview" = "Xem trước panel";
+"Separation" = "Cách tách";
+"Tabs and mouse bites" = "Cầu nối và lỗ tem";
+"V-score" = "Cắt chữ V";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "Gói sản xuất có thêm thư mục panel/: mọi lớp được lặp trên panel, thanh ray có ba điểm fiducial và bốn lỗ định vị, cùng đường cắt chữ V hoặc cầu nối có lỗ tem.";

@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Befehlspalette…";
 "Search commands, parts and nets" = "Befehle, Bauteile und Netze suchen";
 "End the simulation early" = "Simulation vorzeitig beenden";
+"Boards across: %lld" = "Platinen quer: %lld";
+"Boards up: %lld" = "Platinen hoch: %lld";
+"Gap" = "Abstand";
+"Rails" = "Nutzenränder";
+"Panel preview" = "Nutzen-Vorschau";
+"Separation" = "Trennung";
+"Tabs and mouse bites" = "Stege und Mouse Bites";
+"V-score" = "V-Ritzung";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "Das Fertigungspaket erhält einen Ordner panel/: jede Lage über den Nutzen wiederholt, Ränder mit drei Passermarken und vier Aufnahmebohrungen sowie V-Ritzlinien oder gefräste Stege mit Mouse Bites.";

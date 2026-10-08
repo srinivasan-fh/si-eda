@@ -86,6 +86,16 @@ extension EDAEngine {
         }
     }
 
+    /// The production panel's layout (the settings and where boards, rails, tabs and holes go).
+    func panelLayout() -> PanelLayoutInfo? {
+        Self.decode(PanelLayoutInfo.self, from: withHandle { Self.take(sieda_pcb_panel($0)) })
+    }
+
+    func setPanel(_ panel: PanelInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(panel), let json = String(data: data, encoding: .utf8) else { return false }
+        return withHandle { sieda_pcb_set_panel($0, json) } == 1
+    }
+
     /// Review text of what changed from `before` (a saved project's JSON) to the open design.
     func diffText(from before: String) -> String {
         let after = saveJSON()

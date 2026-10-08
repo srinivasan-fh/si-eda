@@ -1231,3 +1231,12 @@
 "Command Palette…" = "コマンドパレット…";
 "Search commands, parts and nets" = "コマンド、部品、ネットを検索";
 "End the simulation early" = "シミュレーションを途中で終了";
+"Boards across: %lld" = "横の基板数: %lld";
+"Boards up: %lld" = "縦の基板数: %lld";
+"Gap" = "間隔";
+"Rails" = "捨て基板（レール）";
+"Panel preview" = "面付けのプレビュー";
+"Separation" = "分割方法";
+"Tabs and mouse bites" = "タブとミシン目";
+"V-score" = "Vカット";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "製造パッケージに panel/ フォルダーが加わります: 全レイヤーを面付けで繰り返し、フィデューシャル 3 点と治具穴 4 つ付きの捨て基板、V カット線またはミシン目付きのタブ。";

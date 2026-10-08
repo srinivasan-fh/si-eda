@@ -773,6 +773,8 @@ struct BoardInfo: Decodable, Equatable {
     /// Custom outline polygon (empty = width × height rectangle).
     var outline: [BoardPoint] = []
     var holes: [MountingHoleInfo] = []
+    /// Production panel (core `PanelSettings`); nil = a single board.
+    var panel: PanelInfo?
 
     init() {}
 
@@ -817,6 +819,7 @@ struct BoardInfo: Decodable, Equatable {
         autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
+        panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -824,7 +827,7 @@ struct BoardInfo: Decodable, Equatable {
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
-        case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad
+        case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -1620,4 +1623,20 @@ enum EngineeringFormat {
         if let first = rest.first, let mult = multipliers[first] { return base * mult }
         return base
     }
+}
+
+/// Production panel settings (`sieda_pcb_panel` / `sieda_pcb_set_panel`): nx × ny boards, routed gap (mm, tab panels),
+/// rail width (mm), V-score instead of tabs and mouse bites.
+struct PanelInfo: Codable, Equatable {
+    var nx = 1, ny = 1
+    var gap = 2.0, rail = 5.0
+    var vscore = false
+}
+
+/// Where the panel puts everything (mm, Y up), for the Board Setup preview.
+struct PanelLayoutInfo: Decodable, Equatable {
+    var settings: PanelInfo
+    var width, height, boardWidth, boardHeight: Double
+    var boards, fiducials, toolingHoles, mouseBites: [[Double]]
+    var tabs, vscores: [[[Double]]]
 }

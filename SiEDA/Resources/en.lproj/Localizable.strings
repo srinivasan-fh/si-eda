@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Command Palette…";
 "Search commands, parts and nets" = "Search commands, parts and nets";
 "End the simulation early" = "End the simulation early";
+"Boards across: %lld" = "Boards across: %lld";
+"Boards up: %lld" = "Boards up: %lld";
+"Gap" = "Gap";
+"Rails" = "Rails";
+"Panel preview" = "Panel preview";
+"Separation" = "Separation";
+"Tabs and mouse bites" = "Tabs and mouse bites";
+"V-score" = "V-score";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites.";

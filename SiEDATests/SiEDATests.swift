@@ -7946,3 +7946,26 @@ final class SnapshotDeltaTests: XCTestCase {
         XCTAssertEqual(store.snapshot, try store.engine.snapshotChecked().get())
     }
 }
+
+/// Production panels (`sieda_pcb_panel`): settings round trip, layout and the package's panel folder.
+@MainActor
+final class PanelTests: XCTestCase {
+    func testPanelLayoutAndPackage() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        store.autoPlace(all: true)
+        XCTAssertNil(store.snapshot.board.panel)
+        store.setPanel(PanelInfo(nx: 2, ny: 3, gap: 2, rail: 5, vscore: false))
+        XCTAssertEqual(store.snapshot.board.panel, PanelInfo(nx: 2, ny: 3, gap: 2, rail: 5, vscore: false))
+        let layout = try XCTUnwrap(store.engine.panelLayout())
+        XCTAssertEqual(layout.boards.count, 6)
+        XCTAssertEqual(layout.fiducials.count, 3)
+        XCTAssertFalse(layout.tabs.isEmpty)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("panel-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        XCTAssertTrue(store.engine.writeFabricationPackage(to: folder, base: "Board").ok)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("panel/Board-panel.zip").path))
+        store.setPanel(PanelInfo())
+        XCTAssertNil(store.snapshot.board.panel)
+    }
+}

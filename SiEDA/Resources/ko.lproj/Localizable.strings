@@ -1231,3 +1231,12 @@
 "Command Palette…" = "명령 팔레트…";
 "Search commands, parts and nets" = "명령, 부품, 네트 검색";
 "End the simulation early" = "시뮬레이션을 일찍 끝내기";
+"Boards across: %lld" = "가로 보드 수: %lld";
+"Boards up: %lld" = "세로 보드 수: %lld";
+"Gap" = "간격";
+"Rails" = "레일";
+"Panel preview" = "패널 미리보기";
+"Separation" = "분리 방식";
+"Tabs and mouse bites" = "탭과 마우스 바이트";
+"V-score" = "V-컷";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "제조 패키지에 panel/ 폴더가 추가됩니다: 모든 레이어를 패널 전체에 반복, 피듀셜 3개와 툴링 홀 4개가 있는 레일, V-컷 선 또는 마우스 바이트가 있는 탭.";

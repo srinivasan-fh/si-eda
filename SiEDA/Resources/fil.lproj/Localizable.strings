@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Command Palette…";
 "Search commands, parts and nets" = "Maghanap ng mga command, piyesa at net";
 "End the simulation early" = "Tapusin nang maaga ang simulation";
+"Boards across: %lld" = "Mga board pahalang: %lld";
+"Boards up: %lld" = "Mga board pataas: %lld";
+"Gap" = "Puwang";
+"Rails" = "Mga rail";
+"Panel preview" = "Preview ng panel";
+"Separation" = "Paghihiwalay";
+"Tabs and mouse bites" = "Mga tab at mouse bite";
+"V-score" = "V-score";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "Nagdadagdag ang fabrication package ng folder na panel/: bawat layer na inulit sa panel, mga rail na may tatlong fiducial at apat na tooling hole, at mga V-score line o routed tab na may mouse bite.";

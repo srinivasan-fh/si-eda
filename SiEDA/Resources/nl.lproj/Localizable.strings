@@ -1231,3 +1231,12 @@
 "Command Palette…" = "Opdrachtenpalet…";
 "Search commands, parts and nets" = "Zoek opdrachten, onderdelen en netten";
 "End the simulation early" = "Simulatie voortijdig beëindigen";
+"Boards across: %lld" = "Printen naast elkaar: %lld";
+"Boards up: %lld" = "Printen boven elkaar: %lld";
+"Gap" = "Tussenruimte";
+"Rails" = "Randen";
+"Panel preview" = "Paneelvoorbeeld";
+"Separation" = "Scheiding";
+"Tabs and mouse bites" = "Tabs en mouse bites";
+"V-score" = "V-groef";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "Het productiepakket krijgt een map panel/: elke laag herhaald over het paneel, randen met drie fiducials en vier gereedschapsgaten, en V-groeflijnen of gefreesde tabs met mouse bites.";

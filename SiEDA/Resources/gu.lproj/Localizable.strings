@@ -1231,3 +1231,12 @@
 "Command Palette…" = "કમાન્ડ પૅલેટ…";
 "Search commands, parts and nets" = "કમાન્ડ, ભાગો અને નેટ શોધો";
 "End the simulation early" = "સિમ્યુલેશન વહેલું સમાપ્ત કરો";
+"Boards across: %lld" = "આડા બોર્ડ: %lld";
+"Boards up: %lld" = "ઊભા બોર્ડ: %lld";
+"Gap" = "અંતર";
+"Rails" = "રેલ";
+"Panel preview" = "પેનલ પૂર્વાવલોકન";
+"Separation" = "વિભાજન";
+"Tabs and mouse bites" = "ટેબ અને માઉસ બાઇટ";
+"V-score" = "V-સ્કોર";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "ફેબ્રિકેશન પેકેજ panel/ ફોલ્ડર ઉમેરે છે: દરેક લેયર પેનલ પર પુનરાવર્તિત, ત્રણ ફિડ્યુશિયલ અને ચાર ટૂલિંગ હોલ સાથે રેલ, અને V-સ્કોર લાઇન અથવા માઉસ બાઇટ સાથે ટેબ.";

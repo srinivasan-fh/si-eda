@@ -140,6 +140,16 @@ struct MountingHole {
     double keepout = 6.4;  // keep-out diameter, mm
 };
 
+/// Production panel (Panel.hpp): nx × ny copies of the board between two rails with fiducials and tooling holes,
+/// separated by V-score lines or by routed gaps with breakaway tabs and mouse bites. 1 × 1 = no panel (not saved).
+struct PanelSettings {
+    int nx = 1, ny = 1;
+    double gap = 2.0;     // mm routed between boards and to the rails (tab panels; V-score panels butt the boards)
+    double rail = 5.0;    // mm, rails along the top and bottom edges (0 = none)
+    bool vscore = false;  // V-score lines instead of tabs + mouse bites
+    bool enabled() const { return nx * ny > 1; }
+};
+
 struct BoardSettings {
     double width = 50.0;   // mm
     double height = 40.0;  // mm
@@ -208,6 +218,8 @@ struct BoardSettings {
     /// height zones. Saved only when set.
     double maxHeightTop = 0, maxHeightBottom = 0;
     std::vector<HeightZone> heightZones;
+    /// Production panel for the fabrication package (saved only when it has more than one board).
+    PanelSettings panel;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {

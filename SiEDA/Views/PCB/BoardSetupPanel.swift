@@ -64,6 +64,8 @@ struct BoardSetupPanel: View {
                     }
                 }
 
+                panelSection(board.panel ?? PanelInfo())
+
                 section("Copper Pours & Planes", systemImage: "square.fill.on.square.fill") {
                     if store.snapshot.zones.isEmpty {
                         Text("No pours. Ground pours shorten return paths, carry high currents and leave the "
@@ -382,6 +384,46 @@ struct BoardSetupPanel: View {
         }
     }
 
+    /// Production panel: counts, separation, gap and rails, with a preview of the layout the fab package will use.
+    private func panelSection(_ panel: PanelInfo) -> some View {
+        func set(_ change: (inout PanelInfo) -> Void) {
+            var p = panel
+            change(&p)
+            store.setPanel(p)
+        }
+        return section("Production Panel", systemImage: "square.grid.3x2") {
+            HStack {
+                Stepper(value: Binding(get: { panel.nx }, set: { v in set { $0.nx = v } }), in: 1...20) {
+                    Text("Boards across: \(panel.nx)")
+                }
+                Stepper(value: Binding(get: { panel.ny }, set: { v in set { $0.ny = v } }), in: 1...20) {
+                    Text("Boards up: \(panel.ny)")
+                }
+            }
+            Picker("Separation", selection: Binding(get: { panel.vscore }, set: { v in set { $0.vscore = v } })) {
+                Text("Tabs and mouse bites").tag(false)
+                Text("V-score").tag(true)
+            }
+            .pickerStyle(.segmented)
+            HStack {
+                Stepper(value: Binding(get: { panel.gap }, set: { v in set { $0.gap = v } }), in: 0...10, step: 0.5) {
+                    Text(verbatim: String(format: "%@ %.1f mm", String(localized: "Gap"), panel.gap))
+                }
+                .disabled(panel.vscore)
+                Stepper(value: Binding(get: { panel.rail }, set: { v in set { $0.rail = v } }), in: 0...15, step: 1) {
+                    Text(verbatim: String(format: "%@ %.0f mm", String(localized: "Rails"), panel.rail))
+                }
+            }
+            if panel.nx * panel.ny > 1, let layout = store.engine.panelLayout() {
+                PanelPreview(layout: layout).frame(height: 140)
+                Text(verbatim: String(format: "%.1f × %.1f mm · %d", layout.width, layout.height, layout.boards.count))
+                    .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+            }
+            Text("The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites.")
+                .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private func section<Content: View>(_ title: String, systemImage: String,
                                         @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -420,4 +462,42 @@ enum MountingPattern: String, CaseIterable, Identifiable {
 
     var drill: Double { self == .m2FlightController ? 2.2 : 3.2 }
     var keepout: Double { self == .m2FlightController ? 4.4 : 6.4 }
+}
+
+/// The panel drawn to scale: rails, boards, tabs, V-score lines, fiducials and tooling holes.
+private struct PanelPreview: View {
+    var layout: PanelLayoutInfo
+
+    var body: some View {
+        Canvas { context, size in
+            let scale = min(size.width / max(layout.width, 1), size.height / max(layout.height, 1))
+            let dx = (size.width - layout.width * scale) / 2, dy = (size.height - layout.height * scale) / 2
+            func point(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: dx + x * scale, y: dy + (layout.height - y) * scale) }
+            func rect(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> CGRect {
+                let a = point(x0, y0), b = point(x1, y1)
+                return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
+            }
+            context.fill(Path(rect(0, 0, layout.width, layout.height)), with: .color(Theme.darkBlue.opacity(0.6)))
+            for b in layout.boards where b.count == 2 {
+                context.fill(Path(rect(b[0], b[1], b[0] + layout.boardWidth, b[1] + layout.boardHeight)),
+                             with: .color(Color(red: 0.13, green: 0.45, blue: 0.25)))
+            }
+            for t in layout.tabs where t.count == 2 {
+                context.fill(Path(rect(t[0][0], t[0][1], t[1][0], t[1][1])), with: .color(Theme.lightBlue))
+            }
+            for v in layout.vscores where v.count == 2 {
+                var line = Path()
+                line.move(to: point(v[0][0], v[0][1]))
+                line.addLine(to: point(v[1][0], v[1][1]))
+                context.stroke(line, with: .color(Theme.warning), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+            }
+            for (points, colour, d) in [(layout.fiducials, Color.yellow, 2.0), (layout.toolingHoles, Color.white, 2.0)] {
+                for p in points where p.count == 2 {
+                    let c = point(p[0], p[1]), r = max(1.5, d * scale / 2)
+                    context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(colour))
+                }
+            }
+        }
+        .accessibilityLabel(Text("Panel preview"))
+    }
 }

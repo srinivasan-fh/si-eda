@@ -1231,3 +1231,12 @@
 "Command Palette…" = "కమాండ్ ప్యాలెట్…";
 "Search commands, parts and nets" = "కమాండ్‌లు, భాగాలు, నెట్‌లను వెతకండి";
 "End the simulation early" = "సిమ్యులేషన్‌ను ముందుగానే ముగించండి";
+"Boards across: %lld" = "అడ్డంగా బోర్డులు: %lld";
+"Boards up: %lld" = "నిలువుగా బోర్డులు: %lld";
+"Gap" = "ఖాళీ";
+"Rails" = "రైల్స్";
+"Panel preview" = "ప్యానెల్ ప్రివ్యూ";
+"Separation" = "విభజన";
+"Tabs and mouse bites" = "ట్యాబ్‌లు మరియు మౌస్ బైట్‌లు";
+"V-score" = "V-స్కోర్";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "తయారీ ప్యాకేజీకి panel/ ఫోల్డర్ చేరుతుంది: ప్రతి లేయర్ ప్యానెల్ అంతటా పునరావృతం, మూడు ఫిడ్యూషియల్‌లు మరియు నాలుగు టూలింగ్ రంధ్రాలతో రైల్స్, V-స్కోర్ గీతలు లేదా మౌస్ బైట్‌లతో ట్యాబ్‌లు.";

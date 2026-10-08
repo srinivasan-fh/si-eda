@@ -306,6 +306,12 @@ int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json)
  * The getter returns {} without limits. Set returns 1 on success. */
 char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
+/* Production panel (sieda/Panel.hpp): the layout {"settings":{"nx","ny","gap","rail","vscore"},"enabled","width",
+ * "height","boardWidth","boardHeight","boards":[[x,y]],"fiducials","toolingHoles","mouseBites","tabs":[[[x0,y0],
+ * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); returns 1 on success. The fabrication
+ * package adds panel/ Gerbers, drills and a zip when the panel has more than one board. */
+char* sieda_pcb_panel(const SiedaProject* project);
+int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */

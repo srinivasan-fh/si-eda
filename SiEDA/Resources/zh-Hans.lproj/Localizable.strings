@@ -1231,3 +1231,12 @@
 "Command Palette…" = "命令面板…";
 "Search commands, parts and nets" = "搜索命令、元件和网络";
 "End the simulation early" = "提前结束仿真";
+"Boards across: %lld" = "横向板数：%lld";
+"Boards up: %lld" = "纵向板数：%lld";
+"Gap" = "间隙";
+"Rails" = "工艺边";
+"Panel preview" = "拼板预览";
+"Separation" = "分板方式";
+"Tabs and mouse bites" = "邮票孔连接";
+"V-score" = "V 割";
+"The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites." = "制造包会增加 panel/ 文件夹：每一层在拼板上重复，工艺边带三个基准点和四个定位孔，并有 V 割线或带邮票孔的连接桥。";
