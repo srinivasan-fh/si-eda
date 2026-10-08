@@ -1225,3 +1225,6 @@
 "Resolve" = "解决";
 "%lld open" = "%lld 条未解决";
 "Matrix Green" = "矩阵绿";
+"App Theme" = "应用主题";
+"Graphite" = "石墨";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "为每个窗口配色：面板、强调色和文字，并选择相应的原理图配色。铜箔、焊盘和错误颜色保持标准。";

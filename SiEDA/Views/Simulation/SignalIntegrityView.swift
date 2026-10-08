@@ -239,7 +239,7 @@ struct SignalIntegrityView: View {
         let v: Double
     }
 
-    private static let waveColors: [Color] = [Theme.lightBlue, Theme.probe, Theme.liveOn]
+    private static var waveColors: [Color] { [Theme.lightBlue, Theme.probe, Theme.liveOn] }
 
     private func wavePoints(_ a: SINetAnalysis) -> [WavePoint] {
         var out: [WavePoint] = []

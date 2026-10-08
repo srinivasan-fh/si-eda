@@ -282,6 +282,12 @@ private struct AppearanceSettings: View {
                 ForEach(AppearancePreference.allCases) { Text($0.title).tag($0.rawValue) }
             }
             .pickerStyle(.segmented)
+            Picker("App Theme", selection: Binding(get: { AppTheme.current }, set: AppTheme.select)) {
+                ForEach(AppTheme.allCases) { Text(LocalizedStringKey($0.title)).tag($0) }
+            }
+            Text("Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
             Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)

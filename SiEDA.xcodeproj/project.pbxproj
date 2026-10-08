@@ -157,6 +157,7 @@
 		CC58FF941B8B7748D68E3997 = {isa = PBXBuildFile; fileRef = 4D41F9827D04F7BA52327380; };
 		CFED63E4A9B11A15D065F269 = {isa = PBXBuildFile; fileRef = 78B726F39E714F01B156BE43; };
 		D05A84F3A7525AD5FD646908 = {isa = PBXBuildFile; fileRef = 185A7FEDCC550688A03D3A45; };
+		D0BAFDEC616A80CA7ED031B6 = {isa = PBXBuildFile; fileRef = 80E8D809F4A6CA446F4FD5F8; };
 		D0DE83284A0ADF3CE958D7F0 = {isa = PBXBuildFile; fileRef = 0B047E6B6CA14C24D4B0C2FD; };
 		D20DDB8EBCC3CAE2AA504F85 = {isa = PBXBuildFile; fileRef = 4B40A13838EF4909CCB49D9A; };
 		D2BC6252017E8B9C5D188C94 = {isa = PBXBuildFile; fileRef = D156DE043960324A44FBB5D4; };
@@ -351,6 +352,7 @@
 		806FA6D4114CF0A3E25E0898 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = PdnPlanning.hpp; sourceTree = "<group>"; };
 		80BDB171C5EBFDFEAE8F3C02 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CustomParts.hpp; sourceTree = "<group>"; };
 		80E356175BDB80AB2AB4E5ED = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Aerospace.hpp; sourceTree = "<group>"; };
+		80E8D809F4A6CA446F4FD5F8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		8293CD35D646C442EB4F72F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Channel.cpp; sourceTree = "<group>"; };
 		833CC0D371F8BDA60C967CC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Export.hpp; sourceTree = "<group>"; };
 		84966DF7BFC55F50B9962345 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerPlanningView.swift; sourceTree = "<group>"; };
@@ -532,6 +534,7 @@
 		2566E2F51C2B29142CEC2234 = {
 			isa = PBXGroup;
 			children = (
+				80E8D809F4A6CA446F4FD5F8,
 				7D38A642DF9EECA1FFA8CE5A,
 				B46D2AEFEE0749D1F2AC3A2E,
 				A2F99F3A480C92D82686F84B,
@@ -1139,6 +1142,7 @@
 				CC4D736CAD75CF7715081886,
 				93F543F5DF9687E3A93CCAA0,
 				BA6D45241A0139FD8B4C26A9,
+				D0BAFDEC616A80CA7ED031B6,
 				F84C75A40B9069298630ACE6,
 				939A303A77CE6A310EECDD00,
 				6BB99981ADF19C56810EF901,

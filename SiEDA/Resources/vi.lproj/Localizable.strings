@@ -1225,3 +1225,6 @@
 "Resolve" = "Giải quyết";
 "%lld open" = "%lld đang mở";
 "Matrix Green" = "Xanh Matrix";
+"App Theme" = "Chủ đề ứng dụng";
+"Graphite" = "Than chì";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Tô màu mọi cửa sổ: bảng, màu nhấn và chữ, và chọn bảng màu sơ đồ tương ứng. Màu đồng, pad và lỗi giữ nguyên chuẩn.";

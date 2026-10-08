@@ -1225,3 +1225,6 @@
 "Resolve" = "ସମାଧାନ";
 "%lld open" = "%lld ଖୋଲା";
 "Matrix Green" = "ମ୍ୟାଟ୍ରିକ୍ସ ଗ୍ରୀନ";
+"App Theme" = "ଆପ୍ ଥିମ୍";
+"Graphite" = "ଗ୍ରାଫାଇଟ୍";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "ପ୍ରତ୍ୟେକ ୱିଣ୍ଡୋକୁ ରଙ୍ଗ ଦିଏ: ପ୍ୟାନେଲ୍, ଆକ୍ସେଣ୍ଟ ଓ ଲେଖା, ଏବଂ ମେଳ ଖାଉଥିବା ସ୍କିମାଟିକ୍ ସ୍କିମ୍ ବାଛେ। କପର, ପ୍ୟାଡ୍ ଓ ତ୍ରୁଟି ରଙ୍ଗ ମାନକ ରହେ।";

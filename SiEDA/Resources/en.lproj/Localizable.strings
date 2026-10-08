@@ -1225,3 +1225,6 @@
 "Resolve" = "Resolve";
 "%lld open" = "%lld open";
 "Matrix Green" = "Matrix Green";
+"App Theme" = "App Theme";
+"Graphite" = "Graphite";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard.";

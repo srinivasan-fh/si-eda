@@ -1225,3 +1225,6 @@
 "Resolve" = "解決";
 "%lld open" = "未解決 %lld 件";
 "Matrix Green" = "マトリックスグリーン";
+"App Theme" = "アプリのテーマ";
+"Graphite" = "グラファイト";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "すべてのウインドウ（パネル、アクセント、テキスト）を配色し、対応する回路図の配色を選びます。銅箔、パッド、エラーの色は標準のままです。";

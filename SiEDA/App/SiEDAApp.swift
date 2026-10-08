@@ -211,10 +211,13 @@ struct SiEDAApp: App {
     @StateObject private var agents = AgentOrchestrator()
     @StateObject private var language = LanguageSettings()
     @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
+    /// Read so a new app theme (`AppTheme.select`) redraws every window; the document stays in `store`.
+    @AppStorage(AppTheme.storageKey) private var appTheme = AppTheme.midnightNavy.rawValue
 
     var body: some Scene {
         WindowGroup("SiEDA") {
             ContentView()
+                .id(appTheme)
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(agents)
@@ -237,6 +240,7 @@ struct SiEDAApp: App {
 
         Settings {
             SettingsView()
+                .id(appTheme)
                 .environmentObject(settings)
                 .environmentObject(store)
                 .environmentObject(language)
