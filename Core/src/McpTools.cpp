@@ -2433,7 +2433,7 @@ void outputTools(Table& t) {
           "One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, "
           "pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / "
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
-          "drill_npth, ipc356, fab_notes, stl, obj. variant: an assembly variant for the assembly outputs.",
+          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj. variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
           [](McpServer& s, const Json& a) {
               const std::string f = requireStr(a, "format");

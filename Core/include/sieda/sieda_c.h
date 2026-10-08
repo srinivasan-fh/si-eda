@@ -522,7 +522,9 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn),
- *         "idf_library" (IDF 3.0 .emp), "review" (design review, Markdown). Returns NULL for unknown formats. */
+ *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
+ *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
+ *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],

@@ -11,6 +11,7 @@
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
+#include "sieda/FabExchange.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -1511,6 +1512,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
+        if (f == "ipc2581") return dup(exportIpc2581(p));
         if (f == "review") return dup(reviewMarkdown(p));
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));

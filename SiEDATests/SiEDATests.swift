@@ -2037,6 +2037,9 @@ final class FabricationPackageTests: XCTestCase {
         let notes = try String(contentsOf: folder.appendingPathComponent("fab_notes.txt"), encoding: .utf8)
         XCTAssertTrue(notes.contains("Solder mask          Green"))
         XCTAssertTrue(notes.contains("Board-gerbers.zip"))
+        XCTAssertTrue(notes.contains("Board-ipc2581.xml") && notes.contains("Board-odb.tgz"))
+        let odb = try Data(contentsOf: folder.appendingPathComponent("Board-odb.tgz"))
+        XCTAssertEqual(Array(odb.prefix(2)), [0x1F, 0x8B])  // gzip
 
         // Every single-file export works on its own too.
         for format in ExportFormat.allCases {

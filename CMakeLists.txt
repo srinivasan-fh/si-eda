@@ -52,6 +52,7 @@ add_library(sieda_core STATIC
     Core/src/Mesh.cpp
     Core/src/Export.cpp
     Core/src/Fabrication.cpp
+    Core/src/FabExchange.cpp
     Core/src/Bom.cpp
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp

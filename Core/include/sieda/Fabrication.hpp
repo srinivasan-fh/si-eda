@@ -2,6 +2,7 @@
 // design, laid out the way they expect, with an order sheet and a ready-to-upload Gerber zip.
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -39,6 +40,9 @@ std::string exportGerberJob(const Project& project, const std::vector<FabFile>& 
 /// Excellon backdrill program: per via stub, an oversize drill from the bottom (or top) to just short of the last
 /// (first) used layer, with the must-not-cut layer in the comments. Empty when nothing needs backdrilling.
 std::string exportBackdrill(const Project& project);
+
+/// CRC-32 (IEEE 802.3), as zip and gzip use it.
+uint32_t crc32(const std::string& data);
 
 /// A .zip archive (stored, no compression) of the given files.
 std::string makeZip(const std::vector<std::pair<std::string, std::string>>& files);

@@ -1,4 +1,5 @@
 #include "sieda/Fabrication.hpp"
+#include "sieda/FabExchange.hpp"
 
 #include <algorithm>
 #include <array>
@@ -118,6 +119,8 @@ std::string silkColour(const BoardSettings& s) {
     return style && style->silk.r < 0.5f ? "Black" : "White";
 }
 
+}  // namespace
+
 uint32_t crc32(const std::string& data) {
     static std::array<uint32_t, 256> table = [] {
         std::array<uint32_t, 256> t{};
@@ -132,7 +135,6 @@ uint32_t crc32(const std::string& data) {
     for (unsigned char ch : data) c = table[(c ^ ch) & 0xFF] ^ (c >> 8);
     return c ^ 0xFFFFFFFFu;
 }
-}  // namespace
 
 std::string recommendedSurfaceFinish(const Project& project) {
     std::string required = fabricationRequirements(project).finish;  // industry (no pure tin, RF silver …)
@@ -462,6 +464,8 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
     add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");
+    add(base + "-ipc2581.xml", exportIpc2581(project), "IPC-2581C: copper, mask, silk, drills, nets, parts and BOM in one file");
+    add(base + "-odb.tgz", exportOdbArchive(project), "ODB++ v7 job (.tgz): layers, drills, components and nets");
     // Notes last, so they list every file (themselves included).
     files.push_back({"fab_notes.txt", "", "Order sheet: these notes"});
     files.back().content = fabricationNotes(project, files);

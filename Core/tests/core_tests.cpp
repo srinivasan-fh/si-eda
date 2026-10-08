@@ -28,6 +28,7 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/FabExchange.hpp"
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -2884,6 +2885,57 @@ TEST(assembly_mesh_follows_layer_count) {
         CHECK((layers == 1) == (bareUnderside > 0));
         CHECK(bands == std::max(0, layers - 2));
     }
+}
+
+TEST(ipc2581_and_odb_archive_describe_the_same_board) {
+    Project p = amplifierProject();
+    p.name = "Amp";
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.holes.push_back({{3, 3}, 3.2, 6.4});
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.kind == ComponentKind::Resistor && c.hasFootprint()) {
+            c.pcb.bottom = true;
+            break;
+        }
+    int parts = 0, holes = static_cast<int>(p.pcb.vias.size() + p.pcb.settings.holes.size());
+    for (const auto& c : p.schematic.components()) parts += c.hasFootprint() && c.pcb.placed && !c.pcb.embedded();
+    for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0;
+    auto count = [](const std::string& text, const std::string& what) {
+        int n = 0;
+        for (size_t at = text.find(what); at != std::string::npos; at = text.find(what, at + 1)) ++n;
+        return n;
+    };
+
+    const std::string xml = exportIpc2581(p);
+    CHECK(xml.rfind("<?xml", 0) == 0 && xml.find("</IPC-2581>") != std::string::npos);
+    CHECK(count(xml, "<Component ") == parts);
+    CHECK(count(xml, "<Hole ") == holes);
+    CHECK(count(xml, "<Set") == count(xml, "</Set>") && count(xml, "<LayerFeature ") >= 8);
+    CHECK(xml.find("<Layer name=\"L2\" layerFunction=\"SIGNAL\" side=\"INTERNAL\"") != std::string::npos);
+    CHECK(xml.find("<Span fromLayer=\"TOP\" toLayer=\"BOTTOM\"/>") != std::string::npos);
+
+    // ODB++: gzip of stored deflate blocks around a ustar archive; unwrap it and look inside.
+    const std::string tgz = exportOdbArchive(p);
+    CHECK(tgz.size() > 18 && static_cast<unsigned char>(tgz[0]) == 0x1f && static_cast<unsigned char>(tgz[1]) == 0x8b);
+    std::string tar;
+    for (size_t at = 10; at + 5 <= tgz.size() - 8;) {
+        const bool last = tgz[at] & 1;
+        const size_t n = static_cast<unsigned char>(tgz[at + 1]) | static_cast<size_t>(static_cast<unsigned char>(tgz[at + 2])) << 8;
+        tar.append(tgz, at + 5, n);
+        at += 5 + n;
+        if (last) break;
+    }
+    uint32_t crc = 0;
+    for (int i = 3; i >= 0; --i) crc = crc << 8 | static_cast<unsigned char>(tgz[tgz.size() - 8 + static_cast<size_t>(i)]);
+    CHECK(crc == crc32(tar) && tar.size() % 512 == 0);
+    for (const char* path : {"Amp/matrix/matrix", "Amp/misc/info", "Amp/steps/pcb/profile", "Amp/steps/pcb/eda/data",
+                             "Amp/steps/pcb/layers/l2/features", "Amp/steps/pcb/layers/drill/features",
+                             "Amp/steps/pcb/layers/comp_+_top/components", "Amp/steps/pcb/layers/comp_+_bot/components"})
+        CHECK(tar.find(path) != std::string::npos);
+    CHECK(count(tar, "\nCMP ") == parts);
+    CHECK(count(tar, "TYPE=SIGNAL") == 4);
 }
 
 TEST(fabrication_package_is_complete) {
