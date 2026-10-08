@@ -7971,3 +7971,25 @@ final class PanelTests: XCTestCase {
         XCTAssertNil(store.snapshot.board.panel)
     }
 }
+
+/// Per-edit timings (Help → Performance…) and the app's edit budget on a reference design.
+@MainActor
+final class EditPerformanceTests: XCTestCase {
+    func testEditsAreTimedAndStayWithinBudget() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        store.autoPlace(all: true)
+        let part = try XCTUnwrap(store.snapshot.components.first { !$0.componentKind.isVirtual && $0.pcb.placed })
+        let before = store.editTimings.count
+        for i in 0..<20 {
+            store.moveFootprint(part.id, to: CGPoint(x: part.pcb.x + (i % 2 == 0 ? 1 : 0), y: part.pcb.y))
+        }
+        let timings = Array(store.editTimings.suffix(store.editTimings.count - before))
+        XCTAssertEqual(timings.count, 20)
+        XCTAssertTrue(timings.allSatisfy { $0.action.hasPrefix("Moved") && $0.totalMs > 0 })
+        // Generous for shared CI machines; a regression to full snapshots on every edit shows up here first.
+        let p95 = PerformanceLog.percentile(timings.map(\.totalMs), 0.95)
+        XCTAssertLessThan(p95, 400, "edit p95 \(p95) ms")
+        XCTAssertEqual(PerformanceLog.percentile([5, 1, 3, 2, 4], 0.5), 3)
+    }
+}

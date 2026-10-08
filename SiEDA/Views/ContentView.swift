@@ -53,6 +53,7 @@ struct ContentView: View {
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
         .sheet(isPresented: $store.showWelcomeTour) { WelcomeTourView() }
         .sheet(isPresented: $store.showShortcuts) { KeyboardShortcutsView() }
+        .sheet(isPresented: $store.showPerformance) { PerformanceView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { store.variantMatrix != nil }, set: { if !$0 { store.variantMatrix = nil } })) {
             if let matrix = store.variantMatrix { VariantMatrixView(matrix: matrix) }
         }

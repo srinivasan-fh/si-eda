@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB membawa komponen; Auto Place dan Auto Route melakukan selebihnya. Laluan secara manual dengan tolak dan anjak di tempat penting.";
 "Order the board" = "Pesan papan";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) mengesahkan reka bentuk dan menulis Gerber, gerudi, IPC-2581, ODB++, BOM, fail penempatan dan panel pengeluaran pilihan.";
+"Performance" = "Prestasi";
+"Performance…" = "Prestasi…";
+"Median" = "Median";
+"95th percentile" = "Persentil ke-95";
+"Slowest" = "Paling perlahan";
+"Total" = "Jumlah";
+"Undo state" = "Keadaan buat asal";
+"Engine" = "Enjin";
+"View refresh" = "Segar semula paparan";

@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB가 부품을 가져오고 Auto Place와 Auto Route가 나머지를 처리합니다. 중요한 곳은 푸시 앤 쇼브로 직접 배선하세요.";
 "Order the board" = "보드 주문";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package(⇧⌘E)가 설계를 검증하고 Gerber, 드릴, IPC-2581, ODB++, BOM, 배치 파일과 선택적 생산 패널을 출력합니다.";
+"Performance" = "성능";
+"Performance…" = "성능…";
+"Median" = "중앙값";
+"95th percentile" = "95번째 백분위수";
+"Slowest" = "가장 느림";
+"Total" = "합계";
+"Undo state" = "실행 취소 상태";
+"Engine" = "엔진";
+"View refresh" = "화면 갱신";

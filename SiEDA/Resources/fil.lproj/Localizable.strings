@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Dinadala ng Update PCB ang mga piyesa; ang Auto Place at Auto Route ang bahala sa iba. Mag-route nang mano-mano gamit ang push and shove kung kailangan.";
 "Order the board" = "I-order ang board";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Bine-verify ng Export Fabrication Package (⇧⌘E) ang disenyo at isinusulat ang Gerber, drill, IPC-2581, ODB++, BOM, placement file at opsyonal na production panel.";
+"Performance" = "Performance";
+"Performance…" = "Performance…";
+"Median" = "Median";
+"95th percentile" = "Ika-95 percentile";
+"Slowest" = "Pinakamabagal";
+"Total" = "Kabuuan";
+"Undo state" = "Undo state";
+"Engine" = "Engine";
+"View refresh" = "Pag-refresh ng view";

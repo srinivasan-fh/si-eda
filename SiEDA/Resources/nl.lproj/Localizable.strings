@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB haalt de onderdelen over; Auto Place en Auto Route doen de rest. Route met de hand met push-and-shove waar het ertoe doet.";
 "Order the board" = "Bestel de print";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) controleert het ontwerp en schrijft Gerbers, boorbestanden, IPC-2581, ODB++, de stuklijst, plaatsingsbestanden en desgewenst een productiepaneel.";
+"Performance" = "Prestaties";
+"Performance…" = "Prestaties…";
+"Median" = "Mediaan";
+"95th percentile" = "95e percentiel";
+"Slowest" = "Traagste";
+"Total" = "Totaal";
+"Undo state" = "Ongedaan-maken-status";
+"Engine" = "Kern";
+"View refresh" = "Weergave vernieuwen";

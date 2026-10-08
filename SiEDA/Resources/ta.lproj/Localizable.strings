@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB பாகங்களைக் கொண்டுவரும்; Auto Place மற்றும் Auto Route மீதியைச் செய்யும். முக்கியமான இடங்களில் push and shove உடன் கையால் இணைக்கவும்.";
 "Order the board" = "பலகையை ஆர்டர் செய்யவும்";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) வடிவமைப்பைச் சரிபார்த்து Gerber, துளை, IPC-2581, ODB++, BOM, இட அமைப்பு கோப்புகள் மற்றும் விருப்ப உற்பத்தி பேனலை எழுதும்.";
+"Performance" = "செயல்திறன்";
+"Performance…" = "செயல்திறன்…";
+"Median" = "இடைநிலை";
+"95th percentile" = "95-ஆம் சதமானம்";
+"Slowest" = "மிக மெதுவானது";
+"Total" = "மொத்தம்";
+"Undo state" = "செயல்தவிர் நிலை";
+"Engine" = "இயந்திரம்";
+"View refresh" = "காட்சி புதுப்பிப்பு";

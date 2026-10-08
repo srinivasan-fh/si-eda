@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB 匯入元件；Auto Place 和 Auto Route 完成其餘工作。關鍵處用推擠佈線手動佈線。";
 "Order the board" = "下單製板";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package（⇧⌘E）會驗證設計並輸出 Gerber、鑽孔、IPC-2581、ODB++、BOM、貼片檔案以及可選的生產拼板。";
+"Performance" = "效能";
+"Performance…" = "效能…";
+"Median" = "中位數";
+"95th percentile" = "第 95 百分位";
+"Slowest" = "最慢";
+"Total" = "合計";
+"Undo state" = "復原狀態";
+"Engine" = "核心";
+"View refresh" = "視圖重新整理";

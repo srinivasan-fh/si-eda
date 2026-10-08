@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB übernimmt die Bauteile; Auto Place und Auto Route erledigen den Rest. Wo es darauf ankommt, verlegen Sie von Hand mit Push-and-Shove.";
 "Order the board" = "Leiterplatte bestellen";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) prüft das Design und schreibt Gerber, Bohrdaten, IPC-2581, ODB++, Stückliste, Bestückdaten und auf Wunsch einen Fertigungsnutzen.";
+"Performance" = "Leistung";
+"Performance…" = "Leistung…";
+"Median" = "Median";
+"95th percentile" = "95. Perzentil";
+"Slowest" = "Langsamste";
+"Total" = "Gesamt";
+"Undo state" = "Rückgängig-Zustand";
+"Engine" = "Kern";
+"View refresh" = "Ansicht aktualisieren";

@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters.";
 "Order the board" = "Order the board";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel.";
+"Performance" = "Performance";
+"Performance…" = "Performance…";
+"Median" = "Median";
+"95th percentile" = "95th percentile";
+"Slowest" = "Slowest";
+"Total" = "Total";
+"Undo state" = "Undo state";
+"Engine" = "Engine";
+"View refresh" = "View refresh";

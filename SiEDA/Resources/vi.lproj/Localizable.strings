@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB đưa linh kiện sang; Auto Place và Auto Route làm phần còn lại. Đi dây tay với đẩy và chèn ở nơi quan trọng.";
 "Order the board" = "Đặt làm bo mạch";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) kiểm tra thiết kế và xuất Gerber, khoan, IPC-2581, ODB++, BOM, tệp vị trí linh kiện và panel sản xuất tùy chọn.";
+"Performance" = "Hiệu năng";
+"Performance…" = "Hiệu năng…";
+"Median" = "Trung vị";
+"95th percentile" = "Phân vị 95";
+"Slowest" = "Chậm nhất";
+"Total" = "Tổng";
+"Undo state" = "Trạng thái hoàn tác";
+"Engine" = "Lõi";
+"View refresh" = "Làm mới hiển thị";

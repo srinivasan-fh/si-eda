@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB ഭാഗങ്ങൾ കൊണ്ടുവരുന്നു; Auto Place, Auto Route ബാക്കി ചെയ്യുന്നു. പ്രധാനപ്പെട്ടിടത്ത് push and shove ഉപയോഗിച്ച് കൈകൊണ്ട് റൂട്ട് ചെയ്യുക.";
 "Order the board" = "ബോർഡ് ഓർഡർ ചെയ്യുക";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package (⇧⌘E) ഡിസൈൻ പരിശോധിച്ച് Gerber, ഡ്രിൽ, IPC-2581, ODB++, BOM, പ്ലേസ്മെന്റ് ഫയലുകൾ, ഐച്ഛിക ഉൽപ്പാദന പാനൽ എന്നിവ എഴുതുന്നു.";
+"Performance" = "പ്രകടനം";
+"Performance…" = "പ്രകടനം…";
+"Median" = "മീഡിയൻ";
+"95th percentile" = "95-ാം പെർസെന്റൈൽ";
+"Slowest" = "ഏറ്റവും മന്ദഗതി";
+"Total" = "ആകെ";
+"Undo state" = "അൺഡു നില";
+"Engine" = "എഞ്ചിൻ";
+"View refresh" = "വ്യൂ പുതുക്കൽ";

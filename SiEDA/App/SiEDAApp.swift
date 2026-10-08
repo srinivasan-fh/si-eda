@@ -338,6 +338,7 @@ struct SiEDACommands: Commands {
             Button("Welcome Tour…") { store.showWelcomeTour = true }
             Button("Keyboard Shortcuts") { store.showShortcuts = true }
                 .keyboardShortcut("/", modifiers: .command)
+            Button("Performance…") { store.showPerformance = true }
             Divider()
             Button("Show Crash Reports") {
                 let folder = (CrashReporter.shared?.directory ?? CrashReporter.defaultDirectory)

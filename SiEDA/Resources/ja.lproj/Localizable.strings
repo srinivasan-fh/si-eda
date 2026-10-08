@@ -1260,3 +1260,12 @@
 "Update PCB brings the parts over; Auto Place and Auto Route do the rest. Route by hand with push and shove where it matters." = "Update PCB で部品を取り込み、Auto Place と Auto Route が残りを行います。重要な箇所はプッシュ＆シャブで手配線しましょう。";
 "Order the board" = "基板を発注";
 "Export Fabrication Package (⇧⌘E) verifies the design and writes Gerbers, drills, IPC-2581, ODB++, the BOM, placement files and an optional production panel." = "Export Fabrication Package（⇧⌘E）は設計を検証し、Gerber、ドリル、IPC-2581、ODB++、BOM、実装データ、必要なら面付けパネルを書き出します。";
+"Performance" = "パフォーマンス";
+"Performance…" = "パフォーマンス…";
+"Median" = "中央値";
+"95th percentile" = "95 パーセンタイル";
+"Slowest" = "最も遅い";
+"Total" = "合計";
+"Undo state" = "取り消し用の状態";
+"Engine" = "エンジン";
+"View refresh" = "表示の更新";

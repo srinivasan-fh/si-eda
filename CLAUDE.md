@@ -103,6 +103,9 @@
   - **JSON writer:** `Json::dump` uses `std::to_chars` and a no-escape fast path, and must stay byte-identical to
     `%.10g` / `%lld`.
   - **JSON parser:** limits nesting to 256 levels (hostile files and requests).
+  - **Measured:** every Schematic / board edit records its undo-state, engine and refresh time (`DesignStore.editTimings`,
+    Help → Performance…, os_signpost "edit" intervals for Instruments); `sieda_route_bench --edit-budget <ms>` fails when
+    the app's per-edit core path (move + undo state + delta snapshot) is slower at p95 (in CTest `sieda_scale_budget`).
   - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
     layer, and must stay identical to the sequential fill.
   - **MCP:** file reads are capped at 128 MB.

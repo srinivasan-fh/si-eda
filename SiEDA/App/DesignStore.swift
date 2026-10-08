@@ -80,6 +80,9 @@ final class DesignStore: ObservableObject {
     /// Help → Welcome Tour (shown once on first launch) and Help → Keyboard Shortcuts (Onboarding.swift).
     @Published var showWelcomeTour = false
     @Published var showShortcuts = false
+    @Published var showPerformance = false
+    /// The last edits' timings (Help → Performance…); not published, so recording one redraws nothing.
+    private(set) var editTimings: [EditTiming] = []
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []
@@ -326,11 +329,16 @@ final class DesignStore: ObservableObject {
             statusMessage = "\(busyMessage.isEmpty ? "Busy" : busyMessage) — try again when it finishes"
             return false
         }
+        let signpost = PerformanceLog.signposter.beginInterval("edit", "\(actionName)")
+        defer { PerformanceLog.signposter.endInterval("edit", signpost) }
+        let t0 = DispatchTime.now()
         let before = recordUndo ? engine.stateJSON() : nil
+        let t1 = DispatchTime.now()
         guard body(engine) else {
             statusMessage = failureMessage ?? "\(actionName): not possible"
             return false
         }
+        let t2 = DispatchTime.now()
         if let before { pushUndo(before) }
         isDirty = true
         if invalidatesAnalysis {
@@ -344,6 +352,10 @@ final class DesignStore: ObservableObject {
             fftResult = nil
         }
         refresh()
+        let t3 = DispatchTime.now()
+        editTimings.append(EditTiming(action: actionName, stateMs: PerformanceLog.milliseconds(t0, t1),
+                                      engineMs: PerformanceLog.milliseconds(t1, t2), refreshMs: PerformanceLog.milliseconds(t2, t3)))
+        if editTimings.count > PerformanceLog.capacity { editTimings.removeFirst(editTimings.count - PerformanceLog.capacity) }
         statusMessage = actionName
         CrashReporter.note(actionName)
         scheduleRecoverySave()
