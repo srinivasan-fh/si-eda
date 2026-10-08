@@ -5195,6 +5195,39 @@ TEST(memory_design_segments_and_checks) {
         CHECK(!segs[1].items[1].ok);  // address lines still open
     }
     CHECK(Project::fromJson(p.toJson()).memoryDesign == "sdram");
+    // Routed byte lane: a 10 mm and a 30 mm bit with two vias are flagged (advice on SDR), equal bits are not.
+    {
+        auto dqNet = [&](const char* pin) {
+            const Component* r = s.find(ram);
+            for (int i = 0; i < static_cast<int>(r->def().pins.size()); ++i)
+                if (r->def().pins[static_cast<size_t>(i)].name == pin) return s.netOf({ram, i});
+            return -1;
+        };
+        const int n0 = dqNet("DQ0"), n1 = dqNet("DQ1");
+        CHECK(n0 >= 0 && n1 >= 0);
+        auto track = [&](int net, double len) {
+            Track t;
+            t.net = net, t.width = 0.2, t.a = {0, 0}, t.b = {len, 0};
+            p.pcb.tracks.push_back(t);
+        };
+        track(n0, 10);
+        track(n1, 30);
+        for (int k = 0; k < 2; ++k) {
+            Via v;
+            v.net = n1;
+            p.pcb.vias.push_back(v);
+        }
+        const auto flagged = codes(p, false);
+        CHECK(flagged.count("MEM_DDR_LANE_SKEW") && flagged.count("MEM_DDR_LANE_VIAS"));
+        CHECK(!codes(p).count("MEM_DDR_LANE_SKEW"));  // SDR: Info only
+        p.pcb.tracks.clear();
+        p.pcb.vias.clear();
+        track(n0, 20);
+        track(n1, 20);
+        const auto clean = codes(p, false);
+        CHECK(!clean.count("MEM_DDR_LANE_SKEW") && !clean.count("MEM_DDR_LANE_VIAS") && !clean.count("MEM_DDR_LANE_LAYERS"));
+        p.pcb.tracks.clear();
+    }
     Json bad = p.toJson();
     bad["memoryDesign"] = "ddr9";
     CHECK(Project::fromJson(bad).memoryDesign.empty());

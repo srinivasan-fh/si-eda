@@ -72,6 +72,21 @@ With a memory design type set, the checks run at full severity. With only the in
 | `REL_DDR5_PMIC` / `REL_RCD` | info | DDR5 modules need a JESD301 PMIC; RDIMMs an RCD |
 | `REL_DIMM_THICKNESS` | warning | Module board thickness outside 1.1–1.4 mm |
 
+### DDR layout rules (routed copper)
+
+Once the memory bus is routed, each DRAM's byte lanes (DQ0–7, DQ8–15, …), data impedance and fly-by command / address
+are checked against limits for the memory type. They are warnings on DDR3L / DDR4 / LPDDR / modules and advice (info)
+on SDR SDRAM. The limits are typical values from public DRAM and controller layout guides (Micron DDR technical notes,
+TI and NXP DDR layout application notes); your controller's own layout guide has the final numbers.
+
+| Code | When | SDR | DDR3L / DDR4 / DIMM | LPDDR |
+|---|---|---|---|---|
+| `MEM_DDR_LANE_SKEW` | Delay spread between the bits of a byte lane (routed length × the layer's delay) | 50 ps | 10 ps | 5 ps |
+| `MEM_DDR_LANE_VIAS` | Bits of a lane through different numbers of vias | ±1 | equal | equal |
+| `MEM_DDR_LANE_LAYERS` (info) | Bits of a lane routed on different layers | | | |
+| `MEM_DDR_IMPEDANCE` | A data net's main width / layer misses the single-ended target | ±15 % | ±10 % | ±10 % |
+| `MEM_DDR_ADDR_SKEW` | Command / address delay differs from the clock's | 100 ps | 25 ps | 15 ps |
+
 ## DRAM parts in the library
 
 All DRAM pinouts come from the KiCad symbol library (`tools/fetch_catalog_parts.py`). They are listed under
