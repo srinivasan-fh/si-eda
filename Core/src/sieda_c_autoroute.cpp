@@ -121,6 +121,13 @@ char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width
     return dupText(fieldResultJson(g, solveField(g)).dump());
 }
 
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap) {
+    if (!project) return 0;
+    const auto& s = project->project.pcb.settings;
+    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(ohms > 5 && ohms < 500) || !(gap >= 0 && gap < 20)) return 0;
+    return fieldSolvedWidth(s, layer, ohms, gap);
+}
+
 char* sieda_pcb_panel(const SiedaProject* project) {
     if (!project) return nullptr;
     return dupText(panelLayoutJson(project->project.pcb.settings).dump());

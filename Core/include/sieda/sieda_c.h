@@ -333,6 +333,8 @@ char* sieda_dfm_report_json(const SiedaProject* project);
  * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
  * "dielectricDbPerIn","totalDbPerIn"}], pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for bad input. */
 char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um);
+/* Goal seek: the width (mm) whose field-solved Z0 (gap > 0: Zdiff) on `layer` is `ohms`; 0 when none reaches it. */
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);

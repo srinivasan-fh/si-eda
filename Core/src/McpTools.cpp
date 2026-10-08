@@ -2599,10 +2599,15 @@ void teamTools(Table& t) {
           "and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect "
           "with copper roughness, laminate loss tangent). Within ~1 % of exact stripline results.",
           Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)")
-              .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)"),
+              .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)")
+              .num("targetOhms", "Goal seek: solve the width for this Z0 (with gap: Zdiff) instead of taking width"),
           [](McpServer& s, const Json& a) {
-              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), argNum(a, "width", 0.2), argNum(a, "gap", 0),
-                                          argNum(a, "roughness", 1.0));
+              double width = argNum(a, "width", 0.2);
+              if (a.has("targetOhms")) {
+                  width = sieda_field_solve_width(P(s), argInt(a, "layer", 0), argNum(a, "targetOhms", 50), argNum(a, "gap", 0));
+                  check(width > 0, "No width from 0.02 to 10 mm reaches that impedance");
+              }
+              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), width, argNum(a, "gap", 0), argNum(a, "roughness", 1.0));
               check(r != nullptr, "Bad layer, width or gap");
               return out(takeJson(r));
           });

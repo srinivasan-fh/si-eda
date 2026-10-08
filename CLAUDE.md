@@ -94,7 +94,7 @@
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
   εeff, L / C, odd / even, kb / kf; `lineLoss`: skin-effect R from the air solution's surface charge, Hammerstad
   roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up and coats outer layers with 20 µm of solder mask (`FieldGeometry::mask`, coated microstrip); tests hold it within 1.5 % of exact stripline,
-  Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
+  Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve` / goal seek `sieda_field_solve_width` (`fieldSolvedWidth`: Illinois regula falsi on ln Z, ~6 solves), MCP `si_field_solver` (`targetOhms`), app Board Setup →
   Stack-up → Check with Field Solver; opt-in `SiSettings::fieldSolverLines` / `LossOptions::fieldSolver` feeds the
   channel lines (`lineModel`, cached per geometry). The closed-form widths are unchanged.
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards

@@ -212,6 +212,29 @@ LineLoss lineLoss(const FieldGeometry& g, const FieldResult& r, double f) {
     return l;
 }
 
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap) {
+    auto z = [&](double w) {
+        const FieldResult r = solveField(trackGeometry(s, layer, w, gap));
+        return gap > 0 ? r.zdiff : r.z0;
+    };
+    // Z falls as the track widens: bracket around the closed-form width, then bisect on log(w).
+    const double w0 = std::clamp(gap > 0 ? differentialPairGeometry(s, layer, ohms).first : widthForImpedance(s, layer, ohms), 0.05, 5.0);
+    double lo = w0 / 1.5, hi = w0 * 1.5, zLo = z(lo), zHi = z(hi);
+    while (lo > 0.02 && zLo < ohms) zLo = z(lo /= 2);
+    while (hi < 10 && zHi > ohms) zHi = z(hi *= 2);
+    if (zLo < ohms || zHi > ohms) return 0;
+    // Regula falsi (Illinois) on ln Z against ln w — nearly linear, so a few solves reach 0.1 %.
+    double fLo = std::log(zLo / ohms), fHi = std::log(zHi / ohms), w = std::sqrt(lo * hi);
+    for (int i = 0, side = 0; i < 30 && hi / lo > 1.0005; ++i) {
+        w = std::exp(std::log(lo) + fLo / (fLo - fHi) * std::log(hi / lo));
+        const double f = std::log(z(w) / ohms);
+        if (std::fabs(f) < 1e-3) break;
+        if (f > 0) lo = w, fLo = f, fHi *= side == 1 ? 0.5 : 1, side = 1;
+        else hi = w, fHi = f, fLo *= side == -1 ? 0.5 : 1, side = -1;
+    }
+    return w;
+}
+
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap) {
     FieldGeometry g;
     g.w = w, g.s = gap, g.t = copperThickness(s), g.er = boardLaminate(s).er, g.tanD = boardLaminate(s).lossTangent;

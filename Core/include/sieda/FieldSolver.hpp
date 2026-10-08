@@ -42,5 +42,8 @@ FieldResult solveField(const FieldGeometry& g);
 /// layers carry a typical 20 µm LPI solder mask (εr 3.6).
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap = 0);
 Json fieldResultJson(const FieldGeometry& g, const FieldResult& r);
+/// Goal seek: the width on `layer` whose field-solved Z0 (gap > 0: Zdiff of a pair `gap` apart) is `ohms`, to 0.2 %,
+/// starting from the closed-form width; 0 when no width from 0.02 to 10 mm reaches it.
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap = 0);
 
 }  // namespace sieda

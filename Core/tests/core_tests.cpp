@@ -19632,6 +19632,13 @@ TEST(field_solver_solder_mask_coating) {
     g.s = 0, g.hTop = 0.2;
     p = g, p.mask = 0;
     CHECK_NEAR(solveField(g).z0, solveField(p).z0, 1e-9);
+    // Goal seek: the field-solved width for 50 Ω lands on 50 Ω (within 0.5 %); a pair for 90 Ω Zdiff likewise.
+    BoardSettings b;
+    b.layerCount = 4;
+    const double w50 = fieldSolvedWidth(b, 0, 50);
+    CHECK(w50 > 0 && std::fabs(solveField(trackGeometry(b, 0, w50)).z0 - 50) < 0.25);
+    const double wd = fieldSolvedWidth(b, 1, 90, 0.15);
+    CHECK(wd > 0 && std::fabs(solveField(trackGeometry(b, 1, wd, 0.15)).zdiff - 90) < 0.45);
     // The stack-up's outer layers are coated; inner ones are not.
     BoardSettings s;
     s.layerCount = 4;
