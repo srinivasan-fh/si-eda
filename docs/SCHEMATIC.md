@@ -408,7 +408,7 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 
 ## Canvas colour schemes and grid
 
-The schematic canvas can be drawn in any of fourteen ready-made colour schemes or in your own. Pick them from the
+The schematic canvas can be drawn in any of fifteen ready-made colour schemes or in your own. Pick them from the
 palette button (🎨) at the right of the schematic options bar, from **View → Schematic Canvas**, or in **Settings →
 Appearance → Schematic Canvas**. The choice is an app-wide preference and the canvas follows it at once (wires,
 symbols, pins, labels, selection, ERC and DNP markers, the sheet frame and title block, live probes and switch pills).
@@ -433,6 +433,7 @@ to describe the inspiration, never in the app.
 | **Silver Mist** | light grey | dark blue | dark red | DipTrace |
 | **Print Mono** | white | black | black (selection stays blue) | monochrome print |
 | **High Contrast** | black | white | yellow, cyan buses and labels | accessibility |
+| **Matrix Green** | black (#020A04) | code-rain green (#00FF41) | green (#00D838), pale glyph-green text, amber / red warnings | the Matrix films' digital rain |
 
 The colour menus group the schemes into **Light** and **Dark**. Every foreground of every scheme (wires, junctions,
 buses, labels, symbol outlines, pins, pin names and numbers, designators, values, unconnected-pin and no-connect
