@@ -320,6 +320,10 @@ char* sieda_pcb_panel(const SiedaProject* project);
  * pack ("" = none) tightens the DRC minimums to it and adds the DFM_* / DFA_* checks; returns 0 for an unknown id. */
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
+/* The pack's sign-off report: {"pack","name","pass","rows":[{"rule","actual","limit","ok"}]} (measured board values
+ * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
+ * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
+char* sieda_dfm_report_json(const SiedaProject* project);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
  * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth).
  * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",

@@ -99,6 +99,8 @@ extension EDAEngine {
 
     func setDfmPack(_ id: String) -> Bool { withHandle { sieda_pcb_set_dfm_pack($0, id) } == 1 }
 
+    func dfmReport() -> DfmReport? { Self.decode(DfmReport.self, from: withHandle { Self.take(sieda_dfm_report_json($0)) }) }
+
     /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
     func fieldSolve(layer: Int, width: Double, gap: Double = 0, roughness: Double = 1) -> FieldSolveInfo? {
         Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap, roughness)) })

@@ -19697,3 +19697,40 @@ TEST(ddr_strobe_matched_to_its_byte_lane) {
     q.pcb.tracks.back().b = {20, 0};
     CHECK(!codes().count("MEM_DDR_DQS_SKEW"));
 }
+
+TEST(dfm_aspect_ratio_copper_balance_and_report) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(dfmReportJson(p.schematic, p.pcb).get("pack").asString().empty());
+    CHECK(applyDfmPack(p.pcb.settings, "jlcpcb-standard"));
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : dfmChecks(p.schematic, p.pcb)) c.insert(v.code);
+        return c;
+    };
+    // A 0.3 mm via through 2.4 mm is 8:1 (allowed); through 3.2 mm it is 10.7:1.
+    Via v;
+    v.position = {5, 5};
+    v.drill = 0.3, v.diameter = 0.6;
+    p.pcb.vias.push_back(v);
+    p.pcb.settings.thickness = 2.4;
+    CHECK(!codes().count("DFM_ASPECT_RATIO"));
+    p.pcb.settings.thickness = 3.2;
+    CHECK(codes().count("DFM_ASPECT_RATIO"));
+    p.pcb.settings.thickness = 1.6;
+    // A ground pour on the top only: the two layers' copper differs by most of the board.
+    CHECK(!codes().count("DFM_COPPER_BALANCE"));
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    const auto cover = copperCoverage(p.schematic, p.pcb);
+    CHECK(cover.size() == 2 && cover[0] > cover[1] + 0.35);
+    CHECK(codes().count("DFM_COPPER_BALANCE"));
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    CHECK(!codes().count("DFM_COPPER_BALANCE"));
+    // The sign-off report: one row per rule, measured against the pack.
+    const Json r = dfmReportJson(p.schematic, p.pcb);
+    CHECK(r.get("pack").asString() == "jlcpcb-standard" && r.get("rows").size() == 16);
+    bool aspectOk = false;
+    for (const auto& row : r.get("rows").items())
+        if (row.get("rule").asString().find("aspect") != std::string::npos) aspectOk = row.get("ok").asBool();
+    CHECK(aspectOk);
+}

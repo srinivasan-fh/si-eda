@@ -23,6 +23,8 @@ struct DfmPack {
     double minThickness, maxThickness, maxWidth, maxHeight;
     // Assembly (mm)
     double minPartSpacing, minPartToEdge;
+    // Plated holes: barrel depth ÷ drill (typical value for the service; confirm deep or small holes with the fab).
+    double maxAspectRatio = 8;
 };
 
 const std::vector<DfmPack>& dfmPacks();
@@ -35,7 +37,15 @@ bool applyDfmPack(BoardSettings& s, const std::string& id);
 
 /// The DFM / DFA checks of the board's pack (none without a pack): DFM_LAYERS, DFM_BOARD_SIZE, DFM_THICKNESS,
 /// DFM_VIA_SIZE, DFM_MASK_SLIVER, DFM_SILK_TO_PAD, DFA_PART_SPACING, DFA_PART_TO_EDGE, DFA_FIDUCIALS,
-/// DFA_TALL_NEAR_FINE_PITCH, DFA_HEAVY_BOTTOM.
+/// DFA_TALL_NEAR_FINE_PITCH, DFA_HEAVY_BOTTOM, DFM_ASPECT_RATIO (plated holes deeper than the service drills) and
+/// DFM_COPPER_BALANCE (mirror layers' copper differing by more than 35 % of the board: bow and twist).
 std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb);
+
+/// The pack's sign-off report: every rule with the board's measured value, the limit and pass / fail —
+/// {"pack","name","pass","rows":[{"rule","actual","limit","ok"}]}; {"pack":""} without a pack.
+Json dfmReportJson(const Schematic& sch, const PcbLayout& pcb);
+
+/// Copper on each layer as a fraction of the board area (tracks, pads, pour fills).
+std::vector<double> copperCoverage(const Schematic& sch, const PcbLayout& pcb);
 
 }  // namespace sieda
