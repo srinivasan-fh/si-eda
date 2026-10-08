@@ -165,7 +165,7 @@ enum SchematicGridStyle: String, CaseIterable, Identifiable {
 /// Midnight Navy (`siedaDark`) is today's palette and the default.
 enum SchematicColorScheme: String, CaseIterable, Identifiable {
     case siedaDark, altium, orcad, allegro, xpedition, pads, cr8000, kicad, eagle, proteus, easyeda, diptrace
-    case monochrome, highContrast, custom
+    case monochrome, highContrast, matrix, custom
 
     var id: String { rawValue }
     static let storageKey = "schematic.colorScheme"
@@ -188,6 +188,7 @@ enum SchematicColorScheme: String, CaseIterable, Identifiable {
         case .diptrace: return "Silver Mist"           // DipTrace-like: light grey, dark-blue wires
         case .monochrome: return "Print Mono"          // white, black
         case .highContrast: return "High Contrast"     // black, white / bright colours
+        case .matrix: return "Matrix Green"            // black, phosphor-green code-rain wires
         case .custom: return "Custom"                  // the user's own named colours
         }
     }
@@ -212,6 +213,7 @@ enum SchematicColorScheme: String, CaseIterable, Identifiable {
         case .diptrace: return SchematicPalette.diptrace
         case .monochrome: return SchematicPalette.monochrome
         case .highContrast: return SchematicPalette.highContrast
+        case .matrix: return SchematicPalette.matrix
         case .custom: return nil
         }
     }
@@ -451,6 +453,45 @@ extension SchematicPalette {
         overlayOnText: h(0x0A1830),
         probe: h(0x5CEBFF),
         readout: h(0x5CD6FF))
+
+    /// Matrix Green: black screen, code-rain green (#00FF41) wires and symbols, pale glyph green for the text;
+    /// amber / red keep warnings and errors distinct.
+    static let matrix = SchematicPalette(
+        background: h(0x020A04),
+        gridMinor: h(0x0A2410),
+        gridMajor: h(0x0F3A18),
+        sheetBorder: h(0x00C832),
+        sheetText: h(0x3FAF5C),
+        wire: h(0x00FF41),
+        junction: h(0x00FF41),
+        bus: h(0x9CFFB4),
+        netLabel: h(0xD2FFDC),
+        localLabel: h(0x6FE08A),
+        portLabel: h(0xB6FF3B),
+        symbol: h(0x00D838),
+        symbolFill: h(0x021A08),
+        pin: h(0x2EE068),
+        pinName: h(0xB8F5C6),
+        powerLabel: h(0xE4FF6A),
+        pinNumber: h(0x4FA866),
+        designator: h(0xE0FFE6),
+        value: h(0x8FE6A2),
+        variantValue: h(0xFFD166),
+        unconnectedPin: h(0xFF9F1A),
+        noConnect: h(0x5CB8FF),
+        selection: h(0xFFFFFF),
+        selectionHalo: h(0x00FF41),
+        harness: h(0x7DE8D0),
+        error: h(0xFF5A5F),
+        preview: h(0x9CFFB4),
+        directive: h(0x5CE68A),
+        liveOn: h(0x00FF41),
+        overlayFill: h(0x041A0A),
+        overlayText: h(0xD2FFDC),
+        overlayMuted: h(0x6FAF7F),
+        overlayOnText: h(0x021006),
+        probe: h(0xB6FF3B),
+        readout: h(0x9CFFB4))
 
     static let pads = SchematicPalette(
         background: h(0x000000),

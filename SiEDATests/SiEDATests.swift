@@ -7135,7 +7135,7 @@ final class SchematicPaletteTests: XCTestCase {
 
     func testSchemesPersistByStableRawValues() throws {
         let expected = ["siedaDark", "altium", "orcad", "allegro", "xpedition", "pads", "cr8000", "kicad", "eagle",
-                        "proteus", "easyeda", "diptrace", "monochrome", "highContrast", "custom"]
+                        "proteus", "easyeda", "diptrace", "monochrome", "highContrast", "matrix", "custom"]
         XCTAssertEqual(SchematicColorScheme.allCases.map(\.rawValue), expected)
         let suite = "SiEDA.SchematicPaletteTests"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

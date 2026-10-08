@@ -491,7 +491,7 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 - **Zoom range:** fits a 600 mm backplane in a small window and goes down to 0.4 mm-pitch BGA detail on the PCB (1/50 to 15× on the schematic).
 - **Rendering:** only what is on screen is drawn. Pins, labels and designators fade out when zoomed far out, and the grid pitch adapts to the zoom level.
 - **Navigator:** a thumbnail of the whole design (toggle with N, the toolbar map button or **View → Show Navigator**). Click or drag in it to move the view.
-- **Schematic colour schemes:** fourteen ready-made schemes named by their colours (Midnight Navy, the default, Classic Cream, Paper White, Meadow Cream, Night Forest, Print Mono, High Contrast …), a **Custom** scheme built from named colours, and a Dots / Lines / None grid, from the options bar's palette button, **View → Schematic Canvas** or **Settings → Appearance**. See [docs/SCHEMATIC.md](docs/SCHEMATIC.md#canvas-colour-schemes-and-grid).
+- **Schematic colour schemes:** fifteen ready-made schemes named by their colours (Midnight Navy, the default, Classic Cream, Paper White, Meadow Cream, Night Forest, Print Mono, High Contrast, Matrix Green …), a **Custom** scheme built from named colours, and a Dots / Lines / None grid, from the options bar's palette button, **View → Schematic Canvas** or **Settings → Appearance**. See [docs/SCHEMATIC.md](docs/SCHEMATIC.md#canvas-colour-schemes-and-grid).
 
 | Mouse / trackpad | Action |
 |---|---|
