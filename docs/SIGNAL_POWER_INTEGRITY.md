@@ -323,6 +323,12 @@ The drop limit is half the ripple budget (2.5 % on a 5 % rail).
 
 - **Regulator.** Output resistance R and loop bandwidth f_bw per rail (0 = by regulator type, as above); the
   inductance `R/(2π f_bw)` models the loop's roll-off.
+- **Plane mesh (real pour shape).** When the rail has an IR-drop map, its pour cells (merged to at most 40 per side)
+  become a 2D RLGC grid: each cell has `C = ε0εr·A/d` (with tan δ) to the ground plane, neighbours are joined by
+  `L = μ0·d` per square and the skin-effect resistance of both plates, and every decoupling capacitor and the regulator
+  attach at the cell under them. A banded complex LU gives |Z| at the loads per frequency ("Plane mesh" curve). An
+  L-shaped or notched pour resonates where its real shape says, not its bounding box; the worst |Z| / target and the
+  **load-step droop** (transient current × worst |Z| up to 1 GHz, against V × ripple) use this curve when present.
 - **Plane cavity.** The rail pour and the ground pour as a rectangular cavity (the pour's bounding box, plate spacing
   d). The impedance between ports is the modal sum of Lei, Mittra & Wang / Novak,
   `Z_ij = jωμd/(ab)·Σ χm²χn²·cos(kx·xi)cos(ky·yi)cos(kx·xj)cos(ky·yj)·sinc(kx·w/2)·sinc(ky·w/2) / (k_mn² − k²)`,
@@ -427,7 +433,8 @@ The core tests check the physics against reference values:
 - **PI planning:** the cavity's low-frequency |Z| is the plate capacitance (2 %), its first peak at a corner port is
   f10 = c/(2a√εr) (2 %), the centre port does not excite (1,0); the regulator override sets R and L = R/(2π f_bw);
   the decoupling plan makes a bare rail compliant; the IR map's track density matches I/(w·t) (28.6 A/mm² for 0.5 A
-  in 0.5 mm × 35 µm).
+  in 0.5 mm × 35 µm). The plane mesh of a 60 × 40 mm pair has the plate capacitance at 10 MHz (2 %) and its first
+  peak at f10 (3 %); an L-shaped pour resonates away from its bounding box; a capacitor at the port lowers |Z|.
 - **PDN:** target impedance, |Z| = ESR at self-resonance, plane capacitance (100 cm², 0.1 mm, FR-4 = 3.9 nF), 1 oz
   sheet resistance 0.49 mΩ/□. On a two-load rail, the IR drop matches the hand calculation `ρL/(wt)` to 0.2 mV.
 
@@ -450,7 +457,8 @@ The core tests check the physics against reference values:
   approximation (thin-strip image theory); treat it as an estimate and confirm tight couplings with a field solver.
 - **One driver per net.** Multi-master buses are analysed from the strongest output found.
 - **PDN** is board level: no package or die capacitance. The compliance check uses the lumped model; the cavity model
-  (rectangular, the pour's bounding box, one plane pair, square ports) shows the plane modes beside it. The VRM is an
+  (rectangular, the pour's bounding box, one plane pair, square ports) and the plane mesh (the real pour shape, one
+  plane pair, needs the IR-drop map) show the plane behaviour beside it. The VRM is an
   R–L model with a loop bandwidth, not a switching or control-loop simulation. Load currents without a behavioural
   model are estimates.
 - **IR drop** uses the supply copper only. The ground return's own drop and the temperature rise of copper are not
@@ -498,6 +506,7 @@ The core tests check the physics against reference values:
 - `si_channel_sign_off_and_c_api`
 - `si_broadside_crosstalk`
 - `pi_cavity_decap_plan_and_ir_map`
+- `plane_mesh_matches_cavity_resonance_and_plate_capacitance`
 - `si_channel_ends_at_connector`
 
 `Core/tests/c_api_test.c` covers the C functions (`sieda_c_api_channel_test`, `sieda_c_api_pi_test`), and

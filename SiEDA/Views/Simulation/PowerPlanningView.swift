@@ -62,7 +62,7 @@ struct PowerPlanningSection: View {
 
     private struct ZPoint: Identifiable {
         let id: Int
-        let series: Int  // 0 cavity, 1 lumped
+        let series: Int  // 0 cavity, 1 lumped, 2 plane mesh (real pour shape)
         let logF: Double
         let logZ: Double
     }
@@ -77,6 +77,7 @@ struct PowerPlanningSection: View {
             HStack(spacing: 14) {
                 legendDot("Cavity model", Theme.probe)
                 legendDot("Lumped model", Theme.textMuted)
+                if !(c.zPlane ?? []).isEmpty { legendDot("Plane mesh (pour shape)", Theme.skyBlue) }
             }
             ForEach(c.recommendations, id: \.self) { text in
                 Label(text, systemImage: "lightbulb").font(.callout).foregroundStyle(Theme.textPrimary)
@@ -90,7 +91,7 @@ struct PowerPlanningSection: View {
     @ViewBuilder private func cavityChart(_ c: PDNCavityReport) -> some View {
         let points: [ZPoint] = {
             var out: [ZPoint] = []
-            for (series, values) in [(0, c.zCavity), (1, c.zLumped)] {
+            for (series, values) in [(0, c.zCavity), (1, c.zLumped), (2, c.zPlane ?? [])] {
                 for i in 0..<min(c.freq.count, values.count) where c.freq[i] > 0 && values[i] > 0 {
                     out.append(ZPoint(id: out.count, series: series, logF: log10(c.freq[i]), logZ: log10(values[i])))
                 }
@@ -103,7 +104,7 @@ struct PowerPlanningSection: View {
         Chart {
             ForEach(points) { p in
                 LineMark(x: .value("Frequency", p.logF), y: .value("Impedance", p.logZ), series: .value("Model", p.series))
-                    .foregroundStyle(p.series == 0 ? Theme.probe : Theme.textMuted)
+                    .foregroundStyle(p.series == 0 ? Theme.probe : p.series == 2 ? Theme.skyBlue : Theme.textMuted)
             }
             if let target {
                 RuleMark(y: .value("Target", target))

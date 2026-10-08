@@ -87,6 +87,8 @@
 - Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits, `applyDfmPack` only tightens
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* to `runDRC` when `BoardSettings::dfmPack` is set; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
+- PI: lumped PDN / IR drop in `Core/src/PowerIntegrity.cpp`; cavity model, plane mesh on the real pour shape
+  (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
   εeff, L / C, odd / even, kb / kf; `lineLoss`: skin-effect R from the air solution's surface charge, Hammerstad
   roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,

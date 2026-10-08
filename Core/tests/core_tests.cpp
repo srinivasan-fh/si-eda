@@ -9817,8 +9817,13 @@ TEST(pi_cavity_decap_plan_and_ir_map) {
     CHECK(cav.available && cav.freq.size() == 121 && cav.zCavity.size() == 121 && cav.ports == 4);
     CHECK(!cav.modes.empty() && cav.modes[0].m == 1 && cav.modes[0].n == 0);
     if (!cav.zCavity.empty()) CHECK_NEAR(cav.zCavity[0] / cav.zLumped[0], 1.0, 0.25);  // both VRM / bulk dominated at 1 MHz
+    // With the IR map's pour cells the plane is also solved on its real shape; at 1 MHz it agrees with the cavity.
+    CHECK(r.irAnalyzed && !r.irCells.empty() && cav.zPlane.size() == cav.freq.size());
+    if (!cav.zPlane.empty()) CHECK_NEAR(cav.zPlane[0] / cav.zCavity[0], 1.0, 0.25);
+    CHECK_NEAR(cav.droop, r.transientCurrent * cav.worstRatio * r.target, 1e-12);
+    CHECK(cav.droopLimit > 0);
     const Json cj = pdnCavityJson(b.p, "+3V3");
-    CHECK(cj.get("available").asBool() && cj.get("zCavity").size() == 121);
+    CHECK(cj.get("available").asBool() && cj.get("zCavity").size() == 121 && cj.get("zPlane").size() == 121);
     CHECK(pdnCavityJson(b.p, "NOPE").has("error"));
     b.p.si.rails.push_back({"+3V3", 0, 0, 0, 0.002, 200e3});
     const PdnRailResult ov = rail(b.p);
@@ -19530,4 +19535,46 @@ TEST(idx_baseline_changes_and_import_round_trip) {
     CHECK(importIdxPlacement(hostile.schematic, deep).empty());
     CHECK(importIdxPlacement(hostile.schematic, "<Item><ItemInstance><Transformation><tx>nan</tx></Transformation>"
                                                 "<InstanceName><ObjectName>U1</ObjectName></InstanceName></ItemInstance></Item>").size() <= 1);
+}
+
+#include "sieda/PdnPlanning.hpp"
+
+TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
+    // A 60 × 40 mm plane pair, 0.2 mm FR-4, as 1 mm pour cells; observed at a corner, no ports.
+    std::vector<PdnIrCell> cells;
+    for (int j = 0; j < 40; ++j)
+        for (int i = 0; i < 60; ++i) cells.push_back({i + 0.5, j + 0.5, 1.0, 1, 0, 0});
+    std::vector<double> f;
+    for (int k = 0; k <= 400; ++k) f.push_back(10e6 * std::pow(300.0, k / 400.0));  // 10 MHz … 3 GHz
+    const auto z = planeMeshImpedance(cells, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {}, f);
+    CHECK(z.size() == f.size());
+    // Low frequency: the plate capacitance.
+    const double c = 8.8541878128e-12 * 4.4 * 60e-3 * 40e-3 / 0.2e-3;
+    CHECK_NEAR(z[0], 1 / (2 * 3.14159265358979 * f[0] * c), 0.02 / (2 * 3.14159265358979 * f[0] * c));
+    // First anti-resonance: the (1,0) cavity mode c / (2·√εr·a).
+    double fPeak = 0;
+    for (size_t k = 1; k + 1 < z.size(); ++k)
+        if (z[k] > z[k - 1] && z[k] > z[k + 1] && f[k] > 200e6) {
+            fPeak = f[k];
+            break;
+        }
+    const double f10 = cavityModeFrequency(60, 40, 4.4, 1, 0);
+    CHECK_NEAR(fPeak, f10, 0.03 * f10);
+    // An L-shaped pour (the 60 × 40 rectangle minus its top-right 30 × 20 quarter) resonates differently from its
+    // bounding box, which the rectangular cavity model cannot see; a capacitor at the observed corner lowers |Z|.
+    std::vector<PdnIrCell> ell;
+    for (const auto& cell : cells)
+        if (!(cell.x > 30 && cell.y > 20)) ell.push_back(cell);
+    const auto zl = planeMeshImpedance(ell, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {}, f);
+    double fl = 0;
+    for (size_t k = 1; k + 1 < zl.size(); ++k)
+        if (zl[k] > zl[k - 1] && zl[k] > zl[k + 1] && f[k] > 200e6) {
+            fl = f[k];
+            break;
+        }
+    CHECK(fl > 0 && std::fabs(fl - fPeak) > 0.03 * fPeak);
+    const PlaneMeshPort cap{{1, 1}, [](double fr) { return capacitorImpedance(fr, 100e-9, 0.02, 0.5e-9); }};
+    const auto zc = planeMeshImpedance(cells, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {cap}, {50e6});
+    CHECK(zc[0] < 0.5 * z[std::lower_bound(f.begin(), f.end(), 50e6) - f.begin()]);
+    CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
 }
