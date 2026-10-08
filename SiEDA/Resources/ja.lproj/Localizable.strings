@@ -1269,3 +1269,5 @@
 "Undo state" = "取り消し用の状態";
 "Engine" = "エンジン";
 "View refresh" = "表示の更新";
+"Manufacturer" = "製造業者";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC はメーカーの最小配線幅・間隔・穴径・ランド幅を使い、製造と実装のチェックを追加します: 層数、基板サイズ、板厚、ビア、レジストのブリッジ、パッド上のシルク、部品間隔、端からの距離、フィデューシャル。発注前にメーカーの最新の製造仕様を確認してください。";

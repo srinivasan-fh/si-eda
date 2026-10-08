@@ -1269,3 +1269,5 @@
 "Undo state" = "復原狀態";
 "Engine" = "核心";
 "View refresh" = "視圖重新整理";
+"Manufacturer" = "製造商";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC 採用製造商的最小線寬、間距、孔徑和焊環，並增加製造和組裝檢查：層數、板尺寸、板厚、導通孔、防焊橋、焊墊上的絲印、元件間距、到板邊距離、基準點。下單前請查看廠商目前的製程能力頁面。";

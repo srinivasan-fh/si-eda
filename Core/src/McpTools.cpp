@@ -2560,6 +2560,18 @@ void teamTools(Table& t) {
               }
               return out(takeJson(sieda_pcb_mechanical_limits(P(s))));
           });
+    t.add("pcb", "pcb_dfm_pack", "Manufacturer rule pack", Kind::Edit, true,
+          "Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). With pack: selects it "
+          "(\"\" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs and "
+          "the board's pack.",
+          Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)"),
+          [](McpServer& s, const Json& a) {
+              if (a.has("pack")) check(sieda_pcb_set_dfm_pack(P(s), argStr(a, "pack").c_str()) == 1, "Unknown pack");
+              Json j = obj();
+              j["packs"] = takeJson(sieda_dfm_packs_json());
+              j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
+              return out(j);
+          });
     t.add("pcb", "pcb_panel", "Production panel", Kind::Edit, true,
           "Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, "
           "separated by V-score lines or routed gaps with breakaway tabs and mouse bites. Without arguments returns "

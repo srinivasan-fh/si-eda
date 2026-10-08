@@ -30,6 +30,7 @@
 #include "sieda/Fabrication.hpp"
 #include "sieda/FabExchange.hpp"
 #include "sieda/Panel.hpp"
+#include "sieda/Dfm.hpp"
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -2988,6 +2989,38 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     PanelSettings clamped;
     panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
     CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
+}
+
+TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) c.insert(v.code);
+        return c;
+    };
+    for (const auto& c : codes()) CHECK(c.rfind("DFM_", 0) != 0 && c.rfind("DFA_", 0) != 0);  // no pack, no checks
+    CHECK(dfmPacks().size() >= 7 && !applyDfmPack(p.pcb.settings, "no-such-fab"));
+    p.pcb.settings.minDrill = 0.1;
+    CHECK(applyDfmPack(p.pcb.settings, "oshpark-2"));
+    CHECK(std::abs(p.pcb.settings.minDrill - 0.254) < 1e-9 && std::abs(p.pcb.settings.minTrackWidth - 0.152) < 1e-9);
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.thickness = 2.4;
+    auto c = codes();
+    CHECK(c.count("DFM_LAYERS") && c.count("DFM_THICKNESS") && !c.count("DFM_BOARD_SIZE"));
+    // Two parts 0.1 mm apart on the same side.
+    std::vector<Component*> parts;
+    for (auto& comp : p.schematic.mutableComponents())
+        if (comp.hasFootprint() && comp.pcb.placed) parts.push_back(&comp);
+    CHECK(parts.size() >= 2);
+    parts[1]->pcb.bottom = parts[0]->pcb.bottom;
+    const Rect a = p.pcb.courtyard(*parts[0]), b = p.pcb.courtyard(*parts[1]);
+    parts[1]->pcb.position = parts[1]->pcb.position + Vec2{a.x1 + 0.1 - b.x0, a.y0 - b.y0};
+    CHECK(codes().count("DFA_PART_SPACING"));
+    // Saved only when set.
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.dfmPack == "oshpark-2");
+    CHECK(applyDfmPack(p.pcb.settings, "") && !p.toJson().get("board").has("dfmPack"));
 }
 
 TEST(fabrication_package_is_complete) {

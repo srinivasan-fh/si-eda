@@ -311,6 +311,10 @@ int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limit
  * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); returns 1 on success. The fabrication
  * package adds panel/ Gerbers, drills and a zip when the panel has more than one board. */
 char* sieda_pcb_panel(const SiedaProject* project);
+/* Manufacturer DFM / DFA packs (sieda/Dfm.hpp): [{"id","name","maker","notes","minTrack",…,"maxLayers",…}]. Setting a
+ * pack ("" = none) tightens the DRC minimums to it and adds the DFM_* / DFA_* checks; returns 0 for an unknown id. */
+char* sieda_dfm_packs_json(void);
+int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);

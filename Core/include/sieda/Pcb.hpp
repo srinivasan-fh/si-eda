@@ -220,6 +220,8 @@ struct BoardSettings {
     std::vector<HeightZone> heightZones;
     /// Production panel for the fabrication package (saved only when it has more than one board).
     PanelSettings panel;
+    /// Manufacturer DFM / DFA rule pack (Dfm.hpp) the DRC checks against; empty = none (not saved).
+    std::string dfmPack;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {

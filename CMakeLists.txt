@@ -65,6 +65,7 @@ add_library(sieda_core STATIC
     Core/src/Fabrication.cpp
     Core/src/FabExchange.cpp
     Core/src/Panel.cpp
+    Core/src/Dfm.cpp
     Core/src/Bom.cpp
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp

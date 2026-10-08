@@ -142,6 +142,7 @@ Json boardJson(const BoardSettings& s) {
     if (!s.keepouts.empty()) b["keepouts"] = keepoutsToJson(s.keepouts);
     if (Json m = mechanicalLimitsToJson(s); !m.isNull()) b["mechanical"] = m;
     if (Json panel = panelToJson(s.panel); !panel.isNull()) b["panel"] = panel;
+    if (!s.dfmPack.empty()) b["dfmPack"] = s.dfmPack;
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -751,6 +752,7 @@ Project Project::fromJson(const Json& root) {
     s.keepouts = keepoutsFromJson(b.get("keepouts"));
     mechanicalLimitsFromJson(b.get("mechanical"), s);
     panelFromJson(b.get("panel"), s.panel);
+    s.dfmPack = b.get("dfmPack").asString("");
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {

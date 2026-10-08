@@ -64,6 +64,20 @@ struct BoardSetupPanel: View {
                     }
                 }
 
+                section("Manufacturer Rules (DFM)", systemImage: "building.2") {
+                    Picker("Manufacturer", selection: Binding(get: { board.dfmPack }, set: { store.setDfmPack($0) })) {
+                        Text("None").tag("")
+                        ForEach(EDAEngine.dfmPacks) { Text(verbatim: $0.name).tag($0.id) }
+                    }
+                    if let pack = EDAEngine.dfmPacks.first(where: { $0.id == board.dfmPack }) {
+                        Text(verbatim: String(format: "%@ · %.3f / %.3f mm · Ø %.2f mm · %d", pack.notes, pack.minTrack,
+                                              pack.minSpace, pack.minDrill, pack.maxLayers))
+                            .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                    }
+                    Text("The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering.")
+                        .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+                }
+
                 panelSection(board.panel ?? PanelInfo())
 
                 section("Copper Pours & Planes", systemImage: "square.fill.on.square.fill") {

@@ -7993,3 +7993,22 @@ final class EditPerformanceTests: XCTestCase {
         XCTAssertEqual(PerformanceLog.percentile([5, 1, 3, 2, 4], 0.5), 3)
     }
 }
+
+/// Manufacturer DFM / DFA rule packs (`sieda_pcb_set_dfm_pack`).
+@MainActor
+final class DfmPackTests: XCTestCase {
+    func testPackTightensRulesAndAddsChecks() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        store.autoPlace(all: true)
+        XCTAssertGreaterThanOrEqual(EDAEngine.dfmPacks.count, 7)
+        store.setDfmPack("oshpark-2")
+        XCTAssertEqual(store.snapshot.board.dfmPack, "oshpark-2")
+        XCTAssertGreaterThanOrEqual(store.snapshot.board.minDrill, 0.254 - 1e-9)
+        store.setMechanical(thickness: 2.4)
+        store.runDRC()
+        XCTAssertTrue(store.drcResults.contains { $0.code == "DFM_THICKNESS" })
+        store.setDfmPack("")
+        XCTAssertEqual(store.snapshot.board.dfmPack, "")
+    }
+}

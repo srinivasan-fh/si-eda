@@ -10,6 +10,7 @@
 #include "sieda/sieda_c.h"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Panel.hpp"
+#include "sieda/Dfm.hpp"
 
 using namespace sieda;
 
@@ -84,6 +85,12 @@ int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limit
     } catch (const std::exception&) {
         return 0;
     }
+}
+
+char* sieda_dfm_packs_json(void) { return dupText(dfmPacksJson().dump()); }
+
+int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
+    return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
 }
 
 char* sieda_pcb_panel(const SiedaProject* project) {

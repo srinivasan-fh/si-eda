@@ -775,6 +775,8 @@ struct BoardInfo: Decodable, Equatable {
     var holes: [MountingHoleInfo] = []
     /// Production panel (core `PanelSettings`); nil = a single board.
     var panel: PanelInfo?
+    /// Manufacturer DFM / DFA rule pack id (core `Dfm.hpp`); "" = none.
+    var dfmPack = ""
 
     init() {}
 
@@ -820,6 +822,7 @@ struct BoardInfo: Decodable, Equatable {
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
+        dfmPack = try c.decodeIfPresent(String.self, forKey: .dfmPack) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -827,7 +830,7 @@ struct BoardInfo: Decodable, Equatable {
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
-        case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel
+        case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -1639,4 +1642,14 @@ struct PanelLayoutInfo: Decodable, Equatable {
     var width, height, boardWidth, boardHeight: Double
     var boards, fiducials, toolingHoles, mouseBites: [[Double]]
     var tabs, vscores: [[[Double]]]
+}
+
+/// A manufacturer DFM / DFA rule pack (`sieda_dfm_packs_json`).
+struct DfmPackInfo: Decodable, Identifiable, Equatable {
+    var id: String
+    var name: String
+    var maker: String
+    var notes: String
+    var minTrack, minSpace, minDrill, minAnnularRing: Double
+    var maxLayers: Int
 }

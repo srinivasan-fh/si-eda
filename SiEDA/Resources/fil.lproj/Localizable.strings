@@ -1269,3 +1269,5 @@
 "Undo state" = "Undo state";
 "Engine" = "Engine";
 "View refresh" = "Pag-refresh ng view";
+"Manufacturer" = "Manufacturer";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "Ginagamit ng DRC ang minimum na track, space, drill at annular ring ng manufacturer, at nagdadagdag ng fabrication at assembly check: mga layer, laki ng board, kapal, via, solder-mask web, silkscreen sa ibabaw ng pad, pagitan ng piyesa, layo sa gilid, fiducial. Tingnan ang kasalukuyang capability page ng gumawa bago mag-order.";

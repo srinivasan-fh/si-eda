@@ -41,6 +41,14 @@ extension DesignStore {
         if !drcResults.isEmpty { runDRC() }
     }
 
+    /// Manufacturer rule pack ("" = none): tightens the DRC minimums and adds the DFM / DFA checks. Undoable.
+    func setDfmPack(_ id: String) {
+        guard id != snapshot.board.dfmPack else { return }
+        let name = EDAEngine.dfmPacks.first { $0.id == id }?.name ?? "No manufacturer rules"
+        performChecked(name, invalidatesAnalysis: false) { $0.setDfmPack(id) }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Production panel for the fabrication package (1 × 1 removes it). Undoable.
     func setPanel(_ panel: PanelInfo) {
         guard panel != (snapshot.board.panel ?? PanelInfo()) else { return }

@@ -92,7 +92,7 @@ Midnight Navy, Matrix Green and Graphite colour the whole app (`AppTheme`). Stil
 
 Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / performance / fuzzing round; one PR each.
 
-1. **DFM/DFA rule packs** (~0.2M tokens): manufacturer capability packs as data (JLCPCB, PCBWay, OSH Park,
+1. ✅ **DFM/DFA rule packs** (done: `Core/src/Dfm.cpp`, Board Setup → Manufacturer Rules) (~0.2M tokens): manufacturer capability packs as data (JLCPCB, PCBWay, OSH Park,
    Eurocircuits, Class 3 / aerospace): minimum track / space, drill, annular ring, mask sliver, silk-to-pad; picking a
    pack sets the DRC limits. Assembly checks: part-to-part and part-to-edge spacing, fiducials, polarity marks, tall
    parts beside fine pitch.

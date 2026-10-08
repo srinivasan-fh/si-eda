@@ -1269,3 +1269,5 @@
 "Undo state" = "Rückgängig-Zustand";
 "Engine" = "Kern";
 "View refresh" = "Ansicht aktualisieren";
+"Manufacturer" = "Hersteller";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "Die DRC übernimmt die Mindestwerte des Herstellers für Leiterbahn, Abstand, Bohrung und Restring und ergänzt Fertigungs- und Bestückungsprüfungen: Lagen, Plattengröße, Dicke, Vias, Lötstoppstege, Bestückungsdruck über Pads, Bauteilabstand, Abstand zum Rand, Passermarken. Prüfen Sie vor der Bestellung die aktuelle Fertigungsspezifikation des Herstellers.";

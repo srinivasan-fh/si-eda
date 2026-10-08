@@ -1269,3 +1269,5 @@
 "Undo state" = "अनडू स्थिती";
 "Engine" = "इंजिन";
 "View refresh" = "दृश्य रीफ्रेश";
+"Manufacturer" = "उत्पादक";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC उत्पादकाचे किमान ट्रॅक, अंतर, ड्रिल आणि ॲन्युलर रिंग वापरते, आणि उत्पादन व असेंब्ली तपासण्या जोडते: लेयर, बोर्ड आकार, जाडी, व्हाया, सोल्डर-मास्क वेब, पॅडवरील सिल्कस्क्रीन, पार्ट अंतर, कडेपासून अंतर, फिड्युशियल. ऑर्डरपूर्वी उत्पादकाचे सध्याचे क्षमता पान तपासा.";

@@ -1269,3 +1269,5 @@
 "Undo state" = "Trạng thái hoàn tác";
 "Engine" = "Lõi";
 "View refresh" = "Làm mới hiển thị";
+"Manufacturer" = "Nhà sản xuất";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC dùng độ rộng đường, khe hở, lỗ khoan và vành khuyên tối thiểu của nhà sản xuất, và thêm kiểm tra sản xuất và lắp ráp: số lớp, kích thước bo, độ dày, via, cầu phủ hàn, lụa đè lên pad, khoảng cách linh kiện, khoảng cách tới mép, fiducial. Hãy xem trang năng lực hiện tại của nhà sản xuất trước khi đặt hàng.";
