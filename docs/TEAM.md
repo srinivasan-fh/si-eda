@@ -78,7 +78,8 @@ teammate can reach: iCloud Drive, Dropbox, OneDrive, a network share or a Git wo
 
 - **Your edits go out within a second or two:** each edit is saved shortly after you make it (edits in quick
   succession share one save).
-- **Theirs come in by themselves:** SiEDA checks the file every 2 s. When a teammate has saved, it three-way merges
+- **Theirs come in by themselves:** SiEDA watches the file (macOS reports a change the moment it lands; a 2 s check
+  covers network shares that report none). When a teammate has saved, it three-way merges
   their version into your open design (the same merge as above, base = the file as you last read or wrote it) as one
   Undo step. Parts, wires, tracks, vias and settings from both sides are kept (when both of you added a part at
   the same moment, theirs gets a fresh id — and the next free designator if yours already uses it — and its wires
