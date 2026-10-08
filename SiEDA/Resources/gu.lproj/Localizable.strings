@@ -1271,3 +1271,5 @@
 "View refresh" = "દૃશ્ય તાજું";
 "Manufacturer" = "ઉત્પાદક";
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC ઉત્પાદકના ન્યૂનતમ ટ્રેક, અંતર, ડ્રિલ અને એન્યુલર રિંગ વાપરે છે, અને ઉત્પાદન તથા એસેમ્બલી તપાસ ઉમેરે છે: લેયર, બોર્ડ કદ, જાડાઈ, વાયા, સોલ્ડર-માસ્ક વેબ, પૅડ પર સિલ્કસ્ક્રીન, ભાગ અંતર, કિનારાથી અંતર, ફિડ્યુશિયલ. ઑર્ડર પહેલાં ઉત્પાદકનું વર્તમાન ક્ષમતા પાનું તપાસો.";
+"Check with Field Solver" = "ફીલ્ડ સોલ્વરથી તપાસો";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "આ પહોળાઈના વાસ્તવિક Z0 અને Zdiff માટે દરેક સ્તરનો ક્રોસ-સેક્શન ઉકેલે છે (2D લાપ્લાસ, ડાઇઇલેક્ટ્રિક સાથે અને વગર)";

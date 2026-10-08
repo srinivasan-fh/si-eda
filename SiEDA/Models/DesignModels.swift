@@ -1645,6 +1645,12 @@ struct PanelLayoutInfo: Decodable, Equatable {
 }
 
 /// A manufacturer DFM / DFA rule pack (`sieda_dfm_packs_json`).
+/// Field-solver result for one track (and, with a gap, the pair) on a stack-up layer.
+struct FieldSolveInfo: Decodable, Equatable {
+    var z0, eeff, delayPsPerMm: Double
+    var zdiff: Double?
+}
+
 struct DfmPackInfo: Decodable, Identifiable, Equatable {
     var id: String
     var name: String

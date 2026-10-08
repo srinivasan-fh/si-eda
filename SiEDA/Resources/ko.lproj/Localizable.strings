@@ -1271,3 +1271,5 @@
 "View refresh" = "화면 갱신";
 "Manufacturer" = "제조사";
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC가 제조사의 최소 트랙·간격·드릴·애뉼러 링을 사용하고, 제조 및 조립 검사를 추가합니다: 레이어, 보드 크기, 두께, 비아, 솔더마스크 웹, 패드 위 실크, 부품 간격, 가장자리 거리, 피듀셜. 주문 전에 제조사의 최신 공정 능력 페이지를 확인하세요.";
+"Check with Field Solver" = "필드 솔버로 확인";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "각 층의 단면을 풀어(2D 라플라스, 유전체 포함/제외) 이 폭들의 실제 Z0와 Zdiff를 구합니다";

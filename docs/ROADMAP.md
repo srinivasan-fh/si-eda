@@ -100,7 +100,7 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
    (moved / rotated parts, outline edits) with accept / reject, SiEDA changes sent as proposals.
 3. **HarfBuzz text shaping in PDFs** (~0.2M): Indic, Arabic and Thai shaped correctly in the schematic PDF; an optional
    CMake dependency, so builds without it keep today's byte-identical output (the archival plan avoids dependencies).
-4. **Field-solver SI / PI** (~0.5M): 2D cross-section solver (single-ended, differential, coupled: impedance,
+4. ✅ **Field-solver SI / PI** (SI done: `Core/src/FieldSolver.cpp`, Board Setup → Check with Field Solver, MCP `si_field_solver`; PI already has the pour-mesh DC IR drop and cavity plane impedance) (~0.5M): 2D cross-section solver (single-ended, differential, coupled: impedance,
    coupling, crosstalk, loss) replacing the closed-form formulas when enabled; plane solver on the real copper for PDN
    impedance and DC IR drop with a heat-map overlay.
 5. **Real-time co-editing** (~0.7M): local-network session, edits broadcast as delta operations, conflicts through

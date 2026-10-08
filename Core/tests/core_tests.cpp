@@ -19361,3 +19361,45 @@ TEST(json_hostile_nesting_and_number_format) {
           "[0.1,1e-07,-2.5e+300,123456789012,0.3,1e+15,0,3.141592654,-7]");
     CHECK(Json(std::string("a\x01\"b\\c\n")).dump() == "\"a\\u0001\\\"b\\\\c\\n\"");
 }
+
+#include "sieda/FieldSolver.hpp"
+#include "sieda/SignalIntegrity.hpp"
+
+TEST(field_solver_matches_exact_stripline_and_microstrip) {
+    // Zero-thickness stripline vs the exact conformal map Z0 = 30π/√εr · K(k)/K(k'), k = sech(πw/2b).
+    for (double w : {0.1, 0.3, 0.8}) {
+        const double b = 0.5, er = 4.0, k = 1 / std::cosh(3.14159265358979 * w / (2 * b));
+        const double exact = 30 * 3.14159265358979 / std::sqrt(er) * ellipticK(k) / ellipticK(std::sqrt(1 - k * k));
+        FieldGeometry g{w, 0, 0.25, 0.25, 0, er};
+        const auto r = solveField(g);
+        CHECK_NEAR(r.z0, exact, 0.015 * exact);
+        CHECK_NEAR(r.eeff, er, 1e-6 * er);
+    }
+    // Zero-thickness microstrip vs Hammerstad–Jensen (accurate to ~0.2 %).
+    for (double u : {0.5, 1.0, 2.0, 5.0}) {
+        const double h = 0.2, er = 4.4, w = u * h, pi = 3.14159265358979;
+        const double f = 6 + (2 * pi - 6) * std::exp(-std::pow(30.666 / u, 0.7528));
+        const double z01 = 376.73 / (2 * pi) * std::log(f / u + std::sqrt(1 + 4 / (u * u)));
+        const double a = 1 + std::log((std::pow(u, 4) + std::pow(u / 52, 2)) / (std::pow(u, 4) + 0.432)) / 49 +
+                         std::log(1 + std::pow(u / 18.1, 3)) / 18.7;
+        const double bb = 0.564 * std::pow((er - 0.9) / (er + 3), 0.053);
+        const double ee = (er + 1) / 2 + (er - 1) / 2 * std::pow(1 + 10 / u, -a * bb);
+        const auto r = solveField(FieldGeometry{w, 0, h, 0, 0, er});
+        CHECK_NEAR(r.z0, z01 / std::sqrt(ee), 0.015 * z01 / std::sqrt(ee));
+        CHECK_NEAR(r.eeff, ee, 0.005 * ee);
+    }
+    // Coupled stripline vs Cohn's exact even / odd impedances; homogeneous, so no forward crosstalk.
+    {
+        auto [ze, zo] = coupledStriplineImpedance(0.2, 0.15, 0.5, 4.0);
+        const auto r = solveField(FieldGeometry{0.2, 0, 0.25, 0.25, 0.15, 4.0});
+        CHECK_NEAR(r.zeven, ze, 0.015 * ze);
+        CHECK_NEAR(r.zodd, zo, 0.015 * zo);
+        CHECK(std::fabs(r.kf) < 1e-6 && r.kb > 0);
+    }
+    // Microstrip pair: inhomogeneous, so FEXT is negative (Cm/C < Lm/L) and Zdiff < 2·Z0 alone.
+    {
+        const auto r = solveField(FieldGeometry{0.2, 0.035, 0.2, 0, 0.2, 4.4});
+        const auto single = solveField(FieldGeometry{0.2, 0.035, 0.2, 0, 0, 4.4});
+        CHECK(r.kf < 0 && r.kb > 0 && r.zdiff < 2 * single.z0 && r.zeven > r.zodd);
+    }
+}

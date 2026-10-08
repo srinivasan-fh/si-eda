@@ -8011,4 +8011,17 @@ final class DfmPackTests: XCTestCase {
         store.setDfmPack("")
         XCTAssertEqual(store.snapshot.board.dfmPack, "")
     }
+
+    func testFieldSolverAgreesWithStackupWidths() async throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        let solved = await store.fieldSolveStackup()
+        XCTAssertFalse(solved.isEmpty)
+        for r in solved.values {
+            XCTAssertGreaterThan(r.z0, 20)
+            XCTAssertLessThan(r.z0, 150)
+            XCTAssertGreaterThan(r.eeff, 1)
+        }
+        XCTAssertNil(store.engine.fieldSolve(layer: 99, width: 0.2))
+    }
 }

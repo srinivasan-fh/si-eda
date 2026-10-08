@@ -1271,3 +1271,5 @@
 "View refresh" = "காட்சி புதுப்பிப்பு";
 "Manufacturer" = "உற்பத்தியாளர்";
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC உற்பத்தியாளரின் குறைந்தபட்ச தடம், இடைவெளி, துளை, வளைய அகலத்தைப் பயன்படுத்தி, உற்பத்தி மற்றும் பொருத்துதல் சோதனைகளைச் சேர்க்கும்: அடுக்குகள், பலகை அளவு, தடிமன், வயாக்கள், சோல்டர்-மாஸ்க் வலை, பேட் மேல் சில்க்ஸ்கிரீன், பாக இடைவெளி, விளிம்பிலிருந்து தூரம், ஃபிடூஷியல்கள். ஆர்டருக்கு முன் உற்பத்தியாளரின் தற்போதைய திறன் பக்கத்தைச் சரிபார்க்கவும்.";
+"Check with Field Solver" = "புல தீர்வியால் சரிபார்";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "இந்த அகலங்களின் உண்மையான Z0, Zdiff க்காக ஒவ்வொரு அடுக்கின் குறுக்குவெட்டையும் தீர்க்கிறது (2D லாப்லாஸ், மின்காப்புடன் மற்றும் இல்லாமல்)";

@@ -86,6 +86,10 @@
 - Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits, `applyDfmPack` only tightens
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* to `runDRC` when `BoardSettings::dfmPack` is set; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
+- Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
+  εeff, L / C, odd / even, kb / kf; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,
+  Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
+  Stack-up → Check with Field Solver. The closed-form widths are unchanged.
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
   board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).

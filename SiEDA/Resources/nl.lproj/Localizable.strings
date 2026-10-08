@@ -1271,3 +1271,5 @@
 "View refresh" = "Weergave vernieuwen";
 "Manufacturer" = "Fabrikant";
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "De DRC gebruikt de minimale spoorbreedte, afstand, boring en restring van de fabrikant en voegt productie- en assemblagecontroles toe: lagen, printgrootte, dikte, via's, soldeermaskerbruggen, opdruk over pads, onderdeelafstand, afstand tot de rand, fiducials. Controleer vóór bestellen de actuele capaciteitspagina van de fabrikant.";
+"Check with Field Solver" = "Controleren met veldsolver";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Lost de dwarsdoorsnede van elke laag op (2D-Laplace, met en zonder diëlektricum) voor de werkelijke Z0 en Zdiff van deze breedtes";

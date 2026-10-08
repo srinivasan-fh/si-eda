@@ -42,6 +42,22 @@ extension DesignStore {
     }
 
     /// Manufacturer rule pack ("" = none): tightens the DRC minimums and adds the DFM / DFA checks. Undoable.
+    /// Field-solved Z0 and Zdiff of each copper layer's impedance-controlled widths (from the stack-up report), keyed by
+    /// layer name; solved off the main thread.
+    func fieldSolveStackup() async -> [String: FieldSolveInfo] {
+        let engine = self.engine
+        let copper = stackup().layers.filter(\.isCopper)
+        return await runBusy("Solving fields…", stoppable: false) {
+            var out: [String: FieldSolveInfo] = [:]
+            for (index, layer) in copper.enumerated() {
+                guard let se = layer.seWidth, var r = engine.fieldSolve(layer: index, width: se) else { continue }
+                if let w = layer.diffWidth, let gap = layer.diffGap { r.zdiff = engine.fieldSolve(layer: index, width: w, gap: gap)?.zdiff }
+                out[layer.name] = r
+            }
+            return out
+        }
+    }
+
     func setDfmPack(_ id: String) {
         guard id != snapshot.board.dfmPack else { return }
         let name = EDAEngine.dfmPacks.first { $0.id == id }?.name ?? "No manufacturer rules"

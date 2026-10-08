@@ -2572,6 +2572,16 @@ void teamTools(Table& t) {
               j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
               return out(j);
           });
+    t.add("pcb", "si_field_solver", "Field-solver impedance", Kind::Read, false,
+          "2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the "
+          "dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance "
+          "and the backward (kb) and forward (kf) crosstalk coefficients. Within ~1 % of exact stripline results.",
+          Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)"),
+          [](McpServer& s, const Json& a) {
+              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), argNum(a, "width", 0.2), argNum(a, "gap", 0));
+              check(r != nullptr, "Bad layer, width or gap");
+              return out(takeJson(r));
+          });
     t.add("pcb", "pcb_panel", "Production panel", Kind::Edit, true,
           "Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, "
           "separated by V-score lines or routed gaps with breakaway tabs and mouse bites. Without arguments returns "
