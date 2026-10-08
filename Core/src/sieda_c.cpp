@@ -1516,6 +1516,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "review") return dup(reviewMarkdown(p));
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
+        if (f == "idx") return dup(exportIdx(p.schematic, p.pcb, p.name));
         return nullptr;
     } catch (...) {
         return nullptr;
@@ -1997,6 +1998,30 @@ char* sieda_import_idf_placement(SiedaProject* project, const char* emn) {
         Json out = Json::object();
         out["moved"] = moved;
         return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_import_idx(SiedaProject* project, const char* idx) {
+    if (!project || !idx) return nullptr;
+    try {
+        Json moved = Json::array();
+        for (const auto& ref : importIdxPlacement(project->project.schematic, idx)) moved.push(ref);
+        if (moved.size()) project->project.schematicChanged();
+        Json out = Json::object();
+        out["moved"] = moved;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_export_idx_changes(const SiedaProject* project, const char* baseline_idx) {
+    if (!project || !baseline_idx) return nullptr;
+    try {
+        const Project& p = project->project;
+        return dup(exportIdxChanges(p.schematic, p.pcb, p.name, baseline_idx));
     } catch (...) {
         return nullptr;
     }

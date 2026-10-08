@@ -67,6 +67,12 @@ extension EDAEngine {
         return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idf_placement($0, emn)) })?.moved ?? []
     }
 
+    /// Moves, rotates and flips parts to an IDX (EDMD) baseline or change file from MCAD; the designators moved.
+    func importIDX(_ idx: String) -> [String] {
+        struct Moved: Decodable { var moved: [String] }
+        return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idx($0, idx)) })?.moved ?? []
+    }
+
     /// Enclosure height limit per side for the 3D clearance DRC (mm, 0 = none); height zones are kept as they are.
     func enclosureHeights() -> (top: Double, bottom: Double) {
         struct Limits: Decodable { var maxHeightTop: Double?; var maxHeightBottom: Double? }

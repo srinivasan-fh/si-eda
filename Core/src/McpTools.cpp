@@ -2492,10 +2492,11 @@ void outputTools(Table& t) {
           });
     t.add("output", "output_3d_model", "3D / MCAD model", Kind::Files, false,
           "The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one "
-          "named body per part), IDF 3.0 board (.emn) or library (.emp), or a mesh (STL, OBJ).",
+          "named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a "
+          "mesh (STL, OBJ).",
           Schema().str("path", "File to write, e.g. \"out/board.step\"", true)
-              .str("format", "step, idf_board, idf_library, stl (default) or obj", false,
-                   {"step", "idf_board", "idf_library", "stl", "obj"}),
+              .str("format", "step, idf_board, idf_library, idx, stl (default) or obj", false,
+                   {"step", "idf_board", "idf_library", "idx", "stl", "obj"}),
           [](McpServer& s, const Json& a) {
               const std::string content = takeText(sieda_export(P(s), argStr(a, "format", "stl").c_str()));
               if (content.empty()) throw ToolError("Could not build the 3D model");
@@ -2609,6 +2610,26 @@ void teamTools(Table& t) {
           [](McpServer& s, const Json& a) {
               const std::string emn = readFileArg(s, requireStr(a, "path")).asString();
               return out(takeJson(sieda_import_idf_placement(P(s), emn.c_str())));
+          });
+    t.add("pcb", "pcb_import_idx", "Import MCAD changes (IDX)", Kind::Edit, false,
+          "Moves, rotates and flips parts (by designator) to an IDX (ProSTEP EDMD) baseline or change file written by "
+          "mechanical CAD. Returns the designators moved.",
+          Schema().str("path", "The .idx file inside the root", true),
+          [](McpServer& s, const Json& a) {
+              const std::string idx = readFileArg(s, requireStr(a, "path")).asString();
+              return out(takeJson(sieda_import_idx(P(s), idx.c_str())));
+          });
+    t.add("output", "output_idx_changes", "IDX changes for MCAD", Kind::Files, false,
+          "Writes an IDX SendChanges file with only the parts placed differently from a baseline IDX (the one MCAD "
+          "already has). Nothing is written when nothing changed.",
+          Schema().str("baseline", "The baseline .idx inside the root", true).str("path", "File to write", true),
+          [](McpServer& s, const Json& a) {
+              const std::string base = readFileArg(s, requireStr(a, "baseline")).asString();
+              const std::string content = takeText(sieda_export_idx_changes(P(s), base.c_str()));
+              Json j = obj();
+              j["changed"] = !content.empty();
+              if (!content.empty()) j["written"] = s.writeFile(requireStr(a, "path"), content);
+              return out(j);
           });
     t.add("project", "project_diff", "Compare versions", Kind::Read, true,
           "What changed between two versions of a project: parts added / removed / changed (value, footprint, "

@@ -1273,3 +1273,4 @@
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC 采用制造商的最小线宽、间距、孔径和焊环，并增加制造和装配检查：层数、板尺寸、板厚、过孔、阻焊桥、焊盘上的丝印、元件间距、到板边距离、基准点。下单前请查看厂家当前的工艺能力页面。";
 "Check with Field Solver" = "用场求解器检查";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "求解每层的横截面（二维拉普拉斯，含与不含介质），得到这些线宽的实际 Z0 和 Zdiff";
+"Import MCAD Changes (IDX)…" = "导入 MCAD 更改 (IDX)…";

@@ -98,6 +98,8 @@
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
   (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
+  IDX / EDMD v4.5 baseline, change file and placement import (`exportIdx`, `exportIdxChanges`, `importIdxPlacement`,
+  namespace-agnostic XML reader, fuzzed in the `idf` target);
   version diff, three-way merge (`mergeProjects`, `sieda-mcp --merge`), design review comments
   (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
   in `Core/src/ProjectDiff.cpp`; app

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <map>
 #include <set>
@@ -441,6 +443,329 @@ std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& e
             c->pcb.placed = true;
             moved.push_back(c->ref);
         }
+    }
+    return moved;
+}
+
+// ------------------------------------------------------------------------------------------------ IDX (EDMD)
+namespace {
+
+/// Minimal XML reader for IDX: elements by local name (namespace prefixes dropped), attributes, text. Comments,
+/// declarations and processing instructions are skipped; CDATA is text. Nesting is capped (hostile files).
+struct XmlNode {
+    std::string name, text;
+    std::map<std::string, std::string> attrs;
+    std::vector<XmlNode> kids;
+    const XmlNode* child(const std::string& n) const {
+        for (const auto& k : kids)
+            if (k.name == n) return &k;
+        return nullptr;
+    }
+    /// The element's number: its text, or its Value child's (IDX writes <tx><Value>1.5</Value></tx>).
+    double number(double fallback = 0) const {
+        const std::string& t = text.find_first_not_of(" \t\r\n") != std::string::npos ? text : (child("Value") ? child("Value")->text : text);
+        char* end = nullptr;
+        const double v = std::strtod(t.c_str(), &end);
+        return end != t.c_str() && std::isfinite(v) ? v : fallback;
+    }
+};
+
+std::string localName(const std::string& n) {
+    const size_t c = n.rfind(':');
+    return c == std::string::npos ? n : n.substr(c + 1);
+}
+
+std::string xmlDecode(const std::string& s) {
+    std::string o;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] != '&') {
+            o += s[i];
+            continue;
+        }
+        static const std::pair<const char*, char> ents[] = {{"&lt;", '<'}, {"&gt;", '>'}, {"&amp;", '&'}, {"&quot;", '"'}, {"&apos;", '\''}};
+        bool hit = false;
+        for (const auto& [e, ch] : ents)
+            if (s.compare(i, std::strlen(e), e) == 0) {
+                o += ch;
+                i += std::strlen(e) - 1;
+                hit = true;
+                break;
+            }
+        if (!hit) o += '&';
+    }
+    return o;
+}
+
+bool parseXml(const std::string& s, XmlNode& root) {
+    std::vector<XmlNode*> stack{&root};
+    size_t i = 0;
+    while (i < s.size()) {
+        if (s[i] != '<') {
+            const size_t e = s.find('<', i);
+            stack.back()->text += xmlDecode(s.substr(i, e == std::string::npos ? std::string::npos : e - i));
+            if (e == std::string::npos) break;
+            i = e;
+            continue;
+        }
+        if (s.compare(i, 4, "<!--") == 0) {
+            const size_t e = s.find("-->", i + 4);
+            if (e == std::string::npos) return false;
+            i = e + 3;
+        } else if (s.compare(i, 9, "<![CDATA[") == 0) {
+            const size_t e = s.find("]]>", i + 9);
+            if (e == std::string::npos) return false;
+            stack.back()->text += s.substr(i + 9, e - i - 9);
+            i = e + 3;
+        } else if (s.compare(i, 2, "<?") == 0 || s.compare(i, 2, "<!") == 0) {
+            const size_t e = s.find('>', i);
+            if (e == std::string::npos) return false;
+            i = e + 1;
+        } else if (s.compare(i, 2, "</") == 0) {
+            const size_t e = s.find('>', i);
+            if (e == std::string::npos || stack.size() < 2) return false;
+            if (localName(std::string(s, i + 2, e - i - 2).substr(0, s.find_first_of(" \t\r\n", i + 2) - i - 2)) != stack.back()->name)
+                return false;
+            stack.pop_back();
+            i = e + 1;
+        } else {
+            size_t j = i + 1;
+            while (j < s.size() && !std::isspace(static_cast<unsigned char>(s[j])) && s[j] != '>' && s[j] != '/') ++j;
+            XmlNode node;
+            node.name = localName(s.substr(i + 1, j - i - 1));
+            // Attributes: name="value" or name='value'.
+            while (j < s.size() && s[j] != '>' && s[j] != '/') {
+                if (std::isspace(static_cast<unsigned char>(s[j]))) {
+                    ++j;
+                    continue;
+                }
+                const size_t eq = s.find('=', j);
+                if (eq == std::string::npos || eq + 1 >= s.size()) return false;
+                const char q = s[eq + 1];
+                if (q != '"' && q != '\'') return false;
+                const size_t end = s.find(q, eq + 2);
+                if (end == std::string::npos) return false;
+                std::string key = s.substr(j, eq - j);
+                key.erase(key.find_last_not_of(" \t\r\n") + 1);
+                node.attrs[localName(key)] = xmlDecode(s.substr(eq + 2, end - eq - 2));
+                j = end + 1;
+            }
+            if (j >= s.size()) return false;
+            const bool selfClosing = s[j] == '/';
+            const size_t close = s.find('>', j);
+            if (close == std::string::npos) return false;
+            if (stack.size() > 256) return false;
+            stack.back()->kids.push_back(std::move(node));
+            if (!selfClosing) stack.push_back(&stack.back()->kids.back());
+            i = close + 1;
+        }
+    }
+    return stack.size() == 1;
+}
+
+/// A part's placement as IDX writes it: MCAD position (Y up), counter-clockwise rotation, side.
+struct IdxPlacement {
+    double x = 0, y = 0;
+    int rotation = 0;
+    bool bottom = false;
+};
+
+/// Every component instance in an IDX file by designator (REFDES property, else the instance name).
+std::map<std::string, IdxPlacement> idxPlacements(const std::string& idx) {
+    std::map<std::string, IdxPlacement> out;
+    XmlNode root;
+    if (idx.size() > (64u << 20) || !parseXml(idx, root)) return out;
+    std::vector<const XmlNode*> todo{&root};
+    while (!todo.empty()) {
+        const XmlNode* n = todo.back();
+        todo.pop_back();
+        for (const auto& k : n->kids) todo.push_back(&k);
+        if (n->name != "Item") continue;
+        const XmlNode* side = n->child("AssembleToName");
+        for (const auto& inst : n->kids) {
+            if (inst.name != "ItemInstance") continue;
+            const XmlNode* t = inst.child("Transformation");
+            if (!t) continue;
+            std::string ref;
+            for (const auto& up : inst.kids)
+                if (up.name == "UserProperty" && up.child("Key") && up.child("Key")->child("ObjectName") &&
+                    up.child("Key")->child("ObjectName")->text == "REFDES" && up.child("Value"))
+                    ref = up.child("Value")->text;
+            if (ref.empty() && inst.child("InstanceName") && inst.child("InstanceName")->child("ObjectName"))
+                ref = inst.child("InstanceName")->child("ObjectName")->text;
+            if (ref.empty()) continue;
+            IdxPlacement p;
+            p.x = t->child("tx") ? t->child("tx")->number() : 0;
+            p.y = t->child("ty") ? t->child("ty")->number() : 0;
+            const double xx = t->child("xx") ? t->child("xx")->number(1) : 1, yx = t->child("yx") ? t->child("yx")->number() : 0;
+            const double deg = std::atan2(yx, xx) * 180 / kPi;
+            p.rotation = ((static_cast<int>(std::lround(deg / 90.0)) * 90) % 360 + 360) % 360;
+            const XmlNode* s = inst.child("AssembleToName") ? inst.child("AssembleToName") : side;
+            p.bottom = s && s->text.find("BOTTOM") != std::string::npos;
+            out[ref] = p;
+        }
+    }
+    return out;
+}
+
+std::string xmlEscape(const std::string& s) {
+    std::string o;
+    for (char ch : s) o += ch == '<' ? "&lt;" : ch == '>' ? "&gt;" : ch == '&' ? "&amp;" : ch == '"' ? "&quot;" : std::string(1, ch);
+    return o;
+}
+
+std::string isoNow() {
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+#if defined(_WIN32)
+    gmtime_s(&tm, &t);
+#else
+    gmtime_r(&t, &tm);
+#endif
+    char b[32];
+    std::strftime(b, sizeof b, "%Y-%m-%dT%H:%M:%S", &tm);
+    return b;
+}
+
+/// IDX writer. `only` limits the parts written (change files); `changes` writes SendChanges instead of
+/// SendInformation, listing the changed parts.
+std::string writeIdx(const Schematic& sch, const PcbLayout& pcb, const std::string& name, const std::set<std::string>* only) {
+    const BoardSettings& s = pcb.settings;
+    std::ostringstream body;
+    int next = 1;
+    auto id = [&](const char* prefix) { return std::string(prefix) + std::to_string(next++); };
+    auto value = [&](const char* tag, double v) {
+        return std::string("<") + tag + "><property:Value>" + num(v) + "</property:Value></" + tag + ">";
+    };
+    // An extruded outline (MCAD XY, Y up) from z0 to z1: points, a closed polyline, its curve set, shape element.
+    auto shape = [&](const std::vector<Vec2>& outline, double z0, double z1, bool inverted) {
+        std::vector<std::string> pts;
+        for (const auto& v : outline) {
+            const std::string pid = id("P");
+            body << "  <foundation:CartesianPoint id=\"" << pid << "\" xsi:type=\"d2:EDMDCartesianPoint\">" << value("d2:X", v.x)
+                 << value("d2:Y", v.y) << "</foundation:CartesianPoint>\n";
+            pts.push_back(pid);
+        }
+        const std::string line = id("L"), curve = id("CS"), element = id("SE");
+        body << "  <foundation:PolyLine id=\"" << line << "\" xsi:type=\"d2:EDMDPolyLine\">" << value("d2:Thickness", 0);
+        for (const auto& pid : pts) body << "<d2:Point>" << pid << "</d2:Point>";
+        body << "<d2:Point>" << pts.front() << "</d2:Point></foundation:PolyLine>\n";
+        body << "  <foundation:CurveSet2d id=\"" << curve << "\" xsi:type=\"d2:EDMDCurveSet2d\"><pdm:ShapeDescriptionType>"
+                "GeometricModel</pdm:ShapeDescriptionType>" << value("d2:LowerBound", z0) << value("d2:UpperBound", z1)
+             << "<d2:DetailedGeometricModelElement>" << line << "</d2:DetailedGeometricModelElement></foundation:CurveSet2d>\n";
+        body << "  <foundation:ShapeElement id=\"" << element << "\" xsi:type=\"pdm:EDMDShapeElement\"><pdm:ShapeElementType>"
+                "FeatureShapeElement</pdm:ShapeElementType><pdm:Inverted>" << (inverted ? "true" : "false")
+             << "</pdm:Inverted><pdm:DefiningShape>" << curve << "</pdm:DefiningShape></foundation:ShapeElement>\n";
+        return element;
+    };
+    auto instanceName = [&](const std::string& n) {
+        return "<pdm:InstanceName><foundation:SystemScope>SiEDA</foundation:SystemScope><foundation:ObjectName>" +
+               xmlEscape(n) + "</foundation:ObjectName></pdm:InstanceName>";
+    };
+    std::vector<std::string> changed;
+    if (!only) {
+        // The board: outline extruded to its thickness, mounting holes cut through it.
+        std::vector<std::string> elements{shape(mcad(boardOutline(s), true), 0, s.thickness, false)};
+        for (const auto& h : s.holes)
+            elements.push_back(shape(mcad(circle(h.position, h.drill / 2, 16), true), 0, s.thickness, true));
+        const std::string def = id("ITEM"), inst = id("ITEM");
+        body << "  <foundation:Item id=\"" << def << "\" geometryType=\"BOARD_OUTLINE\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>"
+             << xmlEscape(name) << "</foundation:Name><pdm:ItemType>single</pdm:ItemType>";
+        for (const auto& e : elements) body << "<pdm:Shape>" << e << "</pdm:Shape>";
+        body << "</foundation:Item>\n  <foundation:Item id=\"" << inst << "\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>"
+             << xmlEscape(name) << "</foundation:Name><pdm:ItemType>assembly</pdm:ItemType><pdm:ItemInstance id=\"" << id("II")
+             << "\"><pdm:Item>" << def << "</pdm:Item>" << instanceName(name) << "</pdm:ItemInstance></foundation:Item>\n";
+    }
+    // Parts: a package item (body in its own frame) and an assembly instance placed by a 2D transformation.
+    for (const auto& b : partBodies(sch, pcb)) {
+        const Component& c = *b.c;
+        if (only && !only->count(c.ref)) continue;
+        std::vector<Vec2> local;
+        for (const auto& v : b.outline) local.push_back(v - c.pcb.position);
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1 && local.size() == 4)
+            for (auto& v : local) v = {v.y, v.x};
+        const std::string element = shape(mcad(local, true), 0, b.height, false);
+        const std::string def = id("ITEM"), inst = id("ITEM"), ii = id("II");
+        const double a = idfRotation(c.pcb.rotation) * kPi / 180;
+        const char* side = c.pcb.bottom ? "BOTTOM" : "TOP";
+        body << "  <foundation:Item id=\"" << def << "\" geometryType=\"COMPONENT\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>"
+             << xmlEscape(c.footprintName()) << "</foundation:Name><pdm:ItemType>single</pdm:ItemType><pdm:PackageName>"
+             << "<foundation:SystemScope>SiEDA</foundation:SystemScope><foundation:ObjectName>" << xmlEscape(c.footprintName())
+             << "</foundation:ObjectName></pdm:PackageName><pdm:Shape>" << element << "</pdm:Shape></foundation:Item>\n";
+        body << "  <foundation:Item id=\"" << inst << "\" geometryType=\"COMPONENT\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>"
+             << xmlEscape(c.ref) << "</foundation:Name><pdm:ItemType>assembly</pdm:ItemType><pdm:ItemInstance id=\"" << ii
+             << "\"><pdm:Item>" << def << "</pdm:Item>" << instanceName(c.ref)
+             << "<pdm:UserProperty xsi:type=\"property:EDMDUserSimpleProperty\"><property:Key><foundation:SystemScope>SiEDA"
+                "</foundation:SystemScope><foundation:ObjectName>REFDES</foundation:ObjectName></property:Key><property:Value>"
+             << xmlEscape(c.ref) << "</property:Value></pdm:UserProperty><pdm:Transformation><pdm:TransformationType>d2"
+             << "</pdm:TransformationType><pdm:xx>" << num(std::cos(a)) << "</pdm:xx><pdm:xy>" << num(-std::sin(a))
+             << "</pdm:xy><pdm:yx>" << num(std::sin(a)) << "</pdm:yx><pdm:yy>" << num(std::cos(a)) << "</pdm:yy>"
+             << value("pdm:tx", c.pcb.position.x) << value("pdm:ty", -c.pcb.position.y)
+             << value("pdm:zOffset", c.pcb.bottom ? 0 : s.thickness) << "</pdm:Transformation></pdm:ItemInstance>"
+             << "<pdm:AssembleToName>" << side << "</pdm:AssembleToName></foundation:Item>\n";
+        changed.push_back(inst);
+    }
+    std::ostringstream o;
+    o << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+         "<foundation:EDMDDataSet xmlns:foundation=\"http://www.prostep.org/EDMD/Foundation\" "
+         "xmlns:pdm=\"http://www.prostep.org/EDMD/PDM\" xmlns:d2=\"http://www.prostep.org/EDMD/2D\" "
+         "xmlns:property=\"http://www.prostep.org/EDMD/Property\" "
+         "xmlns:computational=\"http://www.prostep.org/EDMD/Computational\" "
+         "xmlns:administration=\"http://www.prostep.org/EDMD/Administration\" "
+         "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+         " <foundation:Header xsi:type=\"foundation:EDMDHeader\"><foundation:Description>"
+      << (only ? "SiEDA placement changes" : "SiEDA board baseline") << "</foundation:Description><foundation:CreatorName>"
+      << "SiEDA</foundation:CreatorName><foundation:CreatorSystem>SiEDA</foundation:CreatorSystem>"
+         "<foundation:GlobalUnitLength>UNIT_MM</foundation:GlobalUnitLength><foundation:CreationDateTime>"
+      << isoNow() << "</foundation:CreationDateTime></foundation:Header>\n <foundation:Body xsi:type=\"foundation:EDMDDataSetBody\">\n"
+      << body.str() << " </foundation:Body>\n";
+    if (only) {
+        o << " <foundation:ProcessInstruction xsi:type=\"computational:EDMDProcessInstructionSendChanges\">\n";
+        for (const auto& c : changed)
+            o << "  <computational:Changes><computational:Change xsi:type=\"computational:EDMDChange\"><computational:NewItem>"
+              << c << "</computational:NewItem></computational:Change></computational:Changes>\n";
+        o << " </foundation:ProcessInstruction>\n";
+    } else {
+        o << " <foundation:ProcessInstruction xsi:type=\"computational:EDMDProcessInstructionSendInformation\"/>\n";
+    }
+    o << "</foundation:EDMDDataSet>\n";
+    return o.str();
+}
+
+}  // namespace
+
+std::string exportIdx(const Schematic& sch, const PcbLayout& pcb, const std::string& name) {
+    return writeIdx(sch, pcb, name.empty() ? "board" : name, nullptr);
+}
+
+std::string exportIdxChanges(const Schematic& sch, const PcbLayout& pcb, const std::string& name, const std::string& baseline) {
+    const auto before = idxPlacements(baseline);
+    std::set<std::string> refs;
+    for (const auto& b : partBodies(sch, pcb)) {
+        const Component& c = *b.c;
+        const auto it = before.find(c.ref);
+        if (it == before.end() || std::hypot(it->second.x - c.pcb.position.x, it->second.y + c.pcb.position.y) > 1e-4 ||
+            it->second.rotation != idfRotation(c.pcb.rotation) || it->second.bottom != c.pcb.bottom)
+            refs.insert(c.ref);
+    }
+    return refs.empty() ? std::string() : writeIdx(sch, pcb, name.empty() ? "board" : name, &refs);
+}
+
+std::vector<std::string> importIdxPlacement(Schematic& sch, const std::string& idx) {
+    std::vector<std::string> moved;
+    for (const auto& [ref, p] : idxPlacements(idx)) {
+        const Component* found = sch.findByRef(ref);
+        Component* c = found ? sch.find(found->id) : nullptr;
+        if (!c || !c->hasFootprint()) continue;
+        const Vec2 at{p.x, -p.y};
+        const int rot = idfRotation(p.rotation);
+        if (std::hypot(at.x - c->pcb.position.x, at.y - c->pcb.position.y) < 1e-4 && rot == ((c->pcb.rotation % 360) + 360) % 360 &&
+            p.bottom == c->pcb.bottom)
+            continue;
+        c->pcb.position = at;
+        c->pcb.rotation = rot;
+        c->pcb.bottom = p.bottom;
+        c->pcb.placed = true;
+        moved.push_back(c->ref);
     }
     return moved;
 }

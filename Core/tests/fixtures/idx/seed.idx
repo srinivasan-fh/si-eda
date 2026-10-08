@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<foundation:EDMDDataSet xmlns:foundation="http://www.prostep.org/EDMD/Foundation" xmlns:pdm="http://www.prostep.org/EDMD/PDM" xmlns:property="http://www.prostep.org/EDMD/Property" xmlns:computational="http://www.prostep.org/EDMD/Computational" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <foundation:Body>
+  <foundation:Item id="ITEM1"><pdm:ItemType>assembly</pdm:ItemType><pdm:ItemInstance id="II1"><pdm:Item>ITEM0</pdm:Item><pdm:InstanceName><foundation:ObjectName>R1</foundation:ObjectName></pdm:InstanceName><pdm:Transformation><pdm:xx>0</pdm:xx><pdm:yx>1</pdm:yx><pdm:tx><property:Value>12.5</property:Value></pdm:tx><pdm:ty>-4</pdm:ty></pdm:Transformation></pdm:ItemInstance><pdm:AssembleToName>BOTTOM</pdm:AssembleToName></foundation:Item>
+ </foundation:Body>
+ <foundation:ProcessInstruction xsi:type="computational:EDMDProcessInstructionSendChanges"/>
+</foundation:EDMDDataSet>

@@ -64,6 +64,7 @@ jobs:
           for t in json project spice library idf; do mkdir -p corpus/$t; done
           cp seeds/design.siedaproj corpus/json/ && cp seeds/design.siedaproj corpus/project/
           cp seeds/*-netlist.cir corpus/spice/
+          cp Core/tests/fixtures/idx/* corpus/idf/
           i=0
           for f in Core/tests/fixtures/library/*.kicad_mod Core/tests/fixtures/library/*.kicad_sym \
                    Core/tests/fixtures/library/*.lbr Core/tests/fixtures/altium/*; do

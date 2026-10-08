@@ -57,6 +57,9 @@ and the tool reference are in [docs/MCP.md](docs/MCP.md).
   designator. SolidWorks, Fusion, Creo, NX, Inventor and FreeCAD read it.
 - **IDF 3.0** board (`.emn`) and library (`.emp`) files. When the mechanical engineer moves a connector, read the
   placement back with **File → Import MCAD Placement (IDF)…**. The whole import is one Undo step.
+- **IDX (ProSTEP EDMD v4.5)**: an `.idx` baseline (**File → Export**) with the board, holes and every part's body,
+  designator, side and placement; **File → Import MCAD Changes (IDX)…** applies an MCAD baseline or change file, and
+  MCP `output_idx_changes` sends only the parts moved since a baseline.
 - **Compare versions**: **File → Compare with Another Version…** lists what changed. That covers parts added,
   removed or changed (value, footprint, placement), pins that joined or left nets, re-routed copper per net, board
   settings and variants. Git shows the same list for `git diff` once `sieda-mcp --git-diff` is set as the diff

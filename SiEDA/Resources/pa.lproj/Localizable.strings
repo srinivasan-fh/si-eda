@@ -1273,3 +1273,4 @@
 "The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC ਨਿਰਮਾਤਾ ਦੇ ਘੱਟੋ-ਘੱਟ ਟ੍ਰੈਕ, ਫ਼ਾਸਲਾ, ਡ੍ਰਿਲ ਅਤੇ ਐਨੂਲਰ ਰਿੰਗ ਵਰਤਦਾ ਹੈ, ਅਤੇ ਨਿਰਮਾਣ ਤੇ ਅਸੈਂਬਲੀ ਜਾਂਚਾਂ ਜੋੜਦਾ ਹੈ: ਲੇਅਰ, ਬੋਰਡ ਆਕਾਰ, ਮੋਟਾਈ, ਵਾਇਆ, ਸੋਲਡਰ-ਮਾਸਕ ਵੈੱਬ, ਪੈਡ ਉੱਤੇ ਸਿਲਕਸਕ੍ਰੀਨ, ਪੁਰਜ਼ਿਆਂ ਦਾ ਫ਼ਾਸਲਾ, ਕਿਨਾਰੇ ਤੋਂ ਦੂਰੀ, ਫਿਡਿਊਸ਼ੀਅਲ। ਆਰਡਰ ਤੋਂ ਪਹਿਲਾਂ ਨਿਰਮਾਤਾ ਦਾ ਮੌਜੂਦਾ ਸਮਰੱਥਾ ਪੰਨਾ ਵੇਖੋ।";
 "Check with Field Solver" = "ਫੀਲਡ ਸੌਲਵਰ ਨਾਲ ਜਾਂਚੋ";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "ਇਹਨਾਂ ਚੌੜਾਈਆਂ ਦੇ ਅਸਲ Z0 ਅਤੇ Zdiff ਲਈ ਹਰ ਪਰਤ ਦਾ ਕਰਾਸ-ਸੈਕਸ਼ਨ ਹੱਲ ਕਰਦਾ ਹੈ (2D ਲਾਪਲਾਸ, ਡਾਇਇਲੈਕਟ੍ਰਿਕ ਸਮੇਤ ਅਤੇ ਬਿਨਾਂ)";
+"Import MCAD Changes (IDX)…" = "MCAD ਤਬਦੀਲੀਆਂ ਆਯਾਤ ਕਰੋ (IDX)…";

@@ -19469,3 +19469,65 @@ TEST(field_solver_line_loss) {
     CHECK(lm.dielectricDbPerIn > 0.05 && lm.dielectricDbPerIn < 0.1);
     CHECK_NEAR(lineLoss(m, rm, 0).rOhmPerMm, 1.72e-8 / (0.127e-3 * 0.035e-3) * 1e-3, 1e-9);
 }
+
+TEST(idx_baseline_changes_and_import_round_trip) {
+    Project p = placedBenchBoard();
+    const std::string base = exportIdx(p.schematic, p.pcb, "bench");
+    CHECK(base.find("<foundation:EDMDDataSet") != std::string::npos);
+    CHECK(base.find("EDMDProcessInstructionSendInformation") != std::string::npos);
+    CHECK(base.find("geometryType=\"BOARD_OUTLINE\"") != std::string::npos);
+    CHECK(base.find("<property:Value>U1</property:Value>") != std::string::npos);
+    size_t parts = 0;
+    for (size_t i = base.find("<pdm:AssembleToName>"); i != std::string::npos; i = base.find("<pdm:AssembleToName>", i + 1)) ++parts;
+    CHECK(static_cast<int>(parts) == placedBodies(p));
+    // Every id the file refers to is defined once.
+    std::set<std::string> ids;
+    for (size_t i = base.find(" id=\""); i != std::string::npos; i = base.find(" id=\"", i + 1))
+        CHECK(ids.insert(base.substr(i + 5, base.find('"', i + 5) - i - 5)).second);
+    for (const char* tag : {"<pdm:Shape>", "<d2:Point>", "<pdm:Item>", "<pdm:DefiningShape>", "<d2:DetailedGeometricModelElement>"})
+        for (size_t i = base.find(tag); i != std::string::npos; i = base.find(tag, i + 1)) {
+            const size_t a = i + std::strlen(tag);
+            CHECK(ids.count(base.substr(a, base.find('<', a) - a)) == 1);
+        }
+
+    // Unchanged: no change file and nothing moves on import.
+    CHECK(exportIdxChanges(p.schematic, p.pcb, "bench", base).empty());
+    Project ecad = p;
+    CHECK(importIdxPlacement(ecad.schematic, base).empty());
+    // MCAD moves, rotates and flips U1: the change file carries only U1, and the ECAD side takes it.
+    Project mcad = p;
+    Component* u1 = mcad.schematic.find(mcad.schematic.findByRef("U1")->id);
+    u1->pcb.position = {u1->pcb.position.x + 5, u1->pcb.position.y - 2};
+    u1->pcb.rotation = 90;
+    u1->pcb.bottom = !u1->pcb.bottom;
+    const std::string changes = exportIdxChanges(mcad.schematic, mcad.pcb, "bench", base);
+    CHECK(changes.find("EDMDProcessInstructionSendChanges") != std::string::npos);
+    CHECK(changes.find("<property:Value>U1</property:Value>") != std::string::npos);
+    size_t changed = 0;
+    for (size_t i = changes.find("<computational:Change "); i != std::string::npos; i = changes.find("<computational:Change ", i + 1))
+        ++changed;
+    CHECK(changed == 1);
+    const auto moved = importIdxPlacement(ecad.schematic, changes);
+    CHECK(moved.size() == 1 && moved[0] == "U1");
+    const Component* e1 = ecad.schematic.findByRef("U1");
+    CHECK_NEAR(e1->pcb.position.x, u1->pcb.position.x, 1e-6);
+    CHECK_NEAR(e1->pcb.position.y, u1->pcb.position.y, 1e-6);
+    CHECK(e1->pcb.rotation == 90 && e1->pcb.bottom == u1->pcb.bottom);
+    CHECK(exportIdxChanges(ecad.schematic, ecad.pcb, "bench", exportIdx(mcad.schematic, mcad.pcb, "bench")).empty());
+
+    // Other tools' prefixes and plain-number transforms read the same; hostile files change nothing.
+    std::string other = changes;
+    for (const char* ns : {"foundation:", "pdm:", "property:", "d2:", "computational:"}) {
+        for (size_t i = other.find(ns); i != std::string::npos; i = other.find(ns, i)) other.replace(i, std::strlen(ns), "x:");
+    }
+    Project third = p;
+    CHECK(importIdxPlacement(third.schematic, other).size() == 1);
+    Project hostile = p;
+    CHECK(importIdxPlacement(hostile.schematic, "<a><b></a>").empty());
+    CHECK(importIdxPlacement(hostile.schematic, std::string(100000, '<')).empty());
+    std::string deep;
+    for (int i = 0; i < 5000; ++i) deep += "<Item>";
+    CHECK(importIdxPlacement(hostile.schematic, deep).empty());
+    CHECK(importIdxPlacement(hostile.schematic, "<Item><ItemInstance><Transformation><tx>nan</tx></Transformation>"
+                                                "<InstanceName><ObjectName>U1</ObjectName></InstanceName></ItemInstance></Item>").size() <= 1);
+}
