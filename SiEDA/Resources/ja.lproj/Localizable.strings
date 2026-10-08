@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "フィールドソルバーで確認";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "各層の断面を解き（2Dラプラス、誘電体あり・なし）、これらの幅の実際のZ0とZdiffを求めます";
 "Import MCAD Changes (IDX)…" = "MCAD の変更を読み込む (IDX)…";
+"Field-solved lines" = "フィールドソルバーの線路";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "近似式の代わりに2Dフィールドソルバーで各線路のZ0・εeff・表皮効果電流を求めます";

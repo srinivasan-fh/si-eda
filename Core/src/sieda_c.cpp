@@ -2661,6 +2661,7 @@ LossOptions lossOptions(const Json& j, const SiSettings& si) {
     o.foil = j.get("foil").asString(si.copperFoil);
     o.roughness = roughnessFromString(j.get("roughness").asString("huray"));
     o.lossless = j.get("lossless").asBool(false);
+    o.fieldSolver = j.get("fieldSolver").asBool(si.fieldSolverLines);
     return o;
 }
 }  // namespace
@@ -2788,6 +2789,12 @@ int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil) {
     if (!id.empty() && std::none_of(copperFoils().begin(), copperFoils().end(), [&](const CopperFoil& f) { return f.id == id; }))
         return 0;
     project->project.si.copperFoil = id;
+    return 1;
+}
+
+int32_t sieda_si_set_field_solver_lines(SiedaProject* project, int32_t on) {
+    if (!project) return 0;
+    project->project.si.fieldSolverLines = on != 0;
     return 1;
 }
 

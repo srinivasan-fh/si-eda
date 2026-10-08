@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "用場求解器檢查";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "求解每層的橫截面（二維拉普拉斯，含與不含介質），得到這些線寬的實際 Z0 和 Zdiff";
 "Import MCAD Changes (IDX)…" = "匯入 MCAD 變更 (IDX)…";
+"Field-solved lines" = "場求解線路";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "用二維場求解器代替閉式公式求每條線路的 Z0、εeff 和趨膚效應電流";

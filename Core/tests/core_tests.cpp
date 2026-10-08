@@ -19578,3 +19578,24 @@ TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
     CHECK(zc[0] < 0.5 * z[std::lower_bound(f.begin(), f.end(), 50e6) - f.begin()]);
     CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
 }
+
+TEST(field_solved_lines_feed_the_channel_model) {
+    BoardSettings s;
+    s.layerCount = 4;
+    LossOptions fs;
+    fs.fieldSolver = true;
+    for (int layer : {0, 1}) {
+        const FieldResult r = solveField(trackGeometry(s, layer, 0.15));
+        const LineModel closed = lineModel(s, layer, 0.15), solved = lineModel(s, layer, 0.15, fs);
+        CHECK_NEAR(solved.z0, r.z0, 1e-9);
+        CHECK_NEAR(solved.epsEff, r.eeff, 1e-9);
+        CHECK_NEAR(solved.acFactor, r.rGeom, 1e-6);
+        CHECK(std::fabs(solved.z0 - closed.z0) < 0.25 * closed.z0);  // the same line, a better number
+        CHECK(solved.attenuationDb(10e9) > 0);
+    }
+    // Saved only when on.
+    SiSettings si;
+    CHECK(si.isDefault() && !si.toJson().has("fieldSolverLines"));
+    si.fieldSolverLines = true;
+    CHECK(!si.isDefault() && SiSettings::fromJson(si.toJson()).fieldSolverLines);
+}

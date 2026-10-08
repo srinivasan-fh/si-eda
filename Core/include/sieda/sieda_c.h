@@ -497,6 +497,9 @@ char* sieda_si_checks_json(const SiedaProject* project);
 char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json);
 /* Copper foil of the board for loss: "smooth", "hvlp", "vlp", "rtf", "std"; "" = by laminate. 0 for an unknown id. */
 int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil);
+/* Channel and loss analysis take Z0, εeff and the skin-effect geometry of every line from the 2D field solver
+ * (on != 0) instead of the closed-form stack-up formulas. Saved only when on. */
+int32_t sieda_si_set_field_solver_lines(SiedaProject* project, int32_t on);
 /* A serial channel checked by sign-off (SI_EYE_MASK): bit rate (b/s), mask height (V) and width (UI). bit_rate 0
  * removes it. */
 int32_t sieda_si_set_channel(SiedaProject* project, const char* net_name, double bit_rate, double mask_height,

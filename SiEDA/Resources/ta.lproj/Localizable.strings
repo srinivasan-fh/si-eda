@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "புல தீர்வியால் சரிபார்";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "இந்த அகலங்களின் உண்மையான Z0, Zdiff க்காக ஒவ்வொரு அடுக்கின் குறுக்குவெட்டையும் தீர்க்கிறது (2D லாப்லாஸ், மின்காப்புடன் மற்றும் இல்லாமல்)";
 "Import MCAD Changes (IDX)…" = "MCAD மாற்றங்களை இறக்கு (IDX)…";
+"Field-solved lines" = "புலம்-தீர்த்த கோடுகள்";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "மூடிய-வடிவ சூத்திரங்களுக்குப் பதிலாக 2D புல தீர்வியிலிருந்து ஒவ்வொரு கோட்டின் Z0, εeff மற்றும் தோல்-விளைவு மின்னோட்டம்";

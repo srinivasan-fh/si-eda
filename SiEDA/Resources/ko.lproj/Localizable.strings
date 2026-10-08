@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "필드 솔버로 확인";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "각 층의 단면을 풀어(2D 라플라스, 유전체 포함/제외) 이 폭들의 실제 Z0와 Zdiff를 구합니다";
 "Import MCAD Changes (IDX)…" = "MCAD 변경 사항 가져오기 (IDX)…";
+"Field-solved lines" = "필드 솔버 선로";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "근사식 대신 2D 필드 솔버로 각 선로의 Z0, εeff, 표피 효과 전류를 구합니다";

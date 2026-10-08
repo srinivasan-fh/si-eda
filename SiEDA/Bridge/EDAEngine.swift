@@ -1284,6 +1284,7 @@ final class EDAEngine: @unchecked Sendable {
     /// Copper foil for loss ("" = by laminate). False for an unknown id.
     @discardableResult
     func setCopperFoil(_ foil: String) -> Bool { withHandle { sieda_si_set_copper_foil($0, foil) } == 1 }
+    func setFieldSolverLines(_ on: Bool) -> Bool { withHandle { sieda_si_set_field_solver_lines($0, on ? 1 : 0) } == 1 }
 
     /// S-parameters, step response and eye of a routed net or pair; `touchstone` text is cascaded at the receiver.
     func siChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String? = nil,

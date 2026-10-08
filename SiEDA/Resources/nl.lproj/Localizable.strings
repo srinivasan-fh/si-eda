@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "Controleren met veldsolver";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Lost de dwarsdoorsnede van elke laag op (2D-Laplace, met en zonder diëlektricum) voor de werkelijke Z0 en Zdiff van deze breedtes";
 "Import MCAD Changes (IDX)…" = "MCAD-wijzigingen importeren (IDX)…";
+"Field-solved lines" = "Veldberekende lijnen";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff en de skineffectstroom van elke lijn uit de 2D-veldsolver in plaats van benaderingsformules";

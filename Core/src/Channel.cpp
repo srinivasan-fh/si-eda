@@ -526,6 +526,7 @@ ChannelModel extractChannel(const Project& project, const ChannelOptions& opt) {
     const BoardSettings& s = project.pcb.settings;
     LossOptions loss = opt.loss;
     if (loss.foil.empty()) loss.foil = project.si.copperFoil;
+    loss.fieldSolver = loss.fieldSolver || project.si.fieldSolverLines;
     int netP = findNet(sch, opt.net);
     if (netP < 0) {
         m.error = "Unknown net " + opt.net;

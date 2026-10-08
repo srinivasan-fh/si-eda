@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "Semak dengan Penyelesai Medan";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Menyelesaikan keratan rentas setiap lapisan (Laplace 2D, dengan dan tanpa dielektrik) untuk Z0 dan Zdiff sebenar lebar ini";
 "Import MCAD Changes (IDX)…" = "Import Perubahan MCAD (IDX)…";
+"Field-solved lines" = "Talian diselesaikan medan";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff dan arus kesan kulit setiap talian daripada penyelesai medan 2D dan bukan formula bentuk tertutup";

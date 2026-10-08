@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "Kiểm tra bằng bộ giải trường";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Giải mặt cắt của từng lớp (Laplace 2D, có và không có điện môi) để có Z0 và Zdiff thực của các độ rộng này";
 "Import MCAD Changes (IDX)…" = "Nhập thay đổi MCAD (IDX)…";
+"Field-solved lines" = "Đường truyền giải trường";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff và dòng hiệu ứng bề mặt của mỗi đường từ bộ giải trường 2D thay cho công thức gần đúng";

@@ -1274,3 +1274,5 @@
 "Check with Field Solver" = "फ़ील्ड सॉल्वर से जाँचें";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "इन चौड़ाइयों के वास्तविक Z0 और Zdiff के लिए हर परत का क्रॉस-सेक्शन हल करता है (2D लाप्लास, डाइइलेक्ट्रिक के साथ और बिना)";
 "Import MCAD Changes (IDX)…" = "MCAD बदलाव आयात करें (IDX)…";
+"Field-solved lines" = "फ़ील्ड-सॉल्व्ड लाइनें";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "क्लोज़्ड-फ़ॉर्म सूत्रों के बजाय 2D फ़ील्ड सॉल्वर से हर लाइन का Z0, εeff और स्किन-इफ़ेक्ट धारा";

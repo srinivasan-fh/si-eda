@@ -1588,6 +1588,12 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    /// Channel lines from the 2D field solver instead of the closed-form stack-up formulas. Undoable.
+    func setFieldSolverLines(_ on: Bool) {
+        guard (engine.siSettings().fieldSolverLines ?? false) != on else { return }
+        performChecked(on ? "Field-solved lines" : "Closed-form lines", invalidatesAnalysis: false) { $0.setFieldSolverLines(on) }
+    }
+
     /// Checks the eye of `net` at `bitRate` in sign-off (0 removes the check). Undoable.
     func setSIChannel(_ net: String, bitRate: Double, maskHeight: Double, maskWidthUi: Double) {
         performChecked(bitRate > 0 ? "\(net): channel check" : "\(net): no channel check", invalidatesAnalysis: false) {
