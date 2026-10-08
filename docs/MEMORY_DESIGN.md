@@ -82,10 +82,16 @@ TI and NXP DDR layout application notes); your controller's own layout guide has
 | Code | When | SDR | DDR3L / DDR4 / DIMM | LPDDR |
 |---|---|---|---|---|
 | `MEM_DDR_LANE_SKEW` | Delay spread between the bits of a byte lane (routed length × the layer's delay) | 50 ps | 10 ps | 5 ps |
+| `MEM_DDR_DQS_SKEW` | A lane's bits against its strobe (LDQS / DQS0 lane 0, UDQS / DQS1 lane 1) | — | 10 ps | 5 ps |
 | `MEM_DDR_LANE_VIAS` | Bits of a lane through different numbers of vias | ±1 | equal | equal |
 | `MEM_DDR_LANE_LAYERS` (info) | Bits of a lane routed on different layers | | | |
 | `MEM_DDR_IMPEDANCE` | A data net's main width / layer misses the single-ended target | ±15 % | ±10 % | ±10 % |
 | `MEM_DDR_ADDR_SKEW` | Command / address delay differs from the clock's | 100 ps | 25 ps | 15 ps |
+
+**Your controller's numbers.** Inspector → Memory (RAM) Segments → **Controller Layout Limits** (MCP
+`memory_layout_limits`, C `sieda_set_memory_limits` / `sieda_memory_limits_json`) replaces any of the typical values
+with the ones from your controller's layout guide (byte-lane skew, DQ to DQS, address to clock, impedance tolerance,
+via spread). 0 keeps the typical value; the overrides are saved with the project (only when set) and are undoable.
 
 ## DRAM parts in the library
 

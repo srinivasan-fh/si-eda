@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "MCAD পৰিৱৰ্তন আমদানি কৰক (IDX)…";
 "Field-solved lines" = "ফিল্ড-সমাধানকৃত লাইন";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "বন্ধ-ৰূপ সূত্ৰৰ সলনি 2D ফিল্ড ছলভাৰৰ পৰা প্ৰতিটো লাইনৰ Z0, εeff আৰু স্কিন-ইফেক্ট কাৰেণ্ট";
+"Controller Layout Limits" = "নিয়ন্ত্ৰকৰ লেআউট সীমা";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "মেমৰি প্ৰকাৰৰ সাধাৰণ মান; আপোনাৰ নিয়ন্ত্ৰকৰ লেআউট নিৰ্দেশিকাৰ মান দিয়ক (0 = সাধাৰণ)।";
+"Byte-lane skew (ps)" = "বাইট-লেন স্কিউ (ps)";
+"DQ to DQS (ps)" = "DQ ৰ পৰা DQS (ps)";
+"Address to clock (ps)" = "ঠিকনাৰ পৰা ক্লক (ps)";
+"Impedance tolerance (%)" = "প্ৰতিবাধা সহনশীলতা (%)";

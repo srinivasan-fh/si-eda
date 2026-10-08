@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "Mag-import ng mga Pagbabago sa MCAD (IDX)…";
 "Field-solved lines" = "Mga linyang nalutas ng field solver";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff at skin-effect current ng bawat linya mula sa 2D field solver sa halip na mga closed-form na formula";
+"Controller Layout Limits" = "Mga Limitasyon sa Layout ng Controller";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Mga karaniwang halaga para sa uri ng memory; ilagay ang mga numero mula sa layout guide ng iyong controller (0 = karaniwan).";
+"Byte-lane skew (ps)" = "Byte-lane skew (ps)";
+"DQ to DQS (ps)" = "DQ sa DQS (ps)";
+"Address to clock (ps)" = "Address sa clock (ps)";
+"Impedance tolerance (%)" = "Tolerance ng impedance (%)";

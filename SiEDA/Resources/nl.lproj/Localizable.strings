@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "MCAD-wijzigingen importeren (IDX)…";
 "Field-solved lines" = "Veldberekende lijnen";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff en de skineffectstroom van elke lijn uit de 2D-veldsolver in plaats van benaderingsformules";
+"Controller Layout Limits" = "Layoutgrenzen van de controller";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Typische waarden voor het geheugentype; vul de waarden uit de layoutrichtlijn van uw controller in (0 = typisch).";
+"Byte-lane skew (ps)" = "Byte-lane-scheefheid (ps)";
+"DQ to DQS (ps)" = "DQ naar DQS (ps)";
+"Address to clock (ps)" = "Adres naar klok (ps)";
+"Impedance tolerance (%)" = "Impedantietolerantie (%)";

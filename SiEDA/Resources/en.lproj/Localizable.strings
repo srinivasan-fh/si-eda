@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "Import MCAD Changes (IDX)…";
 "Field-solved lines" = "Field-solved lines";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas";
+"Controller Layout Limits" = "Controller Layout Limits";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical).";
+"Byte-lane skew (ps)" = "Byte-lane skew (ps)";
+"DQ to DQS (ps)" = "DQ to DQS (ps)";
+"Address to clock (ps)" = "Address to clock (ps)";
+"Impedance tolerance (%)" = "Impedance tolerance (%)";

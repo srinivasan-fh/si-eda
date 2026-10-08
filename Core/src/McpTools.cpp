@@ -2355,6 +2355,17 @@ void verifyTools(Table& t) {
                                            : sieda_memory_segments_json(P(s));
               return out(takeJson(r));
           });
+    t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
+          "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "
+          "data impedance tolerance, via spread). With arguments: sets the controller's own values (0 or omitted = the memory "
+          "type's typical value). Returns the limits in force.",
+          Schema().num("laneSkewPs", "Byte-lane DQ skew, ps").num("dqsSkewPs", "DQ to its strobe, ps")
+              .num("addrSkewPs", "Command / address to clock, ps").num("impedanceTolPercent", "Data impedance tolerance, %")
+              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)"),
+          [](McpServer& s, const Json& a) {
+              if (a.isObject() && a.size() > 0) check(sieda_set_memory_limits(P(s), a.dump().c_str()) == 1, "Invalid limits");
+              return out(takeJson(sieda_memory_limits_json(P(s))));
+          });
     t.add("verify", "design_set_domain", "Set domain", Kind::Edit, true,
           "Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, "
           "printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, "

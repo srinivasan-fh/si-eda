@@ -2368,6 +2368,13 @@ final class DesignStore: ObservableObject {
 
     func memorySegments() -> RobotSegmentsReport { engine.memorySegments() }
 
+    /// The controller's own DDR layout limits (nil fields = the memory type's typical value). Undoable.
+    func setMemoryLimits(_ limits: EDAEngine.MemoryLimits) {
+        guard engine.memoryLimits()?.overrides != limits else { return }
+        performChecked("DDR layout limits", invalidatesAnalysis: false) { $0.setMemoryLimits(limits) }
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
     /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
     /// Undoable; the mesh copper appears with the next Auto Route.
     func addTamperMesh(component ref: String, netA: String, netB: String) {

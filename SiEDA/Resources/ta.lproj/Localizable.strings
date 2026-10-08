@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "MCAD மாற்றங்களை இறக்கு (IDX)…";
 "Field-solved lines" = "புலம்-தீர்த்த கோடுகள்";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "மூடிய-வடிவ சூத்திரங்களுக்குப் பதிலாக 2D புல தீர்வியிலிருந்து ஒவ்வொரு கோட்டின் Z0, εeff மற்றும் தோல்-விளைவு மின்னோட்டம்";
+"Controller Layout Limits" = "கட்டுப்படுத்தி அமைப்பு வரம்புகள்";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "நினைவக வகைக்கான வழக்கமான மதிப்புகள்; உங்கள் கட்டுப்படுத்தியின் அமைப்பு வழிகாட்டி எண்களை உள்ளிடவும் (0 = வழக்கமானது).";
+"Byte-lane skew (ps)" = "பைட்-லேன் சாய்வு (ps)";
+"DQ to DQS (ps)" = "DQ முதல் DQS (ps)";
+"Address to clock (ps)" = "முகவரி முதல் கடிகாரம் (ps)";
+"Impedance tolerance (%)" = "மின்மறுப்பு சகிப்புத்தன்மை (%)";

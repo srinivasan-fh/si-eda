@@ -4501,6 +4501,17 @@ final class MemoryDesignTests: XCTestCase {
         XCTAssertTrue(AgentPrompts.architectSystem.contains("\"memoryDesign\""))
     }
 
+    func testControllerLayoutLimitsAreUndoable() throws {
+        let store = DesignStore()
+        store.setMemoryDesign("ddr")
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 10)
+        store.setMemoryLimits(EDAEngine.MemoryLimits(laneSkewPs: 25))
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 25)
+        XCTAssertEqual(store.engine.memoryLimits()?.defaults.laneSkewPs, 10)
+        store.undo()
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 10)
+    }
+
     func testDdrChecksOnAFreshProject() throws {
         let store = DesignStore()
         store.setMemoryDesign("ddr")

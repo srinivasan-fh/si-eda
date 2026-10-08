@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "匯入 MCAD 變更 (IDX)…";
 "Field-solved lines" = "場求解線路";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "用二維場求解器代替閉式公式求每條線路的 Z0、εeff 和趨膚效應電流";
+"Controller Layout Limits" = "控制器佈局限值";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "該記憶體類型的典型值；請輸入控制器佈局指南中的數值（0 = 典型值）。";
+"Byte-lane skew (ps)" = "位元組通道偏斜 (ps)";
+"DQ to DQS (ps)" = "DQ 至 DQS (ps)";
+"Address to clock (ps)" = "位址至時脈 (ps)";
+"Impedance tolerance (%)" = "阻抗容差 (%)";

@@ -1066,6 +1066,21 @@ int32_t sieda_set_memory_design(SiedaProject* project, const char* type) {
     return 1;
 }
 
+char* sieda_memory_limits_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    return dup(memoryLimitsReportJson(project->project).dump());
+}
+
+int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json) {
+    if (!project || !limits_json) return 0;
+    try {
+        project->project.memoryLimits = memoryLimitsFromJson(Json::parse(limits_json));
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 char* sieda_memory_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {

@@ -5226,6 +5226,20 @@ TEST(memory_design_segments_and_checks) {
         track(n1, 20);
         const auto clean = codes(p, false);
         CHECK(!clean.count("MEM_DDR_LANE_SKEW") && !clean.count("MEM_DDR_LANE_VIAS") && !clean.count("MEM_DDR_LANE_LAYERS"));
+        // The controller's own limits replace the type's: a looser skew budget clears a 20 mm mismatch, saved and
+        // reported; {} restores the typical value.
+        p.pcb.tracks.clear();
+        track(n0, 10);
+        track(n1, 30);
+        CHECK(codes(p, false).count("MEM_DDR_LANE_SKEW"));
+        p.memoryLimits = memoryLimitsFromJson(Json::parse(R"({"laneSkewPs":500,"laneViaSpread":2})"));
+        CHECK(!codes(p, false).count("MEM_DDR_LANE_SKEW"));
+        const Json rep = memoryLimitsReportJson(p);
+        CHECK(rep.get("effective").get("laneSkewPs").asNumber() == 500 && rep.get("defaults").get("laneSkewPs").asNumber() == 50);
+        CHECK(Project::fromJson(p.toJson()).memoryLimits.laneSkewPs == 500);
+        CHECK(memoryLimitsFromJson(Json::parse(R"({"laneSkewPs":1e9,"laneViaSpread":99})")).laneSkewPs == 1000);
+        p.memoryLimits = memoryLimitsFromJson(Json::parse("{}"));
+        CHECK(p.memoryLimits.isDefault() && !p.toJson().has("memoryLimits"));
         p.pcb.tracks.clear();
     }
     Json bad = p.toJson();
@@ -19651,4 +19665,35 @@ TEST(idx_outline_keepouts_and_response) {
     CHECK(no.find("<computational:Accept>false</computational:Accept>") != std::string::npos);
     CHECK(yes.find("<computational:NewItem>ITEM") != std::string::npos);
     CHECK(idxResponse("<broken", true).find("<computational:Change ") == std::string::npos);
+}
+
+TEST(ddr_strobe_matched_to_its_byte_lane) {
+    Project q;
+    auto& d = q.schematic;
+    q.memoryDesign = "ddr";
+    const int dram = d.addCustomComponent(
+        CustomPartRegistry::instance().registerPart(findStandardPart("MT41K256M16HA-125")->spec)->id, "", {0, 0});
+    std::map<std::string, int> net;
+    for (const char* pin : {"DQ0", "DQ1", "LDQS"}) {
+        const int r = d.addComponent(ComponentKind::Resistor, "22", {200, 0});
+        wire(d, dram, pin, r, "1");
+    }
+    q.schematicChanged();
+    const Component* c = d.find(dram);
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) net[c->def().pins[static_cast<size_t>(i)].name] = d.netOf({dram, i});
+    auto route = [&](const char* pin, double len) {
+        Track t;
+        t.net = net[pin], t.width = 0.12, t.a = {0, 0}, t.b = {len, 0};
+        q.pcb.tracks.push_back(t);
+    };
+    auto codes = [&] {
+        std::set<std::string> s;
+        for (const auto& v : memoryChecks(q))
+            if (v.severity == Severity::Warning) s.insert(v.code);
+        return s;
+    };
+    route("DQ0", 20), route("DQ1", 20), route("LDQS", 40);  // bits matched to each other, the strobe 20 mm long
+    CHECK(codes().count("MEM_DDR_DQS_SKEW") && !codes().count("MEM_DDR_LANE_SKEW"));
+    q.pcb.tracks.back().b = {20, 0};
+    CHECK(!codes().count("MEM_DDR_DQS_SKEW"));
 }

@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "MCAD മാറ്റങ്ങൾ ഇറക്കുമതി (IDX)…";
 "Field-solved lines" = "ഫീൽഡ്-സോൾവ് ചെയ്ത ലൈനുകൾ";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "ക്ലോസ്ഡ്-ഫോം സൂത്രവാക്യങ്ങൾക്ക് പകരം 2D ഫീൽഡ് സോൾവറിൽ നിന്ന് ഓരോ ലൈനിന്റെയും Z0, εeff, സ്കിൻ-ഇഫക്റ്റ് കറന്റ്";
+"Controller Layout Limits" = "കൺട്രോളർ ലേഔട്ട് പരിധികൾ";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "മെമ്മറി തരത്തിന്റെ സാധാരണ മൂല്യങ്ങൾ; നിങ്ങളുടെ കൺട്രോളറിന്റെ ലേഔട്ട് ഗൈഡിലെ മൂല്യങ്ങൾ നൽകുക (0 = സാധാരണ).";
+"Byte-lane skew (ps)" = "ബൈറ്റ്-ലെയ്ൻ സ്ക്യൂ (ps)";
+"DQ to DQS (ps)" = "DQ മുതൽ DQS വരെ (ps)";
+"Address to clock (ps)" = "അഡ്രസ് മുതൽ ക്ലോക്ക് വരെ (ps)";
+"Impedance tolerance (%)" = "ഇംപീഡൻസ് സഹിഷ്ണുത (%)";

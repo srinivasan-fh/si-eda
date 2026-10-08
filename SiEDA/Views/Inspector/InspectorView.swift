@@ -864,6 +864,30 @@ private struct MemorySystemProperties: View {
                             selection: Binding(get: { store.snapshot.memoryDesign }, set: { store.setMemoryDesign($0) }),
                             hint: "Pick a memory design type (or the Memory & DRAM industry) to check power, clock / address, "
                                 + "data, configuration and layout segments.")
+        if !store.snapshot.memoryDesign.isEmpty, let report = store.engine.memoryLimits() {
+            Section("Controller Layout Limits") {
+                limit("Byte-lane skew (ps)", \.laneSkewPs, report)
+                limit("DQ to DQS (ps)", \.dqsSkewPs, report)
+                limit("Address to clock (ps)", \.addrSkewPs, report)
+                limit("Impedance tolerance (%)", \.impedanceTolPercent, report)
+                Text("Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical).")
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func limit(_ title: LocalizedStringKey, _ key: WritableKeyPath<EDAEngine.MemoryLimits, Double?>,
+                       _ report: EDAEngine.MemoryLimitsReport) -> some View {
+        LabeledContent(title) {
+            TextField("", value: Binding(get: { report.effective[keyPath: key] ?? 0 }, set: { value in
+                var o = report.overrides
+                o[keyPath: key] = value > 0 ? value : nil
+                store.setMemoryLimits(o)
+            }), format: .number.precision(.fractionLength(0...1)))
+            .multilineTextAlignment(.trailing)
+            .frame(width: 70)
+        }
     }
 }
 

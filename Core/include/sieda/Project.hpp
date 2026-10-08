@@ -139,6 +139,15 @@ public:
     /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; empty = none): turns on the five memory
     /// segment checks (the memory industry profile turns them on as advice).
     std::string memoryDesign;
+    /// DDR layout limits from the memory controller's own layout guide; 0 (or -1 for the via spread) keeps the memory
+    /// type's typical value (Memory.cpp ddrLayoutLimits). Saved only when one is set.
+    struct MemoryLayoutLimits {
+        double laneSkewPs = 0, dqsSkewPs = 0, addrSkewPs = 0, impedanceTolPercent = 0;
+        int laneViaSpread = -1;
+        bool isDefault() const {
+            return laneSkewPs <= 0 && dqsSkewPs <= 0 && addrSkewPs <= 0 && impedanceTolPercent <= 0 && laneViaSpread < 0;
+        }
+    } memoryLimits;
     Schematic schematic;
     PcbLayout pcb;
     /// Signal / power integrity: imported IBIS models, model assignments, PDN rail inputs and SI sign-off.

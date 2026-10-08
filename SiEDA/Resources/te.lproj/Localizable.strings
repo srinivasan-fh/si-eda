@@ -1276,3 +1276,9 @@
 "Import MCAD Changes (IDX)…" = "MCAD మార్పుల దిగుమతి (IDX)…";
 "Field-solved lines" = "ఫీల్డ్-సాల్వ్ చేసిన లైన్లు";
 "Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "క్లోజ్డ్-ఫారమ్ సూత్రాలకు బదులుగా 2D ఫీల్డ్ సాల్వర్ నుండి ప్రతి లైన్ Z0, εeff మరియు స్కిన్-ఎఫెక్ట్ కరెంట్";
+"Controller Layout Limits" = "కంట్రోలర్ లేఅవుట్ పరిమితులు";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "మెమరీ రకానికి సాధారణ విలువలు; మీ కంట్రోలర్ లేఅవుట్ గైడ్ సంఖ్యలను నమోదు చేయండి (0 = సాధారణం).";
+"Byte-lane skew (ps)" = "బైట్-లేన్ స్క్యూ (ps)";
+"DQ to DQS (ps)" = "DQ నుండి DQS (ps)";
+"Address to clock (ps)" = "చిరునామా నుండి క్లాక్ (ps)";
+"Impedance tolerance (%)" = "ఇంపెడెన్స్ సహనం (%)";

@@ -509,6 +509,7 @@ Json Project::toJson() const {
     root["retailDevice"] = retailDevice;
     root["applianceType"] = applianceType;
     root["memoryDesign"] = memoryDesign;
+    if (!memoryLimits.isDefault()) root["memoryLimits"] = memoryLimitsJson(memoryLimits);
     if (!si.isDefault()) root["signalIntegrity"] = si.toJson();
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
@@ -677,6 +678,7 @@ Project Project::fromJson(const Json& root) {
     if (!p.applianceType.empty() && !findApplianceType(p.applianceType)) p.applianceType.clear();
     p.memoryDesign = root.get("memoryDesign").asString("");
     if (!p.memoryDesign.empty() && !findMemoryDesignType(p.memoryDesign)) p.memoryDesign.clear();
+    p.memoryLimits = memoryLimitsFromJson(root.get("memoryLimits"));
     p.si = SiSettings::fromJson(root.get("signalIntegrity"));
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
