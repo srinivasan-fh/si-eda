@@ -19603,6 +19603,30 @@ TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
     CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
 }
 
+TEST(field_solver_solder_mask_coating) {
+    // A 50 Ω-class FR-4 microstrip: 20 µm of LPI mask (εr 3.6) lowers Z0 by about 1–3 Ω and raises εeff; a coating with
+    // εr 1 is the bare line again, and stripline ignores it.
+    FieldGeometry g;
+    g.w = 0.3, g.h = 0.17, g.t = 0.035, g.er = 4.3;
+    const FieldResult bare = solveField(g);
+    g.mask = 0.02;
+    const FieldResult coated = solveField(g);
+    CHECK(bare.z0 - coated.z0 > 0.5 && bare.z0 - coated.z0 < 4 && coated.eeff > bare.eeff);
+    g.erMask = 1;
+    CHECK_NEAR(solveField(g).z0, bare.z0, bare.z0 * 2e-3);
+    g.erMask = 3.6, g.s = 0.2;  // pairs: the coating between the tracks lowers Zdiff too
+    FieldGeometry p = g;
+    p.mask = 0;
+    CHECK(solveField(p).zdiff > solveField(g).zdiff);
+    g.s = 0, g.hTop = 0.2;
+    p = g, p.mask = 0;
+    CHECK_NEAR(solveField(g).z0, solveField(p).z0, 1e-9);
+    // The stack-up's outer layers are coated; inner ones are not.
+    BoardSettings s;
+    s.layerCount = 4;
+    CHECK(trackGeometry(s, 0, 0.2).mask > 0 && trackGeometry(s, 1, 0.2).mask == 0);
+}
+
 TEST(field_solved_lines_feed_the_channel_model) {
     BoardSettings s;
     s.layerCount = 4;
