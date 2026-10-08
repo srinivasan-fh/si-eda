@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard.";
 "Command Palette…" = "Command Palette…";
 "Search commands, parts and nets" = "Search commands, parts and nets";
+"End the simulation early" = "End the simulation early";

@@ -833,6 +833,9 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(VerificationReport.self, from: withHandle { Self.take(sieda_run_verification($0)) })
     }
 
+    /// Stop flag for running simulations (`sieda_simulation_stop`); clear it before the next run.
+    static func stopSimulation(_ stop: Bool) { sieda_simulation_stop(stop ? 1 : 0) }
+
     func simulateDC() -> DCResult {
         let json = withHandle { Self.take(sieda_simulate_dc($0)) }
         return Self.decode(DCResult.self, from: json) ?? DCResult(error: "Simulator returned no result.")

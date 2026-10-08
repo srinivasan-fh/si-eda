@@ -7899,3 +7899,19 @@ final class CommandPaletteTests: XCTestCase {
         XCTAssertEqual(target.hits, 1)
     }
 }
+
+/// The status bar's Stop for running simulations (`sieda_simulation_stop`).
+@MainActor
+final class SimulationStopTests: XCTestCase {
+    func testStopEndsTheRunAndClearingRestoresIt() {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        EDAEngine.stopSimulation(true)
+        defer { EDAEngine.stopSimulation(false) }
+        let stopped = engine.simulateTransient(stop: 1e-3, step: 1e-5)
+        XCTAssertFalse(stopped.ok)
+        XCTAssertEqual(stopped.error, "Simulation stopped.")
+        EDAEngine.stopSimulation(false)
+        XCTAssertTrue(engine.simulateTransient(stop: 1e-3, step: 1e-5).ok)
+    }
+}

@@ -4,6 +4,7 @@
 #include "sieda/DeviceModels.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -13,6 +14,14 @@
 #include "SimulatorInternal.hpp"
 
 namespace sieda {
+
+namespace {
+std::atomic<bool> stopRequested{false};
+}
+
+void requestSimulationStop(bool stop) { stopRequested.store(stop, std::memory_order_relaxed); }
+bool simulationStopRequested() { return stopRequested.load(std::memory_order_relaxed); }
+
 
 using namespace simdetail;
 
@@ -1083,6 +1092,10 @@ TransientResult Simulator::transient(double tStop, double tStep) {
 
     int steps = static_cast<int>(std::ceil(tStop / tStep - 1e-9));
     for (int s = 1; s <= steps; ++s) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            return res;
+        }
         double t = std::min(s * tStep, tStop);
         if (!advance(t - t_, res.error)) {
             res.mcus = mcuReports();
@@ -1378,6 +1391,10 @@ AcResult Simulator::ac(const AcOptions& o) {
     res.netPhasors.assign(nets.size(), {});
     for (auto& v : res.netPhasors) v.reserve(points);
     for (size_t i = 0; i < points; ++i) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            return res;
+        }
         double freq = i + 1 == points ? o.fStop
                                       : o.fStart * std::pow(10.0, static_cast<double>(i) / o.pointsPerDecade);
         if (!solveAt(freq)) {
@@ -1448,6 +1465,10 @@ DcSweepResult Simulator::dcSweep(int componentId, double start, double stop, dou
     res.netVoltages.assign(nets.size(), {});
     std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
     for (double v : values) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            return res;
+        }
         for (size_t i : swept) {
             SourceSpec dc;
             dc.dc = v;

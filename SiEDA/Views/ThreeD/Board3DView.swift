@@ -54,8 +54,8 @@ struct Board3DWorkspace: View {
                 Spacer()
                 Button { resetCamera += 1 } label: { Label("Reset View", systemImage: "camera.metering.center.weighted") }
                 Menu {
-                    Button("STL (ASCII)") { store.export(.stl) }
-                    Button("OBJ with vertex colours") { store.export(.obj) }
+                    Button("STL (ASCII)") { Task { await store.export(.stl) } }
+                    Button("OBJ with vertex colours") { Task { await store.export(.obj) } }
                 } label: {
                     Label("Export 3D", systemImage: "square.and.arrow.up")
                 }

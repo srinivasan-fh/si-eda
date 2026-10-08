@@ -324,6 +324,31 @@ TEST(sim_rc_transient) {
     CHECK_NEAR(res.netVoltages[static_cast<size_t>(net)].back(), 5 * (1 - std::exp(-5.0)), 0.03);
 }
 
+TEST(sim_stop_request_ends_runs_and_clears) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5 AC 1", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    requestSimulationStop();
+    TransientOptions trap;
+    trap.tStop = 1e-3;
+    trap.tStep = 1e-6;
+    trap.trapezoidal = true;
+    AcOptions ac;
+    ac.fStart = 1;
+    ac.fStop = 1e6;
+    for (const std::string& error : {Simulator(s).transient(1e-3, 1e-6).error, Simulator(s).transient(trap).error,
+                                     Simulator(s).ac(ac).error, Simulator(s).dcSweep(v, 0, 5, 0.1).error}) {
+        CHECK(error == kSimulationStopped);
+    }
+    requestSimulationStop(false);
+    auto res = Simulator(s).transient(1e-3, 1e-6);
+    CHECK(res.ok && res.error.empty());
+}
+
 TEST(sim_rl_dc_and_transient) {
     Schematic s;
     int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 1 1)", {0, 0});

@@ -316,7 +316,7 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             Menu("Export") {
                 ForEach(ExportFormat.allCases) { format in
-                    Button(format.displayName) { store.export(format) }
+                    Button(format.displayName) { Task { await store.export(format) } }
                 }
             }
             Button("Import MCAD Placement (IDF)…") { store.importIDFPlacement() }

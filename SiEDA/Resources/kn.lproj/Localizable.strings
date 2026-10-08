@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "ಪ್ರತಿ ವಿಂಡೋಗೆ ಬಣ್ಣ: ಪ್ಯಾನೆಲ್‌ಗಳು, ಆಕ್ಸೆಂಟ್ ಮತ್ತು ಪಠ್ಯ, ಮತ್ತು ಹೊಂದುವ ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಯೋಜನೆಯನ್ನು ಆರಿಸುತ್ತದೆ. ತಾಮ್ರ, ಪ್ಯಾಡ್ ಮತ್ತು ದೋಷದ ಬಣ್ಣಗಳು ಪ್ರಮಾಣಿತವಾಗಿಯೇ ಇರುತ್ತವೆ.";
 "Command Palette…" = "ಕಮಾಂಡ್ ಪ್ಯಾಲೆಟ್…";
 "Search commands, parts and nets" = "ಕಮಾಂಡ್‌ಗಳು, ಭಾಗಗಳು ಮತ್ತು ನೆಟ್‌ಗಳನ್ನು ಹುಡುಕಿ";
+"End the simulation early" = "ಸಿಮ್ಯುಲೇಶನ್ ಅನ್ನು ಬೇಗ ಮುಗಿಸಿ";

@@ -192,7 +192,7 @@ struct SimulationView: View {
                 }
                 Spacer()
                 Button {
-                    store.export(.spice)
+                    Task { await store.export(.spice) }
                 } label: { Label("SPICE Netlist", systemImage: "doc.plaintext") }
             }
             .buttonStyle(.borderless)
