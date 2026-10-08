@@ -34,6 +34,39 @@ const std::vector<DfmPack>& dfmPacks() {
     return packs;
 }
 
+namespace {
+/// A pack value by name (maxLayers, an int, is handled by the callers).
+double* field(DfmPack& p, const std::string& k) {
+    static const std::map<std::string, double DfmPack::*> m{
+        {"minTrack", &DfmPack::minTrack}, {"minSpace", &DfmPack::minSpace}, {"minDrill", &DfmPack::minDrill},
+        {"minAnnularRing", &DfmPack::minAnnularRing}, {"minHoleToHole", &DfmPack::minHoleToHole},
+        {"minViaDiameter", &DfmPack::minViaDiameter}, {"minMaskSliver", &DfmPack::minMaskSliver},
+        {"minSilkToPad", &DfmPack::minSilkToPad}, {"minEdgeCopper", &DfmPack::minEdgeCopper},
+        {"minThickness", &DfmPack::minThickness}, {"maxThickness", &DfmPack::maxThickness}, {"maxWidth", &DfmPack::maxWidth},
+        {"maxHeight", &DfmPack::maxHeight}, {"minPartSpacing", &DfmPack::minPartSpacing},
+        {"minPartToEdge", &DfmPack::minPartToEdge}, {"maxAspectRatio", &DfmPack::maxAspectRatio}};
+    const auto it = m.find(k);
+    return it == m.end() ? nullptr : &(p.*(it->second));
+}
+}  // namespace
+
+const std::vector<std::string>& dfmFieldNames() {
+    static const std::vector<std::string> n{"minTrack", "minSpace", "minDrill", "minAnnularRing", "minHoleToHole", "minViaDiameter",
+                                            "minMaskSliver", "minSilkToPad", "minEdgeCopper", "minThickness", "maxThickness",
+                                            "maxWidth", "maxHeight", "minPartSpacing", "minPartToEdge", "maxAspectRatio", "maxLayers"};
+    return n;
+}
+
+std::optional<DfmPack> boardDfmPack(const BoardSettings& s) {
+    const DfmPack* base = findDfmPack(s.dfmPack);
+    if (!base) return std::nullopt;
+    DfmPack p = *base;
+    for (const auto& [k, v] : s.dfmOverrides)
+        if (k == "maxLayers") p.maxLayers = static_cast<int>(std::lround(v));
+        else if (double* f = field(p, k)) *f = v;
+    return p;
+}
+
 const DfmPack* findDfmPack(const std::string& id) {
     for (const auto& p : dfmPacks())
         if (p.id == id) return &p;
@@ -48,15 +81,8 @@ Json dfmPacksJson() {
         j["name"] = p.name;
         j["maker"] = p.maker;
         j["notes"] = p.notes;
-        for (auto [k, v] : {std::pair{"minTrack", p.minTrack}, {"minSpace", p.minSpace}, {"minDrill", p.minDrill},
-                            {"minAnnularRing", p.minAnnularRing}, {"minHoleToHole", p.minHoleToHole},
-                            {"minViaDiameter", p.minViaDiameter}, {"minMaskSliver", p.minMaskSliver},
-                            {"minSilkToPad", p.minSilkToPad}, {"minEdgeCopper", p.minEdgeCopper},
-                            {"minThickness", p.minThickness}, {"maxThickness", p.maxThickness}, {"maxWidth", p.maxWidth},
-                            {"maxHeight", p.maxHeight}, {"minPartSpacing", p.minPartSpacing},
-                            {"minPartToEdge", p.minPartToEdge}})
-            j[k] = v;
-        j["maxLayers"] = p.maxLayers;
+        DfmPack q = p;
+        for (const auto& k : dfmFieldNames()) j[k] = k == "maxLayers" ? Json(q.maxLayers) : Json(*field(q, k));
         arr.push(j);
     }
     return arr;
@@ -67,9 +93,9 @@ bool applyDfmPack(BoardSettings& s, const std::string& id) {
         s.dfmPack.clear();
         return true;
     }
-    const DfmPack* p = findDfmPack(id);
-    if (!p) return false;
+    if (!findDfmPack(id)) return false;
     s.dfmPack = id;
+    const auto p = boardDfmPack(s);
     s.minTrackWidth = std::max(s.minTrackWidth, p->minTrack);
     s.minClearance = std::max(s.minClearance, p->minSpace);
     s.minDrill = std::max(s.minDrill, p->minDrill);
@@ -111,7 +137,7 @@ double pointSegment(Vec2 p, Vec2 a, Vec2 b) {
 std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb) {
     std::vector<RuleViolation> out;
     const BoardSettings& s = pcb.settings;
-    const DfmPack* p = findDfmPack(s.dfmPack);
+    const auto p = boardDfmPack(s);
     if (!p) return out;
     auto add = [&](Severity sev, const char* code, const std::string& msg, std::vector<int> comps = {}, Vec2 at = {},
                    bool located = false) {
@@ -307,9 +333,14 @@ Json dfmReportJson(const Schematic& sch, const PcbLayout& pcb) {
     const BoardSettings& s = pcb.settings;
     Json j = Json::object();
     j["pack"] = s.dfmPack;
-    const DfmPack* p = findDfmPack(s.dfmPack);
+    const auto p = boardDfmPack(s);
     if (!p) return j;
     j["name"] = p->name;
+    if (!s.dfmOverrides.empty()) {
+        Json o = Json::object();
+        for (const auto& [k, v] : s.dfmOverrides) o[k] = v;
+        j["overrides"] = o;
+    }
     Json rows = Json::array();
     bool pass = true;
     auto row = [&](const std::string& rule, const std::string& actual, const std::string& limit, bool ok) {

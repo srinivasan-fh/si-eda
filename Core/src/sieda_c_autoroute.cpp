@@ -100,6 +100,16 @@ int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
     return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
 }
 
+int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, double value) {
+    const auto& names = dfmFieldNames();
+    if (!project || !field || std::find(names.begin(), names.end(), field) == names.end() || !(value < 1e4)) return 0;
+    auto& s = project->project.pcb.settings;
+    if (value > 0) s.dfmOverrides[field] = value;
+    else s.dfmOverrides.erase(field);
+    if (!s.dfmPack.empty()) applyDfmPack(s, s.dfmPack);
+    return 1;
+}
+
 char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um) {
     if (!project) return nullptr;
     const auto& s = project->project.pcb.settings;

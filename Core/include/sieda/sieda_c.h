@@ -320,6 +320,9 @@ char* sieda_pcb_panel(const SiedaProject* project);
  * pack ("" = none) tightens the DRC minimums to it and adds the DFM_* / DFA_* checks; returns 0 for an unknown id. */
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
+/* Your fab's own value for one pack field (minTrack, minDrill, maxAspectRatio, maxLayers, … in mm): it replaces the
+ * published value in the DRC minimums, the checks and the report; value <= 0 removes the override. 0 for an unknown field. */
+int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, double value);
 /* The pack's sign-off report: {"pack","name","pass","rows":[{"rule","actual","limit","ok"}]} (measured board values
  * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
  * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */

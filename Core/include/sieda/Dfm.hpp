@@ -5,6 +5,8 @@
 // before ordering.
 #pragma once
 
+#include <optional>
+
 #include <string>
 #include <vector>
 
@@ -29,6 +31,11 @@ struct DfmPack {
 
 const std::vector<DfmPack>& dfmPacks();
 const DfmPack* findDfmPack(const std::string& id);
+/// The board's pack with its `dfmOverrides` (your fab's capability sheet) in place of the published values; nullopt
+/// without a pack. Unknown override names are ignored.
+std::optional<DfmPack> boardDfmPack(const BoardSettings& s);
+/// The DfmPack field names an override may use.
+const std::vector<std::string>& dfmFieldNames();
 Json dfmPacksJson();
 
 /// Selects a pack for the board (empty = none): its limits replace looser DRC minimums (never relax stricter ones).

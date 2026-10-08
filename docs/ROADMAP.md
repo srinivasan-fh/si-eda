@@ -95,7 +95,8 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
 1. ✅ **DFM/DFA rule packs** (done: `Core/src/Dfm.cpp`, Board Setup → Manufacturer Rules) (~0.2M tokens): manufacturer capability packs as data (JLCPCB, PCBWay, OSH Park,
    Eurocircuits, Class 3 / aerospace): minimum track / space, drill, annular ring, mask sliver, silk-to-pad; picking a
    pack sets the DRC limits. Assembly checks: part-to-part and part-to-edge spacing, fiducials, polarity marks, tall
-   parts beside fine pitch.
+   parts beside fine pitch. Your fab's own capability values override a pack field by field (`dfmOverrides`,
+   C `sieda_pcb_set_dfm_override`, MCP `pcb_dfm_pack` `overrides`), saved with the board.
 2. ✅ **IDX (ProSTEP EDMD)** (done: placement, outline and thickness edits, keep-outs / height zones both ways,
    accept / reject responses) (~0.25M): baseline export (board, parts, holes, keep-outs), MCAD change proposals read back
    (moved / rotated parts, outline edits) with accept / reject, SiEDA changes sent as proposals.

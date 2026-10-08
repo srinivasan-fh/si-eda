@@ -85,7 +85,7 @@
 - IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
   XML valid against the IPC-2581C schema (KiCad's `qa/data/pcbnew/ipc2581/IPC-2581C.xsd`).
-- Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits, `applyDfmPack` only tightens
+- Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits; `dfmOverrides` = the fab's own values over a pack via `boardDfmPack`; `applyDfmPack` only tightens
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* (incl. DFM_ASPECT_RATIO, DFM_COPPER_BALANCE via `copperCoverage`) to `runDRC`
   when `BoardSettings::dfmPack` is set; `dfmReportJson` / `sieda_dfm_report_json` is the per-rule sign-off; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.

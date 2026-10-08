@@ -19790,6 +19790,16 @@ TEST(dfm_aspect_ratio_copper_balance_and_report) {
     CHECK(!codes().count("DFM_ASPECT_RATIO"));
     p.pcb.settings.thickness = 3.2;
     CHECK(codes().count("DFM_ASPECT_RATIO"));
+    // Your fab drills 12:1: its own value replaces the published one, is saved with the board and tightens DRC.
+    p.pcb.settings.dfmOverrides["maxAspectRatio"] = 12;
+    CHECK(!codes().count("DFM_ASPECT_RATIO") && boardDfmPack(p.pcb.settings)->maxAspectRatio == 12);
+    p.pcb.settings.dfmOverrides["minTrack"] = 0.2;
+    p.pcb.settings.dfmOverrides["bogus"] = 1;
+    CHECK(applyDfmPack(p.pcb.settings, "jlcpcb-standard") && p.pcb.settings.minTrackWidth >= 0.2);
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.dfmOverrides.size() == 3 && back.pcb.settings.dfmOverrides.at("maxAspectRatio") == 12);
+    CHECK(dfmReportJson(p.schematic, p.pcb).get("overrides").get("minTrack").asNumber() == 0.2);
+    p.pcb.settings.dfmOverrides.clear();
     p.pcb.settings.thickness = 1.6;
     // A ground pour on the top only: the two layers' copper differs by most of the board.
     CHECK(!codes().count("DFM_COPPER_BALANCE"));

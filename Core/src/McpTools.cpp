@@ -2579,9 +2579,13 @@ void teamTools(Table& t) {
           "Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). With pack: selects it "
           "(\"\" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs, "
           "the board's pack and its sign-off report (measured value, limit, pass / fail per rule).",
-          Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)"),
+          Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)")
+              .object("overrides", "Your fab's own values by field, e.g. {\"minTrack\":0.1,\"maxAspectRatio\":12} (0 removes one)"),
           [](McpServer& s, const Json& a) {
               if (a.has("pack")) check(sieda_pcb_set_dfm_pack(P(s), argStr(a, "pack").c_str()) == 1, "Unknown pack");
+              if (a.get("overrides").isObject())
+                  for (const auto& [k, v] : a.get("overrides").fields())
+                      check(sieda_pcb_set_dfm_override(P(s), k.c_str(), v.asNumber(-1)) == 1, "Unknown pack field " + k);
               Json j = obj();
               j["packs"] = takeJson(sieda_dfm_packs_json());
               j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
