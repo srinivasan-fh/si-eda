@@ -58,7 +58,7 @@ void Schematic::restoreBus(const Bus& in) {
         return;
     b.instanceOf = std::max(0, b.instanceOf);
     buses_.push_back(b);
-    nextBusId_ = std::max(nextBusId_, b.id + 1);
+    nextBusId_ = std::max(nextBusId_, nextIdAfter(b.id));
 }
 
 bool Schematic::repairBusLinks() {

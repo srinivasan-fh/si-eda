@@ -409,7 +409,7 @@ void Schematic::restoreSheets(const std::vector<Sheet>& sheets, int active) {
         if (s.channel.size() > 16) s.channel.clear();
     }
     nextSheetId_ = 1;
-    for (const auto& s : sheets_) nextSheetId_ = std::max(nextSheetId_, s.id + 1);
+    for (const auto& s : sheets_) nextSheetId_ = std::max(nextSheetId_, nextIdAfter(s.id));
     activeSheet_ = findSheet(active) ? active : sheets_.front().id;
     for (auto& c : components_) {
         if (!findSheet(c.sheet)) c.sheet = sheets_.front().id;

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <limits>
 #include <map>
 #include <string>
 #include <utility>
@@ -12,6 +13,9 @@
 #include "sieda/Library.hpp"
 
 namespace sieda {
+
+/// The id after `id` when restoring saved items, saturating at INT_MAX (hostile files carry huge ids).
+inline int nextIdAfter(int id) { return id < std::numeric_limits<int>::max() ? id + 1 : id; }
 
 struct PinRef {
     int component = -1;

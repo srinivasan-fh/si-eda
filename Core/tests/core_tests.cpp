@@ -19764,3 +19764,18 @@ TEST(merge_keeps_parts_both_sides_added_under_the_same_id) {
         wired = wired || w.get("a").get("component").asInt(-1) == moved->id || w.get("b").get("component").asInt(-1) == moved->id;
     CHECK(wired);
 }
+
+TEST(restored_ids_saturate_at_int_max) {
+    // A hostile file with the largest id (found by the project fuzzer): loading must not overflow the next id.
+    Project p;
+    p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    Json j = p.toJson();
+    Json c = j.get("components")[0];
+    c["id"] = 2147483647;
+    Json list = Json::array();
+    list.push(c);
+    j["components"] = list;
+    const Project q = Project::fromJson(j);
+    CHECK(q.schematic.components().size() == 1);
+    CHECK(nextIdAfter(2147483647) == 2147483647 && nextIdAfter(5) == 6);
+}
