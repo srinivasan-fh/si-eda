@@ -1635,6 +1635,29 @@ TEST(firmware_persists_with_the_project) {
     CHECK(found);
 }
 
+TEST(snapshot_delta_sends_changed_sections_and_merges_to_full) {
+    SiedaProject* p = sieda_project_new("delta");
+    auto take = [](char* j) {
+        Json v = Json::parse(j);
+        sieda_string_free(j);
+        return v;
+    };
+    int r = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    Json held = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(!held.has("delta") && held.has("components") && held.has("tracks"));
+    Json same = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(same.has("delta") && same.fields().size() == 1);  // nothing changed
+    CHECK(sieda_set_component_value(p, r, "2k2"));
+    Json delta = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(delta.has("delta") && delta.has("components") && !delta.has("tracks") && !delta.has("pads"));
+    for (const auto& [key, value] : delta.fields())
+        if (key != "delta") held[key] = value;
+    CHECK(held.dump() == take(sieda_project_snapshot(p)).dump());  // merged = full snapshot
+    Json full = take(sieda_project_snapshot_delta(p, 1));
+    CHECK(!full.has("delta") && full.dump() == held.dump());
+    sieda_project_free(p);
+}
+
 TEST(live_simulation_c_api) {
     SiedaProject* p = sieda_project_new("live");
     // ATmega328P from the standard library, through the C API like the app does.

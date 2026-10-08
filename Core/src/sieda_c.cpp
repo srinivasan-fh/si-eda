@@ -233,6 +233,33 @@ char* sieda_project_snapshot(const SiedaProject* project) {
     }
 }
 
+char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full) {
+    if (!project) return nullptr;
+    try {
+        const Json root = project->project.snapshot();
+        auto& sent = project->sentSnapshot;
+        bool all = full != 0 || sent.size() != root.fields().size();
+        for (const auto& [key, value] : root.fields()) all = all || !sent.count(key);
+        std::string out = all ? "{" : "{\"delta\":true";
+        for (const auto& [key, value] : root.fields()) {
+            std::string text = value.dump();
+            auto& last = sent[key];
+            if (!all && text == last) continue;
+            if (out.size() > 1) out += ',';
+            out += Json(key).dump();
+            out += ':';
+            out += text;
+            last = std::move(text);
+        }
+        if (all)
+            for (auto it = sent.begin(); it != sent.end();) it = root.fields().count(it->first) ? std::next(it) : sent.erase(it);
+        return dup(out + "}");
+    } catch (const std::exception& e) {
+        project->sentSnapshot.clear();
+        return errorJson(e);
+    }
+}
+
 char* sieda_library_json(void) {
     try {
         return dup(Project::libraryJson().dump());

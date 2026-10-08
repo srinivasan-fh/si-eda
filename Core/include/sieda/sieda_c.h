@@ -45,6 +45,10 @@ int32_t sieda_project_set_industry(SiedaProject* project, const char* industry_i
 char* sieda_industry_profiles_json(void);
 /* Full UI view model (components with world pin positions, wires, nets, pads, tracks, vias, ratsnest). */
 char* sieda_project_snapshot(const SiedaProject* project);
+/* The snapshot after an edit: only the top-level sections whose JSON changed since the previous call on this project,
+ * with "delta": true (the app merges them into the copy it holds). The first call, full != 0, or a change in the set of
+ * sections returns every section (no "delta" key). Large boards: a schematic edit skips the copper, pads and pours. */
+char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full);
 /* Built-in component catalogue. */
 char* sieda_library_json(void);
 void sieda_string_free(char* s);

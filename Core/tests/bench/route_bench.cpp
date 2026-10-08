@@ -1,7 +1,7 @@
 // sieda_route_bench — times auto-place, auto-route and DRC on generated large boards.
 //
 //   sieda_route_bench                      medium board (the CI case) and the large board
-//   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute]
+//   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--save board.siedaproj]
 //                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
 //                     [--budget <seconds> <MB>]   exit 1 when place + route + DRC + snapshot take longer or the
 //                                                  peak memory is higher (the CTest scale guard)
@@ -39,6 +39,7 @@ double peakMegabytes() {
 }
 
 std::string g_snapshot;  // --snapshot: where to write the routed board (Project::snapshot JSON)
+std::string g_save;      // --save: where to write the routed project (.siedaproj JSON, to profile edits on it)
 
 /// Seconds spent in place, route, DRC, ratsnest and snapshot.
 double run(const bench::BenchSpec& spec, bool brute) {
@@ -104,6 +105,12 @@ double run(const bench::BenchSpec& spec, bool brute) {
     total += ratsTime + secs(t0);
     std::printf("  ratsnest %7.3f s (%zu lines), snapshot %.3f s (%.1f MB JSON)\n", ratsTime, ratsLines, secs(t0),
                 static_cast<double>(snapBytes) / 1e6);
+    if (!g_save.empty())
+        if (FILE* f = std::fopen(g_save.c_str(), "w")) {
+            const std::string json = p.toJson().dump();
+            std::fwrite(json.data(), 1, json.size(), f);
+            std::fclose(f);
+        }
     if (!g_snapshot.empty())
         if (FILE* f = std::fopen(g_snapshot.c_str(), "w")) {
             const std::string json = p.snapshot().dump();
@@ -138,6 +145,7 @@ int main(int argc, char** argv) {
             custom = true;
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
+        else if (a == "--save" && i + 1 < argc) g_save = argv[++i];
         else if (a == "--budget" && i + 2 < argc) {
             budgetSeconds = std::atof(argv[++i]);
             budgetMegabytes = std::atof(argv[++i]);

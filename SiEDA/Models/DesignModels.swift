@@ -83,44 +83,57 @@ struct DesignSnapshot: Decodable, Equatable {
         componentIndex = Self.index(of: components)
     }
 
+    /// `JSONDecoder.userInfo` key of the snapshot a delta (`"delta": true`) is merged into: absent sections keep its value.
+    static let baseKey = CodingUserInfoKey(rawValue: "sieda.snapshotBase")!
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        name = try c.decode(String.self, forKey: .name)
-        requirements = try c.decodeIfPresent(String.self, forKey: .requirements) ?? ""
-        components = try c.decode([SnapComponent].self, forKey: .components)
-        wires = try c.decode([SnapWire].self, forKey: .wires)
-        nets = try c.decode([SnapNet].self, forKey: .nets)
-        board = try c.decode(BoardInfo.self, forKey: .board)
-        pads = try c.decode([SnapPad].self, forKey: .pads)
-        tracks = try c.decode([SnapTrack].self, forKey: .tracks)
-        vias = try c.decode([SnapVia].self, forKey: .vias)
-        ratsnest = try c.decode([SnapLine].self, forKey: .ratsnest)
-        courtyards = try c.decode([SnapCourtyard].self, forKey: .courtyards)
-        bodies = try c.decodeIfPresent([SnapBody].self, forKey: .bodies) ?? []
-        customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
-        industry = try c.decodeIfPresent(String.self, forKey: .industry) ?? "general"
-        robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform) ?? ""
-        ecuType = try c.decodeIfPresent(String.self, forKey: .ecuType) ?? ""
-        aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission) ?? ""
-        navalPlatform = try c.decodeIfPresent(String.self, forKey: .navalPlatform) ?? ""
-        medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass) ?? ""
-        retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice) ?? ""
-        applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType) ?? ""
-        memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign) ?? ""
-        tamperMeshes = try c.decodeIfPresent([TamperMeshInfo].self, forKey: .tamperMeshes) ?? []
-        zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
-        zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
-        sheets = try c.decodeIfPresent([SheetInfo].self, forKey: .sheets) ?? []
-        activeSheet = try c.decodeIfPresent(Int.self, forKey: .activeSheet) ?? 1
-        variants = try c.decodeIfPresent([VariantInfo].self, forKey: .variants) ?? []
-        activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
-        buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
-        titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
-        harnessTypes = try c.decodeIfPresent([HarnessTypeInfo].self, forKey: .harnessTypes) ?? []
-        netClassDefs = try c.decodeIfPresent([NetClassDefInfo].self, forKey: .netClassDefs) ?? []
-        directives = try c.decodeIfPresent([DirectiveInfo].self, forKey: .directives) ?? []
-        ercSeverities = try c.decodeIfPresent([String: String].self, forKey: .ercSeverities) ?? [:]
-        componentIndex = Self.index(of: components)
+        let isDelta = try c.decodeIfPresent(Bool.self, forKey: .delta) ?? false
+        let base = isDelta ? decoder.userInfo[Self.baseKey] as? DesignSnapshot : nil
+        /// A section from the reply, else the base's (a delta), else `fallback`; nil fallback = required.
+        func field<T: Decodable>(_ key: CodingKeys, _ old: KeyPath<DesignSnapshot, T>, _ fallback: T?) throws -> T {
+            if let value = try c.decodeIfPresent(T.self, forKey: key) { return value }
+            if let base { return base[keyPath: old] }
+            if let fallback { return fallback }
+            return try c.decode(T.self, forKey: key)  // throws: a required section is missing
+        }
+        name = try field(.name, \.name, nil)
+        requirements = try field(.requirements, \.requirements, "")
+        components = try field(.components, \.components, nil)
+        wires = try field(.wires, \.wires, nil)
+        nets = try field(.nets, \.nets, nil)
+        board = try field(.board, \.board, nil)
+        pads = try field(.pads, \.pads, nil)
+        tracks = try field(.tracks, \.tracks, nil)
+        vias = try field(.vias, \.vias, nil)
+        ratsnest = try field(.ratsnest, \.ratsnest, nil)
+        courtyards = try field(.courtyards, \.courtyards, nil)
+        bodies = try field(.bodies, \.bodies, [])
+        customParts = try field(.customParts, \.customParts, [])
+        industry = try field(.industry, \.industry, "general")
+        robotPlatform = try field(.robotPlatform, \.robotPlatform, "")
+        ecuType = try field(.ecuType, \.ecuType, "")
+        aerospaceMission = try field(.aerospaceMission, \.aerospaceMission, "")
+        navalPlatform = try field(.navalPlatform, \.navalPlatform, "")
+        medicalClass = try field(.medicalClass, \.medicalClass, "")
+        retailDevice = try field(.retailDevice, \.retailDevice, "")
+        applianceType = try field(.applianceType, \.applianceType, "")
+        memoryDesign = try field(.memoryDesign, \.memoryDesign, "")
+        tamperMeshes = try field(.tamperMeshes, \.tamperMeshes, [])
+        zones = try field(.zones, \.zones, [])
+        zoneFills = try field(.zoneFills, \.zoneFills, [])
+        sheets = try field(.sheets, \.sheets, [])
+        activeSheet = try field(.activeSheet, \.activeSheet, 1)
+        variants = try field(.variants, \.variants, [])
+        activeVariant = try field(.activeVariant, \.activeVariant, "")
+        buses = try field(.buses, \.buses, [])
+        titleBlock = try field(.titleBlock, \.titleBlock, TitleBlockInfo())
+        harnessTypes = try field(.harnessTypes, \.harnessTypes, [])
+        netClassDefs = try field(.netClassDefs, \.netClassDefs, [])
+        directives = try field(.directives, \.directives, [])
+        ercSeverities = try field(.ercSeverities, \.ercSeverities, [:])
+        // Unchanged parts: keep the base's index instead of rebuilding it.
+        componentIndex = base != nil && !c.contains(.components) ? base!.componentIndex : Self.index(of: components)
     }
 
     private static func index(of components: [SnapComponent]) -> [Int: Int] {
@@ -133,7 +146,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes, netClassDefs, directives, ercSeverities
+        case harnessTypes, netClassDefs, directives, ercSeverities, delta
     }
 
     func component(_ id: Int) -> SnapComponent? {

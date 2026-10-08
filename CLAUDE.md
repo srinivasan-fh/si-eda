@@ -91,7 +91,9 @@
   --seed 3 --fpga` is the 923-part board.
 - Speed and safety rules:
   - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json`; files on disk
-    use the indented `sieda_project_save_json`.
+    use the indented `sieda_project_save_json`. The view refresh uses `sieda_project_snapshot_delta` (only changed
+    top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`); a new snapshot section
+    must be decoded through `field(...)` there.
   - **JSON writer:** `Json::dump` uses `std::to_chars` and a no-escape fast path, and must stay byte-identical to
     `%.10g` / `%lld`.
   - **JSON parser:** limits nesting to 256 levels (hostile files and requests).

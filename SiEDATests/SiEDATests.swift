@@ -7915,3 +7915,31 @@ final class SimulationStopTests: XCTestCase {
         XCTAssertTrue(engine.simulateTransient(stop: 1e-3, step: 1e-5).ok)
     }
 }
+
+/// Delta snapshots after edits (`sieda_project_snapshot_delta`).
+@MainActor
+final class SnapshotDeltaTests: XCTestCase {
+    func testMergedDeltaEqualsTheFullSnapshot() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        var held = try engine.snapshotChecked(base: nil, delta: true).get()
+        XCTAssertEqual(held, try engine.snapshotChecked().get())
+        let part = try XCTUnwrap(held.components.first { !$0.componentKind.isVirtual })
+        XCTAssertTrue(engine.setValue(part.id, "4k7"))
+        XCTAssertTrue(engine.moveComponent(part.id, to: CGPoint(x: part.x + 20, y: part.y)))
+        held = try engine.snapshotChecked(base: held, delta: true).get()
+        let full = try engine.snapshotChecked().get()
+        XCTAssertEqual(held, full)
+        XCTAssertEqual(held.component(part.id)?.value, "4k7")
+        // Nothing changed: the reply is only {"delta": true} and the copy stays the same.
+        XCTAssertEqual(try engine.snapshotChecked(base: held, delta: true).get(), full)
+    }
+
+    func testStoreRefreshKeepsTheFullSnapshot() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        let part = try XCTUnwrap(store.snapshot.components.first { !$0.componentKind.isVirtual })
+        store.moveComponents([part.id], by: CGSize(width: 10, height: 0))
+        XCTAssertEqual(store.snapshot, try store.engine.snapshotChecked().get())
+    }
+}

@@ -116,6 +116,8 @@ final class DesignStore: ObservableObject {
     /// "Place new parts" after Update PCB (DesignStore+Placement.swift): the footprints still to place by hand.
     @Published var placementSession: PlacementSession?
     @Published private(set) var busyMessage = ""
+    /// The snapshot as the core last sent it (`refresh` merges the next delta into it).
+    private var coreSnapshot: DesignSnapshot?
     /// When the running busy task started (the status bar shows its elapsed time) and whether Stop can end it.
     @Published private(set) var busySince: Date?
     @Published private(set) var busyStoppable = false
@@ -273,11 +275,14 @@ final class DesignStore: ObservableObject {
     private var snapshotErrorShown = false
 
     func refresh() {
-        switch engine.snapshotChecked() {
+        // Only the changed sections of the snapshot after an edit; `coreSnapshot` is the copy they apply to.
+        switch engine.snapshotChecked(base: coreSnapshot, delta: true) {
         case .success(let snap):
             snapshot = snap
+            coreSnapshot = snap
             snapshotErrorShown = false
         case .failure(let error):
+            coreSnapshot = nil  // the next refresh asks for every section
             // Keep showing the last good state, but never silently: edits would otherwise look like they did nothing.
             NSLog("SiEDA: %@", error.localizedDescription)
             statusMessage = "Display not updated — \(error.localizedDescription)"
