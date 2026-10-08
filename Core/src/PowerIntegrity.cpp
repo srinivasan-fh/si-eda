@@ -615,11 +615,13 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
                 meshes.push_back(std::move(m));
             }
             Network net2(total_nodes);
-            const double rsCu = sheetResistance(cu);
+            // Copper heats up under load: ρ(T) = ρ20 · (1 + 0.00393 (T − 20 °C)).
+            const double rho = kCopperResistivity * (1 + 0.00393 * (project.si.copperTempC - 20));
+            const double rsCu = rho / (cu * 1e-3);
             for (const auto& e : g.edges) {
                 double res;
-                if (e.via) res = kCopperResistivity * e.length * 1e-3 / (kPi * kPlating * (e.width + kPlating) * 1e-6);
-                else res = kCopperResistivity * e.length * 1e-3 / (std::max(0.01, e.width) * cu * 1e-6);
+                if (e.via) res = rho * e.length * 1e-3 / (kPi * kPlating * (e.width + kPlating) * 1e-6);
+                else res = rho * e.length * 1e-3 / (std::max(0.01, e.width) * cu * 1e-6);
                 net2.add(e.a, e.b, 1 / std::max(1e-9, res));
             }
             for (const auto& m : meshes) {
@@ -710,14 +712,14 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
                         cell.layer = f.layer;
                         cell.drop = drop[static_cast<size_t>(a)];
                         // J = E / ρ with E in V/m, as A/mm².
-                        cell.density = std::hypot(gx, gy) * 1e3 / kCopperResistivity * 1e-6;
+                        cell.density = std::hypot(gx, gy) * 1e3 / rho * 1e-6;
                         r.irMaxDensity = std::max(r.irMaxDensity, cell.density);
                         r.irCells.push_back(cell);
                     }
             }
             for (const auto& e : g.edges) {
                 if (e.via || !finite(e.a) || !finite(e.b)) continue;
-                const double res = kCopperResistivity * e.length * 1e-3 / (std::max(0.01, e.width) * cu * 1e-6);
+                const double res = rho * e.length * 1e-3 / (std::max(0.01, e.width) * cu * 1e-6);
                 PdnIrSegment sg;
                 sg.a = g.nodes[static_cast<size_t>(e.a)].p;
                 sg.b = g.nodes[static_cast<size_t>(e.b)].p;

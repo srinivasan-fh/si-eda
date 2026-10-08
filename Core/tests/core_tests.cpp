@@ -7923,6 +7923,11 @@ TEST(pi_pdn_impedance_and_ir_drop) {
     CHECK_NEAR(d1, rpm * (0.5 * common + 0.25 * branch1), 2e-4);
     CHECK_NEAR(d2, rpm * (0.5 * common + 0.25 * run2), 2e-4);
     CHECK_NEAR(r.irWorst, d2, 1e-12);
+    // Hot copper (85 °C) drops 25.5 % more; the setting is saved only when it is not 20 °C.
+    Project hot = b.p;
+    hot.si.copperTempC = 85;
+    CHECK_NEAR(rail(hot).irWorst, d2 * (1 + 0.00393 * 65), 1e-12);
+    CHECK(Project::fromJson(hot.toJson()).si.copperTempC == 85 && b.p.toJson().dump().find("copperTempC") == std::string::npos);
     // No decoupling → a PI finding.
     bool noDecap = false;
     for (const auto& v : signalPowerIntegrityChecks(b.p)) noDecap |= v.code == "PI_NO_DECOUPLING";

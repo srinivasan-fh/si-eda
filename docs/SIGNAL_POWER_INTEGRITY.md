@@ -316,7 +316,9 @@ The rail's tracks, via barrels and pours form a resistive network solved by conj
 | Via | `ρ·h / (π·t_p·(d + t_p))`, plating t_p = 25 µm |
 | Pour | Coarse mesh of the zone fill (cells ≥ 0.5 mm), one sheet resistance `ρ/t` per square between neighbouring cells (1 oz ≈ 0.49 mΩ/□); pads, track ends and via lands on the pour join it |
 
-The drop limit is half the ripple budget (2.5 % on a 5 % rail).
+The drop limit is half the ripple budget (2.5 % on a 5 % rail). Copper heats up under load: set the board's copper
+temperature (MCP `pi_set_rail` `copperTempC`, C `sieda_pi_set_copper_temperature`; default 20 °C) and every
+resistance scales by `1 + 0.00393 (T − 20)` — 25 % more drop at 85 °C.
 
 ## PI planning
 
@@ -462,8 +464,8 @@ The core tests check the physics against reference values:
   plane pair, needs the IR-drop map) show the plane behaviour beside it. The VRM is an
   R–L model with a loop bandwidth, not a switching or control-loop simulation. Load currents without a behavioural
   model are estimates.
-- **IR drop** uses the supply copper only. The ground return's own drop and the temperature rise of copper are not
-  included.
+- **IR drop** uses the supply copper only; the ground return's own drop is not included. Copper temperature is a
+  board-wide setting, not a thermal simulation.
 - **No full-wave 3D field solver.** Use a field solver for via transitions, connectors and anything above a few GHz.
 
 ## Code map

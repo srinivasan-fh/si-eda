@@ -581,3 +581,4 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
+

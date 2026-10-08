@@ -2292,13 +2292,16 @@ void siTools(Table& t) {
               .num("transientAmps", "Load step (A)")
               .num("dcAmps", "DC load (A)")
               .num("vrmROut", "Regulator output resistance (Ω)")
-              .num("vrmBandwidth", "Regulator loop bandwidth (Hz)"),
+              .num("vrmBandwidth", "Regulator loop bandwidth (Hz)")
+              .num("copperTempC", "Copper temperature for IR drop, whole board (°C, default 20)"),
           [](McpServer& s, const Json& a) {
               const std::string net = requireStr(a, "net");
               check(sieda_pi_set_rail(P(s), net.c_str(), argNum(a, "ripplePercent", 0), argNum(a, "transientAmps", 0), argNum(a, "dcAmps", 0)) == 1,
                     "Unknown rail");
               if (a.has("vrmROut") || a.has("vrmBandwidth"))
                   check(sieda_pi_set_vrm(P(s), net.c_str(), argNum(a, "vrmROut", 0), argNum(a, "vrmBandwidth", 0)) == 1, "Invalid regulator model");
+              if (a.has("copperTempC"))
+                  check(sieda_pi_set_copper_temperature(P(s), argNum(a, "copperTempC", 20)) == 1, "Copper temperature must be -55 to 200 °C");
               Json j = obj();
               j["ok"] = true;
               return out(j);

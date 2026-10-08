@@ -534,6 +534,8 @@ char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const 
 /* ---- power-integrity planning -------------------------------------------------------------------------------------- */
 /* Regulator model of a rail: output resistance (Ω) and loop bandwidth (Hz); 0 = by regulator type. */
 int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_out, double loop_bandwidth);
+/* Copper temperature for IR drop (°C, −55 … 200; 20 = the default): 1, or 0 when out of range. */
+int32_t sieda_pi_set_copper_temperature(SiedaProject* project, double celsius);
 /* Plane-pair cavity model of a rail: {"available","note","a","b","d","er","modes":[{m,n,f}],"freq":[…],"zCavity":[…],
  * "zLumped":[…],"target","worstRatio","worstF","observe":{x,y},"recommendations":[…]}. Caller frees. */
 char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name);

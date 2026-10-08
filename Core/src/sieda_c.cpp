@@ -2947,6 +2947,12 @@ int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_o
     return 1;
 }
 
+int32_t sieda_pi_set_copper_temperature(SiedaProject* project, double celsius) {
+    if (!project || !(celsius >= -55 && celsius <= 200)) return 0;
+    project->project.si.copperTempC = celsius;
+    return 1;
+}
+
 char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name) {
     if (!project) return nullptr;
     try {
