@@ -17,6 +17,7 @@ constexpr size_t kMaxText = 8u << 20;   // 8 MB of model text
 constexpr size_t kMaxLines = 200000;
 constexpr int kMaxDepth = 40;           // subcircuit nesting
 constexpr size_t kMaxPrims = 100000;    // flattened primitives
+constexpr size_t kMaxInstances = 10000; // subcircuit instances (a self-calling subcircuit doubles per level)
 constexpr int kMaxExprDepth = 200;      // expression nesting
 
 std::string upper(std::string s) {
@@ -1019,6 +1020,7 @@ public:
 
     std::set<int> usedSubckts;
     std::set<const SpiceModelCard*> usedModels;
+    size_t instances_ = 0;  // subcircuit instances so far (at most kMaxInstances)
 
     bool run(const std::string& rawName) {
         const std::string name = upper(trim(rawName));
@@ -1337,6 +1339,11 @@ private:
         const SpiceSubckt& s = lib_.subckts[static_cast<size_t>(si)];
         if (parent.depth >= kMaxDepth) {
             error(line, "Subcircuits nested more than 40 deep (is " + s.displayName + " recursive?).");
+            return;
+        }
+        if (++instances_ > kMaxInstances) {
+            if (instances_ == kMaxInstances + 1)
+                error(line, "More than 10000 subcircuit instances (is " + s.displayName + " recursive?).");
             return;
         }
         if (!s.closed) {

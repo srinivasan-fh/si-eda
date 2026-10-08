@@ -7,27 +7,29 @@
 #include <map>
 
 #include "sieda/Library.hpp"
+#include "sieda/Stackup.hpp"
+#include "sieda/TrackGeometry.hpp"
 
 namespace sieda {
 
 const std::vector<DfmPack>& dfmPacks() {
     // id, name, maker, notes | track, space, drill, ring, hole-hole, via Ø | mask web, silk-pad, copper-edge | layers,
-    // thickness min / max, size | part spacing, part-edge
+    // thickness min / max, size | part spacing, part-edge | max aspect ratio
     static const std::vector<DfmPack> packs = {
         {"jlcpcb-standard", "JLCPCB Standard (1–2 layers)", "JLCPCB", "Low-cost prototypes; assembly needs 3 mm rails or edge clearance",
-         0.127, 0.127, 0.30, 0.13, 0.50, 0.45, 0.10, 0.15, 0.30, 2, 0.4, 2.4, 500, 400, 0.30, 3.0},
+         0.127, 0.127, 0.30, 0.13, 0.50, 0.45, 0.10, 0.15, 0.30, 2, 0.4, 2.4, 500, 400, 0.30, 3.0, 8},
         {"jlcpcb-advanced", "JLCPCB Multilayer (4–20 layers)", "JLCPCB", "Multilayer service; 0.09 mm track / space on inner layers",
-         0.09, 0.09, 0.15, 0.075, 0.25, 0.25, 0.10, 0.15, 0.30, 20, 0.6, 2.5, 500, 400, 0.30, 3.0},
+         0.09, 0.09, 0.15, 0.075, 0.25, 0.25, 0.10, 0.15, 0.30, 20, 0.6, 2.5, 500, 400, 0.30, 3.0, 10},
         {"pcbway-standard", "PCBWay Standard", "PCBWay", "Standard process; tighter options cost extra",
-         0.10, 0.10, 0.20, 0.15, 0.50, 0.45, 0.10, 0.15, 0.30, 14, 0.4, 3.2, 500, 1100, 0.30, 3.0},
+         0.10, 0.10, 0.20, 0.15, 0.50, 0.45, 0.10, 0.15, 0.30, 14, 0.4, 3.2, 500, 1100, 0.30, 3.0, 10},
         {"oshpark-2", "OSH Park 2-layer", "OSH Park", "6 / 6 mil, 10 mil drill, ENIG; no assembly",
-         0.152, 0.152, 0.254, 0.127, 0.381, 0.508, 0.10, 0.127, 0.381, 2, 1.6, 1.6, 400, 400, 0.30, 1.0},
+         0.152, 0.152, 0.254, 0.127, 0.381, 0.508, 0.10, 0.127, 0.381, 2, 1.6, 1.6, 400, 400, 0.30, 1.0, 7},
         {"oshpark-4", "OSH Park 4-layer", "OSH Park", "5 / 5 mil, 10 mil drill, 4 mil annular ring",
-         0.127, 0.127, 0.254, 0.102, 0.381, 0.457, 0.10, 0.127, 0.381, 4, 1.6, 1.6, 400, 400, 0.30, 1.0},
+         0.127, 0.127, 0.254, 0.102, 0.381, 0.457, 0.10, 0.127, 0.381, 4, 1.6, 1.6, 400, 400, 0.30, 1.0, 7},
         {"eurocircuits-6c", "Eurocircuits pattern class 6, drill class C", "Eurocircuits", "0.150 mm track / space, 0.35 mm finished drill",
-         0.150, 0.150, 0.35, 0.125, 0.40, 0.60, 0.10, 0.125, 0.40, 16, 0.5, 3.2, 580, 425, 0.30, 3.0},
+         0.150, 0.150, 0.35, 0.125, 0.40, 0.60, 0.10, 0.125, 0.40, 16, 0.5, 3.2, 580, 425, 0.30, 3.0, 8},
         {"ipc-class3", "IPC Class 3 / Aerospace (conservative)", "IPC-6012 Class 3", "High-reliability builds: wider rings and spacing",
-         0.15, 0.15, 0.25, 0.15, 0.50, 0.55, 0.10, 0.20, 0.50, 24, 0.8, 3.2, 600, 500, 0.50, 5.0},
+         0.15, 0.15, 0.25, 0.15, 0.50, 0.55, 0.10, 0.20, 0.50, 24, 0.8, 3.2, 600, 500, 0.50, 5.0, 8},
     };
     return packs;
 }
@@ -82,6 +84,12 @@ namespace {
 std::string mm(double v) {
     char b[32];
     std::snprintf(b, sizeof b, "%.2f mm", v);
+    return b;
+}
+
+std::string fmt(const char* f, double v) {
+    char b[48];
+    std::snprintf(b, sizeof b, f, v);
     return b;
 }
 
@@ -244,7 +252,117 @@ std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb)
             add(Severity::Warning, "DFA_HEAVY_BOTTOM",
                 c->ref + " (" + mm(height(*c)) + " tall) on the bottom side may drop off in the second reflow; move it to the top",
                 {c->id}, pcb.courtyard(*c).center(), true);
+    // Plated holes deeper than the service plates reliably.
+    int deep = 0;
+    double worst = 0;
+    Vec2 deepAt;
+    for (const auto& v : pcb.vias) {
+        const double r = viaBarrelDepth(s, v) / std::max(v.drill, 1e-3);
+        if (r > p->maxAspectRatio + 1e-9 && deep++ == 0) deepAt = v.position;
+        worst = std::max(worst, r);
+    }
+    for (const auto& pad : pads)
+        if (pad.throughHole && pad.drill > 0) {
+            const double r = s.thickness / pad.drill;
+            if (r > p->maxAspectRatio + 1e-9 && deep++ == 0) deepAt = pad.position;
+            worst = std::max(worst, r);
+        }
+    if (deep)
+        add(Severity::Error, "DFM_ASPECT_RATIO",
+            std::to_string(deep) + " plated hole(s) up to " + fmt("%.1f", worst) + ":1 (depth ÷ drill), above the " +
+                fmt("%.0f", p->maxAspectRatio) + ":1 the service plates; use a larger drill or a thinner board",
+            {}, deepAt, true);
+    // Copper balance between mirror layers (1 ↔ n, 2 ↔ n−1 …): uneven copper bows and twists the board in reflow.
+    const auto cover = copperCoverage(sch, pcb);
+    const int n = static_cast<int>(cover.size());
+    for (int k = 0; k < n / 2; ++k)
+        if (std::fabs(cover[static_cast<size_t>(k)] - cover[static_cast<size_t>(n - 1 - k)]) > 0.35)
+            add(Severity::Warning, "DFM_COPPER_BALANCE",
+                copperLayerName(k, n) + " has " + fmt("%.0f %%", cover[static_cast<size_t>(k)] * 100) + " copper, " +
+                    copperLayerName(n - 1 - k, n) + " " + fmt("%.0f %%", cover[static_cast<size_t>(n - 1 - k)] * 100) +
+                    ": balance them (a pour or copper thieving on the lighter layer) to limit bow and twist");
     return out;
+}
+
+std::vector<double> copperCoverage(const Schematic& sch, const PcbLayout& pcb) {
+    const BoardSettings& s = pcb.settings;
+    const int n = std::max(1, s.layerCount);
+    std::vector<double> area(static_cast<size_t>(n), 0);
+    for (const auto& t : pcb.tracks)
+        if (t.layer >= 0 && t.layer < n) area[static_cast<size_t>(t.layer)] += trackLength(t) * t.width;
+    for (const auto& pad : pcb.pads(sch))
+        for (int l = 0; l < n; ++l)
+            if (pad.onLayer(l)) area[static_cast<size_t>(l)] += pad.size.x * pad.size.y;
+    for (const auto& f : pcb.zoneFills(sch))
+        if (f.layer >= 0 && f.layer < n) area[static_cast<size_t>(f.layer)] += f.area();
+    double board = 0;
+    const auto poly = s.outlinePolygon();
+    for (size_t i = 0; i < poly.size(); ++i) board += poly[i].x * poly[(i + 1) % poly.size()].y - poly[(i + 1) % poly.size()].x * poly[i].y;
+    board = std::max(1.0, std::fabs(board) / 2);
+    for (auto& a : area) a = std::min(1.0, a / board);
+    return area;
+}
+
+Json dfmReportJson(const Schematic& sch, const PcbLayout& pcb) {
+    const BoardSettings& s = pcb.settings;
+    Json j = Json::object();
+    j["pack"] = s.dfmPack;
+    const DfmPack* p = findDfmPack(s.dfmPack);
+    if (!p) return j;
+    j["name"] = p->name;
+    Json rows = Json::array();
+    bool pass = true;
+    auto row = [&](const std::string& rule, const std::string& actual, const std::string& limit, bool ok) {
+        Json r = Json::object();
+        r["rule"] = rule, r["actual"] = actual, r["limit"] = limit, r["ok"] = ok;
+        rows.push(r);
+        pass = pass && ok;
+    };
+    double minTrack = 1e9, minDrill = 1e9, minRing = 1e9, minVia = 1e9, aspect = 0;
+    for (const auto& t : pcb.tracks)
+        if (!t.teardrop) minTrack = std::min(minTrack, t.width);
+    for (const auto& v : pcb.vias) {
+        minDrill = std::min(minDrill, v.drill), minVia = std::min(minVia, v.diameter);
+        minRing = std::min(minRing, (v.diameter - v.drill) / 2);
+        aspect = std::max(aspect, viaBarrelDepth(s, v) / std::max(v.drill, 1e-3));
+    }
+    for (const auto& pad : pcb.pads(sch))
+        if (pad.throughHole && pad.drill > 0) {
+            minDrill = std::min(minDrill, pad.drill);
+            minRing = std::min(minRing, (std::min(pad.size.x, pad.size.y) - pad.drill) / 2);
+            aspect = std::max(aspect, s.thickness / pad.drill);
+        }
+    auto val = [&](double v) { return v < 1e8 ? mm(v) : std::string("—"); };
+    row("Layers", std::to_string(s.layerCount), "≤ " + std::to_string(p->maxLayers), s.layerCount <= p->maxLayers);
+    row("Board size", mm(s.width) + " × " + mm(s.height), mm(p->maxWidth) + " × " + mm(p->maxHeight),
+        std::max(s.width, s.height) <= std::max(p->maxWidth, p->maxHeight) &&
+            std::min(s.width, s.height) <= std::min(p->maxWidth, p->maxHeight));
+    row("Thickness", mm(s.thickness), mm(p->minThickness) + " – " + mm(p->maxThickness),
+        s.thickness >= p->minThickness - 1e-9 && s.thickness <= p->maxThickness + 1e-9);
+    row("Narrowest track", val(minTrack), "≥ " + mm(p->minTrack), minTrack >= p->minTrack - 1e-9);
+    row("Clearance rule", mm(s.clearance), "≥ " + mm(p->minSpace), s.clearance >= p->minSpace - 1e-9);
+    row("Smallest drill", val(minDrill), "≥ " + mm(p->minDrill), minDrill >= p->minDrill - 1e-9);
+    row("Smallest annular ring", val(minRing), "≥ " + mm(p->minAnnularRing), minRing >= p->minAnnularRing - 1e-9);
+    row("Smallest via pad", val(minVia), "≥ " + mm(p->minViaDiameter), minVia >= p->minViaDiameter - 1e-9);
+    row("Deepest hole (aspect ratio)", aspect > 0 ? fmt("%.1f:1", aspect) : "—", "≤ " + fmt("%.0f:1", p->maxAspectRatio),
+        aspect <= p->maxAspectRatio + 1e-9);
+    const auto cover = copperCoverage(sch, pcb);
+    double imbalance = 0;
+    for (size_t k = 0; k < cover.size() / 2; ++k) imbalance = std::max(imbalance, std::fabs(cover[k] - cover[cover.size() - 1 - k]));
+    row("Copper balance (mirror layers)", fmt("%.0f %%", imbalance * 100), "≤ 35 %", imbalance <= 0.35);
+    // The geometric checks, by their findings.
+    std::map<std::string, int> found;
+    for (const auto& v : dfmChecks(sch, pcb)) ++found[v.code];
+    for (const auto& [code, rule] : std::vector<std::pair<std::string, std::string>>{
+             {"DFM_MASK_SLIVER", "Solder-mask webs"}, {"DFM_SILK_TO_PAD", "Silkscreen clear of pads"},
+             {"DFA_PART_SPACING", "Part spacing"}, {"DFA_PART_TO_EDGE", "Parts clear of the edge"},
+             {"DFA_FIDUCIALS", "Fiducials for fine pitch"}, {"DFA_HEAVY_BOTTOM", "No heavy bottom-side parts"}}) {
+        const int k = found.count(code) ? found[code] : 0;
+        row(rule, k ? std::to_string(k) + " finding(s)" : "OK", "none", k == 0);
+    }
+    j["rows"] = rows;
+    j["pass"] = pass;
+    return j;
 }
 
 }  // namespace sieda

@@ -119,6 +119,96 @@ double cavityModeFrequency(double aMm, double bMm, double er, int m, int n) {
     return kSpeedOfLight / (2 * std::sqrt(er)) * std::sqrt(std::pow(m / (aMm * 1e-3), 2) + std::pow(n / (bMm * 1e-3), 2));
 }
 
+std::vector<double> planeMeshImpedance(const std::vector<PdnIrCell>& cells, int layer, double dMm, double er, double tanD,
+                                       double copperMm, Vec2 observe, const std::vector<PlaneMeshPort>& ports,
+                                       const std::vector<double>& freqs) {
+    std::vector<const PdnIrCell*> on;
+    for (const auto& c : cells)
+        if (c.layer == layer && c.size > 0) on.push_back(&c);
+    if (on.empty() || !(dMm > 0)) return {};
+    const double s0 = on.front()->size;
+    double x0 = 1e18, y0 = 1e18;
+    for (const auto* c : on) x0 = std::min(x0, c->x), y0 = std::min(y0, c->y);
+    int cols = 0, rows = 0;
+    std::vector<std::pair<int, int>> idx;
+    for (const auto* c : on) {
+        idx.push_back({static_cast<int>(std::lround((c->x - x0) / s0)), static_cast<int>(std::lround((c->y - y0) / s0))});
+        cols = std::max(cols, idx.back().first + 1), rows = std::max(rows, idx.back().second + 1);
+    }
+    // Merge k × k cells into a block; a block exists when at least half of it is copper.
+    const int k = std::max(1, (std::max(cols, rows) + 39) / 40);
+    const int bc = (cols + k - 1) / k, br = (rows + k - 1) / k;
+    std::vector<int> count(static_cast<size_t>(bc * br), 0), node(static_cast<size_t>(bc * br), -1);
+    for (const auto& [i, j] : idx) ++count[static_cast<size_t>((j / k) * bc + i / k)];
+    int n = 0;
+    for (size_t b = 0; b < count.size(); ++b)
+        if (count[b] * 2 >= k * k || (k == 1 && count[b] > 0)) node[b] = n++;
+    if (n == 0) return {};
+    const double a = s0 * k;  // block edge, mm
+    auto nearest = [&](Vec2 p) {
+        int best = -1;
+        double bd = 1e18;
+        for (int j = 0; j < br; ++j)
+            for (int i = 0; i < bc; ++i) {
+                const int nd = node[static_cast<size_t>(j * bc + i)];
+                if (nd < 0) continue;
+                const double dx = x0 - s0 / 2 + (i + 0.5) * a - p.x, dy = y0 - s0 / 2 + (j + 0.5) * a - p.y;
+                if (dx * dx + dy * dy < bd) bd = dx * dx + dy * dy, best = nd;
+            }
+        return best;
+    };
+    const int obs = nearest(observe);
+    std::vector<int> portNode;
+    for (const auto& p : ports) portNode.push_back(nearest(p.at));
+    std::vector<std::pair<int, int>> edges;
+    int bw = 0;
+    for (int j = 0; j < br; ++j)
+        for (int i = 0; i < bc; ++i) {
+            const int u = node[static_cast<size_t>(j * bc + i)];
+            if (u < 0) continue;
+            for (const auto& [di, dj] : {std::pair<int, int>{1, 0}, {0, 1}}) {
+                if (i + di >= bc || j + dj >= br) continue;
+                const int v = node[static_cast<size_t>((j + dj) * bc + i + di)];
+                if (v >= 0) edges.push_back({u, v}), bw = std::max(bw, std::abs(v - u));
+            }
+        }
+    constexpr double kMu0 = 1.25663706212e-6, kEps0 = 8.8541878128e-12;
+    const double d = dMm * 1e-3, cCell = kEps0 * er * a * a * 1e-6 / d, lSq = kMu0 * d;
+    const int w = 2 * bw + 1;
+    std::vector<double> out;
+    std::vector<cplx> m, rhs;
+    for (double f : freqs) {
+        const double om = 2 * kPi * std::max(f, 1.0);
+        const double rs = std::max(kCopperResistivity / (std::max(copperMm, 1e-3) * 1e-3), std::sqrt(kPi * f * 4e-7 * kPi * kCopperResistivity));
+        const cplx yEdge = 1.0 / cplx(2 * rs, om * lSq);
+        m.assign(static_cast<size_t>(n) * w, cplx(0, 0));
+        rhs.assign(static_cast<size_t>(n), cplx(0, 0));
+        auto at = [&](int i, int j) -> cplx& { return m[static_cast<size_t>(i) * w + static_cast<size_t>(j - i + bw)]; };
+        for (int i = 0; i < n; ++i) at(i, i) += cplx(om * cCell * tanD, om * cCell);
+        for (const auto& [u, v] : edges) at(u, u) += yEdge, at(v, v) += yEdge, at(u, v) -= yEdge, at(v, u) -= yEdge;
+        for (size_t p = 0; p < ports.size(); ++p)
+            if (portNode[p] >= 0) at(portNode[p], portNode[p]) += 1.0 / ports[p].z(f);
+        rhs[static_cast<size_t>(obs)] = 1;
+        // Banded LU without pivoting (the nodal admittance matrix is complex symmetric with a positive shunt).
+        for (int c = 0; c < n; ++c) {
+            const cplx piv = at(c, c);
+            for (int r = c + 1; r <= std::min(n - 1, c + bw); ++r) {
+                const cplx fct = at(r, c) / piv;
+                if (fct == cplx(0, 0)) continue;
+                for (int q = c; q <= std::min(n - 1, c + bw); ++q) at(r, q) -= fct * at(c, q);
+                rhs[static_cast<size_t>(r)] -= fct * rhs[static_cast<size_t>(c)];
+            }
+        }
+        for (int r = n - 1; r >= 0; --r) {
+            cplx s = rhs[static_cast<size_t>(r)];
+            for (int q = r + 1; q <= std::min(n - 1, r + bw); ++q) s -= at(r, q) * rhs[static_cast<size_t>(q)];
+            rhs[static_cast<size_t>(r)] = s / at(r, r);
+        }
+        out.push_back(std::abs(rhs[static_cast<size_t>(obs)]));
+    }
+    return out;
+}
+
 PdnCavityResult pdnCavity(const Project& project, const PdnRailResult& rail) {
     PdnCavityResult out;
     const BoardSettings& s = project.pcb.settings;
@@ -211,6 +301,36 @@ PdnCavityResult pdnCavity(const Project& project, const PdnRailResult& rail) {
                 out.worstF = f;
             }
         }
+    }
+    // The same pair on the pour's real shape, with every capacitor and the regulator where they sit.
+    if (rail.irAnalyzed && !rail.irCells.empty()) {
+        std::vector<PlaneMeshPort> mesh;
+        for (const auto& dc : rail.decaps) {
+            const PdnDecap d = dc;
+            mesh.push_back({d.position, [d](double f) { return capacitorImpedance(f, d.c, d.esr, d.esl + d.mounting); }});
+        }
+        if (vrm) {
+            const double r = rail.vrmR, l = rail.vrmL;
+            mesh.push_back({rail.vrmPosition, [r, l](double f) { return cplx(r, 2 * kPi * f * l); }});
+        }
+        out.zPlane = planeMeshImpedance(rail.irCells, rail.planeLayer, out.d, out.er, tanD, copperThickness(s), out.observe,
+                                        mesh, out.freq);
+        if (out.zPlane.size() == out.freq.size() && std::isfinite(rail.target) && rail.target > 0) {
+            out.worstRatio = 0;
+            for (size_t i = 0; i < out.freq.size(); ++i)
+                if (out.freq[i] <= 1e9 && out.zPlane[i] / rail.target > out.worstRatio)
+                    out.worstRatio = out.zPlane[i] / rail.target, out.worstF = out.freq[i];
+        }
+    }
+    // Load-step droop: the transient current through the worst impedance in the band (Bogatin's rule of thumb).
+    if (std::isfinite(rail.target) && rail.target > 0) {
+        out.droop = rail.transientCurrent * out.worstRatio * rail.target;
+        out.droopLimit = rail.voltage * rail.ripplePercent / 100;
+        if (out.droop > out.droopLimit && out.droopLimit > 0)
+            out.recommendations.push_back("A " + formatEngineeringValue(rail.transientCurrent, "A", 3) + " load step droops the rail by about " +
+                                          formatEngineeringValue(out.droop, "V", 3) + ", more than its " +
+                                          formatEngineeringValue(out.droopLimit, "V", 3) + " ripple budget: lower |Z| near " +
+                                          formatEngineeringValue(out.worstF, "Hz", 3) + ".");
     }
     // First resonances.
     for (int m = 0; m <= 6; ++m)
@@ -328,6 +448,9 @@ Json pdnCavityJson(const Project& project, const std::string& net) {
     j["freq"] = nums(c.freq);
     j["zCavity"] = nums(c.zCavity);
     j["zLumped"] = nums(c.zLumped);
+    j["zPlane"] = nums(c.zPlane);
+    j["droop"] = c.droop;
+    j["droopLimit"] = c.droopLimit;
     j["target"] = std::isfinite(r->target) ? r->target : 0.0;
     j["worstRatio"] = c.worstRatio;
     j["worstF"] = c.worstF;

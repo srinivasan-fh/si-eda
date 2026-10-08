@@ -91,6 +91,11 @@ int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limit
 
 char* sieda_dfm_packs_json(void) { return dupText(dfmPacksJson().dump()); }
 
+char* sieda_dfm_report_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    return dupText(dfmReportJson(project->project.schematic, project->project.pcb).dump());
+}
+
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
     return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
 }

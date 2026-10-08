@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "फील्ड सॉल्व्हरने तपासा";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "या रुंदींच्या खऱ्या Z0 आणि Zdiff साठी प्रत्येक थराचा छेद सोडवते (2D लाप्लास, डायइलेक्ट्रिकसह आणि विना)";
 "Import MCAD Changes (IDX)…" = "MCAD बदल आयात करा (IDX)…";
+"Field-solved lines" = "फील्ड-सॉल्व्ह केलेल्या रेषा";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "क्लोज्ड-फॉर्म सूत्रांऐवजी 2D फील्ड सॉल्व्हरकडून प्रत्येक रेषेचा Z0, εeff आणि स्किन-इफेक्ट प्रवाह";
+"Controller Layout Limits" = "कंट्रोलर लेआउट मर्यादा";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "मेमरी प्रकारासाठी सामान्य मूल्ये; तुमच्या कंट्रोलरच्या लेआउट मार्गदर्शिकेतील आकडे भरा (0 = सामान्य).";
+"Byte-lane skew (ps)" = "बाइट-लेन स्क्यू (ps)";
+"DQ to DQS (ps)" = "DQ ते DQS (ps)";
+"Address to clock (ps)" = "पत्ता ते क्लॉक (ps)";
+"Impedance tolerance (%)" = "इम्पीडन्स सहनशीलता (%)";
+"Sign-off Report" = "साइन-ऑफ अहवाल";
+"Live Collaboration" = "थेट सहकार्य";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "प्रत्येक बदल सामायिक प्रकल्प फाइलमध्ये जतन करा आणि सहकाऱ्यांचे जतन आपोआप विलीन करा";

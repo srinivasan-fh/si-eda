@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "Semak dengan Penyelesai Medan";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Menyelesaikan keratan rentas setiap lapisan (Laplace 2D, dengan dan tanpa dielektrik) untuk Z0 dan Zdiff sebenar lebar ini";
 "Import MCAD Changes (IDX)…" = "Import Perubahan MCAD (IDX)…";
+"Field-solved lines" = "Talian diselesaikan medan";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff dan arus kesan kulit setiap talian daripada penyelesai medan 2D dan bukan formula bentuk tertutup";
+"Controller Layout Limits" = "Had Susun Atur Pengawal";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Nilai biasa untuk jenis memori; masukkan nombor daripada panduan susun atur pengawal anda (0 = biasa).";
+"Byte-lane skew (ps)" = "Sisihan lorong bait (ps)";
+"DQ to DQS (ps)" = "DQ ke DQS (ps)";
+"Address to clock (ps)" = "Alamat ke jam (ps)";
+"Impedance tolerance (%)" = "Toleransi impedans (%)";
+"Sign-off Report" = "Laporan Pengesahan";
+"Live Collaboration" = "Kerjasama Langsung";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Simpan setiap suntingan ke fail projek kongsi dan gabungkan simpanan rakan sepasukan secara automatik";

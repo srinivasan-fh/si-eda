@@ -109,7 +109,7 @@ void Schematic::restoreDirective(const NetDirective& raw) {
     if (d.id <= 0 || findDirective(d.id) || !c || d.pin < 0 || d.pin >= static_cast<int>(c->def().pins.size())) return;
     if (!validSize(d.trackWidth) || !validSize(d.clearance) || (!d.netClass.empty() && !validClassName(d.netClass))) return;
     directives_.push_back(d);
-    nextDirectiveId_ = std::max(nextDirectiveId_, d.id + 1);
+    nextDirectiveId_ = std::max(nextDirectiveId_, nextIdAfter(d.id));
 }
 
 bool Schematic::repairDirectives() {

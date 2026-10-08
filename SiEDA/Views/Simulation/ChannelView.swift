@@ -130,6 +130,9 @@ struct ChannelPanel: View {
                     Text("Smooth").tag("smooth")
                 }
                 .frame(width: 220)
+                Toggle("Field-solved lines", isOn: Binding(get: { settings.fieldSolverLines ?? false },
+                                                           set: { store.setFieldSolverLines($0) }))
+                    .help("Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas")
                 Spacer()
             }
             HStack(spacing: 12) {

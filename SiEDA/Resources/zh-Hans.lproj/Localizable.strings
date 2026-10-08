@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "用场求解器检查";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "求解每层的横截面（二维拉普拉斯，含与不含介质），得到这些线宽的实际 Z0 和 Zdiff";
 "Import MCAD Changes (IDX)…" = "导入 MCAD 更改 (IDX)…";
+"Field-solved lines" = "场求解线路";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "用二维场求解器代替闭式公式求每条线路的 Z0、εeff 和趋肤效应电流";
+"Controller Layout Limits" = "控制器布局限值";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "该存储类型的典型值；请输入控制器布局指南中的数值（0 = 典型值）。";
+"Byte-lane skew (ps)" = "字节通道偏斜 (ps)";
+"DQ to DQS (ps)" = "DQ 至 DQS (ps)";
+"Address to clock (ps)" = "地址至时钟 (ps)";
+"Impedance tolerance (%)" = "阻抗容差 (%)";
+"Sign-off Report" = "签核报告";
+"Live Collaboration" = "实时协作";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "将每次编辑保存到共享项目文件，并自动合并队友的保存";

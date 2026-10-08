@@ -61,16 +61,31 @@ extension EDAEngine {
         Self.decode(VariantMatrix.self, from: withHandle { Self.take(sieda_variant_matrix_json($0)) })
     }
 
+    /// Three-way merge of two edited copies of a project (saved JSON) against their common ancestor: the merged
+    /// project and the fields both sides changed differently (ours kept). nil when a side is not a project.
+    struct ProjectMergeResult { var merged: String; var conflicts: [String] }
+    static func mergeProjects(base: String, ours: String, theirs: String) -> ProjectMergeResult? {
+        guard let text = take(sieda_merge_projects(base, ours, theirs)), let data = text.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              (root["error"] as? String ?? "").isEmpty, let merged = root["merged"],
+              JSONSerialization.isValidJSONObject(merged),
+              let mergedData = try? JSONSerialization.data(withJSONObject: merged),
+              let mergedText = String(data: mergedData, encoding: .utf8) else { return nil }
+        return ProjectMergeResult(merged: mergedText, conflicts: root["conflicts"] as? [String] ?? [])
+    }
+
     /// Moves parts to the placement of an IDF board file written back by MCAD; the designators moved.
     func importIDFPlacement(_ emn: String) -> [String] {
         struct Moved: Decodable { var moved: [String] }
         return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idf_placement($0, emn)) })?.moved ?? []
     }
 
-    /// Moves, rotates and flips parts to an IDX (EDMD) baseline or change file from MCAD; the designators moved.
-    func importIDX(_ idx: String) -> [String] {
-        struct Moved: Decodable { var moved: [String] }
-        return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idx($0, idx)) })?.moved ?? []
+    /// What an IDX (EDMD) import from MCAD changed: parts moved, the outline / thickness, keep-outs and height zones.
+    struct IDXImport: Decodable { var moved: [String]; var outline, thickness: Bool; var keepouts, heightZones: Int }
+
+    /// Applies an IDX baseline or change file from MCAD.
+    func importIDX(_ idx: String) -> IDXImport? {
+        Self.decode(IDXImport.self, from: withHandle { Self.take(sieda_import_idx($0, idx)) })
     }
 
     /// Enclosure height limit per side for the 3D clearance DRC (mm, 0 = none); height zones are kept as they are.
@@ -96,6 +111,8 @@ extension EDAEngine {
     static let dfmPacks: [DfmPackInfo] = decode([DfmPackInfo].self, from: take(sieda_dfm_packs_json())) ?? []
 
     func setDfmPack(_ id: String) -> Bool { withHandle { sieda_pcb_set_dfm_pack($0, id) } == 1 }
+
+    func dfmReport() -> DfmReport? { Self.decode(DfmReport.self, from: withHandle { Self.take(sieda_dfm_report_json($0)) }) }
 
     /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
     func fieldSolve(layer: Int, width: Double, gap: Double = 0, roughness: Double = 1) -> FieldSolveInfo? {

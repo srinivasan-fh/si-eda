@@ -64,6 +64,7 @@
 		49FFCD9ED7D39BDF262448B3 = {isa = PBXBuildFile; fileRef = A4F49264D60406CCCE1EA9A8; };
 		4AD1A6FE1DCCCE4779E39526 = {isa = PBXBuildFile; fileRef = 51AF2FE4C717676FB277B656; };
 		4B8107A57118B84C609B7113 = {isa = PBXBuildFile; fileRef = 54E109672561428616FE3D2D; };
+		4F0947ED7434B781B976D1D7 = {isa = PBXBuildFile; fileRef = 4533D44269C1AABB8D3D3A3C; };
 		4F280E8BF0B8B57A2F76F776 = {isa = PBXBuildFile; fileRef = 905B53D3EA0EF7AE6123E98E; };
 		4F54772D2F67B6B122050EB5 = {isa = PBXBuildFile; fileRef = 754F9843AC5AAB513A6742B2; };
 		4FC0095A92FE567B91899350 = {isa = PBXBuildFile; fileRef = B2A9F5BB531C867B7C400084; };
@@ -302,6 +303,7 @@
 		4293C6CB497A155F15A175B3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Suppliers.hpp; sourceTree = "<group>"; };
 		44DB0AE9531C6F0CC03C9830 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPSettingsView.swift; sourceTree = "<group>"; };
 		44E20A1917CDAF73A6C514E2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Schematic.hpp; sourceTree = "<group>"; };
+		4533D44269C1AABB8D3D3A3C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCollaboration.swift; sourceTree = "<group>"; };
 		4647C3B414E7C0E0DB93D968 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InteractivePlacement.cpp; sourceTree = "<group>"; };
 		470AD526B3A4B8CA0ADFC09B = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		48C5ECAD5591559755BB4C20 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -987,6 +989,7 @@
 				EF2C9163E8C953AC343E0E55,
 				5A82BF05E3E5BFCE7181C0EB,
 				89D9BE7B7D9C91F898FB822D,
+				4533D44269C1AABB8D3D3A3C,
 				DCA642B6ED42847C57E4E461,
 				8B60433746E06C0C40FBDCB3,
 				EBECAAA7807D81B9EA1B4E2D,
@@ -1143,6 +1146,7 @@
 				684F66C2A33BDA008A882F64,
 				86C49DE7C586D6367C1CA8C3,
 				7A10A9C2A05E8392D79C71E1,
+				4F0947ED7434B781B976D1D7,
 				C33B3E4901A01AAF4FDEEE96,
 				3AFDE0646E696F06BE941AB6,
 				53EA1E9ED727F5F22BF6D1BF,

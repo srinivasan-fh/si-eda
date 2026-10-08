@@ -1656,6 +1656,18 @@ struct FieldSolveInfo: Decodable, Equatable {
     func dbPerInch(at ghz: Double) -> Double? { loss?.first { abs($0.ghz - ghz) < 1e-9 }?.totalDbPerIn }
 }
 
+/// Sign-off of the board against its manufacturer pack (`sieda_dfm_report_json`).
+struct DfmReport: Decodable, Equatable {
+    struct Row: Decodable, Equatable, Identifiable {
+        var rule, actual, limit: String
+        var ok: Bool
+        var id: String { rule }
+    }
+    var pack: String
+    var pass: Bool?
+    var rows: [Row]?
+}
+
 struct DfmPackInfo: Decodable, Identifiable, Equatable {
     var id: String
     var name: String

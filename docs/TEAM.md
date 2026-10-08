@@ -71,6 +71,27 @@ The merged file always loads, and after a merge with copper changes the DRC catc
 tracks. The same merge is available as MCP `project_merge` (base, ours, theirs, path) and C
 `sieda_merge_projects` / `sieda_merge_project_files`.
 
+## Live collaboration (co-editing a shared file)
+
+**File → Live Collaboration** turns a shared project file into a live session — no server, just a folder every
+teammate can reach: iCloud Drive, Dropbox, OneDrive, a network share or a Git working copy.
+
+- **Your edits go out within a second or two:** each edit is saved shortly after you make it (edits in quick
+  succession share one save).
+- **Theirs come in by themselves:** SiEDA checks the file every 2 s. When a teammate has saved, it three-way merges
+  their version into your open design (the same merge as above, base = the file as you last read or wrote it) as one
+  Undo step. Parts, wires, tracks, vias and settings from both sides are kept (when both of you added a part at
+  the same moment, theirs gets a fresh id — and the next free designator if yours already uses it — and its wires
+  follow it); a field you both changed differently
+  keeps your value, and the status-bar badge turns amber and lists it (hover).
+- **Who is here:** each window announces itself in a small presence folder beside the file
+  (`.<name>.siedaproj.presence/`), refreshed every 15 s; the status bar shows the others' names while they have the
+  file open (gone after a minute without a heartbeat).
+
+Turn it off to go back to saving by hand. Code: `SiEDA/App/LiveCollaboration.swift` (`LiveCollaboration`,
+`LiveCollaborationIndicator`), merge `EDAEngine.mergeProjects` → `sieda_merge_projects`. Test:
+`LiveCollaborationTests.testTwoWindowsMergeEachOthersSaves`.
+
 ## Design review
 
 **File → Design Review…** lists comments pinned to a part (or to a place on the board or a sheet). Open comments are

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <set>
 
@@ -408,6 +409,69 @@ Json merge3(const Json& b, const Json& o, const Json& t, const std::string& path
     return o;
 }
 
+/// Both sides added an item under the same id (each editor took the next free id): theirs gets a fresh one, so both
+/// survive the merge. Renumbered parts take references with them (wire ends, units) and a free designator if theirs
+/// clashes with ours ("R2" → the next "R" number).
+Json separateConcurrentAdds(const Json& base, const Json& ours, Json theirs) {
+    if (!theirs.isObject()) return theirs;
+    std::map<int, int> movedParts;
+    const Json original = theirs;
+    for (const auto& [key, list] : original.fields()) {
+        if (!idList(list) || !idList(ours.get(key))) continue;
+        std::set<int> inBase, inOurs, used;
+        std::map<int, std::string> oursDump;
+        std::set<std::string> refs;
+        if (base.get(key).isArray())
+            for (const Json& e : base.get(key).items()) used.insert(e.get("id").asInt(0)), inBase.insert(e.get("id").asInt(0));
+        for (const Json& e : ours.get(key).items()) {
+            const int id = e.get("id").asInt(0);
+            inOurs.insert(id), used.insert(id), oursDump[id] = e.dump();
+            if (e.get("ref").isString()) refs.insert(e.get("ref").asString());
+        }
+        for (const Json& e : list.items()) used.insert(e.get("id").asInt(0));
+        int next = used.empty() ? 1 : *used.rbegin() + 1;
+        std::map<int, int> moved;
+        Json out = Json::array();
+        for (Json e : list.items()) {
+            const int id = e.get("id").asInt(0);
+            if (e.get("id").isNumber() && !inBase.count(id) && inOurs.count(id) && oursDump[id] != e.dump()) {
+                moved[id] = next;
+                e["id"] = next++;
+                if (e.get("ref").isString() && refs.count(e.get("ref").asString())) {
+                    const std::string r = e.get("ref").asString(), prefix = r.substr(0, r.find_first_of("0123456789"));
+                    for (int n = 1;; ++n)
+                        if (!refs.count(prefix + std::to_string(n))) {
+                            e["ref"] = prefix + std::to_string(n);
+                            break;
+                        }
+                }
+            }
+            if (e.get("ref").isString()) refs.insert(e.get("ref").asString());
+            out.push(e);
+        }
+        if (moved.empty()) continue;
+        theirs[key] = out;
+        if (key == "components") movedParts = moved;
+    }
+    if (movedParts.empty()) return theirs;
+    // Everything in theirs that names a renumbered part follows it (wire ends, units of a package).
+    std::function<Json(const Json&)> remap = [&](const Json& j) -> Json {
+        if (j.isArray()) {
+            Json a = Json::array();
+            for (const Json& v : j.items()) a.push(remap(v));
+            return a;
+        }
+        if (!j.isObject()) return j;
+        Json o = Json::object();
+        for (const auto& [k, v] : j.fields()) {
+            const bool ref = (k == "component" || k == "componentId" || k == "unitOf") && v.isNumber() && movedParts.count(v.asInt(0));
+            o[k] = ref ? Json(movedParts[v.asInt(0)]) : remap(v);
+        }
+        return o;
+    };
+    return remap(theirs);
+}
+
 }  // namespace
 
 ProjectMerge mergeProjects(const Json& base, const Json& ours, const Json& theirs) {
@@ -415,7 +479,7 @@ ProjectMerge mergeProjects(const Json& base, const Json& ours, const Json& their
     try {
         for (const Json* j : {&base, &ours, &theirs})
             if (!j->isObject() || j->get("format").asString("") != "sieda-project") throw JsonError("Not a SiEDA project file");
-        r.merged = merge3(base, ours, theirs, "", r.conflicts);
+        r.merged = merge3(base, ours, separateConcurrentAdds(base, ours, theirs), "", r.conflicts);
         Project::fromJson(r.merged);  // the merged file must load
     } catch (const std::exception& e) {
         r.error = e.what();

@@ -2355,6 +2355,17 @@ void verifyTools(Table& t) {
                                            : sieda_memory_segments_json(P(s));
               return out(takeJson(r));
           });
+    t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
+          "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "
+          "data impedance tolerance, via spread). With arguments: sets the controller's own values (0 or omitted = the memory "
+          "type's typical value). Returns the limits in force.",
+          Schema().num("laneSkewPs", "Byte-lane DQ skew, ps").num("dqsSkewPs", "DQ to its strobe, ps")
+              .num("addrSkewPs", "Command / address to clock, ps").num("impedanceTolPercent", "Data impedance tolerance, %")
+              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)"),
+          [](McpServer& s, const Json& a) {
+              if (a.isObject() && a.size() > 0) check(sieda_set_memory_limits(P(s), a.dump().c_str()) == 1, "Invalid limits");
+              return out(takeJson(sieda_memory_limits_json(P(s))));
+          });
     t.add("verify", "design_set_domain", "Set domain", Kind::Edit, true,
           "Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, "
           "printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, "
@@ -2563,14 +2574,15 @@ void teamTools(Table& t) {
           });
     t.add("pcb", "pcb_dfm_pack", "Manufacturer rule pack", Kind::Edit, true,
           "Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). With pack: selects it "
-          "(\"\" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs and "
-          "the board's pack.",
+          "(\"\" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs, "
+          "the board's pack and its sign-off report (measured value, limit, pass / fail per rule).",
           Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)"),
           [](McpServer& s, const Json& a) {
               if (a.has("pack")) check(sieda_pcb_set_dfm_pack(P(s), argStr(a, "pack").c_str()) == 1, "Unknown pack");
               Json j = obj();
               j["packs"] = takeJson(sieda_dfm_packs_json());
               j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
+              j["report"] = takeJson(sieda_dfm_report_json(P(s)));
               return out(j);
           });
     t.add("pcb", "si_field_solver", "Field-solver impedance", Kind::Read, false,
@@ -2612,12 +2624,24 @@ void teamTools(Table& t) {
               return out(takeJson(sieda_import_idf_placement(P(s), emn.c_str())));
           });
     t.add("pcb", "pcb_import_idx", "Import MCAD changes (IDX)", Kind::Edit, false,
-          "Moves, rotates and flips parts (by designator) to an IDX (ProSTEP EDMD) baseline or change file written by "
-          "mechanical CAD. Returns the designators moved.",
+          "Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and "
+          "flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs "
+          "(height zones). Returns what changed.",
           Schema().str("path", "The .idx file inside the root", true),
           [](McpServer& s, const Json& a) {
               const std::string idx = readFileArg(s, requireStr(a, "path")).asString();
               return out(takeJson(sieda_import_idx(P(s), idx.c_str())));
+          });
+    t.add("output", "output_idx_response", "IDX response for MCAD", Kind::Files, false,
+          "Writes the IDX response to a change file from MCAD: every change it proposes accepted or rejected.",
+          Schema().str("changes", "The MCAD change .idx inside the root", true).str("path", "File to write", true)
+              .boolean("accept", "Accept (default) or reject the changes"),
+          [](McpServer& s, const Json& a) {
+              const std::string changes = readFileArg(s, requireStr(a, "changes")).asString();
+              const std::string content = takeText(sieda_idx_response(changes.c_str(), a.get("accept").asBool(true) ? 1 : 0));
+              Json j = obj();
+              j["written"] = s.writeFile(requireStr(a, "path"), content);
+              return out(j);
           });
     t.add("output", "output_idx_changes", "IDX changes for MCAD", Kind::Files, false,
           "Writes an IDX SendChanges file with only the parts placed differently from a baseline IDX (the one MCAD "

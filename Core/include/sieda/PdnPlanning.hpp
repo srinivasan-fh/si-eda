@@ -17,6 +17,7 @@
 // Limits: rectangular cavity (non-rectangular pours use their bounding box), one plane pair per rail, no package or die.
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,21 @@ CMat cavityImpedance(double aMm, double bMm, double dMm, double er, double tanD,
 /// Resonance f_mn of the cavity (Hz).
 double cavityModeFrequency(double aMm, double bMm, double er, int m, int n);
 
+/// A two-terminal element between the plane pair at a point: decoupling capacitor, regulator.
+struct PlaneMeshPort {
+    Vec2 at;
+    std::function<cplx(double)> z;  // impedance at f (Hz)
+};
+
+/// Plane pair on its real shape: the rail pour's cells (`cells` on `layer`, from the IR-drop map) as a 2D
+/// transmission-line mesh (Novak / Smith "plane as RLGC grid"): each cell has C = ε0εr·A/d (with dielectric loss
+/// tanδ) to the ground plane, neighbours are joined by L = μ0·d per square and the skin-effect resistance of both
+/// plates. Cells are merged so the mesh has at most 40 cells per side (≤ 1600 nodes, banded LU per frequency).
+/// Returns |Z| seen at `observe` with the ports attached, one value per frequency; empty without cells.
+std::vector<double> planeMeshImpedance(const std::vector<PdnIrCell>& cells, int layer, double dMm, double er, double tanD,
+                                       double copperMm, Vec2 observe, const std::vector<PlaneMeshPort>& ports,
+                                       const std::vector<double>& freqs);
+
 struct PdnCavityResult {
     bool available = false;
     std::string note;
@@ -52,6 +68,8 @@ struct PdnCavityResult {
     };
     std::vector<Mode> modes;            // first resonances
     std::vector<double> freq, zCavity, zLumped;
+    std::vector<double> zPlane;  // the plane mesh on the pour's real shape (when the IR map has its cells)
+    double droop = 0, droopLimit = 0;  // V: load-step droop ≈ transient current × worst |Z| up to 1 GHz; ripple budget
     double worstRatio = 0, worstF = 0;  // highest |Z| / target of the cavity curve up to 1 GHz
     int ports = 0;
     std::vector<std::string> recommendations;
@@ -73,7 +91,7 @@ struct PdnDecapPlan {
 PdnDecapPlan pdnDecapPlan(const PdnRailResult& rail);
 
 /// {"rail","available","note","a","b","d","er","x0","y0","observe":{x,y},"modes":[{m,n,f}],"freq":[…],"zCavity":[…],
-/// "zLumped":[…],"target","worstRatio","worstF","recommendations":[…]} for the rail named `net`.
+/// "zLumped":[…],"zPlane":[…] (real pour shape, may be empty),"target","droop","droopLimit","worstRatio","worstF","recommendations":[…]} for the rail named `net`.
 Json pdnCavityJson(const Project& project, const std::string& net);
 /// {"rail","needed","compliant","worstBefore","worstAfter","mounting","additions":[{value,footprint,c,count}],
 /// "freq":[…],"zBefore":[…],"zAfter":[…],"target"}.

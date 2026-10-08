@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <mutex>
 
+#include "sieda/FieldSolver.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Stackup.hpp"
@@ -210,6 +213,31 @@ LineModel lineModelFrom(bool stripline, double z0, double epsEff, double er, dou
 LineModel lineModel(const BoardSettings& s, int layer, double widthMm, const LossOptions& opt) {
     const LaminateMaterial& lam = boardLaminate(s);
     const bool strip = isStriplineLayer(s, layer);
+    if (opt.fieldSolver && widthMm > 0) {
+        // The field-solved cross-section, once per geometry (a solve takes ~0.3 s).
+        static std::mutex mu;
+        static std::map<std::vector<double>, FieldResult> cache;
+        const FieldGeometry g = trackGeometry(s, layer, widthMm);
+        const std::vector<double> key{g.w, g.t, g.h, g.hTop, g.er};
+        FieldResult r;
+        {
+            std::lock_guard<std::mutex> lock(mu);
+            const auto it = cache.find(key);
+            if (it != cache.end()) r = it->second;
+        }
+        if (!(r.z0 > 0)) {
+            r = solveField(g);
+            std::lock_guard<std::mutex> lock(mu);
+            if (cache.size() > 256) cache.clear();
+            cache[key] = r;
+        }
+        if (r.z0 > 0) {
+            LineModel m = lineModelFrom(strip, r.z0, r.eeff, lam.er, lam.lossTangent, widthMm, g.t,
+                                        impedanceReferenceHeight(s, layer), copperFoilFor(s, opt.foil), opt);
+            if (m.acFactor > 0) m.acFactor = r.rGeom;  // signal and return surfaces from the solved current
+            return m;
+        }
+    }
     return lineModelFrom(strip, std::max(5.0, trackImpedance(s, layer, widthMm)), effectivePermittivity(s, layer, widthMm),
                          lam.er, lam.lossTangent, widthMm, copperThickness(s), impedanceReferenceHeight(s, layer),
                          copperFoilFor(s, opt.foil), opt);

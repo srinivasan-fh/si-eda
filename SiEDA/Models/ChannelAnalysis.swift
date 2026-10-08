@@ -237,6 +237,9 @@ struct PDNCavityReport: Decodable, Equatable {
     var freq: [Double]
     var zCavity: [Double]
     var zLumped: [Double]
+    var zPlane: [Double]?
+    var droop: Double?
+    var droopLimit: Double?
     var target: Double
     var worstRatio: Double
     var worstF: Double

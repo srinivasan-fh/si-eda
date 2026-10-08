@@ -250,6 +250,11 @@ int32_t sieda_set_appliance_type(SiedaProject* project, const char* type);
 char* sieda_appliance_segments_json(const SiedaProject* project);
 /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; "" = none). 0 for an unknown id.
 int32_t sieda_set_memory_design(SiedaProject* project, const char* type);
+/* DDR layout limits (Memory.hpp): {"type","effective":{laneSkewPs,dqsSkewPs,addrSkewPs,impedanceTolPercent,
+ * laneViaSpread},"defaults":{…},"overrides":{…}}. The setter replaces the overrides with the controller's own values
+ * ({} = the type's typical limits); 0 for malformed JSON. */
+char* sieda_memory_limits_json(const SiedaProject* project);
+int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json);
 /// The five memory segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_memory_segments_json(const SiedaProject* project);
 /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
@@ -315,6 +320,10 @@ char* sieda_pcb_panel(const SiedaProject* project);
  * pack ("" = none) tightens the DRC minimums to it and adds the DFM_* / DFA_* checks; returns 0 for an unknown id. */
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
+/* The pack's sign-off report: {"pack","name","pass","rows":[{"rule","actual","limit","ok"}]} (measured board values
+ * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
+ * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
+char* sieda_dfm_report_json(const SiedaProject* project);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
  * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth).
  * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
@@ -497,6 +506,9 @@ char* sieda_si_checks_json(const SiedaProject* project);
 char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json);
 /* Copper foil of the board for loss: "smooth", "hvlp", "vlp", "rtf", "std"; "" = by laminate. 0 for an unknown id. */
 int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil);
+/* Channel and loss analysis take Z0, εeff and the skin-effect geometry of every line from the 2D field solver
+ * (on != 0) instead of the closed-form stack-up formulas. Saved only when on. */
+int32_t sieda_si_set_field_solver_lines(SiedaProject* project, int32_t on);
 /* A serial channel checked by sign-off (SI_EYE_MASK): bit rate (b/s), mask height (V) and width (UI). bit_rate 0
  * removes it. */
 int32_t sieda_si_set_channel(SiedaProject* project, const char* net_name, double bit_rate, double mask_height,
@@ -623,12 +635,16 @@ char* sieda_variant_matrix_json(const SiedaProject* project);
 /* Moves parts to the placement of an IDF 3.0 board file (.emn) written back by MCAD: {"moved":[refs]}. NULL on a
  * NULL argument. */
 char* sieda_import_idf_placement(SiedaProject* project, const char* emn);
-/* ProSTEP EDMD (IDX) v4.5: the baseline is sieda_export(project, "idx"). Import moves, rotates and flips parts by
- * designator from an IDX baseline or change file written by MCAD: {"moved":[refs]}. The change export writes an IDX
+/* ProSTEP EDMD (IDX) v4.5: the baseline is sieda_export(project, "idx") (board, holes, parts, keep-outs, height
+ * zones). Import applies an IDX baseline or change file written by MCAD: parts moved / rotated / flipped by designator,
+ * the board outline and thickness, routing / via keep-outs and component keep-outs (height zones):
+ * {"moved":[refs],"outline":bool,"thickness":bool,"keepouts":n,"heightZones":n}. sieda_idx_response answers a change
+ * file, accepting or rejecting every change it proposes. The change export writes an IDX
  * SendChanges file with only the parts placed differently from `baseline_idx` ("" when nothing changed). NULL on a
  * NULL argument. */
 char* sieda_import_idx(SiedaProject* project, const char* idx);
 char* sieda_export_idx_changes(const SiedaProject* project, const char* baseline_idx);
+char* sieda_idx_response(const char* changes_idx, int32_t accept);
 /* What changed between two saved projects (.siedaproj JSON): the diff JSON (docs/TEAM.md) or, with as_text, the
  * review text. {"error"} for a file that does not parse. Caller frees. */
 char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text);

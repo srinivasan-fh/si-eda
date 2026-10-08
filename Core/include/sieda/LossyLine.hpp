@@ -92,6 +92,7 @@ struct LossOptions {
     RoughnessModel roughness = RoughnessModel::Huray;
     bool lossless = false;    // R = G = 0, constant εr: the lossless limit (the reflection analysis' line)
     bool noConductorLoss = false, noDielectricLoss = false;  // for loss break-down
+    bool fieldSolver = false;  // Z0, εeff and the R_ac geometry factor from the 2D field solver (cached per geometry)
 };
 RoughnessModel roughnessFromString(const std::string& s);  // "none", "hammerstad", "huray" (default)
 

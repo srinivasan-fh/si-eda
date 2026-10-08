@@ -102,6 +102,7 @@ struct Dram {
     bool ddr = false;
     std::vector<int> dqNets, dqBits, addrNets, supplyNets, vrefNets, zqNets, resetNets;
     std::vector<std::pair<int, int>> strobes;  // (positive, negative) DQS nets
+    std::vector<int> strobeLanes;              // byte lane of each strobe (LDQS / DQS0 = 0, UDQS / DQS1 = 1)
     int clock = -1, clockN = -1;               // CLK (SDR) or CK / CK# (DDR)
     int cke = -1;
     int supplyPins = 0;
@@ -162,7 +163,10 @@ Analysis analyse(const Project& project) {
                 if (auto it = byName.find(n); it != byName.end() && it->second >= 0) pos = it->second;
             for (const std::string& n : {"N" + p, p + "#", p + "_C", p + "_N"})
                 if (auto it = byName.find(n); it != byName.end() && it->second >= 0) neg = it->second;
-            if (pos >= 0 || neg >= 0) d.strobes.emplace_back(pos, neg);
+            if (pos >= 0 || neg >= 0) {
+                d.strobes.emplace_back(pos, neg);
+                d.strobeLanes.push_back(p[0] == 'U' || p == "DQSU" || p == "DQS1" ? 1 : 0);
+            }
         }
         // The controller: the part (other than this DRAM and passives) on most of the data nets.
         std::map<int, int> hits;
@@ -207,11 +211,31 @@ bool isGround(const Schematic& sch, int net) {
 struct DdrLayoutLimits {
     double laneSkewPs, addrSkewPs, impedanceTol;  // byte-lane DQ skew; command / address to CK; ± fraction of target
     int laneViaSpread;                            // vias: every bit of a lane within this many of each other
+    double dqsSkewPs;                             // each DQ of a lane to its strobe
 };
 DdrLayoutLimits ddrLayoutLimits(const std::string& type) {
-    if (type == "sdram") return {50, 100, 0.15, 1};
-    if (type == "lpddr") return {5, 15, 0.10, 0};
-    return {10, 25, 0.10, 0};  // DDR3L / DDR4 memory-down, DIMMs
+    if (type == "sdram") return {50, 100, 0.15, 1, 50};
+    if (type == "lpddr") return {5, 15, 0.10, 0, 5};
+    return {10, 25, 0.10, 0, 10};  // DDR3L / DDR4 memory-down, DIMMs
+}
+
+/// The type's limits with the project's overrides (from the controller's layout guide).
+DdrLayoutLimits effectiveLimits(const Project& p) {
+    DdrLayoutLimits l = ddrLayoutLimits(p.memoryDesign);
+    const auto& o = p.memoryLimits;
+    if (o.laneSkewPs > 0) l.laneSkewPs = o.laneSkewPs;
+    if (o.dqsSkewPs > 0) l.dqsSkewPs = o.dqsSkewPs;
+    if (o.addrSkewPs > 0) l.addrSkewPs = o.addrSkewPs;
+    if (o.impedanceTolPercent > 0) l.impedanceTol = o.impedanceTolPercent / 100;
+    if (o.laneViaSpread >= 0) l.laneViaSpread = o.laneViaSpread;
+    return l;
+}
+
+Json limitsJson(const DdrLayoutLimits& l) {
+    Json j = Json::object();
+    j["laneSkewPs"] = l.laneSkewPs, j["dqsSkewPs"] = l.dqsSkewPs, j["addrSkewPs"] = l.addrSkewPs;
+    j["impedanceTolPercent"] = l.impedanceTol * 100, j["laneViaSpread"] = l.laneViaSpread;
+    return j;
 }
 
 /// Routed delay of a net (ps): every track's length × the propagation delay of its layer and width.
@@ -227,8 +251,7 @@ double valueOf(const Component& c) { return parseEngineeringValue(primaryValue(c
 /// Routed-bus checks of one DDR device: byte lanes (DQ0–7, DQ8–15, …) matched in delay, through the same vias and
 /// layers; DQ tracks at the impedance target; fly-by command / address matched to the clock. Unrouted nets are skipped.
 template <class Add>
-void ddrLayoutChecks(const PcbLayout& pcb, const Dram& d, const std::string& type, Add add) {
-    const DdrLayoutLimits lim = ddrLayoutLimits(type);
+void ddrLayoutChecks(const PcbLayout& pcb, const Dram& d, const DdrLayoutLimits& lim, Add add) {
     const Component& m = *d.part;
     const Severity sev = d.ddr ? Severity::Warning : Severity::Info;  // SDR SDRAM at ≤ 166 MHz: advice only
     auto routed = [&](int net) {
@@ -264,6 +287,17 @@ void ddrLayoutChecks(const PcbLayout& pcb, const Dram& d, const std::string& typ
                 name + " uses " + std::to_string(vLo) + " to " + std::to_string(vHi) + " vias per bit: route every bit of "
                 "a lane through the same number of vias so their delay and discontinuities match.",
                 {m.id});
+        // Each bit against the lane's strobe (the clock its data is captured on).
+        for (size_t k = 0; k < d.strobes.size(); ++k) {
+            const int dqs = d.strobes[k].first >= 0 ? d.strobes[k].first : d.strobes[k].second;
+            if (k >= d.strobeLanes.size() || d.strobeLanes[k] != lane || dqs < 0 || !routed(dqs)) continue;
+            const double s = routedDelayPs(pcb, dqs), worst = std::max(std::fabs(hi - s), std::fabs(lo - s));
+            if (worst > lim.dqsSkewPs)
+                add(sev, "MEM_DDR_DQS_SKEW",
+                    name + " differs from its strobe by up to " + fmt("%.1f ps", worst) + ": match DQ to DQS within " +
+                        fmt("%.0f ps", lim.dqsSkewPs) + " (Tune Lengths with the strobe in the lane's group).",
+                    {m.id});
+        }
         if (layerSets.size() > 1)
             add(Severity::Info, "MEM_DDR_LANE_LAYERS",
                 name + " is routed on different layers bit to bit: keep a lane on the same layers (same reference planes, "
@@ -488,7 +522,7 @@ std::vector<RuleViolation> checks(const Project& project, bool strict, const Ana
                         fmt("%.0f mm", limit) + " so the bus fits the controller's timing budget and stays short to tune.",
                     {m.id, d.controller->id});
         }
-        if (strict) ddrLayoutChecks(pcb, d, type, add);
+        if (strict) ddrLayoutChecks(pcb, d, effectiveLimits(project), add);
     }
 
     // ---------------------------------------------------------------- modules: SPD, PMIC, RCD, mechanics
@@ -698,6 +732,36 @@ std::vector<RobotSegment> memorySegments(const Project& project) {
 
     scoreSegments(out);
     return out;
+}
+
+Json memoryLimitsJson(const Project::MemoryLayoutLimits& l) {
+    Json j = Json::object();
+    if (l.laneSkewPs > 0) j["laneSkewPs"] = l.laneSkewPs;
+    if (l.dqsSkewPs > 0) j["dqsSkewPs"] = l.dqsSkewPs;
+    if (l.addrSkewPs > 0) j["addrSkewPs"] = l.addrSkewPs;
+    if (l.impedanceTolPercent > 0) j["impedanceTolPercent"] = l.impedanceTolPercent;
+    if (l.laneViaSpread >= 0) j["laneViaSpread"] = l.laneViaSpread;
+    return j;
+}
+
+Project::MemoryLayoutLimits memoryLimitsFromJson(const Json& j) {
+    Project::MemoryLayoutLimits l;
+    if (!j.isObject()) return l;
+    l.laneSkewPs = std::clamp(j.get("laneSkewPs").asNumber(0), 0.0, 1000.0);
+    l.dqsSkewPs = std::clamp(j.get("dqsSkewPs").asNumber(0), 0.0, 1000.0);
+    l.addrSkewPs = std::clamp(j.get("addrSkewPs").asNumber(0), 0.0, 1000.0);
+    l.impedanceTolPercent = std::clamp(j.get("impedanceTolPercent").asNumber(0), 0.0, 50.0);
+    l.laneViaSpread = std::clamp(j.get("laneViaSpread").asInt(-1), -1, 8);
+    return l;
+}
+
+Json memoryLimitsReportJson(const Project& project) {
+    Json j = Json::object();
+    j["type"] = project.memoryDesign;
+    j["effective"] = limitsJson(effectiveLimits(project));
+    j["defaults"] = limitsJson(ddrLayoutLimits(project.memoryDesign));
+    j["overrides"] = memoryLimitsJson(project.memoryLimits);
+    return j;
 }
 
 Json memorySegmentsJson(const Project& project) {

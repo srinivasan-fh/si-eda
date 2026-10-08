@@ -5226,6 +5226,20 @@ TEST(memory_design_segments_and_checks) {
         track(n1, 20);
         const auto clean = codes(p, false);
         CHECK(!clean.count("MEM_DDR_LANE_SKEW") && !clean.count("MEM_DDR_LANE_VIAS") && !clean.count("MEM_DDR_LANE_LAYERS"));
+        // The controller's own limits replace the type's: a looser skew budget clears a 20 mm mismatch, saved and
+        // reported; {} restores the typical value.
+        p.pcb.tracks.clear();
+        track(n0, 10);
+        track(n1, 30);
+        CHECK(codes(p, false).count("MEM_DDR_LANE_SKEW"));
+        p.memoryLimits = memoryLimitsFromJson(Json::parse(R"({"laneSkewPs":500,"laneViaSpread":2})"));
+        CHECK(!codes(p, false).count("MEM_DDR_LANE_SKEW"));
+        const Json rep = memoryLimitsReportJson(p);
+        CHECK(rep.get("effective").get("laneSkewPs").asNumber() == 500 && rep.get("defaults").get("laneSkewPs").asNumber() == 50);
+        CHECK(Project::fromJson(p.toJson()).memoryLimits.laneSkewPs == 500);
+        CHECK(memoryLimitsFromJson(Json::parse(R"({"laneSkewPs":1e9,"laneViaSpread":99})")).laneSkewPs == 1000);
+        p.memoryLimits = memoryLimitsFromJson(Json::parse("{}"));
+        CHECK(p.memoryLimits.isDefault() && !p.toJson().has("memoryLimits"));
         p.pcb.tracks.clear();
     }
     Json bad = p.toJson();
@@ -9817,8 +9831,13 @@ TEST(pi_cavity_decap_plan_and_ir_map) {
     CHECK(cav.available && cav.freq.size() == 121 && cav.zCavity.size() == 121 && cav.ports == 4);
     CHECK(!cav.modes.empty() && cav.modes[0].m == 1 && cav.modes[0].n == 0);
     if (!cav.zCavity.empty()) CHECK_NEAR(cav.zCavity[0] / cav.zLumped[0], 1.0, 0.25);  // both VRM / bulk dominated at 1 MHz
+    // With the IR map's pour cells the plane is also solved on its real shape; at 1 MHz it agrees with the cavity.
+    CHECK(r.irAnalyzed && !r.irCells.empty() && cav.zPlane.size() == cav.freq.size());
+    if (!cav.zPlane.empty()) CHECK_NEAR(cav.zPlane[0] / cav.zCavity[0], 1.0, 0.25);
+    CHECK_NEAR(cav.droop, r.transientCurrent * cav.worstRatio * r.target, 1e-12);
+    CHECK(cav.droopLimit > 0);
     const Json cj = pdnCavityJson(b.p, "+3V3");
-    CHECK(cj.get("available").asBool() && cj.get("zCavity").size() == 121);
+    CHECK(cj.get("available").asBool() && cj.get("zCavity").size() == 121 && cj.get("zPlane").size() == 121);
     CHECK(pdnCavityJson(b.p, "NOPE").has("error"));
     b.p.si.rails.push_back({"+3V3", 0, 0, 0, 0.002, 200e3});
     const PdnRailResult ov = rail(b.p);
@@ -11002,16 +11021,21 @@ TEST(spice_models_hostile_input) {
     SpiceFlatCircuit deep = flattenSpiceModel(parseSpiceLibrary(chain), "S0");
     CHECK(!deep.ok && hasDiag(deep.diagnostics, SpiceDiagnostic::Level::Error, "nested more than 40"));
     std::string wide = ".subckt W a b\n";
-    for (int i = 0; i < 12; ++i) wide += "X" + std::to_string(i) + " a b W" + std::to_string(i) + "\n";
+    for (int i = 0; i < 12; ++i) wide += "X" + std::to_string(i) + " a b W0\n";
     wide += ".ends\n";
-    for (int i = 0; i < 12; ++i) {  // 10^6 resistors if fully expanded: refused at 100 000
+    for (int i = 0; i < 2; ++i) {  // 1332 instances of 100 resistors = 120 000 elements: refused at 100 000
         wide += ".subckt W" + std::to_string(i) + " a b\n";
         for (int k = 0; k < 10; ++k) wide += "X" + std::to_string(k) + " a b W" + std::to_string(i + 1) + "\n";
         wide += ".ends\n";
     }
-    wide += ".subckt W12 a b\nR1 a b 1\n.ends\n";
+    wide += ".subckt W2 a b\n";
+    for (int k = 0; k < 100; ++k) wide += "R" + std::to_string(k) + " a b 1\n";
+    wide += ".ends\n";
     SpiceFlatCircuit huge = flattenSpiceModel(parseSpiceLibrary(wide), "W");
     CHECK(!huge.ok && hasDiag(huge.diagnostics, SpiceDiagnostic::Level::Error, "100 000"));
+    // A subcircuit that calls itself twice (found by the fuzzer) stops at 10000 instances instead of 2^40 steps.
+    SpiceFlatCircuit loop = flattenSpiceModel(parseSpiceLibrary(".subckt T a b\nX1 a b T\nX2 a b T\n.ends\n"), "T");
+    CHECK(!loop.ok && hasDiag(loop.diagnostics, SpiceDiagnostic::Level::Error, "10000 subcircuit instances"));
     const int rc = sieda_c_api_spice_test();
     if (rc) std::printf("    SPICE C API test failed at step %d\n", rc);
     CHECK(rc == 0);
@@ -19530,4 +19554,234 @@ TEST(idx_baseline_changes_and_import_round_trip) {
     CHECK(importIdxPlacement(hostile.schematic, deep).empty());
     CHECK(importIdxPlacement(hostile.schematic, "<Item><ItemInstance><Transformation><tx>nan</tx></Transformation>"
                                                 "<InstanceName><ObjectName>U1</ObjectName></InstanceName></ItemInstance></Item>").size() <= 1);
+}
+
+#include "sieda/PdnPlanning.hpp"
+
+TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
+    // A 60 × 40 mm plane pair, 0.2 mm FR-4, as 1 mm pour cells; observed at a corner, no ports.
+    std::vector<PdnIrCell> cells;
+    for (int j = 0; j < 40; ++j)
+        for (int i = 0; i < 60; ++i) cells.push_back({i + 0.5, j + 0.5, 1.0, 1, 0, 0});
+    std::vector<double> f;
+    for (int k = 0; k <= 400; ++k) f.push_back(10e6 * std::pow(300.0, k / 400.0));  // 10 MHz … 3 GHz
+    const auto z = planeMeshImpedance(cells, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {}, f);
+    CHECK(z.size() == f.size());
+    // Low frequency: the plate capacitance.
+    const double c = 8.8541878128e-12 * 4.4 * 60e-3 * 40e-3 / 0.2e-3;
+    CHECK_NEAR(z[0], 1 / (2 * 3.14159265358979 * f[0] * c), 0.02 / (2 * 3.14159265358979 * f[0] * c));
+    // First anti-resonance: the (1,0) cavity mode c / (2·√εr·a).
+    double fPeak = 0;
+    for (size_t k = 1; k + 1 < z.size(); ++k)
+        if (z[k] > z[k - 1] && z[k] > z[k + 1] && f[k] > 200e6) {
+            fPeak = f[k];
+            break;
+        }
+    const double f10 = cavityModeFrequency(60, 40, 4.4, 1, 0);
+    CHECK_NEAR(fPeak, f10, 0.03 * f10);
+    // An L-shaped pour (the 60 × 40 rectangle minus its top-right 30 × 20 quarter) resonates differently from its
+    // bounding box, which the rectangular cavity model cannot see; a capacitor at the observed corner lowers |Z|.
+    std::vector<PdnIrCell> ell;
+    for (const auto& cell : cells)
+        if (!(cell.x > 30 && cell.y > 20)) ell.push_back(cell);
+    const auto zl = planeMeshImpedance(ell, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {}, f);
+    double fl = 0;
+    for (size_t k = 1; k + 1 < zl.size(); ++k)
+        if (zl[k] > zl[k - 1] && zl[k] > zl[k + 1] && f[k] > 200e6) {
+            fl = f[k];
+            break;
+        }
+    CHECK(fl > 0 && std::fabs(fl - fPeak) > 0.03 * fPeak);
+    const PlaneMeshPort cap{{1, 1}, [](double fr) { return capacitorImpedance(fr, 100e-9, 0.02, 0.5e-9); }};
+    const auto zc = planeMeshImpedance(cells, 1, 0.2, 4.4, 0.0, 0.035, {0.5, 0.5}, {cap}, {50e6});
+    CHECK(zc[0] < 0.5 * z[std::lower_bound(f.begin(), f.end(), 50e6) - f.begin()]);
+    CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
+}
+
+TEST(field_solved_lines_feed_the_channel_model) {
+    BoardSettings s;
+    s.layerCount = 4;
+    LossOptions fs;
+    fs.fieldSolver = true;
+    for (int layer : {0, 1}) {
+        const FieldResult r = solveField(trackGeometry(s, layer, 0.15));
+        const LineModel closed = lineModel(s, layer, 0.15), solved = lineModel(s, layer, 0.15, fs);
+        CHECK_NEAR(solved.z0, r.z0, 1e-9);
+        CHECK_NEAR(solved.epsEff, r.eeff, 1e-9);
+        CHECK_NEAR(solved.acFactor, r.rGeom, 1e-6);
+        CHECK(std::fabs(solved.z0 - closed.z0) < 0.25 * closed.z0);  // the same line, a better number
+        CHECK(solved.attenuationDb(10e9) > 0);
+    }
+    // Saved only when on.
+    SiSettings si;
+    CHECK(si.isDefault() && !si.toJson().has("fieldSolverLines"));
+    si.fieldSolverLines = true;
+    CHECK(!si.isDefault() && SiSettings::fromJson(si.toJson()).fieldSolverLines);
+}
+
+TEST(idx_outline_keepouts_and_response) {
+    Project p = placedBenchBoard();
+    RouteKeepout k;
+    k.name = "Antenna";
+    k.area = Rect(2, 2, 8, 6);
+    p.pcb.settings.keepouts.push_back(k);
+    HeightZone z;
+    z.name = "Rib";
+    z.area = Rect(10, 1, 20, 4);
+    z.maxHeight = 3.5;
+    z.bottom = true;
+    p.pcb.settings.heightZones.push_back(z);
+    const std::string base = exportIdx(p.schematic, p.pcb, "bench");
+    CHECK(base.find("KEEPOUT_AREA_ROUTE") != std::string::npos && base.find("KEEPOUT_AREA_COMPONENT") != std::string::npos);
+    // Re-importing our own baseline changes nothing.
+    Project same = p;
+    const IdxImport none = importIdx(same.schematic, same.pcb.settings, base);
+    CHECK(none.moved.empty() && !none.outlineChanged && none.keepouts == 0 && none.heightZones == 0);
+    CHECK(same.pcb.settings.keepouts.size() == 1 && same.pcb.settings.heightZones.size() == 1);
+    // MCAD's keep-outs arrive in a board without them, as "MCAD …" entries with the area, side and height.
+    Project ecad = p;
+    ecad.pcb.settings.keepouts.clear();
+    ecad.pcb.settings.heightZones.clear();
+    const IdxImport got = importIdx(ecad.schematic, ecad.pcb.settings, base);
+    CHECK(got.keepouts == 1 && got.heightZones == 1);
+    const auto& gk = ecad.pcb.settings.keepouts.front();
+    CHECK(gk.name == "MCAD Antenna" && gk.tracks && std::fabs(gk.area.x0 - 2) < 1e-6 && std::fabs(gk.area.y1 - 6) < 1e-6);
+    const auto& gz = ecad.pcb.settings.heightZones.front();
+    CHECK(gz.bottom && std::fabs(gz.maxHeight - 3.5) < 1e-6 && std::fabs(gz.area.x1 - 20) < 1e-6);
+    // A second import replaces MCAD's keep-outs instead of piling them up.
+    importIdx(ecad.schematic, ecad.pcb.settings, base);
+    CHECK(ecad.pcb.settings.keepouts.size() == 1 && ecad.pcb.settings.heightZones.size() == 1);
+    // MCAD reshapes the board (a notch) and makes it thinner: outline and thickness follow, once.
+    Project mcad = p;
+    const double w = p.pcb.settings.width, h = p.pcb.settings.height;
+    mcad.pcb.settings.outline = {{0, 0}, {w, 0}, {w, h}, {w / 2, h}, {w / 2, h - 3}, {0, h - 3}};
+    mcad.pcb.settings.thickness = 1.0;
+    const std::string reshaped = exportIdx(mcad.schematic, mcad.pcb, "bench");
+    const IdxImport o = importIdx(ecad.schematic, ecad.pcb.settings, reshaped);
+    CHECK(o.outlineChanged && o.thicknessChanged && ecad.pcb.settings.outline.size() == 6);
+    CHECK(std::fabs(ecad.pcb.settings.thickness - 1.0) < 1e-6 && std::fabs(ecad.pcb.settings.width - w) < 1e-6);
+    CHECK(!importIdx(ecad.schematic, ecad.pcb.settings, reshaped).outlineChanged);
+    // Accept / reject response to a change file names every proposed change.
+    Component* u1 = mcad.schematic.find(mcad.schematic.findByRef("U1")->id);
+    u1->pcb.position = {u1->pcb.position.x + 3, u1->pcb.position.y};
+    const std::string changes = exportIdxChanges(mcad.schematic, mcad.pcb, "bench", base);
+    const std::string yes = idxResponse(changes, true), no = idxResponse(changes, false);
+    CHECK(yes.find("<computational:Accept>true</computational:Accept>") != std::string::npos);
+    CHECK(no.find("<computational:Accept>false</computational:Accept>") != std::string::npos);
+    CHECK(yes.find("<computational:NewItem>ITEM") != std::string::npos);
+    CHECK(idxResponse("<broken", true).find("<computational:Change ") == std::string::npos);
+}
+
+TEST(ddr_strobe_matched_to_its_byte_lane) {
+    Project q;
+    auto& d = q.schematic;
+    q.memoryDesign = "ddr";
+    const int dram = d.addCustomComponent(
+        CustomPartRegistry::instance().registerPart(findStandardPart("MT41K256M16HA-125")->spec)->id, "", {0, 0});
+    std::map<std::string, int> net;
+    for (const char* pin : {"DQ0", "DQ1", "LDQS"}) {
+        const int r = d.addComponent(ComponentKind::Resistor, "22", {200, 0});
+        wire(d, dram, pin, r, "1");
+    }
+    q.schematicChanged();
+    const Component* c = d.find(dram);
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) net[c->def().pins[static_cast<size_t>(i)].name] = d.netOf({dram, i});
+    auto route = [&](const char* pin, double len) {
+        Track t;
+        t.net = net[pin], t.width = 0.12, t.a = {0, 0}, t.b = {len, 0};
+        q.pcb.tracks.push_back(t);
+    };
+    auto codes = [&] {
+        std::set<std::string> s;
+        for (const auto& v : memoryChecks(q))
+            if (v.severity == Severity::Warning) s.insert(v.code);
+        return s;
+    };
+    route("DQ0", 20), route("DQ1", 20), route("LDQS", 40);  // bits matched to each other, the strobe 20 mm long
+    CHECK(codes().count("MEM_DDR_DQS_SKEW") && !codes().count("MEM_DDR_LANE_SKEW"));
+    q.pcb.tracks.back().b = {20, 0};
+    CHECK(!codes().count("MEM_DDR_DQS_SKEW"));
+}
+
+TEST(dfm_aspect_ratio_copper_balance_and_report) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(dfmReportJson(p.schematic, p.pcb).get("pack").asString().empty());
+    CHECK(applyDfmPack(p.pcb.settings, "jlcpcb-standard"));
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : dfmChecks(p.schematic, p.pcb)) c.insert(v.code);
+        return c;
+    };
+    // A 0.3 mm via through 2.4 mm is 8:1 (allowed); through 3.2 mm it is 10.7:1.
+    Via v;
+    v.position = {5, 5};
+    v.drill = 0.3, v.diameter = 0.6;
+    p.pcb.vias.push_back(v);
+    p.pcb.settings.thickness = 2.4;
+    CHECK(!codes().count("DFM_ASPECT_RATIO"));
+    p.pcb.settings.thickness = 3.2;
+    CHECK(codes().count("DFM_ASPECT_RATIO"));
+    p.pcb.settings.thickness = 1.6;
+    // A ground pour on the top only: the two layers' copper differs by most of the board.
+    CHECK(!codes().count("DFM_COPPER_BALANCE"));
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    const auto cover = copperCoverage(p.schematic, p.pcb);
+    CHECK(cover.size() == 2 && cover[0] > cover[1] + 0.35);
+    CHECK(codes().count("DFM_COPPER_BALANCE"));
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    CHECK(!codes().count("DFM_COPPER_BALANCE"));
+    // The sign-off report: one row per rule, measured against the pack.
+    const Json r = dfmReportJson(p.schematic, p.pcb);
+    CHECK(r.get("pack").asString() == "jlcpcb-standard" && r.get("rows").size() == 16);
+    bool aspectOk = false;
+    for (const auto& row : r.get("rows").items())
+        if (row.get("rule").asString().find("aspect") != std::string::npos) aspectOk = row.get("ok").asBool();
+    CHECK(aspectOk);
+}
+
+TEST(merge_keeps_parts_both_sides_added_under_the_same_id) {
+    Project base;
+    auto& s = base.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    base.schematicChanged();
+    // Each side adds a part (the next free id on both) and wires it to R1; both name a resistor R2.
+    Project ours = base, theirs = base;
+    const int c = ours.schematic.addComponent(ComponentKind::Resistor, "10k", {100, 0});
+    wire(ours.schematic, c, "1", r1, "2");
+    const int l = theirs.schematic.addComponent(ComponentKind::Resistor, "4k7", {0, 100});
+    wire(theirs.schematic, l, "2", r1, "1");
+    CHECK(c == l);  // the collision live co-editing produces
+    const ProjectMerge m = mergeProjects(base.toJson(), ours.toJson(), theirs.toJson());
+    CHECK(m.error.empty() && m.conflicts.empty());
+    const Project merged = Project::fromJson(m.merged);
+    CHECK(merged.schematic.components().size() == 3);
+    std::set<std::string> refs, values;
+    for (const auto& comp : merged.schematic.components()) refs.insert(comp.ref), values.insert(comp.value);
+    CHECK(refs.size() == 3 && values.count("10k") && values.count("4k7"));
+    // Theirs' wire follows its renumbered part: the 4k7 still connects to R1.
+    int moved = -1;
+    for (const auto& comp : merged.schematic.components())
+        if (comp.value == "4k7") moved = comp.id;
+    CHECK(moved >= 0 && moved != c);
+    bool wired = false;
+    for (const auto& w : m.merged.get("wires").items())
+        wired = wired || w.get("a").get("component").asInt(-1) == moved || w.get("b").get("component").asInt(-1) == moved;
+    if (!wired) std::printf("    merged wires: %s\n", m.merged.get("wires").dump().c_str());
+    CHECK(wired);
+}
+
+TEST(restored_ids_saturate_at_int_max) {
+    // A hostile file with the largest id (found by the project fuzzer): loading must not overflow the next id.
+    Project p;
+    p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    Json j = p.toJson();
+    Json c = j.get("components")[0];
+    c["id"] = 2147483647;
+    Json list = Json::array();
+    list.push(c);
+    j["components"] = list;
+    const Project q = Project::fromJson(j);
+    CHECK(q.schematic.components().size() == 1);
+    CHECK(nextIdAfter(2147483647) == 2147483647 && nextIdAfter(5) == 6);
 }

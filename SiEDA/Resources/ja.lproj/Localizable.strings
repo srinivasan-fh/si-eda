@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "フィールドソルバーで確認";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "各層の断面を解き（2Dラプラス、誘電体あり・なし）、これらの幅の実際のZ0とZdiffを求めます";
 "Import MCAD Changes (IDX)…" = "MCAD の変更を読み込む (IDX)…";
+"Field-solved lines" = "フィールドソルバーの線路";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "近似式の代わりに2Dフィールドソルバーで各線路のZ0・εeff・表皮効果電流を求めます";
+"Controller Layout Limits" = "コントローラーのレイアウト制限";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "メモリ種別の標準値です。コントローラーのレイアウトガイドの値を入力してください（0 = 標準）。";
+"Byte-lane skew (ps)" = "バイトレーンのスキュー (ps)";
+"DQ to DQS (ps)" = "DQ と DQS の差 (ps)";
+"Address to clock (ps)" = "アドレスとクロックの差 (ps)";
+"Impedance tolerance (%)" = "インピーダンス許容差 (%)";
+"Sign-off Report" = "承認レポート";
+"Live Collaboration" = "ライブ共同編集";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "各編集を共有プロジェクトファイルに保存し、チームメンバーの保存を自動でマージします";

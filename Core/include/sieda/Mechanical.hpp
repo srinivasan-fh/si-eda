@@ -38,6 +38,20 @@ std::string exportIdxChanges(const Schematic& sch, const PcbLayout& pcb, const s
 /// REFDES, else the instance name). Rotations snap to 90°. Returns the designators changed; malformed files change
 /// nothing.
 std::vector<std::string> importIdxPlacement(Schematic& sch, const std::string& idx);
+/// What an IDX import changed.
+struct IdxImport {
+    std::vector<std::string> moved;  // designators
+    bool outlineChanged = false, thicknessChanged = false;
+    int keepouts = 0, heightZones = 0;  // added from MCAD
+};
+/// The full MCAD import: placements, the board outline and thickness (BOARD_OUTLINE item), routing / via keep-outs
+/// (KEEPOUT_AREA_ROUTE / _VIA → RouteKeepout) and component keep-outs (KEEPOUT_AREA_COMPONENT / _PLACEMENT → a
+/// HeightZone whose limit is the keep-out's height, 0 = no parts). Keep-outs from an earlier MCAD import ("MCAD …")
+/// are replaced; SiEDA's own stay. Malformed files change nothing.
+IdxImport importIdx(Schematic& sch, BoardSettings& s, const std::string& idx);
+/// The IDX response to an MCAD change file: every change it proposes (computational:Change / NewItem) accepted or
+/// rejected.
+std::string idxResponse(const std::string& changesIdx, bool accept);
 
 /// 3D clearance checks (part of the DRC): MECH_HEIGHT (a part taller than its side's enclosure limit),
 /// MECH_HEIGHT_ZONE (taller than a height zone it stands in) and MECH_BODY_COLLISION (two fitted parts' bodies on

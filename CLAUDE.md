@@ -9,7 +9,8 @@
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
 - Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`, routed DDR layout
-  rules `ddrLayoutChecks` / `ddrLayoutLimits`: MEM_DDR_* warnings on DDR, info on SDR), app via
+  rules `ddrLayoutChecks` / `ddrLayoutLimits` with `Project::memoryLimits` overrides from the controller's guide,
+  DQS-to-lane `MEM_DDR_DQS_SKEW`: MEM_DDR_* warnings on DDR, info on SDR), app via
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in
@@ -85,25 +86,32 @@
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
   XML valid against the IPC-2581C schema (KiCad's `qa/data/pcbnew/ipc2581/IPC-2581C.xsd`).
 - Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits, `applyDfmPack` only tightens
-  DRC minimums, `dfmChecks` adds DFM_* / DFA_* to `runDRC` when `BoardSettings::dfmPack` is set; saved only when set;
+  DRC minimums, `dfmChecks` adds DFM_* / DFA_* (incl. DFM_ASPECT_RATIO, DFM_COPPER_BALANCE via `copperCoverage`) to `runDRC`
+  when `BoardSettings::dfmPack` is set; `dfmReportJson` / `sieda_dfm_report_json` is the per-rule sign-off; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
+- PI: lumped PDN / IR drop in `Core/src/PowerIntegrity.cpp`; cavity model, plane mesh on the real pour shape
+  (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
   εeff, L / C, odd / even, kb / kf; `lineLoss`: skin-effect R from the air solution's surface charge, Hammerstad
   roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,
   Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
-  Stack-up → Check with Field Solver. The closed-form widths are unchanged.
+  Stack-up → Check with Field Solver; opt-in `SiSettings::fieldSolverLines` / `LossOptions::fieldSolver` feeds the
+  channel lines (`lineModel`, cached per geometry). The closed-form widths are unchanged.
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
   board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
   (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
-  IDX / EDMD v4.5 baseline, change file and placement import (`exportIdx`, `exportIdxChanges`, `importIdxPlacement`,
+  IDX / EDMD v4.5 baseline (with keep-outs / height zones), change file, import of placement, outline, thickness and
+  keep-outs (`exportIdx`, `exportIdxChanges`, `importIdx`, `importIdxPlacement`), accept / reject `idxResponse`,
   namespace-agnostic XML reader, fuzzed in the `idf` target);
   version diff, three-way merge (`mergeProjects`, `sieda-mcp --merge`), design review comments
   (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
   in `Core/src/ProjectDiff.cpp`; app
-  `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; guides `docs/MCAD.md`, `docs/TEAM.md`.
+  `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; live co-editing of a shared file
+  (auto-save, 2 s watch, three-way merge as one undo step, presence folder) in `SiEDA/App/LiveCollaboration.swift`;
+  guides `docs/MCAD.md`, `docs/TEAM.md`.
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.
 - Speed and safety rules:

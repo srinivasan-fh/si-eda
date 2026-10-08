@@ -4501,6 +4501,17 @@ final class MemoryDesignTests: XCTestCase {
         XCTAssertTrue(AgentPrompts.architectSystem.contains("\"memoryDesign\""))
     }
 
+    func testControllerLayoutLimitsAreUndoable() throws {
+        let store = DesignStore()
+        store.setMemoryDesign("ddr")
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 10)
+        store.setMemoryLimits(EDAEngine.MemoryLimits(laneSkewPs: 25))
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 25)
+        XCTAssertEqual(store.engine.memoryLimits()?.defaults.laneSkewPs, 10)
+        store.undo()
+        XCTAssertEqual(store.engine.memoryLimits()?.effective.laneSkewPs, 10)
+    }
+
     func testDdrChecksOnAFreshProject() throws {
         let store = DesignStore()
         store.setMemoryDesign("ddr")
@@ -7996,6 +8007,38 @@ final class EditPerformanceTests: XCTestCase {
 
 /// Manufacturer DFM / DFA rule packs (`sieda_pcb_set_dfm_pack`).
 @MainActor
+final class LiveCollaborationTests: XCTestCase {
+    func testTwoWindowsMergeEachOthersSaves() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("live-\(UUID().uuidString).siedaproj")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let seed = DesignStore()
+        _ = seed.addComponent(.resistor, at: CGPoint(x: 0, y: 0))
+        try seed.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        let a = DesignStore(), b = DesignStore()
+        a.open(url: url)
+        b.open(url: url)
+        // Each adds a part; A saves first, B pulls A's save in, keeps its own part and saves; A pulls B's.
+        _ = a.addComponent(.capacitor, at: CGPoint(x: 100, y: 0))
+        _ = b.addComponent(.led, at: CGPoint(x: 200, y: 0))
+        XCTAssertTrue(a.save())
+        Thread.sleep(forTimeInterval: 1.1)  // file times have one-second resolution on some volumes
+        b.collaboration.sync(save: true)
+        XCTAssertEqual(b.snapshot.components.count, 3)
+        Thread.sleep(forTimeInterval: 1.1)
+        a.collaboration.sync(save: false)
+        XCTAssertEqual(a.snapshot.components.count, 3)
+        XCTAssertTrue(a.collaboration.conflicts.isEmpty)
+        // The merge is one undo step.
+        a.undo()
+        XCTAssertEqual(a.snapshot.components.count, 2)
+    }
+
+    func testMergeRejectsNonProjects() {
+        XCTAssertNil(EDAEngine.mergeProjects(base: "{}", ours: "not json", theirs: "{}"))
+    }
+}
+
+@MainActor
 final class DfmPackTests: XCTestCase {
     func testPackTightensRulesAndAddsChecks() throws {
         let store = DesignStore()
@@ -8018,8 +8061,10 @@ final class DfmPackTests: XCTestCase {
         store.autoPlace(all: true)
         let base = try XCTUnwrap(store.engine.export(.idx))
         XCTAssertTrue(base.contains("EDMDDataSet"))
-        XCTAssertTrue(store.engine.importIDX(base).isEmpty)
-        XCTAssertTrue(store.engine.importIDX("<not xml").isEmpty)
+        let again = try XCTUnwrap(store.engine.importIDX(base))
+        XCTAssertTrue(again.moved.isEmpty)
+        XCTAssertFalse(again.outline)
+        XCTAssertTrue(store.engine.importIDX("<not xml")?.moved.isEmpty ?? true)
     }
 
     func testFieldSolverAgreesWithStackupWidths() async throws {

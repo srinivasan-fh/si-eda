@@ -36,13 +36,20 @@ extension DesignStore {
     func importIDX() {
         guard let picked = chooseText("Choose the IDX file (.idx) from mechanical CAD.", extensions: ["idx", "xml"]) else { return }
         let (url, text) = picked
-        var moved: [String] = []
+        var result: EDAEngine.IDXImport?
         performExternalEdit("MCAD changes from \(url.lastPathComponent)") { engine in
-            moved = engine.importIDX(text)
-            return !moved.isEmpty
+            result = engine.importIDX(text)
+            guard let r = result else { return false }
+            return !r.moved.isEmpty || r.outline || r.thickness || r.keepouts > 0 || r.heightZones > 0
         }
-        statusMessage = moved.isEmpty ? "\(url.lastPathComponent): no part moved"
-                                      : "Moved \(moved.count) parts: \(moved.prefix(8).joined(separator: ", "))"
+        guard let r = result else { statusMessage = "\(url.lastPathComponent): not an IDX file"; return }
+        var parts: [String] = []
+        if !r.moved.isEmpty { parts.append("moved \(r.moved.count) parts (\(r.moved.prefix(6).joined(separator: ", ")))") }
+        if r.outline { parts.append("new board outline") }
+        if r.thickness { parts.append("new thickness") }
+        if r.keepouts > 0 { parts.append("\(r.keepouts) keep-outs") }
+        if r.heightZones > 0 { parts.append("\(r.heightZones) height zones") }
+        statusMessage = parts.isEmpty ? "\(url.lastPathComponent): no change" : "\(url.lastPathComponent): " + parts.joined(separator: ", ")
     }
 
     /// Tallest part allowed per side by the enclosure (mm, 0 = no limit); the DRC reports MECH_HEIGHT. Undoable.

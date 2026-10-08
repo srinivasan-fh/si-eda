@@ -389,13 +389,13 @@ void Schematic::clear() {
 
 void Schematic::restoreComponent(const Component& c) {
     components_.push_back(c);
-    nextComponentId_ = std::max(nextComponentId_, c.id + 1);
+    nextComponentId_ = std::max(nextComponentId_, nextIdAfter(c.id));
     invalidate();
 }
 
 void Schematic::restoreWire(const Wire& w) {
     wires_.push_back(w);
-    nextWireId_ = std::max(nextWireId_, w.id + 1);
+    nextWireId_ = std::max(nextWireId_, nextIdAfter(w.id));
     invalidate();
 }
 

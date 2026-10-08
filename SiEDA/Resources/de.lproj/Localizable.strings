@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "Mit Feldlöser prüfen";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Löst den Querschnitt jeder Lage (2D-Laplace, mit und ohne Dielektrikum) für die tatsächlichen Z0 und Zdiff dieser Breiten";
 "Import MCAD Changes (IDX)…" = "MCAD-Änderungen importieren (IDX) …";
+"Field-solved lines" = "Feldgelöste Leitungen";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff und der Skineffekt-Strom jeder Leitung vom 2D-Feldlöser statt aus Näherungsformeln";
+"Controller Layout Limits" = "Layout-Grenzwerte des Controllers";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Typische Werte für den Speichertyp; geben Sie die Werte aus dem Layout-Leitfaden Ihres Controllers ein (0 = typisch).";
+"Byte-lane skew (ps)" = "Byte-Lane-Versatz (ps)";
+"DQ to DQS (ps)" = "DQ zu DQS (ps)";
+"Address to clock (ps)" = "Adresse zu Takt (ps)";
+"Impedance tolerance (%)" = "Impedanztoleranz (%)";
+"Sign-off Report" = "Freigabebericht";
+"Live Collaboration" = "Live-Zusammenarbeit";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Jede Änderung in der gemeinsamen Projektdatei speichern und Speicherungen von Teammitgliedern automatisch zusammenführen";

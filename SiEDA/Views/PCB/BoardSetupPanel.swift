@@ -74,6 +74,18 @@ struct BoardSetupPanel: View {
                         Text(verbatim: String(format: "%@ · %.3f / %.3f mm · Ø %.2f mm · %d", pack.notes, pack.minTrack,
                                               pack.minSpace, pack.minDrill, pack.maxLayers))
                             .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                        DisclosureGroup("Sign-off Report") {
+                            ForEach(store.engine.dfmReport()?.rows ?? []) { row in
+                                HStack {
+                                    Image(systemName: row.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                                        .foregroundStyle(row.ok ? Color.green : Theme.warning)
+                                    Text(verbatim: row.rule).foregroundStyle(Theme.textPrimary)
+                                    Spacer()
+                                    Text(verbatim: "\(row.actual) (\(row.limit))").font(.caption.monospacedDigit())
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                            }
+                        }
                     }
                     Text("The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering.")
                         .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)

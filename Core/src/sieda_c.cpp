@@ -1066,6 +1066,21 @@ int32_t sieda_set_memory_design(SiedaProject* project, const char* type) {
     return 1;
 }
 
+char* sieda_memory_limits_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    return dup(memoryLimitsReportJson(project->project).dump());
+}
+
+int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json) {
+    if (!project || !limits_json) return 0;
+    try {
+        project->project.memoryLimits = memoryLimitsFromJson(Json::parse(limits_json));
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 char* sieda_memory_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
@@ -2007,11 +2022,25 @@ char* sieda_import_idx(SiedaProject* project, const char* idx) {
     if (!project || !idx) return nullptr;
     try {
         Json moved = Json::array();
-        for (const auto& ref : importIdxPlacement(project->project.schematic, idx)) moved.push(ref);
+        const IdxImport r = importIdx(project->project.schematic, project->project.pcb.settings, idx);
+        for (const auto& ref : r.moved) moved.push(ref);
         if (moved.size()) project->project.schematicChanged();
         Json out = Json::object();
         out["moved"] = moved;
+        out["outline"] = r.outlineChanged;
+        out["thickness"] = r.thicknessChanged;
+        out["keepouts"] = r.keepouts;
+        out["heightZones"] = r.heightZones;
         return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_idx_response(const char* changes_idx, int32_t accept) {
+    if (!changes_idx) return nullptr;
+    try {
+        return dup(idxResponse(changes_idx, accept != 0));
     } catch (...) {
         return nullptr;
     }
@@ -2661,6 +2690,7 @@ LossOptions lossOptions(const Json& j, const SiSettings& si) {
     o.foil = j.get("foil").asString(si.copperFoil);
     o.roughness = roughnessFromString(j.get("roughness").asString("huray"));
     o.lossless = j.get("lossless").asBool(false);
+    o.fieldSolver = j.get("fieldSolver").asBool(si.fieldSolverLines);
     return o;
 }
 }  // namespace
@@ -2788,6 +2818,12 @@ int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil) {
     if (!id.empty() && std::none_of(copperFoils().begin(), copperFoils().end(), [&](const CopperFoil& f) { return f.id == id; }))
         return 0;
     project->project.si.copperFoil = id;
+    return 1;
+}
+
+int32_t sieda_si_set_field_solver_lines(SiedaProject* project, int32_t on) {
+    if (!project) return 0;
+    project->project.si.fieldSolverLines = on != 0;
     return 1;
 }
 

@@ -1274,3 +1274,14 @@
 "Check with Field Solver" = "Kiểm tra bằng bộ giải trường";
 "Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Giải mặt cắt của từng lớp (Laplace 2D, có và không có điện môi) để có Z0 và Zdiff thực của các độ rộng này";
 "Import MCAD Changes (IDX)…" = "Nhập thay đổi MCAD (IDX)…";
+"Field-solved lines" = "Đường truyền giải trường";
+"Z0, εeff and the skin-effect current of every line from the 2D field solver instead of the closed-form formulas" = "Z0, εeff và dòng hiệu ứng bề mặt của mỗi đường từ bộ giải trường 2D thay cho công thức gần đúng";
+"Controller Layout Limits" = "Giới hạn bố trí của bộ điều khiển";
+"Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical)." = "Giá trị điển hình cho loại bộ nhớ; nhập số liệu từ hướng dẫn bố trí của bộ điều khiển (0 = điển hình).";
+"Byte-lane skew (ps)" = "Độ lệch làn byte (ps)";
+"DQ to DQS (ps)" = "DQ so với DQS (ps)";
+"Address to clock (ps)" = "Địa chỉ so với xung nhịp (ps)";
+"Impedance tolerance (%)" = "Dung sai trở kháng (%)";
+"Sign-off Report" = "Báo cáo phê duyệt";
+"Live Collaboration" = "Cộng tác trực tiếp";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Lưu từng chỉnh sửa vào tệp dự án dùng chung và tự động hợp nhất các lần lưu của đồng đội";

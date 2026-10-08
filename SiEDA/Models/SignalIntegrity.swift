@@ -49,6 +49,7 @@ struct SISettings: Decodable, Equatable {
     var rails: [PDNRailSetting] = []
     /// Copper foil for loss ("" or nil = by laminate) and serial channels checked in sign-off.
     var copperFoil: String?
+    var fieldSolverLines: Bool?
     var channels: [SIChannelSpec]?
 
     static let empty = SISettings()

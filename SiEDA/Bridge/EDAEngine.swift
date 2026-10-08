@@ -762,6 +762,20 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setMemoryDesign(_ id: String) -> Bool { withHandle { sieda_set_memory_design($0, id) } == 1 }
 
+    /// DDR layout limits in force (the memory type's typical values with the controller's overrides).
+    struct MemoryLimits: Codable, Equatable {
+        var laneSkewPs, dqsSkewPs, addrSkewPs, impedanceTolPercent: Double?
+        var laneViaSpread: Int?
+    }
+    struct MemoryLimitsReport: Decodable { var effective, defaults, overrides: MemoryLimits }
+    func memoryLimits() -> MemoryLimitsReport? {
+        Self.decode(MemoryLimitsReport.self, from: withHandle { Self.take(sieda_memory_limits_json($0)) })
+    }
+    func setMemoryLimits(_ limits: MemoryLimits) -> Bool {
+        guard let data = try? JSONEncoder().encode(limits), let json = String(data: data, encoding: .utf8) else { return false }
+        return withHandle { sieda_set_memory_limits($0, json) } == 1
+    }
+
     func memorySegments() -> RobotSegmentsReport {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_memory_segments_json($0)) }) ?? .empty
     }
@@ -1284,6 +1298,7 @@ final class EDAEngine: @unchecked Sendable {
     /// Copper foil for loss ("" = by laminate). False for an unknown id.
     @discardableResult
     func setCopperFoil(_ foil: String) -> Bool { withHandle { sieda_si_set_copper_foil($0, foil) } == 1 }
+    func setFieldSolverLines(_ on: Bool) -> Bool { withHandle { sieda_si_set_field_solver_lines($0, on ? 1 : 0) } == 1 }
 
     /// S-parameters, step response and eye of a routed net or pair; `touchstone` text is cascaded at the receiver.
     func siChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String? = nil,

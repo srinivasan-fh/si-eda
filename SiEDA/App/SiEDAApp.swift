@@ -321,6 +321,8 @@ struct SiEDACommands: Commands {
             }
             Button("Import MCAD Placement (IDF)…") { store.importIDFPlacement() }
             Button("Import MCAD Changes (IDX)…") { store.importIDX() }
+            Toggle("Live Collaboration", isOn: $store.liveCollaboration)
+                .help("Save each edit to the shared project file and merge teammates' saves automatically")
             Button("Compare with Another Version…") { store.compareWithFile() }
             Button("Design Review…") { store.showReview = true }
         }
