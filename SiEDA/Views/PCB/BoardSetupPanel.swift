@@ -15,6 +15,7 @@ struct BoardSetupPanel: View {
     @State private var classNet = ""
     @State private var classWidth = "0.6"
     @State private var meshPart = ""
+    @State private var fieldSolved: [String: FieldSolveInfo] = [:]
     @State private var meshNetA = "TAMPER_MESH_A"
     @State private var meshNetB = "TAMPER_MESH_B"
 
@@ -62,6 +63,20 @@ struct BoardSetupPanel: View {
                                                      keepout: holePattern.keepout)
                         }
                     }
+                }
+
+                section("Manufacturer Rules (DFM)", systemImage: "building.2") {
+                    Picker("Manufacturer", selection: Binding(get: { board.dfmPack }, set: { store.setDfmPack($0) })) {
+                        Text("None").tag("")
+                        ForEach(EDAEngine.dfmPacks) { Text(verbatim: $0.name).tag($0.id) }
+                    }
+                    if let pack = EDAEngine.dfmPacks.first(where: { $0.id == board.dfmPack }) {
+                        Text(verbatim: String(format: "%@ · %.3f / %.3f mm · Ø %.2f mm · %d", pack.notes, pack.minTrack,
+                                              pack.minSpace, pack.minDrill, pack.maxLayers))
+                            .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                    }
+                    Text("The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering.")
+                        .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
                 }
 
                 panelSection(board.panel ?? PanelInfo())
@@ -298,12 +313,20 @@ struct BoardSetupPanel: View {
                     if layer.isCopper, let se = layer.seWidth, let dw = layer.diffWidth, let gap = layer.diffGap {
                         Text(String(format: "%@ · SE %.3f · diff %.3f/%.3f mm", layer.line ?? "", se, dw, gap))
                             .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+                        if let f = fieldSolved[layer.name] {
+                            Text(String(format: "%.1f Ω", f.z0) + (f.zdiff.map { String(format: " / %.1f Ω", $0) } ?? ""))
+                                .font(.caption).monospacedDigit().foregroundStyle(Theme.skyBlue)
+                                .help(String(format: "Field solver: εeff %.2f, %.2f ps/mm", f.eeff, f.delayPsPerMm))
+                        }
                     } else {
                         Text(String(format: "%.3f mm", layer.thickness))
                             .font(.caption).monospacedDigit().foregroundStyle(Theme.textMuted)
                     }
                 }
             }
+            Button("Check with Field Solver") { Task { fieldSolved = await store.fieldSolveStackup() } }
+                .disabled(store.isBusy)
+                .help("Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths")
             Text("The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141).")
                 .font(.caption).foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)

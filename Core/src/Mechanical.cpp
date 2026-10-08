@@ -428,7 +428,9 @@ std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& e
             if (const Component* found = sch.findByRef(t[2])) c = sch.find(found->id);
             if (!c || p.size() < 5) continue;
             const Vec2 at{std::atof(p[0].c_str()), -std::atof(p[1].c_str())};
-            const int rot = idfRotation(static_cast<int>(std::lround(std::atof(p[3].c_str()) / 90.0)) * 90);
+            double deg = std::fmod(std::atof(p[3].c_str()), 360.0);  // hostile files: huge or NaN angles
+            if (!std::isfinite(deg)) deg = 0;
+            const int rot = idfRotation(static_cast<int>(std::lround(deg / 90.0)) * 90);
             const bool bottom = p[4] == "BOTTOM";
             if (std::hypot(at.x - c->pcb.position.x, at.y - c->pcb.position.y) < 1e-4 && rot == c->pcb.rotation % 360 &&
                 bottom == c->pcb.bottom)

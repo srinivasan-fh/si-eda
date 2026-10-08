@@ -86,6 +86,16 @@ extension EDAEngine {
         }
     }
 
+    /// Manufacturer DFM / DFA rule packs the board can be checked against.
+    static let dfmPacks: [DfmPackInfo] = decode([DfmPackInfo].self, from: take(sieda_dfm_packs_json())) ?? []
+
+    func setDfmPack(_ id: String) -> Bool { withHandle { sieda_pcb_set_dfm_pack($0, id) } == 1 }
+
+    /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
+    func fieldSolve(layer: Int, width: Double, gap: Double = 0) -> FieldSolveInfo? {
+        Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap)) })
+    }
+
     /// The production panel's layout (the settings and where boards, rails, tabs and holes go).
     func panelLayout() -> PanelLayoutInfo? {
         Self.decode(PanelLayoutInfo.self, from: withHandle { Self.take(sieda_pcb_panel($0)) })

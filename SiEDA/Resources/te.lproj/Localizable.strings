@@ -1269,3 +1269,7 @@
 "Undo state" = "అన్‌డూ స్థితి";
 "Engine" = "ఇంజిన్";
 "View refresh" = "వీక్షణ రిఫ్రెష్";
+"Manufacturer" = "తయారీదారు";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC తయారీదారు కనీస ట్రాక్, ఖాళీ, డ్రిల్, యాన్యులర్ రింగ్‌ను వాడుతుంది, మరియు తయారీ, అసెంబ్లీ తనిఖీలను జోడిస్తుంది: లేయర్‌లు, బోర్డ్ పరిమాణం, మందం, వయాలు, సోల్డర్-మాస్క్ వెబ్, ప్యాడ్‌పై సిల్క్‌స్క్రీన్, భాగాల మధ్య దూరం, అంచు నుండి దూరం, ఫిడ్యూషియల్‌లు. ఆర్డర్ ముందు తయారీదారు ప్రస్తుత సామర్థ్య పేజీని చూడండి.";
+"Check with Field Solver" = "ఫీల్డ్ సాల్వర్‌తో తనిఖీ చేయండి";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "ఈ వెడల్పుల నిజమైన Z0, Zdiff కోసం ప్రతి పొర అడ్డుకోతను పరిష్కరిస్తుంది (2D లాప్లాస్, డైఎలెక్ట్రిక్‌తో మరియు లేకుండా)";

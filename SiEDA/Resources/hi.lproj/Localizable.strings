@@ -1269,3 +1269,7 @@
 "Undo state" = "अनडू स्थिति";
 "Engine" = "इंजन";
 "View refresh" = "दृश्य रिफ़्रेश";
+"Manufacturer" = "निर्माता";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC निर्माता के न्यूनतम ट्रैक, स्पेस, ड्रिल और एन्युलर रिंग का उपयोग करता है, और निर्माण व असेंबली जाँच जोड़ता है: लेयर, बोर्ड आकार, मोटाई, वाया, सोल्डर-मास्क वेब, पैड पर सिल्कस्क्रीन, पार्ट दूरी, किनारे से दूरी, फ़िड्यूशियल। ऑर्डर से पहले निर्माता का वर्तमान क्षमता पेज देखें।";
+"Check with Field Solver" = "फ़ील्ड सॉल्वर से जाँचें";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "इन चौड़ाइयों के वास्तविक Z0 और Zdiff के लिए हर परत का क्रॉस-सेक्शन हल करता है (2D लाप्लास, डाइइलेक्ट्रिक के साथ और बिना)";

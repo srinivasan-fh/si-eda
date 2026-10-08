@@ -1,5 +1,6 @@
 // SiEDA Core — C ABI: autorouter strategy options, presets, the routing report and routing keep-outs. Every entry
 // point is exception-safe. See docs/ROUTING.md (Strategies).
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -10,6 +11,8 @@
 #include "sieda/sieda_c.h"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Panel.hpp"
+#include "sieda/Dfm.hpp"
+#include "sieda/FieldSolver.hpp"
 
 using namespace sieda;
 
@@ -84,6 +87,21 @@ int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limit
     } catch (const std::exception&) {
         return 0;
     }
+}
+
+char* sieda_dfm_packs_json(void) { return dupText(dfmPacksJson().dump()); }
+
+int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
+    return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
+}
+
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap) {
+    if (!project) return nullptr;
+    const auto& s = project->project.pcb.settings;
+    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(width > 0 && width < 20) || !(gap >= 0 && gap < 20))
+        return nullptr;
+    const FieldGeometry g = trackGeometry(s, layer, width, gap);
+    return dupText(fieldResultJson(g, solveField(g)).dump());
 }
 
 char* sieda_pcb_panel(const SiedaProject* project) {

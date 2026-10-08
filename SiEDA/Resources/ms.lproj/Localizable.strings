@@ -1269,3 +1269,7 @@
 "Undo state" = "Keadaan buat asal";
 "Engine" = "Enjin";
 "View refresh" = "Segar semula paparan";
+"Manufacturer" = "Pengilang";
+"The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering." = "DRC menggunakan trek, ruang, gerudi dan cincin anulus minimum pengilang, serta menambah semakan fabrikasi dan pemasangan: lapisan, saiz papan, ketebalan, via, web topeng pateri, skrin sutera di atas pad, jarak komponen, jarak ke tepi, fidusial. Semak halaman keupayaan semasa pengilang sebelum memesan.";
+"Check with Field Solver" = "Semak dengan Penyelesai Medan";
+"Solves each layer's cross-section (2D Laplace, with and without the dielectric) for the real Z0 and Zdiff of these widths" = "Menyelesaikan keratan rentas setiap lapisan (Laplace 2D, dengan dan tanpa dielektrik) untuk Z0 dan Zdiff sebenar lebar ini";

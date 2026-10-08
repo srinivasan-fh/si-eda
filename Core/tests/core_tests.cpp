@@ -30,6 +30,7 @@
 #include "sieda/Fabrication.hpp"
 #include "sieda/FabExchange.hpp"
 #include "sieda/Panel.hpp"
+#include "sieda/Dfm.hpp"
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -2988,6 +2989,38 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     PanelSettings clamped;
     panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
     CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
+}
+
+TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) c.insert(v.code);
+        return c;
+    };
+    for (const auto& c : codes()) CHECK(c.rfind("DFM_", 0) != 0 && c.rfind("DFA_", 0) != 0);  // no pack, no checks
+    CHECK(dfmPacks().size() >= 7 && !applyDfmPack(p.pcb.settings, "no-such-fab"));
+    p.pcb.settings.minDrill = 0.1;
+    CHECK(applyDfmPack(p.pcb.settings, "oshpark-2"));
+    CHECK(std::abs(p.pcb.settings.minDrill - 0.254) < 1e-9 && std::abs(p.pcb.settings.minTrackWidth - 0.152) < 1e-9);
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.thickness = 2.4;
+    auto c = codes();
+    CHECK(c.count("DFM_LAYERS") && c.count("DFM_THICKNESS") && !c.count("DFM_BOARD_SIZE"));
+    // Two parts 0.1 mm apart on the same side.
+    std::vector<Component*> parts;
+    for (auto& comp : p.schematic.mutableComponents())
+        if (comp.hasFootprint() && comp.pcb.placed) parts.push_back(&comp);
+    CHECK(parts.size() >= 2);
+    parts[1]->pcb.bottom = parts[0]->pcb.bottom;
+    const Rect a = p.pcb.courtyard(*parts[0]), b = p.pcb.courtyard(*parts[1]);
+    parts[1]->pcb.position = parts[1]->pcb.position + Vec2{a.x1 + 0.1 - b.x0, a.y0 - b.y0};
+    CHECK(codes().count("DFA_PART_SPACING"));
+    // Saved only when set.
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.dfmPack == "oshpark-2");
+    CHECK(applyDfmPack(p.pcb.settings, "") && !p.toJson().get("board").has("dfmPack"));
 }
 
 TEST(fabrication_package_is_complete) {
@@ -19121,6 +19154,15 @@ TEST(idf_export_and_placement_round_trip) {
     u1->pcb.rotation = 0;
     importIdfPlacement(moved.schematic, rotated);
     CHECK(u1->pcb.rotation == 90);
+    // Hostile angles (found by the fuzzer) read as a finite rotation instead of overflowing.
+    for (const char* angle : {" 0 1e300 ", " 0 nan ", " 0 -9.1e8 "}) {
+        std::string hostile = rotated;
+        const auto at = hostile.find(" 0 270 ");
+        CHECK(at != std::string::npos);
+        if (at != std::string::npos) hostile.replace(at, 7, angle);
+        importIdfPlacement(moved.schematic, hostile);
+        CHECK(u1->pcb.rotation >= 0 && u1->pcb.rotation < 360);
+    }
 }
 
 TEST(project_diff_parts_nets_copper_variants) {
@@ -19327,4 +19369,46 @@ TEST(json_hostile_nesting_and_number_format) {
     CHECK(Json::parse("[0.1,1e-7,-2.5e300,123456789012,0.30000000000000004,1e15,-0.0,3.14159265358979,-7]").dump() ==
           "[0.1,1e-07,-2.5e+300,123456789012,0.3,1e+15,0,3.141592654,-7]");
     CHECK(Json(std::string("a\x01\"b\\c\n")).dump() == "\"a\\u0001\\\"b\\\\c\\n\"");
+}
+
+#include "sieda/FieldSolver.hpp"
+#include "sieda/SignalIntegrity.hpp"
+
+TEST(field_solver_matches_exact_stripline_and_microstrip) {
+    // Zero-thickness stripline vs the exact conformal map Z0 = 30π/√εr · K(k)/K(k'), k = sech(πw/2b).
+    for (double w : {0.1, 0.3, 0.8}) {
+        const double b = 0.5, er = 4.0, k = 1 / std::cosh(3.14159265358979 * w / (2 * b));
+        const double exact = 30 * 3.14159265358979 / std::sqrt(er) * ellipticK(k) / ellipticK(std::sqrt(1 - k * k));
+        FieldGeometry g{w, 0, 0.25, 0.25, 0, er};
+        const auto r = solveField(g);
+        CHECK_NEAR(r.z0, exact, 0.015 * exact);
+        CHECK_NEAR(r.eeff, er, 1e-6 * er);
+    }
+    // Zero-thickness microstrip vs Hammerstad–Jensen (accurate to ~0.2 %).
+    for (double u : {0.5, 1.0, 2.0, 5.0}) {
+        const double h = 0.2, er = 4.4, w = u * h, pi = 3.14159265358979;
+        const double f = 6 + (2 * pi - 6) * std::exp(-std::pow(30.666 / u, 0.7528));
+        const double z01 = 376.73 / (2 * pi) * std::log(f / u + std::sqrt(1 + 4 / (u * u)));
+        const double a = 1 + std::log((std::pow(u, 4) + std::pow(u / 52, 2)) / (std::pow(u, 4) + 0.432)) / 49 +
+                         std::log(1 + std::pow(u / 18.1, 3)) / 18.7;
+        const double bb = 0.564 * std::pow((er - 0.9) / (er + 3), 0.053);
+        const double ee = (er + 1) / 2 + (er - 1) / 2 * std::pow(1 + 10 / u, -a * bb);
+        const auto r = solveField(FieldGeometry{w, 0, h, 0, 0, er});
+        CHECK_NEAR(r.z0, z01 / std::sqrt(ee), 0.015 * z01 / std::sqrt(ee));
+        CHECK_NEAR(r.eeff, ee, 0.005 * ee);
+    }
+    // Coupled stripline vs Cohn's exact even / odd impedances; homogeneous, so no forward crosstalk.
+    {
+        auto [ze, zo] = coupledStriplineImpedance(0.2, 0.15, 0.5, 4.0);
+        const auto r = solveField(FieldGeometry{0.2, 0, 0.25, 0.25, 0.15, 4.0});
+        CHECK_NEAR(r.zeven, ze, 0.015 * ze);
+        CHECK_NEAR(r.zodd, zo, 0.015 * zo);
+        CHECK(std::fabs(r.kf) < 1e-6 && r.kb > 0);
+    }
+    // Microstrip pair: inhomogeneous, so FEXT is negative (Cm/C < Lm/L) and Zdiff < 2·Z0 alone.
+    {
+        const auto r = solveField(FieldGeometry{0.2, 0.035, 0.2, 0, 0.2, 4.4});
+        const auto single = solveField(FieldGeometry{0.2, 0.035, 0.2, 0, 0, 4.4});
+        CHECK(r.kf < 0 && r.kb > 0 && r.zdiff < 2 * single.z0 && r.zeven > r.zodd);
+    }
 }

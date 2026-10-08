@@ -498,6 +498,8 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
 | `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height). |
+| `pcb_dfm_pack` | edit | Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). With pack: selects it ("" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs and the board's pack. |
+| `si_field_solver` | read | 2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance and the backward (kb) and forward (kf) crosstalk coefficients. |
 | `pcb_panel` | edit | Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, separated by V-score lines or routed gaps with breakaway tabs and mouse bites. Without arguments returns the layout (mm, Y up); 1 × 1 removes the panel. |
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 
