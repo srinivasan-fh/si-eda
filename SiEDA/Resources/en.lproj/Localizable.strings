@@ -1286,3 +1286,5 @@
 "Live Collaboration" = "Live Collaboration";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "Save each edit to the shared project file and merge teammates' saves automatically";
 "Clock / strobe pair P to N (ps)" = "Clock / strobe pair P to N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "Extra parts per line for assembly loss (pick-and-place attrition)";
+"Spares" = "Spares";

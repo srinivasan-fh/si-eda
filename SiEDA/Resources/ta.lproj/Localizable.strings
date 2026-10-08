@@ -1286,3 +1286,5 @@
 "Live Collaboration" = "நேரடி கூட்டுப்பணி";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "ஒவ்வொரு திருத்தத்தையும் பகிரப்பட்ட திட்டக் கோப்பில் சேமித்து, குழுவினரின் சேமிப்புகளைத் தானாக இணைக்கவும்";
 "Clock / strobe pair P to N (ps)" = "கடிகார / ஸ்ட்ரோப் இணை P முதல் N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "அசெம்பிளி இழப்புக்காக ஒவ்வொரு வரியிலும் கூடுதல் பாகங்கள் (பிக்-அண்ட்-பிளேஸ்)";
+"Spares" = "கூடுதல்";

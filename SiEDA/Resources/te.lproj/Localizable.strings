@@ -1286,3 +1286,5 @@
 "Live Collaboration" = "ప్రత్యక్ష సహకారం";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "ప్రతి మార్పును భాగస్వామ్య ప్రాజెక్ట్ ఫైల్‌లో సేవ్ చేసి, సహచరుల సేవ్‌లను స్వయంచాలకంగా విలీనం చేయండి";
 "Clock / strobe pair P to N (ps)" = "క్లాక్ / స్ట్రోబ్ జత P నుండి N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "అసెంబ్లీ నష్టం కోసం ప్రతి లైన్‌కు అదనపు భాగాలు (పిక్-అండ్-ప్లేస్)";
+"Spares" = "అదనపు";

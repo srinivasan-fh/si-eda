@@ -1286,3 +1286,5 @@
 "Live Collaboration" = "লাইভ সহযোগিতা";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "প্ৰতিটো সম্পাদনা ভাগ-বতৰা প্ৰকল্প ফাইলত সাঁচি ৰাখক আৰু সতীৰ্থৰ সাঁচতীয়া স্বয়ংক্ৰিয়ভাৱে একত্ৰিত কৰক";
 "Clock / strobe pair P to N (ps)" = "ক্লক / ষ্ট্ৰ'ব যোৰ P ৰ পৰা N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "সমাবেশৰ ক্ষতিৰ বাবে প্ৰতিটো শাৰীত অতিৰিক্ত অংশ (পিক-এণ্ড-প্লেচ হেৰুৱা)";
+"Spares" = "অতিৰিক্ত";

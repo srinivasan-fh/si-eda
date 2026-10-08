@@ -12151,6 +12151,14 @@ TEST(supplier_merge_rollup_and_catalog_match) {
         CHECK(std::fabs(t100.get("perBoard").asNumber() - t100.get("cost").asNumber() / 100) < 1e-12);
     }
     CHECK(r.get("warnings").size() >= 1 && !r.get("mixedCurrency").asBool());
+    // Assembly attrition: 2 % or at least 5 spares per line — 200 needed becomes 205, 2 becomes 7.
+    req["attritionPercent"] = 2;
+    req["attritionMin"] = 5;
+    const Json ra = supplierBomRollup(Json::parse(req.dump()));
+    CHECK(ra.get("lines")[0].get("offers")[2].get("needed").asNumber() == 205);
+    CHECK(ra.get("lines")[0].get("offers")[0].get("needed").asNumber() == 7);
+    req["attritionMin"] = 0;
+    CHECK(supplierBomRollup(Json::parse(req.dump())).get("lines")[0].get("offers")[2].get("needed").asNumber() == 204);
     // Garbage requests give a roll-up, never an exception.
     CHECK(supplierBomRollup(Json::parse("{\"lines\":[1,\"x\",{}],\"parts\":[null,{\"mpn\":7}]}")).get("lines").size() == 3);
     CHECK(supplierBomRollup(Json()).get("totals").size() == 4);
