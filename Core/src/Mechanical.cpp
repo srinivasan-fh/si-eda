@@ -7,6 +7,7 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -656,14 +657,38 @@ std::vector<IdxItem> idxItems(const XmlNode& root) {
                 sh.inverted = inverted;
                 sh.z0 = n->child("LowerBound") ? n->child("LowerBound")->number() : 0;
                 sh.z1 = n->child("UpperBound") ? n->child("UpperBound")->number() : 0;
-                for (const auto& k : n->kids)
-                    if (k.name == "DetailedGeometricModelElement")
-                        if (const XmlNode* line = ref(k.text))
-                            for (const auto& pt : line->kids)
-                                if (pt.name == "Point")
-                                    if (const XmlNode* p = ref(pt.text))
-                                        sh.points.push_back({p->child("X") ? p->child("X")->number() : 0,
-                                                             p->child("Y") ? p->child("Y")->number() : 0});
+                auto point = [&](const XmlNode* k) -> std::optional<Vec2> {
+                    const XmlNode* p = k ? ref(k->text) : nullptr;
+                    if (!p) return std::nullopt;
+                    return Vec2{p->child("X") ? p->child("X")->number() : 0, p->child("Y") ? p->child("Y")->number() : 0};
+                };
+                auto sweep = [&](Vec2 c, Vec2 from, double deg) {  // arc from `from` about `c`, ≤ 10° per segment
+                    const int n = std::clamp(static_cast<int>(std::ceil(std::fabs(deg) / 10)), 1, 36);
+                    for (int i = 1; i <= n; ++i) {
+                        const double a = deg * kPi / 180 * i / n;
+                        const Vec2 d = from - c;
+                        sh.points.push_back({c.x + d.x * std::cos(a) - d.y * std::sin(a), c.y + d.x * std::sin(a) + d.y * std::cos(a)});
+                    }
+                };
+                for (const auto& k : n->kids) {
+                    const XmlNode* line = k.name == "DetailedGeometricModelElement" ? ref(k.text) : nullptr;
+                    if (!line) continue;
+                    if (const auto c = point(line->child("CenterPoint")); c && line->child("Diameter")) {  // CircleCenter
+                        const Vec2 from{c->x + line->child("Diameter")->number() / 2, c->y};
+                        sh.points.push_back(from), sweep(*c, from, 360), sh.points.pop_back();
+                    } else if (const auto a = point(line->child("StartPoint")), b = point(line->child("EndPoint"));
+                               a && b && line->child("Angle")) {  // Arc: start, end and the swept angle (degrees, CCW > 0)
+                        const double deg = std::clamp(line->child("Angle")->number(), -360.0, 360.0), t = std::tan(deg * kPi / 360);
+                        const Vec2 m = (*a + *b) * 0.5, h = (*b - *a) * 0.5;  // centre on the chord's bisector
+                        if (sh.points.empty() || (sh.points.back() - *a).length() > 1e-9) sh.points.push_back(*a);
+                        if (std::fabs(t) > 1e-9) sweep({m.x - h.y / t, m.y + h.x / t}, *a, deg); else sh.points.push_back(*b);
+                    } else {
+                        for (const auto& pt : line->kids)
+                            if (pt.name == "Point")
+                                if (const auto v = point(&pt); v && (sh.points.empty() || (sh.points.back() - *v).length() > 1e-9))
+                                    sh.points.push_back(*v);
+                    }
+                }
                 if (sh.points.size() > 1 && (sh.points.front() - sh.points.back()).length() < 1e-9) sh.points.pop_back();
                 if (sh.points.size() >= 3) item.shapes.push_back(std::move(sh));
                 continue;
@@ -834,6 +859,41 @@ std::string exportIdxChanges(const Schematic& sch, const PcbLayout& pcb, const s
     return refs.empty() ? std::string() : writeIdx(sch, pcb, name.empty() ? "board" : name, &refs);
 }
 
+namespace {
+
+/// A keep-out polygon (MCAD XY) as SiEDA rectangles: one per run inside each horizontal slab between vertex
+/// heights, each as wide as the polygon anywhere in its slab — exact for rectilinear shapes, never smaller than the
+/// polygon. More than 32 slabs or 64 rectangles: the bounding box.
+std::vector<Rect> stripsOf(const std::vector<Vec2>& mcadPoly) {
+    std::vector<Vec2> p;
+    for (const auto& v : mcadPoly) p.push_back({v.x, -v.y});
+    Rect box(p[0].x, p[0].y, p[0].x, p[0].y);
+    for (const auto& v : p) box = Rect(std::min(box.x0, v.x), std::min(box.y0, v.y), std::max(box.x1, v.x), std::max(box.y1, v.y));
+    std::vector<double> ys;
+    for (const auto& v : p) ys.push_back(v.y);
+    std::sort(ys.begin(), ys.end());
+    ys.erase(std::unique(ys.begin(), ys.end(), [](double a, double b) { return b - a < 1e-6; }), ys.end());
+    if (ys.size() > 33) return {box};
+    std::vector<Rect> out;
+    for (size_t i = 0; i + 1 < ys.size(); ++i) {
+        const double y0 = ys[i], y1 = ys[i + 1], ym = (y0 + y1) / 2;
+        struct Cross { double mid, lo, hi; };  // an edge through the slab: x at mid-height and its extent in the slab
+        std::vector<Cross> xs;
+        for (size_t k = 0; k < p.size(); ++k) {
+            const Vec2 a = p[k], b = p[(k + 1) % p.size()];
+            if ((a.y <= ym) == (b.y <= ym)) continue;
+            auto at = [&](double y) { return a.x + (b.x - a.x) * std::clamp((y - a.y) / (b.y - a.y), 0.0, 1.0); };
+            xs.push_back({at(ym), std::min(at(y0), at(y1)), std::max(at(y0), at(y1))});
+        }
+        std::sort(xs.begin(), xs.end(), [](const Cross& a, const Cross& b) { return a.mid < b.mid; });
+        for (size_t k = 0; k + 1 < xs.size(); k += 2) out.push_back(Rect(xs[k].lo, y0, xs[k + 1].hi, y1));
+        if (out.size() > 64) return {box};
+    }
+    return out.empty() ? std::vector<Rect>{box} : out;
+}
+
+}  // namespace
+
 IdxImport importIdx(Schematic& sch, BoardSettings& s, const std::string& idx) {
     IdxImport r;
     r.moved = importIdxPlacement(sch, idx);
@@ -848,6 +908,29 @@ IdxImport importIdx(Schematic& sch, BoardSettings& s, const std::string& idx) {
             return b;
         };
         if (item.type == "BOARD_OUTLINE") {
+            std::vector<MountingHole> holes;  // inverted round cut-outs: drilled holes, centre and diameter
+            for (const auto& sh : item.shapes)
+                if (sh.inverted && sh.points.size() >= 8) {
+                    Vec2 c{0, 0};
+                    for (const auto& p : sh.points) c = c + Vec2{p.x, -p.y} * (1.0 / sh.points.size());
+                    double r = 0;
+                    for (const auto& p : sh.points) r += (Vec2{p.x, -p.y} - c).length() / sh.points.size();
+                    MountingHole h;
+                    h.position = c;
+                    h.drill = 2 * r;
+                    const auto old = std::find_if(s.holes.begin(), s.holes.end(), [&](const MountingHole& o) {
+                        return (o.position - c).length() < 0.05;
+                    });
+                    if (old != s.holes.end()) h.keepout = old->keepout + (h.drill - old->drill);
+                    holes.push_back(h);
+                }
+            const bool holesDiffer = holes.size() != s.holes.size() ||
+                                     !std::all_of(holes.begin(), holes.end(), [&](const MountingHole& h) {
+                                         return std::any_of(s.holes.begin(), s.holes.end(), [&](const MountingHole& o) {
+                                             return (o.position - h.position).length() < 0.05 && std::fabs(o.drill - h.drill) < 0.05;
+                                         });
+                                     });
+            if (holesDiffer && item.shapes.size() > holes.size()) s.holes = holes, r.holesChanged = true;
             for (const auto& sh : item.shapes) {
                 if (sh.inverted) continue;
                 std::vector<Vec2> poly;
@@ -878,22 +961,25 @@ IdxImport importIdx(Schematic& sch, BoardSettings& s, const std::string& idx) {
                 break;
             }
         } else if (item.type.rfind("KEEPOUT_AREA", 0) == 0 && !item.shapes.empty()) {
-            const Rect b = box(item.shapes.front());
             const std::string name = "MCAD " + (item.name.empty() ? item.type.substr(13) : item.name);
-            if (item.type.find("COMPONENT") != std::string::npos || item.type.find("PLACEMENT") != std::string::npos) {
-                HeightZone z;
-                z.name = name;
-                z.area = b;
-                z.bottom = item.side.find("BOTTOM") != std::string::npos;
-                z.maxHeight = std::max(0.0, item.shapes.front().z1 - item.shapes.front().z0);
-                newZones.push_back(z);
-            } else {
-                RouteKeepout k;
-                k.name = name;
-                k.area = b;
-                k.tracks = item.type.find("VIA") == std::string::npos;
-                k.vias = true;
-                newKeepouts.push_back(k);
+            int part = 0;
+            for (const Rect& b : stripsOf(item.shapes.front().points)) {
+                const std::string nm = part++ ? name + " #" + std::to_string(part) : name;
+                if (item.type.find("COMPONENT") != std::string::npos || item.type.find("PLACEMENT") != std::string::npos) {
+                    HeightZone z;
+                    z.name = nm;
+                    z.area = b;
+                    z.bottom = item.side.find("BOTTOM") != std::string::npos;
+                    z.maxHeight = std::max(0.0, item.shapes.front().z1 - item.shapes.front().z0);
+                    newZones.push_back(z);
+                } else {
+                    RouteKeepout k;
+                    k.name = nm;
+                    k.area = b;
+                    k.tracks = item.type.find("VIA") == std::string::npos;
+                    k.vias = true;
+                    newKeepouts.push_back(k);
+                }
             }
         }
     }

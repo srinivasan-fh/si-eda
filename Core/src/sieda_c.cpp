@@ -2029,6 +2029,7 @@ char* sieda_import_idx(SiedaProject* project, const char* idx) {
         out["moved"] = moved;
         out["outline"] = r.outlineChanged;
         out["thickness"] = r.thicknessChanged;
+        out["holes"] = r.holesChanged;
         out["keepouts"] = r.keepouts;
         out["heightZones"] = r.heightZones;
         return dup(out.dump());

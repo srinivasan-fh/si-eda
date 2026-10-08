@@ -19672,6 +19672,69 @@ TEST(idx_outline_keepouts_and_response) {
     CHECK(idxResponse("<broken", true).find("<computational:Change ") == std::string::npos);
 }
 
+TEST(idx_arcs_holes_and_shaped_keepouts) {
+    // A hand-written MCAD file: a 40 × 30 outline with a rounded corner (Arc), a Ø3 hole (CircleCenter), an L-shaped
+    // routing keep-out and a triangular component keep-out.
+    int next = 0;
+    std::string body;
+    auto pts = [&](std::vector<Vec2> v) {
+        std::string refs;
+        for (const auto& q : v) {
+            const std::string id = "P" + std::to_string(++next);
+            body += "<CartesianPoint id=\"" + id + "\"><X>" + std::to_string(q.x) + "</X><Y>" + std::to_string(q.y) + "</Y></CartesianPoint>";
+            refs += "<Point>" + id + "</Point>";
+        }
+        return refs;
+    };
+    auto shape = [&](const std::string& curves, bool inverted, double z1 = 1.6) {
+        const std::string n = std::to_string(++next);
+        body += "<CurveSet2d id=\"C" + n + "\"><LowerBound>0</LowerBound><UpperBound>" + std::to_string(z1) + "</UpperBound>" + curves +
+                "</CurveSet2d><ShapeElement id=\"S" + n + "\"><Inverted>" + (inverted ? "true" : "false") +
+                "</Inverted><DefiningShape>C" + n + "</DefiningShape></ShapeElement>";
+        return "<Shape>S" + n + "</Shape>";
+    };
+    auto element = [&](const std::string& xml) {
+        const std::string id = "G" + std::to_string(++next);
+        body += xml.substr(0, xml.find('>')) + " id=\"" + id + "\"" + xml.substr(xml.find('>'));
+        return "<DetailedGeometricModelElement>" + id + "</DetailedGeometricModelElement>";
+    };
+    auto point = [&](Vec2 q) { const std::string r = pts({q}); return r.substr(7, r.size() - 15); };
+    // Outline (MCAD Y up, so the board is at negative Y): straight edges, then a clockwise 90° arc rounding the
+    // corner at (40, -30) with radius 5.
+    const std::string outline = element("<PolyLine>" + pts({{35, -30}, {0, -30}, {0, 0}, {40, 0}, {40, -25}}) + "</PolyLine>") +
+                                element("<Arc><StartPoint>" + point({40, -25}) + "</StartPoint><EndPoint>" + point({35, -30}) +
+                                        "</EndPoint><Angle>-90</Angle></Arc>");
+    const std::string hole = element("<CircleCenter><CenterPoint>" + point({5, -25}) + "</CenterPoint><Diameter>3</Diameter></CircleCenter>");
+    const std::string ell = element("<PolyLine>" + pts({{2, -2}, {12, -2}, {12, -6}, {6, -6}, {6, -12}, {2, -12}}) + "</PolyLine>");
+    const std::string tri = element("<PolyLine>" + pts({{20, -2}, {30, -2}, {20, -12}}) + "</PolyLine>");
+    const std::string items = "<Item geometryType=\"BOARD_OUTLINE\"><Name>b</Name>" + shape(outline, false) + shape(hole, true) + "</Item>" +
+                              "<Item geometryType=\"KEEPOUT_AREA_ROUTE\"><Name>Ell</Name>" + shape(ell, false, 0) + "</Item>" +
+                              "<Item geometryType=\"KEEPOUT_AREA_COMPONENT\"><Name>Tri</Name>" + shape(tri, false, 2) + "</Item>";
+    const std::string idx = "<EDMDDataSet><Body>" + body + items + "</Body></EDMDDataSet>";
+    Project p;
+    const IdxImport r = importIdx(p.schematic, p.pcb.settings, idx);
+    const auto& s = p.pcb.settings;
+    // The rounded corner is tessellated (≤ 10° steps) and sits on the radius-5 circle about (35, 25) in SiEDA.
+    CHECK(r.outlineChanged && s.outline.size() >= 5 + 9 - 1 && std::fabs(s.width - 40) < 1e-6);
+    for (const auto& v : s.outline)
+        if (v.x > 35 + 1e-6 && v.y > 25 - 1e-6) CHECK_NEAR((v - Vec2{35, 25}).length(), 5, 1e-6);
+    CHECK(r.holesChanged && s.holes.size() == 1 && std::fabs(s.holes[0].drill - 3) < 1e-6);
+    CHECK((s.holes[0].position - Vec2{5, 25}).length() < 1e-6);
+    // The L is two exact strips, not its 10 × 10 bounding box; the triangle's strips cover it but not the far corner.
+    CHECK(r.keepouts == 2 && s.keepouts.size() == 2);
+    double area = 0;
+    for (const auto& k : s.keepouts) area += k.area.width() * k.area.height();
+    CHECK_NEAR(area, 10 * 4 + 4 * 6, 1e-6);
+    CHECK(r.heightZones == 1 && s.heightZones[0].name == "MCAD Tri" && std::fabs(s.heightZones[0].maxHeight - 2) < 1e-6);
+    // Re-importing changes nothing; a malformed arc or circle is skipped, not a crash.
+    Project again = p;
+    const IdxImport same = importIdx(again.schematic, again.pcb.settings, idx);
+    CHECK(!same.outlineChanged);
+    CHECK(!same.holesChanged);
+    CHECK(again.pcb.settings.keepouts.size() == 2 && again.pcb.settings.heightZones.size() == 1);
+    importIdx(again.schematic, again.pcb.settings, "<EDMDDataSet><Body><Arc id=\"A\"><Angle>1e308</Angle></Arc></Body></EDMDDataSet>");
+}
+
 TEST(ddr_strobe_matched_to_its_byte_lane) {
     Project q;
     auto& d = q.schematic;
