@@ -371,8 +371,16 @@ final class MCPEndpoint: @unchecked Sendable {
         return error.localizedDescription
     }
 
+    /// At most this many clients at once: AI clients use one or two; a local program opening thousands of
+    /// connections cannot exhaust the app's memory or file descriptors.
+    static let maxConnections = 16
+
     /// Runs on `queue`.
     private func accept(_ connection: NWConnection) {
+        guard connections.count < Self.maxConnections else {
+            connection.cancel()
+            return
+        }
         let client = MCPHTTPConnection(connection: connection, queue: queue, handler: handler)
         let key = ObjectIdentifier(client)
         connections[key] = client

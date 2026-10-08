@@ -4,7 +4,9 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <exception>
 #include <string>
+#include <thread>
 #include <tuple>
 
 #include "sieda/Pcb.hpp"
@@ -35,29 +37,35 @@ Rect segmentBox(Vec2 a, Vec2 b, double r) {
     return Rect(std::min(a.x, b.x) - r, std::min(a.y, b.y) - r, std::max(a.x, b.x) + r, std::max(a.y, b.y) + r);
 }
 
-/// Square min (erode) or max (dilate) filter of radius k, separable.
+/// Square min (erode) or max (dilate) filter of radius k on a 0 / 1 mask, separable. Each pass keeps a running count
+/// of set cells in the window (cells outside the grid count as unset), so the cost per cell does not depend on k.
 std::vector<char> squareFilter(const std::vector<char>& in, int cols, int rows, int k, bool erode) {
+    const int full = 2 * k + 1;
+    auto pick = [&](int count) { return static_cast<char>(erode ? count == full : count > 0); };
     std::vector<char> tmp(in.size()), out(in.size());
-    for (int j = 0; j < rows; ++j)
+    for (int j = 0; j < rows; ++j) {
+        const char* row = &in[static_cast<size_t>(j) * static_cast<size_t>(cols)];
+        char* dst = &tmp[static_cast<size_t>(j) * static_cast<size_t>(cols)];
+        int count = 0;
+        for (int x = 0; x < std::min(k, cols); ++x) count += row[x];
         for (int i = 0; i < cols; ++i) {
-            char v = erode ? 1 : 0;
-            for (int d = -k; d <= k; ++d) {
-                int x = i + d;
-                char c = (x < 0 || x >= cols) ? 0 : in[static_cast<size_t>(j * cols + x)];
-                v = erode ? static_cast<char>(v && c) : static_cast<char>(v || c);
-            }
-            tmp[static_cast<size_t>(j * cols + i)] = v;
+            if (i + k < cols) count += row[i + k];
+            if (i - k - 1 >= 0) count -= row[i - k - 1];
+            dst[i] = pick(count);
         }
-    for (int j = 0; j < rows; ++j)
-        for (int i = 0; i < cols; ++i) {
-            char v = erode ? 1 : 0;
-            for (int d = -k; d <= k; ++d) {
-                int y = j + d;
-                char c = (y < 0 || y >= rows) ? 0 : tmp[static_cast<size_t>(y * cols + i)];
-                v = erode ? static_cast<char>(v && c) : static_cast<char>(v || c);
-            }
-            out[static_cast<size_t>(j * cols + i)] = v;
-        }
+    }
+    std::vector<int> count(static_cast<size_t>(cols), 0);
+    auto addRow = [&](int y, int sign) {
+        const char* row = &tmp[static_cast<size_t>(y) * static_cast<size_t>(cols)];
+        for (int i = 0; i < cols; ++i) count[static_cast<size_t>(i)] += sign * row[i];
+    };
+    for (int y = 0; y < std::min(k, rows); ++y) addRow(y, 1);
+    for (int j = 0; j < rows; ++j) {
+        if (j + k < rows) addRow(j + k, 1);
+        if (j - k - 1 >= 0) addRow(j - k - 1, -1);
+        char* dst = &out[static_cast<size_t>(j) * static_cast<size_t>(cols)];
+        for (int i = 0; i < cols; ++i) dst[i] = pick(count[static_cast<size_t>(i)]);
+    }
     return out;
 }
 
@@ -111,7 +119,9 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
     const SpacingDomains spacing = spacingDomains(sch, s);
     const GalvanicDomains& doms = spacing.domains;
 
-    for (size_t zi = 0; zi < zones.size(); ++zi) {
+    // One zone's fill against the zones of other nets already filled on its layer (`done`). Zones on different
+    // layers do not interact, so each layer's zones run on their own thread, in zone order within the layer.
+    auto fillOne = [&](size_t zi, const std::vector<ZoneFill>& done) -> ZoneFill {
         const CopperZone& z = zones[zi];
         ZoneFill f;
         f.zone = static_cast<int>(zi);
@@ -123,8 +133,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         for (const auto& net : nets)
             if (net.name == z.net) f.net = net.index;
         if (f.net < 0 || z.layer < 0 || z.layer >= s.layerCount) {
-            fills.push_back(std::move(f));
-            continue;
+            return f;
         }
         const int L = z.layer, net = f.net;
         const double clr = std::max(s.clearance, z.clearance);
@@ -182,7 +191,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
             });
         }
         // Earlier zones of other nets on this layer.
-        for (const auto& e : fills) {
+        for (const auto& e : done) {
             if (e.layer != L || e.net == net || e.net < 0) continue;
             const double ez = keep(e.net) - half;  // clearance, or the barrier gap to another domain's pour
             const int kz = static_cast<int>(std::ceil((ez + 1.4143 * cell) / cell));
@@ -227,39 +236,50 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                 forCells(cols, rows, cell, segmentBox(v.position, v.position, v.diameter / 2 + touch), [&](size_t c, Vec2 at) {
                     if ((at - v.position).length() <= v.diameter / 2 + touch) mark(c, at);
                 });
+        // Label the 4-connected components in two raster passes (union-find), noting which touch this net's copper;
+        // components are numbered by their first cell in raster order, the order a flood fill would find them.
         std::vector<int> label(n, -1);
-        std::vector<size_t> stack;
-        int count = 0;
-        for (size_t start = 0; start < n; ++start) {
-            if (!ok[start] || label[start] != -1) continue;
-            std::vector<size_t> members;
-            bool touches = false;
-            stack.push_back(start);
-            label[start] = count;
-            while (!stack.empty()) {
-                size_t c = stack.back();
-                stack.pop_back();
-                members.push_back(c);
-                touches |= own[c] != 0;
-                int i = static_cast<int>(c % static_cast<size_t>(cols)), j = static_cast<int>(c / static_cast<size_t>(cols));
-                const int di[4] = {1, -1, 0, 0}, dj[4] = {0, 0, 1, -1};
-                for (int d = 0; d < 4; ++d) {
-                    int x = i + di[d], y = j + dj[d];
-                    if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
-                    size_t nc = static_cast<size_t>(y * cols + x);
-                    if (ok[nc] && label[nc] == -1) {
-                        label[nc] = count;
-                        stack.push_back(nc);
-                    }
+        std::vector<int> parent;
+        auto find = [&](int x) {
+            while (parent[static_cast<size_t>(x)] != x)
+                x = parent[static_cast<size_t>(x)] = parent[static_cast<size_t>(parent[static_cast<size_t>(x)])];
+            return x;
+        };
+        for (int j = 0; j < rows; ++j)
+            for (int i = 0; i < cols; ++i) {
+                const size_t c = static_cast<size_t>(j) * static_cast<size_t>(cols) + static_cast<size_t>(i);
+                if (!ok[c]) continue;
+                const int left = i > 0 ? label[c - 1] : -1;
+                const int up = j > 0 ? label[c - static_cast<size_t>(cols)] : -1;
+                if (left < 0 && up < 0) {
+                    label[c] = static_cast<int>(parent.size());
+                    parent.push_back(label[c]);
+                } else if (left < 0 || up < 0) {
+                    label[c] = left < 0 ? up : left;
+                } else {
+                    label[c] = left;
+                    const int a = find(left), b = find(up);
+                    if (a != b) parent[static_cast<size_t>(std::max(a, b))] = std::min(a, b);
                 }
             }
-            if (touches) {
-                for (size_t c : members) f.island[c] = count;
-                ++count;
-            } else {
-                for (size_t c : members) label[c] = -2;  // floating copper: removed
+        std::vector<int> seq(parent.size(), -1);
+        std::vector<char> touches;
+        for (size_t c = 0; c < n; ++c) {
+            if (label[c] < 0) continue;
+            int& id = seq[static_cast<size_t>(find(label[c]))];
+            if (id < 0) {
+                id = static_cast<int>(touches.size());
+                touches.push_back(0);
             }
+            label[c] = id;
+            touches[static_cast<size_t>(id)] |= own[c];
         }
+        std::vector<int> island(touches.size(), -1);
+        int count = 0;
+        for (size_t id = 0; id < touches.size(); ++id)
+            if (touches[id]) island[id] = count++;
+        for (size_t c = 0; c < n; ++c)
+            if (label[c] >= 0) f.island[c] = island[static_cast<size_t>(label[c])];
         f.islands = count;
 
         // Merge into rectangles: horizontal runs, extended downward while the run repeats.
@@ -287,8 +307,39 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
             }
             open = std::move(next);
         }
-        fills.push_back(std::move(f));
+        return f;
+    };
+    std::map<int, std::vector<size_t>> byLayer;  // layer → its zones in order
+    for (size_t zi = 0; zi < zones.size(); ++zi) byLayer[zones[zi].layer].push_back(zi);
+    std::vector<ZoneFill> out(zones.size());
+    auto runLayer = [&](const std::vector<size_t>& list) {
+        std::vector<ZoneFill> done;
+        for (size_t zi : list) {
+            out[zi] = fillOne(zi, done);
+            done.push_back(out[zi]);
+        }
+    };
+    if (byLayer.size() == 1) {
+        runLayer(byLayer.begin()->second);
+    } else {
+        // A failure on a worker (out of memory) is rethrown here, never left to terminate the app.
+        std::vector<std::exception_ptr> errors(byLayer.size());
+        std::vector<std::thread> workers;
+        size_t slot = 0;
+        for (const auto& entry : byLayer) {
+            workers.emplace_back([&, list = &entry.second, err = &errors[slot++]] {
+                try {
+                    runLayer(*list);
+                } catch (...) {
+                    *err = std::current_exception();
+                }
+            });
+        }
+        for (auto& w : workers) w.join();
+        for (const auto& e : errors)
+            if (e) std::rethrow_exception(e);
     }
+    fills = std::move(out);
     return fills;
 }
 

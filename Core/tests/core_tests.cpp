@@ -19152,3 +19152,22 @@ TEST(review_comments_round_trip) {
     sieda_string_free(j);
     sieda_project_free(sp);
 }
+
+TEST(json_hostile_nesting_and_number_format) {
+    // A hostile document nested 100 000 levels deep is an error, not a stack overflow.
+    bool threw = false;
+    try {
+        Json::parse(std::string(100000, '[') + std::string(100000, ']'));
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    std::string ok;
+    for (int i = 0; i < 200; ++i) ok += "{\"a\":";
+    ok += "1" + std::string(200, '}');
+    CHECK(Json::parse(ok).dump() == ok);
+    // Numbers and strings are written exactly as before the to_chars fast path (printf "%.10g" / "%lld").
+    CHECK(Json::parse("[0.1,1e-7,-2.5e300,123456789012,0.30000000000000004,1e15,-0.0,3.14159265358979,-7]").dump() ==
+          "[0.1,1e-07,-2.5e+300,123456789012,0.3,1e+15,0,3.141592654,-7]");
+    CHECK(Json(std::string("a\x01\"b\\c\n")).dump() == "\"a\\u0001\\\"b\\\\c\\n\"");
+}

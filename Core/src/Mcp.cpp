@@ -58,7 +58,13 @@ std::string lower(std::string s) {
     return s;
 }
 
+/// Largest file a tool reads (a project, a model, an IDF file): a client cannot make the server load anything bigger.
+constexpr uintmax_t kMaxReadBytes = 128u * 1024u * 1024u;
+
 std::string readTextFile(const fs::path& p) {
+    std::error_code ec;
+    if (fs::file_size(p, ec) > kMaxReadBytes && !ec)
+        throw ToolError(p.string() + " is larger than 128 MB, the most a tool reads");
     std::ifstream in(p, std::ios::binary);
     if (!in) throw ToolError("Cannot read " + p.string());
     std::stringstream ss;

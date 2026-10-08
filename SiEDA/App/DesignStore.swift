@@ -313,7 +313,7 @@ final class DesignStore: ObservableObject {
             statusMessage = "\(busyMessage.isEmpty ? "Busy" : busyMessage) — try again when it finishes"
             return false
         }
-        let before = recordUndo ? engine.saveJSON() : nil
+        let before = recordUndo ? engine.stateJSON() : nil
         guard body(engine) else {
             statusMessage = failureMessage ?? "\(actionName): not possible"
             return false
@@ -343,9 +343,9 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func performExternalEdit(_ actionName: String, _ body: (EDAEngine) -> Bool) -> Bool {
         guard !isBusy else { return performChecked(actionName) { _ in false } }
-        let before = engine.saveJSON()
+        let before = engine.stateJSON()
         let changed = performChecked(actionName, recordUndo: false, failureMessage: "\(actionName) — no change") {
-            body($0) && $0.saveJSON() != before
+            body($0) && $0.stateJSON() != before
         }
         if changed { pushUndo(before) }
         return changed
@@ -353,14 +353,14 @@ final class DesignStore: ObservableObject {
 
     func undo() {
         guard let state = undoStack.popLast() else { return }
-        redoStack.append(engine.saveJSON())
+        redoStack.append(engine.stateJSON())
         trimHistory()
         restore(state, message: "Undo")
     }
 
     func redo() {
         guard let state = redoStack.popLast() else { return }
-        undoStack.append(engine.saveJSON())
+        undoStack.append(engine.stateJSON())
         trimHistory()
         restore(state, message: "Redo")
     }
@@ -1347,7 +1347,7 @@ final class DesignStore: ObservableObject {
     /// first places footprints that are not on the board yet. Either way it is a single undo step.
     func autoRoute(clearFirst: Bool = false, placeMissing: Bool = false, undoState: String? = nil) async {
         guard !isBusy else { return }
-        let before = undoState ?? self.engine.saveJSON()
+        let before = undoState ?? self.engine.stateJSON()
         if clearFirst {
             self.engine.clearRouting()
             refresh()

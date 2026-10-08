@@ -120,6 +120,11 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { Self.take(sieda_project_save_json($0)) } ?? "{}"
     }
 
+    /// The project without indentation, for undo history and change detection (files use `saveJSON`).
+    func stateJSON() -> String {
+        withHandle { Self.take(sieda_project_state_json($0)) } ?? "{}"
+    }
+
     func load(json: String) throws {
         var errorPointer: UnsafeMutablePointer<CChar>?
         guard let newHandle = sieda_project_load_json(json, &errorPointer) else {

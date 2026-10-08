@@ -29,6 +29,9 @@ void sieda_project_free(SiedaProject* project);
 /* Returns NULL on failure; *error_out (if non-NULL) receives a message to free with sieda_string_free. */
 SiedaProject* sieda_project_load_json(const char* json, char** error_out);
 char* sieda_project_save_json(const SiedaProject* project);
+/* The same project JSON without indentation: for undo history and change detection (faster, about 40 % smaller).
+ * Files on disk keep the indented form of sieda_project_save_json. Caller frees. */
+char* sieda_project_state_json(const SiedaProject* project);
 void sieda_project_set_name(SiedaProject* project, const char* name);
 void sieda_project_set_requirements(SiedaProject* project, const char* text);
 void sieda_project_clear(SiedaProject* project);

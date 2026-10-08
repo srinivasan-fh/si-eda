@@ -86,6 +86,17 @@
   `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; guides `docs/MCAD.md`, `docs/TEAM.md`.
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.
+- Speed and safety rules:
+  - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json`; files on disk
+    use the indented `sieda_project_save_json`.
+  - **JSON writer:** `Json::dump` uses `std::to_chars` and a no-escape fast path, and must stay byte-identical to
+    `%.10g` / `%lld`.
+  - **JSON parser:** limits nesting to 256 levels (hostile files and requests).
+  - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
+    layer, and must stay identical to the sequential fill.
+  - **MCP:** file reads are capped at 128 MB.
+  - **Live endpoint:** at most 16 connections.
+  - **`sieda-mcp --connect`:** only connects to 127.0.0.1 / localhost / ::1 and caps replies at 64 MB.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes
