@@ -11021,16 +11021,21 @@ TEST(spice_models_hostile_input) {
     SpiceFlatCircuit deep = flattenSpiceModel(parseSpiceLibrary(chain), "S0");
     CHECK(!deep.ok && hasDiag(deep.diagnostics, SpiceDiagnostic::Level::Error, "nested more than 40"));
     std::string wide = ".subckt W a b\n";
-    for (int i = 0; i < 12; ++i) wide += "X" + std::to_string(i) + " a b W" + std::to_string(i) + "\n";
+    for (int i = 0; i < 12; ++i) wide += "X" + std::to_string(i) + " a b W0\n";
     wide += ".ends\n";
-    for (int i = 0; i < 12; ++i) {  // 10^6 resistors if fully expanded: refused at 100 000
+    for (int i = 0; i < 2; ++i) {  // 1332 instances of 100 resistors = 120 000 elements: refused at 100 000
         wide += ".subckt W" + std::to_string(i) + " a b\n";
         for (int k = 0; k < 10; ++k) wide += "X" + std::to_string(k) + " a b W" + std::to_string(i + 1) + "\n";
         wide += ".ends\n";
     }
-    wide += ".subckt W12 a b\nR1 a b 1\n.ends\n";
+    wide += ".subckt W2 a b\n";
+    for (int k = 0; k < 100; ++k) wide += "R" + std::to_string(k) + " a b 1\n";
+    wide += ".ends\n";
     SpiceFlatCircuit huge = flattenSpiceModel(parseSpiceLibrary(wide), "W");
     CHECK(!huge.ok && hasDiag(huge.diagnostics, SpiceDiagnostic::Level::Error, "100 000"));
+    // A subcircuit that calls itself twice (found by the fuzzer) stops at 10000 instances instead of 2^40 steps.
+    SpiceFlatCircuit loop = flattenSpiceModel(parseSpiceLibrary(".subckt T a b\nX1 a b T\nX2 a b T\n.ends\n"), "T");
+    CHECK(!loop.ok && hasDiag(loop.diagnostics, SpiceDiagnostic::Level::Error, "10000 subcircuit instances"));
     const int rc = sieda_c_api_spice_test();
     if (rc) std::printf("    SPICE C API test failed at step %d\n", rc);
     CHECK(rc == 0);
