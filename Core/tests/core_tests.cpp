@@ -1317,9 +1317,9 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 21);
+    CHECK(industryProfiles().size() == 22);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
-                           "medical", "defence", "networking", "vlsi", "memory"}) {
+                           "medical", "defence", "networking", "vlsi", "memory", "iot"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
         if (!p) continue;

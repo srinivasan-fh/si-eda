@@ -240,6 +240,18 @@ std::vector<IndustryProfile> build() {
                   "route the bus over an unbroken ground plane on ≥ 4 layers (6–10 for DDR).",
                   "Modules: SPD EEPROM / hub with I²C pull-ups, DDR5 PMIC, RDIMM RCD; 1.2–1.27 mm board with hard-gold "
                   "bevelled fingers."}});
+    p.push_back({"iot", "IoT & Wearables", "Battery-powered sensors, trackers, smart-home nodes and body-worn devices",
+                 "IEC 62368-1 (safety), IEC 62133-2 (Li-ion cells), IEC 61000-4-2 (ESD), ETSI EN 300 328 / FCC Part 15 "
+                 "(2.4 GHz radio), IEC 60529 (IP rating), IPC-2221 Class 2",
+                 "IPC-2221 Class 2", 0.7, 0.8, false, -20, 60,
+                 {"Budget the sleep current first: a CR2032 (220 mAh) lasts a year only below ~25 µA average — pick LDOs / "
+                  "buck converters with < 1 µA quiescent current and gate sensors off with a load switch.",
+                  "Li-ion / Li-Po cells need a protection IC (over-charge, over-discharge, short) and a charger with a "
+                  "temperature (NTC) input; keep the cell away from the charger's heat.",
+                  "TVS diodes on every exposed contact (USB, buttons, charging pads, sensor electrodes): body-worn devices "
+                  "see ±8 kV contact / ±15 kV air discharges.",
+                  "Keep copper, ground pour and the battery out of the antenna keep-out; match the antenna with a π network "
+                  "and route the RF feed as 50 Ω over solid ground."}});
     return p;
 }
 

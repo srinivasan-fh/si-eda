@@ -196,6 +196,10 @@ enum AgentPrompts {
         MT40A512M16LY-062E): 240 Ω 1 % on ZQ, VREF = VDDQ / 2 divider + 100 nF, 10 kΩ pull-down on nRESET, 36–40 Ω \
         to a VTT net on the address / command lines, 100 Ω across CK / nCK; ≥ 4 layers (6 for the reference) with a \
         GND plane; mark unused MCU pins no-connect.
+        - IoT / wearables (battery sensor nodes, trackers, body-worn devices): set "industry" "iot"; budget the sleep \
+        current (sub-µA quiescent regulators, load switches on sensors), a protection IC and an NTC-sensing charger for \
+        Li-ion / Li-Po cells, TVS diodes on every exposed contact, and keep copper and the battery out of the antenna \
+        keep-out.
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """

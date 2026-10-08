@@ -50,6 +50,7 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
         case "retail": return "creditcard"
         case "appliance": return "washer"
         case "memory": return "memorychip.fill"
+        case "iot": return "applewatch"
         default: return "cpu"
         }
     }
