@@ -80,7 +80,9 @@ teammate can reach: iCloud Drive, Dropbox, OneDrive, a network share or a Git wo
   succession share one save).
 - **Theirs come in by themselves:** SiEDA checks the file every 2 s. When a teammate has saved, it three-way merges
   their version into your open design (the same merge as above, base = the file as you last read or wrote it) as one
-  Undo step. Parts, wires, tracks, vias and settings from both sides are kept; a field you both changed differently
+  Undo step. Parts, wires, tracks, vias and settings from both sides are kept (when both of you added a part at
+  the same moment, theirs gets a fresh id — and the next free designator if yours already uses it — and its wires
+  follow it); a field you both changed differently
   keeps your value, and the status-bar badge turns amber and lists it (hover).
 - **Who is here:** each window announces itself in a small presence folder beside the file
   (`.<name>.siedaproj.presence/`), refreshed every 15 s; the status bar shows the others' names while they have the

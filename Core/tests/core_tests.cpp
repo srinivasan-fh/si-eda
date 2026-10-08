@@ -19734,3 +19734,33 @@ TEST(dfm_aspect_ratio_copper_balance_and_report) {
         if (row.get("rule").asString().find("aspect") != std::string::npos) aspectOk = row.get("ok").asBool();
     CHECK(aspectOk);
 }
+
+TEST(merge_keeps_parts_both_sides_added_under_the_same_id) {
+    Project base;
+    auto& s = base.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    base.schematicChanged();
+    // Each side adds a part (the next free id on both) and wires it to R1; both name a resistor R2.
+    Project ours = base, theirs = base;
+    const int c = ours.schematic.addComponent(ComponentKind::Resistor, "10k", {100, 0});
+    wire(ours.schematic, c, "1", r1, "2");
+    const int l = theirs.schematic.addComponent(ComponentKind::Resistor, "4k7", {0, 100});
+    wire(theirs.schematic, l, "2", r1, "1");
+    CHECK(c == l);  // the collision live co-editing produces
+    const ProjectMerge m = mergeProjects(base.toJson(), ours.toJson(), theirs.toJson());
+    CHECK(m.error.empty() && m.conflicts.empty());
+    const Project merged = Project::fromJson(m.merged);
+    CHECK(merged.schematic.components().size() == 3);
+    std::set<std::string> refs, values;
+    for (const auto& comp : merged.schematic.components()) refs.insert(comp.ref), values.insert(comp.value);
+    CHECK(refs.size() == 3 && values.count("10k") && values.count("4k7"));
+    // Theirs' wire follows its renumbered part: the 4k7 still connects to R1.
+    const Component* moved = nullptr;
+    for (const auto& comp : merged.schematic.components())
+        if (comp.value == "4k7") moved = &comp;
+    CHECK(moved && moved->id != c);
+    bool wired = false;
+    for (const auto& w : merged.toJson().get("wires").items())
+        wired = wired || w.get("a").get("component").asInt(-1) == moved->id || w.get("b").get("component").asInt(-1) == moved->id;
+    CHECK(wired);
+}
