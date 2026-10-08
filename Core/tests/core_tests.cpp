@@ -1314,6 +1314,23 @@ TEST(design_verification_pipeline) {
     VerificationReport overloaded = verifyDesign(hot);
     CHECK(stage(overloaded, "validation")->status == StageStatus::Fail);
     CHECK(!overloaded.passed());
+    // Waivers: on another part they change nothing; on the failing parts' codes they turn the errors into Info
+    // "(waived: …)" findings, the stage stops failing, and the waivers are saved with the project.
+    std::set<std::string> codes;
+    for (const auto& v : stage(overloaded, "validation")->findings)
+        if (v.severity == Severity::Error) codes.insert(v.code);
+    CHECK(!codes.empty());
+    for (const auto& c : codes) hot.waivers.push_back({c, "NOPE99", "elsewhere"});
+    CHECK(stage(verifyDesign(hot), "validation")->status == StageStatus::Fail);
+    hot.waivers.clear();
+    for (const auto& c : codes) hot.waivers.push_back({c, "", "bench test only, 1 s pulses"});
+    const VerificationReport waived = verifyDesign(hot);
+    CHECK(stage(waived, "validation")->status != StageStatus::Fail);
+    bool noted = false;
+    for (const auto& v : stage(waived, "validation")->findings)
+        noted = noted || v.message.find("(waived: bench test only") != std::string::npos;
+    CHECK(noted && Project::fromJson(hot.toJson()).waivers.size() == codes.size());
+    CHECK(!p.toJson().has("waivers"));
 }
 
 TEST(industry_profiles_and_derating) {

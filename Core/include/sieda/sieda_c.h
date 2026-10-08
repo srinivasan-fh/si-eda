@@ -255,6 +255,10 @@ int32_t sieda_set_memory_design(SiedaProject* project, const char* type);
  * ({} = the type's typical limits); 0 for malformed JSON. */
 char* sieda_memory_limits_json(const SiedaProject* project);
 int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json);
+/* Sign-off waivers [{"code","ref","reason"}] (Project::waivers): a matching finding stays in the verification report as
+ * Info "(waived: reason)". The setter replaces the list ([] = none); 0 for malformed JSON or an entry without a code. */
+char* sieda_waivers_json(const SiedaProject* project);
+int32_t sieda_set_waivers(SiedaProject* project, const char* waivers_json);
 /// The five memory segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_memory_segments_json(const SiedaProject* project);
 /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.

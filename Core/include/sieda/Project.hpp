@@ -160,6 +160,12 @@ public:
     std::string activeVariant;
     /// Design review comments (ProjectDiff.hpp); saved only when there are any.
     std::vector<ReviewComment> reviewComments;
+    /// Sign-off waivers: a finding `code` (on the part `ref`, or anywhere when empty) accepted for `reason`; it stays in
+    /// the verification report as Info "(waived: reason)" and no longer fails it. Saved only when present.
+    struct Waiver {
+        std::string code, ref, reason;
+    };
+    std::vector<Waiver> waivers;
     /// Schematic title block (empty = the title is the project name).
     TitleBlock titleBlock;
 

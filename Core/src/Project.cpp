@@ -603,6 +603,15 @@ Json Project::toJson() const {
     }
     if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
     if (!reviewComments.empty()) root["review"] = reviewToJson(reviewComments);
+    if (!waivers.empty()) {
+        Json w = Json::array();
+        for (const auto& x : waivers) {
+            Json j = Json::object();
+            j["code"] = x.code, j["ref"] = x.ref, j["reason"] = x.reason;
+            w.push(j);
+        }
+        root["waivers"] = w;
+    }
     if (!titleBlock.empty()) {
         Json tb = Json::object();
         tb["title"] = titleBlock.title;
@@ -972,6 +981,9 @@ Project Project::fromJson(const Json& root) {
     }
     p.activeVariant = root.get("activeVariant").asString("");
     p.reviewComments = reviewFromJson(root.get("review"));
+    for (const auto& w : root.get("waivers").items())
+        if (w.get("code").isString() && !w.get("code").asString().empty() && p.waivers.size() < 1000)
+            p.waivers.push_back({w.get("code").asString(), w.get("ref").asString(""), w.get("reason").asString("")});
     {
         const Json& tb = root.get("titleBlock");
         auto field = [&](const char* key) {

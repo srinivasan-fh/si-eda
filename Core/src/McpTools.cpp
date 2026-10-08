@@ -2358,6 +2358,15 @@ void verifyTools(Table& t) {
                                            : sieda_memory_segments_json(P(s));
               return out(takeJson(r));
           });
+    t.add("verify", "verify_waivers", "Sign-off waivers", Kind::Edit, true,
+          "Findings accepted at sign-off: each waiver names a check code (e.g. DRC_CLEARANCE, DFM_ASPECT_RATIO), "
+          "optionally the part it applies to, and the reason. A matching finding stays in verify_design as Info "
+          "\"(waived: reason)\" and no longer fails the design. With waivers: replaces the list ([] = none). Returns it.",
+          Schema().array("waivers", "[{code, ref (optional), reason}]", "object"),
+          [](McpServer& s, const Json& a) {
+              if (a.has("waivers")) check(sieda_set_waivers(P(s), a.get("waivers").dump().c_str()) == 1, "Each waiver needs a code");
+              return out(takeJson(sieda_waivers_json(P(s))));
+          });
     t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
           "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "
           "data impedance tolerance, via spread). With arguments: sets the controller's own values (0 or omitted = the memory "
