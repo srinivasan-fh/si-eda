@@ -165,6 +165,7 @@ CompoundFile::CompoundFile(const std::string& bytes) : b_(bytes) {
         for (size_t e = 0; e + 128 <= sectorSize_; e += 128) {
             const size_t p = at + e;
             Entry entry;
+            if (p + 128 > b_.size()) throw CfbError("the file is cut short");  // a partial last sector
             const uint8_t type = static_cast<uint8_t>(b_[p + 0x42]);
             entry.type = type == 1 ? EntryType::Storage : type == 2 ? EntryType::Stream : type == 5 ? EntryType::Root
                                                                                                    : EntryType::Empty;
