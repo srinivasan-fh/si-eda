@@ -978,6 +978,11 @@ final class EDAEngine: @unchecked Sendable {
 
     // MARK: - SPICE models (docs/SIMULATION.md)
 
+    /// Vendor model text with the `.include` / `.lib` files beside it (in `directory`) pulled in.
+    static func inlineSpiceIncludes(_ text: String, directory: String) -> String {
+        take(sieda_spice_inline_includes(text, directory)) ?? text
+    }
+
     /// Models and subcircuits in vendor model text, with the parser's diagnostics.
     static func parseSpice(_ text: String) -> SpiceParseResult {
         decode(SpiceParseResult.self, from: take(sieda_spice_parse(text))) ?? SpiceParseResult()

@@ -19614,6 +19614,24 @@ TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
     CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
 }
 
+TEST(spice_includes_are_inlined_from_the_model_folder) {
+    // A vendor file that includes a sibling and one section of a corner library; absolute and ".." paths stay as they are.
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "sieda_inc_test";
+    fs::create_directories(dir / "sub");
+    std::ofstream(dir / "d.mod") << ".model DX D(IS=1e-14 N=1.05)\n.include sub/r.inc\n.include d.mod\n";
+    std::ofstream(dir / "sub" / "r.inc") << "* resistor kit\n";
+    std::ofstream(dir / "corners.lib") << ".lib TT\n.model QT NPN(BF=200)\n.endl\n.lib FF\n.model QF NPN(BF=300)\n.endl\n";
+    const std::string top = ".include \"d.mod\"\n.lib corners.lib FF\n.include /etc/passwd\n.inc ../x.lib\n";
+    const std::string out = inlineSpiceIncludes(top, dir.string());
+    CHECK(out.find(".model DX D(") != std::string::npos && out.find("* resistor kit") != std::string::npos);
+    CHECK(out.find("QF NPN") != std::string::npos && out.find("QT NPN") == std::string::npos);
+    CHECK(out.find(".include /etc/passwd") != std::string::npos && out.find(".inc ../x.lib") != std::string::npos);
+    const SpiceLibrary lib = parseSpiceLibrary(out);
+    CHECK(lib.findModel("DX") && lib.findModel("QF") && !lib.findModel("QT"));
+    fs::remove_all(dir);
+}
+
 TEST(field_solver_solder_mask_coating) {
     // A 50 Ω-class FR-4 microstrip: 20 µm of LPI mask (εr 3.6) lowers Z0 by about 1–3 Ω and raises εeff; a coating with
     // εr 1 is the bare line again, and stripline ignores it.

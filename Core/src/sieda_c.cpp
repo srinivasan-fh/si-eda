@@ -2788,6 +2788,10 @@ char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_j
     }
 }
 
+char* sieda_spice_inline_includes(const char* text, const char* dir) {
+    return dup(inlineSpiceIncludes(str(text), str(dir)));
+}
+
 char* sieda_spice_parse(const char* text) {
     try {
         SpiceLibrary lib = parseSpiceLibrary(str(text));

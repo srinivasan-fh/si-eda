@@ -389,7 +389,9 @@ established strategy failed, and only in the app's entry points.
   `ddt` / `idt`, no transmission lines or digital / XSPICE primitives (all reported as errors with their line); MOSFET
   level 3 is level 1 with THETA (ETA, VMAX, KAPPA ignored); the intrinsic gate charge is the saturation value; BJT
   XTF / RBM / substrate capacitance ignored; switches have no hysteresis; SFFM / AM sources inside a model are held
-  at their DC value; `.include` is not followed (paste the file).
+  at their DC value. **Open File…** follows `.include` / `.inc` / `.lib file [section]` to files in the model's own
+  folder (relative paths, up to 8 levels, 8 MB; `sieda_spice_inline_includes`); pasted text cannot, so paste those files
+  too.
 - The built-in diode, NPN and N-MOSFET have no capacitances and no noise flicker term; the built-in op-amp without
   macromodel parameters has one pole; regulators, IC loads and the INA333 are frequency independent and noiseless.
 - Noise: no correlated sources, no resistor excess noise; macromodel resistors contribute thermal noise as in SPICE.

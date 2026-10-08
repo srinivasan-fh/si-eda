@@ -768,6 +768,8 @@ int32_t sieda_set_title_block(SiedaProject* project, const char* json);
  * "kind":"model"|"subckt","type":"D"|"NPN"|…|"SUBCKT","ports":[…],"line"}],"diagnostics":[{"level":"info"|
  * "warning"|"error","line","message"}]}; "ok" is false when the text has errors. */
 char* sieda_spice_parse(const char* text);
+/* Model text with its `.include` / `.lib file [section]` files from `dir` inlined (relative paths, ≤ 8 levels, 8 MB). */
+char* sieda_spice_inline_includes(const char* text, const char* dir);
 /* Checks model `model` of `text` on a component without changing the project: {"ok","error","kind","type","ports",
  * "pins" (the pin map used: `pins`, or the default when it is empty),"defaultPins","diagnostics"}. */
 char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,
