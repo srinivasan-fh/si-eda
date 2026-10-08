@@ -137,7 +137,7 @@ constexpr uint16_t PINB = 0x23;
 constexpr uint16_t TIFR0 = 0x35, TIFR1 = 0x36, TIFR2 = 0x37, PCIFR = 0x3B, EIFR = 0x3C, EIMSK = 0x3D;
 constexpr uint16_t EECR = 0x3F, EEDR = 0x40, EEARL = 0x41, EEARH = 0x42;
 constexpr uint16_t TCCR0A = 0x44, TCCR0B = 0x45, TCNT0 = 0x46, OCR0A = 0x47, OCR0B = 0x48;
-constexpr uint16_t CLKPR = 0x61, PCICR = 0x68, EICRA = 0x69, PCMSK0 = 0x6B;
+constexpr uint16_t WDTCSR = 0x60, CLKPR = 0x61, PCICR = 0x68, EICRA = 0x69, PCMSK0 = 0x6B;
 constexpr uint16_t TIMSK0 = 0x6E, TIMSK1 = 0x6F, TIMSK2 = 0x70;
 constexpr uint16_t ADCL = 0x78, ADCH = 0x79, ADCSRA = 0x7A, ADMUX = 0x7C;
 constexpr uint16_t TCCR1A = 0x80, TCCR1B = 0x81, TCCR1C = 0x82, TCNT1L = 0x84, TCNT1H = 0x85, ICR1L = 0x86,
@@ -147,7 +147,7 @@ constexpr uint16_t UCSR0A = 0xC0, UCSR0B = 0xC1, UCSR0C = 0xC2, UBRR0L = 0xC4, U
 // vector numbers
 constexpr int vINT0 = 1, vINT1 = 2, vPCINT0 = 3, vT2COMPA = 7, vT2COMPB = 8, vT2OVF = 9, vT1CAPT = 10, vT1COMPA = 11,
               vT1COMPB = 12, vT1OVF = 13, vT0COMPA = 14, vT0COMPB = 15, vT0OVF = 16, vRX = 18, vUDRE = 19, vTX = 20,
-              vADC = 21, vEE = 22;
+              vADC = 21, vEE = 22, vWDT = 6;
 // pins (port*8 + bit)
 constexpr int PB1 = 1, PB2 = 2, PB3 = 3, PD1 = 17, PD3 = 19, PD5 = 21, PD6 = 22;
 }  // namespace m328
@@ -157,20 +157,21 @@ namespace t85 {
 constexpr uint16_t ADCL = 0x24, ADCH = 0x25, ADCSRA = 0x26, ADMUX = 0x27;
 constexpr uint16_t PCMSK = 0x35, PINB = 0x36;
 constexpr uint16_t EECR = 0x3C, EEDR = 0x3D, EEARL = 0x3E, EEARH = 0x3F;
-constexpr uint16_t CLKPR = 0x46, OCR0B = 0x48, OCR0A = 0x49, TCCR0A = 0x4A, OCR1B = 0x4B, GTCCR = 0x4C, OCR1C = 0x4D,
+constexpr uint16_t WDTCR = 0x41, CLKPR = 0x46, OCR0B = 0x48, OCR0A = 0x49, TCCR0A = 0x4A, OCR1B = 0x4B, GTCCR = 0x4C, OCR1C = 0x4D,
                    OCR1A = 0x4E, TCNT1 = 0x4F, TCCR1 = 0x50, TCNT0 = 0x52, TCCR0B = 0x53, MCUCR = 0x55;
 constexpr uint16_t TIFR = 0x58, TIMSK = 0x59, GIFR = 0x5A, GIMSK = 0x5B;
 constexpr int vINT0 = 1, vPCINT0 = 2, vT1COMPA = 3, vT1OVF = 4, vT0OVF = 5, vEE = 6, vADC = 8, vT1COMPB = 9,
-              vT0COMPA = 10, vT0COMPB = 11;
+              vT0COMPA = 10, vT0COMPB = 11, vWDT = 12;
 constexpr int PB0 = 0, PB1 = 1, PB2 = 2;
 }  // namespace t85
 
 const int kAdcPrescale[8] = {2, 2, 4, 8, 16, 32, 64, 128};
+constexpr uint16_t MCUSR = 0x54;  // both models; WDRF = bit 3
 }  // namespace
 
 // ===================================================================== construction, reset
 
-AvrMcu::AvrMcu(McuModel model) : model_(model) {
+AvrMcu::AvrMcu(McuModel model) : model_(model), clockHz_(defaultMcuClock(model)) {
     const bool mega = model == McuModel::ATmega328P;
     flash_.assign(mega ? 32768 : 8192, 0xFF);
     flashWords_ = static_cast<uint32_t>(flash_.size() / 2);
@@ -219,6 +220,7 @@ void AvrMcu::reset() {
     t1_ = Timer16{};
     t1PrescaleTiny_ = 0;
     adcRemaining_ = -1;
+    wdt_ = 0;
     adcFirst_ = true;
     txQueue_.clear();
     txShifting_ = false;
@@ -451,6 +453,10 @@ uint8_t AvrMcu::ioRead(uint16_t a) {
 
 void AvrMcu::ioWrite(uint16_t a, uint8_t v) {
     const bool mega = model_ == McuModel::ATmega328P;
+    if (a == (mega ? m328::WDTCSR : t85::WDTCR)) {  // WDIF clears on writing 1; WDE is forced on while WDRF is set
+        data_[a] = static_cast<uint8_t>((v & 0x7F) | (v & 0x80 ? 0 : data_[a] & 0x80) | (data_[MCUSR] & 0x08));
+        return;
+    }
     // Port registers.
     for (int port = 0; port < (mega ? 3 : 1); ++port) {
         int base = portBase(port);
@@ -646,6 +652,7 @@ int AvrMcu::pendingVector() const {
         }
         for (int g = 0; g < 3; ++g)
             if ((data_[PCIFR] >> g & 1) && (data_[PCICR] >> g & 1)) return vPCINT0 + g;
+        if ((data_[WDTCSR] & 0xC0) == 0xC0) return vWDT;
         if (on(TIFR2, TIMSK2, 1)) return vT2COMPA;
         if (on(TIFR2, TIMSK2, 2)) return vT2COMPB;
         if (on(TIFR2, TIMSK2, 0)) return vT2OVF;
@@ -674,6 +681,7 @@ int AvrMcu::pendingVector() const {
         if (on(TIFR, TIMSK, 5)) return vT1COMPB;
         if (on(TIFR, TIMSK, 4)) return vT0COMPA;
         if (on(TIFR, TIMSK, 3)) return vT0COMPB;
+        if ((data_[WDTCR] & 0xC0) == 0xC0) return vWDT;
     }
     return 0;
 }
@@ -699,6 +707,7 @@ void AvrMcu::clearVectorFlag(int v) {
             case vT0OVF: data_[TIFR0] &= static_cast<uint8_t>(~1); break;
             case vTX: data_[UCSR0A] &= static_cast<uint8_t>(~0x40); break;
             case vADC: data_[ADCSRA] &= static_cast<uint8_t>(~0x10); break;
+            case vWDT: data_[WDTCSR] &= static_cast<uint8_t>(data_[WDTCSR] & 0x08 ? ~0xC0 : ~0x80); break;
             default: break;  // RX, UDRE and EE_READY are level-triggered
         }
     } else {
@@ -713,6 +722,7 @@ void AvrMcu::clearVectorFlag(int v) {
             case vT0COMPA: data_[TIFR] &= static_cast<uint8_t>(~0x10); break;
             case vT0COMPB: data_[TIFR] &= static_cast<uint8_t>(~0x08); break;
             case vADC: data_[ADCSRA] &= static_cast<uint8_t>(~0x10); break;
+            case vWDT: data_[WDTCR] &= static_cast<uint8_t>(data_[WDTCR] & 0x08 ? ~0xC0 : ~0x80); break;
             default: break;
         }
     }
@@ -745,6 +755,27 @@ void AvrMcu::tick(int n) {
         tickTiny85Timer1(n);
     }
     tickAdc(n);
+    tickWatchdog(n);
+}
+
+/// Watchdog: 2048 << WDP periods of its 128 kHz oscillator (16 ms … 8 s). Interrupt mode sets WDIF; interrupt-and-reset
+/// mode takes the interrupt first (which clears WDIE); reset mode restarts the chip with MCUSR.WDRF set.
+void AvrMcu::tickWatchdog(int cycles) {
+    const uint16_t reg = model_ == McuModel::ATmega328P ? m328::WDTCSR : t85::WDTCR;
+    const uint8_t w = data_[reg];
+    if (!(w & 0x48)) return;
+    wdt_ += cycles * static_cast<double>(clockDivider()) / clockHz_;
+    const int wdp = std::min((w & 7) | (w >> 2 & 8), 9);
+    if (wdt_ < (2048 << wdp) / 128000.0) return;
+    wdt_ = 0;
+    if (w & 0x40) {
+        data_[reg] |= 0x80;  // WDIF
+    } else {
+        reset();
+        ++watchdogResets_;
+        data_[MCUSR] |= 0x08;  // WDRF
+        data_[reg] = 0x08;     // WDE stays on (16 ms) until the firmware clears WDRF and then WDE
+    }
 }
 
 void AvrMcu::tickTimer8(Timer8& t, int cycles) {
@@ -1468,7 +1499,7 @@ int AvrMcu::step() {
                     return 4;
                 case 0x9588: sleeping_ = true; return 1;  // SLEEP
                 case 0x9598: return 1;                    // BREAK
-                case 0x95A8: return 1;                    // WDR
+                case 0x95A8: wdt_ = 0; return 1;          // WDR
                 case 0x95C8: case 0x95D8: r[0] = flash_[Z() % flash_.size()]; return 3;  // LPM / ELPM
                 case 0x95E8: return 4;                    // SPM (self-programming: ignored)
                 case 0x9409: case 0x9419: pc_ = Z() % flashWords_; return 2;             // IJMP / EIJMP

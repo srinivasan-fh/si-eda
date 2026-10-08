@@ -158,7 +158,7 @@ Microcontrollers run real firmware inside the circuit simulation, like on a phys
   - Inputs, interrupts and the 10-bit ADC read the solved node voltages.
   - Everything the USART transmits appears in the **serial monitor** under the waveforms.
   - Below 1.8 V supply the chip is held in reset.
-- **What's emulated:** the full AVR instruction set with cycle counts; GPIO; Timer0/1/2 (normal, CTC, fast and phase-correct PWM); USART0 with the real bit waveform on TXD; the ADC; EEPROM; INT0/INT1 and pin-change interrupts; and sleep. The CPU is checked instruction-for-instruction against simavr, and the Arduino core's `millis()`, `delay()`, `Serial` and `analogRead()`/`analogWrite()` behave as on a board.
+- **What's emulated:** the full AVR instruction set with cycle counts; GPIO; Timer0/1/2 (normal, CTC, fast and phase-correct PWM); USART0 with the real bit waveform on TXD; the ADC; EEPROM; INT0/INT1 and pin-change interrupts; the watchdog (interrupt, reset with MCUSR.WDRF, `wdr`); and sleep. The CPU is checked instruction-for-instruction against simavr, and the Arduino core's `millis()`, `delay()`, `Serial` and `analogRead()`/`analogWrite()` behave as on a board.
 - **Example design:** **New from Example ▸ Microcontrollers ▸ Arduino Uno Core: LED + Button**.
 - **Test firmware:** sources and the build script are in `Core/tests/firmware`.
 

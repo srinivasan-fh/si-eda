@@ -1456,6 +1456,42 @@ TEST(avr_cpu_matches_reference_simulator) {
     CHECK(mcu.fault().empty());
 }
 
+TEST(avr_watchdog_reset_interrupt_and_wdr) {
+    // Hand-assembled ATmega328P code: main at word 0x20 sets WDTCSR (16 ms) and loops; the WDT vector (6) sets r20.
+    auto image = [](uint8_t wdtcsr, bool kick) {
+        std::vector<uint16_t> w(0x40, 0x0000);
+        w[0] = 0x940C, w[1] = 0x0020;                 // jmp main
+        w[12] = 0x940C, w[13] = 0x0030;               // WDT vector → handler
+        size_t k = 0x20;
+        for (uint16_t op : {uint16_t(0xE108), uint16_t(0x9300), uint16_t(0x0060),   // ldi r16,0x18; sts WDTCSR,r16 (WDCE|WDE)
+                            uint16_t(0xE000 | (wdtcsr >> 4) << 8 | (wdtcsr & 15)), uint16_t(0x9300), uint16_t(0x0060),
+                            uint16_t(0x9478)})                                       // sei
+            w[k++] = op;
+        if (kick) w[k++] = 0x95A8;                    // wdr
+        w[k] = kick ? 0xCFFE : 0xCFFF;                // loop
+        w[0x30] = 0xE545, w[0x31] = 0x9518;           // ldi r20,0x55; reti
+        std::vector<uint8_t> b;
+        for (uint16_t x : w) b.push_back(static_cast<uint8_t>(x & 0xFF)), b.push_back(static_cast<uint8_t>(x >> 8));
+        return b;
+    };
+    auto run = [&](uint8_t wdtcsr, bool kick, double ms) {
+        auto mcu = std::make_unique<AvrMcu>(McuModel::ATmega328P);
+        std::string err;
+        CHECK(mcu->loadFirmware(image(wdtcsr, kick), err));
+        mcu->setSupply(5.0);
+        mcu->run(static_cast<uint64_t>(ms * 16000));
+        return mcu;
+    };
+    // Reset mode, never kicked: the chip restarts every 16 ms with WDRF set.
+    auto a = run(0x08, false, 40);
+    CHECK(a->watchdogResets() == 2 && (a->dataAt(0x54) & 0x08));
+    // Kicked with WDR in the loop: never resets.
+    CHECK(run(0x08, true, 40)->watchdogResets() == 0);
+    // Interrupt mode: the handler runs, no reset.
+    auto c = run(0x40, false, 20);
+    CHECK(c->watchdogResets() == 0 && c->reg(20) == 0x55);
+}
+
 TEST(avr_peripherals_standalone) {
     AvrMcu mcu(McuModel::ATmega328P);
     std::string err;
