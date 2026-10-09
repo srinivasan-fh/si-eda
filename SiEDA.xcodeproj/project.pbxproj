@@ -71,7 +71,9 @@
 		4FC0095A92FE567B91899350 = {isa = PBXBuildFile; fileRef = B2A9F5BB531C867B7C400084; };
 		51B881880D4DD5BE124221F5 = {isa = PBXBuildFile; fileRef = 8293CD35D646C442EB4F72F0; };
 		533398B0EE39FA8E9948D7B9 = {isa = PBXBuildFile; fileRef = 6D9B11BCCB86CECE0CFA37CB; };
+		53CF2050113DF6C419AA74F0 = {isa = PBXBuildFile; fileRef = C31FA8AD6BFB50BF3F2D9262; };
 		53EA1E9ED727F5F22BF6D1BF = {isa = PBXBuildFile; fileRef = EBECAAA7807D81B9EA1B4E2D; };
+		5426DF748EAA1049A2F5E2A5 = {isa = PBXBuildFile; fileRef = ED8300A648886BEE8EABB7B4; };
 		55A70E104464C2281B0F9AA3 = {isa = PBXBuildFile; fileRef = 055CDC196B757E80767362D1; };
 		56854040D269FB6BBFB6B838 = {isa = PBXBuildFile; fileRef = ECA4121A999FDD6B5C06560F; };
 		5735397F522136DBEB890548 = {isa = PBXBuildFile; fileRef = 4FC7244E5CC6E8E1CA1526AE; };
@@ -123,6 +125,7 @@
 		998FB69AF8575AC8CC2D0D22 = {isa = PBXBuildFile; fileRef = 2D0D08EA04C82C4F8F255643; };
 		9BCA7E409A5C888AD4015152 = {isa = PBXBuildFile; fileRef = EBD63F285616B480506CE487; };
 		9BD1EFC37CFEB2FCF1B54EE8 = {isa = PBXBuildFile; fileRef = D3E15B9053DA257C9A5751E7; };
+		9C38D5DEB7B5AD295C4A9958 = {isa = PBXBuildFile; fileRef = 81D9A7FCAA494FC76B2C83E3; };
 		9D1071AAC3C84E5B9F9D6B39 = {isa = PBXBuildFile; fileRef = ADD9C234BD8825A5E6022F7A; };
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
 		9EAA0CE5E58FE55480669B64 = {isa = PBXBuildFile; fileRef = AA4AB23447B95722FF60AB2A; };
@@ -377,6 +380,7 @@
 		80BDB171C5EBFDFEAE8F3C02 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CustomParts.hpp; sourceTree = "<group>"; };
 		80E356175BDB80AB2AB4E5ED = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Aerospace.hpp; sourceTree = "<group>"; };
 		80E8D809F4A6CA446F4FD5F8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		81D9A7FCAA494FC76B2C83E3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircuitModel.swift; sourceTree = "<group>"; };
 		8293CD35D646C442EB4F72F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Channel.cpp; sourceTree = "<group>"; };
 		833CC0D371F8BDA60C967CC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Export.hpp; sourceTree = "<group>"; };
 		84966DF7BFC55F50B9962345 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerPlanningView.swift; sourceTree = "<group>"; };
@@ -444,6 +448,7 @@
 		C07144B375647346E0E3EC7B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Industry.hpp; sourceTree = "<group>"; };
 		C277541433091BF5ACFA3A26 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c.cpp; sourceTree = "<group>"; };
 		C2A9B6EC8B53D2EF718F271B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Aerospace.cpp; sourceTree = "<group>"; };
+		C31FA8AD6BFB50BF3F2D9262 = {isa = PBXFileReference; lastKnownFileType = file; path = "sieda-circuit-v1.gguf"; sourceTree = "<group>"; };
 		C37798F6F7C1119E0E0608AC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelAnalysis.swift; sourceTree = "<group>"; };
 		C3DCC20EEEA7AC6731B4F367 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ml; path = ml.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C3F8F3DF2874C82BD085DD30 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ProjectDiff.hpp; sourceTree = "<group>"; };
@@ -497,6 +502,7 @@
 		EBECAAA7807D81B9EA1B4E2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDAApp.swift; sourceTree = "<group>"; };
 		ECA4121A999FDD6B5C06560F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicPalette.swift; sourceTree = "<group>"; };
 		ED31CDCBDEE7E1F670F7977E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Reliability.cpp; sourceTree = "<group>"; };
+		ED8300A648886BEE8EABB7B4 = {isa = PBXFileReference; lastKnownFileType = text.json; path = "sieda-circuit-v1.json"; sourceTree = "<group>"; };
 		EF2C9163E8C953AC343E0E55 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DesignStore+Simulation.swift"; sourceTree = "<group>"; };
 		F377BB60FA42CD1DF62BE62A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolDraft.swift; sourceTree = "<group>"; };
 		F459489B353E161C42FB7B2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Simulator.cpp; sourceTree = "<group>"; };
@@ -708,6 +714,7 @@
 				0CF3E02226CCD062D60E465B,
 				7D7EAB4C388AA300019C8810,
 				185A7FEDCC550688A03D3A45,
+				81D9A7FCAA494FC76B2C83E3,
 				2CB815EC0203E93D606FDC12,
 				9B780D9F59521D3BDF902353,
 				130DCFF99FAB6E8ACBCBCE36,
@@ -921,10 +928,10 @@
 				8E7F5049511D1ED1189ECA91,
 				B00976F9A29491311B99FEC4,
 				F3D7905FC6038E4E1A7161D2,
+				E58BDFEFAAC2AD479371877C,
 				2A6E9FA74463A506F384BA53,
 				281968485D39656793209D6D,
 				8FD5A37ED920B43821E811D3,
-				E58BDFEFAAC2AD479371877C,
 			);
 			path = SiEDA;
 			sourceTree = "<group>";
@@ -950,9 +957,19 @@
 		E58BDFEFAAC2AD479371877C = {
 			isa = PBXGroup;
 			children = (
+				EF8E74CE69CFAF01C0CAD33E,
 				ED874EFB872E7B53CE0FCF12,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		EF8E74CE69CFAF01C0CAD33E = {
+			isa = PBXGroup;
+			children = (
+				C31FA8AD6BFB50BF3F2D9262,
+				ED8300A648886BEE8EABB7B4,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		F278FC475D783580D0D71D31 = {
@@ -1117,6 +1134,8 @@
 			files = (
 				443E14D73B4434B4FDD2677B,
 				81B043E74AF08AE9A92038DB,
+				53CF2050113DF6C419AA74F0,
+				5426DF748EAA1049A2F5E2A5,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1149,6 +1168,7 @@
 				490492F5B0B030AB5D57C454,
 				4075D229299725DAE075503B,
 				D05A84F3A7525AD5FD646908,
+				9C38D5DEB7B5AD295C4A9958,
 				61C5665FE4659BE3BACF1121,
 				49D121232DDFBC0445D83F9B,
 				FC4308351677E9A8852C2E2A,

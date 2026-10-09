@@ -47,6 +47,8 @@ FILE_TYPES = {
     ".entitlements": "text.plist.entitlements",
     ".md": "net.daringfireball.markdown",
     ".plist": "text.plist.xml",
+    ".gguf": "file",
+    ".json": "text.json",
 }
 
 app_swift = collect("SiEDA", {".swift"})
@@ -54,6 +56,7 @@ core_cpp = collect("Core/src", {".cpp"})
 core_headers = collect("Core/include", {".hpp", ".h"})
 bridge_headers = collect("SiEDA", {".h"})
 test_swift = collect("SiEDATests", {".swift"})
+bundled_models = collect("SiEDA/Resources/Models", {".gguf", ".json"})  # SiEDA's own circuit model (tools/circuit_lm)
 assets = "SiEDA/Assets.xcassets"
 entitlements = "SiEDA/SiEDA.entitlements"
 info_plist = "SiEDA/Info.plist"  # document types and UTIs, merged into the generated Info.plist
@@ -63,7 +66,8 @@ localizations = sorted(d[:-len(".lproj")] for d in (os.listdir(strings_dir) if o
                        if d.endswith(".lproj") and os.path.exists(os.path.join(strings_dir, d, "Localizable.strings")))
 docs = [p for p in ["README.md", "docs/ARCHITECTURE.md", "docs/PRD.md"] if os.path.exists(os.path.join(ROOT, p))]
 
-all_files = app_swift + core_cpp + core_headers + bridge_headers + test_swift + [assets, entitlements, info_plist] + docs
+all_files = (app_swift + core_cpp + core_headers + bridge_headers + test_swift + bundled_models
+             + [assets, entitlements, info_plist] + docs)
 
 # ---------------------------------------------------------------- objects
 objects = {}  # id -> (isa, body lines)
@@ -110,6 +114,9 @@ add(test_product, "PBXFileReference", [
 app_sources = app_swift + core_cpp
 app_build_files = {p: oid("build", APP, p) for p in app_sources}
 for p, bid in app_build_files.items():
+    add(bid, "PBXBuildFile", [("fileRef", file_ref[p])])
+model_builds = [oid("build", APP, p) for p in bundled_models]
+for p, bid in zip(bundled_models, model_builds):
     add(bid, "PBXBuildFile", [("fileRef", file_ref[p])])
 asset_build = oid("build", APP, assets)
 add(asset_build, "PBXBuildFile", [("fileRef", file_ref[assets])])
@@ -168,7 +175,7 @@ add(app_sources_phase, "PBXSourcesBuildPhase", [
 add(app_frameworks_phase, "PBXFrameworksBuildPhase", [
     ("buildActionMask", "2147483647"), ("files", []), ("runOnlyForDeploymentPostprocessing", "0")])
 add(app_resources_phase, "PBXResourcesBuildPhase", [
-    ("buildActionMask", "2147483647"), ("files", [asset_build] + ([strings_build] if localizations else [])),
+    ("buildActionMask", "2147483647"), ("files", [asset_build] + ([strings_build] if localizations else []) + model_builds),
     ("runOnlyForDeploymentPostprocessing", "0")])
 
 test_sources_phase = oid("phase", TESTS, "sources")

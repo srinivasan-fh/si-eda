@@ -6,13 +6,42 @@ Ollama, or the Offline Designer (reference circuits, no model).
 
 ## Super Intelligence window
 
-**Window → Super Intelligence…** (⌥⌘I) walks through the set-up one step per tab, each tab marked ✓ once done and a
-`n / 6` count at the bottom: **1 Provider** (turn AI on, pick the back-end; a link to the account / key settings when
-one is missing) → **2 Local Model** (the built-in model list: download, import, choose — skipped for cloud providers)
-→ **3 GPU** (Metal on / off and the GPU found) → **4 Test** (asks the model for a requirements summary and shows its
-answer and time) → **5 Design** (opens Prompt Studio) → **6 Agent Clients (MCP)** (three steps to let Claude Desktop,
-Claude Code, Cursor or VS Code drive the open design through the live MCP server, with the server settings and each
-client's configuration to copy; ✓ after the client's first call — see docs/MCP.md). `SiEDA/AI/IntelligenceWindow.swift`.
+**Window → Super Intelligence…** (⌥⌘I) has one tab for each of the three ways to use AI in SiEDA:
+
+1. **Local LLM (Our Engine)** — an open model (Qwen, Llama, Mistral …) run on this Mac by SiEDA's engine, set up one
+   step per tab, each ✓ once done and a `n / 5` count at the bottom: **1 Provider** (turn AI on, pick the back-end; a
+   link to the account / key settings when one is missing) → **2 Local Model** (download, import, choose) → **3 GPU**
+   (Metal on / off and the GPU found) → **4 Test** (asks the model for a requirements summary and shows its answer and
+   time) → **5 Design** (opens Prompt Studio).
+2. **MCP + Cloud LLM** — a cloud LLM in an agent client (Claude Desktop, Claude Code, Cursor, VS Code) drives the open
+   design through the live MCP server: three steps, the server settings and each client's configuration to copy; ✓
+   after the client's first call (docs/MCP.md).
+3. **Own Model (Our Engine)** — SiEDA's own circuit model on SiEDA's engine (below).
+
+`SiEDA/AI/IntelligenceWindow.swift`.
+
+## SiEDA's own circuit model
+
+Super Intelligence → **Own Model (Our Engine)** has four tabs for SiEDA's own model, `sieda-circuit-v1.gguf` (`SiEDA/AI/CircuitModel.swift`):
+a 4.9 M-parameter Qwen 2-style transformer trained from scratch only on SiEDA's circuits, bundled in the app (about
+5 MB, Q8_0) and run by the built-in engine — no download, no account, no other app.
+
+- **Train.** What it learned and how it scores: request → plan pairs from the Offline Designer's reference circuits
+  (active and passive parts with SiEDA's kind names, values, positions and every pin-to-pin link) asked in many
+  phrasings, plus circuits whose values are computed from the request (LED series resistor from supply, colour and
+  current; divider ratio; RC cut-off; op-amp gain; NPN LED driver; E12 values). *Add This Design to the Training Data*
+  appends the open design to `~/Library/Application Support/SiEDA/Training/my-designs.jsonl`. Retrain with Python
+  (torch, tokenizers, gguf; llama-cpp-python for the Q8_0 step):
+  `tools/circuit_lm/make_dataset.py data` → `train.py data out` → `finish.py data out` (quantises, scores the
+  held-out requests through `sieda-cli --chat`, cross-checks llama.cpp, writes `SiEDA/Resources/Models/`).
+- **Test.** Type a request and *Generate*, or *Run Benchmark* on 20 held-out requests (usable / exactly the reference).
+- **Models.** The circuit models in the models folder and the bundled one.
+- **Use.** Makes it the agents' back-end (Built-in with this model). New designs come from the model and must pass a
+  check (unique designators, every link names a part) or the request fails with the reason; specifications,
+  refinements and reviews, which it was not trained for, come from the Offline Designer.
+
+On the 107 held-out requests every plan is usable and 78 % are exactly the reference circuit; llama.cpp, reading
+the same file, writes the same plan. The core test `circuit_model_writes_linked_plans` holds the shipped model to linked plans on held-out requests.
 
 ## Built-in model
 
