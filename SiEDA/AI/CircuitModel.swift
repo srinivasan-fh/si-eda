@@ -44,9 +44,11 @@ enum CircuitModel {
         return file
     }
 
-    /// The model's plan for a request, and its raw reply. Throws when the reply is not a usable plan.
+    /// The model's plan for a request (with the values the request fixes computed by the core), and the reply. Throws
+    /// when the reply is not a usable plan.
     static func plan(for request: String, path: String) async throws -> (plan: DesignPlan, reply: String) {
-        let reply = try await LocalLLM.run(path: path, system: system, user: request, maxTokens: 1000, json: false)
+        let raw = try await LocalLLM.run(path: path, system: system, user: request, maxTokens: 2000, json: false)
+        let reply = EDAEngine.take(sieda_circuit_plan_values(request, raw)) ?? raw
         let plan = try JSONExtraction.decode(DesignPlan.self, from: reply)
         if let problem = check(plan) { throw AIProviderError.invalidResponse("The circuit model's plan is not usable: \(problem)") }
         return (plan, reply)

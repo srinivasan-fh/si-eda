@@ -24,7 +24,7 @@ from tokenizers import ByteLevelBPETokenizer
 
 SYSTEM = "You are an electronics design assistant."  # what sieda-cli --chat and the app send
 SPECIALS = ["<|endoftext|>", "<|im_start|>", "<|im_end|>"]
-CFG = dict(vocab=2048, embd=256, layers=6, heads=8, kv_heads=4, ff=704, ctx=1024, rope=10000.0, eps=1e-6)
+CFG = dict(vocab=2048, embd=256, layers=6, heads=8, kv_heads=4, ff=704, ctx=2048, rope=10000.0, eps=1e-6)
 
 
 def chat_prefix(prompt):

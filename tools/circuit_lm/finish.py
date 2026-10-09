@@ -3,8 +3,9 @@
 
     python3 tools/circuit_lm/finish.py data out [sieda-cli]   # → SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}
 
-Scoring runs every held-out request through `sieda-cli --chat` (the same engine and chat format as the app):
-"usable" = the reply is a plan whose links all name its parts, "exact" = parts and links equal the reference plan.
+Scoring runs every held-out request through `sieda-cli --circuit` (the same engine, chat format and value rules as
+the app): "usable" = the reply is a plan whose links all name its parts, "exact" = parts and links equal the reference
+plan ("modelExact": the model's own plan, before the request's values are computed).
 """
 import json
 import os
@@ -32,33 +33,37 @@ def main():
     if llama_cpp.llama_model_quantize(src.encode(), dst.encode(), params) != 0:
         sys.exit("quantisation failed")
     test = [json.loads(l) for l in open(os.path.join(data, "test.jsonl"))]
-    valid = exact = 0
+    valid = exact = raw_exact = 0
     results = []
     for r in test:
-        reply = subprocess.run([cli, "--chat", dst, r["prompt"]], capture_output=True, text=True, timeout=300).stdout.strip()
-        try:
-            plan = json.loads(reply)
-        except ValueError:
-            plan = None
-        ok = plan is not None and usable(plan)
+        run = subprocess.run([cli, "--circuit", dst, r["prompt"]], capture_output=True, text=True, timeout=600)
         ref = json.loads(r["plan"])
-        same = ok and plan["components"] == ref["components"] and plan["connections"] == ref["connections"]
+        plans = []
+        for text in (run.stdout.strip(), run.stderr.strip().splitlines()[-1] if run.stderr.strip() else ""):
+            try:
+                plans.append(json.loads(text))
+            except ValueError:
+                plans.append(None)
+        plan, raw = plans
+        same = lambda p: p is not None and usable(p) and p["components"] == ref["components"] and p["connections"] == ref["connections"]
+        ok = plan is not None and usable(plan)
         valid += ok
-        exact += same
-        results.append({"prompt": r["prompt"], "usable": ok, "exact": same})
+        exact += same(plan)
+        raw_exact += same(raw)
+        results.append({"prompt": r["prompt"], "usable": ok, "exact": same(plan), "modelExact": same(raw)})
     metrics = json.load(open(os.path.join(out, "metrics.json")))
     card = json.load(open(os.path.join(data, "card.json")))
     # llama.cpp reads the same file and, greedy, writes the same first plan (a cross-check of engine and format).
-    llm = llama_cpp.Llama(model_path=dst, n_ctx=1024, verbose=False)
+    llm = llama_cpp.Llama(model_path=dst, n_ctx=2048, verbose=False)
     first = test[0]["prompt"]
     theirs = llm.create_chat_completion(messages=[{"role": "system", "content": "You are an electronics design assistant."},
-                                                  {"role": "user", "content": first}], temperature=0, max_tokens=1000)
+                                                  {"role": "user", "content": first}], temperature=0, max_tokens=2000)
     ours = subprocess.run([cli, "--chat", dst, first], capture_output=True, text=True).stdout.strip()
     agree = theirs["choices"][0]["message"]["content"].strip() == ours
     shipped = {
         "parameters": metrics["parameters"], "trainPairs": metrics["train_pairs"], "testPairs": len(test),
         "testLoss": round(metrics["test_loss"], 4), "validPlans": round(valid / len(test), 4),
-        "exactPlans": round(exact / len(test), 4), "llamaCppAgrees": agree,
+        "exactPlans": round(exact / len(test), 4), "modelExactPlans": round(raw_exact / len(test), 4), "llamaCppAgrees": agree,
         "circuits": card["circuits"], "kinds": card["kinds"],
         "benchmark": [{"prompt": r["prompt"], "plan": r["plan"]} for r in test[:20]],
     }
@@ -67,7 +72,7 @@ def main():
     os.replace(dst, os.path.join(models, "sieda-circuit-v1.gguf"))
     json.dump(shipped, open(os.path.join(models, "sieda-circuit-v1.json"), "w"), indent=1, ensure_ascii=False)
     json.dump(results, open(os.path.join(out, "test_results.json"), "w"), indent=1)
-    print(f"usable {valid}/{len(test)}, exact {exact}/{len(test)}, llama.cpp agrees: {agree}")
+    print(f"usable {valid}/{len(test)}, exact {exact}/{len(test)} (model alone {raw_exact}), llama.cpp agrees: {agree}")
 
 
 if __name__ == "__main__":

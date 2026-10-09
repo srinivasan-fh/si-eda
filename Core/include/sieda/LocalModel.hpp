@@ -65,4 +65,9 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+/// SiEDA's circuit model (tools/circuit_lm) writes a plan; the values its request fixes — LED series resistor, divider,
+/// RC cut-off, op-amp gain, NPN LED driver — are recomputed here (E12, the training data's rules) and the title follows.
+/// Any other plan, or text that is not a plan, comes back unchanged. Core/src/CircuitValues.cpp.
+std::string circuitPlanValues(const std::string& request, const std::string& planJson);
+
 }  // namespace sieda
