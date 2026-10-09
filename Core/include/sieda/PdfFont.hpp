@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -29,6 +30,17 @@ public:
     /// 0); every other glyph is empty. Empty string when the font is not valid.
     std::string subset(const std::set<int>& glyphs) const;
 
+    /// A glyph of shaped text: offsets and advance in em, `cluster` = index of its first code point.
+    struct Shaped {
+        int glyph = 0;
+        size_t cluster = 0;
+        double dx = 0, dy = 0, advance = 0;
+    };
+    /// Shapes one run of text with HarfBuzz (ligatures, Indic conjuncts and reordering, Arabic joining, right-to-left
+    /// runs in visual order) when the core is built with it (`canShape`); otherwise one glyph per code point.
+    std::vector<Shaped> shape(const std::vector<uint32_t>& codepoints) const;
+    static bool canShape();
+
 private:
     struct Table {
         uint32_t offset = 0, length = 0;
@@ -40,6 +52,7 @@ private:
     uint32_t glyphOffset(int glyph, uint32_t* length) const;
 
     std::string data_;
+    mutable std::shared_ptr<void> shaper_;  // hb_font_t, made on first use
     std::vector<std::pair<std::string, Table>> tables_;
     bool valid_ = false;
     int numGlyphs_ = 0, unitsPerEm_ = 1000, ascent_ = 800, descent_ = -200, numHMetrics_ = 0;

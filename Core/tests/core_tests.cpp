@@ -16955,6 +16955,36 @@ TEST(pdf_real_symbols_and_unicode_text) {
     CHECK(exportSchematicPdf(p, options).find("/F4") == std::string::npos);
 }
 
+TEST(pdf_text_shaping) {
+    auto read = [](const char* name) {
+        std::ifstream in(std::string(SIEDA_FIXTURE_DIR) + "/fonts/" + name, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), {});
+    };
+    TrueTypeFont deva, arab;
+    CHECK(deva.load(read("NotoSansDevanagari-subset.ttf")) && arab.load(read("NotoSansArabic-subset.ttf")));
+    const std::vector<uint32_t> hindi = {0x939, 0x93F, 0x928, 0x94D, 0x926, 0x940}, salam = {0x633, 0x644, 0x627, 0x645};
+    const auto h = deva.shape(hindi), a = arab.shape(salam);
+    double plain = 0;
+    for (uint32_t cp : salam) plain += arab.advance(arab.glyph(cp));
+    if (TrueTypeFont::canShape()) {
+        // हिन्दी: the i-sign moves before ह, न्द becomes a conjunct.
+        CHECK(h.size() < hindi.size() && h[0].glyph != deva.glyph(0x939) && h[0].cluster == 0);
+        // سلام: right to left (م first), لا as one lam-alef ligature, س in its initial form.
+        CHECK(a.size() == 3 && a[0].cluster == 3 && a[1].cluster == 1 && a[2].cluster == 0 && a[2].glyph != arab.glyph(0x633));
+        Project p;
+        p.titleBlock.title = "हिन्दी";
+        SchematicPdfOptions options;
+        options.fontData = read("NotoSansDevanagari-subset.ttf");
+        const std::string pdf = exportSchematicPdf(p, options);
+        CHECK(pdf.find("<0939093F>") != std::string::npos && pdfXrefConsistent(pdf));  // copies out as हि
+    } else {
+        CHECK(h.size() == hindi.size() && h[0].glyph == deva.glyph(0x939) && a[0].cluster == 0);
+    }
+    double shaped = 0;
+    for (const auto& g : a) shaped += g.advance;
+    CHECK(shaped > 0.5 * plain && shaped < 1.5 * plain);
+}
+
 TEST(pdf_font_fuzzed) {
     const std::string base = tinyTrueType(false);
     uint32_t seed = 31337u;

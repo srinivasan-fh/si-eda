@@ -67,7 +67,7 @@ The agreed order for the weekend sessions; each line is one package (PR, CI gree
 each package into its steps.
 
 1. [x] Large-board benchmark (in CI as `sieda_scale_budget`); next: corridor-router thread scaling
-2. [ ] PDF text shaping with HarfBuzz (~0.15M–0.25M)
+2. [x] PDF text shaping with HarfBuzz (~0.15M–0.25M)
 3. [x] STEP export
 4. [x] Variant manager (variants existed; comparison matrix added)
 5. [x] Design diff and 3-way merge (app, MCP, Git diff and merge drivers)
@@ -100,7 +100,7 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
 2. ✅ **IDX (ProSTEP EDMD)** (done: placement, outline and thickness edits, keep-outs / height zones both ways,
    accept / reject responses) (~0.25M): baseline export (board, parts, holes, keep-outs), MCAD change proposals read back
    (moved / rotated parts, outline edits) with accept / reject, SiEDA changes sent as proposals.
-3. **HarfBuzz text shaping in PDFs** (~0.2M): Indic, Arabic and Thai shaped correctly in the schematic PDF; an optional
+3. ✅ **HarfBuzz text shaping in PDFs** (done: `TrueTypeFont::shape`, optional CMake dependency) (~0.2M): Indic, Arabic and Thai shaped correctly in the schematic PDF; an optional
    CMake dependency, so builds without it keep today's byte-identical output (the archival plan avoids dependencies).
 4. ✅ **Field-solver SI / PI** (SI done: `Core/src/FieldSolver.cpp`, Board Setup → Check with Field Solver, MCP `si_field_solver`; PI already has the pour-mesh DC IR drop and cavity plane impedance) (~0.5M): 2D cross-section solver (single-ended, differential, coupled: impedance,
    coupling, crosstalk, loss) replacing the closed-form formulas when enabled; plane solver on the real copper for PDN
@@ -118,10 +118,10 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
 - [ ] Fix the hotspots the benchmark finds
 
 ### 2. Schematic PDF text shaping — ~0.15M–0.25M tokens (HarfBuzz)
-- [ ] Decide: HarfBuzz dependency (recommended) or own shaper
-- [ ] Arabic joining and right-to-left order
-- [ ] Indic (Hindi, Tamil, …) conjuncts and reordering
-- [ ] Tests with sample sheets in each script
+- [x] Decide: HarfBuzz dependency (recommended) or own shaper — HarfBuzz, optional (`SIEDA_HARFBUZZ`)
+- [x] Arabic joining and right-to-left order (within a run; no bidi across scripts)
+- [x] Indic (Hindi, Tamil, …) conjuncts and reordering
+- [x] Tests with sample sheets in each script (`pdf_text_shaping`, Noto subsets in `Core/tests/fixtures/fonts`)
 
 ### 3. 3D / mechanical (7.0 → ~9.0) — ~0.45M–0.7M tokens
 - [x] STEP export (AP214) of board and parts

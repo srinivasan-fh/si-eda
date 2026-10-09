@@ -10,6 +10,10 @@
 #include <deque>
 #include <map>
 
+#ifdef SIEDA_HAVE_HARFBUZZ
+#include <hb.h>
+#endif
+
 namespace sieda {
 
 namespace {
@@ -62,6 +66,7 @@ TrueTypeFont::Table TrueTypeFont::table(const char* tag) const {
 bool TrueTypeFont::load(std::string bytes) {
     valid_ = false;
     tables_.clear();
+    shaper_.reset();
     data_ = std::move(bytes);
     if (data_.size() < 12 || data_.size() > (64u << 20)) return false;
     size_t base = 0;
@@ -167,6 +172,48 @@ int TrueTypeFont::glyph(uint32_t cp) const {
         }
     }
     return g > 0 && g < numGlyphs_ ? g : 0;
+}
+
+bool TrueTypeFont::canShape() {
+#ifdef SIEDA_HAVE_HARFBUZZ
+    return true;
+#else
+    return false;
+#endif
+}
+
+std::vector<TrueTypeFont::Shaped> TrueTypeFont::shape(const std::vector<uint32_t>& cps) const {
+    std::vector<Shaped> out;
+#ifdef SIEDA_HAVE_HARFBUZZ
+    if (valid_ && !cps.empty()) {
+        if (!shaper_) {
+            hb_blob_t* blob = hb_blob_create(data_.data(), static_cast<unsigned>(data_.size()), HB_MEMORY_MODE_DUPLICATE, nullptr, nullptr);
+            hb_face_t* face = hb_face_create(blob, 0);
+            hb_blob_destroy(blob);
+            shaper_ = std::shared_ptr<void>(hb_font_create(face), [](void* f) { hb_font_destroy(static_cast<hb_font_t*>(f)); });
+            hb_face_destroy(face);
+        }
+        hb_buffer_t* buf = hb_buffer_create();
+        hb_buffer_add_codepoints(buf, cps.data(), static_cast<int>(cps.size()), 0, static_cast<int>(cps.size()));
+        hb_buffer_guess_segment_properties(buf);
+        hb_shape(static_cast<hb_font_t*>(shaper_.get()), buf, nullptr, 0);
+        unsigned n = 0;
+        const hb_glyph_info_t* info = hb_buffer_get_glyph_infos(buf, &n);
+        const hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(buf, nullptr);
+        const double em = hb_face_get_upem(hb_font_get_face(static_cast<hb_font_t*>(shaper_.get())));
+        for (unsigned i = 0; i < n; ++i)
+            out.push_back({info[i].codepoint < static_cast<unsigned>(numGlyphs_) ? static_cast<int>(info[i].codepoint) : 0,
+                           std::min<size_t>(info[i].cluster, cps.size() - 1), pos[i].x_offset / em, pos[i].y_offset / em,
+                           pos[i].x_advance / em});
+        hb_buffer_destroy(buf);
+        return out;
+    }
+#endif
+    for (size_t i = 0; i < cps.size(); ++i) {
+        const int g = glyph(cps[i]);
+        out.push_back({g, i, 0, 0, advance(g)});
+    }
+    return out;
 }
 
 double TrueTypeFont::advance(int glyph) const {

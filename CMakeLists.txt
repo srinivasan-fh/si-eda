@@ -110,6 +110,16 @@ add_library(sieda_core STATIC
 target_include_directories(sieda_core PUBLIC Core/include)
 find_package(Threads REQUIRED)
 target_link_libraries(sieda_core PUBLIC Threads::Threads)  # the autorouter routes independent nets in parallel
+# Optional HarfBuzz: shapes the schematic PDF's embedded-font text (Indic conjuncts, Arabic joining, right-to-left).
+option(SIEDA_HARFBUZZ "Shape PDF text with HarfBuzz when it is installed" ON)
+find_package(PkgConfig QUIET)
+if(SIEDA_HARFBUZZ AND PkgConfig_FOUND)
+    pkg_check_modules(HARFBUZZ QUIET IMPORTED_TARGET harfbuzz)
+    if(HARFBUZZ_FOUND)
+        target_link_libraries(sieda_core PUBLIC PkgConfig::HARFBUZZ)
+        target_compile_definitions(sieda_core PRIVATE SIEDA_HAVE_HARFBUZZ)
+    endif()
+endif()
 if(MSVC)
     target_compile_options(sieda_core PRIVATE /W4)
 else()
