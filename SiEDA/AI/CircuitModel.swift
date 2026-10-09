@@ -67,6 +67,12 @@ enum CircuitModel {
         return nil
     }
 
+    /// The same parts and links, in any order (links in either direction).
+    static func sameCircuit(_ a: DesignPlan, _ b: DesignPlan) -> Bool {
+        let links = { (p: DesignPlan) in p.connections.map { [$0.from, $0.to].sorted().joined(separator: "|") }.sorted() }
+        return a.components.sorted { $0.ref < $1.ref } == b.components.sorted { $0.ref < $1.ref } && links(a) == links(b)
+    }
+
     /// The agents' requests: a new design comes from the model; specifications, refinements and reviews (which a
     /// model this small was not trained for) from the Offline Designer.
     static func complete(_ request: AIRequest, path: String) async throws -> String {
@@ -214,7 +220,7 @@ struct CircuitModelView: View {
                 guard let result = try? await CircuitModel.plan(for: c.prompt, path: try modelPath()) else { continue }
                 valid += 1
                 if let expected = try? JSONExtraction.decode(DesignPlan.self, from: c.plan),
-                   expected.components == result.plan.components, expected.connections == result.plan.connections { exact += 1 }
+                   CircuitModel.sameCircuit(expected, result.plan) { exact += 1 }
             }
             bench = (valid, exact, cases.count)
         }

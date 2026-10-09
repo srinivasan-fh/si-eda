@@ -80,8 +80,8 @@ def phrasings(rng, t, n):
     subjects = [t["title"], t["title"].lower(), t["summary"].rstrip("."), t["summary"].lower().rstrip(".")]
     subjects += [f"a {k.strip()} circuit" for k in t["keywords"]] + [f"{k.strip()}" for k in t["keywords"]]
     out = set()
-    while len(out) < n:
-        s = rng.choice(subjects)
+    while len(out) < n:  # every subject (each keyword too) at least twice, then at random
+        s = subjects[len(out) % len(subjects)] if len(out) < 2 * len(subjects) else rng.choice(subjects)
         v = rng.choice(VERBS)
         art = "" if s[0].isupper() or s.startswith("a ") else rng.choice(["a ", "an ", "the ", ""])
         p = f"{v} {art}{s}".strip() + rng.choice(["", ".", " please", " for my board", " on a small PCB", "?"])

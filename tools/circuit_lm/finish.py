@@ -4,8 +4,8 @@
     python3 tools/circuit_lm/finish.py data out [sieda-cli]   # → SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}
 
 Scoring runs every held-out request through `sieda-cli --circuit` (the same engine, chat format and value rules as
-the app): "usable" = the reply is a plan whose links all name its parts, "exact" = parts and links equal the reference
-plan ("modelExact": the model's own plan, before the request's values are computed).
+the app): "usable" = the reply is a plan whose links all name its parts, "exact" = the same parts and links as the reference
+plan, in any order ("modelExact": the model's own plan, before the request's values are computed).
 """
 import json
 import os
@@ -21,6 +21,13 @@ def usable(plan):
     if not comps or len(set(refs)) != len(refs):
         return False
     return all(str(e).split(".")[0] in refs for c in plan.get("connections", []) for e in (c.get("from"), c.get("to")))
+
+
+def same_circuit(plan, ref):
+    """The same parts (in any order) and the same links (in any order, either direction)."""
+    parts = lambda p: sorted(json.dumps(c, sort_keys=True) for c in p.get("components", []))
+    links = lambda p: sorted("|".join(sorted((str(c.get("from")), str(c.get("to"))))) for c in p.get("connections", []))
+    return parts(plan) == parts(ref) and links(plan) == links(ref)
 
 
 def main():
@@ -45,7 +52,7 @@ def main():
             except ValueError:
                 plans.append(None)
         plan, raw = plans
-        same = lambda p: p is not None and usable(p) and p["components"] == ref["components"] and p["connections"] == ref["connections"]
+        same = lambda p: p is not None and usable(p) and same_circuit(p, ref)
         ok = plan is not None and usable(plan)
         valid += ok
         exact += same(plan)
@@ -53,13 +60,14 @@ def main():
         results.append({"prompt": r["prompt"], "usable": ok, "exact": same(plan), "modelExact": same(raw)})
     metrics = json.load(open(os.path.join(out, "metrics.json")))
     card = json.load(open(os.path.join(data, "card.json")))
-    # llama.cpp reads the same file and, greedy, writes the same first plan (a cross-check of engine and format).
+    # llama.cpp reads the same file and, greedy, writes the same first plan from the same ChatML prompt (a cross-check
+    # of the engine; its chat helper formats the turn its own way, so the prompt is given as text).
     llm = llama_cpp.Llama(model_path=dst, n_ctx=2048, verbose=False)
     first = test[0]["prompt"]
-    theirs = llm.create_chat_completion(messages=[{"role": "system", "content": "You are an electronics design assistant."},
-                                                  {"role": "user", "content": first}], temperature=0, max_tokens=2000)
+    prompt = f"<|im_start|>system\nYou are an electronics design assistant.<|im_end|>\n<|im_start|>user\n{first}<|im_end|>\n<|im_start|>assistant\n"
+    theirs = llm(prompt, temperature=0, max_tokens=2000)["choices"][0]["text"].strip()
     ours = subprocess.run([cli, "--chat", dst, first], capture_output=True, text=True).stdout.strip()
-    agree = theirs["choices"][0]["message"]["content"].strip() == ours
+    agree = theirs == ours
     shipped = {
         "parameters": metrics["parameters"], "trainPairs": metrics["train_pairs"], "testPairs": len(test),
         "testLoss": round(metrics["test_loss"], 4), "validPlans": round(valid / len(test), 4),
