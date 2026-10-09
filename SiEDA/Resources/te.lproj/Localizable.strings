@@ -1299,7 +1299,6 @@
 "Local Model" = "లోకల్ మోడల్";
 "GPU" = "GPU";
 "Test" = "పరీక్ష";
-"Agent Clients (MCP)" = "ఏజెంట్ క్లయింట్లు (MCP)";
 "Use AI" = "AI ఉపయోగించు";
 "Run Test" = "పరీక్ష నడుపు";
 "Open Prompt Studio" = "Prompt Studio తెరువు";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. SiEDA సాధనాలను జాబితా చేయమని ఏజెంట్‌ను అడగండి — మొదటి కాల్ తర్వాత ఈ ట్యాబ్ ✓ చూపుతుంది.";
 "Train" = "శిక్షణ";
 "Models" = "మోడల్‌లు";
-"Set-up" = "సెటప్";
-"Own Model" = "సొంత మోడల్";
 "Generate" = "రూపొందించు";
 "Request" = "అభ్యర్థన";
 "Run Benchmark" = "బెంచ్‌మార్క్ నడుపు";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "ఈ డిజైన్‌ను శిక్షణ డేటాకు జోడించు";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "SiEDA సొంత సర్క్యూట్ మోడల్‌ను కొత్త సర్క్యూట్లు డిజైన్ చేసే AI గా చేయండి. ఇది ఈ Mac‌లో నడుస్తుంది, ఖాతా లేదా డౌన్‌లోడ్ అవసరం లేదు, కొన్ని సెకన్లలో సమాధానమిస్తుంది; వివరాలు మరియు సమీక్షలు Offline Designer నుండి వస్తాయి.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "మోడల్ SiEDA సూచన సర్క్యూట్ల నుండి మరియు అభ్యర్థన నుండి విలువలు లెక్కించిన సర్క్యూట్ల నుండి (LED రెసిస్టర్, డివైడర్, RC ఫిల్టర్, యాంప్లిఫైయర్ గెయిన్, ట్రాన్సిస్టర్ డ్రైవర్) నేర్చుకుంటుంది. మీ డిజైన్‌లను శిక్షణ డేటాకు జోడించి, Python ఉన్న Mac లేదా Linux‌పై మళ్లీ శిక్షణ ఇవ్వండి:";
+"Local LLM (Our Engine)" = "లోకల్ LLM (మా ఇంజిన్)";
+"MCP + Cloud LLM" = "MCP + క్లౌడ్ LLM";
+"Own Model (Our Engine)" = "సొంత మోడల్ (మా ఇంజిన్)";

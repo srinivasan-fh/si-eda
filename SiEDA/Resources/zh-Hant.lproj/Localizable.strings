@@ -1299,7 +1299,6 @@
 "Local Model" = "本機模型";
 "GPU" = "GPU";
 "Test" = "測試";
-"Agent Clients (MCP)" = "智慧代理用戶端 (MCP)";
 "Use AI" = "使用 AI";
 "Run Test" = "執行測試";
 "Open Prompt Studio" = "打開 Prompt Studio";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. 請智慧代理列出 SiEDA 的工具——首次呼叫後此分頁會顯示 ✓。";
 "Train" = "訓練";
 "Models" = "模型";
-"Set-up" = "設定";
-"Own Model" = "自有模型";
 "Generate" = "產生";
 "Request" = "請求";
 "Run Benchmark" = "執行基準測試";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "將此設計加入訓練資料";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "讓 SiEDA 自己的電路模型成為設計新電路的 AI。它在這台 Mac 上執行，不需要帳號和下載，幾秒內給出答案；規格和審查由 Offline Designer 負責。";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "此模型從 SiEDA 的參考電路以及依請求計算數值的電路（LED 電阻、分壓器、RC 濾波器、放大器增益、電晶體驅動）中學習。把你的設計加入訓練資料，然後在裝有 Python 的 Mac 或 Linux 上重新訓練：";
+"Local LLM (Our Engine)" = "本機 LLM（自有引擎）";
+"MCP + Cloud LLM" = "MCP + 雲端 LLM";
+"Own Model (Our Engine)" = "自有模型（自有引擎）";

@@ -1299,7 +1299,6 @@
 "Local Model" = "સ્થાનિક મોડેલ";
 "GPU" = "GPU";
 "Test" = "પરીક્ષણ";
-"Agent Clients (MCP)" = "એજન્ટ ક્લાયન્ટ (MCP)";
 "Use AI" = "AI વાપરો";
 "Run Test" = "પરીક્ષણ ચલાવો";
 "Open Prompt Studio" = "Prompt Studio ખોલો";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. એજન્ટને SiEDAનાં સાધનો સૂચિબદ્ધ કરવા કહો — પહેલા કૉલ પછી આ ટૅબ ✓ બતાવે છે.";
 "Train" = "તાલીમ";
 "Models" = "મોડેલ";
-"Set-up" = "સેટઅપ";
-"Own Model" = "પોતાનું મોડેલ";
 "Generate" = "બનાવો";
 "Request" = "વિનંતી";
 "Run Benchmark" = "બેન્ચમાર્ક ચલાવો";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "આ ડિઝાઇનને તાલીમ ડેટામાં ઉમેરો";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "SiEDAના પોતાના સર્કિટ મોડેલને નવા સર્કિટ ડિઝાઇન કરતું AI બનાવો. તે આ Mac પર ચાલે છે, એકાઉન્ટ કે ડાઉનલોડ જોઈતું નથી, અને થોડી સેકન્ડમાં જવાબ આપે છે; વિશિષ્ટતાઓ અને સમીક્ષાઓ Offline Designer આપે છે.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "મોડેલ SiEDAના સંદર્ભ સર્કિટ અને વિનંતીમાંથી ગણાયેલા મૂલ્યોવાળા સર્કિટ (LED રેઝિસ્ટર, ડિવાઇડર, RC ફિલ્ટર, એમ્પ્લિફાયર ગેઇન, ટ્રાન્ઝિસ્ટર ડ્રાઇવર) માંથી શીખે છે. તમારી ડિઝાઇન તાલીમ ડેટામાં ઉમેરો, પછી Python સાથેના Mac કે Linux પર ફરી તાલીમ આપો:";
+"Local LLM (Our Engine)" = "સ્થાનિક LLM (અમારું એન્જિન)";
+"MCP + Cloud LLM" = "MCP + ક્લાઉડ LLM";
+"Own Model (Our Engine)" = "પોતાનું મોડેલ (અમારું એન્જિન)";

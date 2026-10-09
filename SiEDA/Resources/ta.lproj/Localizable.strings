@@ -1299,7 +1299,6 @@
 "Local Model" = "உள்ளூர் மாதிரி";
 "GPU" = "GPU";
 "Test" = "சோதனை";
-"Agent Clients (MCP)" = "முகவர் கிளையன்ட்கள் (MCP)";
 "Use AI" = "AI-ஐப் பயன்படுத்து";
 "Run Test" = "சோதனையை இயக்கு";
 "Open Prompt Studio" = "Prompt Studio-வைத் திற";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. SiEDA கருவிகளைப் பட்டியலிட முகவரிடம் கேள் — முதல் அழைப்புக்குப் பின் இந்தத் தாவல் ✓ காட்டும்.";
 "Train" = "பயிற்சி";
 "Models" = "மாதிரிகள்";
-"Set-up" = "அமைப்பு";
-"Own Model" = "சொந்த மாதிரி";
 "Generate" = "உருவாக்கு";
 "Request" = "கோரிக்கை";
 "Run Benchmark" = "அளவீட்டை இயக்கு";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "இந்த வடிவமைப்பைப் பயிற்சித் தரவில் சேர்";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "SiEDA-வின் சொந்த சுற்று மாதிரியைப் புதிய சுற்றுகளை வடிவமைக்கும் AI ஆக்கு. இது இந்த Mac-இல் இயங்கும், கணக்கோ பதிவிறக்கமோ தேவையில்லை, சில விநாடிகளில் பதிலளிக்கும்; விவரக்குறிப்புகளும் மதிப்பாய்வுகளும் Offline Designer-இலிருந்து வரும்.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "மாதிரி SiEDA குறிப்புச் சுற்றுகளிலிருந்தும், கோரிக்கையிலிருந்து மதிப்புகள் கணக்கிடப்பட்ட சுற்றுகளிலிருந்தும் (LED மின்தடை, வகுப்பி, RC வடிகட்டி, பெருக்கி ஆதாயம், டிரான்சிஸ்டர் இயக்கி) கற்கிறது. உங்கள் வடிவமைப்புகளைப் பயிற்சித் தரவில் சேர்த்து, Python உள்ள Mac அல்லது Linux-இல் மீண்டும் பயிற்றுவி:";
+"Local LLM (Our Engine)" = "உள்ளூர் LLM (எங்கள் இயந்திரம்)";
+"MCP + Cloud LLM" = "MCP + கிளவுட் LLM";
+"Own Model (Our Engine)" = "சொந்த மாதிரி (எங்கள் இயந்திரம்)";

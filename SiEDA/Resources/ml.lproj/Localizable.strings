@@ -1299,7 +1299,6 @@
 "Local Model" = "ലോക്കൽ മോഡൽ";
 "GPU" = "GPU";
 "Test" = "പരിശോധന";
-"Agent Clients (MCP)" = "ഏജന്റ് ക്ലയന്റുകൾ (MCP)";
 "Use AI" = "AI ഉപയോഗിക്കുക";
 "Run Test" = "പരിശോധന നടത്തുക";
 "Open Prompt Studio" = "Prompt Studio തുറക്കുക";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. SiEDA-യുടെ ടൂളുകൾ പട്ടികപ്പെടുത്താൻ ഏജന്റിനോട് ആവശ്യപ്പെടുക — ആദ്യ കോളിനുശേഷം ഈ ടാബിൽ ✓ കാണിക്കും.";
 "Train" = "പരിശീലനം";
 "Models" = "മോഡലുകൾ";
-"Set-up" = "സജ്ജീകരണം";
-"Own Model" = "സ്വന്തം മോഡൽ";
 "Generate" = "സൃഷ്ടിക്കുക";
 "Request" = "അഭ്യർത്ഥന";
 "Run Benchmark" = "ബെഞ്ച്മാർക്ക് നടത്തുക";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "ഈ ഡിസൈൻ പരിശീലന ഡാറ്റയിൽ ചേർക്കുക";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "SiEDA-യുടെ സ്വന്തം സർക്യൂട്ട് മോഡലിനെ പുതിയ സർക്യൂട്ടുകൾ രൂപകൽപ്പന ചെയ്യുന്ന AI ആക്കുക. ഇത് ഈ Mac-ൽ പ്രവർത്തിക്കുന്നു, അക്കൗണ്ടോ ഡൗൺലോഡോ വേണ്ട, ഏതാനും സെക്കൻഡിൽ മറുപടി നൽകുന്നു; സ്പെസിഫിക്കേഷനും റിവ്യൂവും Offline Designer നൽകുന്നു.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "SiEDA-യുടെ റഫറൻസ് സർക്യൂട്ടുകളിൽ നിന്നും അഭ്യർത്ഥനയിൽ നിന്ന് മൂല്യം കണക്കാക്കിയ സർക്യൂട്ടുകളിൽ നിന്നും (LED റെസിസ്റ്റർ, ഡിവൈഡർ, RC ഫിൽട്ടർ, ആംപ്ലിഫയർ ഗെയിൻ, ട്രാൻസിസ്റ്റർ ഡ്രൈവർ) മോഡൽ പഠിക്കുന്നു. നിങ്ങളുടെ ഡിസൈനുകൾ പരിശീലന ഡാറ്റയിൽ ചേർത്ത്, Python ഉള്ള Mac അല്ലെങ്കിൽ Linux-ൽ വീണ്ടും പരിശീലിപ്പിക്കുക:";
+"Local LLM (Our Engine)" = "ലോക്കൽ LLM (ഞങ്ങളുടെ എഞ്ചിൻ)";
+"MCP + Cloud LLM" = "MCP + ക്ലൗഡ് LLM";
+"Own Model (Our Engine)" = "സ്വന്തം മോഡൽ (ഞങ്ങളുടെ എഞ്ചിൻ)";

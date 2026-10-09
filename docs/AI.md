@@ -6,17 +6,23 @@ Ollama, or the Offline Designer (reference circuits, no model).
 
 ## Super Intelligence window
 
-**Window → Super Intelligence…** (⌥⌘I) walks through the set-up one step per tab, each tab marked ✓ once done and a
-`n / 6` count at the bottom: **1 Provider** (turn AI on, pick the back-end; a link to the account / key settings when
-one is missing) → **2 Local Model** (the built-in model list: download, import, choose — skipped for cloud providers)
-→ **3 GPU** (Metal on / off and the GPU found) → **4 Test** (asks the model for a requirements summary and shows its
-answer and time) → **5 Design** (opens Prompt Studio) → **6 Agent Clients (MCP)** (three steps to let Claude Desktop,
-Claude Code, Cursor or VS Code drive the open design through the live MCP server, with the server settings and each
-client's configuration to copy; ✓ after the client's first call — see docs/MCP.md). `SiEDA/AI/IntelligenceWindow.swift`.
+**Window → Super Intelligence…** (⌥⌘I) has one tab for each of the three ways to use AI in SiEDA:
+
+1. **Local LLM (Our Engine)** — an open model (Qwen, Llama, Mistral …) run on this Mac by SiEDA's engine, set up one
+   step per tab, each ✓ once done and a `n / 5` count at the bottom: **1 Provider** (turn AI on, pick the back-end; a
+   link to the account / key settings when one is missing) → **2 Local Model** (download, import, choose) → **3 GPU**
+   (Metal on / off and the GPU found) → **4 Test** (asks the model for a requirements summary and shows its answer and
+   time) → **5 Design** (opens Prompt Studio).
+2. **MCP + Cloud LLM** — a cloud LLM in an agent client (Claude Desktop, Claude Code, Cursor, VS Code) drives the open
+   design through the live MCP server: three steps, the server settings and each client's configuration to copy; ✓
+   after the client's first call (docs/MCP.md).
+3. **Own Model (Our Engine)** — SiEDA's own circuit model on SiEDA's engine (below).
+
+`SiEDA/AI/IntelligenceWindow.swift`.
 
 ## SiEDA's own circuit model
 
-Super Intelligence → **Own Model** has four tabs for SiEDA's own model, `sieda-circuit-v1.gguf` (`SiEDA/AI/CircuitModel.swift`):
+Super Intelligence → **Own Model (Our Engine)** has four tabs for SiEDA's own model, `sieda-circuit-v1.gguf` (`SiEDA/AI/CircuitModel.swift`):
 a 4.9 M-parameter Qwen 2-style transformer trained from scratch only on SiEDA's circuits, bundled in the app (about
 5 MB, Q8_0) and run by the built-in engine — no download, no account, no other app.
 

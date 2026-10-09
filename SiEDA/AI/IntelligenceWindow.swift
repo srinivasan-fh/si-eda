@@ -1,12 +1,14 @@
 import Metal
 import SwiftUI
 
-/// Window → Super Intelligence (⌥⌘I): setting up the AI one step per tab — provider, local model, GPU, test, design —
-/// and connecting an outside AI agent client over MCP, each tab marked ✓ once its step is done (docs/AI.md,
-/// "Super Intelligence window").
+/// Window → Super Intelligence (⌥⌘I): the three ways to use AI in SiEDA — a local LLM on SiEDA's engine (set up one
+/// step per tab, each marked ✓ once done), a cloud LLM agent client driving SiEDA over MCP, and SiEDA's own circuit
+/// model on SiEDA's engine (docs/AI.md, "Super Intelligence window").
 struct IntelligenceSetupView: View {
+    enum UseCase: Hashable { case local, mcp, own }
+
     enum Step: Int, CaseIterable, Identifiable {
-        case provider, model, gpu, test, design, mcp
+        case provider, model, gpu, test, design
         var id: Int { rawValue }
 
         var title: LocalizedStringKey {
@@ -16,7 +18,6 @@ struct IntelligenceSetupView: View {
             case .gpu: return "GPU"
             case .test: return "Test"
             case .design: return "Design"
-            case .mcp: return "Agent Clients (MCP)"
             }
         }
     }
@@ -33,7 +34,7 @@ struct IntelligenceSetupView: View {
     @State private var step = Step.provider
     @State private var test = TestState.idle
     @State private var designed = false
-    @State private var ownModel = false
+    @State private var useCase = UseCase.local
     private let gpuName = MTLCreateSystemDefaultDevice()?.name
 
     private var local: Bool { settings.provider == .builtIn }
@@ -45,26 +46,29 @@ struct IntelligenceSetupView: View {
         case .gpu: return !local || gpuName != nil || !useGPU
         case .test: if case .ok = test { return true } else { return false }
         case .design: return designed
-        case .mcp:
-            if case .listening = mcp.status { return mcp.callCount > 0 }
-            return false
         }
+    }
+
+    private var mcpConnected: Bool {
+        if case .listening = mcp.status { return mcp.callCount > 0 }
+        return false
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $ownModel) {
-                Text("Set-up").tag(false)
-                Text("Own Model").tag(true)
+            Picker("", selection: $useCase) {
+                (Text(verbatim: "1  ") + Text("Local LLM (Our Engine)")).tag(UseCase.local)
+                (Text(verbatim: mcpConnected ? "✓ " : "2  ") + Text("MCP + Cloud LLM")).tag(UseCase.mcp)
+                (Text(verbatim: "3  ") + Text("Own Model (Our Engine)")).tag(UseCase.own)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
             .padding(.top, 10)
-            if ownModel {
-                CircuitModelView()
-            } else {
-                setup
+            switch useCase {
+            case .local: setup
+            case .mcp: mcpPage.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            case .own: CircuitModelView()
             }
         }
         .frame(minWidth: 640, minHeight: 460)
@@ -89,7 +93,7 @@ struct IntelligenceSetupView: View {
                     .foregroundStyle(Theme.textMuted)
                 Spacer()
                 Button("Next") { step = Step(rawValue: step.rawValue + 1) ?? step }
-                    .disabled(step == .mcp)
+                    .disabled(step == .design)
             }
             .padding(12)
         }
@@ -158,17 +162,19 @@ struct IntelligenceSetupView: View {
                 }
                 .disabled(!done(.test))
             }
-        case .mcp:
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Let an outside AI agent (Claude Desktop, Claude Code, Cursor, VS Code …) work on the open design:")
-                    Text("1. Turn on the server below (it listens on this Mac only).")
-                    Text("2. Copy your client’s configuration into it and restart the client.")
-                    Text("3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call.")
-                }
-                .foregroundStyle(Theme.textMuted)
-                MCPSettingsView()
+        }
+    }
+
+    private var mcpPage: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Let an outside AI agent (Claude Desktop, Claude Code, Cursor, VS Code …) work on the open design:")
+                Text("1. Turn on the server below (it listens on this Mac only).")
+                Text("2. Copy your client’s configuration into it and restart the client.")
+                Text("3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call.")
             }
+            .foregroundStyle(Theme.textMuted)
+            MCPSettingsView()
         }
     }
 

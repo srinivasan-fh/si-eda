@@ -1299,7 +1299,6 @@
 "Local Model" = "Lokal na modelo";
 "GPU" = "GPU";
 "Test" = "Pagsubok";
-"Agent Clients (MCP)" = "Mga agent client (MCP)";
 "Use AI" = "Gamitin ang AI";
 "Run Test" = "Patakbuhin ang pagsubok";
 "Open Prompt Studio" = "Buksan ang Prompt Studio";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. Hilingin sa agent na ilista ang mga tool ng SiEDA — magpapakita ng ✓ ang tab na ito pagkatapos ng unang tawag.";
 "Train" = "Sanayin";
 "Models" = "Mga modelo";
-"Set-up" = "Setup";
-"Own Model" = "Sariling modelo";
 "Generate" = "Bumuo";
 "Request" = "Kahilingan";
 "Run Benchmark" = "Patakbuhin ang benchmark";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "Idagdag ang disenyong ito sa training data";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "Gawing AI na nagdidisenyo ng bagong circuit ang sariling circuit model ng SiEDA. Tumatakbo ito sa Mac na ito, walang kailangang account o download, at sumasagot sa ilang segundo; ang mga spec at review ay galing sa Offline Designer.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "Natututo ang modelo mula sa mga reference circuit ng SiEDA at sa mga circuit na kinukuwenta ang value mula sa kahilingan (LED resistor, divider, RC filter, gain ng amplifier, transistor driver). Idagdag ang sarili mong disenyo sa training data, saka muling sanayin sa Mac o Linux na may Python:";
+"Local LLM (Our Engine)" = "Lokal na LLM (sariling engine)";
+"MCP + Cloud LLM" = "MCP + Cloud LLM";
+"Own Model (Our Engine)" = "Sariling Modelo (sariling engine)";

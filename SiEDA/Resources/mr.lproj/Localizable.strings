@@ -1299,7 +1299,6 @@
 "Local Model" = "स्थानिक मॉडेल";
 "GPU" = "GPU";
 "Test" = "चाचणी";
-"Agent Clients (MCP)" = "एजंट क्लायंट (MCP)";
 "Use AI" = "AI वापरा";
 "Run Test" = "चाचणी चालवा";
 "Open Prompt Studio" = "Prompt Studio उघडा";
@@ -1316,8 +1315,6 @@
 "3. Ask the agent to list SiEDA’s tools — this tab shows ✓ after its first call." = "3. एजंटला SiEDA ची साधने सूचीबद्ध करण्यास सांगा — पहिल्या कॉलनंतर हा टॅब ✓ दाखवतो.";
 "Train" = "प्रशिक्षण";
 "Models" = "मॉडेल";
-"Set-up" = "सेटअप";
-"Own Model" = "स्वतःचे मॉडेल";
 "Generate" = "तयार करा";
 "Request" = "विनंती";
 "Run Benchmark" = "बेंचमार्क चालवा";
@@ -1330,3 +1327,6 @@
 "Add This Design to the Training Data" = "हे डिझाइन प्रशिक्षण डेटामध्ये जोडा";
 "Make SiEDA’s own circuit model the AI that designs new circuits. It runs on this Mac, needs no account and no download, and answers in a few seconds; specifications and reviews come from the Offline Designer." = "SiEDA चे स्वतःचे सर्किट मॉडेल नवे सर्किट डिझाइन करणारे AI बनवा. ते याच Mac वर चालते, खाते किंवा डाउनलोड लागत नाही, आणि काही सेकंदांत उत्तर देते; तपशील आणि पुनरावलोकने Offline Designer कडून येतात.";
 "The model learns from SiEDA’s reference circuits and from circuits whose values are computed from the request (LED resistors, dividers, RC filters, amplifier gains, transistor drivers). Add your own designs to its training data, then retrain on a Mac or Linux machine with Python:" = "मॉडेल SiEDA च्या संदर्भ सर्किटमधून आणि विनंतीतून मूल्ये मोजलेल्या सर्किटमधून (LED रेझिस्टर, डिव्हायडर, RC फिल्टर, अॅम्प्लिफायर गेन, ट्रान्झिस्टर ड्रायव्हर) शिकते. तुमची डिझाइन प्रशिक्षण डेटामध्ये जोडा, मग Python असलेल्या Mac किंवा Linux वर पुन्हा प्रशिक्षण द्या:";
+"Local LLM (Our Engine)" = "स्थानिक LLM (आमचे इंजिन)";
+"MCP + Cloud LLM" = "MCP + क्लाउड LLM";
+"Own Model (Our Engine)" = "स्वतःचे मॉडेल (आमचे इंजिन)";
