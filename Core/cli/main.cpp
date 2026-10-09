@@ -4,6 +4,7 @@
 //   sieda-cli --demo out/           run the demo and write its fabrication files into out/
 //   sieda-cli design.siedaproj      process a saved project
 //   sieda-cli design.siedaproj out/ write Gerbers, drill, BOM, netlist, STL into out/
+//   sieda-cli --chat model.gguf "question"   ask the built-in language model (docs/AI.md), the answer streamed
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,7 @@
 
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/LocalModel.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -58,6 +60,27 @@ bool writeFile(const std::string& path, const std::string& content) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc >= 4 && std::string(argv[1]) == "--chat") {
+        LocalModel model;
+        std::string error;
+        if (!model.load(argv[2], &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        std::fprintf(stderr, "%s\n", model.infoJson().c_str());
+        try {
+            model.generate(model.chatPrompt("You are an electronics design assistant.", argv[3]), LocalModel::Options(), [](const std::string& s) {
+                std::fputs(s.c_str(), stdout);
+                std::fflush(stdout);
+                return true;
+            });
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "%s\n", e.what());
+            return 1;
+        }
+        std::printf("\n");
+        return 0;
+    }
     Project project;
     if (argc >= 2 && std::string(argv[1]) != "--demo") {
         std::ifstream in(argv[1]);

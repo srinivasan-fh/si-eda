@@ -66,7 +66,9 @@ private struct AIModelSettings: View {
                 }
                 .pickerStyle(.segmented)
 
-                if editingKind == .offline {
+                if editingKind == .builtIn {
+                    BuiltInModelsView()
+                } else if editingKind == .offline {
                     Text("The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.")
                         .foregroundStyle(Theme.textMuted)
                 } else {

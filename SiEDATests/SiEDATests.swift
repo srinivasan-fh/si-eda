@@ -8089,3 +8089,72 @@ final class DfmPackTests: XCTestCase {
         XCTAssertNil(store.engine.fieldSolve(layer: 99, width: 0.2))
     }
 }
+
+final class BuiltInModelTests: XCTestCase {
+    /// The tiny random-weight model of the core tests (tools/make_llm_fixtures.py) through the app's bridge.
+    func testBuiltInEngineAnswersInJSONAndReportsMissingModels() async throws {
+        let path = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/llm/tiny-qwen2-q4_k_m.gguf").path
+        let reply = try await LocalLLM.run(path: path, system: "You design circuits.", user: "A 5 V LED indicator.", maxTokens: 16)
+        XCTAssertTrue(reply.hasPrefix("{"))
+        do {
+            _ = try await BuiltInProvider(model: "missing-\(UUID().uuidString).gguf").complete(AgentPrompts.analystRequest(brief: "x"))
+            XCTFail("a missing model must throw")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("not installed"))
+        }
+        XCTAssertEqual(AIProviderKind.builtIn.authModes, [])
+        XCTAssertFalse(AIProviderKind.builtIn.requiresAPIKey)
+    }
+}
+
+final class MetalMatmulTests: XCTestCase {
+    /// The GPU kernels against the core's CPU product for every format, on random weight blocks.
+    func testMetalKernelsMatchTheCPU() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("No Metal device") }
+        _ = try device.makeLibrary(source: MetalMatmul.source, options: nil)  // a compile error fails here, with its message
+        let formats: [(type: Int32, block: Int, bytes: Int)] = [(0, 1, 4), (1, 1, 2), (30, 1, 2), (2, 32, 18), (3, 32, 20), (6, 32, 22),
+                                                               (7, 32, 24), (8, 32, 34), (12, 256, 144), (13, 256, 176), (14, 256, 210)]
+        let cols = 512, rows = 37, batch = 11
+        var rng = SystemRandomNumberGenerator()
+        for f in formats {
+            let rowBytes = cols / f.block * f.bytes
+            let page = Int(getpagesize())
+            let memory = UnsafeMutableRawPointer.allocate(byteCount: (rowBytes * rows + page) / page * page, alignment: page)
+            defer { memory.deallocate() }
+            let w = memory.assumingMemoryBound(to: UInt8.self)
+            for i in 0..<rowBytes * rows { w[i] = UInt8.random(in: 0...255, using: &rng) }
+            func setHalf(_ at: Int, _ bits: UInt16) { w[at] = UInt8(bits & 0xFF); w[at + 1] = UInt8(bits >> 8) }
+            for r in 0..<rows {
+                for blk in 0..<rowBytes / f.bytes {
+                    let at = r * rowBytes + blk * f.bytes
+                    switch f.type {
+                    case 0: memory.storeBytes(of: Float.random(in: -1...1, using: &rng), toByteOffset: at, as: Float.self)
+                    case 1: setHalf(at, 0x3000 | UInt16.random(in: 0...0x3FF, using: &rng) | (Bool.random(using: &rng) ? 0x8000 : 0))
+                    case 30: setHalf(at, UInt16(Float.random(in: -1...1, using: &rng).bitPattern >> 16))
+                    case 14: setHalf(at + 208, 0x211F)  // d ≈ 0.01
+                    default:
+                        setHalf(at, 0x251F)  // d ≈ 0.02
+                        if f.type == 3 || f.type == 7 || f.type >= 12 { setHalf(at + 2, 0x211F) }
+                    }
+                }
+            }
+            let gpu = try XCTUnwrap(MetalMatmul(base: memory, size: rowBytes * rows, device: device))
+            let x = (0..<batch * cols).map { _ in Float.random(in: -1...1, using: &rng) }
+            var cpu = [Float](repeating: 0, count: batch * rows), out = cpu
+            XCTAssertEqual(sieda_llm_cpu_matmul(memory, f.type, Int64(cols), Int64(rows), UInt64(rowBytes), x, Int32(batch), &cpu), 1)
+            XCTAssertTrue(gpu.multiply(offset: 0, type: f.type, cols: Int64(cols), rows: Int64(rows), rowBytes: UInt64(rowBytes),
+                                       x: x, batch: Int32(batch), y: &out))
+            let scale = cpu.map(abs).max() ?? 1
+            let worst = zip(cpu, out).map { abs($0 - $1) }.max() ?? 0
+            XCTAssertLessThan(worst, 1e-4 * scale + 1e-5, "type \(f.type)")
+        }
+        // Formats and shapes the kernel does not take go back to the CPU.
+        let one = UnsafeMutableRawPointer.allocate(byteCount: Int(getpagesize()), alignment: Int(getpagesize()))
+        defer { one.deallocate() }
+        let gpu = try XCTUnwrap(MetalMatmul(base: one, size: 64, device: device))
+        var y: [Float] = [0]
+        XCTAssertFalse(gpu.multiply(offset: 0, type: 99, cols: 32, rows: 1, rowBytes: 34, x: [Float](repeating: 1, count: 32), batch: 1, y: &y))
+        XCTAssertFalse(gpu.multiply(offset: 0, type: 8, cols: 32, rows: 1000, rowBytes: 34, x: [Float](repeating: 1, count: 32), batch: 1, y: &y))
+    }
+}

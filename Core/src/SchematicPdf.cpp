@@ -162,7 +162,7 @@ std::string pdfString(const std::string& s) {
 struct PdfFonts {
     const TrueTypeFont* font = nullptr;
     std::set<int> glyphs;
-    std::map<int, uint32_t> unicodeOf;  // glyph → code point (ToUnicode, for copying text out of the PDF)
+    std::map<int, std::vector<uint32_t>> unicodeOf;  // glyph → its text (ToUnicode, for copying text out of the PDF)
 };
 
 /// Content stream writer in millimetres (y up from the page bottom).
@@ -196,53 +196,102 @@ public:
         rect(x - r, y - r, 2 * r, 2 * r, true);
     }
     /// Text with its baseline at y; align 0 left, 1 centre, 2 right (approximate Helvetica width). Latin text in
-    /// Helvetica, Greek and math signs in Symbol, anything else from the embedded font ('?' without one).
+    /// Helvetica, Greek and math signs in Symbol, anything else from the embedded font ('?' without one), shaped as a
+    /// run (TrueTypeFont::shape: conjuncts, Arabic joining, right-to-left words) with its glyph offsets.
     void text(double x, double y, double sizeMm, const std::string& s, int align = 0, bool bold = false) {
         struct Run {
             int font;  // 1 Helvetica (2 bold), 3 Symbol, 4 embedded
             std::string bytes;
+            std::vector<uint32_t> cps;  // font 4: the code points, shaped below
+            std::vector<TrueTypeFont::Shaped> glyphs;
         };
         std::vector<Run> runs;
         double width = 0;
         auto add = [&](int font, const std::string& bytes, double w) {
-            if (runs.empty() || runs.back().font != font) runs.push_back({font, std::string()});
+            if (runs.empty() || runs.back().font != font) runs.push_back({font, std::string(), {}, {}});
             runs.back().bytes += bytes;
             width += w;
         };
+        const TrueTypeFont* font = fonts_ ? fonts_->font : nullptr;
         const int latin = bold ? 2 : 1;
         for (uint32_t cp : codepoints(s)) {
             if (cp < 0x20) continue;
-            if (const unsigned char b = winAnsi(cp)) {
+            // A space between words of the embedded font stays in its run, so right-to-left words keep their order.
+            const bool inRun = cp == ' ' && !runs.empty() && runs.back().font == 4 && font->glyph(cp);
+            if (const unsigned char b = inRun ? 0 : winAnsi(cp)) {
                 add(latin, std::string(1, static_cast<char>(b)), 0.52 * sizeMm);
-            } else if (const unsigned char sym = symbolFont(cp)) {
+            } else if (const unsigned char sym = inRun ? 0 : symbolFont(cp)) {
                 add(3, std::string(1, static_cast<char>(sym)), 0.55 * sizeMm);
-            } else if (const int g = fonts_ && fonts_->font ? fonts_->font->glyph(cp) : 0) {
-                fonts_->glyphs.insert(g);
-                fonts_->unicodeOf.emplace(g, cp);
-                add(4, std::string{static_cast<char>(g >> 8), static_cast<char>(g & 0xFF)}, fonts_->font->advance(g) * sizeMm);
+            } else if (font && font->glyph(cp)) {
+                add(4, std::string(), 0);
+                runs.back().cps.push_back(cp);
             } else {
                 add(latin, "?", 0.52 * sizeMm);
             }
         }
         if (runs.empty()) return;
+        for (Run& r : runs) {
+            if (r.font != 4) continue;
+            r.glyphs = font->shape(r.cps);
+            for (size_t i = 0; i < r.glyphs.size(); ++i) {
+                const auto& g = r.glyphs[i];
+                width += g.advance * sizeMm;
+                fonts_->glyphs.insert(g.glyph);
+                if (i == 0 || r.glyphs[i - 1].cluster != g.cluster) {  // the cluster's text, for copying it out
+                    size_t end = r.cps.size();
+                    for (const auto& o : r.glyphs) if (o.cluster > g.cluster) end = std::min(end, o.cluster);
+                    fonts_->unicodeOf.emplace(g.glyph, std::vector<uint32_t>(r.cps.begin() + g.cluster, r.cps.begin() + end));
+                }
+            }
+        }
         const double left = align == 1 ? x - width / 2 : align == 2 ? x - width : x;
         out_ << "BT";
         for (size_t i = 0; i < runs.size(); ++i) {
             out_ << " /F" << runs[i].font << ' ' << num(sizeMm * kPt) << " Tf";
             if (i == 0) out_ << ' ' << num(left * kPt) << ' ' << num((h_ - y) * kPt) << " Td";
-            if (runs[i].font == 4) {
-                out_ << " <";
-                char hex[4];
-                for (char ch : runs[i].bytes) {
-                    std::snprintf(hex, sizeof hex, "%02X", static_cast<unsigned char>(ch));
-                    out_ << hex;
-                }
-                out_ << "> Tj";
-            } else {
-                out_ << ' ' << pdfBytes(runs[i].bytes) << " Tj";
-            }
+            if (runs[i].font == 4) glyphRun(runs[i].glyphs, sizeMm);
+            else out_ << ' ' << pdfBytes(runs[i].bytes) << " Tj";
         }
         out_ << " ET\n";
+    }
+    /// Shaped glyphs: Tj while they sit at the font's own advances, else a TJ with the moves, Ts for raised marks.
+    void glyphRun(const std::vector<TrueTypeFont::Shaped>& glyphs, double sizeMm) {
+        std::vector<std::string> items;  // "<gid>" or a TJ move in 1/1000 em
+        double natural = 0, pen = 0, rise = 0;
+        bool moved = false;
+        auto flush = [&] {
+            if (items.empty()) return;
+            out_ << (moved ? " [" : " <");
+            for (size_t k = 0; k < items.size(); ++k)
+                out_ << (moved ? (k ? " " : "") + items[k] : items[k].substr(1, items[k].size() - 2));
+            out_ << (moved ? "] TJ" : "> Tj");
+            items.clear();
+            moved = false;
+        };
+        auto move = [&](double to) {
+            if (std::fabs(to - natural) < 1e-4) return;
+            char b[32];
+            std::snprintf(b, sizeof b, "%.0f", (natural - to) * 1000);
+            items.push_back(b);
+            moved = true;
+            natural = to;
+        };
+        for (const auto& g : glyphs) {
+            move(pen + g.dx);
+            if (std::fabs(g.dy - rise) > 1e-4) {
+                flush();
+                rise = g.dy;
+                out_ << ' ' << num(rise * sizeMm * kPt) << " Ts";
+            }
+            char hex[8];
+            std::snprintf(hex, sizeof hex, "<%04X>", static_cast<unsigned>(g.glyph));
+            items.push_back(hex);
+            natural += fonts_->font->advance(g.glyph);
+            pen += g.advance;
+        }
+        move(pen);
+        flush();
+        if (rise != 0) out_ << " 0 Ts";
     }
     void useFonts(PdfFonts* fonts) { fonts_ = fonts; }
     std::string str() const { return out_.str(); }
@@ -863,21 +912,25 @@ std::string exportSchematicPdf(const Project& project, const SchematicPdfOptions
         std::string cmap = "/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) "
                            "/Ordering (UCS) /Supplement 0 >> def /CMapName /Adobe-Identity-UCS def /CMapType 2 def 1 "
                            "begincodespacerange <0000> <FFFF> endcodespacerange\n";
-        std::vector<std::pair<int, uint32_t>> pairs(fonts.unicodeOf.begin(), fonts.unicodeOf.end());
+        std::vector<std::pair<int, std::vector<uint32_t>>> pairs(fonts.unicodeOf.begin(), fonts.unicodeOf.end());
         for (size_t i = 0; i < pairs.size(); i += 100) {
             const size_t n = std::min<size_t>(100, pairs.size() - i);
             cmap += std::to_string(n) + " beginbfchar\n";
             for (size_t k = i; k < i + n; ++k) {
-                char line[64];
-                const uint32_t cp = pairs[k].second;
-                if (cp >= 0x10000) {
-                    const uint32_t v = cp - 0x10000;
-                    std::snprintf(line, sizeof line, "<%04X> <%04X%04X>\n", static_cast<unsigned>(pairs[k].first),
-                                  static_cast<unsigned>(0xD800 + (v >> 10)), static_cast<unsigned>(0xDC00 + (v & 0x3FF)));
-                } else {
-                    std::snprintf(line, sizeof line, "<%04X> <%04X>\n", static_cast<unsigned>(pairs[k].first), static_cast<unsigned>(cp));
+                char unit[16];
+                std::snprintf(unit, sizeof unit, "<%04X> <", static_cast<unsigned>(pairs[k].first));
+                cmap += unit;
+                for (uint32_t cp : pairs[k].second) {  // UTF-16
+                    if (cp >= 0x10000) {
+                        const uint32_t v = cp - 0x10000;
+                        std::snprintf(unit, sizeof unit, "%04X", static_cast<unsigned>(0xD800 + (v >> 10)));
+                        cmap += unit;
+                        cp = 0xDC00 + (v & 0x3FF);
+                    }
+                    std::snprintf(unit, sizeof unit, "%04X", static_cast<unsigned>(cp));
+                    cmap += unit;
                 }
-                cmap += line;
+                cmap += ">\n";
             }
             cmap += "endbfchar\n";
         }

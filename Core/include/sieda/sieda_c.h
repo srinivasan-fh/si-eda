@@ -1056,6 +1056,33 @@ int32_t sieda_mcp_set_project_path(SiedaMcpServer* server, const char* path);
  * "mutates"}]. Caller frees. */
 char* sieda_mcp_tools_json(void);
 
+/* ---- built-in language model (LocalModel.hpp, docs/AI.md) --------------------------------------------------------
+ * Runs a GGUF model file (Llama, Mistral, Qwen 2 / 2.5 / 3; F16 … Q4_K) on the CPU, with no outside library. One model
+ * object is used from one thread at a time. */
+typedef struct SiedaLlm SiedaLlm;
+/* NULL on failure with *error_out (free with sieda_string_free). */
+SiedaLlm* sieda_llm_open(const char* path, char** error_out);
+void sieda_llm_close(SiedaLlm* model);
+/* {"architecture","name","parameters","layers","context","vocabulary","quantization","bytes"} */
+char* sieda_llm_info_json(const SiedaLlm* model);
+/* Answers one system + user turn in the model's chat format. options_json (may be NULL):
+ * {"maxTokens":2048,"temperature":0,"topP":0.95,"seed":1,"threads":0,"json":false}; "json" makes the reply one JSON object.
+ * on_text (may be NULL) receives each piece of text as it is made; returning 0 stops early. Returns the reply (caller
+ * frees), or NULL with *error_out. */
+char* sieda_llm_chat(SiedaLlm* model, const char* system, const char* user, const char* options_json,
+                     int32_t (*on_text)(const char* piece, void* context), void* context, char** error_out);
+/* GPU back-end for the matrix products (the app's Metal kernels): fn gets the weight rows `offset` bytes into the model
+ * file (sieda_llm_file), the GGUF tensor type, row length `cols`, `rows`, `row_bytes` and `batch` input vectors
+ * x (batch × cols floats); it writes y (batch × rows) and returns 1, or 0 to let the CPU do it. NULL fn = CPU only. */
+typedef int32_t (*SiedaLlmMatmul)(void* context, uint64_t offset, int32_t type, int64_t cols, int64_t rows,
+                                  uint64_t row_bytes, const float* x, int32_t batch, float* y);
+void sieda_llm_set_accelerator(SiedaLlm* model, SiedaLlmMatmul fn, void* context);
+/* The model file in memory (page-aligned when memory-mapped); *size receives its length. */
+const void* sieda_llm_file(const SiedaLlm* model, uint64_t* size);
+/* The CPU's product for the same arguments, from `weights` (tests of a GPU back-end). 0 for an unknown type. */
+int32_t sieda_llm_cpu_matmul(const void* weights, int32_t type, int64_t cols, int64_t rows, uint64_t row_bytes,
+                             const float* x, int32_t batch, float* y);
+
 #ifdef __cplusplus
 }
 #endif

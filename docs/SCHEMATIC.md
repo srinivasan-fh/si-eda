@@ -370,8 +370,10 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   IC, fuse and ground turned with the part; library parts with their own body box and Symbol Editor drawings, units
   with their unit box; label flags, sheet symbols and harness connector bodies. **Text**: Latin (WinAnsi) in
   Helvetica, Greek letters and math signs (Ω, µ, ≤, ∞ …) from the Symbol font, and every other script from a
-  subset of a system TrueType font embedded in the file (macOS: *Arial Unicode*; glyphs one per character — scripts
-  that need shaping, such as Devanagari conjuncts or Arabic joining, print unshaped). Without such a font those
+  subset of a system TrueType font embedded in the file (macOS: *Arial Unicode*). When the core is built with HarfBuzz
+  (found by CMake; option `SIEDA_HARFBUZZ`) each run of that text is shaped: Devanagari and other Indic conjuncts and
+  reordering, Arabic joining and right-to-left words, marks at their offsets; copying text out of the PDF gives the
+  original characters. Without HarfBuzz the glyphs go one per character, as before. Without such a font those
   characters print as `?`. The file stays plain ASCII (the font as hex). C API
   `sieda_export_schematic_pdf_with_font`.
 - **Update PCB** (options bar ▸ Back Annotate menu ▸ Update PCB; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
@@ -637,8 +639,9 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   variants of the same name in the target design.
 - Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation, a WAS / IS text or the
   board's pin / gate swap tool); repeated-sheet parts are not renamed from the board.
-- The PDF's text is unshaped (one glyph per character) and needs a glyf-outline TrueType font for scripts beyond
-  Latin / Greek; CFF (`.otf`) fonts are not embedded. A frame fixed so that the drawing sticks out of it prints
+- PDF text is shaped only with HarfBuzz (the Xcode app's own build does not link it), one run at a time: a line
+  mixing Latin and right-to-left text keeps its runs in typed order (no bidi reordering across scripts). It needs a
+  glyf-outline TrueType font for scripts beyond Latin / Greek; CFF (`.otf`) fonts are not embedded. A frame fixed so that the drawing sticks out of it prints
   scaled to fit, as before.
 - Update PCB first places new parts with the automatic placer; placing them by hand afterwards moves them one at a
   time (no block placement of a group, no push-aside of other parts). The board reads parts and nets from

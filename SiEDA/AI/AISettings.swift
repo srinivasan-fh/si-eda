@@ -257,6 +257,8 @@ final class AISettings: ObservableObject {
             return OpenAIProvider(apiKey: apiKey(for: .openRouter), model: model(for: .openRouter),
                                   baseURL: AIProviderKind.openRouter.defaultBaseURL, name: "OpenRouter",
                                   extraHeaders: ["X-Title": "SiEDA"])
+        case .builtIn:
+            return BuiltInProvider(model: model(for: .builtIn))
         case .ollama:
             return OllamaProvider(model: model(for: .ollama), baseURL: baseURL(for: .ollama))
         case .offline:

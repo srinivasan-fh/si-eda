@@ -1288,3 +1288,9 @@
 "Clock / strobe pair P to N (ps)" = "クロック / ストローブ対 P–N 間 (ps)";
 "Extra parts per line for assembly loss (pick-and-place attrition)" = "実装ロス（ピックアンドプレース）に備えた行ごとの予備部品";
 "Spares" = "予備";
+"Use" = "使用";
+"Download" = "ダウンロード";
+"Import GGUF File…" = "GGUF ファイルを読み込む…";
+"Model URL (.gguf)" = "モデルの URL (.gguf)";
+"Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "内蔵モデルは SiEDA 独自のエンジンでこの Mac 上で動作します。他のアプリは不要で、ダウンロード後はネットワークも不要です。小さいモデルは速く答え、大きいモデルはより良い設計をします。";
+"Use the GPU (Metal)" = "GPU を使う (Metal)";

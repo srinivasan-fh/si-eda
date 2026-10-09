@@ -1288,3 +1288,9 @@
 "Clock / strobe pair P to N (ps)" = "时钟 / 选通差分对 P 到 N (ps)";
 "Extra parts per line for assembly loss (pick-and-place attrition)" = "每行为贴装损耗（贴片机抛料）预留的备件";
 "Spares" = "备件";
+"Use" = "使用";
+"Download" = "下载";
+"Import GGUF File…" = "导入 GGUF 文件…";
+"Model URL (.gguf)" = "模型 URL (.gguf)";
+"Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "内置模型使用 SiEDA 自己的引擎在这台 Mac 上运行：无需其他应用，下载后也无需网络。小模型回答更快，大模型设计得更好。";
+"Use the GPU (Metal)" = "使用 GPU (Metal)";
