@@ -113,7 +113,7 @@ def write_gguf(model, tok, path):
     w.add_rope_freq_base(CFG["rope"])
     w.add_file_type(gguf.LlamaFileType.ALL_F32)
     w.add_tokenizer_model("gpt2")
-    w.add_tokenizer_pre("gpt2")
+    w.add_tokenizer_pre("default")  # the GPT-2 split (llama.cpp's name)
     w.add_token_list(tokens)
     w.add_token_types([3 if t in SPECIALS else 1 for t in tokens])
     w.add_token_merges(merges)
