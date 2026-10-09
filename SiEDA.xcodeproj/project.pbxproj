@@ -123,6 +123,7 @@
 		998FB69AF8575AC8CC2D0D22 = {isa = PBXBuildFile; fileRef = 2D0D08EA04C82C4F8F255643; };
 		9BCA7E409A5C888AD4015152 = {isa = PBXBuildFile; fileRef = EBD63F285616B480506CE487; };
 		9BD1EFC37CFEB2FCF1B54EE8 = {isa = PBXBuildFile; fileRef = D3E15B9053DA257C9A5751E7; };
+		9C38D5DEB7B5AD295C4A9958 = {isa = PBXBuildFile; fileRef = 81D9A7FCAA494FC76B2C83E3; };
 		9D1071AAC3C84E5B9F9D6B39 = {isa = PBXBuildFile; fileRef = ADD9C234BD8825A5E6022F7A; };
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
 		9EAA0CE5E58FE55480669B64 = {isa = PBXBuildFile; fileRef = AA4AB23447B95722FF60AB2A; };
@@ -377,6 +378,7 @@
 		80BDB171C5EBFDFEAE8F3C02 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CustomParts.hpp; sourceTree = "<group>"; };
 		80E356175BDB80AB2AB4E5ED = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Aerospace.hpp; sourceTree = "<group>"; };
 		80E8D809F4A6CA446F4FD5F8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		81D9A7FCAA494FC76B2C83E3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircuitModel.swift; sourceTree = "<group>"; };
 		8293CD35D646C442EB4F72F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Channel.cpp; sourceTree = "<group>"; };
 		833CC0D371F8BDA60C967CC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Export.hpp; sourceTree = "<group>"; };
 		84966DF7BFC55F50B9962345 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerPlanningView.swift; sourceTree = "<group>"; };
@@ -708,6 +710,7 @@
 				0CF3E02226CCD062D60E465B,
 				7D7EAB4C388AA300019C8810,
 				185A7FEDCC550688A03D3A45,
+				81D9A7FCAA494FC76B2C83E3,
 				2CB815EC0203E93D606FDC12,
 				9B780D9F59521D3BDF902353,
 				130DCFF99FAB6E8ACBCBCE36,
@@ -1149,6 +1152,7 @@
 				490492F5B0B030AB5D57C454,
 				4075D229299725DAE075503B,
 				D05A84F3A7525AD5FD646908,
+				9C38D5DEB7B5AD295C4A9958,
 				61C5665FE4659BE3BACF1121,
 				49D121232DDFBC0445D83F9B,
 				FC4308351677E9A8852C2E2A,

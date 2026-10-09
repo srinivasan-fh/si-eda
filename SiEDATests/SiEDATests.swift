@@ -8175,3 +8175,18 @@ final class IntelligenceWindowTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.width, 0)
     }
 }
+
+final class CircuitModelTests: XCTestCase {
+    /// SiEDA's own circuit model ships in the app with its card, and writes a usable plan for a benchmark request.
+    func testBundledCircuitModelWritesAPlan() async throws {
+        let card = try XCTUnwrap(CircuitModel.card)
+        XCTAssertGreaterThan(card.trainPairs, 1000)
+        XCTAssertFalse(card.benchmark.isEmpty)
+        let path = try XCTUnwrap(CircuitModel.bundledURL).path
+        let result = try await CircuitModel.plan(for: card.benchmark[0].prompt, path: path)
+        XCTAssertNil(CircuitModel.check(result.plan))
+        var broken = result.plan
+        broken.connections.append(PlannedConnection(from: "ZZ9.1", to: broken.components[0].ref + ".1"))
+        XCTAssertNotNil(CircuitModel.check(broken))
+    }
+}
