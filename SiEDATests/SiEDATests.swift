@@ -537,7 +537,7 @@ final class IndustryKitTests: XCTestCase {
         let ids = StandardLibrary.industries.map(\.id)
         XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                              "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin",
-                             "retail", "appliance", "memory"])
+                             "retail", "appliance", "memory", "iot"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
