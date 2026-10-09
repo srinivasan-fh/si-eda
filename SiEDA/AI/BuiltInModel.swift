@@ -107,7 +107,7 @@ final class LocalModelStore: ObservableObject {
     }
 
     /// Open-licence (Apache 2.0) instruction models; any other GGUF file can be imported or downloaded by URL.
-    static let catalog: [Download] = [
+    nonisolated static let catalog: [Download] = [
         Download(file: "qwen2.5-1.5b-instruct-q4_k_m.gguf", title: "Qwen 2.5 1.5B Instruct", size: "1.1 GB",
                  url: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"),
         Download(file: "Qwen2.5-7B-Instruct-Q4_K_M.gguf", title: "Qwen 2.5 7B Instruct", size: "4.7 GB",
