@@ -1293,3 +1293,4 @@
 "Import GGUF File…" = "匯入 GGUF 檔案…";
 "Model URL (.gguf)" = "模型 URL (.gguf)";
 "Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "內建模型使用 SiEDA 自己的引擎在這台 Mac 上執行：不需要其他 App，下載後也不需要網路。小模型回答更快，大模型設計得更好。";
+"Use the GPU (Metal)" = "使用 GPU (Metal)";

@@ -476,6 +476,7 @@ struct LocalModel::Impl {
     std::vector<int> stops;
 
     // runtime
+    LocalModel::Accelerator accelerator;
     std::unique_ptr<Pool> pool;
     std::vector<uint16_t> kCache, vCache;
     int ctx = 0;
@@ -873,6 +874,7 @@ struct LocalModel::Impl {
     void matmul(const Tensor& w, const float* x, int batch, float* y, int64_t rows = -1) {
         if (rows < 0) rows = w.ne1;
         const int64_t n = w.ne0;
+        if (accelerator && accelerator(static_cast<uint64_t>(w.data - base), w.type, n, rows, w.rowBytes, x, batch, y)) return;
         pool->run(rows, [&](int64_t r0, int64_t r1) {
             std::vector<float> row(static_cast<size_t>(w.type == 0 ? 0 : n));
             for (int64_t r = r0; r < r1; ++r) {
@@ -1057,6 +1059,30 @@ bool LocalModel::load(const std::string& path, std::string* error) {
 }
 
 bool LocalModel::valid() const { return impl_ != nullptr; }
+
+void LocalModel::setAccelerator(Accelerator accelerator) {
+    if (impl_) impl_->accelerator = std::move(accelerator);
+}
+
+const uint8_t* LocalModel::fileData(size_t* size) const {
+    if (size) *size = impl_ ? impl_->size : 0;
+    return impl_ ? impl_->base : nullptr;
+}
+
+bool LocalModel::cpuMatmul(const uint8_t* weights, int type, int64_t cols, int64_t rows, size_t rowBytes, const float* x,
+                           int batch, float* y) {
+    const Format f = formatOf(type);
+    if (!weights || f.block == 0 || cols <= 0 || cols % f.block != 0 || rows < 0 || batch < 0 ||
+        rowBytes != static_cast<size_t>(cols / f.block * f.bytes))
+        return false;
+    std::vector<float> row(static_cast<size_t>(cols));
+    for (int64_t r = 0; r < rows; ++r) {
+        dequantize(type, weights + static_cast<size_t>(r) * rowBytes, cols, row.data());
+        for (int b = 0; b < batch; ++b)
+            y[static_cast<size_t>(b) * static_cast<size_t>(rows) + static_cast<size_t>(r)] = dot(row.data(), x + static_cast<size_t>(b) * static_cast<size_t>(cols), cols);
+    }
+    return true;
+}
 
 std::string LocalModel::infoJson() const {
     if (!impl_) return "{}";

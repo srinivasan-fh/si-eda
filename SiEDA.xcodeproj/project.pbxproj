@@ -167,6 +167,7 @@
 		D05A84F3A7525AD5FD646908 = {isa = PBXBuildFile; fileRef = 185A7FEDCC550688A03D3A45; };
 		D0BAFDEC616A80CA7ED031B6 = {isa = PBXBuildFile; fileRef = 80E8D809F4A6CA446F4FD5F8; };
 		D0DE83284A0ADF3CE958D7F0 = {isa = PBXBuildFile; fileRef = 0B047E6B6CA14C24D4B0C2FD; };
+		D1A44433FEFC731C940F4D3B = {isa = PBXBuildFile; fileRef = 753F248283F0ED684D6BE26C; };
 		D20DDB8EBCC3CAE2AA504F85 = {isa = PBXBuildFile; fileRef = 4B40A13838EF4909CCB49D9A; };
 		D2BC6252017E8B9C5D188C94 = {isa = PBXBuildFile; fileRef = D156DE043960324A44FBB5D4; };
 		D303B72146ED6E93F970928C = {isa = PBXBuildFile; fileRef = AD55190557EC704E38B2BEAA; };
@@ -357,6 +358,7 @@
 		7390FF29C91C1F7CA969E087 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SchematicPdf.cpp; sourceTree = "<group>"; };
 		73FB164A362C386F2070046E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = StandardParts.hpp; sourceTree = "<group>"; };
 		741C52122DEF5564C48187C2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupplierPlacement.swift; sourceTree = "<group>"; };
+		753F248283F0ED684D6BE26C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalMatmul.swift; sourceTree = "<group>"; };
 		754F9843AC5AAB513A6742B2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Project.cpp; sourceTree = "<group>"; };
 		75EA9BC87CA2CE5A4537B5AA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SchematicSearch.hpp; sourceTree = "<group>"; };
 		7623DA9341CCCB7CEF3EAB42 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDAEngine.swift; sourceTree = "<group>"; };
@@ -706,6 +708,7 @@
 				185A7FEDCC550688A03D3A45,
 				2CB815EC0203E93D606FDC12,
 				9B780D9F59521D3BDF902353,
+				753F248283F0ED684D6BE26C,
 				5B677B1CF7DF150184E961B2,
 				7240EC7A71DCA0DFCC205FBA,
 			);
@@ -1145,6 +1148,7 @@
 				D05A84F3A7525AD5FD646908,
 				61C5665FE4659BE3BACF1121,
 				49D121232DDFBC0445D83F9B,
+				D1A44433FEFC731C940F4D3B,
 				68D48DAD17D325679CCABD65,
 				05D6128DD9BE6AF8A4BC311F,
 				A2CE916CEF229F47742B9BBA,

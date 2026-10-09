@@ -26,19 +26,31 @@ struct BuiltInProvider: AIProvider {
 /// One loaded model (kept between requests) and a serial queue that runs it off the main thread.
 final class LocalLLM {
     private static let queue = DispatchQueue(label: "SiEDA.LocalLLM", qos: .userInitiated)
-    private static var loaded: (path: String, model: LocalLLM)?
+    private static var loaded: (key: String, model: LocalLLM)?
+    /// Settings → AI → Built-in “Use the GPU (Metal)” (on by default).
+    static var useGPU: Bool { UserDefaults.standard.object(forKey: "ai.builtIn.gpu") as? Bool ?? true }
 
     private let handle: OpaquePointer
+    private var gpu: MetalMatmul?
 
-    private init(path: String) throws {
+    private init(path: String, gpu useGPU: Bool) throws {
         var error: UnsafeMutablePointer<CChar>?
         guard let handle = sieda_llm_open(path, &error) else {
             throw AIProviderError.invalidResponse(EDAEngine.take(error) ?? "The model could not be opened.")
         }
         self.handle = handle
+        var size: UInt64 = 0
+        if useGPU, let base = sieda_llm_file(handle, &size), let gpu = MetalMatmul(base: base, size: Int(size)) {
+            self.gpu = gpu
+            sieda_llm_set_accelerator(handle, MetalMatmul.callback, Unmanaged.passUnretained(gpu).toOpaque())
+        }
     }
 
-    deinit { sieda_llm_close(handle) }
+    deinit {
+        sieda_llm_set_accelerator(handle, nil, nil)
+        gpu = nil  // its buffer points into the mapped file: release it before the file is unmapped
+        sieda_llm_close(handle)
+    }
 
     /// Answers on the model's queue; cancelling the calling task stops the generation.
     static func run(path: String, system: String, user: String, maxTokens: Int) async throws -> String {
@@ -47,9 +59,10 @@ final class LocalLLM {
             try await withCheckedThrowingContinuation { continuation in
                 queue.async {
                     do {
-                        if loaded?.path != path {
+                        let gpu = useGPU, key = path + (gpu ? "#gpu" : "")
+                        if loaded?.key != key {
                             loaded = nil  // free the old model before mapping the new one
-                            loaded = (path, try LocalLLM(path: path))
+                            loaded = (key, try LocalLLM(path: path, gpu: gpu))
                         }
                         continuation.resume(returning: try loaded!.model.chat(system: system, user: user, maxTokens: maxTokens, cancelled: cancelled))
                     } catch {
@@ -222,12 +235,14 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
 struct BuiltInModelsView: View {
     @EnvironmentObject private var settings: AISettings
     @ObservedObject private var store = LocalModelStore.shared
+    @AppStorage("ai.builtIn.gpu") private var useGPU = true
     @State private var link = ""
 
     var body: some View {
         Text("Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better.")
             .font(.caption)
             .foregroundStyle(Theme.textMuted)
+        Toggle("Use the GPU (Metal)", isOn: $useGPU)
         ForEach(store.files, id: \.self) { file in
             HStack {
                 Image(systemName: settings.model(for: .builtIn) == file ? "checkmark.circle.fill" : "circle")

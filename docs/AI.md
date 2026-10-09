@@ -21,7 +21,13 @@ API key, and no network once the model file is downloaded.
   does not depend on the thread count). The chat format (ChatML, Llama 3, Mistral) comes from the file's template;
   the reply is constrained to start with `{` and stops when the JSON object closes. Requests ask for JSON following
   the agent's schema, written into the prompt.
-- **Speed and memory.** CPU only. Memory is about the file size plus a small KV cache. Measured on a 4-core x86 cloud
+- **GPU.** On a Mac with Metal (every Apple Silicon Mac), *Use the GPU (Metal)* (on by default) runs the matrix
+  products — nearly all of the work — on the GPU (`SiEDA/AI/MetalMatmul.swift`): one no-copy buffer over the mapped
+  file, one 32-wide threadgroup per weight row and per 8 inputs, the same block arithmetic as the CPU (the test
+  `testMetalKernelsMatchTheCPU` holds every format to the CPU's result). Attention, norms and sampling stay on the
+  CPU; a format or file the GPU cannot take (or a Mac without Metal) falls back to the CPU. The core sees the GPU only
+  through `LocalModel::setAccelerator` / `sieda_llm_set_accelerator`, so it stays portable.
+- **Speed and memory.** CPU numbers (the GPU is faster on a Mac, not measured here). Memory is about the file size plus a small KV cache. Measured on a 4-core x86 cloud
   machine with a 0.5B-size Q4_K_M model: about 55 prompt tokens / s and 7 generated tokens / s (13 with AVX2).
   Expect larger models to be proportionally slower; a 1.5B model is a good default for small circuits, a 7B one
   designs better but takes minutes per plan.

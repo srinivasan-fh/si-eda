@@ -46,7 +46,7 @@
 - Built-in AI model (no outside app): engine in `Core/src/LocalModel.cpp` (GGUF reader, F16…Q6_K blocks, Llama / Mistral /
   Qwen transformer, BPE + SentencePiece tokenizers; tokens equal and logits within 0.5 % of exact — tests against
   llama.cpp fixtures from `tools/make_llm_fixtures.py`), C API `sieda_llm_*` in `Core/src/sieda_c_llm.cpp`, CLI
-  `sieda-cli --chat`; app `SiEDA/AI/BuiltInModel.swift` (`BuiltInProvider`, `LocalModelStore` downloads / imports /
+  `sieda-cli --chat`; app `SiEDA/AI/BuiltInModel.swift` (`BuiltInProvider`, Metal GPU matmul `MetalMatmul.swift` via `sieda_llm_set_accelerator`, `LocalModelStore` downloads / imports /
   deletes models, `BuiltInModelsView`); guide in `docs/AI.md`.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).

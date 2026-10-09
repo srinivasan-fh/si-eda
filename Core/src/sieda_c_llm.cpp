@@ -74,4 +74,28 @@ char* sieda_llm_chat(SiedaLlm* model, const char* system, const char* user, cons
     return nullptr;
 }
 
+void sieda_llm_set_accelerator(SiedaLlm* model, SiedaLlmMatmul fn, void* context) {
+    if (!model) return;
+    if (!fn) {
+        model->model.setAccelerator({});
+        return;
+    }
+    model->model.setAccelerator([fn, context](uint64_t offset, int type, int64_t cols, int64_t rows, size_t rowBytes,
+                                              const float* x, int batch, float* y) {
+        return fn(context, offset, type, cols, rows, rowBytes, x, batch, y) != 0;
+    });
+}
+
+const void* sieda_llm_file(const SiedaLlm* model, uint64_t* size) {
+    size_t n = 0;
+    const void* data = model ? model->model.fileData(&n) : nullptr;
+    if (size) *size = n;
+    return data;
+}
+
+int32_t sieda_llm_cpu_matmul(const void* weights, int32_t type, int64_t cols, int64_t rows, uint64_t row_bytes,
+                             const float* x, int32_t batch, float* y) {
+    return sieda::LocalModel::cpuMatmul(static_cast<const uint8_t*>(weights), type, cols, rows, row_bytes, x, batch, y) ? 1 : 0;
+}
+
 }  // extern "C"

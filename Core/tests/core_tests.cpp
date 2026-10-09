@@ -16998,6 +16998,19 @@ TEST(local_model_matches_llama_cpp) {
                 CHECK(worst < tolerance * scale && best == refBest);
             }
             CHECK(model.logits(want, 4) == logits);  // the thread count does not change the result
+            // A GPU-style back-end gets every matrix product by file offset and returns the same numbers.
+            size_t fileSize = 0;
+            const uint8_t* file = model.fileData(&fileSize);
+            int calls = 0;
+            model.setAccelerator([&](uint64_t offset, int type, int64_t cols, int64_t rows, size_t rowBytes, const float* x, int batch, float* y) {
+                ++calls;
+                return offset + rowBytes * static_cast<uint64_t>(rows) <= fileSize &&
+                       LocalModel::cpuMatmul(file + offset, type, cols, rows, rowBytes, x, batch, y);
+            });
+            CHECK(model.logits(want, 2) == logits && calls > 0);
+            model.setAccelerator([](uint64_t, int, int64_t, int64_t, size_t, const float*, int, float*) { return false; });
+            CHECK(model.logits(want, 2) == logits);  // declined: the CPU runs it
+            model.setAccelerator({});
         }
     }
 }

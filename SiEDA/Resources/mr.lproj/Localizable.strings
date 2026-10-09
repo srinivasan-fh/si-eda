@@ -1293,3 +1293,4 @@
 "Import GGUF File…" = "GGUF फाइल आयात करा…";
 "Model URL (.gguf)" = "मॉडेल URL (.gguf)";
 "Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "बिल्ट-इन मॉडेल SiEDA च्या स्वतःच्या इंजिनने याच Mac वर चालतात: दुसरे ॲप नाही, आणि डाउनलोडनंतर नेटवर्क नाही. लहान मॉडेल लवकर उत्तर देतात; मोठे अधिक चांगले डिझाइन करतात.";
+"Use the GPU (Metal)" = "GPU वापरा (Metal)";

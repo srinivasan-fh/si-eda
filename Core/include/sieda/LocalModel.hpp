@@ -47,6 +47,19 @@ public:
     /// Logits after the last of `tokens`, run from an empty context (tests).
     std::vector<float> logits(const std::vector<int>& tokens, int threads = 0);
 
+    /// A GPU (or other) back-end for the matrix products: gets the weight rows `offset` bytes into the model file
+    /// (fileData), their GGUF type, row length `cols`, `rows`, `rowBytes`, and `batch` input vectors x (batch × cols);
+    /// writes y (batch × rows) and returns true, or false to let the CPU do it.
+    using Accelerator = std::function<bool(uint64_t offset, int type, int64_t cols, int64_t rows, size_t rowBytes,
+                                           const float* x, int batch, float* y)>;
+    void setAccelerator(Accelerator accelerator);
+    /// The model file in memory (memory-mapped when opened with load), for a no-copy GPU buffer.
+    const uint8_t* fileData(size_t* size) const;
+    /// The CPU's product for the same arguments (one thread; tests of an accelerator). False for an unknown type or
+    /// a row length that is not a whole number of blocks.
+    static bool cpuMatmul(const uint8_t* weights, int type, int64_t cols, int64_t rows, size_t rowBytes, const float* x,
+                          int batch, float* y);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
