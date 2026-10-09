@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: HarfBuzz (PDF text shaping)
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y libharfbuzz-dev
+        run: sudo apt-get update -q && sudo apt-get install -y libharfbuzz-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSIEDA_WARNINGS_AS_ERRORS=ON
       - name: Build
