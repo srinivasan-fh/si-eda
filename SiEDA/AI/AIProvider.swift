@@ -73,6 +73,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
     case openAI
     case gemini
     case openRouter
+    case builtIn
     case ollama
     case offline
 
@@ -84,6 +85,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .openAI: return "OpenAI / Compatible"
         case .gemini: return "Google Gemini"
         case .openRouter: return "OpenRouter (Claude, GPT, Gemini…)"
+        case .builtIn: return "Built-in (On this Mac)"
         case .ollama: return "Ollama (Local)"
         case .offline: return "Offline Designer"
         }
@@ -95,6 +97,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .openAI: return "OpenAI"
         case .gemini: return "Gemini"
         case .openRouter: return "OpenRouter"
+        case .builtIn: return "Built-in"
         case .ollama: return "Ollama"
         case .offline: return "Offline"
         }
@@ -106,6 +109,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .openAI: return "brain"
         case .gemini: return "diamond"
         case .openRouter: return "arrow.triangle.branch"
+        case .builtIn: return "cpu"
         case .ollama: return "desktopcomputer"
         case .offline: return "wand.and.stars"
         }
@@ -120,6 +124,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .openAI: return "gpt-4.1"
         case .gemini: return "gemini-2.5-pro"
         case .openRouter: return "openrouter/auto"
+        case .builtIn: return LocalModelStore.installed().first ?? LocalModelStore.catalog[0].file
         case .ollama: return "llama3.1"
         case .offline: return "templates"
         }
@@ -132,6 +137,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .openAI: return ["gpt-4.1", "gpt-4o", "o4-mini"]
         case .gemini: return ["gemini-2.5-pro", "gemini-2.5-flash"]
         case .openRouter: return ["openrouter/auto"]
+        case .builtIn: return LocalModelStore.installed()
         case .ollama: return ["llama3.1", "qwen2.5", "mistral"]
         case .offline: return ["templates"]
         }

@@ -41,6 +41,7 @@
 #include "sieda/PdnPlanning.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/LocalModel.hpp"
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mcp.hpp"
@@ -16953,6 +16954,102 @@ TEST(pdf_real_symbols_and_unicode_text) {
     // A broken font is ignored.
     options.fontData = "not a font";
     CHECK(exportSchematicPdf(p, options).find("/F4") == std::string::npos);
+}
+
+namespace {
+std::string llmFixture(const std::string& name) {
+    std::ifstream in(std::string(SIEDA_FIXTURE_DIR) + "/llm/" + name, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), {});
+}
+}  // namespace
+
+TEST(local_model_matches_llama_cpp) {
+    // Tiny random-weight models quantised by llama.cpp (tools/make_llm_fixtures.py); its tokens and logits are the
+    // reference: Qwen 2 with byte-level BPE in Q4_K / Q6_K, Llama with SentencePiece in Q8_0.
+    const Json expected = Json::parse(llmFixture("expected.json"));
+    for (const char* arch : {"qwen2", "llama"}) {
+        LocalModel model;
+        std::string error;
+        CHECK(model.loadBytes(llmFixture(std::string("tiny-") + arch + (arch[0] == 'q' ? "-q4_k_m.gguf" : "-q8_0.gguf")), &error));
+        if (!model.valid()) { std::printf("    %s\n", error.c_str()); continue; }
+        CHECK(Json::parse(model.infoJson()).get("architecture").asString() == arch);
+        for (const Json& c : expected.get(arch).items()) {
+            std::vector<int> want, got = model.tokenize(c.get("text").asString(), true);
+            for (const Json& t : c.get("tokens").items()) want.push_back(static_cast<int>(t.asNumber()));
+            if (arch[0] == 'l') got.insert(got.begin(), 1);  // llama.cpp added the BOS
+            CHECK(got == want);
+            CHECK(model.detokenize(want) == (arch[0] == 'l' ? " " : "") + c.get("text").asString() ||
+                  c.get("text").asString().find("<|") != std::string::npos);
+            // Within 0.5 % of the exact float64 result and 3 % of llama.cpp (which rounds activations to 8 bits).
+            const auto logits = model.logits(want, 1);
+            for (const char* key : {"exact", "logits"}) {
+                const auto& ref = c.get(key).items();
+                CHECK(logits.size() == ref.size());
+                double worst = 0, scale = 0;
+                size_t best = 0, refBest = 0;
+                for (size_t i = 0; i < logits.size() && i < ref.size(); ++i) {
+                    worst = std::max(worst, std::fabs(logits[i] - ref[i].asNumber()));
+                    scale = std::max(scale, std::fabs(ref[i].asNumber()));
+                    if (logits[i] > logits[best]) best = i;
+                    if (ref[i].asNumber() > ref[refBest].asNumber()) refBest = i;
+                }
+                const double tolerance = key[0] == 'e' ? 0.005 : 0.03;
+                if (worst > tolerance * scale) std::printf("    %s %s: off by %.4f of %.2f\n", arch, key, worst, scale);
+                CHECK(worst < tolerance * scale && best == refBest);
+            }
+            CHECK(model.logits(want, 4) == logits);  // the thread count does not change the result
+        }
+    }
+}
+
+TEST(local_model_generates_and_refuses_damaged_files) {
+    LocalModel model;
+    CHECK(model.loadBytes(llmFixture("tiny-qwen2-q4_k_m.gguf")));
+    CHECK(model.chatPrompt("sys", "hi") == "<|im_start|>system\nsys<|im_end|>\n<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n");
+    LocalModel::Options o;
+    o.maxTokens = 12;
+    std::string streamed;
+    const std::string text = model.generate(model.chatPrompt("", "Route the USB pair"), o, [&](const std::string& s) {
+        streamed += s;
+        return true;
+    });
+    CHECK(!text.empty() && text == streamed && model.tokenize(text).size() <= 12);
+    CHECK(model.generate(model.chatPrompt("", "Route the USB pair"), o) == text);  // greedy repeats
+    o.temperature = 0.8;
+    o.seed = 5;
+    const std::string a = model.generate("Route", o), b = model.generate("Route", o);
+    CHECK(a == b);  // the same seed gives the same sample
+    o.json = true;
+    o.maxTokens = 40;
+    const std::string json = model.generate("Route", o);
+    CHECK(json.rfind("{", 0) == 0);
+    int stops = 0;
+    CHECK(model.generate("Route", o, [&](const std::string&) { return ++stops < 3; }).size() <= json.size() && stops == 3);
+    LocalModel llama;
+    CHECK(llama.loadBytes(llmFixture("tiny-llama-q8_0.gguf")) && llama.chatPrompt("s", "u") == "[INST] s\n\nu [/INST]");
+    // Damaged files are refused with a reason, never read past their end.
+    const std::string base = llmFixture("tiny-llama-q8_0.gguf");
+    uint32_t seed = 99;
+    auto rng = [&seed] { return (seed = seed * 1664525u + 1013904223u) >> 8; };
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        std::string bytes = base;
+        const size_t header = 8 + rng() % 60000;  // the metadata and tensor table (not just weights)
+        for (int k = 0, n = 1 + static_cast<int>(rng() % 6); k < n; ++k) bytes[rng() % std::min(bytes.size(), header)] = static_cast<char>(rng());
+        if (rng() % 8 == 0) bytes.resize(rng() % bytes.size());
+        LocalModel m;
+        std::string error;
+        if (m.loadBytes(bytes, &error)) {
+            ++loaded;
+            (void)m.tokenize("Route <s> the USB [INST]", true);
+            (void)m.logits({1, 2, 3});
+        } else {
+            CHECK(!error.empty());
+        }
+    }
+    CHECK(loaded > 10 && loaded < 300);
+    LocalModel none;
+    CHECK(!none.load("/nonexistent.gguf") && !none.loadBytes("GGUF") && !none.valid() && none.tokenize("x").empty());
 }
 
 TEST(pdf_text_shaping) {

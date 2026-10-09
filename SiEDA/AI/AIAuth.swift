@@ -50,7 +50,7 @@ extension AIProviderKind {
         case .openAI: return [.apiKey, .sso]
         case .gemini: return [.googleCloud, .apiKey]
         case .openRouter: return [.browser, .apiKey]
-        case .ollama, .offline: return []
+        case .builtIn, .ollama, .offline: return []
         }
     }
 }

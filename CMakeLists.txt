@@ -41,6 +41,8 @@ add_library(sieda_core STATIC
     Core/src/InteractivePlacement.cpp
     Core/src/SchematicPdf.cpp
     Core/src/PdfFont.cpp
+    Core/src/LocalModel.cpp
+    Core/src/sieda_c_llm.cpp
     Core/src/PcbSwap.cpp
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp

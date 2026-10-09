@@ -1288,3 +1288,8 @@
 "Clock / strobe pair P to N (ps)" = "ক্লক / ষ্ট্ৰ'ব যোৰ P ৰ পৰা N (ps)";
 "Extra parts per line for assembly loss (pick-and-place attrition)" = "সমাবেশৰ ক্ষতিৰ বাবে প্ৰতিটো শাৰীত অতিৰিক্ত অংশ (পিক-এণ্ড-প্লেচ হেৰুৱা)";
 "Spares" = "অতিৰিক্ত";
+"Use" = "ব্যৱহাৰ কৰক";
+"Download" = "ডাউনল'ড";
+"Import GGUF File…" = "GGUF ফাইল আমদানি কৰক…";
+"Model URL (.gguf)" = "মডেলৰ URL (.gguf)";
+"Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "বিল্ট-ইন মডেলবোৰ SiEDAৰ নিজৰ ইঞ্জিনেৰে এই Macত চলে: আন কোনো এপ নালাগে, ডাউনল'ডৰ পিছত নেটৱৰ্কো নালাগে। সৰু মডেলে সোনকালে উত্তৰ দিয়ে; ডাঙৰবোৰে ভালকৈ ডিজাইন কৰে।";

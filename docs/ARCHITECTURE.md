@@ -5,7 +5,7 @@
 │ Prompt Studio · Schematic · PCB · 3D · Simulation · Checks · Inspector · Settings  │
 │                     ▲ @Published DesignSnapshot / results                          │
 │ DesignStore (MainActor: undo stack, documents, analysis results, workspace)        │
-│ AgentOrchestrator ── AIProvider { Claude* | OpenAI | Gemini | Ollama | Offline }   │
+│ AgentOrchestrator ── AIProvider { Claude* | OpenAI | Gemini | Built-in | Ollama | … }│
 │                     │ DesignPlan (JSON schema-constrained)                         │
 │ DesignPlanCompiler ─┘                                                              │
 │ EDAEngine (thread-safe Swift façade, NSLock)                                       │

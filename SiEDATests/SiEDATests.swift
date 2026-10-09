@@ -8089,3 +8089,21 @@ final class DfmPackTests: XCTestCase {
         XCTAssertNil(store.engine.fieldSolve(layer: 99, width: 0.2))
     }
 }
+
+final class BuiltInModelTests: XCTestCase {
+    /// The tiny random-weight model of the core tests (tools/make_llm_fixtures.py) through the app's bridge.
+    func testBuiltInEngineAnswersInJSONAndReportsMissingModels() async throws {
+        let path = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/llm/tiny-qwen2-q4_k_m.gguf").path
+        let reply = try await LocalLLM.run(path: path, system: "You design circuits.", user: "A 5 V LED indicator.", maxTokens: 16)
+        XCTAssertTrue(reply.hasPrefix("{"))
+        do {
+            _ = try await BuiltInProvider(model: "missing-\(UUID().uuidString).gguf").complete(AgentPrompts.analystRequest(brief: "x"))
+            XCTFail("a missing model must throw")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("not installed"))
+        }
+        XCTAssertEqual(AIProviderKind.builtIn.authModes, [])
+        XCTAssertFalse(AIProviderKind.builtIn.requiresAPIKey)
+    }
+}

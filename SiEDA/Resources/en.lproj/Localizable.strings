@@ -1288,3 +1288,8 @@
 "Clock / strobe pair P to N (ps)" = "Clock / strobe pair P to N (ps)";
 "Extra parts per line for assembly loss (pick-and-place attrition)" = "Extra parts per line for assembly loss (pick-and-place attrition)";
 "Spares" = "Spares";
+"Use" = "Use";
+"Download" = "Download";
+"Import GGUF File…" = "Import GGUF File…";
+"Model URL (.gguf)" = "Model URL (.gguf)";
+"Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better." = "Built-in models run on this Mac with SiEDA’s own engine: no other app, and no network once downloaded. Smaller models answer faster; larger ones design better.";
