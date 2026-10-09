@@ -9,6 +9,7 @@ A byte-level BPE tokenizer learned on the plans, and a small Qwen 2-style decode
 grouped-query attention, SwiGLU, tied embeddings) trained from scratch on the request → plan pairs; the loss covers the
 plan only. Runs on a CPU (about an hour on 4 cores).
 """
+import hashlib
 import json
 import math
 import os
@@ -171,6 +172,15 @@ def main():
     batches.append(cur)
     total = int(len(batches) * epochs)
     step, t0 = 0, time.time()
+    # A checkpoint every 200 steps: run the same command again to resume after an interruption.
+    ckpt, vocab_id = os.path.join(out, "checkpoint.pt"), hashlib.sha1(tok._tokenizer.to_str().encode()).hexdigest()
+    if os.path.exists(ckpt):
+        state = torch.load(ckpt)
+        if state["vocab"] == vocab_id and state["total"] == total:
+            model.load_state_dict(state["model"])
+            opt.load_state_dict(state["opt"])
+            step = state["step"]
+            print(f"resumed at step {step}", flush=True)
     while step < total:
         random.shuffle(batches)
         for bt in batches:
@@ -194,6 +204,10 @@ def main():
             step += 1
             if step % 50 == 0 or step == total:
                 print(f"step {step}/{total} loss {loss.item():.4f} lr {lr:.2e} {time.time() - t0:.0f}s", flush=True)
+            if step % 200 == 0:
+                torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "step": step, "total": total,
+                            "vocab": vocab_id}, ckpt + ".tmp")
+                os.replace(ckpt + ".tmp", ckpt)
     model.eval()
     path = os.path.join(out, "sieda-circuit-v1-f32.gguf")
     write_gguf(model, tok, path)
