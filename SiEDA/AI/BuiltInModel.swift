@@ -16,6 +16,7 @@ struct BuiltInProvider: AIProvider {
         guard FileManager.default.fileExists(atPath: path) else {
             throw AIProviderError.invalidResponse("The built-in model ‘\(model)’ is not installed. Download one in Settings → AI.")
         }
+        if CircuitModel.isCircuitModel(model) { return try await CircuitModel.complete(request, path: path) }
         let schema = (try? JSONSerialization.data(withJSONObject: request.schema, options: [.sortedKeys]))
             .map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         let user = request.prompt + "\n\nAnswer with one JSON object that follows this JSON schema:\n" + schema
@@ -53,7 +54,7 @@ final class LocalLLM {
     }
 
     /// Answers on the model's queue; cancelling the calling task stops the generation.
-    static func run(path: String, system: String, user: String, maxTokens: Int) async throws -> String {
+    static func run(path: String, system: String, user: String, maxTokens: Int, json: Bool = true) async throws -> String {
         let cancelled = CancelFlag()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
@@ -64,7 +65,7 @@ final class LocalLLM {
                             loaded = nil  // free the old model before mapping the new one
                             loaded = (key, try LocalLLM(path: path, gpu: gpu))
                         }
-                        continuation.resume(returning: try loaded!.model.chat(system: system, user: user, maxTokens: maxTokens, cancelled: cancelled))
+                        continuation.resume(returning: try loaded!.model.chat(system: system, user: user, maxTokens: maxTokens, json: json, cancelled: cancelled))
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -75,9 +76,9 @@ final class LocalLLM {
         }
     }
 
-    private func chat(system: String, user: String, maxTokens: Int, cancelled: CancelFlag) throws -> String {
+    private func chat(system: String, user: String, maxTokens: Int, json: Bool, cancelled: CancelFlag) throws -> String {
         var error: UnsafeMutablePointer<CChar>?
-        let options = "{\"maxTokens\":\(maxTokens),\"json\":true}"
+        let options = "{\"maxTokens\":\(maxTokens),\"json\":\(json)}"
         let context = Unmanaged.passUnretained(cancelled).toOpaque()
         let reply = sieda_llm_chat(handle, system, user, options, { _, context in
             Unmanaged<CancelFlag>.fromOpaque(context!).takeUnretainedValue().isSet ? 0 : 1

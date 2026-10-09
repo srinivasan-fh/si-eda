@@ -33,6 +33,7 @@ struct IntelligenceSetupView: View {
     @State private var step = Step.provider
     @State private var test = TestState.idle
     @State private var designed = false
+    @State private var ownModel = false
     private let gpuName = MTLCreateSystemDefaultDevice()?.name
 
     private var local: Bool { settings.provider == .builtIn }
@@ -51,6 +52,25 @@ struct IntelligenceSetupView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $ownModel) {
+                Text("Set-up").tag(false)
+                Text("Own Model").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.top, 10)
+            if ownModel {
+                CircuitModelView()
+            } else {
+                setup
+            }
+        }
+        .frame(minWidth: 640, minHeight: 460)
+    }
+
+    private var setup: some View {
         VStack(spacing: 0) {
             TabView(selection: $step) {
                 ForEach(Step.allCases) { s in
@@ -73,7 +93,6 @@ struct IntelligenceSetupView: View {
             }
             .padding(12)
         }
-        .frame(minWidth: 640, minHeight: 460)
     }
 
     @ViewBuilder

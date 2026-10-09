@@ -17065,6 +17065,29 @@ TEST(local_model_generates_and_refuses_damaged_files) {
     CHECK(!none.load("/nonexistent.gguf") && !none.loadBytes("GGUF") && !none.valid() && none.tokenize("x").empty());
 }
 
+TEST(circuit_model_writes_linked_plans) {
+    // SiEDA's own circuit model (tools/circuit_lm): held-out requests give plans whose links all name their parts.
+    const std::string dir = std::string(SIEDA_DOCS_DIR) + "/../SiEDA/Resources/Models/";
+    std::ifstream in(dir + "sieda-circuit-v1.json");
+    const Json card = Json::parse(std::string(std::istreambuf_iterator<char>(in), {}));
+    LocalModel model;
+    CHECK(model.load(dir + "sieda-circuit-v1.gguf") && card.get("benchmark").size() >= 5);
+    LocalModel::Options o;
+    o.maxTokens = 1000;
+    for (size_t i = 0; i < 5; ++i) {
+        const std::string prompt = card.get("benchmark")[i].get("prompt").asString();
+        const Json plan = Json::parse(model.generate(model.chatPrompt("You are an electronics design assistant.", prompt), o));
+        std::set<std::string> refs;
+        for (const Json& c : plan.get("components").items()) refs.insert(c.get("ref").asString());
+        CHECK(!refs.empty() && refs.size() == plan.get("components").size());
+        for (const Json& link : plan.get("connections").items())
+            for (const char* end : {"from", "to"}) {
+                const std::string e = link.get(end).asString();
+                CHECK(refs.count(e.substr(0, e.find('.'))));
+            }
+    }
+}
+
 TEST(pdf_text_shaping) {
     auto read = [](const char* name) {
         std::ifstream in(std::string(SIEDA_FIXTURE_DIR) + "/fonts/" + name, std::ios::binary);

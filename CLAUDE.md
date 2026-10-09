@@ -48,7 +48,8 @@
   llama.cpp fixtures from `tools/make_llm_fixtures.py`), C API `sieda_llm_*` in `Core/src/sieda_c_llm.cpp`, CLI
   `sieda-cli --chat`; app `SiEDA/AI/BuiltInModel.swift` (`BuiltInProvider`, Metal GPU matmul `MetalMatmul.swift` via `sieda_llm_set_accelerator`, `LocalModelStore` downloads / imports /
   deletes models, `BuiltInModelsView`); set-up window Window → Super Intelligence (`SiEDA/AI/IntelligenceWindow.swift`: one tab per
-  step incl. MCP agent clients); guide in `docs/AI.md`.
+  step incl. MCP agent clients; Own Model = SiEDA's circuit model `SiEDA/AI/CircuitModel.swift`, trained by
+  `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit); guide in `docs/AI.md`.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
