@@ -70,6 +70,10 @@ public:
     void run(uint64_t cycles);
     /// CLKPR system clock prescaler (1, 2, 4 … 256): the CPU runs at f_clk / clockDivider().
     int clockDivider() const { return 1 << clkps_; }
+    /// The clock run() counts (Hz, before CLKPR): the watchdog's own 128 kHz oscillator is timed against it.
+    void setClockHz(double hz) { clockHz_ = hz > 0 ? hz : clockHz_; }
+    /// Watchdog resets since power-on (MCUSR.WDRF is set after each).
+    int watchdogResets() const { return watchdogResets_; }
     uint64_t cycles() const { return cycles_; }
     uint64_t instructions() const { return instructions_; }
     bool sleeping() const { return sleeping_; }
@@ -138,6 +142,7 @@ private:
     void tickTimer16(int cycles);
     void timer16Count();
     void tickAdc(int cycles);
+    void tickWatchdog(int cycles);
     void tickUsart(int cycles);
     void tickTiny85Timer1(int cycles);
     double adcInput(int mux) const;
@@ -160,6 +165,8 @@ private:
     std::string fault_;
     int clkps_ = 0, clkpceWindow_ = 0, eempeWindow_ = 0;
     double vcc_ = 0, aref_ = -1;
+    double clockHz_ = 16e6, wdt_ = 0;  // watchdog: seconds since the last WDR / timeout
+    int watchdogResets_ = 0;
     bool inReset_ = true;
 
     // pins (3 ports × 8)

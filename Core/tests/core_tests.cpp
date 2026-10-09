@@ -1314,12 +1314,29 @@ TEST(design_verification_pipeline) {
     VerificationReport overloaded = verifyDesign(hot);
     CHECK(stage(overloaded, "validation")->status == StageStatus::Fail);
     CHECK(!overloaded.passed());
+    // Waivers: on another part they change nothing; on the failing parts' codes they turn the errors into Info
+    // "(waived: …)" findings, the stage stops failing, and the waivers are saved with the project.
+    std::set<std::string> codes;
+    for (const auto& v : stage(overloaded, "validation")->findings)
+        if (v.severity == Severity::Error) codes.insert(v.code);
+    CHECK(!codes.empty());
+    for (const auto& c : codes) hot.waivers.push_back({c, "NOPE99", "elsewhere"});
+    CHECK(stage(verifyDesign(hot), "validation")->status == StageStatus::Fail);
+    hot.waivers.clear();
+    for (const auto& c : codes) hot.waivers.push_back({c, "", "bench test only, 1 s pulses"});
+    const VerificationReport waived = verifyDesign(hot);
+    CHECK(stage(waived, "validation")->status != StageStatus::Fail);
+    bool noted = false;
+    for (const auto& v : stage(waived, "validation")->findings)
+        noted = noted || v.message.find("(waived: bench test only") != std::string::npos;
+    CHECK(noted && Project::fromJson(hot.toJson()).waivers.size() == codes.size());
+    CHECK(!p.toJson().has("waivers"));
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 21);
+    CHECK(industryProfiles().size() == 22);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
-                           "medical", "defence", "networking", "vlsi", "memory"}) {
+                           "medical", "defence", "networking", "vlsi", "memory", "iot"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
         if (!p) continue;
@@ -1454,6 +1471,42 @@ TEST(avr_cpu_matches_reference_simulator) {
     }
     CHECK(out == expected);
     CHECK(mcu.fault().empty());
+}
+
+TEST(avr_watchdog_reset_interrupt_and_wdr) {
+    // Hand-assembled ATmega328P code: main at word 0x20 sets WDTCSR (16 ms) and loops; the WDT vector (6) sets r20.
+    auto image = [](uint8_t wdtcsr, bool kick) {
+        std::vector<uint16_t> w(0x40, 0x0000);
+        w[0] = 0x940C, w[1] = 0x0020;                 // jmp main
+        w[12] = 0x940C, w[13] = 0x0030;               // WDT vector → handler
+        size_t k = 0x20;
+        for (uint16_t op : {uint16_t(0xE108), uint16_t(0x9300), uint16_t(0x0060),   // ldi r16,0x18; sts WDTCSR,r16 (WDCE|WDE)
+                            uint16_t(0xE000 | (wdtcsr >> 4) << 8 | (wdtcsr & 15)), uint16_t(0x9300), uint16_t(0x0060),
+                            uint16_t(0x9478)})                                       // sei
+            w[k++] = op;
+        if (kick) w[k++] = 0x95A8;                    // wdr
+        w[k] = kick ? 0xCFFE : 0xCFFF;                // loop
+        w[0x30] = 0xE545, w[0x31] = 0x9518;           // ldi r20,0x55; reti
+        std::vector<uint8_t> b;
+        for (uint16_t x : w) b.push_back(static_cast<uint8_t>(x & 0xFF)), b.push_back(static_cast<uint8_t>(x >> 8));
+        return b;
+    };
+    auto run = [&](uint8_t wdtcsr, bool kick, double ms) {
+        auto mcu = std::make_unique<AvrMcu>(McuModel::ATmega328P);
+        std::string err;
+        CHECK(mcu->loadFirmware(image(wdtcsr, kick), err));
+        mcu->setSupply(5.0);
+        mcu->run(static_cast<uint64_t>(ms * 16000));
+        return mcu;
+    };
+    // Reset mode, never kicked: the chip restarts every 16 ms with WDRF set.
+    auto a = run(0x08, false, 40);
+    CHECK(a->watchdogResets() == 2 && (a->dataAt(0x54) & 0x08));
+    // Kicked with WDR in the loop: never resets.
+    CHECK(run(0x08, true, 40)->watchdogResets() == 0);
+    // Interrupt mode: the handler runs, no reset.
+    auto c = run(0x40, false, 20);
+    CHECK(c->watchdogResets() == 0 && c->reg(20) == 0x55);
 }
 
 TEST(avr_peripherals_standalone) {
@@ -2957,6 +3010,17 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     CHECK(l.fiducials.size() == 3 && l.toolingHoles.size() == 4 && !l.tabs.empty() && l.vscores.empty());
     CHECK(l.mouseBites.size() % 6 == 0 && l.mouseBites.size() >= 6 * l.tabs.size());
     for (const Rect& t : l.tabs) CHECK(std::abs(t.width() * t.height() - 5.0 * 2.0) < 1e-9);  // 5 mm × the gap
+    // Fit: the most boards within the fab's panel size (here exactly this 3 × 2 panel), never larger; utilisation reported.
+    {
+        BoardSettings f = p.pcb.settings;
+        const PanelSettings best = fitPanel(f, l.width, l.height);
+        f.panel = best;
+        const PanelLayout fl = panelLayout(f);
+        CHECK(best.nx * best.ny == 6 && fl.width <= l.width + 1e-9 && fl.height <= l.height + 1e-9);
+        CHECK(fitPanel(f, W, H).nx * fitPanel(f, W, H).ny == 1);
+        const double u = panelLayoutJson(p.pcb.settings).get("utilisation").asNumber();
+        CHECK_NEAR(u, 6 * W * H / (l.width * l.height), 1e-9);
+    }
 
     auto files = fabricationPackage(p);
     std::map<std::string, std::string> byName;
@@ -3108,6 +3172,23 @@ TEST(fabrication_package_is_complete) {
                              "Silkscreen           White, top and bottom", "HASL lead-free", "Non-plated           1",
                              "IPC-D-356A", "Amp_rev_A-gerbers.zip"})
         CHECK(notes.find(text) != std::string::npos);
+    // The drill chart lists each finished size with its counts, matching the Excellon totals.
+    CHECK(notes.find("Drill chart") != std::string::npos && notes.find("Hole tolerance") != std::string::npos);
+    {
+        int charted = 0;
+        std::istringstream chart(notes.substr(notes.find("Drill chart")));
+        std::string row;
+        std::getline(chart, row);
+        while (std::getline(chart, row) && row.find(" mm ") != std::string::npos) {
+            std::istringstream r(row.substr(row.find(" mm ") + 4));
+            int a = 0, b = 0, c = 0;
+            r >> a >> b >> c;
+            charted += a + b + c;
+        }
+        int holes = static_cast<int>(p.pcb.vias.size() + p.pcb.settings.holes.size());
+        for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0;
+        CHECK(charted == holes && holes > 0);
+    }
     std::string cpl = byName["assembly/Amp_rev_A-cpl.csv"];
     CHECK(cpl.find("Bottom") != std::string::npos && cpl.find("mm,") != std::string::npos);
 
@@ -6889,6 +6970,32 @@ TEST(library_import_eagle_libraries) {
     CHECK(broken.parts.size() == 1 && !broken.parts[0].ok && broken.parts[0].error.find("GONE") != std::string::npos);
 }
 
+TEST(kicad5_lib_symbols_import) {
+    // A KiCad 5 library as vendor sites ship it: an LM358-like dual op-amp (two units + a power unit) and a De Morgan pin.
+    const std::string lib = "EESchema-LIBRARY Version 2.4\n#encoding utf-8\n#\n# OPA2\n#\n"
+                            "DEF OPA2 U 0 20 Y Y 3 F N\nF0 \"U\" 0 200 50 H V L CNN\nF1 \"OPA2\" 0 -200 50 H V L CNN\n"
+                            "F2 \"Package_SO:SOIC-8_3.9x4.9mm_P1.27mm\" 0 0 50 H I C CNN\nF3 \"http://x/ds.pdf\" 0 0 50 H I C CNN\n"
+                            "$FPLIST\n SOIC*3.9x4.9mm*P1.27mm*\n$ENDFPLIST\nDRAW\n"
+                            "X ~ 1 300 0 100 L 50 50 1 1 O\nX - 2 -200 -100 100 R 50 50 1 1 I\nX + 3 -200 100 100 R 50 50 1 1 I\n"
+                            "X V- 4 -100 -300 150 U 50 50 3 1 W\nX V+ 8 -100 300 150 D 50 50 3 1 W\n"
+                            "X ~ 5 -200 100 100 R 50 50 2 1 I\nX ~ 6 -200 -100 100 R 50 50 2 1 I\nX ~ 7 300 0 100 L 50 50 2 1 O\n"
+                            "X ALT 9 0 0 100 R 50 50 1 2 P\nENDDRAW\nENDDEF\n#End Library\n";
+    const auto syms = parseKicadSymbols(lib, "opa.lib");
+    CHECK(syms.size() == 1);
+    if (syms.empty()) return;
+    const ImportedSymbol& s = syms[0];
+    CHECK(s.name == "OPA2" && s.refPrefix == "U" && s.units == 3 && s.pins.size() == 8);
+    CHECK(s.footprint == "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" && s.datasheet == "http://x/ds.pdf");
+    CHECK(s.footprintFilters.size() == 1 && s.footprintFilters[0] == "SOIC*3.9x4.9mm*P1.27mm*");
+    std::map<std::string, CustomPin> byNumber;
+    for (const auto& p : s.pins) byNumber[p.number] = p;
+    CHECK(byNumber["1"].type == PinType::Output && byNumber["1"].name == "1" && byNumber["3"].name == "+");
+    CHECK(byNumber["8"].type == PinType::PowerIn && byNumber["2"].type == PinType::Input && !byNumber.count("9"));
+    // Through the importer it pairs with nothing but is a part: the file is read, not refused.
+    LibraryImport out = importLibraryFiles({{"opa.lib", lib}});
+    CHECK(out.files.size() == 1 && out.files[0].error.empty() && out.symbols.size() == 1);
+}
+
 TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
     auto fileError = [](const std::string& name, const std::string& content) {
         LibraryImport out = importLibraryFiles({{name, content}});
@@ -6896,7 +7003,7 @@ TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
     };
     CHECK(fileError("Parts.SchLib", std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8)).find("Altium") != std::string::npos);
     CHECK(fileError("Parts.PcbLib", "x").find("not supported") != std::string::npos);
-    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("KiCad 5") != std::string::npos);
+    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("no symbols") != std::string::npos);
     CHECK(fileError("notes.txt", "hello").find("unknown file type") != std::string::npos);
     CHECK(fileError("deep.kicad_mod", std::string(100000, '(')).find("nesting too deep") != std::string::npos);
     CHECK(fileError("lt.lbr", "<eagle>" + std::string(5000, '<')).find("line 1") != std::string::npos);
@@ -7923,6 +8030,11 @@ TEST(pi_pdn_impedance_and_ir_drop) {
     CHECK_NEAR(d1, rpm * (0.5 * common + 0.25 * branch1), 2e-4);
     CHECK_NEAR(d2, rpm * (0.5 * common + 0.25 * run2), 2e-4);
     CHECK_NEAR(r.irWorst, d2, 1e-12);
+    // Hot copper (85 °C) drops 25.5 % more; the setting is saved only when it is not 20 °C.
+    Project hot = b.p;
+    hot.si.copperTempC = 85;
+    CHECK_NEAR(rail(hot).irWorst, d2 * (1 + 0.00393 * 65), 1e-12);
+    CHECK(Project::fromJson(hot.toJson()).si.copperTempC == 85 && b.p.toJson().dump().find("copperTempC") == std::string::npos);
     // No decoupling → a PI finding.
     bool noDecap = false;
     for (const auto& v : signalPowerIntegrityChecks(b.p)) noDecap |= v.code == "PI_NO_DECOUPLING";
@@ -12099,6 +12211,14 @@ TEST(supplier_merge_rollup_and_catalog_match) {
         CHECK(std::fabs(t100.get("perBoard").asNumber() - t100.get("cost").asNumber() / 100) < 1e-12);
     }
     CHECK(r.get("warnings").size() >= 1 && !r.get("mixedCurrency").asBool());
+    // Assembly attrition: 2 % or at least 5 spares per line — 200 needed becomes 205, 2 becomes 7.
+    req["attritionPercent"] = 2;
+    req["attritionMin"] = 5;
+    const Json ra = supplierBomRollup(Json::parse(req.dump()));
+    CHECK(ra.get("lines")[0].get("offers")[2].get("needed").asNumber() == 205);
+    CHECK(ra.get("lines")[0].get("offers")[0].get("needed").asNumber() == 7);
+    req["attritionMin"] = 0;
+    CHECK(supplierBomRollup(Json::parse(req.dump())).get("lines")[0].get("offers")[2].get("needed").asNumber() == 204);
     // Garbage requests give a roll-up, never an exception.
     CHECK(supplierBomRollup(Json::parse("{\"lines\":[1,\"x\",{}],\"parts\":[null,{\"mpn\":7}]}")).get("lines").size() == 3);
     CHECK(supplierBomRollup(Json()).get("totals").size() == 4);
@@ -19598,6 +19718,55 @@ TEST(plane_mesh_matches_cavity_resonance_and_plate_capacitance) {
     CHECK(planeMeshImpedance({}, 1, 0.2, 4.4, 0, 0.035, {0, 0}, {}, f).empty());
 }
 
+TEST(spice_includes_are_inlined_from_the_model_folder) {
+    // A vendor file that includes a sibling and one section of a corner library; absolute and ".." paths stay as they are.
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "sieda_inc_test";
+    fs::create_directories(dir / "sub");
+    std::ofstream(dir / "d.mod") << ".model DX D(IS=1e-14 N=1.05)\n.include sub/r.inc\n.include d.mod\n";
+    std::ofstream(dir / "sub" / "r.inc") << "* resistor kit\n";
+    std::ofstream(dir / "corners.lib") << ".lib TT\n.model QT NPN(BF=200)\n.endl\n.lib FF\n.model QF NPN(BF=300)\n.endl\n";
+    const std::string top = ".include \"d.mod\"\n.lib corners.lib FF\n.include /etc/passwd\n.inc ../x.lib\n";
+    const std::string out = inlineSpiceIncludes(top, dir.string());
+    CHECK(out.find(".model DX D(") != std::string::npos && out.find("* resistor kit") != std::string::npos);
+    CHECK(out.find("QF NPN") != std::string::npos && out.find("QT NPN") == std::string::npos);
+    CHECK(out.find(".include /etc/passwd") != std::string::npos && out.find(".inc ../x.lib") != std::string::npos);
+    const SpiceLibrary lib = parseSpiceLibrary(out);
+    CHECK(lib.findModel("DX") && lib.findModel("QF") && !lib.findModel("QT"));
+    fs::remove_all(dir);
+}
+
+TEST(field_solver_solder_mask_coating) {
+    // A 50 Ω-class FR-4 microstrip: 20 µm of LPI mask (εr 3.6) lowers Z0 by about 1–3 Ω and raises εeff; a coating with
+    // εr 1 is the bare line again, and stripline ignores it.
+    FieldGeometry g;
+    g.w = 0.3, g.h = 0.17, g.t = 0.035, g.er = 4.3;
+    const FieldResult bare = solveField(g);
+    g.mask = 0.02;
+    const FieldResult coated = solveField(g);
+    CHECK(bare.z0 - coated.z0 > 0.5 && bare.z0 - coated.z0 < 4 && coated.eeff > bare.eeff);
+    g.erMask = 1;
+    CHECK_NEAR(solveField(g).z0, bare.z0, bare.z0 * 2e-3);
+    g.erMask = 3.6, g.s = 0.2;  // pairs: the coating between the tracks lowers Zdiff too
+    FieldGeometry p = g;
+    p.mask = 0;
+    CHECK(solveField(p).zdiff > solveField(g).zdiff);
+    g.s = 0, g.hTop = 0.2;
+    p = g, p.mask = 0;
+    CHECK_NEAR(solveField(g).z0, solveField(p).z0, 1e-9);
+    // Goal seek: the field-solved width for 50 Ω lands on 50 Ω (within 0.5 %); a pair for 90 Ω Zdiff likewise.
+    BoardSettings b;
+    b.layerCount = 4;
+    const double w50 = fieldSolvedWidth(b, 0, 50);
+    CHECK(w50 > 0 && std::fabs(solveField(trackGeometry(b, 0, w50)).z0 - 50) < 0.25);
+    const double wd = fieldSolvedWidth(b, 1, 90, 0.15);
+    CHECK(wd > 0 && std::fabs(solveField(trackGeometry(b, 1, wd, 0.15)).zdiff - 90) < 0.45);
+    // The stack-up's outer layers are coated; inner ones are not.
+    BoardSettings s;
+    s.layerCount = 4;
+    CHECK(trackGeometry(s, 0, 0.2).mask > 0 && trackGeometry(s, 1, 0.2).mask == 0);
+}
+
 TEST(field_solved_lines_feed_the_channel_model) {
     BoardSettings s;
     s.layerCount = 4;
@@ -19672,6 +19841,69 @@ TEST(idx_outline_keepouts_and_response) {
     CHECK(idxResponse("<broken", true).find("<computational:Change ") == std::string::npos);
 }
 
+TEST(idx_arcs_holes_and_shaped_keepouts) {
+    // A hand-written MCAD file: a 40 × 30 outline with a rounded corner (Arc), a Ø3 hole (CircleCenter), an L-shaped
+    // routing keep-out and a triangular component keep-out.
+    int next = 0;
+    std::string body;
+    auto pts = [&](std::vector<Vec2> v) {
+        std::string refs;
+        for (const auto& q : v) {
+            const std::string id = "P" + std::to_string(++next);
+            body += "<CartesianPoint id=\"" + id + "\"><X>" + std::to_string(q.x) + "</X><Y>" + std::to_string(q.y) + "</Y></CartesianPoint>";
+            refs += "<Point>" + id + "</Point>";
+        }
+        return refs;
+    };
+    auto shape = [&](const std::string& curves, bool inverted, double z1 = 1.6) {
+        const std::string n = std::to_string(++next);
+        body += "<CurveSet2d id=\"C" + n + "\"><LowerBound>0</LowerBound><UpperBound>" + std::to_string(z1) + "</UpperBound>" + curves +
+                "</CurveSet2d><ShapeElement id=\"S" + n + "\"><Inverted>" + (inverted ? "true" : "false") +
+                "</Inverted><DefiningShape>C" + n + "</DefiningShape></ShapeElement>";
+        return "<Shape>S" + n + "</Shape>";
+    };
+    auto element = [&](const std::string& xml) {
+        const std::string id = "G" + std::to_string(++next);
+        body += xml.substr(0, xml.find('>')) + " id=\"" + id + "\"" + xml.substr(xml.find('>'));
+        return "<DetailedGeometricModelElement>" + id + "</DetailedGeometricModelElement>";
+    };
+    auto point = [&](Vec2 q) { const std::string r = pts({q}); return r.substr(7, r.size() - 15); };
+    // Outline (MCAD Y up, so the board is at negative Y): straight edges, then a clockwise 90° arc rounding the
+    // corner at (40, -30) with radius 5.
+    const std::string outline = element("<PolyLine>" + pts({{35, -30}, {0, -30}, {0, 0}, {40, 0}, {40, -25}}) + "</PolyLine>") +
+                                element("<Arc><StartPoint>" + point({40, -25}) + "</StartPoint><EndPoint>" + point({35, -30}) +
+                                        "</EndPoint><Angle>-90</Angle></Arc>");
+    const std::string hole = element("<CircleCenter><CenterPoint>" + point({5, -25}) + "</CenterPoint><Diameter>3</Diameter></CircleCenter>");
+    const std::string ell = element("<PolyLine>" + pts({{2, -2}, {12, -2}, {12, -6}, {6, -6}, {6, -12}, {2, -12}}) + "</PolyLine>");
+    const std::string tri = element("<PolyLine>" + pts({{20, -2}, {30, -2}, {20, -12}}) + "</PolyLine>");
+    const std::string items = "<Item geometryType=\"BOARD_OUTLINE\"><Name>b</Name>" + shape(outline, false) + shape(hole, true) + "</Item>" +
+                              "<Item geometryType=\"KEEPOUT_AREA_ROUTE\"><Name>Ell</Name>" + shape(ell, false, 0) + "</Item>" +
+                              "<Item geometryType=\"KEEPOUT_AREA_COMPONENT\"><Name>Tri</Name>" + shape(tri, false, 2) + "</Item>";
+    const std::string idx = "<EDMDDataSet><Body>" + body + items + "</Body></EDMDDataSet>";
+    Project p;
+    const IdxImport r = importIdx(p.schematic, p.pcb.settings, idx);
+    const auto& s = p.pcb.settings;
+    // The rounded corner is tessellated (≤ 10° steps) and sits on the radius-5 circle about (35, 25) in SiEDA.
+    CHECK(r.outlineChanged && s.outline.size() >= 5 + 9 - 1 && std::fabs(s.width - 40) < 1e-6);
+    for (const auto& v : s.outline)
+        if (v.x > 35 + 1e-6 && v.y > 25 - 1e-6) CHECK_NEAR((v - Vec2{35, 25}).length(), 5, 1e-6);
+    CHECK(r.holesChanged && s.holes.size() == 1 && std::fabs(s.holes[0].drill - 3) < 1e-6);
+    CHECK((s.holes[0].position - Vec2{5, 25}).length() < 1e-6);
+    // The L is two exact strips, not its 10 × 10 bounding box; the triangle's strips cover it but not the far corner.
+    CHECK(r.keepouts == 2 && s.keepouts.size() == 2);
+    double area = 0;
+    for (const auto& k : s.keepouts) area += k.area.width() * k.area.height();
+    CHECK_NEAR(area, 10 * 4 + 4 * 6, 1e-6);
+    CHECK(r.heightZones == 1 && s.heightZones[0].name == "MCAD Tri" && std::fabs(s.heightZones[0].maxHeight - 2) < 1e-6);
+    // Re-importing changes nothing; a malformed arc or circle is skipped, not a crash.
+    Project again = p;
+    const IdxImport same = importIdx(again.schematic, again.pcb.settings, idx);
+    CHECK(!same.outlineChanged);
+    CHECK(!same.holesChanged);
+    CHECK(again.pcb.settings.keepouts.size() == 2 && again.pcb.settings.heightZones.size() == 1);
+    importIdx(again.schematic, again.pcb.settings, "<EDMDDataSet><Body><Arc id=\"A\"><Angle>1e308</Angle></Arc></Body></EDMDDataSet>");
+}
+
 TEST(ddr_strobe_matched_to_its_byte_lane) {
     Project q;
     auto& d = q.schematic;
@@ -19679,7 +19911,7 @@ TEST(ddr_strobe_matched_to_its_byte_lane) {
     const int dram = d.addCustomComponent(
         CustomPartRegistry::instance().registerPart(findStandardPart("MT41K256M16HA-125")->spec)->id, "", {0, 0});
     std::map<std::string, int> net;
-    for (const char* pin : {"DQ0", "DQ1", "LDQS"}) {
+    for (const char* pin : {"DQ0", "DQ1", "LDQS", "nLDQS", "CK", "nCK"}) {
         const int r = d.addComponent(ComponentKind::Resistor, "22", {200, 0});
         wire(d, dram, pin, r, "1");
     }
@@ -19701,6 +19933,16 @@ TEST(ddr_strobe_matched_to_its_byte_lane) {
     CHECK(codes().count("MEM_DDR_DQS_SKEW") && !codes().count("MEM_DDR_LANE_SKEW"));
     q.pcb.tracks.back().b = {20, 0};
     CHECK(!codes().count("MEM_DDR_DQS_SKEW"));
+    // Differential pairs: the strobe's N leg 1 mm longer than P (≈ 6 ps) fails the 2 ps DDR limit; the clock pair
+    // matched passes. A controller allowing 10 ps accepts it.
+    route("nLDQS", 21), route("CK", 30), route("nCK", 30);
+    CHECK(codes().count("MEM_DDR_PAIR_SKEW"));
+    bool strobe = false;
+    for (const auto& v : memoryChecks(q)) strobe = strobe || (v.code == "MEM_DDR_PAIR_SKEW" && v.message.find("DQS0") != std::string::npos);
+    CHECK(strobe);
+    q.memoryLimits.pairSkewPs = 10;
+    CHECK(!codes().count("MEM_DDR_PAIR_SKEW"));
+    CHECK(memoryLimitsFromJson(memoryLimitsJson(q.memoryLimits)).pairSkewPs == 10);
 }
 
 TEST(dfm_aspect_ratio_copper_balance_and_report) {
@@ -19722,6 +19964,16 @@ TEST(dfm_aspect_ratio_copper_balance_and_report) {
     CHECK(!codes().count("DFM_ASPECT_RATIO"));
     p.pcb.settings.thickness = 3.2;
     CHECK(codes().count("DFM_ASPECT_RATIO"));
+    // Your fab drills 12:1: its own value replaces the published one, is saved with the board and tightens DRC.
+    p.pcb.settings.dfmOverrides["maxAspectRatio"] = 12;
+    CHECK(!codes().count("DFM_ASPECT_RATIO") && boardDfmPack(p.pcb.settings)->maxAspectRatio == 12);
+    p.pcb.settings.dfmOverrides["minTrack"] = 0.2;
+    p.pcb.settings.dfmOverrides["bogus"] = 1;
+    CHECK(applyDfmPack(p.pcb.settings, "jlcpcb-standard") && p.pcb.settings.minTrackWidth >= 0.2);
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.dfmOverrides.size() == 3 && back.pcb.settings.dfmOverrides.at("maxAspectRatio") == 12);
+    CHECK(dfmReportJson(p.schematic, p.pcb).get("overrides").get("minTrack").asNumber() == 0.2);
+    p.pcb.settings.dfmOverrides.clear();
     p.pcb.settings.thickness = 1.6;
     // A ground pour on the top only: the two layers' copper differs by most of the board.
     CHECK(!codes().count("DFM_COPPER_BALANCE"));

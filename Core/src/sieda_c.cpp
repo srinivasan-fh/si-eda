@@ -1071,6 +1071,34 @@ char* sieda_memory_limits_json(const SiedaProject* project) {
     return dup(memoryLimitsReportJson(project->project).dump());
 }
 
+char* sieda_waivers_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    Json w = Json::array();
+    for (const auto& x : project->project.waivers) {
+        Json j = Json::object();
+        j["code"] = x.code, j["ref"] = x.ref, j["reason"] = x.reason;
+        w.push(j);
+    }
+    return dup(w.dump());
+}
+
+int32_t sieda_set_waivers(SiedaProject* project, const char* waivers_json) {
+    if (!project || !waivers_json) return 0;
+    try {
+        const Json j = Json::parse(waivers_json);
+        if (!j.isArray() || j.size() > 1000) return 0;
+        std::vector<Project::Waiver> w;
+        for (const auto& x : j.items()) {
+            if (!x.get("code").isString() || x.get("code").asString().empty()) return 0;
+            w.push_back({x.get("code").asString(), x.get("ref").asString(""), x.get("reason").asString("")});
+        }
+        project->project.waivers = std::move(w);
+        return 1;
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
 int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json) {
     if (!project || !limits_json) return 0;
     try {
@@ -2029,6 +2057,7 @@ char* sieda_import_idx(SiedaProject* project, const char* idx) {
         out["moved"] = moved;
         out["outline"] = r.outlineChanged;
         out["thickness"] = r.thicknessChanged;
+        out["holes"] = r.holesChanged;
         out["keepouts"] = r.keepouts;
         out["heightZones"] = r.heightZones;
         return dup(out.dump());
@@ -2787,6 +2816,10 @@ char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_j
     }
 }
 
+char* sieda_spice_inline_includes(const char* text, const char* dir) {
+    return dup(inlineSpiceIncludes(str(text), str(dir)));
+}
+
 char* sieda_spice_parse(const char* text) {
     try {
         SpiceLibrary lib = parseSpiceLibrary(str(text));
@@ -2943,6 +2976,12 @@ int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_o
     it->vrmR = r_out;
     it->vrmBandwidth = loop_bandwidth;
     if (it->ripplePercent == 0 && it->transientCurrent == 0 && it->dcCurrent == 0 && r_out == 0 && loop_bandwidth == 0) rails.erase(it);
+    return 1;
+}
+
+int32_t sieda_pi_set_copper_temperature(SiedaProject* project, double celsius) {
+    if (!project || !(celsius >= -55 && celsius <= 200)) return 0;
+    project->project.si.copperTempC = celsius;
     return 1;
 }
 

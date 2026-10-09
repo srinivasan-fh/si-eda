@@ -1285,3 +1285,6 @@
 "Sign-off Report" = "签核报告";
 "Live Collaboration" = "实时协作";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "将每次编辑保存到共享项目文件，并自动合并队友的保存";
+"Clock / strobe pair P to N (ps)" = "时钟 / 选通差分对 P 到 N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "每行为贴装损耗（贴片机抛料）预留的备件";
+"Spares" = "备件";

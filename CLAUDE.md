@@ -10,7 +10,7 @@
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
 - Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`, routed DDR layout
   rules `ddrLayoutChecks` / `ddrLayoutLimits` with `Project::memoryLimits` overrides from the controller's guide,
-  DQS-to-lane `MEM_DDR_DQS_SKEW`: MEM_DDR_* warnings on DDR, info on SDR), app via
+  DQS-to-lane `MEM_DDR_DQS_SKEW`, CK / DQS P-to-N `MEM_DDR_PAIR_SKEW`: MEM_DDR_* warnings on DDR, info on SDR), app via
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in
@@ -37,7 +37,7 @@
   `AppTheme.current`, the app redraws through `.id(appTheme)`; Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
-  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened) + `SpiceDevices.cpp` (device equations) +
+  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations) +
   `SpiceBuild.cpp` (models and op-amp macromodel in the simulator), noise in `Noise.cpp`, adaptive / trapezoidal
   transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; app in
   `SiEDA/Views/Simulation/` and `SiEDA/App/DesignStore+Simulation.swift`; guide in `docs/SIMULATION.md`. Parts without
@@ -85,7 +85,7 @@
 - IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
   XML valid against the IPC-2581C schema (KiCad's `qa/data/pcbnew/ipc2581/IPC-2581C.xsd`).
-- Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits, `applyDfmPack` only tightens
+- Manufacturer DFM / DFA packs: `Core/src/Dfm.cpp` (data table of fab / assembly limits; `dfmOverrides` = the fab's own values over a pack via `boardDfmPack`; `applyDfmPack` only tightens
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* (incl. DFM_ASPECT_RATIO, DFM_COPPER_BALANCE via `copperCoverage`) to `runDRC`
   when `BoardSettings::dfmPack` is set; `dfmReportJson` / `sieda_dfm_report_json` is the per-rule sign-off; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
@@ -93,11 +93,12 @@
   (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
   εeff, L / C, odd / even, kb / kf; `lineLoss`: skin-effect R from the air solution's surface charge, Hammerstad
-  roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,
-  Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
+  roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up and coats outer layers with 20 µm of solder mask (`FieldGeometry::mask`, coated microstrip); tests hold it within 1.5 % of exact stripline,
+  Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve` / goal seek `sieda_field_solve_width` (`fieldSolvedWidth`: Illinois regula falsi on ln Z, ~6 solves), MCP `si_field_solver` (`targetOhms`), app Board Setup →
   Stack-up → Check with Field Solver; opt-in `SiSettings::fieldSolverLines` / `LossOptions::fieldSolver` feeds the
   channel lines (`lineModel`, cached per geometry). The closed-form widths are unchanged.
-- Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
+- Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards
+  within a fab panel size, default the DFM pack's; panel Gerbers are the
   board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`

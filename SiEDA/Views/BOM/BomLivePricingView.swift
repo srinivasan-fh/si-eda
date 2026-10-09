@@ -14,6 +14,7 @@ struct BomLivePricingView: View {
     @State private var problems: [String] = []
     @State private var task: Task<Void, Never>?
     @State private var applied: Int?
+    @AppStorage("bomAttritionPercent") private var attrition = 0  // spares for assembly loss, % per line
 
     static let boardCounts = [1, 10, 100, 1000]
 
@@ -29,6 +30,8 @@ struct BomLivePricingView: View {
                         .frame(width: 160)
                     Text(verbatim: "\(progress.done) / \(progress.total)").font(.caption.monospacedDigit()).foregroundStyle(Theme.textMuted)
                 }
+                Stepper(value: $attrition, in: 0...20) { (Text("Spares") + Text(verbatim: ": \(attrition) %")).monospacedDigit() }
+                    .help("Extra parts per line for assembly loss (pick-and-place attrition)")
                 Button("Refresh") { run() }.disabled(task != nil || !settings.hasAnySource)
             }
             .padding(12)
@@ -178,7 +181,7 @@ struct BomLivePricingView: View {
             }
             guard !Task.isCancelled else { return }
             let request = SupplierRollupRequest(
-                currency: currency, quantities: Self.boardCounts, buildQuantity: build,
+                currency: currency, quantities: Self.boardCounts, buildQuantity: build, attritionPercent: Double(attrition),
                 lines: lines.map { .init(item: $0.item, refs: $0.refs, quantity: $0.quantity, mpn: $0.mpn,
                                          manufacturer: $0.manufacturer, dnp: $0.dnp, embedded: $0.embedded ?? false) },
                 parts: parts)

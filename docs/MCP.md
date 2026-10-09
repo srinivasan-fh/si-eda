@@ -546,7 +546,7 @@ Signal and power integrity: impedance, lengths, crosstalk, channels, PDN, memory
 | `pi_ir_drop` | read | DC IR drop of a rail on the board: worst drop against the limit, current density, hot spots. |
 | `si_memory_checks` | read | The memory (SDRAM / DDR / LPDDR / DIMM) design segments checked on the design (set the type with design_set_domain domain memory). |
 
-### verify (4)
+### verify (5)
 
 Design verification and domain (industry) checks.
 
@@ -554,6 +554,7 @@ Design verification and domain (industry) checks.
 |---|---|---|
 | `verify_design` | read | Full design verification: ERC, DC operating point, validation, placement, routing, DRC, manufacturing outputs (and SI/PI when signed off). |
 | `design_segments` | read | The design segments of a domain checked on the design: robot, ecu (automotive), aerospace, naval, medical, retail, appliance or memory. |
+| `verify_waivers` | edit | Findings accepted at sign-off: each waiver names a check code (e.g. |
 | `memory_layout_limits` | edit | DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, data impedance tolerance, via spread). |
 | `design_set_domain` | edit | Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, military, commercial), naval (combatant, carrier, submarine, patrol, commercial), medical (bf, cf, life, implant, home), retail (countertop, unattended, mpos, kiosk, printer), appliance (laundry, kitchen, refrigeration, hvac, small), memory (sdram, ddr, lpddr, dimm, rdimm). |
 
@@ -581,3 +582,4 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
+

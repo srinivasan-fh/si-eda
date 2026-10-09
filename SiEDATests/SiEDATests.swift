@@ -130,6 +130,14 @@ final class EngineBridgeTests: XCTestCase {
 }
 
 final class DesignPlanTests: XCTestCase {
+    func testModelWrittenPartNumbersFindTheCatalogPart() {
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("lm358-dr")?.spec.name, "LM358DR")
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("NE555P")?.spec.name, "NE555P")
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("ne 555")?.spec.name, "NE555")
+        XCTAssertNil(DesignPlanCompiler.closestStandardPart("XYZ"))
+        XCTAssertNil(DesignPlanCompiler.closestStandardPart("QQQQ9999"))
+    }
+
     func testOfflineTemplatesCompileCleanly() async throws {
         let provider = OfflineProvider()
         for template in OfflineProvider.templates {
@@ -529,7 +537,7 @@ final class IndustryKitTests: XCTestCase {
         let ids = StandardLibrary.industries.map(\.id)
         XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                              "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin",
-                             "retail", "appliance", "memory"])
+                             "retail", "appliance", "memory", "iot"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)

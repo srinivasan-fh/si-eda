@@ -75,6 +75,9 @@ The best offer for a line is in stock first (stock reported and covering the ord
 offers in your currency (offers in other currencies are used only when no offer is in yours; the roll-up then says
 the total mixes currencies).
 
+**Spares** (Live Pricing → Spares, request `attritionPercent` / `attritionMin`): each line orders the larger of that
+percentage and that many extra parts for assembly loss (2 % or 5 pieces is typical for cut-tape passives); 0 by default.
+
 ## Lifecycle
 
 | Shown | From the distributor's words |
@@ -137,7 +140,7 @@ The normalised schema (`sieda.supplier/1`):
 Roll-up request and reply:
 
 ```json
-{"currency":"USD","quantities":[1,10,100,1000],"buildQuantity":5,
+{"currency":"USD","quantities":[1,10,100,1000],"buildQuantity":5,"attritionPercent":2,"attritionMin":5,
  "lines":[{"item":1,"refs":["U1","U2"],"quantity":2,"mpn":"LM358DR","manufacturer":"","dnp":false,"embedded":false}],
  "parts":[normalised parts]}
 → {"currency":"USD","buildQuantity":5,"mixedCurrency":false,"warnings":["U3: LM358DRG4 is not recommended …"],

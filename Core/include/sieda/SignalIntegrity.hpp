@@ -142,6 +142,7 @@ struct SiSettings {
     double overshootLimit = 0.15;  // fraction of the swing
     double crosstalkLimit = 0.05;  // fraction of the victim's swing
     std::string copperFoil;        // copper foil profile for loss ("" = by laminate, see LossyLine.hpp)
+    double copperTempC = 20;       // copper temperature for IR drop (°C): ρ rises 0.393 %/°C above 20 °C
     bool fieldSolverLines = false; // channel lines take Z0, εeff and R_ac from the 2D field solver (FieldSolver.hpp)
     /// Serial channels checked in sign-off: an eye at `bitRate` against a mask (SI_EYE_MASK).
     struct ChannelSpec {

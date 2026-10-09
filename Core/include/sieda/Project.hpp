@@ -142,10 +142,11 @@ public:
     /// DDR layout limits from the memory controller's own layout guide; 0 (or -1 for the via spread) keeps the memory
     /// type's typical value (Memory.cpp ddrLayoutLimits). Saved only when one is set.
     struct MemoryLayoutLimits {
-        double laneSkewPs = 0, dqsSkewPs = 0, addrSkewPs = 0, impedanceTolPercent = 0;
+        double laneSkewPs = 0, dqsSkewPs = 0, addrSkewPs = 0, impedanceTolPercent = 0, pairSkewPs = 0;
         int laneViaSpread = -1;
         bool isDefault() const {
-            return laneSkewPs <= 0 && dqsSkewPs <= 0 && addrSkewPs <= 0 && impedanceTolPercent <= 0 && laneViaSpread < 0;
+            return laneSkewPs <= 0 && dqsSkewPs <= 0 && addrSkewPs <= 0 && impedanceTolPercent <= 0 && pairSkewPs <= 0 &&
+                   laneViaSpread < 0;
         }
     } memoryLimits;
     Schematic schematic;
@@ -159,6 +160,12 @@ public:
     std::string activeVariant;
     /// Design review comments (ProjectDiff.hpp); saved only when there are any.
     std::vector<ReviewComment> reviewComments;
+    /// Sign-off waivers: a finding `code` (on the part `ref`, or anywhere when empty) accepted for `reason`; it stays in
+    /// the verification report as Info "(waived: reason)" and no longer fails it. Saved only when present.
+    struct Waiver {
+        std::string code, ref, reason;
+    };
+    std::vector<Waiver> waivers;
     /// Schematic title block (empty = the title is the project name).
     TitleBlock titleBlock;
 

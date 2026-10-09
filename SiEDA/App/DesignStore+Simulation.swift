@@ -87,7 +87,8 @@ extension DesignStore {
                 return nil
             }
             // Vendor files are ASCII or Latin-1; invalid UTF-8 bytes become replacement characters.
-            return String(decoding: data, as: UTF8.self)
+            return EDAEngine.inlineSpiceIncludes(String(decoding: data, as: UTF8.self),
+                                                 directory: url.deletingLastPathComponent().path)
         } catch {
             present(error, title: "Could not read \(url.lastPathComponent)")
             return nil

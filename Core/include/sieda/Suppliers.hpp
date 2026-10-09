@@ -128,7 +128,8 @@ SupplierPart supplierPartFromJson(const Json& j);
 Json supplierSearchToJson(const SupplierSearchResult& result, const std::string& currency = "");
 
 /// BOM cost roll-up. request:
-///   {"currency":"USD","quantities":[1,10,100,1000],"buildQuantity":5,
+///   {"currency":"USD","quantities":[1,10,100,1000],"buildQuantity":5,"attritionPercent":2,"attritionMin":5 (spares per
+///    line for assembly loss: the larger of the percentage and the minimum; both 0 by default),
 ///    "lines":[{"item","refs":[…],"quantity":per board,"mpn","manufacturer","dnp","embedded"}],
 ///    "parts":[normalised parts]}
 /// → {"currency","lines":[{"item","refs","mpn","status":"priced|unpriced|no_mpn|not_found|dnp","lifecycle",

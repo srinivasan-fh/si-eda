@@ -164,6 +164,7 @@ struct SupplierRollupRequest: Encodable {
     var currency: String
     var quantities: [Int]
     var buildQuantity: Int
+    var attritionPercent: Double = 0  // spares per line for assembly loss (the core adds the larger of this and attritionMin)
     var lines: [Line]
     var parts: [SupplierPartInfo]
 }

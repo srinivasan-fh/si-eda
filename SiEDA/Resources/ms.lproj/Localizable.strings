@@ -1285,3 +1285,6 @@
 "Sign-off Report" = "Laporan Pengesahan";
 "Live Collaboration" = "Kerjasama Langsung";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "Simpan setiap suntingan ke fail projek kongsi dan gabungkan simpanan rakan sepasukan secara automatik";
+"Clock / strobe pair P to N (ps)" = "Pasangan jam / strob P ke N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "Komponen tambahan setiap baris untuk kehilangan pemasangan (pick-and-place)";
+"Spares" = "Simpanan";

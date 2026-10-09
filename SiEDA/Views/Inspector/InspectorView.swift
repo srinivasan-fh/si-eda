@@ -869,6 +869,7 @@ private struct MemorySystemProperties: View {
                 limit("Byte-lane skew (ps)", \.laneSkewPs, report)
                 limit("DQ to DQS (ps)", \.dqsSkewPs, report)
                 limit("Address to clock (ps)", \.addrSkewPs, report)
+                limit("Clock / strobe pair P to N (ps)", \.pairSkewPs, report)
                 limit("Impedance tolerance (%)", \.impedanceTolPercent, report)
                 Text("Typical values for the memory type; enter your controller's layout-guide numbers (0 = typical).")
                     .font(.caption).foregroundStyle(Theme.textMuted)

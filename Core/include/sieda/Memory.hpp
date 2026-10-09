@@ -32,7 +32,7 @@ Json memorySegmentsJson(const Project& project);
 /// Memory design rules. Empty for other projects; Info only while no memory design type is chosen.
 std::vector<RuleViolation> memoryChecks(const Project& project);
 
-/// {"laneSkewPs","dqsSkewPs","addrSkewPs","impedanceTolPercent","laneViaSpread"} of the overrides (only those set) and
+/// {"laneSkewPs","dqsSkewPs","addrSkewPs","impedanceTolPercent","laneViaSpread","pairSkewPs"} of the overrides (only those set) and
 /// back; values are clamped (skews 0 … 1000 ps, tolerance 0 … 50 %, via spread -1 … 8).
 Json memoryLimitsJson(const Project::MemoryLayoutLimits& l);
 Project::MemoryLayoutLimits memoryLimitsFromJson(const Json& j);

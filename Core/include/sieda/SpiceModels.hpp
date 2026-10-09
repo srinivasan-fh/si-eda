@@ -104,6 +104,11 @@ struct SpiceLibrary {
 
 /// Parses model text. Text over 8 MB or 200 000 lines is refused with an error diagnostic.
 SpiceLibrary parseSpiceLibrary(const std::string& text);
+/// Vendor files that pull in others: each `.include` / `.inc` / `.lib file [section]` line naming a file under `dir`
+/// (relative paths only, no "..") is replaced by that file — `.lib file section` by its `.lib section` … `.endl`
+/// block — recursively up to 8 levels and 8 MB in all, each file once. Lines it cannot follow stay as they are (the
+/// parser warns about them).
+std::string inlineSpiceIncludes(const std::string& text, const std::string& dir);
 
 // ------------------------------------------------------------------ flattening
 

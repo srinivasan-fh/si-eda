@@ -5,7 +5,9 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
+#include <sstream>
 #include <mutex>
 #include <set>
 
@@ -677,6 +679,53 @@ int SpiceLibrary::findSubckt(const std::string& rawName, int scope) const {
         if (static_cast<size_t>(s) >= subckts.size()) break;
     }
     return -1;
+}
+
+std::string inlineSpiceIncludes(const std::string& text, const std::string& dir) {
+    size_t budget = kMaxText;
+    std::set<std::string> seen;
+    std::function<std::string(const std::string&, int)> expand = [&](const std::string& src, int depth) {
+        std::istringstream in(src);
+        std::string out, line;
+        while (std::getline(in, line)) {
+            std::istringstream ls(line);
+            std::string kw, file, section;
+            ls >> kw >> file >> section;
+            kw = upper(kw);
+            if (file.size() > 1 && (file.front() == '"' || file.front() == '\'')) file = file.substr(1, file.size() - 2);
+            const bool inc = kw == ".INCLUDE" || kw == ".INC" || kw == ".LIB" || kw == ".LIBRARY";
+            std::string body;
+            if (inc && depth < 8 && !file.empty() && file[0] != '/' && file[0] != '\\' && file.find("..") == std::string::npos &&
+                file.find(':') == std::string::npos && seen.insert(file + "|" + upper(section)).second) {
+                std::ifstream f(dir + "/" + file, std::ios::binary);
+                std::ostringstream buf;
+                if (f && buf << f.rdbuf()) body = buf.str();
+                if (!body.empty() && !section.empty()) {  // .lib file section: only that block
+                    std::istringstream bs(body);
+                    std::string l, block;
+                    bool on = false;
+                    while (std::getline(bs, l)) {
+                        std::istringstream t(l);
+                        std::string k, name;
+                        t >> k >> name;
+                        k = upper(k);
+                        if (on && (k == ".ENDL" || k == ".LIB")) break;
+                        if (on) block += l + "\n";
+                        on = on || (k == ".LIB" && upper(name) == upper(section));
+                    }
+                    body = block;
+                }
+            }
+            if (body.empty() || body.size() > budget) {
+                out += line + "\n";
+                continue;
+            }
+            budget -= body.size();
+            out += "* " + line + " (inlined)\n" + expand(body, depth + 1) + "\n";
+        }
+        return out;
+    };
+    return expand(text, 0);
 }
 
 SpiceLibrary parseSpiceLibrary(const std::string& text) {

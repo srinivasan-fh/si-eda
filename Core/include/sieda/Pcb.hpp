@@ -222,6 +222,7 @@ struct BoardSettings {
     PanelSettings panel;
     /// Manufacturer DFM / DFA rule pack (Dfm.hpp) the DRC checks against; empty = none (not saved).
     std::string dfmPack;
+    std::map<std::string, double> dfmOverrides;  // the fab's own capability values by DfmPack field name (minTrack, …)
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {

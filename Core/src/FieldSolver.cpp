@@ -117,6 +117,7 @@ FieldResult solveField(const FieldGeometry& in) {
     FieldGeometry g = in;
     g.w = std::max(g.w, 1e-3), g.h = std::max(g.h, 1e-3), g.t = std::max(g.t, 0.0), g.er = std::max(g.er, 1.0);
     const bool pair = g.s > 0, strip = g.hTop > 0;
+    const double mask = strip ? 0 : std::clamp(g.mask, 0.0, 1.0);
     const double y1 = g.h, y2 = g.h + g.t, top = strip ? y2 + g.hTop : y2 + 12 * (g.h + g.w);
     const double xa = pair ? g.s / 2 : -g.w / 2, xb = xa + g.w;   // conductor 1; conductor 2 mirrored (pair)
     const double span = std::max(xb, std::fabs(xa)), side = span + (strip ? 5 * (y2 + g.hTop) : 12 * (g.h + g.w));
@@ -124,8 +125,13 @@ FieldResult solveField(const FieldGeometry& in) {
     if (g.t > 0) hmin = std::min(hmin, g.t / 4);
     if (pair) hmin = std::min(hmin, g.s / 30);
     if (strip) hmin = std::min(hmin, g.hTop / 100);
+    if (mask > 0) hmin = std::min(hmin, mask / 4);
     std::vector<double> bx{-side, xa, xb, side}, by{0, y1, y2, top};
     if (pair) bx.insert(bx.end(), {-xa, -xb, 0.0});
+    if (mask > 0) {  // the coating's surfaces are grid lines too
+        by.insert(by.end(), {y1 + mask, y2 + mask});
+        bx.insert(bx.end(), {xa - mask, xb + mask, -(xa - mask), -(xb + mask)});
+    }
     Grid grid;
     grid.x = axis(bx, hmin, (g.h + g.w) / 3);
     grid.y = axis(by, hmin, (g.h + g.w) / 3);
@@ -145,7 +151,11 @@ FieldResult solveField(const FieldGeometry& in) {
     auto solve = [&](bool air) {
         auto eps = [&](size_t i, size_t j) {  // cell (i,j); out of range = 0
             if (i + 1 >= grid.nx || j + 1 >= grid.ny) return 0.0;
-            return !air && (strip || (grid.y[j] + grid.y[j + 1]) / 2 < y1) ? g.er : 1.0;
+            if (air) return 1.0;
+            const double cx = (grid.x[i] + grid.x[i + 1]) / 2, cy = (grid.y[j] + grid.y[j + 1]) / 2;
+            if (strip || cy < y1) return g.er;
+            auto coats = [&](double a, double b) { return cx > a - mask && cx < b + mask && cy < y2 + mask; };
+            return mask > 0 && (cy < y1 + mask || coats(xa, xb) || (pair && coats(-xb, -xa))) ? std::max(g.erMask, 1.0) : 1.0;
         };
         grid.gx.assign(n, 0), grid.gy.assign(n, 0);
         for (size_t j = 0; j < grid.ny; ++j)
@@ -202,11 +212,34 @@ LineLoss lineLoss(const FieldGeometry& g, const FieldResult& r, double f) {
     return l;
 }
 
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap) {
+    auto z = [&](double w) {
+        const FieldResult r = solveField(trackGeometry(s, layer, w, gap));
+        return gap > 0 ? r.zdiff : r.z0;
+    };
+    // Z falls as the track widens: bracket around the closed-form width, then bisect on log(w).
+    const double w0 = std::clamp(gap > 0 ? differentialPairGeometry(s, layer, ohms).first : widthForImpedance(s, layer, ohms), 0.05, 5.0);
+    double lo = w0 / 1.5, hi = w0 * 1.5, zLo = z(lo), zHi = z(hi);
+    while (lo > 0.02 && zLo < ohms) zLo = z(lo /= 2);
+    while (hi < 10 && zHi > ohms) zHi = z(hi *= 2);
+    if (zLo < ohms || zHi > ohms) return 0;
+    // Regula falsi (Illinois) on ln Z against ln w — nearly linear, so a few solves reach 0.1 %.
+    double fLo = std::log(zLo / ohms), fHi = std::log(zHi / ohms), w = std::sqrt(lo * hi);
+    for (int i = 0, side = 0; i < 30 && hi / lo > 1.0005; ++i) {
+        w = std::exp(std::log(lo) + fLo / (fLo - fHi) * std::log(hi / lo));
+        const double f = std::log(z(w) / ohms);
+        if (std::fabs(f) < 1e-3) break;
+        if (f > 0) lo = w, fLo = f, fHi *= side == 1 ? 0.5 : 1, side = 1;
+        else hi = w, fHi = f, fLo *= side == -1 ? 0.5 : 1, side = -1;
+    }
+    return w;
+}
+
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap) {
     FieldGeometry g;
     g.w = w, g.s = gap, g.t = copperThickness(s), g.er = boardLaminate(s).er, g.tanD = boardLaminate(s).lossTangent;
     if (isStriplineLayer(s, layer)) g.h = dielectricBelow(s, layer), g.hTop = dielectricBelow(s, layer - 1);
-    else g.h = impedanceReferenceHeight(s, layer);
+    else g.h = impedanceReferenceHeight(s, layer), g.mask = 0.02;
     return g;
 }
 
@@ -215,6 +248,7 @@ Json fieldResultJson(const FieldGeometry& g, const FieldResult& r) {
     j["geometry"] = Json::object();
     j["geometry"]["w"] = g.w, j["geometry"]["t"] = g.t, j["geometry"]["h"] = g.h, j["geometry"]["hTop"] = g.hTop;
     j["geometry"]["s"] = g.s, j["geometry"]["er"] = g.er;
+    if (g.mask > 0 && g.hTop <= 0) j["geometry"]["mask"] = g.mask, j["geometry"]["erMask"] = g.erMask;
     j["geometry"]["tanD"] = g.tanD, j["geometry"]["roughness"] = g.roughness;
     j["geometry"]["kind"] = g.hTop > 0 ? "stripline" : "microstrip";
     j["z0"] = r.z0, j["eeff"] = r.eeff, j["delayPsPerMm"] = r.delayPsPerMm;

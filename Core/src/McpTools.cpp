@@ -2292,13 +2292,16 @@ void siTools(Table& t) {
               .num("transientAmps", "Load step (A)")
               .num("dcAmps", "DC load (A)")
               .num("vrmROut", "Regulator output resistance (Ω)")
-              .num("vrmBandwidth", "Regulator loop bandwidth (Hz)"),
+              .num("vrmBandwidth", "Regulator loop bandwidth (Hz)")
+              .num("copperTempC", "Copper temperature for IR drop, whole board (°C, default 20)"),
           [](McpServer& s, const Json& a) {
               const std::string net = requireStr(a, "net");
               check(sieda_pi_set_rail(P(s), net.c_str(), argNum(a, "ripplePercent", 0), argNum(a, "transientAmps", 0), argNum(a, "dcAmps", 0)) == 1,
                     "Unknown rail");
               if (a.has("vrmROut") || a.has("vrmBandwidth"))
                   check(sieda_pi_set_vrm(P(s), net.c_str(), argNum(a, "vrmROut", 0), argNum(a, "vrmBandwidth", 0)) == 1, "Invalid regulator model");
+              if (a.has("copperTempC"))
+                  check(sieda_pi_set_copper_temperature(P(s), argNum(a, "copperTempC", 20)) == 1, "Copper temperature must be -55 to 200 °C");
               Json j = obj();
               j["ok"] = true;
               return out(j);
@@ -2355,13 +2358,23 @@ void verifyTools(Table& t) {
                                            : sieda_memory_segments_json(P(s));
               return out(takeJson(r));
           });
+    t.add("verify", "verify_waivers", "Sign-off waivers", Kind::Edit, true,
+          "Findings accepted at sign-off: each waiver names a check code (e.g. DRC_CLEARANCE, DFM_ASPECT_RATIO), "
+          "optionally the part it applies to, and the reason. A matching finding stays in verify_design as Info "
+          "\"(waived: reason)\" and no longer fails the design. With waivers: replaces the list ([] = none). Returns it.",
+          Schema().array("waivers", "[{code, ref (optional), reason}]", "object"),
+          [](McpServer& s, const Json& a) {
+              if (a.has("waivers")) check(sieda_set_waivers(P(s), a.get("waivers").dump().c_str()) == 1, "Each waiver needs a code");
+              return out(takeJson(sieda_waivers_json(P(s))));
+          });
     t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
           "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "
           "data impedance tolerance, via spread). With arguments: sets the controller's own values (0 or omitted = the memory "
           "type's typical value). Returns the limits in force.",
           Schema().num("laneSkewPs", "Byte-lane DQ skew, ps").num("dqsSkewPs", "DQ to its strobe, ps")
               .num("addrSkewPs", "Command / address to clock, ps").num("impedanceTolPercent", "Data impedance tolerance, %")
-              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)"),
+              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)")
+              .num("pairSkewPs", "P to N of the clock and strobe pairs, ps"),
           [](McpServer& s, const Json& a) {
               if (a.isObject() && a.size() > 0) check(sieda_set_memory_limits(P(s), a.dump().c_str()) == 1, "Invalid limits");
               return out(takeJson(sieda_memory_limits_json(P(s))));
@@ -2576,9 +2589,13 @@ void teamTools(Table& t) {
           "Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). With pack: selects it "
           "(\"\" = none), tightening the DRC minimums and adding the DFM_* / DFA_* checks to run_drc. Returns the packs, "
           "the board's pack and its sign-off report (measured value, limit, pass / fail per rule).",
-          Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)"),
+          Schema().str("pack", "Pack id, e.g. jlcpcb-standard (\"\" = none)")
+              .object("overrides", "Your fab's own values by field, e.g. {\"minTrack\":0.1,\"maxAspectRatio\":12} (0 removes one)"),
           [](McpServer& s, const Json& a) {
               if (a.has("pack")) check(sieda_pcb_set_dfm_pack(P(s), argStr(a, "pack").c_str()) == 1, "Unknown pack");
+              if (a.get("overrides").isObject())
+                  for (const auto& [k, v] : a.get("overrides").fields())
+                      check(sieda_pcb_set_dfm_override(P(s), k.c_str(), v.asNumber(-1)) == 1, "Unknown pack field " + k);
               Json j = obj();
               j["packs"] = takeJson(sieda_dfm_packs_json());
               j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
@@ -2591,10 +2608,15 @@ void teamTools(Table& t) {
           "and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect "
           "with copper roughness, laminate loss tangent). Within ~1 % of exact stripline results.",
           Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)")
-              .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)"),
+              .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)")
+              .num("targetOhms", "Goal seek: solve the width for this Z0 (with gap: Zdiff) instead of taking width"),
           [](McpServer& s, const Json& a) {
-              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), argNum(a, "width", 0.2), argNum(a, "gap", 0),
-                                          argNum(a, "roughness", 1.0));
+              double width = argNum(a, "width", 0.2);
+              if (a.has("targetOhms")) {
+                  width = sieda_field_solve_width(P(s), argInt(a, "layer", 0), argNum(a, "targetOhms", 50), argNum(a, "gap", 0));
+                  check(width > 0, "No width from 0.02 to 10 mm reaches that impedance");
+              }
+              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), width, argNum(a, "gap", 0), argNum(a, "roughness", 1.0));
               check(r != nullptr, "Bad layer, width or gap");
               return out(takeJson(r));
           });
@@ -2605,12 +2627,20 @@ void teamTools(Table& t) {
           Schema().integer("nx", "Boards across (1 to 20)").integer("ny", "Boards up (1 to 20)")
               .num("gap", "Routed gap between boards and to the rails, mm (tab panels)")
               .num("rail", "Rail width along the top and bottom, mm (0 = none)")
-              .boolean("vscore", "V-score instead of tabs and mouse bites"),
+              .boolean("vscore", "V-score instead of tabs and mouse bites")
+              .boolean("fit", "Pick nx × ny: the most boards within maxWidth × maxHeight (default: the DFM pack's size limit)")
+              .num("maxWidth", "Largest panel width for fit, mm").num("maxHeight", "Largest panel height for fit, mm"),
           [](McpServer& s, const Json& a) {
-              if (a.has("nx") || a.has("ny") || a.has("gap") || a.has("rail") || a.has("vscore")) {
+              if (a.has("nx") || a.has("ny") || a.has("gap") || a.has("rail") || a.has("vscore") || a.get("fit").asBool(false)) {
                   Json cur = takeJson(sieda_pcb_panel(P(s))).get("settings");
                   for (const char* k : {"nx", "ny", "gap", "rail", "vscore"})
                       if (a.has(k)) cur[k] = a.get(k);
+                  if (a.get("fit").asBool(false)) {
+                      Json fit = obj();
+                      if (a.has("maxWidth")) fit["width"] = a.get("maxWidth");
+                      if (a.has("maxHeight")) fit["height"] = a.get("maxHeight");
+                      cur["fit"] = fit;
+                  }
                   check(sieda_pcb_set_panel(P(s), cur.dump().c_str()) == 1, "Invalid panel settings");
               }
               return out(takeJson(sieda_pcb_panel(P(s))));

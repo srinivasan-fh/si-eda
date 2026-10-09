@@ -745,6 +745,11 @@ enum DesignPlanCompiler {
                     // Built-in standard part (LM7805, NE555, …): add it to the project library on first use.
                     partId = try? engine.registerCustomPart(standard.spec).id
                 }
+                if partId == nil, let near = Self.closestStandardPart(name) {
+                    // The model wrote the part number with other punctuation or an ordering suffix ("lm358-dr").
+                    partId = library.first(where: { $0.name == near.spec.name })?.id ?? (try? engine.registerCustomPart(near.spec).id)
+                    if partId != nil { report.warnings.append("\(item.ref): used catalog part \(near.spec.name) for '\(name)'.") }
+                }
                 guard let partId else {
                     report.warnings.append("Skipped \(item.ref): '\(name)' is not in the component library.")
                     continue
@@ -1388,5 +1393,21 @@ enum JSONExtraction {
         } catch {
             throw AIProviderError.invalidResponse("The model returned JSON that does not match the expected schema: \(error.localizedDescription)")
         }
+    }
+}
+
+extension DesignPlanCompiler {
+    /// The catalog part a model-written name means when it differs only in punctuation, case or an ordering suffix
+    /// ("lm358-dr" → LM358DR, "NE555P" → NE555): same letters and digits, or one a prefix of the other (≥ 4
+    /// characters), the closest in length. Nil when nothing is that close.
+    static func closestStandardPart(_ name: String) -> StandardPart? {
+        let key = SupplierPlacement.normalized(name)
+        guard key.count >= 4 else { return nil }
+        let candidates = StandardLibrary.parts.compactMap { part -> (StandardPart, Int)? in
+            let n = SupplierPlacement.normalized(part.spec.name)
+            guard n.count >= 4, n == key || key.hasPrefix(n) || n.hasPrefix(key) else { return nil }
+            return (part, abs(n.count - key.count))
+        }
+        return candidates.min(by: { $0.1 < $1.1 })?.0
     }
 }

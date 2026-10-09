@@ -5,7 +5,8 @@ import SwiftUI
 /// Live co-editing through a shared project file: iCloud Drive, Dropbox, OneDrive, a network share or a Git working copy.
 /// No server: every SiEDA that has the file open with Live Collaboration on
 ///  • saves shortly after each edit (so the others see it within seconds),
-///  • watches the file and three-way merges a teammate's save into the open design (`sieda_merge_projects`, base = the
+///  • watches the file (a kernel file-system event the moment it changes, plus a 2 s check for network shares that
+///    send none) and three-way merges a teammate's save into the open design (`sieda_merge_projects`, base = the
 ///    file as this window last read or wrote it) as one undo step — both sides' parts, wires, tracks and settings are
 ///    kept; a field both changed differently keeps this side's value and is listed in `conflicts`,
 ///  • announces itself in a presence folder beside the file (".<name>.siedaproj.presence/<user>@<host>.json", refreshed
@@ -28,6 +29,7 @@ final class LiveCollaboration: ObservableObject {
     private var base = ""  // the file's content as this window last read, merged or wrote it
     private var lastModified: Date?
     private var timer: Timer?
+    private var watcher: DispatchSourceFileSystemObject?
     private var ticks = 0
     private var pendingSave: DispatchWorkItem?
     private let me = Peer(user: NSFullUserName().isEmpty ? NSUserName() : NSFullUserName(),
@@ -41,7 +43,7 @@ final class LiveCollaboration: ObservableObject {
         self.url = url
         base = json
         lastModified = modificationDate()
-        if enabled { heartbeat() }
+        if enabled { heartbeat(); watch() }
     }
 
     func setEnabled(_ on: Bool) {
@@ -55,8 +57,11 @@ final class LiveCollaboration: ObservableObject {
             timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.tick() }
             }
+            watch()
         } else {
             pendingSave?.cancel()
+            watcher?.cancel()
+            watcher = nil
             leave()
         }
     }
@@ -79,6 +84,26 @@ final class LiveCollaboration: ObservableObject {
         }
         lastModified = modificationDate()
         if save, store.isDirty { store.save() }
+    }
+
+    /// Re-armed after every event: a save that replaces the file (write to a temporary, rename) ends the old watch.
+    private func watch() {
+        watcher?.cancel()
+        watcher = nil
+        guard enabled, let url else { return }
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend],
+                                                               queue: .main)
+        source.setEventHandler { [weak self] in
+            Task { @MainActor in
+                self?.sync(save: false)
+                self?.watch()
+            }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        watcher = source
     }
 
     private func tick() {

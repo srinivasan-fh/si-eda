@@ -16,6 +16,7 @@ struct FieldGeometry {
     double w = 0.2, t = 0.035, h = 0.2, hTop = 0, s = 0, er = 4.4;
     double tanD = 0;       // dielectric loss tangent (Df)
     double roughness = 0;  // copper RMS roughness, µm (0 = smooth)
+    double mask = 0, erMask = 3.6;  // microstrip: conformal solder-mask coating (mm) over the laminate and the track
 };
 
 struct FieldResult {
@@ -37,8 +38,12 @@ struct LineLoss {
 LineLoss lineLoss(const FieldGeometry& g, const FieldResult& r, double f);
 
 FieldResult solveField(const FieldGeometry& g);
-/// The cross-section of `layer` from the board's stack-up (laminate εr, copper weight, dielectric heights).
+/// The cross-section of `layer` from the board's stack-up (laminate εr, copper weight, dielectric heights); outer
+/// layers carry a typical 20 µm LPI solder mask (εr 3.6).
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap = 0);
 Json fieldResultJson(const FieldGeometry& g, const FieldResult& r);
+/// Goal seek: the width on `layer` whose field-solved Z0 (gap > 0: Zdiff of a pair `gap` apart) is `ohms`, to 0.2 %,
+/// starting from the closed-form width; 0 when no width from 0.02 to 10 mm reaches it.
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap = 0);
 
 }  // namespace sieda

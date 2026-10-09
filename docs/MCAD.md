@@ -79,8 +79,11 @@ collaboration (SolidWorks PCB / CircuitWorks, Creo, NX, Altium, Cadence and othe
 5. MCAD proposals are answered with MCP `output_idx_response` (`changes`, `path`, `accept`) or C `sieda_idx_response`:
    every proposed change accepted or rejected.
 
-Limits: outlines are polylines (arcs in an MCAD outline are not read); keep-outs are taken as their bounding box;
-mounting holes edited in MCAD are not read back. The files are checked for well-formed XML and a
+Outlines and keep-outs may use polylines, arcs (`Arc`: start, end, swept angle) and circles (`CircleCenter`); arcs
+are read in steps of at most 10°. Round cut-outs in the board outline come back as its drilled holes (moved, added,
+removed or resized in MCAD). A keep-out of any shape becomes one rectangle per run in each horizontal band between
+its corners — exact for L / U / notched shapes, never smaller than the shape (more than 32 bands: its bounding box);
+the pieces are named "MCAD name", "MCAD name #2", …. The files are checked for well-formed XML and a
 SiEDA round trip in the tests; they have not yet been checked against a commercial MCAD tool.
 
 Code: `Core/src/Mechanical.cpp` (`exportStep`, `exportIdfBoard`, `exportIdfLibrary`, `importIdfPlacement`,

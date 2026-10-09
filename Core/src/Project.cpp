@@ -143,6 +143,11 @@ Json boardJson(const BoardSettings& s) {
     if (Json m = mechanicalLimitsToJson(s); !m.isNull()) b["mechanical"] = m;
     if (Json panel = panelToJson(s.panel); !panel.isNull()) b["panel"] = panel;
     if (!s.dfmPack.empty()) b["dfmPack"] = s.dfmPack;
+    if (!s.dfmOverrides.empty()) {
+        Json o = Json::object();
+        for (const auto& [k, v] : s.dfmOverrides) o[k] = v;
+        b["dfmOverrides"] = o;
+    }
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -598,6 +603,15 @@ Json Project::toJson() const {
     }
     if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
     if (!reviewComments.empty()) root["review"] = reviewToJson(reviewComments);
+    if (!waivers.empty()) {
+        Json w = Json::array();
+        for (const auto& x : waivers) {
+            Json j = Json::object();
+            j["code"] = x.code, j["ref"] = x.ref, j["reason"] = x.reason;
+            w.push(j);
+        }
+        root["waivers"] = w;
+    }
     if (!titleBlock.empty()) {
         Json tb = Json::object();
         tb["title"] = titleBlock.title;
@@ -755,6 +769,9 @@ Project Project::fromJson(const Json& root) {
     mechanicalLimitsFromJson(b.get("mechanical"), s);
     panelFromJson(b.get("panel"), s.panel);
     s.dfmPack = b.get("dfmPack").asString("");
+    if (b.get("dfmOverrides").isObject())
+        for (const auto& [k, v] : b.get("dfmOverrides").fields())
+            if (v.isNumber() && v.asNumber() > 0 && v.asNumber() < 1e4) s.dfmOverrides[k] = v.asNumber();
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {
@@ -964,6 +981,9 @@ Project Project::fromJson(const Json& root) {
     }
     p.activeVariant = root.get("activeVariant").asString("");
     p.reviewComments = reviewFromJson(root.get("review"));
+    for (const auto& w : root.get("waivers").items())
+        if (w.get("code").isString() && !w.get("code").asString().empty() && p.waivers.size() < 1000)
+            p.waivers.push_back({w.get("code").asString(), w.get("ref").asString(""), w.get("reason").asString("")});
     {
         const Json& tb = root.get("titleBlock");
         auto field = [&](const char* key) {

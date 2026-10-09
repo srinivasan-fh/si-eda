@@ -1285,3 +1285,6 @@
 "Sign-off Report" = "Báo cáo phê duyệt";
 "Live Collaboration" = "Cộng tác trực tiếp";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "Lưu từng chỉnh sửa vào tệp dự án dùng chung và tự động hợp nhất các lần lưu của đồng đội";
+"Clock / strobe pair P to N (ps)" = "Cặp clock / strobe, P đến N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "Linh kiện dự phòng mỗi dòng cho hao hụt lắp ráp (pick-and-place)";
+"Spares" = "Dự phòng";

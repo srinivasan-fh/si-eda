@@ -225,6 +225,23 @@ void panelFromJson(const Json& j, PanelSettings& p) {
     p.vscore = j.get("vscore").asBool(false);
 }
 
+PanelSettings fitPanel(const BoardSettings& s, double maxWidth, double maxHeight) {
+    PanelSettings best = s.panel, p = s.panel;
+    best.nx = best.ny = 1;
+    double bestArea = 0;
+    BoardSettings t = s;
+    for (p.nx = 1; p.nx <= 20; ++p.nx)
+        for (p.ny = 1; p.ny <= 20; ++p.ny) {
+            if (p.nx * p.ny < 2 || p.nx * p.ny < best.nx * best.ny) continue;
+            t.panel = p;
+            const PanelLayout l = panelLayout(t);
+            if (l.width > maxWidth + 1e-9 || l.height > maxHeight + 1e-9) continue;
+            const double area = l.width * l.height + std::fabs(l.width - l.height);  // smaller, then squarer
+            if (p.nx * p.ny > best.nx * best.ny || area < bestArea) best = p, bestArea = area;
+        }
+    return best;
+}
+
 Json panelLayoutJson(const BoardSettings& s) {
     const PanelLayout l = panelLayout(s);
     auto points = [](const std::vector<Vec2>& v) {
@@ -244,6 +261,7 @@ Json panelLayoutJson(const BoardSettings& s) {
     j["height"] = l.height;
     j["boardWidth"] = l.boardWidth;
     j["boardHeight"] = l.boardHeight;
+    j["utilisation"] = l.width * l.height > 0 ? l.boardWidth * l.boardHeight * static_cast<double>(l.boards.size()) / (l.width * l.height) : 0.0;
     j["boards"] = points(l.boards);
     j["fiducials"] = points(l.fiducials);
     j["toolingHoles"] = points(l.toolingHoles);

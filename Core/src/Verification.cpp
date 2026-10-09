@@ -382,6 +382,26 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
         report.stages.push_back(std::move(st));
     }
 
+    // Waivers: an accepted finding stays in the report as Info and no longer fails its stage.
+    for (auto& st : report.stages) {
+        bool waived = false;
+        for (auto& v : st.findings)
+            for (const auto& w : project.waivers) {
+                const bool onRef = w.ref.empty() || std::any_of(v.components.begin(), v.components.end(), [&](int id) {
+                    const Component* c = sch.find(id);
+                    return c && c->ref == w.ref;
+                });
+                if (v.severity == Severity::Info || w.code != v.code || !onRef) continue;
+                v.severity = Severity::Info;
+                v.message += " (waived: " + (w.reason.empty() ? std::string("no reason given") : w.reason) + ")";
+                waived = true;
+                break;
+            }
+        if (waived && st.status != StageStatus::Skipped) {
+            st.status = statusOf(st.findings);
+            st.summary = countSummary(st.findings, st.summary);
+        }
+    }
     report.verdict = StageStatus::Pass;
     for (const auto& st : report.stages) {
         report.verdict = worst(report.verdict, st.status);

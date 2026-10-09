@@ -945,6 +945,9 @@ Json supplierBomRollup(const Json& request) {
     if (boardSet.empty()) boardSet = {1, 10, 100, 1000};
     const std::vector<int> boards(boardSet.begin(), boardSet.end());
     const int buildBoards = build >= 1 ? clampInt(build, 1, 1000000) : boards.front();
+    // Assembly attrition (parts lost on the pick-and-place line): a percentage plus a minimum of spare pieces per line.
+    const double attrition = std::clamp(request.get("attritionPercent").asNumber(0), 0.0, 100.0) / 100;
+    const long long spares = std::clamp(count(request.get("attritionMin")), 0LL, 10000LL);
 
     struct Total {
         double cost = 0;
@@ -1000,7 +1003,8 @@ Json supplierBomRollup(const Json& request) {
                 if (!skip) ++totals[k].unpriced;
                 continue;
             }
-            const long long needed = static_cast<long long>(perBoard) * boards[k];
+            const long long net = static_cast<long long>(perBoard) * boards[k];
+            const long long needed = net + std::max(spares, static_cast<long long>(std::ceil(net * attrition - 1e-9)));
             const OfferChoice c = bestOffer(*part, clampInt(needed, 1, kMaxQuantity), currency);
             if (c.offerIndex < 0) {
                 ++totals[k].unpriced;

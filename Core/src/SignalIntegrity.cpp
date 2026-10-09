@@ -425,7 +425,7 @@ const PdnRailSettings* SiSettings::rail(const std::string& net) const {
 bool SiSettings::isDefault() const {
     return models.empty() && componentModels.empty() && pinModels.empty() && netModels.empty() && rails.empty() && !signOff &&
            std::fabs(overshootLimit - 0.15) < 1e-12 && std::fabs(crosstalkLimit - 0.05) < 1e-12 && copperFoil.empty() &&
-           !fieldSolverLines && channels.empty();
+           !fieldSolverLines && channels.empty() && copperTempC == 20;
 }
 
 const SiSettings::ChannelSpec* SiSettings::channel(const std::string& net) const {
@@ -464,6 +464,7 @@ Json SiSettings::toJson() const {
     j["rails"] = rs;
     if (!copperFoil.empty()) j["copperFoil"] = copperFoil;
     if (fieldSolverLines) j["fieldSolverLines"] = true;
+    if (copperTempC != 20) j["copperTempC"] = copperTempC;
     if (!channels.empty()) {
         Json cs = Json::array();
         for (const auto& c : channels) {
@@ -511,6 +512,7 @@ SiSettings SiSettings::fromJson(const Json& j) {
         }
     s.copperFoil = j.get("copperFoil").asString("");
     s.fieldSolverLines = j.get("fieldSolverLines").asBool(false);
+    s.copperTempC = std::clamp(j.get("copperTempC").asNumber(20), -55.0, 200.0);
     if (j.get("channels").isArray())
         for (const auto& c : j.get("channels").items()) {
             ChannelSpec x;

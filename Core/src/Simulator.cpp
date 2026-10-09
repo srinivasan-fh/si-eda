@@ -497,6 +497,7 @@ bool Simulator::build(std::string& error) {
                     st->componentId = c.id;
                     st->mcu = std::make_unique<AvrMcu>(*model);
                     st->clockHz = c.clockHz > 0 ? c.clockHz : defaultMcuClock(*model);
+                    st->mcu->setClockHz(st->clockHz);
                     st->name = c.firmwareName.empty() ? std::string("firmware") : c.firmwareName;
                     std::vector<std::pair<int, int>> pinNodes;  // (pin index, node)
                     bool vccWired = false, gndWired = false;

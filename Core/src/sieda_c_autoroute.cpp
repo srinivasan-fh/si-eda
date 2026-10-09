@@ -100,6 +100,16 @@ int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
     return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
 }
 
+int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, double value) {
+    const auto& names = dfmFieldNames();
+    if (!project || !field || std::find(names.begin(), names.end(), field) == names.end() || !(value < 1e4)) return 0;
+    auto& s = project->project.pcb.settings;
+    if (value > 0) s.dfmOverrides[field] = value;
+    else s.dfmOverrides.erase(field);
+    if (!s.dfmPack.empty()) applyDfmPack(s, s.dfmPack);
+    return 1;
+}
+
 char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um) {
     if (!project) return nullptr;
     const auto& s = project->project.pcb.settings;
@@ -111,6 +121,13 @@ char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width
     return dupText(fieldResultJson(g, solveField(g)).dump());
 }
 
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap) {
+    if (!project) return 0;
+    const auto& s = project->project.pcb.settings;
+    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(ohms > 5 && ohms < 500) || !(gap >= 0 && gap < 20)) return 0;
+    return fieldSolvedWidth(s, layer, ohms, gap);
+}
+
 char* sieda_pcb_panel(const SiedaProject* project) {
     if (!project) return nullptr;
     return dupText(panelLayoutJson(project->project.pcb.settings).dump());
@@ -119,7 +136,16 @@ char* sieda_pcb_panel(const SiedaProject* project) {
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json) {
     if (!project || !settings_json) return 0;
     try {
-        panelFromJson(Json::parse(settings_json), project->project.pcb.settings.panel);
+        const Json j = Json::parse(settings_json);
+        auto& s = project->project.pcb.settings;
+        panelFromJson(j, s.panel);
+        if (j.get("fit").isObject()) {  // the most boards within a maximum panel (default: the DFM pack's size limit)
+            const auto pack = boardDfmPack(s);
+            const double w = j.get("fit").get("width").asNumber(pack ? pack->maxWidth : 250);
+            const double h = j.get("fit").get("height").asNumber(pack ? pack->maxHeight : 250);
+            if (!(w > 0 && h > 0 && w < 1e4 && h < 1e4)) return 0;
+            s.panel = fitPanel(s, w, h);
+        }
         return 1;
     } catch (const std::exception&) {
         return 0;

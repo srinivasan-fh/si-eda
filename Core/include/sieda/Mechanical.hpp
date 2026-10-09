@@ -41,7 +41,7 @@ std::vector<std::string> importIdxPlacement(Schematic& sch, const std::string& i
 /// What an IDX import changed.
 struct IdxImport {
     std::vector<std::string> moved;  // designators
-    bool outlineChanged = false, thicknessChanged = false;
+    bool outlineChanged = false, thicknessChanged = false, holesChanged = false;
     int keepouts = 0, heightZones = 0;  // added from MCAD
 };
 /// The full MCAD import: placements, the board outline and thickness (BOARD_OUTLINE item), routing / via keep-outs

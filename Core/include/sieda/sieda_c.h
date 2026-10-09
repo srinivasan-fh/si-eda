@@ -251,10 +251,14 @@ char* sieda_appliance_segments_json(const SiedaProject* project);
 /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; "" = none). 0 for an unknown id.
 int32_t sieda_set_memory_design(SiedaProject* project, const char* type);
 /* DDR layout limits (Memory.hpp): {"type","effective":{laneSkewPs,dqsSkewPs,addrSkewPs,impedanceTolPercent,
- * laneViaSpread},"defaults":{…},"overrides":{…}}. The setter replaces the overrides with the controller's own values
+ * laneViaSpread,pairSkewPs},"defaults":{…},"overrides":{…}}. The setter replaces the overrides with the controller's own values
  * ({} = the type's typical limits); 0 for malformed JSON. */
 char* sieda_memory_limits_json(const SiedaProject* project);
 int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json);
+/* Sign-off waivers [{"code","ref","reason"}] (Project::waivers): a matching finding stays in the verification report as
+ * Info "(waived: reason)". The setter replaces the list ([] = none); 0 for malformed JSON or an entry without a code. */
+char* sieda_waivers_json(const SiedaProject* project);
+int32_t sieda_set_waivers(SiedaProject* project, const char* waivers_json);
 /// The five memory segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_memory_segments_json(const SiedaProject* project);
 /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
@@ -313,13 +317,17 @@ char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
 /* Production panel (sieda/Panel.hpp): the layout {"settings":{"nx","ny","gap","rail","vscore"},"enabled","width",
  * "height","boardWidth","boardHeight","boards":[[x,y]],"fiducials","toolingHoles","mouseBites","tabs":[[[x0,y0],
- * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); returns 1 on success. The fabrication
+ * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); with "fit":{"width","height"} (mm; default the DFM pack's size limit,
+ * else 250 × 250) it picks the nx × ny with the most boards that fits. Returns 1 on success. The fabrication
  * package adds panel/ Gerbers, drills and a zip when the panel has more than one board. */
 char* sieda_pcb_panel(const SiedaProject* project);
 /* Manufacturer DFM / DFA packs (sieda/Dfm.hpp): [{"id","name","maker","notes","minTrack",…,"maxLayers",…}]. Setting a
  * pack ("" = none) tightens the DRC minimums to it and adds the DFM_* / DFA_* checks; returns 0 for an unknown id. */
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
+/* Your fab's own value for one pack field (minTrack, minDrill, maxAspectRatio, maxLayers, … in mm): it replaces the
+ * published value in the DRC minimums, the checks and the report; value <= 0 removes the override. 0 for an unknown field. */
+int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, double value);
 /* The pack's sign-off report: {"pack","name","pass","rows":[{"rule","actual","limit","ok"}]} (measured board values
  * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
  * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
@@ -329,6 +337,8 @@ char* sieda_dfm_report_json(const SiedaProject* project);
  * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
  * "dielectricDbPerIn","totalDbPerIn"}], pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for bad input. */
 char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um);
+/* Goal seek: the width (mm) whose field-solved Z0 (gap > 0: Zdiff) on `layer` is `ohms`; 0 when none reaches it. */
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
@@ -534,6 +544,8 @@ char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const 
 /* ---- power-integrity planning -------------------------------------------------------------------------------------- */
 /* Regulator model of a rail: output resistance (Ω) and loop bandwidth (Hz); 0 = by regulator type. */
 int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_out, double loop_bandwidth);
+/* Copper temperature for IR drop (°C, −55 … 200; 20 = the default): 1, or 0 when out of range. */
+int32_t sieda_pi_set_copper_temperature(SiedaProject* project, double celsius);
 /* Plane-pair cavity model of a rail: {"available","note","a","b","d","er","modes":[{m,n,f}],"freq":[…],"zCavity":[…],
  * "zLumped":[…],"target","worstRatio","worstF","observe":{x,y},"recommendations":[…]}. Caller frees. */
 char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name);
@@ -760,6 +772,8 @@ int32_t sieda_set_title_block(SiedaProject* project, const char* json);
  * "kind":"model"|"subckt","type":"D"|"NPN"|…|"SUBCKT","ports":[…],"line"}],"diagnostics":[{"level":"info"|
  * "warning"|"error","line","message"}]}; "ok" is false when the text has errors. */
 char* sieda_spice_parse(const char* text);
+/* Model text with its `.include` / `.lib file [section]` files from `dir` inlined (relative paths, ≤ 8 levels, 8 MB). */
+char* sieda_spice_inline_includes(const char* text, const char* dir);
 /* Checks model `model` of `text` on a component without changing the project: {"ok","error","kind","type","ports",
  * "pins" (the pin map used: `pins`, or the default when it is empty),"defaultPins","diagnostics"}. */
 char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,

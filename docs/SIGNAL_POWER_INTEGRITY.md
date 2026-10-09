@@ -181,7 +181,7 @@ line the reflection analysis uses (same Z0 and delay), so the two agree when los
 | Dielectric | **Djordjevic–Sarkar** wideband Debye model, `ε(ω) = ε∞ + Δε/(m2 − m1)·log10((ω2 + jω)/(ω1 + jω))` with ω1 = 10⁴ and ω2 = 10¹² rad/s, fitted so εr and tan δ equal the laminate's at 1 GHz. Causal (Kramers–Kronig consistent). A microstrip fills `q = (εeff − 1)/(εr − 1)` of its field with it: `Y = jω·C_air·(1 + q(ε(ω) − 1))` |
 | Conductor | `Z_int = R_dc·√(1 + jω/ωc)`: R_dc = ρ/(w·t) at low frequency, the skin-effect `Rs·K` with equal internal reactance at high frequency (causal). `K = R_ac / Rs` by **Wheeler's incremental-inductance rule**: stripline, Pozar's closed form (eq. 3.198, both branches); microstrip, the numerical Wheeler derivative of the Hammerstad–Jensen inductance with their thickness correction |
 | Roughness | **Huray** snowball model in its causal form (complex skin depth δ(1 − j)/√2), or **Hammerstad** `1 + (2/π)·atan(1.4 (Δ/δ)²)`, applied to the skin-effect part. Foils: smooth, HVLP, VLP, RTF, standard ED (typical profile parameters; fit your fabricator's data for sign-off). By default low-loss laminates (tan δ < 0.005) use HVLP and others standard ED; **Copper foil** overrides it per project |
-| Field-solved lines | **Field-solved lines** (Channel view, saved per project; options `"fieldSolver": true`) replaces the closed-form Z0, εeff and Wheeler factor with the 2D field solver's (`FieldSolver.cpp`): Z0 and εeff from the solved C and C0, the skin-effect geometry factor from the solved surface current on the signal and return surfaces. One solve per layer / width, cached |
+| Field-solved lines | **Field-solved lines** (Channel view, saved per project; options `"fieldSolver": true`) replaces the closed-form Z0, εeff and Wheeler factor with the 2D field solver's (`FieldSolver.cpp`): Z0 and εeff from the solved C and C0, the skin-effect geometry factor from the solved surface current on the signal and return surfaces. Outer layers are solved as coated microstrip (a conformal 20 µm LPI solder mask, εr 3.6, over the laminate and the track — 1 to 3 Ω below the bare line, as fabs measure them). **Goal seek** (MCP `si_field_solver` `targetOhms`, C `sieda_field_solve_width`) finds the width whose field-solved Z0 — or a pair's Zdiff at a given gap — hits the target to 0.1 % in about six solves. One solve per layer / width, cached |
 
 Time domain uses the frequency response and an inverse FFT (window ≥ 2× the span, raised-cosine taper above the
 evaluated band). The models are causal, so nothing arrives before the time of flight.
@@ -316,7 +316,9 @@ The rail's tracks, via barrels and pours form a resistive network solved by conj
 | Via | `ρ·h / (π·t_p·(d + t_p))`, plating t_p = 25 µm |
 | Pour | Coarse mesh of the zone fill (cells ≥ 0.5 mm), one sheet resistance `ρ/t` per square between neighbouring cells (1 oz ≈ 0.49 mΩ/□); pads, track ends and via lands on the pour join it |
 
-The drop limit is half the ripple budget (2.5 % on a 5 % rail).
+The drop limit is half the ripple budget (2.5 % on a 5 % rail). Copper heats up under load: set the board's copper
+temperature (MCP `pi_set_rail` `copperTempC`, C `sieda_pi_set_copper_temperature`; default 20 °C) and every
+resistance scales by `1 + 0.00393 (T − 20)` — 25 % more drop at 85 °C.
 
 ## PI planning
 
@@ -462,8 +464,8 @@ The core tests check the physics against reference values:
   plane pair, needs the IR-drop map) show the plane behaviour beside it. The VRM is an
   R–L model with a loop bandwidth, not a switching or control-loop simulation. Load currents without a behavioural
   model are estimates.
-- **IR drop** uses the supply copper only. The ground return's own drop and the temperature rise of copper are not
-  included.
+- **IR drop** uses the supply copper only; the ground return's own drop is not included. Copper temperature is a
+  board-wide setting, not a thermal simulation.
 - **No full-wave 3D field solver.** Use a field solver for via transitions, connectors and anything above a few GHz.
 
 ## Code map

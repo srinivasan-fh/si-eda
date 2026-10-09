@@ -13,6 +13,7 @@
 #include <map>
 #include <functional>
 #include <set>
+#include <sstream>
 
 namespace sieda {
 
@@ -992,13 +993,95 @@ void readPins(const SNode& unitNode, int unit, RawSymbol& raw, std::set<std::str
     }
 }
 
+/// KiCad 5 symbol library (EESchema-LIBRARY, still what many vendor download sites ship): DEF … ENDDEF blocks with
+/// F0–F3 fields, a $FPLIST and pins "X name number x y length orientation sizeNum sizeName unit convert type [shape]".
+std::vector<RawSymbol> parseKicad5(const std::string& text, const std::string& source) {
+    std::vector<RawSymbol> raws;
+    std::istringstream in(text);
+    std::string line;
+    RawSymbol* cur = nullptr;
+    std::set<std::string> seen;
+    bool fpList = false;
+    auto quoted = [](const std::string& l) {  // the first "…" field
+        const size_t a = l.find('"'), b = a == std::string::npos ? a : l.find('"', a + 1);
+        return b == std::string::npos ? std::string() : l.substr(a + 1, b - a - 1);
+    };
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::istringstream ls(line);
+        std::vector<std::string> t;
+        for (std::string w; ls >> w && t.size() < 16;) t.push_back(w);
+        if (t.empty()) continue;
+        if (t[0] == "DEF" && t.size() >= 3) {
+            if (raws.size() >= kMaxParts) throw ImportError("the library has more than 2000 symbols");
+            raws.emplace_back();
+            cur = &raws.back();
+            cur->sym.source = source;
+            cur->sym.name = clean(t[1][0] == '~' ? t[1].substr(1) : t[1], 80);
+            cur->sym.refPrefix = refPrefixOf(t[2]);
+            cur->sym.units = t.size() > 7 ? std::clamp(std::atoi(t[7].c_str()), 1, 64) : 1;
+            seen.clear();
+        } else if (!cur) {
+            continue;
+        } else if (t[0] == "ENDDEF") {
+            cur = nullptr;
+        } else if (t[0] == "$FPLIST" || t[0] == "$ENDFPLIST") {
+            fpList = t[0] == "$FPLIST";
+        } else if (fpList) {
+            if (cur->sym.footprintFilters.size() < 32) cur->sym.footprintFilters.push_back(clean(t[0], 80));
+        } else if (t[0] == "F2") {
+            cur->sym.footprint = clean(quoted(line), 160);
+        } else if (t[0] == "F3") {
+            cur->sym.datasheet = clean(quoted(line), 300);
+        } else if (t[0] == "X" && t.size() >= 12) {
+            if (std::atoi(t[10].c_str()) > 1) continue;  // De Morgan body style
+            const std::string number = clean(t[2], 16);
+            if (number.empty() || !seen.insert(upper(number)).second) continue;
+            static const std::map<char, const char*> types{{'I', "input"}, {'O', "output"}, {'B', "bidirectional"},
+                {'T', "tri_state"}, {'P', "passive"}, {'W', "power_in"}, {'w', "power_out"}, {'C', "open_collector"},
+                {'E', "open_emitter"}, {'N', "no_connect"}};
+            const auto ty = types.find(t[11][0]);
+            CustomPin pin;
+            pin.number = number;
+            pin.name = t[1] == "~" ? number : pinNameText(t[1]);
+            pin.type = kicadPinType(ty == types.end() ? "passive" : ty->second);
+            cur->pins.push_back(pin);
+            PlacedPin pp;
+            pp.number = number, pp.name = pin.name;
+            double x = 0, y = 0;
+            parseNumber(t[3], x), parseNumber(t[4], y);
+            pp.x = x * 0.0254, pp.y = y * 0.0254;  // mil → mm
+            const char o = t[6][0];  // the direction the pin points from its end: R → body on the right
+            pp.side = o == 'R' ? 'L' : o == 'L' ? 'R' : o == 'U' ? 'B' : 'T';
+            pp.unit = std::atoi(t[9].c_str());
+            pp.hidden = t.size() > 12 && t[12][0] == 'N';
+            pp.ground = groundName(pin.name);
+            cur->placed.push_back(pp);
+        }
+    }
+    return raws;
+}
+
 }  // namespace
 
 std::vector<ImportedSymbol> parseKicadSymbols(const std::string& text, const std::string& source) {
     if (text.size() > kMaxFileBytes) throw ImportError("the file is larger than 32 MB");
-    if (text.find("EESchema-LIBRARY") != std::string::npos)
-        throw ImportError("KiCad 5 .lib symbol libraries are not supported: open the library in KiCad 6 or later and "
-                          "save it as .kicad_sym");
+    if (text.find("EESchema-LIBRARY") != std::string::npos) {
+        std::vector<ImportedSymbol> out;
+        for (auto& r : parseKicad5(text, source)) {
+            if (r.sym.name.empty()) continue;
+            r.sym.pins = r.pins;
+            promoteRepeatedSupplies(r.sym.pins);
+            for (auto& pp : r.placed)
+                for (const auto& pin : r.sym.pins)
+                    if (pin.number == pp.number) pp.power = pin.type == PinType::PowerIn || pin.type == PinType::PowerOut;
+            r.sym.symbol = layoutFromPositions(r.placed);
+            if (r.sym.value.empty()) r.sym.value = r.sym.name;
+            out.push_back(std::move(r.sym));
+        }
+        if (out.empty()) throw ImportError("the library contains no symbols");
+        return out;
+    }
     const SNode root = SexprParser(text).parse();
     if (root.head() != "kicad_symbol_lib")
         throw ImportError("not a KiCad symbol library: the file starts with (" + clean(root.head(), 40) +
@@ -1836,7 +1919,7 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             if (fr.format == "kicad_mod") {
                 out.footprints.push_back(parseKicadFootprint(f.content, fr.name));
                 res.footprints = 1;
-            } else if (fr.format == "kicad_sym") {
+            } else if (fr.format == "kicad_sym" || fr.format == "kicad5_lib") {
                 auto syms = parseKicadSymbols(f.content, fr.name);
                 if (out.symbols.size() + syms.size() > kMaxParts) throw ImportError("too many symbols in one import");
                 res.symbols = static_cast<int>(syms.size());
@@ -1851,9 +1934,6 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
                 const std::string format = mesh.format;
                 const std::string id = Model3DRegistry::instance().add(std::move(mesh));
                 models[modelStem(fr.name)] = {id, fr.name, format};
-            } else if (fr.format == "kicad5_lib") {
-                throw ImportError("KiCad 5 .lib symbol libraries are not supported: open the library in KiCad 6 or "
-                                  "later and save it as .kicad_sym");
             } else {
                 throw ImportError("unknown file type: import KiCad .kicad_mod / .kicad_sym or Eagle .lbr files");
             }

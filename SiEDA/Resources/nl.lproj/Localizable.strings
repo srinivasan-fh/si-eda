@@ -1285,3 +1285,6 @@
 "Sign-off Report" = "Vrijgaverapport";
 "Live Collaboration" = "Live samenwerken";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "Elke bewerking in het gedeelde projectbestand opslaan en opslagen van teamgenoten automatisch samenvoegen";
+"Clock / strobe pair P to N (ps)" = "Klok-/strobepaar P naar N (ps)";
+"Extra parts per line for assembly loss (pick-and-place attrition)" = "Extra onderdelen per regel voor assemblageverlies (pick-and-place-uitval)";
+"Spares" = "Reserve";
