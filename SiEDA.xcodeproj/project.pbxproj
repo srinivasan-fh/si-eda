@@ -203,6 +203,7 @@
 		F84C75A40B9069298630ACE6 = {isa = PBXBuildFile; fileRef = 7D38A642DF9EECA1FFA8CE5A; };
 		F9ECE46D3096C5B24581227E = {isa = PBXBuildFile; fileRef = 390EDC8F9CED69E83F1FA26B; };
 		F9F6BCA147362E4E67D341DC = {isa = PBXBuildFile; fileRef = F377BB60FA42CD1DF62BE62A; };
+		FC4308351677E9A8852C2E2A = {isa = PBXBuildFile; fileRef = 130DCFF99FAB6E8ACBCBCE36; };
 		FDEC5377398A3E5F6A04592A = {isa = PBXBuildFile; fileRef = 44DB0AE9531C6F0CC03C9830; };
 /* End PBXBuildFile section */
 
@@ -239,6 +240,7 @@
 		0F0833A5CA77AB73527A9023 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Embedded.cpp; sourceTree = "<group>"; };
 		11BCF526A6457AE325680679 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisPanels.swift; sourceTree = "<group>"; };
 		12BA3643F29BE4C857019229 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Stackup.cpp; sourceTree = "<group>"; };
+		130DCFF99FAB6E8ACBCBCE36 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceWindow.swift; sourceTree = "<group>"; };
 		175CE1EC0BC5002EB30FB1ED = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EDAEngine+Routing.swift"; sourceTree = "<group>"; };
 		176A6301F1F9BADDD2CC2926 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Harnesses.cpp; sourceTree = "<group>"; };
 		17B47FCF5BF67C2FD1533715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = PdfFont.hpp; sourceTree = "<group>"; };
@@ -708,6 +710,7 @@
 				185A7FEDCC550688A03D3A45,
 				2CB815EC0203E93D606FDC12,
 				9B780D9F59521D3BDF902353,
+				130DCFF99FAB6E8ACBCBCE36,
 				753F248283F0ED684D6BE26C,
 				5B677B1CF7DF150184E961B2,
 				7240EC7A71DCA0DFCC205FBA,
@@ -1148,6 +1151,7 @@
 				D05A84F3A7525AD5FD646908,
 				61C5665FE4659BE3BACF1121,
 				49D121232DDFBC0445D83F9B,
+				FC4308351677E9A8852C2E2A,
 				D1A44433FEFC731C940F4D3B,
 				68D48DAD17D325679CCABD65,
 				05D6128DD9BE6AF8A4BC311F,

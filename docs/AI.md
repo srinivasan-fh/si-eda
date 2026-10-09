@@ -4,6 +4,16 @@ SiEDA's agents (analyst, designer, reviewer) ask one model back-end for structur
 Anthropic Claude (default), OpenAI or any compatible endpoint, Google Gemini, OpenRouter, **Built-in (on this Mac)**,
 Ollama, or the Offline Designer (reference circuits, no model).
 
+## Super Intelligence window
+
+**Window → Super Intelligence…** (⌥⌘I) walks through the set-up one step per tab, each tab marked ✓ once done and a
+`n / 6` count at the bottom: **1 Provider** (turn AI on, pick the back-end; a link to the account / key settings when
+one is missing) → **2 Local Model** (the built-in model list: download, import, choose — skipped for cloud providers)
+→ **3 GPU** (Metal on / off and the GPU found) → **4 Test** (asks the model for a requirements summary and shows its
+answer and time) → **5 Design** (opens Prompt Studio) → **6 Agent Clients (MCP)** (three steps to let Claude Desktop,
+Claude Code, Cursor or VS Code drive the open design through the live MCP server, with the server settings and each
+client's configuration to copy; ✓ after the client's first call — see docs/MCP.md). `SiEDA/AI/IntelligenceWindow.swift`.
+
 ## Built-in model
 
 The built-in back-end runs an open model on this Mac with SiEDA's own engine — no Ollama or other app to install, no

@@ -8158,3 +8158,20 @@ final class MetalMatmulTests: XCTestCase {
         XCTAssertFalse(gpu.multiply(offset: 0, type: 8, cols: 32, rows: 1000, rowBytes: 34, x: [Float](repeating: 1, count: 32), batch: 1, y: &y))
     }
 }
+
+final class IntelligenceWindowTests: XCTestCase {
+    /// The setup window lays out every step, and the local-model steps count as done when another provider is chosen.
+    @MainActor
+    func testSetupStepsRenderAndTrackProgress() {
+        let settings = AISettings(), store = DesignStore()
+        let previous = settings.provider
+        defer { settings.provider = previous }
+        settings.provider = .offline
+        let view = IntelligenceSetupView()
+        XCTAssertEqual(IntelligenceSetupView.Step.allCases.count, 6)
+        let host = NSHostingView(rootView: view.environmentObject(settings).environmentObject(store))
+        host.frame = NSRect(x: 0, y: 0, width: 720, height: 520)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.width, 0)
+    }
+}

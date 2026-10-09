@@ -238,6 +238,17 @@ struct SiEDAApp: App {
         .windowToolbarStyle(.unified)
         .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
 
+        Window("Super Intelligence", id: "intelligence") {
+            IntelligenceSetupView()
+                .id(appTheme)
+                .environmentObject(settings)
+                .environmentObject(store)
+                .environment(\.locale, language.locale)
+                .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .tint(Theme.blue)
+        }
+        .defaultSize(width: 720, height: 520)
+
         Settings {
             SettingsView()
                 .id(appTheme)
@@ -277,8 +288,13 @@ struct SiEDACommands: Commands {
     @ObservedObject var store: DesignStore
     @ObservedObject var agents: AgentOrchestrator
     @ObservedObject var settings: AISettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(after: .windowArrangement) {
+            Button("Super Intelligence…") { openWindow(id: "intelligence") }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+        }
         CommandGroup(replacing: .newItem) {
             Button("New Project") { store.newProject() }
                 .keyboardShortcut("n")
