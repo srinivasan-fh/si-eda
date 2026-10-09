@@ -148,7 +148,7 @@ def main():
     by_title = {t["title"]: t for t in ts}
     pairs = []
     for t in ts:
-        pairs += [(p, plan_json(t)) for p in phrasings(rng, t, 60)]
+        pairs += [(p, plan_json(t)) for p in phrasings(rng, t, 100)]
     fam = families(rng, by_title)
     pairs += fam * 3  # computed values are harder: seen more often
     rng.shuffle(pairs)
