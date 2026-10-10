@@ -1333,7 +1333,7 @@ private:
             else unsupported.push_back(k);
         }
         auto lv = p.model.find("LEVEL");
-        p.level = lv == p.model.end() ? 1 : static_cast<int>(lv->second);
+        p.level = lv == p.model.end() ? 1 : std::fabs(lv->second) < 1e6 ? static_cast<int>(lv->second) : 0;  // no overflow on a huge LEVEL
         if (warnedModels_.insert(m.name).second) {
             auto join = [](const std::vector<std::string>& v) {
                 std::string s;

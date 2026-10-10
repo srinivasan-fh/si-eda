@@ -10819,6 +10819,7 @@ R1 a b 1
     CHECK(lineKnown);
     // BSIM MOSFETs and recursive subckts are refused.
     CHECK(!flattenSpiceModel(parseSpiceLibrary(".model M1 NMOS(LEVEL=54)\n"), "M1").ok);
+    flattenSpiceModel(parseSpiceLibrary(".model M2 NMOS(LEVEL=4e9)\n"), "M2");  // fuzz: no overflow on a huge LEVEL
     SpiceFlatCircuit rec = flattenSpiceModel(parseSpiceLibrary(".subckt R a b\nX1 a b R\n.ends\n"), "R");
     CHECK(!rec.ok && hasDiag(rec.diagnostics, SpiceDiagnostic::Level::Error, "recursive"));
 }
