@@ -47,8 +47,9 @@
   Qwen transformer, BPE + SentencePiece tokenizers; tokens equal and logits within 0.5 % of exact — tests against
   llama.cpp fixtures from `tools/make_llm_fixtures.py`), C API `sieda_llm_*` in `Core/src/sieda_c_llm.cpp`, CLI
   `sieda-cli --chat`; app `SiEDA/AI/BuiltInModel.swift` (`BuiltInProvider`, Metal GPU matmul `MetalMatmul.swift` via `sieda_llm_set_accelerator`, `LocalModelStore` downloads / imports /
-  deletes models, `BuiltInModelsView`); Window → Super Intelligence (`SiEDA/AI/IntelligenceWindow.swift`: three use cases — Local LLM on our engine
-  (one tab per set-up step), MCP + cloud LLM agent clients, Own Model = SiEDA's circuit model `SiEDA/AI/CircuitModel.swift`, trained by
+  deletes models, `BuiltInModelsView`); Window → Super Intelligence (`SiEDA/AI/IntelligenceWindow.swift`: sidebar of four use cases — Cloud LLM sign-in, Local LLM on our engine
+  (one tab per set-up step), MCP + cloud LLM agent clients, Own LLM = SiEDA's circuit model `SiEDA/AI/CircuitModel.swift`, trained in the app
+  (`CircuitTrainer.swift`, `OwnModelViews.swift`: dataset / training / results) or by
   `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit; values the request fixes computed by `Core/src/CircuitValues.cpp` (`circuitPlanValues`)); guide in `docs/AI.md`.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).

@@ -1,11 +1,44 @@
 import Metal
 import SwiftUI
 
-/// Window → Super Intelligence (⌥⌘I): the three ways to use AI in SiEDA — a local LLM on SiEDA's engine (set up one
-/// step per tab, each marked ✓ once done), a cloud LLM agent client driving SiEDA over MCP, and SiEDA's own circuit
-/// model on SiEDA's engine (docs/AI.md, "Super Intelligence window").
+/// Window → Super Intelligence (⌥⌘I): the four ways to use AI in SiEDA, one per sidebar entry — a cloud LLM signed in
+/// with SSO / the provider's login, a local LLM on SiEDA's engine (set up one step per tab, each marked ✓ once done), a
+/// cloud LLM agent client driving SiEDA over MCP, and SiEDA's own circuit model (dataset, training, results) on SiEDA's
+/// engine (docs/AI.md, "Super Intelligence window").
 struct IntelligenceSetupView: View {
-    enum UseCase: Hashable { case local, mcp, own }
+    enum UseCase: Hashable, CaseIterable, Identifiable {
+        case cloud, local, mcp, own
+        var id: Self { self }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .cloud: return "Cloud LLM"
+            case .local: return "Local LLM"
+            case .mcp: return "MCP + Cloud LLM"
+            case .own: return "Own LLM"
+            }
+        }
+
+        var subtitle: LocalizedStringKey {
+            switch self {
+            case .cloud: return "Claude, OpenAI, Gemini · SSO sign-in"
+            case .local: return "Open models on our engine"
+            case .mcp: return "Agent clients drive SiEDA"
+            case .own: return "Train SiEDA's circuit model"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .cloud: return "cloud"
+            case .local: return "desktopcomputer"
+            case .mcp: return "point.3.connected.trianglepath.dotted"
+            case .own: return "cpu"
+            }
+        }
+    }
+
+    static let cloudKinds: [AIProviderKind] = [.claude, .openAI, .gemini, .openRouter]
 
     enum Step: Int, CaseIterable, Identifiable {
         case provider, model, gpu, test, design
@@ -34,7 +67,9 @@ struct IntelligenceSetupView: View {
     @State private var step = Step.provider
     @State private var test = TestState.idle
     @State private var designed = false
-    @State private var useCase = UseCase.local
+    @State private var useCase = UseCase.cloud
+    @State private var cloudKind = AIProviderKind.claude
+    @State private var keyDraft = ""
     private let gpuName = MTLCreateSystemDefaultDevice()?.name
 
     private var local: Bool { settings.provider == .builtIn }
@@ -54,24 +89,125 @@ struct IntelligenceSetupView: View {
         return false
     }
 
+    /// What the sidebar shows beside each use case.
+    private func status(_ useCase: UseCase) -> (text: LocalizedStringKey, on: Bool)? {
+        let builtInModel = settings.model(for: .builtIn)
+        switch useCase {
+        case .cloud:
+            if Self.cloudKinds.contains(settings.provider), settings.hasCredentials(for: settings.provider) { return ("In Use", true) }
+            return Self.cloudKinds.contains { settings.hasCredentials(for: $0) } ? ("Signed In", false) : nil
+        case .local:
+            return local && !CircuitModel.isCircuitModel(builtInModel) && models.files.contains(builtInModel) ? ("In Use", true) : nil
+        case .mcp:
+            if mcpConnected { return ("Connected", true) }
+            if case .listening = mcp.status { return ("Listening", false) }
+            return nil
+        case .own:
+            return local && CircuitModel.isCircuitModel(builtInModel) ? ("In Use", true) : nil
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $useCase) {
-                (Text(verbatim: "1  ") + Text("Local LLM (Our Engine)")).tag(UseCase.local)
-                (Text(verbatim: mcpConnected ? "✓ " : "2  ") + Text("MCP + Cloud LLM")).tag(UseCase.mcp)
-                (Text(verbatim: "3  ") + Text("Own Model (Our Engine)")).tag(UseCase.own)
+        HStack(spacing: 0) {
+            List(selection: $useCase) {
+                Section("Super Intelligence") {
+                    ForEach(UseCase.allCases) { item in
+                        HStack(spacing: 10) {
+                            Image(systemName: item.icon).font(.title3).frame(width: 26).foregroundStyle(Theme.skyBlue)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.title).font(.body.weight(.medium))
+                                Text(item.subtitle).font(.caption).foregroundStyle(Theme.textMuted)
+                            }
+                            Spacer(minLength: 4)
+                            if let status = status(item) {
+                                Text(status.text)
+                                    .font(.caption2.weight(.semibold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill((status.on ? Theme.skyBlue : Theme.textMuted).opacity(0.2)))
+                                    .foregroundStyle(status.on ? Theme.skyBlue : Theme.textSecondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .tag(item)
+                    }
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .padding(.top, 10)
-            switch useCase {
-            case .local: setup
-            case .mcp: mcpPage.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            case .own: CircuitModelView()
+            .listStyle(.sidebar)
+            .frame(width: 250)
+            Divider()
+            Group {
+                switch useCase {
+                case .cloud: cloudPage
+                case .local: setup
+                case .mcp: mcpPage.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                case .own: CircuitModelView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(minWidth: 900, minHeight: 600)
+    }
+
+    /// Cloud LLM: the provider, its sign-in (vendor login, OpenRouter in the browser, organisation SSO or an API key),
+    /// its model, and making it the agents' AI.
+    private var cloudPage: some View {
+        Form {
+            Section("Provider") {
+                Picker("Cloud LLM", selection: $cloudKind) {
+                    ForEach(Self.cloudKinds) { kind in
+                        Label(kind.displayName, systemImage: kind.systemImage).tag(kind)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+            }
+            Section("Sign in") {
+                AccountSettings(kind: cloudKind, keyDraft: $keyDraft) {}
+            }
+            Section("Model") {
+                TextField("Model", text: Binding(get: { settings.model(for: cloudKind) }, set: { settings.models[cloudKind] = $0 }),
+                          prompt: Text(verbatim: cloudKind.defaultModel))
+                if cloudKind == .openAI {
+                    TextField("Base URL", text: Binding(get: { settings.baseURL(for: cloudKind) }, set: { settings.baseURLs[cloudKind] = $0 }))
+                }
+            }
+            Section {
+                HStack(spacing: 10) {
+                    let inUse = settings.provider == cloudKind && settings.aiEnabled
+                    Button {
+                        settings.aiEnabled = true
+                        settings.provider = cloudKind
+                    } label: {
+                        Label(inUse ? "In Use for SiEDA's Agents" : "Use for SiEDA's Agents", systemImage: inUse ? "checkmark.circle.fill" : "bolt.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(inUse || !settings.hasCredentials(for: cloudKind))
+                    Button("Test Connection") {
+                        settings.aiEnabled = true
+                        settings.provider = cloudKind
+                        runTest()
+                    }
+                    .disabled(test == .running || !settings.hasCredentials(for: cloudKind))
+                    testStatus
+                }
             }
         }
-        .frame(minWidth: 640, minHeight: 460)
+        .formStyle(.grouped)
+        .onAppear {
+            if Self.cloudKinds.contains(settings.provider) { cloudKind = settings.provider }
+            keyDraft = settings.apiKey(for: cloudKind)
+        }
+        .onChange(of: cloudKind) { _, kind in keyDraft = settings.apiKey(for: kind) }
+    }
+
+    @ViewBuilder
+    private var testStatus: some View {
+        switch test {
+        case .idle: EmptyView()
+        case .running: ProgressView().controlSize(.small)
+        case .ok(let message): Label(message, systemImage: "checkmark.circle.fill").foregroundStyle(Theme.skyBlue).lineLimit(1)
+        case .failed(let message): Label(message, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.error).lineLimit(2)
+        }
     }
 
     private var setup: some View {

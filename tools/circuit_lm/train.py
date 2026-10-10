@@ -139,9 +139,14 @@ def write_gguf(model, tok, path):
     w.close()
 
 
+SIZES = {"small": {}, "tiny": dict(embd=192, layers=4, heads=6, kv_heads=3, ff=512)}  # env SIZE; tiny trains ~2× faster
+
+
 def main():
     data, out = sys.argv[1], sys.argv[2]
     epochs = float(os.environ.get("EPOCHS", "10"))
+    CFG.update(SIZES[os.environ.get("SIZE", "small")])
+    peak = float(os.environ.get("LR", "2e-3"))
     os.makedirs(out, exist_ok=True)
     torch.manual_seed(0)
     random.seed(0)
@@ -160,7 +165,7 @@ def main():
     print(f"{len(seqs)} sequences, vocab {tok.get_vocab_size()}, tokens {sum(len(a) + len(b) for a, b in seqs)}", flush=True)
     model = Model(tok.get_vocab_size())
     print(f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f} M parameters", flush=True)
-    opt = torch.optim.AdamW(model.parameters(), lr=2e-3, betas=(0.9, 0.95), weight_decay=0.05)
+    opt = torch.optim.AdamW(model.parameters(), lr=peak, betas=(0.9, 0.95), weight_decay=0.05)
     budget = 6000  # tokens per step
     seqs.sort(key=lambda s: len(s[0]) + len(s[1]))
     batches, cur = [], []
@@ -193,7 +198,7 @@ def main():
                 s = a + b
                 ids[i, : len(s)] = torch.tensor(s)
                 tgt[i, len(a) - 1: len(s) - 1] = torch.tensor(b)  # predict the plan only
-            lr = 2e-3 * min(1, (step + 1) / 100) * 0.5 * (1 + math.cos(math.pi * step / total))
+            lr = peak * min(1, (step + 1) / 100) * 0.5 * (1 + math.cos(math.pi * step / total))
             for g in opt.param_groups:
                 g["lr"] = lr
             loss = F.cross_entropy(model(ids).view(-1, tok.get_vocab_size()), tgt.view(-1), ignore_index=-100)

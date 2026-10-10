@@ -152,11 +152,17 @@ private struct AIModelSettings: View {
 }
 
 /// Sign-in for one provider: a button for each browser sign-in it offers, then an API key as the alternative.
-private struct AccountSettings: View {
+struct AccountSettings: View {
     @EnvironmentObject private var settings: AISettings
     let kind: AIProviderKind
     @Binding var keyDraft: String
     var changed: () -> Void
+
+    init(kind: AIProviderKind, keyDraft: Binding<String>, changed: @escaping () -> Void) {
+        self.kind = kind
+        _keyDraft = keyDraft
+        self.changed = changed
+    }
 
     var body: some View {
         let inUse = settings.authMode(for: kind)

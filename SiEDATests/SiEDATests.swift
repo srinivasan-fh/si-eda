@@ -8172,7 +8172,8 @@ final class IntelligenceWindowTests: XCTestCase {
         defer { settings.provider = previous }
         settings.provider = .offline
         let view = IntelligenceSetupView()
-        XCTAssertEqual(IntelligenceSetupView.Step.allCases.count, 5)  // use case 1; MCP and Own Model are use cases 2 and 3
+        XCTAssertEqual(IntelligenceSetupView.Step.allCases.count, 5)  // the Local LLM use case
+        XCTAssertEqual(IntelligenceSetupView.UseCase.allCases.count, 4)  // Cloud, Local, MCP + Cloud, Own LLM
         let host = NSHostingView(rootView: view.environmentObject(settings).environmentObject(store))
         host.frame = NSRect(x: 0, y: 0, width: 720, height: 520)
         host.layoutSubtreeIfNeeded()
