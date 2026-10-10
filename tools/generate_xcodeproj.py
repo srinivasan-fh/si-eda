@@ -49,6 +49,7 @@ FILE_TYPES = {
     ".plist": "text.plist.xml",
     ".gguf": "file",
     ".json": "text.json",
+    ".py": "text.script.python",
 }
 
 app_swift = collect("SiEDA", {".swift"})
@@ -57,6 +58,7 @@ core_headers = collect("Core/include", {".hpp", ".h"})
 bridge_headers = collect("SiEDA", {".h"})
 test_swift = collect("SiEDATests", {".swift"})
 bundled_models = collect("SiEDA/Resources/Models", {".gguf", ".json"})  # SiEDA's own circuit model (tools/circuit_lm)
+bundled_models += collect("tools/circuit_lm", {".py"})  # its trainer, run from Super Intelligence → Own LLM
 assets = "SiEDA/Assets.xcassets"
 entitlements = "SiEDA/SiEDA.entitlements"
 info_plist = "SiEDA/Info.plist"  # document types and UTIs, merged into the generated Info.plist

@@ -8,6 +8,10 @@ Sources, all from SiEDA itself:
     and current; divider ratio; RC cut-off; op-amp gain; NPN LED driver supply.
 
     python3 tools/circuit_lm/make_dataset.py [out_dir]     # → train.jsonl, test.jsonl, card.json
+      [--phrasings 100] [--contexts 30] [--extra my-designs.jsonl] [--templates templates.json]
+
+The app's Own LLM → Dataset tab runs it with --templates (the reference circuits it ships, exported as JSON) and
+--extra (the designs added from the app, one {"prompt", "plan"} per line).
 """
 import json
 import math
@@ -37,7 +41,13 @@ def eng(x, unit=""):
     return f"{x:g}"
 
 
+TEMPLATES = None  # --templates: the reference circuits as JSON (from the app) instead of OfflineProvider.swift
+
+
 def templates():
+    if TEMPLATES:
+        return [dict(t, components=[dict(c, rotation=int(c.get("rotation", 0))) for c in t["components"]])
+                for t in json.load(open(TEMPLATES)) if 0 < len(t["components"]) <= MAX_PARTS]
     src = open(os.path.join(ROOT, "SiEDA/AI/OfflineProvider.swift")).read()
     out = []
     for block in src.split("Template(\n")[1:]:
@@ -61,8 +71,8 @@ def templates():
 def router():
     """OfflineProvider.template(for:) over every reference circuit: keywords minus excludes, later (more specific)
     circuits first, the LED indicator as the fallback. Returns the title a request selects."""
-    src = open(os.path.join(ROOT, "SiEDA/AI/OfflineProvider.swift")).read()
-    order = []
+    order = [(t["title"], t["keywords"], t.get("excludes", [])) for t in json.load(open(TEMPLATES))] if TEMPLATES else []
+    src = "" if TEMPLATES else open(os.path.join(ROOT, "SiEDA/AI/OfflineProvider.swift")).read()
     for block in src.split("Template(\n")[1:]:
         words = lambda key: re.findall(r'"([^"]*)"', (re.search(key + r": \[(.*?)\]", block, re.S) or re.match("()", "")).group(1))
         order.append((re.search(r'title: "([^"]+)"', block).group(1), words("keywords"), words("excludes")))
@@ -178,19 +188,33 @@ def families(rng, by_title):
 
 
 def main():
-    out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "data")
+    import argparse
+    global TEMPLATES
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out_dir", nargs="?", default=os.path.join(os.path.dirname(__file__), "data"))
+    ap.add_argument("--phrasings", type=int, default=100, help="requests per reference circuit")
+    ap.add_argument("--contexts", type=int, default=30, help="requests with an application context per circuit")
+    ap.add_argument("--extra", help="your own designs: one {\"prompt\", \"plan\"} JSON object per line")
+    ap.add_argument("--templates", help="the reference circuits as JSON (the app's export)")
+    args = ap.parse_args()
+    TEMPLATES = args.templates
+    out_dir = args.out_dir
     os.makedirs(out_dir, exist_ok=True)
     rng = random.Random(42)
     ts = templates()
     by_title = {t["title"]: t for t in ts}
     pairs = []
     for t in ts:
-        pairs += [(p, plan_json(t)) for p in phrasings(rng, t, 100)]
+        pairs += [(p, plan_json(t)) for p in phrasings(rng, t, args.phrasings)]
     route = router()
     for t in ts:
-        pairs += contexts(rng, t, 30, route, by_title)
+        pairs += contexts(rng, t, args.contexts, route, by_title)
     fam = families(rng, by_title)
     pairs += fam * 3  # computed values are harder: seen more often
+    extra = [json.loads(l) for l in open(args.extra) if l.strip()] if args.extra and os.path.exists(args.extra) else []
+    for e in extra:  # each own design in several wordings
+        plan = json.dumps(json.loads(e["plan"]), ensure_ascii=False, separators=(",", ":"))
+        pairs += [(f"{v} {e['prompt']}".strip(), plan) for v in VERBS[:10]] + [(e["prompt"], plan)]
     rng.shuffle(pairs)
     seen, test, train = set(), [], []
     for p, plan in pairs:
@@ -203,9 +227,11 @@ def main():
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
     kinds = sorted({c["kind"] for t in ts for c in t["components"]})
-    card = {"circuits": [t["title"] for t in ts], "families": 5, "train": len(train), "test": len(test), "kinds": kinds}
+    titles = [t["title"] for t in ts] + [json.loads(e["plan"]).get("title", e["prompt"]) for e in extra]
+    card = {"circuits": titles, "families": 5, "train": len(train), "test": len(test), "kinds": kinds, "ownDesigns": len(extra)}
     json.dump(card, open(os.path.join(out_dir, "card.json"), "w"), indent=1, ensure_ascii=False)
-    print(f"{len(ts)} circuits, {len(fam)} computed pairs → {len(train)} train / {len(test)} test, {len(kinds)} part kinds")
+    print(f"{len(ts)} circuits, {len(fam)} computed pairs, {len(extra)} own designs → {len(train)} train / {len(test)} test, "
+          f"{len(kinds)} part kinds")
 
 
 if __name__ == "__main__":
