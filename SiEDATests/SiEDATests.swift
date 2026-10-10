@@ -375,7 +375,11 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 41)
+        XCTAssertEqual(OfflineProvider.templates.count, 44)
+        // Motor-control drives: a VFD, a servo and a stepper each have their own reference.
+        XCTAssertEqual(OfflineProvider.template(for: "variable frequency drive for an induction motor").plan.title, "Three-Phase VFD Inverter")
+        XCTAssertEqual(OfflineProvider.template(for: "a servo drive with FOC").plan.title, "PMSM Servo Drive")
+        XCTAssertEqual(OfflineProvider.template(for: "stepper motor driver for a CNC axis").plan.title, "Stepper Motor Driver DRV8825")
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
