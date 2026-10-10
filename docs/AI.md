@@ -31,7 +31,11 @@ a 4.9 M-parameter Qwen 2-style transformer trained from scratch only on SiEDA's 
   phrasings, plus circuits whose values are computed from the request (LED series resistor from supply, colour and
   current; divider ratio; RC cut-off; op-amp gain; NPN LED driver; E12 values). The context is 2,048 tokens, so every
   reference circuit is trained, the large ones too (DDR / USB link, ECU, ECG, RP2040, motherboard). Each circuit has
-  100 phrasings, and every subject (title, summary, each keyword) appears in at least two of them.
+  100 phrasings, and every subject (title, summary, each keyword) appears in at least two of them, plus 30 requests
+  with an application context ("… for a pump motor", "… for a 3D printer") labelled by the Offline Designer's own
+  keyword rule. The circuits include three motor-control drives: a three-phase **VFD** (230 V AC, 600 V IGBT module,
+  NTC inrush, bridge, DC link, shunt over-current trip), a **PMSM servo drive** (STSPIN32F0A FOC controller, 6 MOSFET
+  bridge, shunt amplifier, AS5047D encoder) and a **DRV8825 stepper driver** (1/32 step, opto-isolated STEP / DIR).
   *Add This Design to the Training Data* appends the open design to
   `~/Library/Application Support/SiEDA/Training/my-designs.jsonl`. Retrain with Python (torch, tokenizers, gguf;
   llama-cpp-python for the Q8_0 step):
@@ -45,14 +49,19 @@ a 4.9 M-parameter Qwen 2-style transformer trained from scratch only on SiEDA's 
   computed by the core with the training data's own rules (E12 values), and the title follows (`circuitPlanValues` in
   `Core/src/CircuitValues.cpp`, C API `sieda_circuit_plan_values`, CLI `sieda-cli --circuit model.gguf "request"`).
   So a 7 V LED or a 3.3 kHz filter gets the exact part. Core test `circuit_model_values_follow_the_request`.
+- **Wording.** A model this small learns the phrasings it has seen. In the app the Offline Designer's keyword rule
+  (later, more specific circuits win) reads any wording ("a VFD with an IPM for a fan motor"); when it names a circuit
+  the model knows, the model writes that circuit from its title (`CircuitModel.plan`). Other requests go to the model
+  as written.
 - **Test.** Type a request and *Generate*, or *Run Benchmark* on 20 held-out requests (usable / exactly the reference).
 - **Models.** The circuit models in the models folder and the bundled one.
 - **Use.** Makes it the agents' back-end (Built-in with this model). New designs come from the model and must pass a
   check (unique designators, every link names a part) or the request fails with the reason; specifications,
   refinements and reviews, which it was not trained for, come from the Offline Designer.
 
-On the 181 held-out requests every plan is usable and every one is exactly the reference circuit (the model alone,
-before the values are computed, 92 %); llama.cpp, reading the same file, writes the same plan. The core test `circuit_model_writes_linked_plans` holds the shipped model to linked plans on held-out requests.
+On the 273 held-out requests (context requests included) every plan is usable and 271 are exactly the reference
+circuit (the model alone, before the values are computed, 93 %); asked by title it writes all 31 circuits exactly;
+llama.cpp, reading the same file, writes the same plan. The core test `circuit_model_writes_linked_plans` holds the shipped model to linked plans on held-out requests.
 
 ## Built-in model
 

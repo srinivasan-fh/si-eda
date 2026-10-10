@@ -45,9 +45,13 @@ enum CircuitModel {
     }
 
     /// The model's plan for a request (with the values the request fixes computed by the core), and the reply. Throws
-    /// when the reply is not a usable plan.
+    /// when the reply is not a usable plan. The Offline Designer's keyword rule reads any wording ("a VFD with an IPM
+    /// for a fan motor"); when it names a circuit the model knows, the model writes that circuit from its title.
     static func plan(for request: String, path: String) async throws -> (plan: DesignPlan, reply: String) {
-        let raw = try await LocalLLM.run(path: path, system: system, user: request, maxTokens: 2000, json: false)
+        let text = " " + request.lowercased() + " "
+        let routed = OfflineProvider.templates.reversed().first { $0.matches(text) }.map(\.plan.title)
+        let prompt = routed.flatMap { title in card?.circuits.contains(title) == true ? "Design a \(title.lowercased())" : nil }
+        let raw = try await LocalLLM.run(path: path, system: system, user: prompt ?? request, maxTokens: 2000, json: false)
         let reply = EDAEngine.take(sieda_circuit_plan_values(request, raw)) ?? raw
         let plan = try JSONExtraction.decode(DesignPlan.self, from: reply)
         if let problem = check(plan) { throw AIProviderError.invalidResponse("The circuit model's plan is not usable: \(problem)") }

@@ -8189,6 +8189,9 @@ final class CircuitModelTests: XCTestCase {
         let path = try XCTUnwrap(CircuitModel.bundledURL).path
         let result = try await CircuitModel.plan(for: card.benchmark[0].prompt, path: path)
         XCTAssertNil(CircuitModel.check(result.plan))
+        // Any wording the Offline Designer's keyword rule reads reaches the right circuit (here a motor-control drive).
+        let vfd = try await CircuitModel.plan(for: "Design a VFD with an IPM for a fan motor", path: path)
+        XCTAssertEqual(vfd.plan.title, "Three-Phase VFD Inverter")
         var broken = result.plan
         broken.connections.append(PlannedConnection(from: "ZZ9.1", to: broken.components[0].ref + ".1"))
         XCTAssertNotNil(CircuitModel.check(broken))
