@@ -1079,6 +1079,8 @@ typedef int32_t (*SiedaLlmMatmul)(void* context, uint64_t offset, int32_t type, 
 void sieda_llm_set_accelerator(SiedaLlm* model, SiedaLlmMatmul fn, void* context);
 /* The model file in memory (page-aligned when memory-mapped); *size receives its length. */
 const void* sieda_llm_file(const SiedaLlm* model, uint64_t* size);
+/* The circuit model's plan with the values its request fixes recomputed (circuitPlanValues); caller frees. */
+char* sieda_circuit_plan_values(const char* request, const char* plan_json);
 /* The CPU's product for the same arguments, from `weights` (tests of a GPU back-end). 0 for an unknown type. */
 int32_t sieda_llm_cpu_matmul(const void* weights, int32_t type, int64_t cols, int64_t rows, uint64_t row_bytes,
                              const float* x, int32_t batch, float* y);

@@ -44,9 +44,11 @@ enum CircuitModel {
         return file
     }
 
-    /// The model's plan for a request, and its raw reply. Throws when the reply is not a usable plan.
+    /// The model's plan for a request (with the values the request fixes computed by the core), and the reply. Throws
+    /// when the reply is not a usable plan.
     static func plan(for request: String, path: String) async throws -> (plan: DesignPlan, reply: String) {
-        let reply = try await LocalLLM.run(path: path, system: system, user: request, maxTokens: 1000, json: false)
+        let raw = try await LocalLLM.run(path: path, system: system, user: request, maxTokens: 2000, json: false)
+        let reply = EDAEngine.take(sieda_circuit_plan_values(request, raw)) ?? raw
         let plan = try JSONExtraction.decode(DesignPlan.self, from: reply)
         if let problem = check(plan) { throw AIProviderError.invalidResponse("The circuit model's plan is not usable: \(problem)") }
         return (plan, reply)
@@ -63,6 +65,12 @@ enum CircuitModel {
             }
         }
         return nil
+    }
+
+    /// The same parts and links, in any order (links in either direction).
+    static func sameCircuit(_ a: DesignPlan, _ b: DesignPlan) -> Bool {
+        let links = { (p: DesignPlan) in p.connections.map { [$0.from, $0.to].sorted().joined(separator: "|") }.sorted() }
+        return a.components.sorted { $0.ref < $1.ref } == b.components.sorted { $0.ref < $1.ref } && links(a) == links(b)
     }
 
     /// The agents' requests: a new design comes from the model; specifications, refinements and reviews (which a
@@ -212,7 +220,7 @@ struct CircuitModelView: View {
                 guard let result = try? await CircuitModel.plan(for: c.prompt, path: try modelPath()) else { continue }
                 valid += 1
                 if let expected = try? JSONExtraction.decode(DesignPlan.self, from: c.plan),
-                   expected.components == result.plan.components, expected.connections == result.plan.connections { exact += 1 }
+                   CircuitModel.sameCircuit(expected, result.plan) { exact += 1 }
             }
             bench = (valid, exact, cases.count)
         }

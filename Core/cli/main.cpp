@@ -5,6 +5,7 @@
 //   sieda-cli design.siedaproj      process a saved project
 //   sieda-cli design.siedaproj out/ write Gerbers, drill, BOM, netlist, STL into out/
 //   sieda-cli --chat model.gguf "question"   ask the built-in language model (docs/AI.md), the answer streamed
+//   sieda-cli --circuit model.gguf "request"  SiEDA's circuit model: its plan with the request's values computed
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -60,6 +61,25 @@ bool writeFile(const std::string& path, const std::string& content) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc >= 4 && std::string(argv[1]) == "--circuit") {
+        LocalModel model;
+        std::string error;
+        if (!model.load(argv[2], &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        LocalModel::Options o;
+        o.maxTokens = 2000;
+        try {
+            const std::string plan = model.generate(model.chatPrompt("You are an electronics design assistant.", argv[3]), o);
+            std::fprintf(stderr, "%s\n", plan.c_str());  // the model's own plan
+            std::printf("%s\n", circuitPlanValues(argv[3], plan).c_str());
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "%s\n", e.what());
+            return 1;
+        }
+        return 0;
+    }
     if (argc >= 4 && std::string(argv[1]) == "--chat") {
         LocalModel model;
         std::string error;

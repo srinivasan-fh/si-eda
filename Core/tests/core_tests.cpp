@@ -17065,6 +17065,35 @@ TEST(local_model_generates_and_refuses_damaged_files) {
     CHECK(!none.load("/nonexistent.gguf") && !none.loadBytes("GGUF") && !none.valid() && none.tokenize("x").empty());
 }
 
+TEST(circuit_model_values_follow_the_request) {
+    // The circuit model's guessed values are replaced by the ones the request fixes (E12, make_dataset.py's rules).
+    auto value = [](const std::string& request, const std::string& title, const char* ref) {
+        const std::string plan = R"({"title":")" + title +
+                                 R"(","components":[{"ref":"V1","value":"1"},{"ref":"R1","value":"1"},{"ref":"R2","value":"1"},)"
+                                 R"({"ref":"C1","value":"1"},{"ref":"D1","value":"Red"}],"connections":[]})";
+        const Json out = Json::parse(circuitPlanValues(request, plan));
+        for (const Json& c : out.get("components").items())
+            if (c.get("ref").asString() == ref) return c.get("value").asString() + "|" + out.get("title").asString();
+        return std::string();
+    };
+    CHECK(value("red LED on 9 V with 15 mA", "9 V Red LED Indicator", "R1") == "470|9 V Red LED Indicator");
+    CHECK(value("Generate an LED circuit: 24 V supply, green LED, 2 mA", "LED Indicator", "R1") == "10k|24 V Green LED Indicator");
+    CHECK(value("Give me a 24 V red LED indicator at 5 mA", "x LED Indicator", "R1") == "4k7|24 V Red LED Indicator");
+    CHECK(value("15 V to 2.5 V resistor divider", "Divider", "R2") == "2k2|15 V to 2.5 V Divider");
+    CHECK(value("48 V to 1.8 V resistor divider", "Divider", "R2") == "390|48 V to 1.8 V Divider");
+    CHECK(value("Make an RC high-pass filter at 50Hz", "RC High-Pass Filter, 100Hz", "C1") == "3u3|RC High-Pass Filter, 50Hz");
+    CHECK(value("RC low-pass with fc = 1k6Hz", "RC Low-Pass Filter", "C1") == "100n|RC Low-Pass Filter, 1k6Hz");
+    CHECK(value("op-amp gain 50 non-inverting", "Non-Inverting Amplifier, Gain 100", "R1") == "470k|Non-Inverting Amplifier, Gain 50");
+    CHECK(value("inverting op-amp gain -50", "Inverting Amplifier, Gain −100", "R2") == "470k|Inverting Amplifier, Gain −50");
+    CHECK(value("transistor switch for a blue LED, 12 V supply", "NPN Red LED Driver, 5 V", "R2") == "1k|NPN Blue LED Driver, 12 V");
+    CHECK(value("RC low-pass at 10 kHz", "RC Low-Pass Filter", "C1") == "15n|RC Low-Pass Filter, 10kHz");
+    CHECK(value("inverting amplifier, gain of 20 dB", "Inverting Amplifier", "R2") == "1|Inverting Amplifier");  // dB: left alone
+    CHECK(value(std::string(400, '9') + " V red LED at 10 mA", "LED Indicator", "R1") == "1|LED Indicator");  // no throw
+    // Plans the request fixes nothing in, and text that is not a plan, come back unchanged.
+    const std::string bridge = R"({"title":"Wheatstone Bridge","components":[{"ref":"R1","value":"10k"}],"connections":[]})";
+    CHECK(circuitPlanValues("a 5 V bridge", bridge) == bridge && circuitPlanValues("5 V", "not json") == "not json");
+}
+
 TEST(circuit_model_writes_linked_plans) {
     // SiEDA's own circuit model (tools/circuit_lm): held-out requests give plans whose links all name their parts.
     const std::string dir = std::string(SIEDA_DOCS_DIR) + "/../SiEDA/Resources/Models/";
@@ -17073,7 +17102,7 @@ TEST(circuit_model_writes_linked_plans) {
     LocalModel model;
     CHECK(model.load(dir + "sieda-circuit-v1.gguf") && card.get("benchmark").size() >= 5);
     LocalModel::Options o;
-    o.maxTokens = 1000;
+    o.maxTokens = 2000;  // the large reference circuits (ECU, RP2040, motherboard …) take up to ~1,400 tokens
     for (size_t i = 0; i < 5; ++i) {
         const std::string prompt = card.get("benchmark")[i].get("prompt").asString();
         const Json plan = Json::parse(model.generate(model.chatPrompt("You are an electronics design assistant.", prompt), o));

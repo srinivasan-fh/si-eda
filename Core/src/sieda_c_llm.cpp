@@ -98,4 +98,12 @@ int32_t sieda_llm_cpu_matmul(const void* weights, int32_t type, int64_t cols, in
     return sieda::LocalModel::cpuMatmul(static_cast<const uint8_t*>(weights), type, cols, rows, row_bytes, x, batch, y) ? 1 : 0;
 }
 
+char* sieda_circuit_plan_values(const char* request, const char* plan_json) {
+    try {
+        return dupLlm(sieda::circuitPlanValues(request ? request : "", plan_json ? plan_json : ""));
+    } catch (const std::exception&) {
+        return dupLlm(plan_json ? plan_json : "");
+    }
+}
+
 }  // extern "C"

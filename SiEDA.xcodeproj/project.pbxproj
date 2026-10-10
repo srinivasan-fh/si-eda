@@ -143,6 +143,7 @@
 		AB875AA41AE0F100BA45A38C = {isa = PBXBuildFile; fileRef = 4F936263151D3C60C008BC98; };
 		AC6825CF68FB6D49B0056B5C = {isa = PBXBuildFile; fileRef = 93146DC2D4FB5977F63F7E80; };
 		B32F78DBF8B8E8DB951A5027 = {isa = PBXBuildFile; fileRef = 0836AEFC1E7F4EE048F49EC0; };
+		B3740F3C674774DE73889085 = {isa = PBXBuildFile; fileRef = B1C1832B8231E76F0E83C11E; };
 		B49EF7DDF4B0D9905AA40643 = {isa = PBXBuildFile; fileRef = E75D7DE7D08DFA800FFAA790; };
 		B56E1F462C9C4A19BA08E7F7 = {isa = PBXBuildFile; fileRef = E627B2DA6583F6BA5334A9E9; };
 		B578FB8A18545C46C71EC967 = {isa = PBXBuildFile; fileRef = B3FB7A6C6435E513AE1809AC; };
@@ -429,6 +430,7 @@
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
 		AD55190557EC704E38B2BEAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryImportView.swift; sourceTree = "<group>"; };
 		ADD9C234BD8825A5E6022F7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteProgressView.swift; sourceTree = "<group>"; };
+		B1C1832B8231E76F0E83C11E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CircuitValues.cpp; sourceTree = "<group>"; };
 		B216F8BE4FB9512FCEE1C947 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolDrawingPanel.swift; sourceTree = "<group>"; };
 		B23FD27DAD6BD2539569BEE1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Isolation.cpp; sourceTree = "<group>"; };
 		B27D4F1750382CE389EB51C4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DesignStore+Performance.swift"; sourceTree = "<group>"; };
@@ -756,6 +758,7 @@
 				71284BA817C0C1DCC0CA3D6B,
 				F5FB86B05BC4AEB24FCA3877,
 				8293CD35D646C442EB4F72F0,
+				B1C1832B8231E76F0E83C11E,
 				D2F5295A4BC6459A2A847173,
 				3B93D968614EC9B31DA4DE95,
 				40CB462BA68D53F06E05FE4B,
@@ -1279,6 +1282,7 @@
 				1B6D303504BD876122874794,
 				DC930E5139085C3D9454F757,
 				51B881880D4DD5BE124221F5,
+				B3740F3C674774DE73889085,
 				42ADAA8558FC86569362C286,
 				65FD190DDE9074461717C0FA,
 				11DA8A2E7A51801F14B785D4,
