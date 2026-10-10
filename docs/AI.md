@@ -29,19 +29,30 @@ a 4.9 M-parameter Qwen 2-style transformer trained from scratch only on SiEDA's 
 - **Train.** What it learned and how it scores: request → plan pairs from the Offline Designer's reference circuits
   (active and passive parts with SiEDA's kind names, values, positions and every pin-to-pin link) asked in many
   phrasings, plus circuits whose values are computed from the request (LED series resistor from supply, colour and
-  current; divider ratio; RC cut-off; op-amp gain; NPN LED driver; E12 values). *Add This Design to the Training Data*
-  appends the open design to `~/Library/Application Support/SiEDA/Training/my-designs.jsonl`. Retrain with Python
-  (torch, tokenizers, gguf; llama-cpp-python for the Q8_0 step):
+  current; divider ratio; RC cut-off; op-amp gain; NPN LED driver; E12 values). The context is 2,048 tokens, so every
+  reference circuit is trained, the large ones too (DDR / USB link, ECU, ECG, RP2040, motherboard). Each circuit has
+  100 phrasings, and every subject (title, summary, each keyword) appears in at least two of them.
+  *Add This Design to the Training Data* appends the open design to
+  `~/Library/Application Support/SiEDA/Training/my-designs.jsonl`. Retrain with Python (torch, tokenizers, gguf;
+  llama-cpp-python for the Q8_0 step):
   `tools/circuit_lm/make_dataset.py data` → `train.py data out` → `finish.py data out` (quantises, scores the
-  held-out requests through `sieda-cli --chat`, cross-checks llama.cpp, writes `SiEDA/Resources/Models/`).
+  held-out requests through `sieda-cli --circuit`, cross-checks llama.cpp with the exact ChatML prompt, writes
+  `SiEDA/Resources/Models/`). Training saves a checkpoint every 200 steps (`out/checkpoint.pt`); rerunning the same
+  `train.py` command resumes from it. A plan is *exact* when it has the reference's parts and links in any order;
+  `finish.py` also records the model alone, before value computation, as `modelExactPlans`.
+- **Values.** The model picks the circuit and writes its parts and links; the values the request fixes — LED series
+  resistor (supply, colour, current), divider ratio, RC cut-off, op-amp gain, NPN LED driver resistor — are then
+  computed by the core with the training data's own rules (E12 values), and the title follows (`circuitPlanValues` in
+  `Core/src/CircuitValues.cpp`, C API `sieda_circuit_plan_values`, CLI `sieda-cli --circuit model.gguf "request"`).
+  So a 7 V LED or a 3.3 kHz filter gets the exact part. Core test `circuit_model_values_follow_the_request`.
 - **Test.** Type a request and *Generate*, or *Run Benchmark* on 20 held-out requests (usable / exactly the reference).
 - **Models.** The circuit models in the models folder and the bundled one.
 - **Use.** Makes it the agents' back-end (Built-in with this model). New designs come from the model and must pass a
   check (unique designators, every link names a part) or the request fails with the reason; specifications,
   refinements and reviews, which it was not trained for, come from the Offline Designer.
 
-On the 107 held-out requests every plan is usable and 78 % are exactly the reference circuit; llama.cpp, reading
-the same file, writes the same plan. The core test `circuit_model_writes_linked_plans` holds the shipped model to linked plans on held-out requests.
+RESULTS_PLACEHOLDER
+The core test `circuit_model_writes_linked_plans` holds the shipped model to linked plans on held-out requests.
 
 ## Built-in model
 
