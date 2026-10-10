@@ -173,7 +173,7 @@ def main():
     total = int(len(batches) * epochs)
     step, t0 = 0, time.time()
     # A checkpoint every 200 steps: run the same command again to resume after an interruption.
-    ckpt, vocab_id = os.path.join(out, "checkpoint.pt"), hashlib.sha1(tok._tokenizer.to_str().encode()).hexdigest()
+    ckpt, vocab_id = os.path.join(out, "checkpoint.pt"), hashlib.sha1((tok._tokenizer.to_str() + json.dumps(CFG) + str(epochs)).encode()).hexdigest()
     if os.path.exists(ckpt):
         state = torch.load(ckpt)
         if state["vocab"] == vocab_id and state["total"] == total:
