@@ -4,6 +4,7 @@
 // 7 V LED or a 3.3 kHz filter gets the right part even where the model's guess is off.
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <regex>
 #include <string>
@@ -49,8 +50,8 @@ std::string eng(double x, const std::string& unit = "") {
 bool number(const std::string& text, const std::regex& re, double& out, int group = 1) {
     std::smatch m;
     if (!std::regex_search(text, m, re)) return false;
-    out = std::stod(m[group].str());
-    return true;
+    out = std::strtod(m[group].str().c_str(), nullptr);  // no throw on a huge digit run
+    return std::isfinite(out);
 }
 
 }  // namespace
@@ -87,16 +88,15 @@ std::string circuitPlanValues(const std::string& request, const std::string& pla
         values = {{"V1", g(v)}, {"R2", eng(e12((v - colour->vf - 0.1) / 0.009))}, {"D1", colour->value}};
         newTitle = std::string("NPN ") + colour->value + " LED Driver, " + g(v) + " V";
     } else if (title.find("Divider") != std::string::npos) {
-        std::smatch m;
-        if (std::regex_search(request, m, std::regex(R"((\d+(?:\.\d+)?)\s*V\s+(?:down\s+)?to\s+(\d+(?:\.\d+)?)\s*V)", icase)) &&
-            (vin = std::stod(m[1].str())) > (vout = std::stod(m[2].str())) && vout > 0) {
+        const std::regex re(R"((\d+(?:\.\d+)?)\s*V\s+(?:down\s+)?to\s+(\d+(?:\.\d+)?)\s*V)", icase);
+        if (number(request, re, vin, 1) && number(request, re, vout, 2) && vin > vout && vout > 0) {
             values = {{"V1", g(vin)}, {"R1", "10k"}, {"R2", eng(e12(10e3 * vout / (vin - vout)))}};
             newTitle = g(vin) + " V to " + g(vout) + " V Divider";
         }
     } else if (title.find("RC Low-Pass") != std::string::npos || title.find("RC High-Pass") != std::string::npos) {
         std::smatch m;
-        if (std::regex_search(request, m, std::regex(R"((\d[\d.]*[kKMG]?\d*)\s*Hz)", icase))) {
-            const auto parsed = parseEngineeringValue(m[1].str());
+        if (std::regex_search(request, m, std::regex(R"((\d[\d.]*)\s*([kKMG]?)(\d*)\s*Hz)", icase))) {  // "1k6Hz", "10 kHz"
+            const auto parsed = parseEngineeringValue(m[1].str() + m[2].str() + m[3].str());
             if (parsed && (fc = *parsed) > 0) {
                 const bool low = title.find("Low-Pass") != std::string::npos;
                 values = {{"R1", "1k"}, {"C1", eng(e12(1 / (2 * M_PI * 1e3 * fc)))}};
@@ -104,7 +104,7 @@ std::string circuitPlanValues(const std::string& request, const std::string& pla
             }
         }
     } else if (title.find("Inverting Amplifier") != std::string::npos &&
-               number(request, std::regex(R"(gain\s*(?:of\s*)?-?\s*(\d+(?:\.\d+)?))", icase), gain) && gain > 1) {
+               number(request, std::regex(R"(gain\s*(?:of\s*)?-?\s*(\d+(?:\.\d+)?)(?![\d.]|\s*dB))", icase), gain) && gain > 1) {
         if (title.find("Non-Inverting") != std::string::npos) {
             values = {{"R1", eng(e12(10e3 * (gain - 1)))}, {"R2", "10k"}};
             newTitle = "Non-Inverting Amplifier, Gain " + g(gain);

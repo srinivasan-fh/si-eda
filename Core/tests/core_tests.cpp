@@ -17086,6 +17086,9 @@ TEST(circuit_model_values_follow_the_request) {
     CHECK(value("op-amp gain 50 non-inverting", "Non-Inverting Amplifier, Gain 100", "R1") == "470k|Non-Inverting Amplifier, Gain 50");
     CHECK(value("inverting op-amp gain -50", "Inverting Amplifier, Gain −100", "R2") == "470k|Inverting Amplifier, Gain −50");
     CHECK(value("transistor switch for a blue LED, 12 V supply", "NPN Red LED Driver, 5 V", "R2") == "1k|NPN Blue LED Driver, 12 V");
+    CHECK(value("RC low-pass at 10 kHz", "RC Low-Pass Filter", "C1") == "15n|RC Low-Pass Filter, 10kHz");
+    CHECK(value("inverting amplifier, gain of 20 dB", "Inverting Amplifier", "R2") == "1|Inverting Amplifier");  // dB: left alone
+    CHECK(value(std::string(400, '9') + " V red LED at 10 mA", "LED Indicator", "R1") == "1|LED Indicator");  // no throw
     // Plans the request fixes nothing in, and text that is not a plan, come back unchanged.
     const std::string bridge = R"({"title":"Wheatstone Bridge","components":[{"ref":"R1","value":"10k"}],"connections":[]})";
     CHECK(circuitPlanValues("a 5 V bridge", bridge) == bridge && circuitPlanValues("5 V", "not json") == "not json");

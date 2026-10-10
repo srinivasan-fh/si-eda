@@ -211,6 +211,8 @@ def main():
     model.eval()
     path = os.path.join(out, "sieda-circuit-v1-f32.gguf")
     write_gguf(model, tok, path)
+    if os.path.exists(ckpt):
+        os.remove(ckpt)  # finished: the next run starts fresh
     with torch.no_grad():  # held-out loss
         losses = []
         for r in test:

@@ -70,9 +70,14 @@ int main(int argc, char** argv) {
         }
         LocalModel::Options o;
         o.maxTokens = 2000;
-        const std::string plan = model.generate(model.chatPrompt("You are an electronics design assistant.", argv[3]), o);
-        std::fprintf(stderr, "%s\n", plan.c_str());  // the model's own plan
-        std::printf("%s\n", circuitPlanValues(argv[3], plan).c_str());
+        try {
+            const std::string plan = model.generate(model.chatPrompt("You are an electronics design assistant.", argv[3]), o);
+            std::fprintf(stderr, "%s\n", plan.c_str());  // the model's own plan
+            std::printf("%s\n", circuitPlanValues(argv[3], plan).c_str());
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "%s\n", e.what());
+            return 1;
+        }
         return 0;
     }
     if (argc >= 4 && std::string(argv[1]) == "--chat") {
