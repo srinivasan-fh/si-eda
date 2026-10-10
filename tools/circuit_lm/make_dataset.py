@@ -58,6 +58,43 @@ def templates():
     return out
 
 
+def router():
+    """OfflineProvider.template(for:) over every reference circuit: keywords minus excludes, later (more specific)
+    circuits first, the LED indicator as the fallback. Returns the title a request selects."""
+    src = open(os.path.join(ROOT, "SiEDA/AI/OfflineProvider.swift")).read()
+    order = []
+    for block in src.split("Template(\n")[1:]:
+        words = lambda key: re.findall(r'"([^"]*)"', (re.search(key + r": \[(.*?)\]", block, re.S) or re.match("()", "")).group(1))
+        order.append((re.search(r'title: "([^"]+)"', block).group(1), words("keywords"), words("excludes")))
+
+    def route(request):
+        text = " " + request.lower() + " "
+        for title, keywords, excludes in reversed(order):
+            if any(k in text for k in keywords) and not any(e in text for e in excludes):
+                return title
+        return order[0][0]
+    return route
+
+
+# Where a request says what the circuit is for: words of other circuits too, so the model learns which one wins.
+CONTEXTS = ["for a 3D printer", "for a fan", "for a pump", "for a conveyor", "for a CNC machine", "for an industrial machine",
+            "for a robot", "for a robot arm", "for a test bench", "for a lab project", "for a prototype", "for my product",
+            "for a small machine", "for a fan motor", "for a pump motor", "for an e-bike", "with low-cost parts",
+            "for a student project", "for a home appliance", "for a sensor board"]
+
+
+def contexts(rng, t, n, route, by_title):
+    """(prompt, plan) pairs: a keyword of t plus an application context, labelled by the Offline Designer's rule."""
+    out = []
+    for i in range(n):
+        k = t["keywords"][i % len(t["keywords"])].strip()
+        p = f"{rng.choice(VERBS)} {rng.choice(['a ', 'an ', 'the ', ''])}{k} {rng.choice(CONTEXTS)}" + rng.choice(["", ".", " please", "?"])
+        target = by_title.get(route(p))
+        if target:
+            out.append((p[0].upper() + p[1:], plan_json(target)))
+    return out
+
+
 def plan_json(t, values=None, title=None):
     """The compact plan the model writes (keys the app's DesignPlan decoder reads)."""
     comps = []
@@ -149,6 +186,9 @@ def main():
     pairs = []
     for t in ts:
         pairs += [(p, plan_json(t)) for p in phrasings(rng, t, 100)]
+    route = router()
+    for t in ts:
+        pairs += contexts(rng, t, 30, route, by_title)
     fam = families(rng, by_title)
     pairs += fam * 3  # computed values are harder: seen more often
     rng.shuffle(pairs)
