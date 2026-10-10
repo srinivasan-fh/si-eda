@@ -17102,7 +17102,7 @@ TEST(circuit_model_writes_linked_plans) {
     LocalModel model;
     CHECK(model.load(dir + "sieda-circuit-v1.gguf") && card.get("benchmark").size() >= 5);
     LocalModel::Options o;
-    o.maxTokens = 1000;
+    o.maxTokens = 2000;  // the large reference circuits (ECU, RP2040, motherboard …) take up to ~1,400 tokens
     for (size_t i = 0; i < 5; ++i) {
         const std::string prompt = card.get("benchmark")[i].get("prompt").asString();
         const Json plan = Json::parse(model.generate(model.chatPrompt("You are an electronics design assistant.", prompt), o));
