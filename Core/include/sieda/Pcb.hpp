@@ -96,8 +96,8 @@ struct AutorouteOptions {
     bool pinSwap = false;
     /// Iterative placement improvement after Auto Place's greedy pass (PcbLayout::autoPlace): small shifts and swaps
     /// of same-size parts that shorten the ratsnest (half-perimeter wire length) while every courtyard stays clear by
-    /// the placer's own spacing. Deterministic and bounded. On by default; JSON "improvePlacement", written only when off.
-    bool improvePlacement = true;
+    /// the placer's own spacing. Deterministic and bounded. JSON "improvePlacement", written only when on.
+    bool improvePlacement = false;
     /// Length-aware search (with lengthAware): the nets with a target route longest first; after the routing passes a
     /// net routed longer than its target is routed again with cheaper vias, kept when shorter, and a net far short of
     /// its target is routed again through a waypoint that adds most of the missing length, so fewer meanders are

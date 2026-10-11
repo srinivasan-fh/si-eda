@@ -27,7 +27,7 @@ struct AutorouteOptions: Codable, Equatable {
     /// Swap pins and gates of multi-unit parts before routing (back-annotated to the schematic).
     var pinSwap = false
     /// Auto Place's iterative improvement pass (shifts and swaps that shorten the ratsnest).
-    var improvePlacement = true
+    var improvePlacement = false
     /// With lengthAware: nets with a length target are routed again toward it (shorter, or through a waypoint) before
     /// the meanders.
     var lengthAwareSearch = false
@@ -56,7 +56,7 @@ struct AutorouteOptions: Codable, Equatable {
         protectLocked = try c.decodeIfPresent(Bool.self, forKey: .protectLocked) ?? false
         classLayers = try c.decodeIfPresent([String: [Int]].self, forKey: .classLayers) ?? [:]
         pinSwap = try c.decodeIfPresent(Bool.self, forKey: .pinSwap) ?? false
-        improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? true
+        improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? false
         lengthAwareSearch = try c.decodeIfPresent(Bool.self, forKey: .lengthAwareSearch) ?? false
     }
 
