@@ -11,8 +11,8 @@ namespace sieda {
 
 /// {"coupledPairs","pairGap","lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast",
 /// "fanoutOnly","nets":[name],"netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked",
-/// "classLayers":{class:[layer]},"pinSwap","improvePlacement"} — every field, as saved with the board ("pinSwap" and
-/// "improvePlacement" only when on) — plus
+/// "classLayers":{class:[layer]},"pinSwap","improvePlacement"} — every field, as saved with the board ("pinSwap" only
+/// when on, "improvePlacement" only when off) — plus
 /// "teardropStyle":"curved" only when the teardrops are curved (absent = straight, so older files stay identical).
 Json autorouteOptionsToJson(const AutorouteOptions& o);
 /// Options from JSON; missing fields keep their value in `base`, out-of-range values are clamped.

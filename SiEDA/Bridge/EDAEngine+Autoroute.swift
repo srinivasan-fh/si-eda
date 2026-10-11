@@ -27,7 +27,7 @@ struct AutorouteOptions: Codable, Equatable {
     /// Swap pins and gates of multi-unit parts before routing (back-annotated to the schematic).
     var pinSwap = false
     /// Auto Place's iterative improvement pass (shifts and swaps that shorten the ratsnest).
-    var improvePlacement = false
+    var improvePlacement = true
 
     init() {}
 
@@ -53,7 +53,7 @@ struct AutorouteOptions: Codable, Equatable {
         protectLocked = try c.decodeIfPresent(Bool.self, forKey: .protectLocked) ?? false
         classLayers = try c.decodeIfPresent([String: [Int]].self, forKey: .classLayers) ?? [:]
         pinSwap = try c.decodeIfPresent(Bool.self, forKey: .pinSwap) ?? false
-        improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? false
+        improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? true
     }
 
     /// Routes only part of the board (selected nets, a net class or an area).

@@ -96,8 +96,8 @@ struct AutorouteOptions {
     bool pinSwap = false;
     /// Iterative placement improvement after Auto Place's greedy pass (PcbLayout::autoPlace): small shifts and swaps
     /// of same-size parts that shorten the ratsnest (half-perimeter wire length) while every courtyard stays clear by
-    /// the placer's own spacing. Deterministic and bounded. JSON "improvePlacement", written only when on.
-    bool improvePlacement = false;
+    /// the placer's own spacing. Deterministic and bounded. On by default; JSON "improvePlacement", written only when off.
+    bool improvePlacement = true;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }

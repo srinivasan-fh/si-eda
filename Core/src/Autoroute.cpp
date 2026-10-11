@@ -90,7 +90,7 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
     }
     j["classLayers"] = cl;
     if (o.pinSwap) j["pinSwap"] = true;  // written only when on: older files load and save identically
-    if (o.improvePlacement) j["improvePlacement"] = true;
+    if (!o.improvePlacement) j["improvePlacement"] = false;  // on by default: written only when switched off
     return j;
 }
 

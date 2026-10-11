@@ -18640,6 +18640,7 @@ TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
     // spacing (no overlap, nothing outside the board), the board routes at least as well, and the same placement again.
     bench::BenchBoard b = bench::makeBenchBoard({5, 2, 4, false, false, 0.45});
     Project greedy = b.project;
+    greedy.pcb.settings.autorouter.improvePlacement = false;
     greedy.pcb.autoPlace(greedy.schematic, true);
     Project improved = b.project;
     improved.pcb.settings.autorouter.improvePlacement = true;
@@ -18658,7 +18659,7 @@ TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
                 sg.trackLength, si.routed, si.connections, si.vias, si.trackLength);
     CHECK(si.failed <= sg.failed && si.trackLength < sg.trackLength);
     CHECK(routeDrcErrors(improved).empty());
-    // Locked parts stay; only the parts Auto Place placed move. The option is saved only when on.
+    // Locked parts stay; only the parts Auto Place placed move. The option is on by default and saved only when off.
     Project locked = b.project;
     locked.pcb.settings.autorouter.improvePlacement = true;
     Component* fixed = nullptr;
@@ -18672,9 +18673,10 @@ TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
     const Vec2 kept{30, 30};
     CHECK(fixed->pcb.position == kept && drcCount(locked, "DRC_COURTYARD_OVERLAP") == 0);
     CHECK(Project().toJson().dump().find("improvePlacement") == std::string::npos);
-    const Json j = autorouteOptionsToJson(improved.pcb.settings.autorouter);
-    CHECK(j.get("improvePlacement").asBool(false) && autorouteOptionsFromJson(j).improvePlacement);
-    CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("improvePlacement"));
+    CHECK(AutorouteOptions{}.improvePlacement && !autorouteOptionsToJson(AutorouteOptions{}).has("improvePlacement"));
+    const Json j = autorouteOptionsToJson(greedy.pcb.settings.autorouter);
+    CHECK(j.has("improvePlacement") && !autorouteOptionsFromJson(j).improvePlacement);
+    CHECK(!Project::fromJson(greedy.toJson()).pcb.settings.autorouter.improvePlacement);
     CHECK(Project::fromJson(improved.toJson()).pcb.settings.autorouter.improvePlacement);
 }
 
@@ -18728,10 +18730,12 @@ TEST(classic_router_copper_fingerprint) {
     // whole project (placement, copper, settings). A change to the classic router's copper or to the greedy placement
     // changes it; update the constant only on purpose (the value is printed).
     bench::BenchBoard b = bench::makeBenchBoard({1, 1, 2, false, false, 0.45});
+    b.project.pcb.settings.autorouter.improvePlacement = false;  // the greedy placer's result
     setRouterStrategy(RouterStrategy::Classic);
     b.project.pcb.autoPlace(b.project.schematic, true);
     const RouteStats st = b.project.pcb.autoRoute(b.project.schematic);
     setRouterStrategy(RouterStrategy::Auto);
+    b.project.pcb.settings.autorouter.improvePlacement = true;  // back to the default: the fingerprint is the copper
     const unsigned long long fp = projectFingerprint(b.project);
     std::printf("    %d / %d routed, %d vias, fingerprint %llu\n", st.routed, st.connections, st.vias, fp);
     CHECK(st.connections == 166 && st.routed >= 165);

@@ -179,7 +179,7 @@ such nets to the classic net loop). The finishing passes (neck-down, clean-up, g
 **Per-class layers** (`classLayers`): the nets of a schematic net class route only on the given copper layers; the
 layers of their SMD pads are open to them only to leave the pads (at four times the cost).
 
-**Placement improvement** (`improvePlacement`, off by default; JSON `"improvePlacement"`, written only when on): Auto
+**Placement improvement** (`improvePlacement`, on by default; JSON `"improvePlacement": false`, written only when off): Auto
 Place's greedy pass is followed by an iterative improvement (`PcbLayout::improvePlacement`). Over the parts it just
 placed, in placement order, it tries small shifts (±0.5, ±1 and ±2 mm in x and y) and swaps with the twelve nearest
 parts of the same courtyard size on the same side, and makes the best move that shortens the ratsnest's
@@ -187,8 +187,8 @@ half-perimeter wire length (the pad bounding box of every net with 2–64 pads t
 stays clear by the greedy pass's own spacing (1.2 mm margin, escape rings of fine-pitch and high-pin-count packages,
 isolation-barrier gaps, edge clearance, holes, MLCCs away from mounting holes, radios 10 mm from switchers). Locked
 and already placed parts never move. Deterministic (single-threaded, ties to the first candidate) and bounded (at most
-8 sweeps). It is an option rather than the default because the 40 reference designs are verified from the app, which
-this change could not run; on every benchmark board it routes shorter, with fewer vias and faster (Measured numbers).
+8 sweeps). On every benchmark board it routes shorter, with fewer vias and faster (Measured numbers), and the app's
+reference designs verify with it; switch it off for the plain greedy placement.
 
 In the app, the **Routing Strategy** menu next to Auto Route switches presets and options, routes the selected nets, a
 net class or the selected parts' area (one-shot: the board keeps its own strategy, one undo step) and opens the
@@ -505,8 +505,8 @@ connections are serial.
   angle can still form an acute join (a DRC_ACUTE_ANGLE warning), as with the classic router.
 - **Compilers.** Routing is deterministic for a given build and any thread count; builds with and without fused
   multiply-add can round differently and route differently (as the classic router can).
-- **Placement** is greedy and connectivity-driven; the improvement pass (`improvePlacement`, an option until the
-  reference designs have been verified with it from the app) only shifts parts and swaps parts of the same courtyard
+- **Placement** is greedy and connectivity-driven; the improvement pass (`improvePlacement`, on by default) only
+  shifts parts and swaps parts of the same courtyard
   size, never rotates or re-sides them, and measures the ratsnest as half-perimeter wire length, not routed length;
   dense boards may still route better after manual adjustment of the critical parts.
 
