@@ -89,6 +89,8 @@
   any thread count. Placement improvement after the greedy `autoPlace` (`PcbLayout::improvePlacement`, opt-in
   `AutorouteOptions::improvePlacement`); coupled pairs' P/N crossover (`Project::autoPairCrossovers` in
   `Core/src/PcbSwap.cpp`, a pin swap of a unit's pin-swap group, run by `Project::autoRoute` with `coupledPairs`);
+  coupled pairs start from BGA balls' dog-bone vias (`PairPlan::viaEnd`) and use each layer's stack-up width / gap
+  (`PairPlan::layerWidth`);
   via minimisation tries every net (adaptive batches + one shared grid, serial, `setViaMinimisationGrids` for tests);
   `classic_router_copper_fingerprint` pins the classic router's and greedy placer's result — update its constant
   only on purpose. `sieda_route_bench --options '{json}' --save file` measures strategy options and lets `cmp` compare runs.

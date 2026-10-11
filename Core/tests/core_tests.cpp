@@ -17998,6 +17998,181 @@ TEST(autoroute_coupled_pair_changes_layer_with_coupled_vias) {
     if (!wide.report.pairs.empty()) CHECK(!wide.report.pairs.front().coupled && !wide.report.pairs.front().reason.empty());
 }
 
+namespace {
+/// Two 64-ball 0.8 mm BGAs side by side on 6 layers (GND and +3V3 planes), four differential pairs between them on
+/// outer balls with ground balls beside them (two on the facing columns, one on the top and one on the bottom rows),
+/// and a fifth pair from U1's far column to two AC-coupling capacitors.
+struct BgaPairBoard {
+    Project p;
+    int u1 = -1, u2 = -1;
+};
+BgaPairBoard bgaPairBoard() {
+    BgaPairBoard b;
+    Project& p = b.p;
+    auto& s = p.schematic;
+    CustomPartSpec spec;
+    spec.name = "SI-BGA64";
+    spec.package.type = "BGA";
+    spec.package.pinCount = 64;
+    spec.package.pitch = 0.8;
+    for (int i = 0; i < 64; ++i) {
+        CustomPin pin;
+        pin.number = std::string(1, "ABCDEFGH"[i / 8]) + std::to_string(i % 8 + 1);
+        pin.name = pin.number;
+        pin.type = PinType::Bidirectional;
+        spec.pins.push_back(pin);
+    }
+    const std::string part = p.addCustomPart(spec);
+    const int u1 = b.u1 = s.addCustomComponent(part, "", {0, 0}), u2 = b.u2 = s.addCustomComponent(part, "", {400, 0});
+    const int gnd = s.addComponent(ComponentKind::Ground, "", {-100, 100});
+    const int vcc = s.addComponent(ComponentKind::NetLabel, "+3V3", {-100, -100});
+    for (const char* ball : {"A8", "D8", "G8", "H8", "H5", "A5"}) wire(s, u1, ball, gnd, "GND");
+    for (const char* ball : {"A1", "D1", "G1", "H1", "H4", "A4"}) wire(s, u2, ball, gnd, "GND");
+    for (int u : {u1, u2})
+        for (const char* ball : {"D4", "E5"}) wire(s, u, ball, vcc, "N");
+    const int cp = s.addComponent(ComponentKind::Capacitor, "100n", {-200, 0}), cn = s.addComponent(ComponentKind::Capacitor, "100n", {-200, 100});
+    for (int c : {cp, cn}) s.setPackage(c, "C_0603");
+    siPlace(p, u1, {12, 12});
+    siPlace(p, u2, {28, 12});
+    siPlace(p, cp, {4, 10.2});
+    siPlace(p, cn, {4, 11.4});
+    const char* capIn = siPad(p, cp, "2").x > siPad(p, cp, "1").x ? "2" : "1";  // the capacitor pad facing U1
+    // Lane k: U1's P / N balls to U2's (the top and bottom pairs turn twice the same way, so P ends on the outer
+    // ball); lane 4 to the capacitors.
+    const char* lanes[4][4] = {{"B8", "C8", "B1", "C1"}, {"E8", "F8", "E1", "F1"}, {"H6", "H7", "H3", "H2"}, {"A6", "A7", "A3", "A2"}};
+    for (int k = 0; k < 5; ++k) {
+        const std::string stem = "L" + std::to_string(k);
+        const int lp = s.addComponent(ComponentKind::NetLabel, stem + "_P", {200, -50.0 + 20 * k});
+        const int ln = s.addComponent(ComponentKind::NetLabel, stem + "_N", {200, 50.0 + 20 * k});
+        const char* ballP = k < 4 ? lanes[k][0] : "C1";
+        const char* ballN = k < 4 ? lanes[k][1] : "D1";
+        if (k < 4) {
+            wire(s, u1, ballP, u2, lanes[k][2]);
+            wire(s, u1, ballN, u2, lanes[k][3]);
+        } else {
+            wire(s, u1, ballP, cp, capIn);
+            wire(s, u1, ballN, cn, capIn);
+        }
+        wire(s, u1, ballP, lp, "N");
+        wire(s, u1, ballN, ln, "N");
+    }
+    p.schematicChanged();
+    p.pcb.settings.applyPreset("HDI / Fine-Pitch BGA (IPC-2226)");
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 26;
+    p.pcb.settings.layerCount = 6;
+    p.pcb.zones.push_back({"GND", 1, true, 0});
+    p.pcb.zones.push_back({"+3V3", 4, true, 0});
+    p.pcb.settings.autorouter.coupledPairs = true;
+    return b;
+}
+}  // namespace
+
+TEST(autoroute_coupled_pairs_from_bga_dogbone_vias) {
+    // Pairs on BGA balls start from the balls' dog-bone vias and route coupled to the other BGA's (or to AC-coupling
+    // capacitors): DRC-clean, every pair coupled with the stack-up's inner-layer width and gap on the inner layers, and
+    // the same copper from the corridor router on 1 and 4 threads (the board is the classic router's by default).
+    RouterOverride restore;
+    std::string corridor;
+    for (int run = 0; run < 3; ++run) {
+        setRouterStrategy(run == 0 ? RouterStrategy::Auto : RouterStrategy::Corridor);
+        setRoutingThreads(run == 2 ? 4 : 1);
+        BgaPairBoard b = bgaPairBoard();
+        Project& p = b.p;
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0 && st.report.pairs.size() == 5);
+        const BoardSettings& bs = p.pcb.settings;
+        const auto inner = differentialPairGeometry(bs, 2, bs.differentialImpedance);
+        const double iw = std::max(bs.minTrackWidth, std::ceil(inner.first * 100) / 100), ig = std::max(inner.second, bs.clearance);
+        for (const PairRouteReport& pr : st.report.pairs) {
+            int np = -1, nn = -1;
+            for (const auto& n : p.schematic.nets()) {
+                if (n.name == pr.positive) np = n.index;
+                if (n.name == pr.negative) nn = n.index;
+            }
+            if (!pr.coupled) std::printf("    %s not coupled: %s\n", pr.positive.c_str(), pr.reason.c_str());
+            std::set<int> layers;
+            for (const auto& t : p.pcb.tracks)
+                if (t.net == np) layers.insert(t.layer);
+            if (run == 0) {
+                std::printf("    %s: coupled %.1f mm, uncoupled %.1f mm, %d via pairs, skew %.3f, layers", pr.positive.c_str(),
+                            pr.coupledLength, pr.uncoupledLength, pr.viaPairs, pr.skew);
+                for (int l : layers) std::printf(" %d", l);
+                std::printf("\n");
+            }
+            CHECK(pr.coupled && pr.coupledLength > 1.5 && pr.skew <= bs.pairSkewTolerance + 1e-6);
+            // Inner layers carry the stack-up's inner geometry (stripline: narrower than the outer microstrip).
+            CHECK(pr.width > iw + 0.05);
+            for (const auto& t : p.pcb.tracks)
+                if ((t.net == np || t.net == nn) && t.layer == 2) CHECK(std::fabs(t.width - iw) < 1e-9);
+            if (pr.positive == "L0_P" || pr.positive == "L1_P") CHECK(layers.count(2) && parallelAt(p, np, nn, iw + ig) >= 1);
+        }
+        const auto errors = routeDrcErrors(p);
+        for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+        CHECK(errors.empty());
+        // Each member leaves its ball by the dog-bone: a via within one ball pitch of the ball, on the pair's net.
+        for (const auto& pad : p.pcb.pads(p.schematic)) {
+            if (pad.net < 0 || (pad.componentId != b.u1 && pad.componentId != b.u2) ||
+                p.schematic.nets()[static_cast<size_t>(pad.net)].name.rfind("L", 0) != 0)
+                continue;
+            bool via = false;
+            for (const auto& v : p.pcb.vias) via = via || (v.net == pad.net && (v.position - pad.position).length() < 0.8);
+            CHECK(via);
+        }
+        if (run == 0) continue;
+        const std::string fp = copperFingerprint(p.pcb);
+        if (corridor.empty()) corridor = fp;
+        CHECK(fp == corridor);
+    }
+}
+
+TEST(autoroute_coupled_pair_takes_each_layers_geometry) {
+    // The SERDES pair restricted to the inner layers (net-class layers) leaves its pads on the top layer at the outer
+    // width and gap, changes layer through coupled vias and runs on the inner layer at the stack-up's inner width and
+    // gap (stripline), then back: DRC-clean. With a pair gap set, every layer keeps the one geometry.
+    for (bool fixedGap : {false, true}) {
+        DiffBoard b = diffBoard(0.2);
+        Project& p = b.p;
+        auto& s = p.schematic;
+        p.pcb.clearRouting();
+        CHECK(s.setNetClassDef({"INNER", 0, 0}));
+        for (const char* pinName : {"TXP", "TXN"}) {
+            NetDirective d;
+            d.component = b.u1;
+            d.pin = pin(s, b.u1, pinName);
+            d.netClass = "INNER";
+            CHECK(s.addDirective(d) > 0);
+        }
+        p.schematicChanged();
+        BoardSettings& bs = p.pcb.settings;
+        bs.autorouter.classLayers["INNER"] = {1, 2};
+        bs.autorouter.coupledPairs = true;
+        if (fixedGap) bs.autorouter.pairGap = 0.2;
+        RouteStats st = p.pcb.autoRoute(s);
+        CHECK(st.failed == 0 && st.report.pairs.size() == 1);
+        if (st.report.pairs.size() != 1) return;
+        const PairRouteReport& pr = st.report.pairs.front();
+        if (!pr.coupled) std::printf("    pair not coupled: %s\n", pr.reason.c_str());
+        CHECK(pr.coupled && pr.viaPairs >= 2);
+        const auto inner = differentialPairGeometry(bs, 1, bs.differentialImpedance);
+        const double iw = std::max(bs.minTrackWidth, std::ceil(inner.first * 100) / 100), ig = std::max(inner.second, bs.clearance);
+        const double w = fixedGap ? pr.width : iw, gap = fixedGap ? pr.gap : ig;
+        if (!fixedGap) std::printf("    outer %.3f / %.3f mm, inner %.3f / %.3f mm (width / gap)\n", pr.width, pr.gap, iw, ig);
+        CHECK(fixedGap || std::fabs(iw - pr.width) > 0.01);
+        double innerLength = 0;
+        for (const auto& t : p.pcb.tracks)
+            if ((t.net == b.np || t.net == b.nn) && (t.layer == 1 || t.layer == 2)) {
+                CHECK(std::fabs(t.width - w) < 1e-9);
+                if (t.net == b.np) innerLength += trackLength(t);
+            }
+        CHECK(innerLength > 50);
+        CHECK(parallelAt(p, b.np, b.nn, w + gap) >= 1);  // side by side at the inner pitch
+        const auto errors = routeDrcErrors(p);
+        for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+        CHECK(errors.empty());
+    }
+}
+
 TEST(autoroute_keeps_net_class_clearance) {
     // A net class (schematic directive) asks for more than the board clearance: the autorouter keeps it between that
     // net's copper and every other net's, whichever was routed first.
