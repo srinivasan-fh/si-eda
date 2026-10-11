@@ -31,6 +31,8 @@ struct AutorouteOptions: Codable, Equatable {
     /// With lengthAware: nets with a length target are routed again toward it (shorter, or through a waypoint) before
     /// the meanders.
     var lengthAwareSearch = false
+    /// Connections the grid leaves unrouted are routed by the gridless shape-based engine.
+    var shapeCompletion = false
 
     init() {}
 
@@ -58,6 +60,7 @@ struct AutorouteOptions: Codable, Equatable {
         pinSwap = try c.decodeIfPresent(Bool.self, forKey: .pinSwap) ?? false
         improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? false
         lengthAwareSearch = try c.decodeIfPresent(Bool.self, forKey: .lengthAwareSearch) ?? false
+        shapeCompletion = try c.decodeIfPresent(Bool.self, forKey: .shapeCompletion) ?? false
     }
 
     /// Routes only part of the board (selected nets, a net class or an area).
@@ -129,6 +132,8 @@ struct RouteReport: Decodable, Equatable {
         var ratsnestAfter: Double?
         var crossingsBefore: Int?
         var crossingsAfter: Int?
+        /// Connections the shape-based completion routed (present only when it routed some).
+        var shapeCompleted: Int?
     }
     var pairs: [Pair] = []
     var lengths: [Length] = []

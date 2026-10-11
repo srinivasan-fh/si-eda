@@ -1419,3 +1419,10 @@
 "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "VRML (.wrl)・STL・OBJ・STEP モデルを添付してフットプリントに合わせる";
 "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "VRML (.wrl)・STL・OBJ・STEP (.step / .stp) ファイルを選択してください（KiCad ライブラリ同梱の形式）。";
 "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl)、STL、OBJ または STEP（.step / .stp、KiCad ライブラリ同梱）。";
+"Improve placement" = "配置を改善";
+"After Auto Place, shift and swap parts where the ratsnest gets shorter" = "自動配置の後、ラッツネストが短くなるように部品を移動・入れ替え";
+"Length-aware search" = "長さを考慮した探索";
+"Route nets with a length target again, shorter or through a waypoint, before adding meanders" = "蛇行配線を加える前に、長さ目標のあるネットを短く、または経由点を通して再配線";
+"Shape-based completion" = "形状ベースの補完";
+"Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "グリッドルーターが未配線で残した接続を、正確な銅形状上で他の配線を押しのけて配線";
+"Shape-completed connections" = "形状ベースで補完した接続";

@@ -1565,7 +1565,8 @@ void pcbTools(Table& t) {
           "{coupledPairs, lengthAware, minimizeVias, gloss, arcCorners, arcRadius, teardrops, teardropStyle, fast, "
           "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap, "
           "improvePlacement (Auto Place's improvement pass), lengthAwareSearch (with lengthAware: nets with a length "
-          "target are routed again toward it, shorter or through a waypoint, before meandering)}. Returns "
+          "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
+          "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. Returns "
           "routed / failed connections, vias and track length.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")

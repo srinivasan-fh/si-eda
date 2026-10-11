@@ -198,6 +198,14 @@ needs `lengthAware`): nets with a length target route longest first, and after t
 toward their targets — shorter with cheaper vias, or longer through a waypoint — before the meanders (Length-aware
 routing). It is not part of the High quality preset, so that preset routes as before.
 
+**Shape-based completion** (`shapeCompletion`, off by default; JSON `"shapeCompletion"`, written only when on): after
+the grid passes, every connection still unrouted (ratsnest line, shortest first) is routed by the interactive router's
+gridless engine (`routequality::shapeComplete`): exact copper shapes and the DRC's own clearance checks, from either end
+and on every copper layer of the start pad, walkaround first, then push-and-shove (other nets' tracks and vias move
+aside on their clearance hulls), then — on multi-layer boards — a first leg to a via site on or 2 mm beside the line
+(middle first) and the rest on another layer. A route is kept only when it reaches its target pad and no other
+connection opens. It changes nothing on a board the grid routes completely. Report: `shapeCompleted`.
+
 In the app, the **Routing Strategy** menu next to Auto Route switches presets and options, routes the selected nets, a
 net class or the selected parts' area (one-shot: the board keeps its own strategy, one undo step) and opens the
 **Strategy Settings** sheet (options, pair gap, arc radius, per-class layers) and the **Routing Report**. C API:
@@ -565,10 +573,11 @@ connections are serial.
 
 ## Limits
 
-- **Grid, not shapes.** Routing is still grid-based: the multi-resolution grid only changes how searches move, the
-  grid arrays stay at the fine pitch (about 200 MB for the 923-part board's 33 M routing nodes, 2 bytes per node and
-  layer array). It is not a gridless (shape-based) router; boards much larger than 250 × 180 mm with a 0.8 mm BGA grow
-  past 1 GB. The classic router (below 2 M nodes) keeps the uniform grid.
+- **Grid first, shapes to finish.** The global search is grid-based: the multi-resolution grid only changes how
+  searches move, the grid arrays stay at the fine pitch (about 200 MB for the 923-part board's 33 M routing nodes, 2
+  bytes per node and layer array), so boards much larger than 250 × 180 mm with a 0.8 mm BGA grow past 1 GB. The
+  classic router (below 2 M nodes) keeps the uniform grid. Shape-based completion finishes what the grid leaves on the
+  exact shapes, one connection at a time (no rip-up of its own: it shoves, it does not re-plan the board).
 - **Lattice fallback costs time.** When the multi-resolution route leaves connections open, the full-grid route runs
   too (the 4-layer and FPGA benchmark boards below take about twice as long as before for equal or better completion).
 - **Completion is not guaranteed.** Rip-up is a local search; it completes every routable board of the benchmark set,
@@ -651,6 +660,8 @@ connections are serial.
 - `autoroute_length_aware_search`: on a bus 30 mm short at its shortest member the search detours the short members
   and meanders far less (fewer tracks, skew no worse), with the classic and the corridor router; a ruled net routed around another net's locked track is routed
   again shorter, through vias, onto its target; on a board without targets the option changes no copper; its JSON.
+- `autoroute_shape_completion`: off by default and not saved; connections taken off a routed board are all routed
+  again on the exact shapes between the copper left there, DRC-clean; pads on opposite sides connect through a via.
 - `corridor_router_leaves_no_acute_joins`: a one-cluster, two-layer board that had an acute join routes without
   DRC_ACUTE_ANGLE (no warning at all), DRC-clean, the same copper on 1 and 4 threads.
 - `autoroute_keepouts_and_quality_passes`: keep-outs routed around and reported by the DRC; via minimisation, gloss,

@@ -13,7 +13,7 @@ bool AutorouteOptions::operator==(const AutorouteOptions& o) const {
            netClass == o.netClass && hasArea == o.hasArea && (!hasArea || (area.x0 == o.area.x0 && area.y0 == o.area.y0 &&
            area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers &&
            pinSwap == o.pinSwap && improvePlacement == o.improvePlacement &&
-           lengthAwareSearch == o.lengthAwareSearch;
+           lengthAwareSearch == o.lengthAwareSearch && shapeCompletion == o.shapeCompletion;
 }
 
 const std::vector<AutoroutePreset>& autoroutePresets() {
@@ -93,6 +93,7 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
     if (o.pinSwap) j["pinSwap"] = true;  // written only when on: older files load and save identically
     if (o.improvePlacement) j["improvePlacement"] = true;
     if (o.lengthAwareSearch) j["lengthAwareSearch"] = true;
+    if (o.shapeCompletion) j["shapeCompletion"] = true;
     return j;
 }
 
@@ -145,6 +146,7 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions o) {
     o.pinSwap = j.get("pinSwap").asBool(o.pinSwap);
     o.improvePlacement = j.get("improvePlacement").asBool(o.improvePlacement);
     o.lengthAwareSearch = j.get("lengthAwareSearch").asBool(o.lengthAwareSearch);
+    o.shapeCompletion = j.get("shapeCompletion").asBool(o.shapeCompletion);
     return o;
 }
 
@@ -244,6 +246,7 @@ Json routeReportJson(const RouteReport& r) {
     q["viasRemoved"] = m.viasRemoved;
     q["netsRerouted"] = m.netsRerouted;
     if (m.lengthRerouted > 0) q["lengthRerouted"] = m.lengthRerouted;  // length-aware search
+    if (m.shapeCompleted > 0) q["shapeCompleted"] = m.shapeCompleted;  // shape-based completion
     q["glossed"] = m.glossed;
     q["arcsAdded"] = m.arcsAdded;
     q["teardropsAdded"] = m.teardropsAdded;

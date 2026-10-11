@@ -1419,3 +1419,10 @@
 "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint";
 "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them.";
 "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship).";
+"Improve placement" = "Improve placement";
+"After Auto Place, shift and swap parts where the ratsnest gets shorter" = "After Auto Place, shift and swap parts where the ratsnest gets shorter";
+"Length-aware search" = "Length-aware search";
+"Route nets with a length target again, shorter or through a waypoint, before adding meanders" = "Route nets with a length target again, shorter or through a waypoint, before adding meanders";
+"Shape-based completion" = "Shape-based completion";
+"Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside";
+"Shape-completed connections" = "Shape-completed connections";

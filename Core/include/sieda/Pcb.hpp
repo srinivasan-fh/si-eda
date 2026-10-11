@@ -103,6 +103,11 @@ struct AutorouteOptions {
     /// its target is routed again through a waypoint that adds most of the missing length, so fewer meanders are
     /// needed. JSON "lengthAwareSearch", written only when on.
     bool lengthAwareSearch = false;
+    /// Shape-based completion: after the grid passes, each connection still unrouted is routed by the interactive
+    /// router's gridless engine on the exact copper shapes (walkaround, then push-and-shove, then with one via to
+    /// another layer), so channels and off-grid pins the grid cannot fit still connect. JSON "shapeCompletion",
+    /// written only when on.
+    bool shapeCompletion = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
@@ -504,6 +509,7 @@ struct RouteMetrics {
     int viasRemoved = 0;              // via minimisation
     int netsRerouted = 0;             // nets whose copper via minimisation replaced
     int lengthRerouted = 0;           // nets the length-aware search routed again (shorter or longer)
+    int shapeCompleted = 0;           // connections the shape-based completion routed
     int glossed = 0;                  // lines glossing improved
     int arcsAdded = 0;                // corners made arcs
     int teardropsAdded = 0;

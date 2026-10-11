@@ -114,6 +114,60 @@ int keepingConnections(PcbLayout& pcb, const Schematic& sch, Edit edit) {
 }
 }  // namespace
 
+int shapeComplete(PcbLayout& pcb, const Schematic& sch) {
+    std::vector<std::pair<Vec2, Vec2>> lines = pcb.ratsnest(sch);
+    std::stable_sort(lines.begin(), lines.end(), [](const auto& x, const auto& y) {
+        return (x.second - x.first).length() < (y.second - y.first).length();
+    });
+    const int layers = std::max(1, pcb.settings.layerCount);
+    int done = 0;
+    for (const auto& line : lines) {
+        // One attempt: from `from` on layer l, straight to `to` or through a via at `site` onto layer l2 (-1: none).
+        auto attempt = [&](Vec2 from, Vec2 to, int l, RouterMode mode, const Vec2* site, int l2) {
+            return keepingConnections(pcb, sch, [&] {
+                InteractiveRouter r(pcb, sch);
+                RouterOptions o;
+                o.mode = mode;
+                r.setOptions(o);
+                if (!r.beginRoute(from, l)) return 0;
+                if (site) {
+                    const RoutePreview& leg = r.moveTo(*site);
+                    if (leg.blocked || (leg.end - *site).length() > 1e-6 || !r.addVia(l2)) {
+                        r.cancel();
+                        return 0;
+                    }
+                }
+                if (!r.moveTo(to).reachedTarget) {
+                    r.cancel();
+                    return 0;
+                }
+                return r.commit().empty() ? 0 : 1;
+            });
+        };
+        const size_t before = pcb.ratsnest(sch).size();
+        auto routed = [&](int n) { return n > 0 && pcb.ratsnest(sch).size() < before; };
+        bool ok = false;
+        for (int dir = 0; dir < 2 && !ok; ++dir) {
+            const Vec2 from = dir ? line.second : line.first, to = dir ? line.first : line.second;
+            for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove})
+                for (int l = 0; l < layers && !ok; ++l) ok = routed(attempt(from, to, l, mode, nullptr, -1));
+        }
+        // Via sites along the line and beside it, nearest the middle first.
+        const Vec2 d = line.second - line.first;
+        const Vec2 side = d.length() > 0 ? Vec2{-d.y, d.x} * (2.0 / d.length()) : Vec2{0, 2};
+        for (double f : {0.5, 0.3, 0.7, 0.15, 0.85})
+            for (double s : {0.0, 1.0, -1.0})
+                for (int l = 0; l < layers && !ok && layers > 1; ++l)
+                    for (int l2 = 0; l2 < layers && !ok; ++l2) {
+                        if (l2 == l) continue;
+                        const Vec2 site = line.first + d * f + side * s;
+                        ok = routed(attempt(line.first, line.second, l, RouterMode::Walkaround, &site, l2));
+                    }
+        if (ok) ++done;
+    }
+    return done;
+}
+
 int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipNets) {
     std::vector<int> ids;
     for (const Track& t : pcb.tracks)

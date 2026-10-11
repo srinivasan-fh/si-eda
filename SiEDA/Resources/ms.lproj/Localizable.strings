@@ -1419,3 +1419,10 @@
 "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "Lampirkan model VRML (.wrl), STL, OBJ atau STEP dan jajarkan pada tapak";
 "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "Pilih fail VRML (.wrl), STL, OBJ atau STEP (.step / .stp), seperti dalam pustaka KiCad.";
 "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ atau STEP (.step / .stp, seperti dalam pustaka KiCad).";
+"Improve placement" = "Perbaiki peletakan";
+"After Auto Place, shift and swap parts where the ratsnest gets shorter" = "Selepas Auto Place, alih dan tukar komponen di mana ratsnest menjadi lebih pendek";
+"Length-aware search" = "Carian peka panjang";
+"Route nets with a length target again, shorter or through a waypoint, before adding meanders" = "Halakan semula net dengan sasaran panjang, lebih pendek atau melalui titik laluan, sebelum menambah liku";
+"Shape-based completion" = "Pelengkapan berasaskan bentuk";
+"Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Sambungan yang tidak dihalakan oleh penghala grid dihalakan pada bentuk kuprum sebenar, menolak trek lain ke tepi";
+"Shape-completed connections" = "Sambungan dilengkapkan berasaskan bentuk";

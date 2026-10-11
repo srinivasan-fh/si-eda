@@ -13534,6 +13534,7 @@ TEST(standard_catalog_has_over_a_thousand_registrable_parts) {
 
 // ============================================================================ corridor router (large boards)
 #include "../src/GlobalRouter.hpp"
+#include "../src/RouteQuality.hpp"
 
 TEST(global_router_capacity_batches_and_threads) {
     using namespace sieda::routing;
@@ -18418,6 +18419,43 @@ TEST(corridor_router_leaves_no_acute_joins) {
     for (size_t i = 0; same && i < tracks[0].size(); ++i)
         same = tracks[0][i].a == tracks[1][i].a && tracks[0][i].b == tracks[1][i].b && tracks[0][i].layer == tracks[1][i].layer;
     CHECK(same);
+}
+
+TEST(autoroute_shape_completion) {
+    // Off by default and not saved; saved when on.
+    CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("shapeCompletion"));
+    AutorouteOptions on;
+    on.shapeCompletion = true;
+    CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(on)).shapeCompletion);
+    // Connections taken off a routed board are routed again on the exact shapes, between the copper already there.
+    Project p = amplifierProject();
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    std::set<int> cut;
+    for (const auto& t : p.pcb.tracks)
+        if (cut.size() < 3 && p.schematic.netRole(t.net) == NetRole::Signal) cut.insert(t.net);
+    p.pcb.tracks.erase(std::remove_if(p.pcb.tracks.begin(), p.pcb.tracks.end(), [&](const Track& t) { return cut.count(t.net) > 0; }),
+                       p.pcb.tracks.end());
+    p.pcb.vias.erase(std::remove_if(p.pcb.vias.begin(), p.pcb.vias.end(), [&](const Via& v) { return cut.count(v.net) > 0; }),
+                     p.pcb.vias.end());
+    const size_t open = p.pcb.ratsnest(p.schematic).size();
+    const int done = routequality::shapeComplete(p.pcb, p.schematic);
+    std::printf("    %zu connections open, %d completed, %zu left\n", open, done, p.pcb.ratsnest(p.schematic).size());
+    CHECK(open > 0 && done == static_cast<int>(open) && p.pcb.ratsnest(p.schematic).empty());
+    CHECK(routeDrcErrors(p).empty());
+    // Pads on opposite sides: the second leg goes through a via onto the other layer.
+    Project q;
+    q.pcb.settings.width = 50;
+    q.pcb.settings.height = 30;
+    const int a = placeR(q, {10, 15}), b = placeR(q, {40, 15});
+    q.schematic.find(b)->pcb.bottom = true;
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    CHECK(routequality::shapeComplete(q.pcb, q.schematic) == 1);
+    CHECK(q.pcb.ratsnest(q.schematic).empty() && routeDrcErrors(q).empty());
+    std::printf("    opposite sides: %zu tracks, %zu vias\n", q.pcb.tracks.size(), q.pcb.vias.size());
 }
 
 TEST(autoroute_keepouts_and_quality_passes) {

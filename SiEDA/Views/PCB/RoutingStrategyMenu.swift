@@ -52,6 +52,7 @@ struct RoutingStrategyMenu: View {
         Section("Options") {
             optionToggle("Coupled differential pairs", o.coupledPairs, \.coupledPairs)
             optionToggle("Length-aware routing", o.lengthAware, \.lengthAware)
+            optionToggle("Length-aware search", o.lengthAwareSearch, \.lengthAwareSearch).disabled(!o.lengthAware)
             optionToggle("Minimize vias", o.minimizeVias, \.minimizeVias)
             optionToggle("Gloss tracks", o.gloss, \.gloss)
             optionToggle("Arc corners", o.arcCorners, \.arcCorners)
@@ -59,6 +60,8 @@ struct RoutingStrategyMenu: View {
             Menu("Teardrop Style") { teardropStyleItems(o.teardropStyle) }
             optionToggle("Protect locked copper", o.protectLocked, \.protectLocked)
             optionToggle("Swap Pins & Gates", o.pinSwap, \.pinSwap)
+            optionToggle("Improve placement", o.improvePlacement, \.improvePlacement)
+            optionToggle("Shape-based completion", o.shapeCompletion, \.shapeCompletion)
         }
     }
 

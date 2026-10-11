@@ -1419,3 +1419,10 @@
 "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "VRML (.wrl), STL, OBJ বা STEP মডেল সংলগ্ন কৰি ফুটপ্ৰিণ্টত মিলাওক";
 "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "VRML (.wrl), STL, OBJ বা STEP (.step / .stp) ফাইল বাছক, KiCad লাইব্ৰেৰীয়ে দিয়াৰ দৰে।";
 "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ বা STEP (.step / .stp, KiCad লাইব্ৰেৰীয়ে দিয়াৰ দৰে)।";
+"Improve placement" = "স্থাপন উন্নত কৰক";
+"After Auto Place, shift and swap parts where the ratsnest gets shorter" = "স্বয়ংক্ৰিয় স্থাপনৰ পিছত, ৰেটছনেষ্ট চুটি হোৱাকৈ অংশবোৰ লৰচৰ আৰু সলনি কৰক";
+"Length-aware search" = "দৈৰ্ঘ্য-সচেতন সন্ধান";
+"Route nets with a length target again, shorter or through a waypoint, before adding meanders" = "মিয়েণ্ডাৰ যোগ কৰাৰ আগতে দৈৰ্ঘ্য লক্ষ্য থকা নেটবোৰ পুনৰ ৰুট কৰক, চুটিকৈ বা এটা ৱেপইণ্টৰ মাজেৰে";
+"Shape-based completion" = "আকাৰ-ভিত্তিক সম্পূৰ্ণকৰণ";
+"Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "গ্ৰিড ৰাউটাৰে ৰুট নকৰা সংযোগবোৰ সঠিক কপাৰ আকাৰত ৰুট কৰা হয়, আন ট্ৰেকবোৰ আঁতৰাই";
+"Shape-completed connections" = "আকাৰ-ভিত্তিকভাৱে সম্পূৰ্ণ সংযোগ";

@@ -45,6 +45,7 @@ struct RoutingReportSheet: View {
                 row("Teardrops", "\(m.teardrops)")
                 row("Vias removed", "\(m.viasRemoved)")
                 row("Lines glossed", "\(m.glossed)")
+                if let n = m.shapeCompleted { row("Shape-completed connections", "\(n)") }
             }
         }
     }

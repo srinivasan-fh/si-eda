@@ -5177,6 +5177,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     cleanupKeepsJoins_ = false;
     profile.since("clean-up", tFinish);
     tFinish = profile.now();
+    // Shape-based completion: what the grid left unrouted, on the exact shapes.
+    const int shapeCompleted = ropt.shapeCompletion && best.failed > 0 && best.failed != std::numeric_limits<int>::max() ? routequality::shapeComplete(*this, sch) : 0;
+    if (shapeCompleted > 0) best.failed = std::max(0, best.failed - shapeCompleted);
+    profile.since("shape completion", tFinish);
+    tFinish = profile.now();
     // Coupled pairs are left out of glossing and via minimisation (both members would have to move together).
     std::set<int> pairNets;
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k)
@@ -5185,6 +5190,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     metrics.viasRemoved = viasRemoved;
     metrics.netsRerouted = netsRerouted;
     metrics.lengthRerouted = lengthRerouted;
+    metrics.shapeCompleted = shapeCompleted;
     if (ropt.gloss) metrics.glossed = routequality::glossRouted(*this, sch, pairNets);
     profile.since("gloss", tFinish);
     tFinish = profile.now();

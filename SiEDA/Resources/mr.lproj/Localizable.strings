@@ -1419,3 +1419,10 @@
 "Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "VRML (.wrl), STL, OBJ किंवा STEP मॉडेल जोडा आणि फूटप्रिंटवर संरेखित करा";
 "Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "KiCad लायब्ररी देतात तशी VRML (.wrl), STL, OBJ किंवा STEP (.step / .stp) फाइल निवडा.";
 "VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ किंवा STEP (.step / .stp, KiCad लायब्ररी देतात तशी).";
+"Improve placement" = "मांडणी सुधारा";
+"After Auto Place, shift and swap parts where the ratsnest gets shorter" = "ऑटो प्लेसनंतर, जिथे रॅट्सनेस्ट लहान होते तिथे भाग हलवा आणि अदलाबदल करा";
+"Length-aware search" = "लांबी-जागरूक शोध";
+"Route nets with a length target again, shorter or through a waypoint, before adding meanders" = "मिएंडर जोडण्यापूर्वी लांबी लक्ष्य असलेले नेट पुन्हा रूट करा, लहान किंवा वेपॉइंटमधून";
+"Shape-based completion" = "आकार-आधारित पूर्तता";
+"Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "ग्रिड राउटरने रूट न केलेली जोडणी अचूक तांब्याच्या आकारांवर, इतर ट्रॅक बाजूला सारून रूट केली जातात";
+"Shape-completed connections" = "आकार-आधारित पूर्ण केलेली जोडणी";

@@ -44,6 +44,7 @@ struct RoutingStrategySheet: View {
         next.classLayers = options.classLayers
         next.protectLocked = options.protectLocked
         next.pinSwap = options.pinSwap
+        next.improvePlacement = options.improvePlacement
         next.pairGap = options.pairGap
         next.arcRadius = options.arcRadius
         next.teardropStyle = options.teardropStyle
@@ -55,6 +56,9 @@ struct RoutingStrategySheet: View {
             Toggle("Coupled differential pairs", isOn: $options.coupledPairs)
             numberField("Pair gap (0 = stack-up)", $options.pairGap)
             Toggle("Length-aware routing", isOn: $options.lengthAware)
+            Toggle("Length-aware search", isOn: $options.lengthAwareSearch)
+                .disabled(!options.lengthAware)
+                .help("Route nets with a length target again, shorter or through a waypoint, before adding meanders")
             Toggle("Minimize vias", isOn: $options.minimizeVias)
             Toggle("Gloss tracks", isOn: $options.gloss)
             Toggle("Arc corners", isOn: $options.arcCorners)
@@ -70,6 +74,10 @@ struct RoutingStrategySheet: View {
             Toggle("Protect locked copper", isOn: $options.protectLocked)
             Toggle("Swap Pins & Gates", isOn: $options.pinSwap)
                 .help("Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)")
+            Toggle("Improve placement", isOn: $options.improvePlacement)
+                .help("After Auto Place, shift and swap parts where the ratsnest gets shorter")
+            Toggle("Shape-based completion", isOn: $options.shapeCompletion)
+                .help("Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside")
         }
     }
 

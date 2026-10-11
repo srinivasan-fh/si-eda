@@ -30,6 +30,12 @@ int teardropsRouted(PcbLayout& pcb, const Schematic& sch, TeardropStyle style = 
 /// link. Each link keeps every clearance, keep-out and the board edge; undone if a connection opens. Returns the joins
 /// fixed.
 int fixAcuteJoins(PcbLayout& pcb, const Schematic& sch);
+/// Shape-based completion (AutorouteOptions::shapeCompletion): each ratsnest line left after the grid passes,
+/// shortest first, is routed by the interactive router on the exact copper shapes, from either end and on every copper
+/// layer of its start pad: walkaround, then push-and-shove, then (multi-layer boards) a first leg to a via site on or
+/// beside the line and the rest on another layer. A route is kept only when it reaches its target and no other
+/// connection opens. Returns the connections completed.
+int shapeComplete(PcbLayout& pcb, const Schematic& sch);
 /// Fills the board measurements of `m` (vias by kind, length per layer, segments, arcs, teardrops, unrouted).
 void measure(const PcbLayout& pcb, const Schematic& sch, RouteMetrics& m);
 
