@@ -2114,7 +2114,7 @@ public:
 
 private:
     friend RouteResult astar(const RoutingGrid&, int, const std::vector<std::pair<int, size_t>>&, AStarWorkspace&, Vec2,
-                             double, double, bool, const std::function<bool(int, size_t)>*, const Congestion*, double);
+                             double, double, bool, const std::function<bool(int, size_t)>*, const Congestion*, double, int, int);
     template <typename T>
     static void bump(uint32_t& gen, std::vector<T>& stamps) {
         if (++gen == 0) {  // wrapped: forget every old stamp
@@ -2242,11 +2242,12 @@ constexpr size_t kLargeGridMinBudget = 1u << 20;  // a large grid's search budge
 /// A* from `sources` to the workspace's target cells (or, with `lazyTarget`, to the cells that predicate accepts:
 /// tested only for the cells the search reaches). `useNeck`: the workspace's neck zones apply (fine-pitch pads of
 /// this net, see neckDown). `congestion`: recovery passes' history costs. `viaHalf` > 0: a via also keeps that
-/// half-width plus the board clearance to the copper on every layer (net-class clearance).
+/// half-width plus the board clearance to the copper on every layer (net-class clearance). `startDi`, `startDj` (a
+/// grid step, not both 0): the path arrives at its sources moving that way and never turns sharper than 90°.
 RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources, AStarWorkspace& ws,
                   Vec2 targetCentre, double viaCost, double wideHalf, bool useNeck,
                   const std::function<bool(int, size_t)>* lazyTarget = nullptr, const Congestion* congestion = nullptr,
-                  double viaHalf = 0) {
+                  double viaHalf = 0, int startDi = 0, int startDj = 0) {
     const int cols = g.cols(), rows = g.rows();
     const size_t n = static_cast<size_t>(cols * rows);
     const int layers = g.layers();
@@ -2309,6 +2310,9 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
                 inDi = (inDi > 0) - (inDi < 0);
                 inDj = (inDj > 0) - (inDj < 0);
             }
+        } else if (ps < 0) {
+            inDi = startDi;
+            inDj = startDj;
         }
         for (int k = 0; k < 8 && lateral; ++k) {
             int ni = i + di[k], nj = j + dj[k];
@@ -2349,7 +2353,7 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
             }
             // Corridor mode: no turn sharper than 90° (an acute join is an acid trap; the classic router keeps its
             // historical moves).
-            if (corridor && inDi * di[k] + inDj * dj[k] < 0) continue;
+            if ((corridor || startDi != 0 || startDj != 0) && inDi * di[k] + inDj * dj[k] < 0) continue;
             size_t nc = g.idx(ni, nj);
             if (!ws.allowed(nc)) continue;
             // Next to its own fine-pitch pads the track is necked down (neckDown), so there the necked copper is
@@ -2950,6 +2954,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
             return targeted.count(nets[static_cast<size_t>(a)].name) && !targeted.count(nets[static_cast<size_t>(b)].name);
         });
+        // Length-aware search: the longest first (a match group's longest member sets its target, so it takes the
+        // most direct path; the shorter ones have room to detour).
+        if (settings.autorouter.lengthAwareSearch)
+            std::stable_sort(order.begin(), std::partition_point(order.begin(), order.end(), [&](int n) {
+                return targeted.count(nets[static_cast<size_t>(n)].name) > 0;
+            }), [&](int a, int b) { return hpwl(a) > hpwl(b); });
     }
     RouteStats best;
     best.failed = std::numeric_limits<int>::max();
@@ -3415,6 +3425,18 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     std::vector<std::vector<ViaCandidate>> viaBatches;
     int viasRemoved = 0, netsRerouted = 0;
     constexpr double kViaMinCost = 36.0;  // three times a normal layer change
+    // Length-aware search (AutorouteOptions::lengthAwareSearch), after via minimisation: one net (or xSignal) per pass,
+    // routed again shorter (cheaper vias) or longer (through a waypoint); see lengthPlan below.
+    struct LengthJob {
+        std::vector<int> nets;  // routed again: the xSignal's nets (shorter) or its widest two-pad net (longer)
+        bool longer = false;
+        double target = 0, tolerance = 0, routed = 0;  // the xSignal's target and its length now
+        XSignal xsignal;
+    };
+    bool lengthStage = false;
+    LengthJob lengthJob;
+    int lengthRerouted = 0;
+    constexpr double kShorterViaCost = 4.0;  // a third of a normal layer change: fewer detours around blockages
     // One routing pass (the first, a rip-up or a recovery pass); false when the passes are over.
     auto runPass = [&](int pass) -> bool {
         progressNow.phase = pass == 0 ? RouteProgress::Routing : RouteProgress::RipUp;
@@ -3424,9 +3446,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         report();
         const size_t forcedBefore = forcedConnect.size();
         // Recovery and corridor rip-up passes make layer changes cheaper, which helps a net past a blockage.
-        const double passViaCost = viaStage ? kViaMinCost : recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
+        const double passViaCost = viaStage ? kViaMinCost : lengthStage ? kShorterViaCost
+                                   : recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
         const Congestion* passCongestion =
-            recovery || (corridorMode && pass > 0 && ripStrategy().congestion) ? congestion.get() : nullptr;
+            !lengthStage && (recovery || (corridorMode && pass > 0 && ripStrategy().congestion)) ? congestion.get() : nullptr;
         std::vector<FailedConnection> failedConnections;
         size_t fixedTracks = 0, fixedVias = 0;  // copper laid before any net routes (BGA fan-outs, tamper meshes)
         auto tGrid = profile.now();
@@ -3695,6 +3718,165 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 bestVias = std::move(nv);
             }
             return ++viaBatch < viaBatches.size();
+        }
+        if (lengthStage) {
+            // The best pass's copper without the job's nets' own routed copper; then those nets alone.
+            const LengthJob& job = lengthJob;
+            auto inJob = [&](int net) { return std::find(job.nets.begin(), job.nets.end(), net) != job.nets.end(); };
+            for (size_t t = 0; t < bestTracks.size(); ++t)
+                if (t < bestFixedTracks || !inJob(bestTracks[t].net)) markFixedTrack(grid, bestTracks[t]);
+            for (size_t v = 0; v < bestVias.size(); ++v)
+                if (v < bestFixedVias || !inJob(bestVias[v].net)) markFixedVia(grid, bestVias[v]);
+            if (corridorMode) grid.markFixedEnd();
+            // Longer: pad 0 → waypoint → pad 1, the waypoint off the middle of the pads' line on either side, where
+            // the route through it would add `more` (all or 70 % of it, before the meanders). The legs' lengths are
+            // measured on their grid paths; the longest that stays within `more` is committed.
+            auto detour = [&](int net, double more) {
+                const auto& list = netPads[net];
+                const Vec2 p0 = ps[list[0]].position, p1 = ps[list[1]].position, axis = p1 - p0;
+                const double span = axis.length(), wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
+                double oldLen = 0;
+                for (size_t t = bestFixedTracks; t < bestTracks.size(); ++t)
+                    if (bestTracks[t].net == net) oldLen += trackLength(bestTracks[t]);
+                if (span < 1e-6) return false;
+                const Vec2 mid = (p0 + p1) * 0.5, normal{-axis.y / span, axis.x / span};
+                auto oct = [](Vec2 d) { return std::max(std::fabs(d.x), std::fabs(d.y)) + 0.414 * std::min(std::fabs(d.x), std::fabs(d.y)); };
+                auto through = [&](double h) { return oct(mid + normal * h - p0) + oct(p1 - mid - normal * h); };
+                auto pathLength = [&](const RouteResult& r) {
+                    double len = 0;
+                    for (size_t k = 1; k < r.path.size(); ++k)
+                        if (r.path[k].layer == r.path[k - 1].layer)
+                            len += (grid.pos(r.path[k].i, r.path[k].j) - grid.pos(r.path[k - 1].i, r.path[k - 1].j)).length();
+                    return len;
+                };
+                const int cols = grid.cols(), rows = grid.rows();
+                // Both legs of the route through `at` (empty when either fails, or when they run into each other).
+                auto legs = [&](Vec2 at) {
+                    RouteResult none, r1, r2;
+                    const Rect box = Rect(std::min({p0.x, p1.x, at.x}), std::min({p0.y, p1.y, at.y}), std::max({p0.x, p1.x, at.x}),
+                                          std::max({p0.y, p1.y, at.y})).inflated(3.0);
+                    const double gp = grid.pitch();
+                    focus(ws, {box.x0, box.y0}, {box.x1, box.y1}, 0.0);
+                    ws.setBox(cols, std::max(0, static_cast<int>(std::floor(box.x0 / gp))), std::max(0, static_cast<int>(std::floor(box.y0 / gp))),
+                              std::min(cols - 1, static_cast<int>(std::ceil(box.x1 / gp))), std::min(rows - 1, static_cast<int>(std::ceil(box.y1 / gp))));
+                    // The waypoint: the nearest open cell (rings of up to 8 cells around it).
+                    const int wi = static_cast<int>(std::lround(at.x / gp)), wj = static_cast<int>(std::lround(at.y / gp));
+                    std::vector<std::pair<int, size_t>> wcells;
+                    for (int ring = 0; ring <= 8 && wcells.empty(); ++ring)
+                        for (int dj = -ring; dj <= ring; ++dj)
+                            for (int di = -ring; di <= ring; ++di) {
+                                if (std::max(std::abs(di), std::abs(dj)) != ring || !grid.inside(wi + di, wj + dj) || !wcells.empty()) continue;
+                                const size_t c = grid.idx(wi + di, wj + dj);
+                                for (int l = 0; l < grid.layers() && ws.allowed(c); ++l)
+                                    if (grid.layerOpen(l, net) && grid.passable(l, c, net)) wcells.push_back({l, c});
+                            }
+                    ws.beginTargets();
+                    for (auto [l, c] : wcells) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
+                    neckZones(ws, list, wn);
+                    std::vector<std::pair<int, size_t>> src;
+                    padCells(ps[list[0]], src);
+                    if (!wcells.empty())
+                        r1 = astar(grid, net, src, ws, grid.cellPos(wcells[0].second), kViaCost, trackHalf(net, wn), true, nullptr, nullptr, viaHalfFor(net));
+                    if (!r1.ok || r1.path.size() < 2) {
+                        ws.clearBox();
+                        return none;
+                    }
+                    // The second leg leaves the waypoint at most 90° off the first leg's heading, clear of its vias.
+                    const PathNode end = r1.path.back(), prev = r1.path[r1.path.size() - 2];
+                    const int sdi = prev.layer == end.layer ? (end.i > prev.i) - (end.i < prev.i) : 0;
+                    const int sdj = prev.layer == end.layer ? (end.j > prev.j) - (end.j < prev.j) : 0;
+                    ws.clearOwnVias();
+                    for (size_t k = 1; k < r1.path.size(); ++k)
+                        if (r1.path[k].layer != r1.path[k - 1].layer) ws.addOwnVia(grid.pos(r1.path[k].i, r1.path[k].j));
+                    std::vector<std::pair<int, size_t>> targets;
+                    padCells(ps[list[1]], targets);
+                    ws.beginTargets();
+                    for (auto [l, c] : targets) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
+                    neckZones(ws, list, wn);
+                    r2 = astar(grid, net, {{end.layer, grid.idx(end.i, end.j)}}, ws, p1, kViaCost, trackHalf(net, wn), true, nullptr,
+                               nullptr, viaHalfFor(net), sdi, sdj);
+                    ws.clearOwnVias();
+                    ws.clearBox();
+                    if (!r2.ok) return none;
+                    // The legs must not touch away from the waypoint: that would be a shortcut.
+                    const Vec2 w = grid.pos(end.i, end.j);
+                    const double near = 2 * wn + 2 * gp;
+                    for (const PathNode& a : r2.path) {
+                        const Vec2 pa = grid.pos(a.i, a.j);
+                        if ((pa - w).length() < near) continue;
+                        for (const PathNode& b : r1.path)
+                            if (b.layer == a.layer && (grid.pos(b.i, b.j) - w).length() >= near && (grid.pos(b.i, b.j) - pa).length() < wn + gp)
+                                return none;
+                    }
+                    r1.path.insert(r1.path.end(), r2.path.begin() + 1, r2.path.end());
+                    return r1;
+                };
+                RouteResult bestRoute;
+                double bestLen = oldLen + 0.5;  // worth a detour only beyond this
+                for (double share : {1.0, 0.7})
+                    for (double side : {1.0, -1.0}) {
+                        // The offset whose 45° path through the waypoint is as long as the net plus `share` of `more` (the
+                        // route itself adds its own detours on top; bisection: the length grows with the offset).
+                        const double want = oldLen + share * more;
+                        double lo = 0, hi = settings.width + settings.height;
+                        if (through(hi) < want) continue;
+                        for (int it = 0; it < 40; ++it) ((through((lo + hi) / 2) < want) ? lo : hi) = (lo + hi) / 2;
+                        const Vec2 at = mid + normal * (side * hi);
+                        if (!settings.contains(at) || settings.edgeDistance(at) < settings.edgeClearance + 1.0) continue;
+                        RouteResult r = legs(at);
+                        const double len = r.ok ? pathLength(r) : 0;
+                        if (r.ok && len > bestLen && len <= oldLen + more) {
+                            bestLen = len;
+                            bestRoute = std::move(r);
+                        }
+                    }
+                if (!bestRoute.ok) return false;
+                std::vector<std::pair<int, size_t>> tree;
+                commit(net, wn, bestRoute, tree);
+                return true;
+            };
+            bool all = true;
+            for (int net : job.nets) {
+                if (!all) break;
+                const auto& list = netPads[net];
+                if (job.longer) {
+                    all = list.size() == 2 && detour(net, job.target - job.routed);
+                    continue;
+                }
+                NearestPad nearest(ps, list);
+                nearest.connect(0);
+                std::vector<std::pair<int, size_t>> tree;
+                padCells(ps[list[0]], tree);
+                for (size_t done = 1; done < list.size() && all; ++done) {
+                    const size_t target = nearest.next();
+                    nearest.connect(target);
+                    all = connect(net, list, tree, ps[list[target]]);
+                }
+            }
+            if (!all) return false;
+            // The job's new copper in place of its old copper, kept when the xSignal comes closer to its target.
+            std::vector<Track> nt(bestTracks.begin(), bestTracks.begin() + static_cast<std::ptrdiff_t>(bestFixedTracks));
+            std::vector<Via> nv(bestVias.begin(), bestVias.begin() + static_cast<std::ptrdiff_t>(bestFixedVias));
+            for (size_t t = bestFixedTracks; t < bestTracks.size(); ++t)
+                if (!inJob(bestTracks[t].net)) nt.push_back(bestTracks[t]);
+            for (size_t v = bestFixedVias; v < bestVias.size(); ++v)
+                if (!inJob(bestVias[v].net)) nv.push_back(bestVias[v]);
+            nt.insert(nt.end(), outT.begin(), outT.end());
+            nv.insert(nv.end(), outV.begin(), outV.end());
+            PcbLayout trial;
+            trial.settings = settings;
+            trial.tracks = nt;
+            trial.vias = nv;
+            const double len = xSignalLength(trial, ps, job.xsignal);
+            if (job.longer ? len > job.routed + 0.5 && len <= job.target + job.tolerance : len >= 0 && len < job.routed - 0.05) {
+                best.vias += static_cast<int>(nv.size()) - static_cast<int>(bestVias.size());
+                for (const Track& t : bestTracks) best.trackLength -= trackLength(t);
+                for (const Track& t : nt) best.trackLength += trackLength(t);
+                bestTracks = std::move(nt);
+                bestVias = std::move(nv);
+                ++lengthRerouted;
+            }
+            return false;
         }
         // Copper that stays (strategy scope, locked tracks): fixed, before anything routes.
         for (const Track& t : keptT) {
@@ -4826,6 +5008,81 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             for (int pass = lastPass + 1;; ++pass)
                 if (!runPass(pass)) break;
         }
+        viaStage = false;
+    }
+    // Length-aware search: every net with a target (rules, then match groups; coupled pairs and failed nets are left
+    // alone) first routed shorter where it came out longer than it needs to be, then routed longer where it falls short
+    // by more than 2 mm. Each job is planned on the copper as it stands, so a group's target follows its shortened
+    // longest member.
+    const std::vector<Track> tracksBeforeLength = bestTracks;
+    const std::vector<Via> viasBeforeLength = bestVias;
+    if (ropt.lengthAware && ropt.lengthAwareSearch && !ropt.fanoutOnly && !bestTracks.empty()) {
+        const std::set<std::string> failedNames(best.failedNets.begin(), best.failedNets.end());
+        auto reroutable = [&](int net) {
+            return std::find(order.begin(), order.end(), net) != order.end() && !failedNames.count(nets[static_cast<size_t>(net)].name);
+        };
+        std::vector<int> targetedNets;
+        for (const auto& r : settings.lengthRules)
+            if (const int n = netIndex(r.net); n >= 0) targetedNets.push_back(n);
+        for (const auto& g : settings.matchGroups)
+            for (const auto& name : g.nets)
+                if (const int n = netIndex(name); n >= 0 && std::find(targetedNets.begin(), targetedNets.end(), n) == targetedNets.end())
+                    targetedNets.push_back(n);
+        auto oct = [](Vec2 d) { return std::max(std::fabs(d.x), std::fabs(d.y)) + 0.414 * std::min(std::fabs(d.x), std::fabs(d.y)); };
+        auto plan = [&](int net, bool longer) {
+            PcbLayout now;
+            now.settings = settings;
+            now.tracks = bestTracks;
+            now.vias = bestVias;
+            LengthTarget lt;
+            if (!reroutable(net) || !lengthTargetFor(now, sch, ps, net, lt)) return false;
+            const double len = xSignalLength(now, ps, lt.xsignal);
+            if (len < 0) return false;
+            LengthJob job;
+            job.longer = longer;
+            job.target = lt.target;
+            job.tolerance = lt.tolerance;
+            job.routed = len;
+            job.xsignal = lt.xsignal;
+            if (!longer) {
+                // As short as it needs to be: its rule's target, or the group's next longest member (and never below
+                // the 45° distance of its own end pads).
+                double floor = lt.target;
+                if (lt.source.rfind("group:", 0) == 0) {
+                    floor = lt.xsignal.endPads.size() >= 2 ? oct(ps[lt.xsignal.endPads[1]].position - ps[lt.xsignal.endPads[0]].position) : 0;
+                    for (const auto& g : settings.matchGroups)
+                        if ("group:" + g.name == lt.source)
+                            for (const auto& name : g.nets) {
+                                const int other = netIndex(name);
+                                if (other < 0 || std::find(lt.xsignal.nets.begin(), lt.xsignal.nets.end(), other) != lt.xsignal.nets.end()) continue;
+                                floor = std::max(floor, xSignalLength(now, ps, xSignalOf(sch, ps, other)));
+                            }
+                }
+                if (len <= floor + lt.tolerance + 0.5) return false;
+                for (int n : lt.xsignal.nets)
+                    if (reroutable(n)) job.nets.push_back(n);
+            } else {
+                if (len >= lt.target - lt.tolerance - 2.0) return false;
+                double span = 0;  // the xSignal's two-pad net with the widest span takes the detour
+                for (int n : lt.xsignal.nets)
+                    if (reroutable(n) && netPads[n].size() == 2) {
+                        const double d = (ps[netPads[n][1]].position - ps[netPads[n][0]].position).length();
+                        if (d > span) {
+                            span = d;
+                            job.nets = {n};
+                        }
+                    }
+            }
+            if (job.nets.empty()) return false;
+            lengthJob = std::move(job);
+            return true;
+        };
+        lengthStage = true;
+        int pass = lastPass + 1 + static_cast<int>(viaBatches.size());
+        for (bool longer : {false, true})
+            for (int net : targetedNets)
+                if (plan(net, longer)) runPass(pass++);
+        lengthStage = false;
     }
 
     progressNow.phase = RouteProgress::Finishing;
@@ -4833,22 +5090,31 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     tracks.clear();
     vias.clear();
     auto tFinish = profile.now();
+    auto unroutedWith = [&](const std::vector<Track>& ts, const std::vector<Via>& vs) {
+        PcbLayout tmp = *this;
+        tmp.tracks.clear();
+        tmp.vias.clear();
+        for (const Track& t : ts) tmp.addTrack(t);
+        for (const Via& v : vs) tmp.addVia(v);
+        return tmp.ratsnest(sch).size();
+    };
+    // Pours fill around the final copper: if a net routed again cut a pour so that a connection is lost, the length-aware
+    // search (and then the via minimisation) is undone.
+    if (lengthRerouted > 0 && unroutedWith(bestTracks, bestVias) > unroutedWith(tracksBeforeLength, viasBeforeLength)) {
+        best.vias += static_cast<int>(viasBeforeLength.size()) - static_cast<int>(bestVias.size());
+        bestTracks = tracksBeforeLength;
+        bestVias = viasBeforeLength;
+        lengthRerouted = 0;
+        best.trackLength = 0;
+        for (const Track& t : bestTracks) best.trackLength += trackLength(t);
+    }
     if (netsRerouted > 0) {
-        // Pours fill around the final copper: if a re-routed net cut a pour so that a connection is lost, the via
-        // minimisation is undone.
-        auto unroutedWith = [&](const std::vector<Track>& ts, const std::vector<Via>& vs) {
-            PcbLayout tmp = *this;
-            tmp.tracks.clear();
-            tmp.vias.clear();
-            for (const Track& t : ts) tmp.addTrack(t);
-            for (const Via& v : vs) tmp.addVia(v);
-            return tmp.ratsnest(sch).size();
-        };
         if (unroutedWith(bestTracks, bestVias) > unroutedWith(tracksBeforeViaMin, viasBeforeViaMin)) {
+            best.vias += static_cast<int>(viasBeforeLength.size()) - static_cast<int>(bestVias.size());  // length search's vias
             bestTracks = tracksBeforeViaMin;
             bestVias = viasBeforeViaMin;
             best.vias += viasRemoved;
-            viasRemoved = netsRerouted = 0;
+            viasRemoved = netsRerouted = lengthRerouted = 0;
             best.trackLength = 0;
             for (const Track& t : bestTracks) best.trackLength += trackLength(t);
         }
@@ -4883,6 +5149,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     RouteMetrics metrics;
     metrics.viasRemoved = viasRemoved;
     metrics.netsRerouted = netsRerouted;
+    metrics.lengthRerouted = lengthRerouted;
     if (ropt.gloss) metrics.glossed = routequality::glossRouted(*this, sch, pairNets);
     profile.since("gloss", tFinish);
     tFinish = profile.now();
@@ -4901,6 +5168,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         for (const auto& l : best.report.lengths)
             if (l.tuned) ++best.lengthTuned;
     }
+    // Corridor routes: no acute joins (a branch that left its net's track at 45° joins it square instead).
+    if (corridorMode) routequality::fixAcuteJoins(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     // Report: every differential pair, coupled or not, with its skew after tuning.
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k) {
