@@ -105,7 +105,9 @@
   prompts, examples; `Core/include/sieda/Mcp.hpp`), the data-driven tool table in `Core/src/McpTools.cpp` (handlers
   call the C API), PNG / SVG renders in `Core/src/McpRender.cpp`, C API `sieda_mcp_*` in `Core/src/sieda_c_mcp.cpp`
   (the app's live endpoint reuses it), stdio server `sieda-mcp` in `Core/mcp/main.cpp`; guide in `docs/MCP.md` (its
-  tool reference is `sieda-mcp --list-tools-markdown`). Tool failures are `isError` results, never crashes; file
+  tool reference is `sieda-mcp --list-tools-markdown`). Agent-facing results: every placed part's pins carry number, type, net, x / y and
+  side; a shared pin name is `REF.NAME(number)`; `schematic_connect` never merges two named nets without `merge`
+  and warns on shorted parts; `schematic_erc` gives `unconnectedPins`. Tool failures are `isError` results, never crashes; file
   access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in

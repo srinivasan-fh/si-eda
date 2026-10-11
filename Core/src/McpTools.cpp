@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "McpInternal.hpp"
@@ -97,33 +98,6 @@ Vec2 freeSpot(const Project& p) {
 }
 
 /// Where a label / ground symbol goes next to a pin: away from the part's centre, 20 units out (on the grid).
-/// The way a pin leaves its part (a unit axis vector): the edge of the part's pin outline it sits on — left / right
-/// at the outline's x extremes, top / bottom at its y extremes, a corner pin by its larger offset from the centre —
-/// else away from the centre. (A tall IC's lower right-hand pins are right-hand pins, not bottom ones.)
-Vec2 pinOutward(const Project& p, PinAddress a) {
-    const Schematic& s = p.schematic;
-    const Component* c = s.find(a.component);
-    const Vec2 pin = s.pinPosition({a.component, a.pin});
-    if (!c) return {1, 0};
-    double x0 = pin.x, x1 = pin.x, y0 = pin.y, y1 = pin.y;
-    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
-        const Vec2 q = s.pinPosition({c->id, i});
-        x0 = std::min(x0, q.x), x1 = std::max(x1, q.x), y0 = std::min(y0, q.y), y1 = std::max(y1, q.y);
-    }
-    const double eps = 1e-6;
-    const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
-    const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
-    const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
-    bool horizontal = std::fabs(off.x) >= std::fabs(off.y);
-    if (atX != atY) horizontal = atX;
-    if (!atX && !atY && x1 - x0 <= eps && y1 - y0 <= eps) {  // a one-pin part: away from its origin
-        const Vec2 d = pin - c->position;
-        horizontal = std::fabs(d.x) >= std::fabs(d.y);
-        return horizontal ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
-    }
-    return horizontal ? Vec2{off.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, off.y >= 0 ? 1.0 : -1.0};
-}
-
 /// Rotation (clockwise degrees, y down) that points a net label's tag along `d`.
 int outwardRotation(Vec2 d) { return d.x > 0.5 ? 0 : d.x < -0.5 ? 180 : d.y > 0.5 ? 90 : 270; }
 
@@ -210,6 +184,30 @@ std::string compact(const std::string& s) {
     for (char c : s)
         if (std::isalnum(static_cast<unsigned char>(c))) o += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return o;
+}
+
+/// A catalog part by name, ignoring case and punctuation ("AMS1117 3.3" = "AMS1117-3.3"). Unknown names throw with the
+/// closest catalog names: an orderable number ("PIC16F877A-I/P") suggests its base part ("PIC16F877A").
+const StandardPart& catalogPart(const std::string& name) {
+    if (const StandardPart* sp = findStandardPart(name)) return *sp;
+    const std::string key = compact(name);
+    std::vector<std::pair<size_t, const StandardPart*>> near;
+    for (const auto& p : standardParts()) {
+        const std::string n = compact(p.spec.name);
+        if (n == key) return p;
+        size_t common = 0;
+        while (common < n.size() && common < key.size() && n[common] == key[common]) ++common;
+        // A whole catalog name at the start (the orderable number's base part) ranks first.
+        if (common >= std::min<size_t>(4, key.size())) near.push_back({common + (common == n.size() ? 1000 : 0), &p});
+    }
+    std::stable_sort(near.begin(), near.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    std::string list;
+    for (size_t i = 0; i < near.size() && i < 8; ++i) {
+        const auto& sp = near[i].second->spec;
+        list += (i ? ", " : "") + sp.name + " (" + sp.package.type + "-" + std::to_string(sp.package.pinCount) + ")";
+    }
+    throw ToolError("No catalog part \"" + name + "\"" + (list.empty() ? "" : ". Closest: " + list) +
+                    " (library_search finds names)");
 }
 
 /// "8" → 8…8, "6-10", ">40", "<8", ">=40", "<=8" (as the app's PartQuery).
@@ -554,14 +552,19 @@ void schematicTools(Table& t) {
               return out(componentJson(*p, id));
           });
     t.add("schematic", "schematic_connect", "Connect pins", Kind::Edit, false,
-          "Draws wires between pins. Give from + to, a chain (each pin wired to the next), or a list of pairs. Pins "
+          "Draws wires between pins. Give from + to, a chain (each pin wired to the next: all of a chain's pins end up "
+          "on ONE net, a chain does not pass through a part), or a list of pairs. Pins "
           "are REF.PIN (\"R1.2\", \"D1.A\", \"Q1.B\", \"U1.VCC\", \"U1.14\"). Pins on different sheets are joined "
-          "through a pair of global net labels (the net's name, or REF_PIN). Returns the nets that result.",
+          "through a pair of global net labels (the net's name, or REF_PIN). Returns the net of each connection "
+          "(N$… names are automatic and change as the circuit changes: name a net with schematic_net_label to refer "
+          "to it). Two pins already on different named nets (VCC and GND) are not joined unless merge is true; "
+          "warnings name any part whose two pins end up on one net (a short).",
           Schema()
               .pin("from", "First pin.")
               .pin("to", "Second pin.")
               .array("chain", "Pins wired one after the other: [\"V1.+\",\"R1.1\"] …", "string")
-              .array("connections", "Pairs [[\"R1.2\",\"D1.A\"], …]", "array"),
+              .array("connections", "Pairs [[\"R1.2\",\"D1.A\"], …]", "array")
+              .boolean("merge", "Join two differently named nets into one (default false)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               std::vector<std::pair<Json, Json>> pairs;
@@ -575,15 +578,31 @@ void schematicTools(Table& t) {
                       else throw ToolError("Each connection is a pair [\"R1.2\", \"D1.A\"]");
                   }
               if (pairs.empty()) throw ToolError("Give from and to, a chain, or connections");
-              Json results = Json::array();
+              Json results = Json::array(), warnings = Json::array();
               int made = 0;
+              const bool merge = argBool(a, "merge", false);
+              Schematic& sch = p->project.schematic;
+              // The named net a pin is on ("" when it is unwired or only on an automatic N$ net).
+              auto named = [&](PinAddress q) {
+                  const std::string n = sch.isPinConnected({q.component, q.pin}) ? netName(p->project, sch.netOf({q.component, q.pin})) : "";
+                  return n.rfind("N$", 0) == 0 ? std::string() : n;
+              };
               for (const auto& [x, y] : pairs) {
                   const PinAddress pa = pinAddress(*p, x), pb = pinAddress(*p, y);
-                  const Component* ca = p->project.schematic.find(pa.component);
-                  const Component* cb = p->project.schematic.find(pb.component);
+                  const Component* ca = sch.find(pa.component);
+                  const Component* cb = sch.find(pb.component);
                   Json r = obj();
                   r["from"] = pinLabel(*p, pa);
                   r["to"] = pinLabel(*p, pb);
+                  const std::string na = named(pa), nb = named(pb);
+                  if (!merge && !na.empty() && !nb.empty() && na != nb) {
+                      r["net"] = Json();
+                      r["note"] = "not connected: " + r["from"].asString() + " is on net " + na + " and " + r["to"].asString() +
+                                  " on net " + nb + " (pass merge: true to join them)";
+                      warnings.push(r["note"]);
+                      results.push(r);
+                      continue;
+                  }
                   if (ca && cb && ca->sheet != cb->sheet) {
                       // Across sheets: a global label of one name at each pin, on each pin's sheet.
                       std::string name;
@@ -608,13 +627,25 @@ void schematicTools(Table& t) {
                       if (w < 0) r["note"] = "not connected (same pin, or already joined)";
                       else ++made;
                   }
-                  const int net = p->project.schematic.netOf({pa.component, pa.pin});
+                  const int net = sch.netOf({pa.component, pa.pin});
                   r["net"] = netName(p->project, net);
                   results.push(r);
+              }
+              // Two-pin parts shorted by these wires (both pins on one net).
+              std::set<int> parts;
+              for (const auto& r : results.items())
+                  for (const char* k : {"from", "to"}) parts.insert(pinAddress(*p, r.get(k)).component);
+              for (int id : parts) {
+                  const Component* c = sch.find(id);
+                  if (!c || isNetSymbolKind(c->kind) || c->def().pins.size() != 2) continue;
+                  const int n = sch.netOf({id, 0});
+                  if (n >= 0 && n == sch.netOf({id, 1}) && sch.isPinConnected({id, 0}))
+                      warnings.push(c->ref + " is shorted: both its pins are on net " + netName(p->project, n));
               }
               Json j = obj();
               j["wiresAdded"] = made;
               j["connections"] = results;
+              if (warnings.size()) j["warnings"] = warnings;
               return out(j);
           });
     t.add("schematic", "schematic_disconnect", "Remove wires", Kind::Destructive, false,
@@ -721,14 +752,27 @@ void schematicTools(Table& t) {
               return out(j);
           });
     t.add("schematic", "schematic_set_no_connect", "No-connect flag", Kind::Edit, true,
-          "Marks a pin as deliberately unconnected (ERC stops reporting it), or clears the mark.",
-          Schema().pin("pin", "The pin.", true).boolean("noConnect", "true to mark (default), false to clear"),
+          "Marks pins as deliberately unconnected (ERC stops reporting them), or clears the mark. pin, or pins for "
+          "several at once.",
+          Schema().pin("pin", "The pin.")
+              .array("pins", "Several pins: [\"U1.RB1\", \"U1.RB2\"]", "string")
+              .boolean("noConnect", "true to mark (default), false to clear"),
           [](McpServer& s, const Json& a) {
-              const PinAddress pa = pinAddress(*P(s), a.get("pin"));
-              check(sieda_set_pin_no_connect(P(s), pa.component, pa.pin, argBool(a, "noConnect", true) ? 1 : 0) == 1,
-                    "Could not set the flag");
+              std::vector<Json> specs;
+              if (a.has("pin")) specs.push_back(a.get("pin"));
+              if (a.get("pins").isArray())
+                  for (const auto& q : a.get("pins").items()) specs.push_back(q);
+              if (specs.empty()) throw ToolError("Give pin or pins");
+              Json done = Json::array();
+              for (const auto& spec : specs) {
+                  const PinAddress pa = pinAddress(*P(s), spec);
+                  check(sieda_set_pin_no_connect(P(s), pa.component, pa.pin, argBool(a, "noConnect", true) ? 1 : 0) == 1,
+                        "Could not set the flag on " + pinLabel(*P(s), pa));
+                  done.push(pinLabel(*P(s), pa));
+              }
               Json j = obj();
-              j["pin"] = pinLabel(*P(s), pa);
+              if (done.size() == 1) j["pin"] = std::as_const(done)[size_t{0}];
+              else j["pins"] = done;
               j["noConnect"] = argBool(a, "noConnect", true);
               return out(j);
           });
@@ -788,8 +832,22 @@ void schematicTools(Table& t) {
           });
     t.add("schematic", "schematic_erc", "Electrical rule check", Kind::Read, true,
           "Runs the ERC: unconnected pins, driver conflicts, missing ground, power pins without a source, hierarchy, "
-          "bus and directive errors. Returns counts and the violations (errors first).",
-          Schema(), [](McpServer& s, const Json&) { return out(violationsOut(s, sieda_run_erc(P(s)))); });
+          "bus and directive errors. Returns counts, the violations (errors first) and unconnectedPins: each part's "
+          "pins with no wire and no no-connect mark (wire them, or schematic_set_no_connect the unused ones).",
+          Schema(), [](McpServer& s, const Json&) {
+              Json j = violationsOut(s, sieda_run_erc(P(s)));
+              const Schematic& sch = proj(s).schematic;
+              Json open = obj();
+              for (const auto& c : sch.components()) {
+                  if (c.packageOnly || isNetSymbolKind(c.kind)) continue;
+                  Json pins = Json::array();
+                  for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i)
+                      if (!sch.isPinConnected({c.id, i}) && !c.isNoConnect(i)) pins.push(pinLabel(*P(s), {c.id, i}));
+                  if (pins.size()) open[c.ref] = pins;
+              }
+              j["unconnectedPins"] = open;
+              return out(j);
+          });
     t.add("schematic", "schematic_validate", "Circuit validation", Kind::Read, true,
           "Checks values and ratings: E-series values, decoupling, part ratings from the DC operating point.", Schema(),
           [](McpServer& s, const Json&) { return out(violationsOut(s, sieda_run_circuit_validation(P(s)))); });
@@ -1231,8 +1289,7 @@ void libraryTools(Table& t) {
           "A catalog part's full description: manufacturer, package, units and every pin (number, name, type).",
           Schema().str("name", "Part name from library_search, e.g. \"NE555\", \"AMS1117-3.3\"", true),
           [](McpServer&, const Json& a) {
-              const StandardPart* sp = findStandardPart(requireStr(a, "name"));
-              if (!sp) throw ToolError("No catalog part \"" + argStr(a, "name") + "\" (library_search finds names)");
+              const StandardPart* sp = &catalogPart(requireStr(a, "name"));
               Json j = obj();
               j["name"] = sp->spec.name;
               j["category"] = sp->category;
@@ -1269,8 +1326,7 @@ void libraryTools(Table& t) {
               .boolean("units", "Place by units (multi-unit parts)")
               .integer("sheet", "Sheet id to place it on (default: the active sheet)"),
           [](McpServer& s, const Json& a) {
-              const StandardPart* sp = findStandardPart(requireStr(a, "name"));
-              if (!sp) throw ToolError("No catalog part \"" + argStr(a, "name") + "\" (library_search finds names)");
+              const StandardPart* sp = &catalogPart(requireStr(a, "name"));
               SiedaProject* p = P(s);
               if (a.has("sheet")) check(sieda_set_active_sheet(p, argInt(a, "sheet", 1)) == 1, "Unknown sheet");
               std::string partId;

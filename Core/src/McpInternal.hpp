@@ -126,6 +126,8 @@ struct PinAddress {
 /// "R1.2" / {"ref":"R1","pin":"2"}: the component and its pin index. Throws ToolError listing the part's pins.
 PinAddress pinAddress(const SiedaProject& p, const Json& spec);
 std::string pinLabel(const SiedaProject& p, PinAddress a);
+/// The way a pin leaves its part on the schematic: a unit axis vector (+x right, +y down).
+Vec2 pinOutward(const Project& p, PinAddress a);
 /// Component description for results: {id, ref, kind, value, sheet, pins:[{name, number, net}]}.
 Json componentJson(const SiedaProject& p, int id, bool withPins = true);
 /// Built-in component kind by name ("resistor", "LED", "R", "voltage_source", …) or number. -1 if unknown.
