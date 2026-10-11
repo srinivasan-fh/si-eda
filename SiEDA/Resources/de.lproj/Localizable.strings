@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "Für SiEDAs Agenten verwenden";
 "Use the Bundled Model" = "Mitgeliefertes Modell verwenden";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "Ein verwendetes Schaltungsmodell wird zur KI, die neue Schaltungen entwirft: Es läuft auf diesem Mac ohne Konto und ohne Download; Spezifikationen und Prüfungen liefert der Offline Designer.";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "Ein VRML- (.wrl), STL-, OBJ- oder STEP-Modell anhängen und am Footprint ausrichten";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "Wählen Sie eine VRML- (.wrl), STL-, OBJ- oder STEP-Datei (.step / .stp), wie KiCad-Bibliotheken sie liefern.";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ oder STEP (.step / .stp, wie KiCad-Bibliotheken sie liefern).";

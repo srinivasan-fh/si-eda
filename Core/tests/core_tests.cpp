@@ -12377,6 +12377,165 @@ std::string readModelFixture(const std::string& name) {
 
 const char* const kSoicModel = "SOIC-8_3.9x4.9mm_P1.27mm.wrl";
 
+/// Connected pieces of a mesh (by shared vertices): the signed volume of each and whether it is closed (every
+/// directed edge is matched by its reverse).
+struct MeshSolid {
+    double volume;
+    bool closed;
+};
+std::vector<MeshSolid> meshSolids(const Model3DMesh& m) {
+    std::vector<uint32_t> parent(m.vertexCount());
+    for (uint32_t i = 0; i < parent.size(); ++i) parent[i] = i;
+    std::function<uint32_t(uint32_t)> find = [&](uint32_t i) { return parent[i] == i ? i : parent[i] = find(parent[i]); };
+    for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
+        parent[find(m.indices[t + 1])] = find(m.indices[t]);
+        parent[find(m.indices[t + 2])] = find(m.indices[t]);
+    }
+    std::map<uint32_t, size_t> index;
+    std::vector<MeshSolid> solids;
+    std::vector<std::map<std::pair<uint32_t, uint32_t>, int>> edges;
+    for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
+        const uint32_t root = find(m.indices[t]);
+        auto it = index.find(root);
+        if (it == index.end()) {
+            it = index.emplace(root, solids.size()).first;
+            solids.push_back({0, true});
+            edges.emplace_back();
+        }
+        const uint32_t i[3] = {m.indices[t], m.indices[t + 1], m.indices[t + 2]};
+        Vec3 v[3];
+        for (int k = 0; k < 3; ++k) v[k] = {m.positions[3 * i[k]], m.positions[3 * i[k] + 1], m.positions[3 * i[k] + 2]};
+        solids[it->second].volume += (v[0].x * (v[1].y * v[2].z - v[1].z * v[2].y) - v[0].y * (v[1].x * v[2].z - v[1].z * v[2].x) +
+                                      v[0].z * (v[1].x * v[2].y - v[1].y * v[2].x)) / 6;
+        for (int k = 0; k < 3; ++k) ++edges[it->second][{i[k], i[(k + 1) % 3]}];
+    }
+    for (size_t k = 0; k < solids.size(); ++k)
+        for (const auto& [edge, count] : edges[k])
+            if (count != 1 || !edges[k].count({edge.second, edge.first})) solids[k].closed = false;
+    return solids;
+}
+
+/// A STEP file builder like the exporter's: entities in order, with the inch unit through a conversion-based unit.
+struct StepText {
+    std::string data;
+    int next = 1;
+    int add(const std::string& e) {
+        data += "#" + std::to_string(next) + "=" + e + ";\n";
+        return next++;
+    }
+    static std::string ref(int id) { return "#" + std::to_string(id); }
+    static std::string refs(const std::vector<int>& ids) {
+        std::string s = "(";
+        for (size_t i = 0; i < ids.size(); ++i) s += (i ? "," : "") + ref(ids[i]);
+        return s + ")";
+    }
+    int point(double x, double y, double z) {
+        return add("CARTESIAN_POINT('',(" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) + "))");
+    }
+    int dir(double x, double y, double z) {
+        return add("DIRECTION('',(" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) + "))");
+    }
+    int axis(double x, double y, double z, double nx, double ny, double nz, double rx, double ry, double rz) {
+        return add("AXIS2_PLACEMENT_3D(''," + ref(point(x, y, z)) + "," + ref(dir(nx, ny, nz)) + "," + ref(dir(rx, ry, rz)) + ")");
+    }
+    int vertex(double x, double y, double z) { return add("VERTEX_POINT(''," + ref(point(x, y, z)) + ")"); }
+    int line(int v0, int v1, double dx, double dy, double dz) {
+        return add("EDGE_CURVE(''," + ref(v0) + "," + ref(v1) + "," +
+                   ref(add("LINE(''," + ref(point(0, 0, 0)) + "," + ref(add("VECTOR(''," + ref(dir(dx, dy, dz)) + ",1.)")) + ")")) + ",.T.)");
+    }
+    int oriented(int edge, bool forward) { return add("ORIENTED_EDGE('',*,*," + ref(edge) + (forward ? ",.T.)" : ",.F.)")); }
+    int face(const std::vector<int>& loopEdges, int surface, bool outer = true) {
+        const int loop = add("EDGE_LOOP(''," + refs(loopEdges) + ")");
+        const int bound = add(std::string(outer ? "FACE_OUTER_BOUND" : "FACE_BOUND") + "(''," + ref(loop) + ",.T.)");
+        return add("ADVANCED_FACE('',(" + ref(bound) + ")," + ref(surface) + ",.T.)");
+    }
+    /// An axis-aligned box as a closed B-rep (edges shared by their faces).
+    int box(double x0, double y0, double z0, double x1, double y1, double z1) {
+        int v[8];
+        for (int i = 0; i < 8; ++i) v[i] = vertex(i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? z1 : z0);
+        std::map<std::pair<int, int>, int> edges;
+        auto edge = [&](int a, int b) {
+            if (!edges.count({a, b}) && !edges.count({b, a})) {
+                const double d[3] = {(b & 1) != (a & 1) ? 1.0 : 0.0, (b & 2) != (a & 2) ? 1.0 : 0.0, (b & 4) != (a & 4) ? 1.0 : 0.0};
+                edges[{a, b}] = line(v[a], v[b], d[0], d[1], d[2]);
+            }
+            return edges.count({a, b}) ? oriented(edges[{a, b}], true) : oriented(edges[{b, a}], false);
+        };
+        static const int faces[6][4] = {{0, 2, 3, 1}, {4, 5, 7, 6}, {0, 1, 5, 4}, {2, 6, 7, 3}, {0, 4, 6, 2}, {1, 3, 7, 5}};
+        static const double normals[6][3] = {{0, 0, -1}, {0, 0, 1}, {0, -1, 0}, {0, 1, 0}, {-1, 0, 0}, {1, 0, 0}};
+        std::vector<int> faceIds;
+        for (int f = 0; f < 6; ++f) {
+            std::vector<int> loop;
+            for (int k = 0; k < 4; ++k) loop.push_back(edge(faces[f][k], faces[f][(k + 1) % 4]));
+            const int c = faces[f][0];
+            const double* n = normals[f];
+            const int plane = add("PLANE(''," + ref(axis(c & 1 ? x1 : x0, c & 2 ? y1 : y0, c & 4 ? z1 : z0, n[0], n[1], n[2], n[1], n[2], n[0])) + ")");
+            faceIds.push_back(face(loop, plane));
+        }
+        return add("MANIFOLD_SOLID_BREP('box'," + ref(add("CLOSED_SHELL(''," + refs(faceIds) + ")")) + ")");
+    }
+    /// A cylinder of radius r from z0 to z1 about the z axis through (cx, cy): two full circles and a seam.
+    int cylinder(double cx, double cy, double r, double z0, double z1) {
+        const int v0 = vertex(cx + r, cy, z0), v1 = vertex(cx + r, cy, z1);
+        const int bottom = axis(cx, cy, z0, 0, 0, 1, 1, 0, 0), top = axis(cx, cy, z1, 0, 0, 1, 1, 0, 0), down = axis(cx, cy, z0, 0, 0, -1, 1, 0, 0);
+        const int c0 = add("EDGE_CURVE(''," + ref(v0) + "," + ref(v0) + "," + ref(add("CIRCLE(''," + ref(bottom) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int c1 = add("EDGE_CURVE(''," + ref(v1) + "," + ref(v1) + "," + ref(add("CIRCLE(''," + ref(top) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int seam = line(v0, v1, 0, 0, 1);
+        const int side = add("CYLINDRICAL_SURFACE(''," + ref(bottom) + "," + std::to_string(r) + ")");
+        const std::vector<int> faces = {
+            face({oriented(c0, true), oriented(seam, true), oriented(c1, false), oriented(seam, false)}, side),
+            face({oriented(c1, true)}, add("PLANE(''," + ref(top) + ")")),
+            face({oriented(c0, false)}, add("PLANE(''," + ref(down) + ")"))};
+        return add("MANIFOLD_SOLID_BREP('cylinder'," + ref(add("CLOSED_SHELL(''," + refs(faces) + ")")) + ")");
+    }
+    /// A hemisphere of radius r on the plane z = z0, as CAD writes it: the rim circle, and a seam up to the pole
+    /// and back again (the pole has no longitude of its own).
+    int dome(double cx, double cy, double r, double z0) {
+        const int rim = vertex(cx + r, cy, z0), pole = vertex(cx, cy, z0 + r);
+        const int centre = axis(cx, cy, z0, 0, 0, 1, 1, 0, 0), down = axis(cx, cy, z0, 0, 0, -1, 1, 0, 0);
+        const int circle = add("EDGE_CURVE(''," + ref(rim) + "," + ref(rim) + "," + ref(add("CIRCLE(''," + ref(centre) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int meridian = add("EDGE_CURVE(''," + ref(rim) + "," + ref(pole) + "," +
+                                 ref(add("CIRCLE(''," + ref(axis(cx, cy, z0, 0, -1, 0, 1, 0, 0)) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int sphere = add("SPHERICAL_SURFACE(''," + ref(centre) + "," + std::to_string(r) + ")");
+        const std::vector<int> faces = {face({oriented(circle, true), oriented(meridian, true), oriented(meridian, false)}, sphere),
+                                        face({oriented(circle, false)}, add("PLANE(''," + ref(down) + ")"))};
+        return add("MANIFOLD_SOLID_BREP('dome'," + ref(add("CLOSED_SHELL(''," + refs(faces) + ")")) + ")");
+    }
+    std::string file() const {
+        return "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('test'),'2;1');\nFILE_NAME('t.step','',(''),(''),'','','');\n"
+               "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\nENDSEC;\nDATA;\n" + data + "ENDSEC;\nEND-ISO-10303-21;\n";
+    }
+};
+
+/// Cylinder (r 0.5", 1" tall at the origin) and a red box (1" × 2" × 0.5" at x 1–2"), in inches, in one
+/// representation; the cylinder again through a MAPPED_ITEM 3" along y, the box again in a child representation
+/// placed 2" up.
+std::string inchStep() {
+    StepText w;
+    const int mm = w.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+    const int dim = w.add("DIMENSIONAL_EXPONENTS(1.,0.,0.,0.,0.,0.,0.)");
+    const int inch = w.add("(CONVERSION_BASED_UNIT('INCH'," + w.ref(w.add("MEASURE_WITH_UNIT(LENGTH_MEASURE(25.4)," + w.ref(mm) + ")")) +
+                           ")LENGTH_UNIT()NAMED_UNIT(" + w.ref(dim) + "))");
+    const int ctx = w.add("(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT((" + w.ref(inch) + "))REPRESENTATION_CONTEXT('',''))");
+    const int cyl = w.cylinder(0, 0, 0.5, 0, 1);
+    const int box = w.box(1, 0, 0, 2, 2, 0.5);
+    const int red = w.add("COLOUR_RGB('',1.,0.,0.)");
+    const int fill = w.add("FILL_AREA_STYLE('',(" + w.ref(w.add("FILL_AREA_STYLE_COLOUR(''," + w.ref(red) + ")")) + "))");
+    const int side = w.add("SURFACE_SIDE_STYLE('',(" + w.ref(w.add("SURFACE_STYLE_FILL_AREA(" + w.ref(fill) + ")")) + "))");
+    const int usage = w.add("SURFACE_STYLE_USAGE(.BOTH.," + w.ref(side) + ")");
+    w.add("STYLED_ITEM('',(" + w.ref(w.add("PRESENTATION_STYLE_ASSIGNMENT((" + w.ref(usage) + "))")) + ")," + w.ref(box) + ")");
+    const int origin = w.axis(0, 0, 0, 0, 0, 1, 1, 0, 0);
+    const int cylRep = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('cyl',(" + w.ref(origin) + "," + w.ref(cyl) + ")," + w.ref(ctx) + ")");
+    const int map = w.add("REPRESENTATION_MAP(" + w.ref(origin) + "," + w.ref(cylRep) + ")");
+    const int mapped = w.add("MAPPED_ITEM(''," + w.ref(map) + "," + w.ref(w.axis(0, 3, 0, 0, 0, 1, 1, 0, 0)) + ")");
+    const int top = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('top',(" + w.ref(origin) + "," + w.ref(cyl) + "," + w.ref(box) + "," + w.ref(mapped) + ")," + w.ref(ctx) + ")");
+    const int boxRep = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('box',(" + w.ref(origin) + "," + w.ref(box) + ")," + w.ref(ctx) + ")");
+    const int xf = w.add("ITEM_DEFINED_TRANSFORMATION('',''," + w.ref(origin) + "," + w.ref(w.axis(0, 0, 2, 0, 0, 1, 1, 0, 0)) + ")");
+    w.add("(REPRESENTATION_RELATIONSHIP('',''," + w.ref(boxRep) + "," + w.ref(top) + ")REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(" + w.ref(xf) +
+          ")SHAPE_REPRESENTATION_RELATIONSHIP())");
+    return w.file();
+}
+
 /// A unit cube [0, 1]³ as an ASCII STL.
 std::string cubeStlAscii() {
     const float v[8][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
@@ -12514,18 +12673,100 @@ TEST(model3d_readers_vrml_stl_obj) {
     CHECK(obj.warnings.size() == 2);  // bad face, guessed materials
     M3_THROWS(parseObj("v 1 2\nf 1 2 3\n"));
 
-    // STEP is refused with the reason; unknown types too.
-    try {
-        parseModel3D("ISO-10303-21;", "part.step");
-        CHECK(false);
-    } catch (const Model3DError& e) {
-        CHECK(std::string(e.what()).find(".wrl") != std::string::npos);
-    }
+    // STEP by extension (an empty file has no solid); unknown types are refused.
+    M3_THROWS(parseModel3D("ISO-10303-21;", "part.step"));
     M3_THROWS(parseModel3D("x", "part.3ds"));
     CHECK(isModel3DFile("A.WRL") && isModel3DFile("b.stp") && !isModel3DFile("c.kicad_mod"));
-    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0);
+    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0 && defaultModelUnit("step") == 1.0);
     CHECK(decodeBase64(base64("hello 3D")) == "hello 3D");
     M3_THROWS(decodeBase64("not*base64"));
+}
+
+TEST(model3d_step_reader_solids_units_colours_assembly) {
+    const Model3DMesh m = parseModel3D(inchStep(), "test.step");
+    CHECK(m.format == "step");
+    // Inches became millimetres: cylinder r 12.7 at the origin (and 76.2 along y), box x 25.4–50.8, up to z 63.5.
+    const auto b = m.bounds();
+    CHECK_NEAR(b[0], -12.7, 1e-3);
+    CHECK_NEAR(b[1], -12.7, 1e-3);
+    CHECK_NEAR(b[2], 0, 1e-6);
+    CHECK_NEAR(b[3], 50.8, 1e-3);
+    CHECK_NEAR(b[4], 88.9, 1e-3);
+    CHECK_NEAR(b[5], 63.5, 1e-3);
+    // Two cylinders (24 sides) and two boxes, each closed, with their volumes.
+    const auto solids = meshSolids(m);
+    CHECK(solids.size() == 4);
+    int cylinders = 0, boxes = 0;
+    for (const auto& s : solids) {
+        CHECK(s.closed);
+        if (std::fabs(s.volume - 12 * 12.7 * 12.7 * std::sin(3.14159265358979 / 12) * 25.4) < 1) ++cylinders;
+        if (std::fabs(s.volume - 25.4 * 50.8 * 12.7) < 1e-3) ++boxes;
+    }
+    CHECK(cylinders == 2 && boxes == 2);
+    CHECK(m.triangleCount() == 2 * (48 + 2 * 22) + 2 * 12);  // side band zigzagged, caps, boxes
+    // The box's STYLED_ITEM colour; the cylinder keeps the default grey. Nothing to warn about.
+    CHECK(m.groups.size() >= 2);
+    bool red = false, grey = false;
+    for (const auto& g : m.groups) {
+        red = red || (g.r == 1.0f && g.g == 0.0f);
+        grey = grey || (g.r > 0.5f && g.g > 0.5f && g.b > 0.5f);
+    }
+    CHECK(red && grey);
+    CHECK(m.warnings.empty());
+
+    // A spherical cap (its loop runs up a seam to the pole and back): closed, near a hemisphere's volume.
+    {
+        StepText d;
+        d.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+        d.dome(1, 2, 2.5, 3);
+        const Model3DMesh cap = parseStep(d.file());
+        const auto pieces = meshSolids(cap);
+        CHECK(pieces.size() == 1 && pieces[0].closed && cap.warnings.empty());
+        CHECK_NEAR(pieces[0].volume, 2.0 / 3 * 3.14159265358979 * 2.5 * 2.5 * 2.5, 2.5);  // 24 × 6 facets
+        CHECK_NEAR(cap.bounds()[5], 5.5, 1e-6);
+        CHECK_NEAR(cap.bounds()[0], -1.5, 1e-6);
+    }
+
+    // Faces on a B-spline surface (a bulged B-spline edge, the rest lines) and on an unknown surface are
+    // triangulated from their boundary, with the counts in the warnings.
+    StepText w;
+    w.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+    const int v[4] = {w.vertex(0, 0, 0), w.vertex(10, 0, 0), w.vertex(10, 10, 0), w.vertex(0, 10, 0)};
+    const int bulge = w.add("B_SPLINE_CURVE_WITH_KNOTS('',2,(" + w.ref(w.point(0, 0, 0)) + "," + w.ref(w.point(5, -4, 3)) + "," + w.ref(w.point(10, 0, 0)) +
+                            "),.UNSPECIFIED.,.F.,.F.,(3,3),(0.,1.),.UNSPECIFIED.)");
+    const int e0 = w.add("EDGE_CURVE(''," + w.ref(v[0]) + "," + w.ref(v[1]) + "," + w.ref(bulge) + ",.T.)");
+    const int e1 = w.line(v[1], v[2], 0, 1, 0), e2 = w.line(v[2], v[3], -1, 0, 0), e3 = w.line(v[3], v[0], 0, -1, 0);
+    const int surface = w.add("B_SPLINE_SURFACE_WITH_KNOTS('',1,1,((" + w.ref(w.point(0, 0, 0)) + "," + w.ref(w.point(0, 10, 0)) + "),(" +
+                              w.ref(w.point(10, 0, 0)) + "," + w.ref(w.point(10, 10, 2)) + ")),.UNSPECIFIED.,.F.,.F.,.F.,(2,2),(2,2),(0.,1.),(0.,1.),.UNSPECIFIED.)");
+    const int spline = w.face({w.oriented(e0, true), w.oriented(e1, true), w.oriented(e2, true), w.oriented(e3, true)}, surface);
+    const int odd = w.face({w.oriented(e0, false), w.oriented(e3, false), w.oriented(e2, false), w.oriented(e1, false)},
+                           w.add("OFFSET_SURFACE(''," + w.ref(surface) + ",1.,.F.)"));
+    w.add("SHELL_BASED_SURFACE_MODEL('',(" + w.ref(w.add("OPEN_SHELL('',(" + w.ref(spline) + "," + w.ref(odd) + "))")) + "))");
+    const Model3DMesh sheet = parseStep(w.file());
+    CHECK(sheet.triangleCount() == 2 * 5);  // 4 corners + 3 samples on the spline edge → 7-gon, twice
+    CHECK(sheet.bounds()[1] < -1.5 && sheet.bounds()[5] > 1);
+    CHECK(sheet.warnings.size() == 2);
+    CHECK(sheet.warnings[0].find("1 face(s) on B-spline") == 0);
+    CHECK(sheet.warnings[1].find("OFFSET_SURFACE") != std::string::npos);
+    const auto pieces = meshSolids(sheet);
+    CHECK(pieces.size() == 1 && std::fabs(pieces[0].volume) < 1e-9);  // the two faces share every boundary sample and cancel
+
+    // Malformed files are refused, never crash.
+    M3_THROWS(parseStep("solid cube"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=CARTESIAN_POINT('',(0,0,0));\nENDSEC;\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=CLOSED_SHELL('',(#2));\n#2=ADVANCED_FACE('',(#3),#4,.T.);\n"));  // dangling
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X('unterminated);\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X(" + std::string(300, '(') + "1" + std::string(300, ')') + ");\nENDSEC;\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X(1.E+400);\nENDSEC;\n"));
+    try {
+        parseStep("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=CARTESIAN_POINT('',(0,0,0)\n#2=X();\n");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find("line 6") != std::string::npos);
+    }
+    // A representation that maps itself: the depth / visit bound stops it.
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=SHAPE_REPRESENTATION('',(#2,#2),#9);\n#2=MAPPED_ITEM('',#3,#4);\n"
+                        "#3=REPRESENTATION_MAP(#4,#1);\n#4=AXIS2_PLACEMENT_3D('',#5,$,$);\n#5=CARTESIAN_POINT('',(0,0,0));\nENDSEC;\n"));
 }
 
 TEST(model3d_alignment_assembly_and_project_file) {
@@ -12672,7 +12913,17 @@ TEST(library_import_attaches_kicad_3d_models) {
         CHECK_NEAR(r.parts[0].spec.model3d.offset[1], hd.centreY, 1e-6);  // the model moves with the pads
     }
 
-    // Binary files travel as base64 through the C API's request; STEP files are reported.
+    // The file the footprint names wins over other models of the same stem: a .step reference takes the STEP.
+    std::string soicFpStep = soicFp;
+    soicFpStep.replace(soicFpStep.find("P1.27mm.wrl"), 11, "P1.27mm.step");
+    const std::string stepName = "SOIC-8_3.9x4.9mm_P1.27mm.step";
+    r = importLibraryFiles({{kSoic, soicFpStep}, {kSoicModel, readModelFixture(kSoicModel)}, {stepName, inchStep()}});
+    CHECK(r.files.size() == 3 && r.files[2].format == "model3d" && r.files[2].error.empty());
+    CHECK(r.parts.size() >= 1 && r.parts[0].spec.model3d.name == stepName && r.parts[0].spec.model3d.unit == 1.0);
+    r = importLibraryFiles({{kSoic, soicFp}, {kSoicModel, readModelFixture(kSoicModel)}, {stepName, inchStep()}});
+    CHECK(r.parts.size() >= 1 && r.parts[0].spec.model3d.name == kSoicModel && r.parts[0].spec.model3d.unit == 2.54);
+
+    // Binary files travel as base64 through the C API's request; a STEP file is read like the others.
     Json req = Json::object();
     Json files = Json::array();
     Json f1 = Json::object();
@@ -12684,8 +12935,8 @@ TEST(library_import_attaches_kicad_3d_models) {
     f2["contentBase64"] = base64(cubeStlBinary());
     files.push(f2);
     Json f3 = Json::object();
-    f3["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.step";
-    f3["content"] = "ISO-10303-21;";
+    f3["name"] = stepName;
+    f3["content"] = inchStep();
     files.push(f3);
     req["files"] = files;
     const Json out = importLibraryRequest(req);
@@ -12693,7 +12944,7 @@ TEST(library_import_attaches_kicad_3d_models) {
     for (const auto& p : out.get("parts").items())
         attached = attached || p.get("spec").get("model3d").get("unit").asNumber(0) == 1.0;
     CHECK(attached);
-    CHECK(out.get("files")[2].get("error").asString().find("STEP") != std::string::npos);
+    CHECK(out.get("files")[2].get("format").asString() == "model3d" && out.get("files")[2].get("error").asString("").empty());
 }
 
 TEST(model3d_readers_survive_fuzzing) {
@@ -12701,7 +12952,8 @@ TEST(model3d_readers_survive_fuzzing) {
         {kSoicModel, readModelFixture(kSoicModel)},
         {"cube.stl", cubeStlAscii()},
         {"cube.stl", cubeStlBinary()},
-        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"}};
+        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"},
+        {"parts.step", inchStep()}};
     uint32_t seed = 0x3D3D3D3Du;
     auto rnd = [&]() {
         seed ^= seed << 13;
@@ -19492,6 +19744,62 @@ TEST(step_export_closed_named_solids) {
     CHECK(step.find("FACETED_BREP('PCB'") != std::string::npos);
     CHECK(step.find("FACETED_BREP('U1'") != std::string::npos);
     CHECK(step.find("COLOUR_RGB") != std::string::npos);
+}
+
+TEST(step_import_round_trip_of_export) {
+    Project p = placedBenchBoard();
+    const std::string step = exportStep(p.schematic, p.pcb, "bench");
+    const Model3DMesh m = parseModel3D(step, "bench.step");
+    CHECK(m.format == "step" && m.warnings.empty());
+    // Expected per solid from the file itself: volume by the divergence theorem over its polygon faces, bounds
+    // from its points.
+    std::map<int, std::string> e;
+    std::istringstream in(step);
+    for (std::string l; std::getline(in, l);)
+        if (l.size() > 1 && l[0] == '#') e[std::atoi(l.c_str() + 1)] = l.substr(l.find('=') + 1);
+    auto refs = [](const std::string& s) {
+        std::vector<int> r;
+        for (size_t i = s.find('#'); i != std::string::npos; i = s.find('#', i + 1)) r.push_back(std::atoi(s.c_str() + i + 1));
+        return r;
+    };
+    auto pointOf = [&](int id) {
+        const std::string& s = e[id];  // CARTESIAN_POINT('',(x,y,z))
+        Vec3 v;
+        std::sscanf(s.c_str() + s.find('(', s.find('(') + 1), "(%lf,%lf,%lf", &v.x, &v.y, &v.z);
+        return v;
+    };
+    std::vector<double> expected;
+    std::array<double, 6> box{1e300, 1e300, 1e300, -1e300, -1e300, -1e300};
+    for (const auto& [id, body] : e) {
+        if (body.rfind("FACETED_BREP(", 0) != 0) continue;
+        double volume = 0;
+        for (int face : refs(e[refs(body)[0]]))
+            for (int r : refs(e[face])) {
+                if (e[r].rfind("PLANE", 0) == 0) continue;
+                const auto pts = refs(e[refs(e[r])[0]]);
+                const Vec3 a = pointOf(pts[0]);
+                for (size_t i = 1; i + 1 < pts.size(); ++i) {
+                    const Vec3 b = pointOf(pts[i]), c = pointOf(pts[i + 1]);
+                    volume += a.x * (b.y * c.z - b.z * c.y) - a.y * (b.x * c.z - b.z * c.x) + a.z * (b.x * c.y - b.y * c.x);
+                }
+                for (int pt : pts) {
+                    const Vec3 v = pointOf(pt);
+                    box = {std::min(box[0], v.x), std::min(box[1], v.y), std::min(box[2], v.z), std::max(box[3], v.x), std::max(box[4], v.y), std::max(box[5], v.z)};
+                }
+            }
+        expected.push_back(volume / 6);
+    }
+    auto solids = meshSolids(m);
+    CHECK(solids.size() == expected.size() && expected.size() == static_cast<size_t>(placedBodies(p) + 1));
+    std::sort(expected.begin(), expected.end());
+    std::sort(solids.begin(), solids.end(), [](const MeshSolid& a, const MeshSolid& b) { return a.volume < b.volume; });
+    for (size_t i = 0; i < solids.size() && i < expected.size(); ++i) {
+        CHECK(solids[i].closed);
+        CHECK(expected[i] > 0);
+        CHECK_NEAR(solids[i].volume, expected[i], 0.01 * expected[i]);
+    }
+    const auto b = m.bounds();
+    for (int k = 0; k < 6; ++k) CHECK_NEAR(b[k], box[k], 1e-3);
 }
 
 TEST(idf_export_and_placement_round_trip) {

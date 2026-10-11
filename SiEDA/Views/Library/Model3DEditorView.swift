@@ -3,7 +3,7 @@ import SceneKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 3D Model (Component Library → 3D Model…): attach a VRML (.wrl), STL or OBJ model to a part and align it on the
+/// 3D Model (Component Library → 3D Model…): attach a VRML (.wrl), STL, OBJ or STEP model to a part and align it on the
 /// footprint — file unit, scale, rotation about x / y / z and offset — with a live preview of the part on a piece of
 /// board. "Seat on Board" centres the model on the footprint and puts its lowest point on the board surface. The
 /// model is saved with the project and replaces the generated body in the 3D view and the STL / OBJ exports.
@@ -37,7 +37,7 @@ struct Model3DEditorView: View {
                 Text(verbatim: spec.name).foregroundStyle(Theme.textSecondary)
                 Spacer()
                 Button { chooseFile() } label: { Label("Choose File…", systemImage: "cube") }
-                    .help("VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them.")
+                    .help("VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship).")
             }
             .padding(12)
             Divider()
@@ -100,7 +100,7 @@ struct Model3DEditorView: View {
                     .font(.caption2).foregroundStyle(Theme.textMuted)
             } else {
                 Text("No 3D model: the part shows its generated body.").font(.callout).foregroundStyle(Theme.textMuted)
-                Text("Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model.")
+                Text("Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them.")
                     .font(.caption).foregroundStyle(Theme.textMuted)
             }
             if let error {

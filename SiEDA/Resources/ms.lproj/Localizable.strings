@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "Guna untuk Ejen SiEDA";
 "Use the Bundled Model" = "Guna Model Terbungkus";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "Menggunakan model litar menjadikannya AI yang mereka bentuk litar baharu: ia berjalan pada Mac ini tanpa akaun dan tanpa muat turun; spesifikasi dan semakan datang daripada Offline Designer.";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "Lampirkan model VRML (.wrl), STL, OBJ atau STEP dan jajarkan pada tapak";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "Pilih fail VRML (.wrl), STL, OBJ atau STEP (.step / .stp), seperti dalam pustaka KiCad.";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ atau STEP (.step / .stp, seperti dalam pustaka KiCad).";

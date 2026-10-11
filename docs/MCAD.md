@@ -42,7 +42,15 @@ The solids are a faceted B-rep: planar faces bounded by polygons, so every MCAD 
 - **OpenCASCADE check:** the exported files were also read with OpenCASCADE, which reported every solid valid and
   of positive volume.
 
-STEP is export only. Part models are read as VRML / STL / OBJ ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md#3d-models)).
+**Import of part models.** STEP files of parts (AP203 / AP214, `.step` / `.stp`, as KiCad's libraries ship) are read
+by SiEDA's own B-rep tessellator in `Core/src/Model3D.cpp` (`parseStep`) — no CAD kernel: the Part 21 structure is
+parsed, assembly placements (`MAPPED_ITEM`, `REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION`) are applied, edges are
+sampled along lines, circles, ellipses, polylines and B-spline curves (de Boor), and each face's boundary is
+triangulated in the parameters of its surface (plane, cylinder, cone, sphere, torus, surface of revolution; B-spline
+and other surfaces in their best-fit plane), so neighbouring faces share their boundary samples and closed solids
+come back closed. Units follow the file's `LENGTH_UNIT` (mm, inch, m…), colours its `STYLED_ITEM`s. See
+[LIBRARY_IMPORT.md](LIBRARY_IMPORT.md#3d-models) for what is approximated. The core test
+`step_import_round_trip_of_export` reads the exported board back: every solid closed, with its bounds and volume.
 
 ## Round trip with IDF
 

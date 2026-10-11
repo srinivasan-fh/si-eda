@@ -787,7 +787,7 @@ int sieda_c_api_model3d_test(void) {
     if (!preview || sieda_mesh_vertex_count(preview) <= 0) return 4;
     sieda_mesh_free(preview);
     char* bad = sieda_model3d_import("{\"name\":\"x.step\",\"content\":\"ISO-10303-21;\"}");
-    if (!bad || !strstr(bad, "\"ok\":false") || !strstr(bad, "STEP")) return 5;
+    if (!bad || !strstr(bad, "\"ok\":false") || !strstr(bad, "triangles")) return 5;
     sieda_string_free(bad);
     bad = sieda_model3d_import("{\"name\":\"x.stl\",\"contentBase64\":\"!!!\"}");
     if (!bad || !strstr(bad, "\"ok\":false")) return 6;

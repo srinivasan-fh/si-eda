@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "Dùng cho tác tử của SiEDA";
 "Use the Bundled Model" = "Dùng mô hình đi kèm";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "Dùng một mô hình mạch sẽ biến nó thành AI thiết kế mạch mới: nó chạy trên máy Mac này, không cần tài khoản hay tải xuống; thông số và đánh giá do Offline Designer đảm nhận.";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "Gắn mô hình VRML (.wrl), STL, OBJ hoặc STEP và căn theo footprint";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "Chọn tệp VRML (.wrl), STL, OBJ hoặc STEP (.step / .stp), như thư viện KiCad cung cấp.";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ hoặc STEP (.step / .stp, như thư viện KiCad cung cấp).";
