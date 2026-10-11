@@ -1484,9 +1484,11 @@ public:
 
     /// Exact clearance of a track a–b of half-width `half` on layer l for `net` (coupled pair router): the board edge,
     /// hole keep-outs, other nets' pads and every other net's recorded copper, at the board clearance plus
-    /// `extraOf` of both nets (net-class and 3W spacing). Plane layers of other nets are closed.
+    /// `extraOf` of both nets (net-class and 3W spacing); the copper of `partner` (the pair's other member) at
+    /// `partnerGap` only. Plane layers of other nets are closed.
     template <typename Extra>
-    bool trackClearExact(int l, Vec2 a, Vec2 b, double half, int net, const Extra& extraOf) const {
+    bool trackClearExact(int l, Vec2 a, Vec2 b, double half, int net, const Extra& extraOf, int partner = -1,
+                         double partnerGap = 0) const {
         if (l < 0 || l >= layers_ || !layerOpen(l, net)) return false;
         if (s_.segmentEdgeDistance(a, b) < s_.edgeClearance + half - 1e-9) return false;
         for (const auto& h : s_.holes)
@@ -1498,7 +1500,9 @@ public:
         forBuckets(box, 0, padBuckets_, [&](size_t id) {
             const Pad& p = pads_[id];
             if (clash || (p.net == net && net >= 0) || !p.onLayer(l)) return;
-            const double need = s_.clearance + std::max(own, p.net >= 0 ? extraOf(p.net) : 0.0) + half - 1e-9;
+            const double gap = p.net == partner && partner >= 0 ? partnerGap
+                                                                 : s_.clearance + std::max(own, p.net >= 0 ? extraOf(p.net) : 0.0);
+            const double need = gap + half - 1e-9;
             const double d = p.round ? std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2)
                                      : segmentRectDistance(a, b, p.bounds());
             if (d < need) clash = true;
@@ -1507,7 +1511,9 @@ public:
         forBuckets(box, 1, buckets_, [&](size_t id) {
             const Copper& c = copperItems_[id];
             if (clash || c.net == net || (c.layer >= 0 && c.layer != l)) return;
-            const double need = s_.clearance + std::max(own, c.net >= 0 ? extraOf(c.net) : 0.0) + half - 1e-9;
+            const double gap = c.net == partner && partner >= 0 ? partnerGap
+                                                                 : s_.clearance + std::max(own, c.net >= 0 ? extraOf(c.net) : 0.0);
+            const double need = gap + half - 1e-9;
             if (segmentSegmentDistance(a, b, c.a, c.b) - c.half < need) clash = true;
         });
         return !clash;
@@ -3354,6 +3360,19 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     double maxExtraAll = 0;
     for (const auto& [net, x] : extraClearance) maxExtraAll = std::max(maxExtraAll, x);
     if (ropt.coupledPairs && !ropt.fanoutOnly) {
+        std::map<size_t, const BgaFanout*> fanoutOfPad;
+        for (const BgaFanout& f : bgaFanouts) fanoutOfPad[f.pad] = &f;
+        // The stack-up's differential width (rounded up as the net classes are) and gap per layer, when they differ
+        // between layers; {0, 0} on a layer without a practical one.
+        std::vector<std::pair<double, double>> stackupPair;
+        for (int l = 0; l < std::max(1, settings.layerCount); ++l) {
+            const auto [dw, dg] = differentialPairGeometry(settings, l, settings.differentialImpedance);
+            const bool ok = dw > 0 && dw <= 1.0 && dg <= 1.0;
+            stackupPair.push_back(ok ? std::pair{std::max(settings.minTrackWidth, std::ceil(dw * 100) / 100), dg} : std::pair{0.0, 0.0});
+        }
+        if (stackupPair[kTopLayer].first <= 0 ||
+            std::all_of(stackupPair.begin(), stackupPair.end(), [&](const auto& geo) { return geo == stackupPair[kTopLayer]; }))
+            stackupPair.clear();
         for (auto [pNet, nNet] : differentialPairs(sch)) {
             if (scoped && (!scope.count(pNet) || !scope.count(nNet))) continue;
             if (seeded.count(pNet) || seeded.count(nNet)) continue;  // completed from their kept copper instead
@@ -3383,6 +3402,15 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             pl.padN[0] = ln[static_cast<size_t>(k)];
             pl.padP[1] = lp[1];
             pl.padN[1] = ln[static_cast<size_t>(1 - k)];
+            // BGA-ball ends start from the balls' fan-out vias (laid before the pairs).
+            for (int e = 0; e < 2; ++e) {
+                auto vp = fanoutOfPad.find(pl.padP[e]), vn = fanoutOfPad.find(pl.padN[e]);
+                if (vp == fanoutOfPad.end() || vn == fanoutOfPad.end()) continue;
+                pl.viaEnd[e] = true;
+                pl.viaP[e] = vp->second->via;
+                pl.viaN[e] = vn->second->via;
+                pl.viaReach[e] = std::max(vp->second->viaDiameter, vn->second->viaDiameter) / 2;
+            }
             pl.width = std::max(settings.widthFor(rep.positive), settings.widthFor(rep.negative));
             const double pairClearance = std::max(settings.clearanceFor(rep.positive), settings.clearanceFor(rep.negative));
             double gap = ropt.pairGap;
@@ -3392,6 +3420,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
             pl.minGap = pairClearance;
             pl.gap = std::max(gap, pairClearance);
+            // A pair at the stack-up's outer width and gap takes each layer's own (inner striplines differ).
+            if (ropt.pairGap <= 0 && !stackupPair.empty() && std::fabs(pl.width - stackupPair[kTopLayer].first) < 1e-9 &&
+                std::fabs(gap - stackupPair[kTopLayer].second) < 1e-12)
+                for (const auto& [lw, lg] : stackupPair) {
+                    pl.layerWidth.push_back(lw > 0 ? lw : pl.width);
+                    pl.layerGap.push_back(lw > 0 ? std::max(lg, pairClearance) : pl.gap);
+                }
             pl.viaDiameter = settings.viaDiameter;
             pl.viaDrill = settings.viaDrill;
             rep.width = pl.width;

@@ -204,9 +204,19 @@ dog-bones and tamper meshes), and is fixed copper from then on:
 
 - **Geometry.** Width: the net classes' (the router widens pairs to the differential-impedance width first, as
   before). Gap: `pairGap`, or the stack-up's coupled gap for `BoardSettings::differentialImpedance`
-  (`differentialPairGeometry`), never below the pair's clearance.
+  (`differentialPairGeometry`), never below the pair's clearance. A pair at the stack-up's outer width and gap (no
+  `pairGap`, no wider net class) takes each layer's own width and gap where the stack-up's differ (inner striplines);
+  a via pair is spaced for the widest layer and the members jog to each layer's spacing.
 - **Symmetric fan-out.** At each end the P and N pads are paired; the pair leaves perpendicular to their axis, from a
   centre-line node a few cells out, each member reaching its pad by a straight stub and one 45° jog of the same shape.
+- **BGA balls.** An end whose P and N pads are BGA balls with dog-bones (or vias in pad) starts from the two fan-out
+  vias, laid before the pairs (`PairPlan::viaEnd`): the pair leaves perpendicular to the vias' axis on any layer the
+  vias reach, and routes coupled to the other end (another BGA's vias, a connector or AC-coupling capacitors). The
+  stubs from the vias to the centre line keep the members' net-class clearance (the 3W spacing of fast nets starts on
+  the coupled section, as single nets leave their dog-bones), and a member keeps only the pair's clearance to its
+  partner's ball, via and stub. Pairs on outer balls escape coupled, typically on an inner layer, whose stripline
+  pair fits between the via rows where the outer microstrip pair does not; a pair deep inside a ball field (channels
+  one track wide) or right beside another pair's vias (3W) routes as two nets.
 - **Search.** A* over the centre line (state: layer, cell, direction, polarity side, last event, straight run) with
   integer costs. It turns 45° at a time, never sharper, and only after a straight run long enough that the inner
   member's mitred corner cannot fold back. Every step checks both members exactly (offset segments extended past the
@@ -230,7 +240,14 @@ dog-bones and tamper meshes), and is fixed copper from then on:
 `RouteReport::pairs` gives, per pair, coupled or not (and why), width and gap, coupled length, uncoupled length (stubs
 and via jogs), via pairs and the skew after tuning (intra-pair skew is then matched by the length tuning, within
 `pairSkewTolerance`). On the SERDES test board the pair is coupled over more than 85 % of its span, the skew is 0 and
-the DRC is clean; with the receiver on the bottom side the pair changes layer through coupled vias.
+the DRC is clean; with the receiver on the bottom side the pair changes layer through coupled vias. On the BGA test
+board (two 64-ball 0.8 mm BGAs, 6 layers, HDI rules: 0.38 / 0.38 mm outer, 0.11 / 0.10 mm inner width / gap) all five
+pairs route coupled from the dog-bone vias (8.5 mm coupled against 2.7 mm of escape stubs on an inner layer between
+the facing columns, 12.6 / 2.7 mm around the top and bottom rows; the pair to the AC-coupling capacitors changes to
+the top layer through one via pair), skew 0, DRC-clean, in well under a second. A pair not on BGA balls routes exactly
+as before unless it uses a layer whose stack-up geometry differs from the outer layers' (checked on the SERDES boards
+on 4 and 6 layers; the medium and 16-cluster benchmark boards, with and without `coupledPairs`, and the demo project
+save byte-identical files).
 
 ## Length-aware routing
 
@@ -487,10 +504,12 @@ connections are serial.
 - **Two signal layers under a BGA.** Inner balls of a 0.8 mm BGA cannot escape on two signal layers (a 4-layer board
   whose inner layers are planes); the router reports them unrouted. Use 6 or more layers, or via-in-pad.
 - **Coupled pairs** need two pads per member, pads on a 45° axis near each other, and leave perpendicular to the pad
-  pair; BGA-ball pairs (the coupled start does not use the dog-bone vias), pairs on isolation-barrier boards and pairs
-  with a stub to a third pad route as two nets (a pair through series capacitors is coupled segment by segment). Pairs route first and are not ripped up. The
-  P/N crossover swaps the pins only of a part that declares them a pin-swap group (a pair into a part without one
-  stays crossed and routes as two nets); there is no per-layer gap (the outer-layer gap is used on every layer).
+  pair; BGA-ball pairs escape coupled only where their dog-bone vias leave room (outer balls, not beside another
+  pair's vias); pairs on isolation-barrier boards and pairs with a stub to a third pad route as two nets (a pair
+  through series capacitors is coupled segment by segment). Pairs route first and are not ripped up. The P/N
+  crossover swaps the pins only of a part that declares them a pin-swap group (a pair into a part without one stays
+  crossed and routes as two nets); the per-layer width and gap apply only to pairs at the stack-up's own geometry (a
+  `pairGap` or a net-class width is used on every layer).
 - **Length-aware routing** reaches targets by meandering after routing (the A* does not aim for a length); a net routed
   longer than its target cannot be shortened, and meanders need free room beside the tracks.
 - **Via minimisation** tries every net, but the nets beyond the separate batches (24 on the largest grids) share one
@@ -537,6 +556,13 @@ connections are serial.
 - `autoroute_coupled_differential_pair`, `autoroute_coupled_pair_changes_layer_with_coupled_vias`: a SERDES link
   routes coupled (default options: two nets, no pair report), parallel at the pitch, skew within tolerance, DRC-clean;
   with the receiver on the bottom, coupled vias side by side; a member with a third pad falls back.
+- `autoroute_coupled_pairs_from_bga_dogbone_vias`: two 64-ball 0.8 mm BGAs on 6 layers, four pairs between their
+  outer balls (beside ground balls) and one to AC-coupling capacitors: every pair coupled from the dog-bone vias, its
+  inner-layer copper at the stack-up's inner width and gap, skew 0, DRC-clean; the corridor router lays the same
+  copper on 1 and 4 threads.
+- `autoroute_coupled_pair_takes_each_layers_geometry`: the SERDES pair confined to the inner layers (net-class layers)
+  leaves its pads at the outer width and gap, changes layer through coupled vias and runs at the inner stripline
+  width and gap; with `pairGap` set, one geometry on every layer.
 - `autoroute_keeps_net_class_clearance`: a net-class clearance holds both ways on a dense board.
 - `autoroute_length_aware_rules_and_match_groups`: a staggered four-net bus group and a ruled net end within
   tolerance; the DRC length check agrees.
