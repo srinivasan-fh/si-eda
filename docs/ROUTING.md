@@ -588,8 +588,8 @@ connections are serial.
   search: a net longer than it needs to be is only routed again with cheaper vias (kept when shorter), and a short one
   gets one waypoint detour, only on a two-pad net of its xSignal and only where the route through the waypoint finds
   room; each job builds a routing grid of its own, so it costs time on large boards with many targeted nets (3 × the
-  route time on the 16-cluster board with 166 targeted nets). On that board with length groups and no search, the
-  meanders leave one connection open (DRC_UNROUTED); not yet investigated.
+  route time on the 16-cluster board with 166 targeted nets). A track another track of its net joins part-way (a
+  T-join) is never meandered, since the meander would cut the branch off (`joinedPartWay`).
 - **Via minimisation** tries every net, but the nets beyond the separate batches (24 on the largest grids) share one
   grid that also holds their own old copper and each other's new copper, so fewer of them improve than would on a
   grid of their own; a net never moves vias of other nets out of its way.

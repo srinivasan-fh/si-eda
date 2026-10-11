@@ -6240,6 +6240,21 @@ double tracksLength(const std::vector<Track>& ts) {
 namespace {
 /// Advanced interactive length tuning (styles, corner shapes, drag-along spans, coupled pairs, phase tuning, length
 /// rules / match groups / xSignals). The plain accordion path of tuneTrackLength is kept bit for bit.
+/// A meander replaces a whole track, so a branch of the same net that joins it part-way (a T-join: another track's end
+/// or a via on it, away from its ends) would be cut off: such a track is not meandered.
+bool joinedPartWay(const PcbLayout& pcb, const Track& t) {
+    auto mid = [&](Vec2 p, double reach) {
+        return pointSegmentDistance(p, t.a, t.b) <= reach && (p - t.a).length() > reach && (p - t.b).length() > reach;
+    };
+    for (const Track& o : pcb.tracks)
+        if (o.id != t.id && o.net == t.net && o.layer == t.layer &&
+            (mid(o.a, (o.width + t.width) / 2) || mid(o.b, (o.width + t.width) / 2)))
+            return true;
+    for (const Via& v : pcb.vias)
+        if (v.net == t.net && mid(v.position, (v.diameter + t.width) / 2)) return true;
+    return false;
+}
+
 LengthTuneResult tuneTrackLengthAdvanced(PcbLayout& pcb, const Schematic& sch, size_t ti, const LengthTuneOptions& opt) {
     LengthTuneResult r;
     const Track sel = pcb.tracks[ti];
@@ -6352,7 +6367,8 @@ LengthTuneResult tuneTrackLengthAdvanced(PcbLayout& pcb, const Schematic& sch, s
         std::vector<size_t> others;
         for (size_t i = 0; i < base.tracks.size(); ++i)
             if (i != ti && !base.trackFixed[i] && !base.tracks[i].arc &&
-                std::find(lt.xsignal.nets.begin(), lt.xsignal.nets.end(), base.tracks[i].net) != lt.xsignal.nets.end())
+                std::find(lt.xsignal.nets.begin(), lt.xsignal.nets.end(), base.tracks[i].net) != lt.xsignal.nets.end() &&
+                !joinedPartWay(pcb, base.tracks[i]))
                 others.push_back(i);
         std::stable_sort(others.begin(), others.end(),
                          [&](size_t a, size_t b) { return trackLength(base.tracks[a]) > trackLength(base.tracks[b]); });
@@ -6559,6 +6575,10 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         if (pcb.tracks[i].id == trackId) ti = static_cast<long>(i);
     if (ti < 0) {
         r.message = "No track with that id";
+        return r;
+    }
+    if (joinedPartWay(pcb, pcb.tracks[static_cast<size_t>(ti)])) {
+        r.message = "Another track of the net joins this one part-way: tune a stretch between the joins";
         return r;
     }
     // Patterns, corner shapes, drag-along spans, coupled pairs, phase tuning and length rules take the advanced path;

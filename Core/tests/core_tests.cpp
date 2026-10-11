@@ -7452,6 +7452,16 @@ TEST(router_tunes_length_with_meanders) {
     CHECK(r.beginRoute(padAt(p, r1, 1), 0));
     r.moveTo(padAt(p, r2, 0));
     CHECK(r.commit().ok);
+    // A branch of the net that joins the track part-way would be cut off by a meander: that track is left alone.
+    Project branched = p;
+    Track stub = branched.pcb.tracks.front();
+    stub.id = 1 << 20;
+    stub.a = (stub.a + stub.b) * 0.5;
+    stub.b = stub.a + Vec2{0, 3};
+    branched.pcb.tracks.push_back(stub);
+    const LengthTuneResult refused = tuneTrackLength(branched.pcb, branched.schematic, branched.pcb.tracks.front().id,
+                                                     routedNetLength(branched.pcb, net) + 3);
+    CHECK(!refused.ok && !refused.applied && netRouted(branched, net));
     const double before = routedNetLength(p.pcb, net);
     const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
     CHECK(t.ok);
