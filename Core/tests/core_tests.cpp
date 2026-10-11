@@ -17977,6 +17977,257 @@ TEST(autoroute_pin_swap_option_json) {
     CHECK(!routeReportJson(RouteReport{}).get("metrics").has("pinSwaps") && !routeReportJson(RouteReport{}).has("swaps"));
 }
 
+namespace {
+/// A SERDES link whose pair ends are crossed on the board: TX (unit 1: 1 TXP, 2 TXN) of U1 drives RX (unit 2: 3 RXP,
+/// 4 RXN, swappable when `swappable`) of U2, wired TXP → RXN and TXN → RXP; nets D_P / D_N.
+struct CrossedPair {
+    Project p;
+    int tx = -1, rx = -1, pkg1 = -1, pkg2 = -1, np = -1, nn = -1;
+};
+CrossedPair crossedPairBoard(bool swappable) {
+    CrossedPair b;
+    CustomPartSpec spec;
+    spec.name = swappable ? "SERDES-SWAP-TEST" : "SERDES-FIXED-TEST";
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    const char* names[] = {"TXP", "TXN", "RXP", "RXN", "VDD", "GND", "NC7", "NC8"};
+    for (int i = 0; i < 8; ++i) {
+        CustomPin pin;
+        pin.number = std::to_string(i + 1);
+        pin.name = names[i];
+        pin.type = i < 2 ? PinType::Output : i < 4 ? PinType::Input : i < 6 ? PinType::PowerIn : PinType::NoConnect;
+        spec.pins.push_back(pin);
+    }
+    spec.units = {{"TX", {"1", "2"}}, {"RX", {"3", "4"}}};
+    spec.units[0].swapGroup = spec.units[1].swapGroup = -1;
+    if (swappable) spec.units[1].pinSwap = {{"3", "4"}};
+    const auto part = CustomPartRegistry::instance().registerPart(spec);
+    Schematic& s = b.p.schematic;
+    b.tx = s.addCustomUnits(part->id, "SERDES", {0, 0});
+    const int tx2 = s.addCustomUnits(part->id, "SERDES", {400, 200});
+    b.rx = s.addPartUnit(tx2, 2, {400, 0});
+    b.pkg1 = s.unitPackage(b.tx);
+    b.pkg2 = s.unitPackage(b.rx);
+    CHECK(b.tx > 0 && b.rx > 0 && b.pkg1 > 0 && b.pkg2 > 0 && b.pkg1 != b.pkg2);
+    const int lp = s.addComponent(ComponentKind::NetLabel, "D_P", {200, -50});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "D_N", {200, 50});
+    CHECK(s.connect({b.tx, 0}, {b.rx, 1}) >= 0 && s.connect({b.tx, 1}, {b.rx, 0}) >= 0);  // crossed
+    CHECK(s.connect({b.tx, 0}, {lp, pin(s, lp, "N")}) >= 0 && s.connect({b.tx, 1}, {ln, pin(s, ln, "N")}) >= 0);
+    b.p.schematicChanged();
+    b.p.pcb.settings.width = 140;
+    b.p.pcb.settings.height = 40;
+    b.p.pcb.settings.layerCount = 4;
+    s.find(b.pkg1)->pcb = PcbPlacement{{10, 20}, 0, false, true};
+    s.find(b.pkg2)->pcb = PcbPlacement{{120, 20}, 0, false, true};
+    b.np = s.netOf({b.tx, 0});
+    b.nn = s.netOf({b.tx, 1});
+    b.p.pcbSync = b.p.currentSync();
+    b.p.pcb.settings.autorouter.coupledPairs = true;
+    return b;
+}
+}  // namespace
+
+TEST(autoroute_coupled_pair_crossover_swaps_pn_at_target) {
+    CrossedPair b = crossedPairBoard(true);
+    CHECK(b.np >= 0 && b.nn >= 0 && b.np != b.nn && differentialPairs(b.p.schematic).size() == 1);
+    // The board's own route cannot couple a crossed pair: two single nets.
+    Project plain = b.p;
+    const RouteStats sp = plain.pcb.autoRoute(plain.schematic);
+    CHECK(sp.report.pairs.size() == 1 && !sp.report.pairs.front().coupled);
+    // The project's route swaps RXP / RXN at the receiver (the input end), then routes the pair coupled.
+    Project on = b.p;
+    const RouteStats st = on.autoRoute();
+    for (const auto& line : st.report.swaps) std::printf("    %s\n", line.c_str());
+    CHECK(st.report.metrics.pairSwaps == 1 && st.report.swaps.size() == 1 && !st.report.metrics.swapRun);
+    CHECK(st.failed == 0 && st.report.pairs.size() == 1);
+    if (!st.report.pairs.empty()) {
+        if (!st.report.pairs.front().coupled) std::printf("    pair not coupled: %s\n", st.report.pairs.front().reason.c_str());
+        CHECK(st.report.pairs.front().coupled);
+    }
+    CHECK(parallelAt(on, b.np, b.nn, st.report.pairs.front().gap + st.report.pairs.front().width) >= 1);
+    for (const auto& e : routeDrcErrors(on)) std::printf("    %s\n", e.c_str());
+    CHECK(routeDrcErrors(on).empty());
+    // Back-annotated: RXP now sits on D_P and RXN on D_N, in the schematic and on the board; U1 is untouched.
+    const Schematic& s = on.schematic;
+    CHECK(s.netOf({b.rx, 0}) == b.np && s.netOf({b.rx, 1}) == b.nn);
+    CHECK(s.netOf({b.tx, 0}) == b.np && s.netOf({b.tx, 1}) == b.nn);
+    CHECK(padNet(on, b.pkg2, 2) == b.np && padNet(on, b.pkg2, 3) == b.nn && on.pcbEcoPreview().empty());
+    // The report's JSON carries the swap; a plain report does not.
+    const Json j = routeReportJson(on.pcb.lastRouteReport);
+    CHECK(j.get("metrics").get("pairSwaps").asInt(0) == 1 && j.get("swaps").size() == 1 && !j.get("metrics").has("pinSwaps"));
+    CHECK(!routeReportJson(plain.pcb.lastRouteReport).get("metrics").has("pairSwaps"));
+    // Deterministic: the same swap and copper again.
+    Project again = b.p;
+    again.autoRoute();
+    CHECK(sameCopper(on, again));
+    // A locked receiver is never swapped, and the transmitter allows no swap: the pair stays crossed.
+    Project locked = b.p;
+    locked.schematic.find(b.pkg2)->pcb.locked = true;
+    const RouteStats sl = locked.autoRoute();
+    CHECK(sl.report.metrics.pairSwaps == 0 && sl.report.swaps.empty() && locked.schematic.netOf({b.rx, 0}) == b.nn);
+    CHECK(sl.report.pairs.size() == 1 && !sl.report.pairs.front().coupled);
+    // A part whose P / N pins are not a swap group keeps its pins.
+    CrossedPair fixed = crossedPairBoard(false);
+    const RouteStats sf = fixed.p.autoRoute();
+    CHECK(sf.report.metrics.pairSwaps == 0 && fixed.p.schematic.netOf({fixed.rx, 0}) == fixed.nn);
+    // With the option off nothing is swapped; with it on and no crossed pair, the project's route is the board's.
+    Project off = b.p;
+    off.pcb.settings.autorouter.coupledPairs = false;
+    CHECK(off.autoRoute().report.metrics.pairSwaps == 0 && off.schematic.netOf({b.rx, 0}) == b.nn);
+    DiffBoard straight = diffBoard(0.2);
+    straight.p.pcb.clearRouting();
+    straight.p.pcb.settings.autorouter.coupledPairs = true;
+    Project boardRoute = straight.p, projectRoute = straight.p;
+    boardRoute.pcb.autoRoute(boardRoute.schematic);
+    const RouteStats sr = projectRoute.autoRoute();
+    CHECK(sr.report.metrics.pairSwaps == 0 && sr.report.pairs.size() == 1 && sr.report.pairs.front().coupled);
+    CHECK(sameCopper(boardRoute, projectRoute));
+}
+
+namespace {
+/// Half-perimeter wire length of the board's ratsnest as the placement improvement measures it: the pad bounding
+/// box of every net with 2 … 64 pads that is not poured.
+double ratsnestHpwl(const Project& p) {
+    std::map<int, Rect> box;
+    std::map<int, int> count;
+    for (const auto& pad : p.pcb.pads(p.schematic)) {
+        if (pad.net < 0) continue;
+        const Vec2 q = pad.position;
+        auto it = box.find(pad.net);
+        if (it == box.end()) box[pad.net] = Rect(q.x, q.y, q.x, q.y);
+        else it->second = Rect(std::min(it->second.x0, q.x), std::min(it->second.y0, q.y), std::max(it->second.x1, q.x), std::max(it->second.y1, q.y));
+        ++count[pad.net];
+    }
+    double total = 0;
+    for (const auto& [net, r] : box)
+        if (count[net] >= 2 && count[net] <= 64 && !p.pcb.isZoneNet(p.schematic, net)) total += r.width() + r.height();
+    return total;
+}
+bool samePlacement(const Project& a, const Project& b) {
+    const auto& ca = a.schematic.components();
+    const auto& cb = b.schematic.components();
+    if (ca.size() != cb.size()) return false;
+    for (size_t i = 0; i < ca.size(); ++i)
+        if (!(ca[i].pcb.position == cb[i].pcb.position) || ca[i].pcb.rotation != cb[i].pcb.rotation || ca[i].pcb.bottom != cb[i].pcb.bottom)
+            return false;
+    return true;
+}
+int drcCount(const Project& p, const char* code) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code ? 1 : 0;
+    return n;
+}
+/// FNV-1a of the project's JSON: placement, copper and settings, byte for byte.
+unsigned long long projectFingerprint(const Project& p) {
+    unsigned long long h = 1469598103934665603ull;
+    for (unsigned char c : p.toJson().dump()) h = (h ^ c) * 1099511628211ull;
+    return h;
+}
+}  // namespace
+
+TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
+    // The greedy placement, then with the improvement pass: shorter ratsnest, courtyards still clear by the placer's
+    // spacing (no overlap, nothing outside the board), the board routes at least as well, and the same placement again.
+    bench::BenchBoard b = bench::makeBenchBoard({5, 2, 4, false, false, 0.45});
+    Project greedy = b.project;
+    greedy.pcb.autoPlace(greedy.schematic, true);
+    Project improved = b.project;
+    improved.pcb.settings.autorouter.improvePlacement = true;
+    improved.pcb.autoPlace(improved.schematic, true);
+    const double before = ratsnestHpwl(greedy), after = ratsnestHpwl(improved);
+    std::printf("    ratsnest HPWL %.1f -> %.1f mm\n", before, after);
+    CHECK(after < before - 1.0);
+    CHECK(improved.pcb.settings.width == greedy.pcb.settings.width && improved.pcb.settings.height == greedy.pcb.settings.height);
+    CHECK(drcCount(improved, "DRC_COURTYARD_OVERLAP") == 0 && drcCount(improved, "DRC_OUT_OF_BOARD") == 0);
+    Project again = b.project;
+    again.pcb.settings.autorouter.improvePlacement = true;
+    again.pcb.autoPlace(again.schematic, true);
+    CHECK(samePlacement(improved, again) && !samePlacement(improved, greedy));
+    const RouteStats sg = greedy.pcb.autoRoute(greedy.schematic), si = improved.pcb.autoRoute(improved.schematic);
+    std::printf("    greedy: %d / %d, %d vias, %.0f mm; improved: %d / %d, %d vias, %.0f mm\n", sg.routed, sg.connections, sg.vias,
+                sg.trackLength, si.routed, si.connections, si.vias, si.trackLength);
+    CHECK(si.failed <= sg.failed && si.trackLength < sg.trackLength);
+    CHECK(routeDrcErrors(improved).empty());
+    // Locked parts stay; only the parts Auto Place placed move. The option is saved only when on.
+    Project locked = b.project;
+    locked.pcb.settings.autorouter.improvePlacement = true;
+    Component* fixed = nullptr;
+    for (auto& c : locked.schematic.mutableComponents())
+        if (c.hasFootprint() && !fixed) fixed = &c;
+    CHECK(fixed != nullptr);
+    if (!fixed) return;
+    fixed->pcb = PcbPlacement{{30, 30}, 0, false, true};
+    fixed->pcb.locked = true;
+    locked.pcb.autoPlace(locked.schematic, true);
+    const Vec2 kept{30, 30};
+    CHECK(fixed->pcb.position == kept && drcCount(locked, "DRC_COURTYARD_OVERLAP") == 0);
+    CHECK(Project().toJson().dump().find("improvePlacement") == std::string::npos);
+    const Json j = autorouteOptionsToJson(improved.pcb.settings.autorouter);
+    CHECK(j.get("improvePlacement").asBool(false) && autorouteOptionsFromJson(j).improvePlacement);
+    CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("improvePlacement"));
+    CHECK(Project::fromJson(improved.toJson()).pcb.settings.autorouter.improvePlacement);
+}
+
+TEST(autoroute_via_minimisation_tries_every_net) {
+    // Via minimisation on a board with many vias: with grids for the separated batches (automatic), and with a single
+    // one, so that the rest of the nets go through the last, shared batch — both complete, DRC-clean, with no more
+    // vias than the plain route and the metrics agreeing with the board; the same copper on 1 and 4 threads.
+    bench::BenchBoard b = bench::makeBenchBoard({2, 2, 4, false, false, 0.45});
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    Project plain = b.project;
+    setRouterStrategy(RouterStrategy::Corridor);
+    setRoutingThreads(1);
+    const RouteStats sp = plain.pcb.autoRoute(plain.schematic);
+    setRouterStrategy(RouterStrategy::Auto);
+    setRoutingThreads(0);
+    struct Run {
+        int grids;
+        int threads;
+    };
+    std::vector<Project> routed;
+    std::vector<RouteStats> stats;
+    for (Run run : {Run{0, 1}, Run{1, 1}, Run{1, 4}}) {
+        setViaMinimisationGrids(run.grids);
+        setRoutingThreads(run.threads);
+        setRouterStrategy(RouterStrategy::Corridor);
+        Project q = b.project;
+        q.pcb.settings.autorouter.minimizeVias = true;
+        stats.push_back(q.pcb.autoRoute(q.schematic));
+        setRouterStrategy(RouterStrategy::Auto);
+        setRoutingThreads(0);
+        setViaMinimisationGrids(0);
+        const RouteStats& st = stats.back();
+        std::printf("    grids %d, %d threads: %d / %d, %d vias (-%d, %d nets re-routed), %.0f mm; plain %d vias\n", run.grids, run.threads,
+                    st.routed, st.connections, st.report.metrics.vias, st.report.metrics.viasRemoved, st.report.metrics.netsRerouted,
+                    st.report.metrics.trackLength, sp.vias);
+        CHECK(st.report.metrics.vias == static_cast<int>(q.pcb.vias.size()) && st.report.metrics.viasRemoved >= 0);
+        CHECK(st.report.metrics.unrouted == sp.report.metrics.unrouted && st.failed == sp.failed);  // never costs a connection
+        for (const auto& e : routeDrcErrors(q)) std::printf("    %s\n", e.c_str());
+        CHECK(routeDrcErrors(q).empty());
+        routed.push_back(std::move(q));
+    }
+    CHECK(sp.vias > 20);
+    CHECK(stats[0].report.metrics.vias < sp.vias && stats[1].report.metrics.vias < sp.vias);
+    CHECK(stats[0].report.metrics.vias == sp.vias - stats[0].report.metrics.viasRemoved);
+    CHECK(stats[1].report.metrics.viasRemoved > 0);  // the shared batch removes vias too
+    CHECK(sameCopper(routed[1], routed[2]));
+}
+
+TEST(classic_router_copper_fingerprint) {
+    // Regression guard: a board below 2 M grid nodes placed and routed by the classic router, as a fingerprint of the
+    // whole project (placement, copper, settings). A change to the classic router's copper or to the greedy placement
+    // changes it; update the constant only on purpose (the value is printed).
+    bench::BenchBoard b = bench::makeBenchBoard({1, 1, 2, false, false, 0.45});
+    setRouterStrategy(RouterStrategy::Classic);
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    const RouteStats st = b.project.pcb.autoRoute(b.project.schematic);
+    setRouterStrategy(RouterStrategy::Auto);
+    const unsigned long long fp = projectFingerprint(b.project);
+    std::printf("    %d / %d routed, %d vias, fingerprint %llu\n", st.routed, st.connections, st.vias, fp);
+    constexpr unsigned long long kExpected = 14563538764380718061ull;  // gcc, Release
+    CHECK(fp == kExpected && st.routed == 165 && st.connections == 166 && st.vias == 131);
+}
+
 extern "C" int sieda_c_api_autoroute_strategy_test(void);
 TEST(c_api_autoroute_strategy) {
     const int rc = sieda_c_api_autoroute_strategy_test();

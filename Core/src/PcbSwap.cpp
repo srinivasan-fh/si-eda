@@ -10,6 +10,7 @@
 #include <set>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Project.hpp"
 
 namespace sieda {
@@ -420,25 +421,99 @@ AutoSwapResult Project::autoSwapForRouting(int maxSwaps) {
     return r;
 }
 
+int Project::autoPairCrossovers(std::vector<std::string>* report) {
+    const AutorouteOptions& strategy = pcb.settings.autorouter;
+    if (strategy.scoped() || strategy.fanoutOnly) return 0;
+    std::set<int> copied;
+    for (const auto& c : schematic.components())
+        if (c.instanceOf > 0) copied.insert(c.instanceOf);
+    int made = 0;
+    for (const auto& [netP, netN] : differentialPairs(schematic)) {
+        const std::map<PadKey, PadInfo> pads = padMap(*this);
+        const std::set<int> frozen = frozenNets(*this, pourNets(*this));
+        if (frozen.count(netP) || frozen.count(netN)) continue;
+        // Two pads per member, on the same two packages: end 0 on one, end 1 on the other.
+        std::map<int, std::pair<PadKey, PadKey>> ends;  // package → (P pad, N pad)
+        bool two = true;
+        for (int net : {netP, netN}) {
+            int count = 0;
+            for (const auto& [key, pad] : pads)
+                if (pad.net == net) {
+                    ++count;
+                    (net == netP ? ends[key.first].first : ends[key.first].second) = key;
+                }
+            two = two && count == 2;
+        }
+        if (!two || ends.size() != 2) continue;
+        std::vector<int> pkgs;
+        for (const auto& [pkg, pins] : ends) {
+            if (pads.at(pins.first).net != netP || pads.at(pins.second).net != netN) two = false;
+            pkgs.push_back(pkg);
+        }
+        if (!two) continue;
+        const Airwire wireP{pads.at(ends[pkgs[0]].first).position, pads.at(ends[pkgs[1]].first).position};
+        const Airwire wireN{pads.at(ends[pkgs[0]].second).position, pads.at(ends[pkgs[1]].second).position};
+        if (!airwiresCross(wireP, wireN)) continue;
+        // The target end (its P pad is an input) first, else whichever end allows the swap.
+        auto inputAt = [&](int pkg) {
+            const Component* c = schematic.find(pkg);
+            const CustomPart* part = c ? CustomPartRegistry::instance().find(c->customPart) : nullptr;
+            const int pin = ends[pkg].first.second;
+            return part && pin >= 0 && pin < static_cast<int>(part->def.pins.size()) &&
+                   part->def.pins[static_cast<size_t>(pin)].type == static_cast<int>(PinType::Input);
+        };
+        if (inputAt(pkgs[1]) && !inputAt(pkgs[0])) std::swap(pkgs[0], pkgs[1]);
+        for (int pkg : pkgs) {
+            const Component* c = schematic.find(pkg);
+            if (!c || !c->pcb.placed || c->pcb.locked || c->instanceOf > 0 || copied.count(pkg)) continue;
+            const std::pair<PadKey, PadKey> want{std::min(ends[pkg].first, ends[pkg].second), std::max(ends[pkg].first, ends[pkg].second)};
+            bool done = false;
+            for (const SwapCandidate& cand : swapCandidates(schematic, pkg, pads, false)) {
+                if (done || cand.option.kind != "pin" || cand.pairs.size() != 1 || copied.count(cand.option.component)) continue;
+                const std::pair<PadKey, PadKey> has{std::min(cand.pairs[0].first, cand.pairs[0].second), std::max(cand.pairs[0].first, cand.pairs[0].second)};
+                if (has != want) continue;
+                std::vector<std::string> lines;
+                if (!applyPcbSwap(cand.option, &lines)) continue;
+                if (report)
+                    for (auto& line : lines) report->push_back(line + " — differential pair uncrossed");
+                done = true;
+            }
+            if (done) {
+                ++made;
+                break;
+            }
+        }
+    }
+    return made;
+}
+
 RouteStats Project::autoRoute(const RouteControl& control) {
-    if (!pcb.settings.autorouter.pinSwap) return pcb.autoRoute(schematic, control);
+    const AutorouteOptions& o = pcb.settings.autorouter;
+    const bool crossovers = o.coupledPairs && !o.scoped() && !o.fanoutOnly;
+    if (!o.pinSwap && !crossovers) return pcb.autoRoute(schematic, control);
     // A cancelled route leaves the project as it was: the swaps are undone with it.
     std::unique_ptr<Project> before = control.progress ? std::make_unique<Project>(*this) : nullptr;
-    const AutoSwapResult swaps = autoSwapForRouting();
+    std::vector<std::string> lines;
+    const int pairSwaps = crossovers ? autoPairCrossovers(&lines) : 0;
+    const AutoSwapResult swaps = o.pinSwap ? autoSwapForRouting() : AutoSwapResult{};
     RouteStats st = pcb.autoRoute(schematic, control);
     if (st.cancelled) {
-        if (before && swaps.pinSwaps + swaps.gateSwaps > 0) *this = std::move(*before);
+        if (before && swaps.pinSwaps + swaps.gateSwaps + pairSwaps > 0) *this = std::move(*before);
         return st;
     }
     RouteMetrics& m = st.report.metrics;
-    m.swapRun = true;
-    m.pinSwaps = swaps.pinSwaps;
-    m.gateSwaps = swaps.gateSwaps;
-    m.ratsnestBefore = swaps.ratsnestBefore;
-    m.ratsnestAfter = swaps.ratsnestAfter;
-    m.crossingsBefore = swaps.crossingsBefore;
-    m.crossingsAfter = swaps.crossingsAfter;
-    st.report.swaps = swaps.report;
+    m.pairSwaps = pairSwaps;
+    if (o.pinSwap) {
+        m.swapRun = true;
+        m.pinSwaps = swaps.pinSwaps;
+        m.gateSwaps = swaps.gateSwaps;
+        m.ratsnestBefore = swaps.ratsnestBefore;
+        m.ratsnestAfter = swaps.ratsnestAfter;
+        m.crossingsBefore = swaps.crossingsBefore;
+        m.crossingsAfter = swaps.crossingsAfter;
+    }
+    lines.insert(lines.end(), swaps.report.begin(), swaps.report.end());
+    st.report.swaps = lines;
     pcb.lastRouteReport = st.report;
     return st;
 }

@@ -233,6 +233,13 @@ public:
     /// applyPcbSwap, so it is back-annotated like a manual one. Nets with locked copper or a pour, and units of
     /// repeated sheets, are never swapped; a scoped or fan-out-only strategy swaps nothing. Deterministic.
     AutoSwapResult autoSwapForRouting(int maxSwaps = 500);
+    /// The autorouter's P/N crossover for coupled pairs (AutorouteOptions::coupledPairs): a differential pair whose
+    /// members have two pads each and whose airwires cross (P and N change places between its ends, so it cannot
+    /// be laid coupled) has its P and N pins swapped at the target end (the input end first) when that part allows
+    /// it — the two pins in one pin-swap group of a placed, unlocked unit (pcbSwapOptions) — with applyPcbSwap, so it
+    /// is back-annotated. Nets with locked copper or a pour and repeated-sheet units are left alone; a scoped or
+    /// fan-out-only strategy swaps nothing. Returns the number of pairs uncrossed; `report` gets one line each.
+    int autoPairCrossovers(std::vector<std::string>* report = nullptr);
     /// The board's autoroute (PcbLayout::autoRoute) with the strategy's pin / gate swap first when it is on; the swaps
     /// are reported in the route report (RouteMetrics::swapRun, RouteReport::swaps). A cancelled route undoes them.
     RouteStats autoRoute(const RouteControl& control = RouteControl{});

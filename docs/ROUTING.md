@@ -179,6 +179,17 @@ such nets to the classic net loop). The finishing passes (neck-down, clean-up, g
 **Per-class layers** (`classLayers`): the nets of a schematic net class route only on the given copper layers; the
 layers of their SMD pads are open to them only to leave the pads (at four times the cost).
 
+**Placement improvement** (`improvePlacement`, off by default; JSON `"improvePlacement"`, written only when on): Auto
+Place's greedy pass is followed by an iterative improvement (`PcbLayout::improvePlacement`). Over the parts it just
+placed, in placement order, it tries small shifts (±0.5, ±1 and ±2 mm in x and y) and swaps with the twelve nearest
+parts of the same courtyard size on the same side, and makes the best move that shortens the ratsnest's
+half-perimeter wire length (the pad bounding box of every net with 2–64 pads that is not poured) while every courtyard
+stays clear by the greedy pass's own spacing (1.2 mm margin, escape rings of fine-pitch and high-pin-count packages,
+isolation-barrier gaps, edge clearance, holes, MLCCs away from mounting holes, radios 10 mm from switchers). Locked
+and already placed parts never move. Deterministic (single-threaded, ties to the first candidate) and bounded (at most
+8 sweeps). It is an option rather than the default because the 40 reference designs are verified from the app, which
+this change could not run; on every benchmark board it routes shorter, with fewer vias and faster (Measured numbers).
+
 In the app, the **Routing Strategy** menu next to Auto Route switches presets and options, routes the selected nets, a
 net class or the selected parts' area (one-shot: the board keeps its own strategy, one undo step) and opens the
 **Strategy Settings** sheet (options, pair gap, arc radius, per-class layers) and the **Routing Report**. C API:
@@ -206,6 +217,16 @@ dog-bones and tamper meshes), and is fixed copper from then on:
 - **Fallback.** A pair the coupled router cannot lay out (members with more than two pads, pads too far apart or not on
   a 45° axis, no room, isolation-barrier boards, search budget) routes as two single nets, as before.
 
+- **P/N crossover.** A pair whose ends are crossed (its P and N airwires intersect: P and N change places between the
+  two parts, so no coupled path exists) has its P and N pins swapped before routing, at the target end — the end whose
+  P pad is an input, else whichever end allows it — when that part declares the two pins a pin-swap group of the unit
+  (`Project::autoPairCrossovers`, run by `Project::autoRoute` with `coupledPairs` on). The swap is a pin swap of
+  the pin / gate swap machinery (`applyPcbSwap`): back-annotated to the schematic, locked packages, nets with locked
+  copper or a pour, repeated-sheet units, scoped and fan-out-only strategies left alone. The pair then routes coupled;
+  the route report lists the swap (`RouteMetrics::pairSwaps`, `RouteReport::swaps`; JSON and the C API's autoroute
+  result carry `pairSwaps` only when > 0). A part without such a swap group keeps its pins and the pair routes as two
+  nets, as before.
+
 `RouteReport::pairs` gives, per pair, coupled or not (and why), width and gap, coupled length, uncoupled length (stubs
 and via jogs), via pairs and the skew after tuning (intra-pair skew is then matched by the length tuning, within
 `pairSkewTolerance`). On the SERDES test board the pair is coupled over more than 85 % of its span, the skew is 0 and
@@ -225,9 +246,14 @@ staggered ends (29.5–41.5 mm) and a ruled net 12 mm above its direct length al
 
 - **Via minimisation** (`minimizeVias`): after the routing passes, every routed signal net with vias of its own is routed
   again, alone, with layer changes three times as expensive, in batches of nets whose areas (pads and copper, widened
-  by 2 mm) lie at least the clearance reach apart — one grid per batch (at most 24), each search kept inside its net's
-  box. The new copper is kept when it has fewer vias and is at most 25 % longer; if the pours then leave a connection
-  open, the whole pass is undone.
+  by 2 mm) lie at least the clearance reach apart — one grid per batch, each search kept inside its net's box. The
+  number of grids adapts to the board: at least 24, more on small grids (400 M grid nodes in all, so 86 on the medium
+  benchmark board), and the nets that do not fit into them are tried in one last batch on a grid that keeps every
+  net's copper, their own included — a net's new route is then clear of whichever copper of the other candidates
+  stays — so every net is tried within a bounded number of grids (the testing aid `setViaMinimisationGrids` fixes the
+  count). The batches run one after the other on one thread, so the copper is the same for any thread count. The new
+  copper is kept when it has fewer vias and is at most 25 % longer; if the pours then leave a connection open, the
+  whole pass is undone.
 - **Gloss / arc corners / teardrops** (`gloss`, `arcCorners` + `arcRadius`, `teardrops`): the interactive router's
   gloss (45° shortcuts and a re-search, kept when shorter; coupled pairs left alone), true-arc corners and teardrops on
   the routed copper. Each is undone if it leaves more connections open than before. `teardropStyle` (`"straight"`,
@@ -269,7 +295,8 @@ schematic edit), before the board is routed, through `Project::autoSwapForRoutin
   `sieda_pcb_route_report`) and the C API's autoroute result (`pinSwaps`, `gateSwaps`, `ratsnestBefore`,
   `ratsnestAfter`) carry them only when the option is on. A cancelled route undoes the swaps with it.
 
-With the option off, `Project::autoRoute` is `PcbLayout::autoRoute` and the copper is bit-identical. In the app:
+With the option off (and `coupledPairs` off, which adds only the P/N crossover above), `Project::autoRoute` is
+`PcbLayout::autoRoute` and the copper is bit-identical. In the app:
 **Swap Pins & Gates** in the Routing Strategy menu and the Strategy Settings sheet (kept when switching presets); the
 Routing Report lists the swaps, and the status line counts them.
 
@@ -360,8 +387,12 @@ layer 1 and a +3V3 plane on layer n−2. The outline is sized for about 35 % cou
 cmake --build build --target sieda_route_bench
 ./build/sieda_route_bench                       # the medium (CI) board, then the large board
 ./build/sieda_route_bench --clusters 16 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--snapshot out.json]
-                          [--threads N] [--router auto|classic|corridor]
+                          [--threads N] [--router auto|classic|corridor] [--save board.siedaproj]
+                          [--options '{"minimizeVias":true,"improvePlacement":true}']
 ```
+
+`--options` sets the board's strategy (`AutorouteOptions` JSON) before placing and routing, and prints what the
+quality passes did; `--save` writes the routed project, so two runs can be compared with `cmp`.
 
 It prints component, net and pin counts, the time of auto-place, auto-route (wall and CPU) and DRC, completion, the
 ratsnest and snapshot times, and peak memory. `--drc-brute` also times the pairwise DRC and confirms the reports are
@@ -411,6 +442,32 @@ with the classic router, except that the satellite computer gets one DRC warning
 lane); with clang and fused multiply-add the quadcopter also leaves one connection unrouted. No short or clearance
 error on any. By default they use the classic router, with unchanged results.
 
+**Placement improvement and via minimisation** (same container, gcc, default options otherwise; the first row of
+each board is the greedy placement, the second the improved one, routed with the default strategy; via
+minimisation on the greedy placement with the old fixed 24 batches against the adaptive batching):
+
+| Board | Placement | Place | Route | Completion | Vias | Length |
+|---|---|---|---|---|---|---|
+| Medium (CI): 6 clusters, 2 BGAs, 6 layers | greedy | 0.10 s | 2.4 s | 385 / 385 | 466 | 3108 mm |
+| | improved | 0.20 s | **1.5 s** | 385 / 385 | **429** | **2902 mm** |
+| 6 clusters, 2 BGAs, 2 signal layers (4 layers) | greedy | 0.13 s | 78.1 s | 385 / 385 | 683 | 3448 mm |
+| | improved | 0.24 s | **18.1 s** | 385 / 385 | **578** | **3210 mm** |
+| 16 clusters, 4 BGAs, 8 layers | greedy | 0.8 s | 17.4 s | 922 / 922 | 1170 | 10613 mm |
+| | improved | 1.0 s | **8.5 s** | 922 / 922 | **1114** | **10096 mm** |
+| 2 clusters, 2 layers, no BGA (classic router) | greedy | 0.03 s | 8.8 s | 182 / 183 | 329 | 2684 mm |
+| | improved | 0.08 s | **4.6 s** | **183 / 183** | **299** | **2413 mm** |
+
+| Board | Via minimisation | Route | Vias (plain → minimised) | Nets re-routed | Length |
+|---|---|---|---|---|---|
+| Medium (CI) | 24 batches | 4.7 s | 466 → 453 | 8 | 3125 mm |
+| | adaptive (35 batches) | 5.4 s | 466 → **435** | 15 | 3153 mm |
+| 16 clusters, 4 BGAs | 24 batches | 25.4 s | 1170 → 1146 | 14 | 10636 mm |
+| | adaptive (28 batches + 1 shared) | 24.2 s | 1170 → **1127** | 22 | 10660 mm |
+
+The improved placement and the adaptive via minimisation give byte-identical saved projects on 1 and 4 threads
+(16-cluster board, `--save` and `cmp`); the demo project and the 2-cluster classic board route byte-identically
+before and after this work with the default options.
+
 Thread scaling on the corridor router is modest: on the large board 1 → 3 → 4 threads take 128.6 → 107.6 → 106.2 s
 (peak memory 748 → 840 → 860 MB), with byte-identical results. Most of a pass is parallel, but the rip-up passes route few nets each, and grid set-up, pours and pour
 connections are serial.
@@ -431,12 +488,14 @@ connections are serial.
   whose inner layers are planes); the router reports them unrouted. Use 6 or more layers, or via-in-pad.
 - **Coupled pairs** need two pads per member, pads on a 45° axis near each other, and leave perpendicular to the pad
   pair; BGA-ball pairs (the coupled start does not use the dog-bone vias), pairs on isolation-barrier boards and pairs
-  with a stub to a third pad route as two nets (a pair through series capacitors is coupled segment by segment). Pairs route first and are not ripped up; there is no automatic
-  pair swap (P/N crossover) and no per-layer gap (the outer-layer gap is used on every layer).
+  with a stub to a third pad route as two nets (a pair through series capacitors is coupled segment by segment). Pairs route first and are not ripped up. The
+  P/N crossover swaps the pins only of a part that declares them a pin-swap group (a pair into a part without one
+  stays crossed and routes as two nets); there is no per-layer gap (the outer-layer gap is used on every layer).
 - **Length-aware routing** reaches targets by meandering after routing (the A* does not aim for a length); a net routed
   longer than its target cannot be shortened, and meanders need free room beside the tracks.
-- **Via minimisation** builds one grid per batch of separated nets (at most 24 batches), so on large boards only part
-  of the nets is tried.
+- **Via minimisation** tries every net, but the nets beyond the separate batches (24 on the largest grids) share one
+  grid that also holds their own old copper and each other's new copper, so fewer of them improve than would on a
+  grid of their own; a net never moves vias of other nets out of its way.
 - **Keep-outs** are honoured by the autorouter and the DRC; the interactive router does not consult them yet.
 - **Parallel speed-up** is limited: on the 923-part board 1 → 4 threads take 70 → 51 s. The detailed batches are bound
   by their critical path (the slowest net of each batch; about 30 s of 35 s) because nets whose corridors meet must
@@ -446,8 +505,10 @@ connections are serial.
   angle can still form an acute join (a DRC_ACUTE_ANGLE warning), as with the classic router.
 - **Compilers.** Routing is deterministic for a given build and any thread count; builds with and without fused
   multiply-add can round differently and route differently (as the classic router can).
-- **Placement** is greedy and connectivity-driven, without iterative improvement; dense boards may route better after
-  manual adjustment of the critical parts.
+- **Placement** is greedy and connectivity-driven; the improvement pass (`improvePlacement`, an option until the
+  reference designs have been verified with it from the app) only shifts parts and swaps parts of the same courtyard
+  size, never rotates or re-sides them, and measures the ratsnest as half-perimeter wire length, not routed length;
+  dense boards may still route better after manual adjustment of the critical parts.
 
 ## Code map
 
@@ -463,7 +524,8 @@ connections are serial.
 | Pass loop, via minimisation stage, multi-resolution grid, lattice fallback, profile | `Core/src/Pcb.cpp` (`runPass`, `RoutingGrid::setCoarse`, `routeWithVoltageSpacing`, `RouteProfile`) |
 | Coupled differential pairs | `Core/src/CoupledPairRouter.inc` (`routeCoupledPair`), `RoutingGrid::trackClearExact` / `viaClearExact` |
 | Length-aware tuning, gloss, arcs, teardrops, metrics | `Core/src/RouteQuality.{hpp,cpp}` |
-| Automatic pin / gate swap before routing | `Core/src/PcbSwap.cpp` (`Project::autoSwapForRouting`, `Project::autoRoute`) |
+| Automatic pin / gate swap and the pairs' P/N crossover before routing | `Core/src/PcbSwap.cpp` (`Project::autoSwapForRouting`, `Project::autoPairCrossovers`, `Project::autoRoute`) |
+| Placement improvement | `Core/src/Pcb.cpp` (`PcbLayout::improvePlacement`, from `autoPlace`) |
 | Strategy options, presets, report and keep-outs as JSON | `Core/include/sieda/Autoroute.hpp`, `Core/src/Autoroute.cpp`; C API `Core/src/sieda_c_autoroute.cpp` |
 | App: strategy menu and sheets, report | `SiEDA/Views/PCB/RoutingStrategyMenu.swift`, `RoutingStrategySheet.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`, `SiEDA/Bridge/EDAEngine+Autoroute.swift` |
 | Placer | `Core/src/Pcb.cpp` (`PcbLayout::autoPlace`) |
@@ -492,6 +554,19 @@ connections are serial.
   of two 74HC00s and crossed inputs of one gate are swapped, the ratsnest and copper get shorter, DRC-clean, schematic
   and board agree; locked parts, locked copper and scoped routes are left alone; the same swaps on 1 and 4 threads;
   the option's JSON.
+- `autoroute_coupled_pair_crossover_swaps_pn_at_target`: a SERDES link wired TXP → RXN, TXN → RXP cannot be coupled
+  by the board's route; the project's route swaps RXP / RXN at the receiver (its unit's pin-swap group), routes the
+  pair coupled and DRC-clean, back-annotates the swap (schematic, board and Update PCB agree), reports it (JSON
+  `pairSwaps`, `swaps`), is deterministic; a locked receiver, a part without the swap group and the option off keep
+  their pins; a pair that is not crossed routes exactly as the board's route.
+- `autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear`: the improvement pass shortens the ratsnest
+  HPWL, leaves no courtyard overlap or part outside the board, routes shorter with no more failures, gives the same
+  placement again, keeps locked parts, and the option round-trips (saved only when on).
+- `autoroute_via_minimisation_tries_every_net`: via minimisation with automatic grids and with a single one (the rest
+  of the nets through the shared batch) removes vias on a 383-via board, never costs a connection, is DRC-clean, and
+  gives the same copper on 1 and 4 threads.
+- `classic_router_copper_fingerprint`: a board below 2 M nodes placed and routed by the classic router hashes to a
+  fixed fingerprint (placement, copper, settings), so any change to the classic router or the greedy placer is caught.
 - `c_api_autoroute_strategy` (`sieda_c_api_autoroute_strategy_test`) and the app's `AutorouteStrategyTests`.
 
 - `global_router_capacity_batches_and_threads`: the global router detours around a boundary without capacity,

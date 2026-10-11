@@ -94,6 +94,10 @@ struct AutorouteOptions {
     /// a swap group and interchangeable gates of multi-unit parts change places where that shortens the ratsnest and
     /// crosses fewer airwires, back-annotated to the schematic like a manual PCB swap. Whole-board routes only.
     bool pinSwap = false;
+    /// Iterative placement improvement after Auto Place's greedy pass (PcbLayout::autoPlace): small shifts and swaps
+    /// of same-size parts that shorten the ratsnest (half-perimeter wire length) while every courtyard stays clear by
+    /// the placer's own spacing. Deterministic and bounded. JSON "improvePlacement", written only when on.
+    bool improvePlacement = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
@@ -371,6 +375,10 @@ const char* viaKind(const Via& v, int layerCount);
 /// only the candidates from its spatial index. Both paths give identical results; brute force is O(n²).
 void setDrcBruteForce(bool on);
 bool drcBruteForce();
+/// Testing aid: how many grids of its own via minimisation (AutorouteOptions::minimizeVias) may build for batches of
+/// nets that lie apart; 0 (default) = automatic (at least 24, more on small grids). The nets that do not fit in them are
+/// tried on one last shared grid, so every net is tried either way.
+void setViaMinimisationGrids(int grids);
 
 /// Autorouter strategy. Auto (default): boards whose routing grid has at least 2 M nodes (cells × copper layers) use
 /// the corridor router — coarse global routing, detailed routing only inside each connection's corridor, independent
@@ -498,6 +506,8 @@ struct RouteMetrics {
     int pinSwaps = 0, gateSwaps = 0;
     double ratsnestBefore = 0, ratsnestAfter = 0;  // mm, pad-to-pad ratsnest (spanning tree of each net's pads)
     int crossingsBefore = 0, crossingsAfter = 0;   // airwires of different nets that cross
+    /// Coupled pairs uncrossed by a P/N pin swap before routing (Project::autoPairCrossovers; reported when > 0).
+    int pairSwaps = 0;
 };
 /// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
 struct RouteReport {
@@ -555,6 +565,10 @@ public:
 private:
     RouteStats routeWithVoltageSpacing(const Schematic& sch, const RouteControl* control);
     RouteStats routeAll(const Schematic& sch, const RouteControl* control);
+    /// autoPlace's improvement pass (AutorouteOptions::improvePlacement) over the parts it placed (`todo`), with the
+    /// greedy pass's spacing data.
+    void improvePlacement(Schematic& sch, const std::vector<size_t>& todo, const std::map<int, double>& escapeOf,
+                          const std::map<int, double>& meshKeep, double isoGap, const std::map<int, int>& domainOf);
 
 public:
     void clearRouting() { tracks.clear(); vias.clear(); }

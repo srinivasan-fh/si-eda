@@ -1563,7 +1563,8 @@ void pcbTools(Table& t) {
           "Routes the board. Unplaced footprints are placed first. preset: default, fast, quality (coupled pairs, "
           "length rules, fewer vias, gloss), fanout, nets, netclass, area. options (merged over the preset): "
           "{coupledPairs, lengthAware, minimizeVias, gloss, arcCorners, arcRadius, teardrops, teardropStyle, fast, "
-          "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap}. Returns "
+          "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap, "
+          "improvePlacement (Auto Place's improvement pass)}. Returns "
           "routed / failed connections, vias and track length.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")

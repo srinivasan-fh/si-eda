@@ -1245,6 +1245,7 @@ char* autorouteJson(SiedaProject* project, const RouteControl& control) {
             j["ratsnestBefore"] = s.report.metrics.ratsnestBefore;
             j["ratsnestAfter"] = s.report.metrics.ratsnestAfter;
         }
+        if (s.report.metrics.pairSwaps > 0) j["pairSwaps"] = s.report.metrics.pairSwaps;  // coupled pairs uncrossed
         Json failed = Json::array();
         for (const auto& n : s.failedNets) failed.push(n);
         j["failedNets"] = failed;

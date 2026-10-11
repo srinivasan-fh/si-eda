@@ -79,7 +79,12 @@
   behaviour; JSON in `Core/src/Autoroute.cpp`), keep-outs, C API in `Core/src/sieda_c_autoroute.cpp`; app
   `SiEDA/Views/PCB/RoutingStrategy*.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`; guide in
   `docs/ROUTING.md`. `SIEDA_ROUTE_PROFILE=1` prints phase timings; the corridor router must give the same copper for
-  any thread count.
+  any thread count. Placement improvement after the greedy `autoPlace` (`PcbLayout::improvePlacement`, opt-in
+  `AutorouteOptions::improvePlacement`); coupled pairs' P/N crossover (`Project::autoPairCrossovers` in
+  `Core/src/PcbSwap.cpp`, a pin swap of a unit's pin-swap group, run by `Project::autoRoute` with `coupledPairs`);
+  via minimisation tries every net (adaptive batches + one shared grid, serial, `setViaMinimisationGrids` for tests);
+  `classic_router_copper_fingerprint` pins the classic router's and greedy placer's result — update its constant
+  only on purpose. `sieda_route_bench --options '{json}' --save file` measures strategy options and lets `cmp` compare runs.
 - MCP (any AI client drives SiEDA): engine in `Core/src/Mcp.cpp` (JSON-RPC dispatch, root-folder sandbox, resources,
   prompts, examples; `Core/include/sieda/Mcp.hpp`), the data-driven tool table in `Core/src/McpTools.cpp` (handlers
   call the C API), PNG / SVG renders in `Core/src/McpRender.cpp`, C API `sieda_mcp_*` in `Core/src/sieda_c_mcp.cpp`
