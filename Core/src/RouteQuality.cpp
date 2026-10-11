@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <tuple>
 
 #include "sieda/InteractiveRouter.hpp"
@@ -114,58 +115,218 @@ int keepingConnections(PcbLayout& pcb, const Schematic& sch, Edit edit) {
 }
 }  // namespace
 
+namespace {
+/// An end of a connection: its pad (on the pad's layers) or one of the net's vias within 1.5 mm of it (a BGA ball's
+/// dog-bone, on every layer the via spans), so a ball inside a ball field can be left through its via.
+struct ShapeEnd {
+    Vec2 at;
+    std::vector<int> layers;
+};
+
+int padNetAt(const std::vector<Pad>& pads, Vec2 at) {
+    for (const Pad& pd : pads)
+        if ((pd.position - at).length() < 1e-9) return pd.net;
+    return -1;
+}
+
+std::vector<ShapeEnd> shapeEnds(const PcbLayout& pcb, const std::vector<Pad>& pads, Vec2 at, int net) {
+    const int layers = std::max(1, pcb.settings.layerCount);
+    std::vector<ShapeEnd> out{{at, {}}};
+    for (const Pad& pd : pads)
+        if ((pd.position - at).length() < 1e-9)
+            for (int l = 0; l < layers; ++l)
+                if (pd.onLayer(l)) out[0].layers.push_back(l);
+    for (const Via& v : pcb.vias)
+        if (net >= 0 && v.net == net && (v.position - at).length() <= 1.5) {
+            ShapeEnd e{v.position, {}};
+            for (int l = std::max(0, v.fromLayer); l <= v.lastLayer(layers); ++l) e.layers.push_back(l);
+            out.push_back(e);
+        }
+    return out;
+}
+
+/// One route of the interactive router from `from` on layer l to `to` (through a via at `site` onto layer l2 when
+/// `site` is set), committed when it reaches its target. 1 when committed.
+int shapeAttempt(PcbLayout& pcb, const Schematic& sch, Vec2 from, Vec2 to, int l, RouterMode mode, const Vec2* site, int l2) {
+    InteractiveRouter r(pcb, sch);
+    RouterOptions o;
+    o.mode = mode;
+    r.setOptions(o);
+    if (!r.beginRoute(from, l)) return 0;
+    if (site) {
+        const RoutePreview& leg = r.moveTo(*site);
+        if (leg.blocked || (leg.end - *site).length() > 1e-6 || !r.addVia(l2)) {
+            r.cancel();
+            return 0;
+        }
+    }
+    if (!r.moveTo(to).reachedTarget) {
+        r.cancel();
+        return 0;
+    }
+    return r.commit().empty() ? 0 : 1;
+}
+
+/// Routes one ratsnest line on the shapes (both directions, every end and layer, walkaround then shove; then with a
+/// via at sites along and beside the line, unless `direct`). True when the board has fewer ratsnest lines afterwards
+/// and none opened.
+bool shapeRouteLine(PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads, const std::pair<Vec2, Vec2>& line,
+                    bool direct = false) {
+    const int layers = std::max(1, pcb.settings.layerCount);
+    const int net = padNetAt(pads, line.first);
+    const size_t before = pcb.ratsnest(sch).size();
+    auto routed = [&](int n) { return n > 0 && pcb.ratsnest(sch).size() < before; };
+    auto attempt = [&](Vec2 from, Vec2 to, int l, RouterMode mode, const Vec2* site, int l2) {
+        return routed(keepingConnections(pcb, sch, [&] { return shapeAttempt(pcb, sch, from, to, l, mode, site, l2); }));
+    };
+    for (int dir = 0; dir < 2; ++dir) {
+        const auto from = shapeEnds(pcb, pads, dir ? line.second : line.first, net);
+        const auto to = shapeEnds(pcb, pads, dir ? line.first : line.second, net);
+        for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove})
+            for (const ShapeEnd& f : from)
+                for (const ShapeEnd& t : to)
+                    for (int l : f.layers)
+                        if (attempt(f.at, t.at, l, mode, nullptr, -1)) return true;
+    }
+    if (direct) return false;
+    // Via sites along the line and beside it, nearest the middle first.
+    const Vec2 d = line.second - line.first;
+    const Vec2 side = d.length() > 0 ? Vec2{-d.y, d.x} * (2.0 / d.length()) : Vec2{0, 2};
+    for (double f : {0.5, 0.3, 0.7, 0.15, 0.85})
+        for (double sd : {0.0, 1.0, -1.0})
+            for (int l = 0; l < layers && layers > 1; ++l)
+                for (int l2 = 0; l2 < layers; ++l2) {
+                    const Vec2 site = line.first + d * f + side * sd;
+                    const bool onPad = std::any_of(pads.begin(), pads.end(), [&](const Pad& p) {
+                        return p.bounds().inflated(pcb.settings.viaDiameter / 2 + pcb.settings.clearance).contains(site);
+                    });
+                    if (l2 != l && !onPad && attempt(line.first, line.second, l, RouterMode::Walkaround, &site, l2)) return true;
+                }
+    return false;
+}
+
+/// The other nets whose unlocked tracks and vias a straight route of the line runs into (Highlight mode), most
+/// often hit first.
+std::vector<int> shapeBlockers(const PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads,
+                               const std::pair<Vec2, Vec2>& line) {
+    const int net = padNetAt(pads, line.first);
+    std::map<int, int> hits;
+    for (const ShapeEnd& f : shapeEnds(pcb, pads, line.first, net))
+        for (const ShapeEnd& t : shapeEnds(pcb, pads, line.second, net))
+            for (int l : f.layers) {
+                PcbLayout copy = pcb;
+                InteractiveRouter r(copy, sch);
+                RouterOptions o;
+                o.mode = RouterMode::Highlight;
+                r.setOptions(o);
+                if (!r.beginRoute(f.at, l)) continue;
+                for (const RouteCollision& c : r.moveTo(t.at).collisions) {
+                    if (c.kind == "track")
+                        for (const Track& tr : pcb.tracks)
+                            if (tr.id == c.id && !tr.locked && tr.net >= 0 && tr.net != net) ++hits[tr.net];
+                    if (c.kind == "via")
+                        for (const Via& v : pcb.vias)
+                            if (v.id == c.id && v.net >= 0 && v.net != net) ++hits[v.net];
+                }
+            }
+    std::vector<std::pair<int, int>> order(hits.begin(), hits.end());
+    std::stable_sort(order.begin(), order.end(), [](const auto& x, const auto& y) { return x.second > y.second; });
+    std::vector<int> out;
+    for (const auto& h : order) out.push_back(h.first);
+    return out;
+}
+}  // namespace
+
 int shapeComplete(PcbLayout& pcb, const Schematic& sch) {
     std::vector<std::pair<Vec2, Vec2>> lines = pcb.ratsnest(sch);
     std::stable_sort(lines.begin(), lines.end(), [](const auto& x, const auto& y) {
         return (x.second - x.first).length() < (y.second - y.first).length();
     });
-    const int layers = std::max(1, pcb.settings.layerCount);
-    int done = 0;
-    for (const auto& line : lines) {
-        // One attempt: from `from` on layer l, straight to `to` or through a via at `site` onto layer l2 (-1: none).
-        auto attempt = [&](Vec2 from, Vec2 to, int l, RouterMode mode, const Vec2* site, int l2) {
-            return keepingConnections(pcb, sch, [&] {
-                InteractiveRouter r(pcb, sch);
-                RouterOptions o;
-                o.mode = mode;
-                r.setOptions(o);
-                if (!r.beginRoute(from, l)) return 0;
-                if (site) {
-                    const RoutePreview& leg = r.moveTo(*site);
-                    if (leg.blocked || (leg.end - *site).length() > 1e-6 || !r.addVia(l2)) {
-                        r.cancel();
-                        return 0;
-                    }
-                }
-                if (!r.moveTo(to).reachedTarget) {
-                    r.cancel();
-                    return 0;
-                }
-                return r.commit().empty() ? 0 : 1;
-            });
-        };
-        const size_t before = pcb.ratsnest(sch).size();
-        auto routed = [&](int n) { return n > 0 && pcb.ratsnest(sch).size() < before; };
-        bool ok = false;
-        for (int dir = 0; dir < 2 && !ok; ++dir) {
-            const Vec2 from = dir ? line.second : line.first, to = dir ? line.first : line.second;
-            for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove})
-                for (int l = 0; l < layers && !ok; ++l) ok = routed(attempt(from, to, l, mode, nullptr, -1));
+    const std::vector<Pad> pads = pcb.pads(sch);
+    const size_t start = lines.size();
+    std::vector<std::pair<Vec2, Vec2>> open;
+    for (const auto& line : lines)
+        if (!shapeRouteLine(pcb, sch, pads, line)) open.push_back(line);
+    // Rip-up and re-route on the shapes: a line still open takes up the copper of a net in its way near the line
+    // (within 1.5 mm of it), routes, then routes that net's opened lines; kept only when fewer lines are open.
+    for (const auto& line : open) {
+        int tries = 0;
+        for (int blocker : shapeBlockers(pcb, sch, pads, line)) {
+            if (++tries > 3) break;
+            const std::vector<Track> tracks = pcb.tracks;
+            const std::vector<Via> vias = pcb.vias;
+            const size_t before = pcb.ratsnest(sch).size();
+            auto near = [&](Vec2 a, Vec2 b, double r) { return segmentSegmentDistance(a, b, line.first, line.second) <= r; };
+            pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) {
+                return t.net == blocker && !t.locked && !t.teardrop && near(t.a, t.b, 1.5 + t.width / 2);
+            }), pcb.tracks.end());
+            pcb.vias.erase(std::remove_if(pcb.vias.begin(), pcb.vias.end(), [&](const Via& v) {
+                return v.net == blocker && near(v.position, v.position, 1.5);
+            }), pcb.vias.end());
+            bool ok = shapeRouteLine(pcb, sch, pads, line, true);
+            if (ok)
+                for (const auto& l2 : pcb.ratsnest(sch))
+                    if (padNetAt(pads, l2.first) == blocker && !shapeRouteLine(pcb, sch, pads, l2, true)) ok = false;
+            if (ok && pcb.ratsnest(sch).size() < before) break;
+            pcb.tracks = tracks;
+            pcb.vias = vias;
         }
-        // Via sites along the line and beside it, nearest the middle first.
-        const Vec2 d = line.second - line.first;
-        const Vec2 side = d.length() > 0 ? Vec2{-d.y, d.x} * (2.0 / d.length()) : Vec2{0, 2};
-        for (double f : {0.5, 0.3, 0.7, 0.15, 0.85})
-            for (double s : {0.0, 1.0, -1.0})
-                for (int l = 0; l < layers && !ok && layers > 1; ++l)
-                    for (int l2 = 0; l2 < layers && !ok; ++l2) {
-                        if (l2 == l) continue;
-                        const Vec2 site = line.first + d * f + side * s;
-                        ok = routed(attempt(line.first, line.second, l, RouterMode::Walkaround, &site, l2));
-                    }
-        if (ok) ++done;
     }
-    return done;
+    const size_t left = pcb.ratsnest(sch).size();
+    return left < start ? static_cast<int>(start - left) : 0;
+}
+
+int balanceChipPads(PcbLayout& pcb, const Schematic& sch) {
+    const auto pads = pcb.pads(sch);
+    const BoardSettings& s = pcb.settings;
+    std::set<std::string> poured;
+    for (const auto& z : pcb.zones) poured.insert(z.net);
+    auto netName = [&](int n) { return n >= 0 && static_cast<size_t>(n) < sch.nets().size() ? sch.nets()[static_cast<size_t>(n)].name : std::string(); };
+    std::map<int, std::vector<const Pad*>> byPart;
+    for (const Pad& p : pads) byPart[p.componentId].push_back(&p);
+    int necked = 0;
+    for (const auto& [id, mine] : byPart) {
+        if (mine.size() != 2 || mine[0]->throughHole || mine[1]->throughHole || mine[0]->size.x * mine[0]->size.y > 4.0) continue;
+        double mass[2] = {0, 0};
+        std::vector<size_t> leaving[2];
+        for (int k = 0; k < 2; ++k) {
+            const Pad& p = *mine[static_cast<size_t>(k)];
+            if (poured.count(netName(p.net))) mass[k] += 2 * s.trackWidth;
+            for (size_t i = 0; i < pcb.tracks.size(); ++i) {
+                const Track& t = pcb.tracks[i];
+                if (t.net == p.net && t.layer == p.smdLayer && (p.bounds().contains(t.a) != p.bounds().contains(t.b))) {
+                    mass[k] += t.width;
+                    leaving[k].push_back(i);
+                }
+            }
+        }
+        const int k = mass[0] >= mass[1] ? 0 : 1;
+        const double hi = mass[k], lo = std::max(mass[1 - k], 0.05);
+        if (hi < 0.6 || hi <= 3 * lo || leaving[k].size() != 1) continue;
+        Track& t = pcb.tracks[leaving[k][0]];
+        const double neck = std::max(s.minTrackWidth, std::ceil(t.width / 1.25 * 100 - 1e-6) / 100);
+        if (t.arc || t.teardrop || t.locked || neck >= t.width || (neck >= 0.6 && neck > 3 * lo)) continue;
+        // The stretch from the pad out to 0.25 mm beyond its edge.
+        const Pad& p = *mine[static_cast<size_t>(k)];
+        const bool aIn = p.bounds().contains(t.a);
+        const Vec2 in = aIn ? t.a : t.b, out = aIn ? t.b : t.a;
+        const double len = (out - in).length();
+        const double reach = std::max(p.size.x, p.size.y) / 2 + 0.25;
+        if (len <= reach + 0.05) {
+            t.width = neck;
+        } else {
+            Track rest = t;
+            const Vec2 cut = in + (out - in) * (reach / len);
+            t.a = in;
+            t.b = cut;
+            t.width = neck;
+            rest.a = cut;
+            rest.b = out;
+            pcb.addTrack(rest);
+        }
+        ++necked;
+    }
+    return necked;
 }
 
 int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipNets) {

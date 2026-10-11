@@ -614,6 +614,9 @@ private:
     int nextId_ = 1;
     /// Set by the corridor router around its clean-up: corners a T-join or a via's edge depends on are not reshaped.
     bool cleanupKeepsJoins_ = false;
+    /// Set by autoNetWidths for routeAll: nets whose simulated current needs a wider track on an inner layer than the
+    /// width they route at; on boards with inner layers they keep to the outer ones.
+    std::set<int> outerOnlyNets_;
     /// The corridor router's multi-resolution grid: off for a second, full-resolution route (fullResolutionOnly_), and
     /// whether the last route used it (usedCoarse_).
     bool fullResolutionOnly_ = false, usedCoarse_ = false;

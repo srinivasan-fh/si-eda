@@ -2866,6 +2866,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         if (was / step != progressNow.done / step || progressNow.done >= progressNow.total) report();
     };
     report();
+    outerOnlyNets_.clear();
     if (settings.autoSizeNets) autoNetWidths(sch);
     // Reliability net classes: RF lines get their 50 Ω width (when the stack-up allows a practical one);
     // leakage-sensitive and fast nets keep extra spacing and route first, so everything else keeps away from them.
@@ -3041,7 +3042,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     if (strategy0.fanoutOnly) order.clear();  // fan-outs only (BGA dog-bones, pour pad vias)
     // Net-class layers: masks of the layers each net may route on, and of its SMD pads' layers (to leave them).
     std::vector<uint32_t> netLayerMask, netPadLayerMask;
-    if (!strategy0.classLayers.empty()) {
+    const bool outerOnly = settings.layerCount > 2 && settings.layerCount <= 32 && !outerOnlyNets_.empty();
+    if (!strategy0.classLayers.empty() || outerOnly) {
         netLayerMask.assign(nets.size(), 0);
         netPadLayerMask.assign(nets.size(), 0);
         for (const NetRule& r : sch.netRules()) {
@@ -3052,6 +3054,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 if (l >= 0 && l < std::max(1, settings.layerCount) && l < 32) m |= 1u << l;
             netLayerMask[static_cast<size_t>(r.net)] = m;
         }
+        // Current-carrying nets too narrow for an inner layer (IPC-2221 inner width) keep to the outer layers.
+        const uint32_t outer = 1u | (1u << (settings.layerCount - 1));
+        for (int n : outerOnly ? outerOnlyNets_ : std::set<int>{})
+            if (n >= 0 && static_cast<size_t>(n) < nets.size()) {
+                uint32_t& m = netLayerMask[static_cast<size_t>(n)];
+                m = (m & outer) ? (m & outer) : outer;
+            }
         for (const Pad& p : ps)
             if (p.net >= 0 && !p.throughHole && p.smdLayer < 32) netPadLayerMask[static_cast<size_t>(p.net)] |= 1u << p.smdLayer;
     }
@@ -5209,8 +5218,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         for (const auto& l : best.report.lengths)
             if (l.tuned) ++best.lengthTuned;
     }
-    // Corridor routes: no acute joins (a branch that left its net's track at 45° joins it square instead).
-    if (corridorMode) routequality::fixAcuteJoins(*this, sch);
+    // No acute joins (a branch that left its net's track at 45° joins it square instead).
+    routequality::fixAcuteJoins(*this, sch);
+    // Small chips: a single wide track necked at the pad where it would tombstone the part.
+    routequality::balanceChipPads(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     // Report: every differential pair, coupled or not, with its skew after tuning.
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k) {
@@ -5482,13 +5493,17 @@ std::map<std::string, double> PcbLayout::autoNetWidths(const Schematic& sch) {
     for (auto [net, amps] : current) {
         double need = ipc2221TrackWidth(amps, settings.maxTempRise, settings.copperWeightOz, false) * 1.25;
         need = std::min(3.0, std::ceil(need / 0.05) * 0.05);
-        if (need <= settings.trackWidth + 1e-9) continue;
         const std::string& name = nets[static_cast<size_t>(net)].name;
-        double& w = settings.netWidths[name];
-        if (w < need) {
-            w = need;
-            set[name] = need;
+        if (need > settings.trackWidth + 1e-9) {
+            double& w = settings.netWidths[name];
+            if (w < need) {
+                w = need;
+                set[name] = need;
+            }
         }
+        const bool poured = std::any_of(zones.begin(), zones.end(), [&](const CopperZone& z) { return z.net == name; });
+        if (!poured && settings.widthFor(name) + 1e-9 < ipc2221TrackWidth(amps, settings.maxTempRise, settings.copperWeightOz, true))
+            outerOnlyNets_.insert(net);
     }
     return set;
 }

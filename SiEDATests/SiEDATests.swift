@@ -3104,13 +3104,12 @@ final class RealisticAssemblyTests: XCTestCase {
     }
 }
 
-/// TEMPORARY diagnostic: the reference designs that fail verification with placement improvement on.
+/// TEMPORARY diagnostic: every reference design with placement improvement on.
 @MainActor
 final class PlacementImprovementDiagnostics: XCTestCase {
     func testPlacementImprovementFindings() throws {
         executionTimeAllowance = 1800
-        let keys = ["Body ECU", "Satellite", "Naval", "ECG", "Payment Terminal"]
-        for template in OfflineProvider.templates where keys.contains(where: { template.plan.title.contains($0) }) {
+        for template in OfflineProvider.templates {
             func build(_ improve: Bool) -> EDAEngine {
                 let engine = EDAEngine()
                 DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
@@ -3133,10 +3132,18 @@ final class PlacementImprovementDiagnostics: XCTestCase {
             }
             print("[PlaceDiag] \(template.plan.title): failed \(stats.failed), verdict \(String(describing: report?.verdict))")
             print("[PlaceDiag]   moved: \(moved.joined(separator: " "))")
+            let snap = engine.snapshot()
+            let nets = snap?.nets ?? []
+            func netName(_ n: Int) -> String { nets.first { $0.index == n }?.name ?? "\(n)" }
             for f in report?.stages.flatMap(\.findings) ?? [] where f.severity != .info {
                 let refs = f.components.compactMap { id in parts.first { $0.id == id }?.ref }
                 print(String(format: "[PlaceDiag]   %@ %@ @(%.2f,%.2f) %@", f.code, f.message, f.x, f.y, refs.joined(separator: ",")))
+                for t in snap?.tracks ?? [] where min(hypot(t.ax - f.x, t.ay - f.y), hypot(t.bx - f.x, t.by - f.y)) < 1.5 {
+                    print(String(format: "[PlaceDiag]     track %@ L%d w%.2f (%.2f,%.2f)-(%.2f,%.2f)", netName(t.net), t.layer, t.width,
+                                 t.ax, t.ay, t.bx, t.by))
+                }
             }
+            for l in snap?.ratsnest ?? [] { print("[PlaceDiag]   open \(l)") }
         }
     }
 }
