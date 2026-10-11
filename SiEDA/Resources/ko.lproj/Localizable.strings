@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "SiEDA 에이전트에 사용";
 "Use the Bundled Model" = "번들 모델 사용";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "회로 모델을 사용하면 새 회로를 설계하는 AI가 됩니다. 계정이나 다운로드 없이 이 Mac에서 실행되며, 사양과 검토는 Offline Designer가 맡습니다.";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "VRML(.wrl), STL, OBJ 또는 STEP 모델을 첨부하고 풋프린트에 맞춤";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "KiCad 라이브러리에 포함된 VRML(.wrl), STL, OBJ 또는 STEP(.step / .stp) 파일을 선택하세요.";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML(.wrl), STL, OBJ 또는 STEP(.step / .stp, KiCad 라이브러리에 포함된 형식).";

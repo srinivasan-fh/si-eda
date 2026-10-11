@@ -23,11 +23,13 @@ struct Model3DFitResult: Decodable, Equatable {
     var seated: CustomPartSpec.Model3DRef?
 }
 
-/// Imported 3D models through the core: reading VRML / STL / OBJ files, fitting them to the footprint and the
+/// Imported 3D models through the core: reading VRML / STL / OBJ / STEP files, fitting them to the footprint and the
 /// part-alone preview mesh. Pure functions of their arguments (the registry is the core's): safe from any thread.
 extension EDAEngine {
-    /// File types the 3D model importer reads (STEP is recognised and refused with the reason).
+    /// File types the 3D model importer reads.
     static let model3dExtensions: Set<String> = ["wrl", "vrml", "stl", "obj", "step", "stp"]
+    /// Text formats, sent as they are (binary STL goes as base64).
+    static let model3dTextExtensions: Set<String> = ["wrl", "vrml", "obj", "step", "stp"]
 
     private static func takeModelString(_ pointer: UnsafeMutablePointer<CChar>?) -> String? {
         guard let pointer else { return nil }
@@ -38,7 +40,7 @@ extension EDAEngine {
     /// Reads a model file's bytes (`name` gives the format by its extension). Binary files go as base64.
     static func importModel3D(name: String, data: Data) -> Model3DImportResult {
         var request: [String: Any] = ["name": name]
-        let isText = name.lowercased().hasSuffix(".wrl") || name.lowercased().hasSuffix(".vrml") || name.lowercased().hasSuffix(".obj")
+        let isText = Self.model3dTextExtensions.contains((name as NSString).pathExtension.lowercased())
         if isText, let text = String(data: data, encoding: .utf8) {
             request["content"] = text
         } else {

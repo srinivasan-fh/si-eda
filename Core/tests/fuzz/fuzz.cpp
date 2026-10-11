@@ -29,9 +29,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 #elif defined(SIEDA_FUZZ_LIBRARY)
         // The first byte picks the format, the rest is the file.
         static const char* names[] = {"f.kicad_mod", "f.kicad_sym", "f.lbr", "f.SchLib", "f.PcbLib", "f.IntLib",
-                                      "f.wrl", "f.stl", "f.obj"};
+                                      "f.wrl", "f.stl", "f.obj", "f.step"};
         if (size == 0) return 0;
-        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 9], text.substr(1)}})).dump();
+        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 10], text.substr(1)}})).dump();
 #elif defined(SIEDA_FUZZ_IDF)
         Schematic sch;
         sch.addComponent(ComponentKind::Resistor, "10k", {0, 0});

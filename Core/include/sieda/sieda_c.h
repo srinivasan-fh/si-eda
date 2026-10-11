@@ -686,11 +686,12 @@ SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_compone
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);
-/* Imported 3D models of parts (docs/LIBRARY_IMPORT.md#3d-models): VRML 2.0 (.wrl), STL (ASCII / binary), OBJ.
+/* Imported 3D models of parts (docs/LIBRARY_IMPORT.md#3d-models): VRML 2.0 (.wrl), STL (ASCII / binary), OBJ,
+ * STEP AP203 / AP214 (.step / .stp, tessellated by the core, converted to mm by the file's unit).
  * request {"name":"SOIC-8.wrl","content":"<text>"} or {"name":"part.stl","contentBase64":"…"} →
  * {"ok","error","id","name","format","unit","vertices","triangles","bounds":[minx,miny,minz,maxx,maxy,maxz],
  *  "warnings":[…]}. The mesh is registered; a part refers to it with spec "model3d":{"id","name","unit","scale":[3],
- *  "rotate":[3],"offset":[3]} and it is saved with the project. STEP files are refused with the reason. Caller frees. */
+ *  "rotate":[3],"offset":[3]} and it is saved with the project. Caller frees. */
 char* sieda_model3d_import(const char* request_json);
 /* Aligned bounds (mm, footprint frame, z up) of a spec's model and the alignment that centres it on the footprint
  * and seats it on the board: {"ok","error","bounds":[6],"seated":{model3d}}. Caller frees. */

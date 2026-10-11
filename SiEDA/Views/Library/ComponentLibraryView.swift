@@ -365,7 +365,7 @@ struct ComponentLibraryView: View {
                             .help("Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad")
                         Button { model3dSource = draft } label: { Label("3D Model…", systemImage: "cube") }
                             .disabled(draft.pins.isEmpty)
-                            .help("Attach a VRML (.wrl), STL or OBJ model and align it on the footprint")
+                            .help("Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint")
                         if let model = draft.model3d {
                             Text(verbatim: model.name).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         }
@@ -750,7 +750,7 @@ struct ComponentLibraryView: View {
     /// Binary library files, sent to the core as base64 (Altium compound files).
     static let binaryExtensions: Set<String> = ["schlib", "pcblib", "intlib", "stl"]
     /// 3D models imported with the footprints that name them (KiCad .3dshapes folders).
-    static let modelExtensions: Set<String> = ["wrl", "vrml", "stl", "obj"]
+    static let modelExtensions: Set<String> = ["wrl", "vrml", "stl", "obj", "step", "stp"]
 
     /// Library import: KiCad / Eagle files, or folders of them (a KiCad .pretty or .kicad_symdir). The core reads,
     /// pairs and checks the parts; the review sheet adds the chosen ones to the project library.
@@ -762,7 +762,7 @@ struct ComponentLibraryView: View {
         panel.allowedContentTypes = (Self.libraryExtensions.union(Self.modelExtensions)).compactMap { UTType(filenameExtension: $0) }
             + [UTType.folder]
         panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym, KiCad 5 .lib), Eagle libraries (.lbr), "
-            + "Altium libraries (.SchLib, .PcbLib), 3D models (.wrl, .stl, .obj) or folders of them."
+            + "Altium libraries (.SchLib, .PcbLib), 3D models (.wrl, .stl, .obj, .step) or folders of them."
         guard panel.runModal() == .OK else { return }
         let files = Self.libraryFiles(at: panel.urls)
         guard !files.isEmpty else {
@@ -779,7 +779,7 @@ struct ComponentLibraryView: View {
     }
 
     /// The library files among `urls`, including those inside chosen folders; at most 2000 files of up to 32 MB.
-    /// 3D models (.wrl, .stl, .obj) in the chosen folders come along, and a KiCad `X.pretty` folder also brings the
+    /// 3D models (.wrl, .stl, .obj, .step) in the chosen folders come along, and a KiCad `X.pretty` folder also brings the
     /// models of its sibling `X.3dshapes` folder, so footprints get the models they name.
     static func libraryFiles(at urls: [URL]) -> [LibraryImportFile] {
         var found: [URL] = []
