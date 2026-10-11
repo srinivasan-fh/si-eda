@@ -3144,6 +3144,13 @@ final class PlacementImprovementDiagnostics: XCTestCase {
                 }
             }
             for l in snap?.ratsnest ?? [] { print("[PlaceDiag]   open \(l)") }
+            if stats.failed > 0 {
+                var options = engine.autorouteOptions()
+                options.shapeCompletion = true
+                engine.setAutorouteOptions(options)
+                let again = engine.autoRoute()
+                print("[PlaceDiag]   with shape completion: failed \(again.failed), verdict \(String(describing: engine.runVerification()?.verdict))")
+            }
         }
     }
 }

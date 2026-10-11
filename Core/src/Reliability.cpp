@@ -547,8 +547,10 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                     double lu = u.length(), lv = v.length();
                     if (lu < eps || lv < eps) continue;
                     double cosine = (u.x * v.x + u.y * v.y) / (lu * lv);
+                    // A join inside a pad or a via of the net is covered by copper (as the DRC's DRC_ACUTE_ANGLE).
                     bool onPad = false;
                     for (const auto& pd : pads) onPad |= pd.onLayer(a.layer) && pd.bounds().contains(p);
+                    for (const auto& v : pcb.vias) onPad |= v.net == a.net && (v.position - p).length() <= v.diameter / 2;
                     if (cosine > 0.02 && !onPad) {
                         add(Severity::Warning, "REL_ACID_TRAP",
                             "Net " + netName(a.net) + " turns at an acute angle (" +

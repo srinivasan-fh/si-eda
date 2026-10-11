@@ -302,27 +302,41 @@ int balanceChipPads(PcbLayout& pcb, const Schematic& sch) {
         }
         const int k = mass[0] >= mass[1] ? 0 : 1;
         const double hi = mass[k], lo = std::max(mass[1 - k], 0.05);
-        if (hi < 0.6 || hi <= 3 * lo || leaving[k].size() != 1) continue;
-        Track& t = pcb.tracks[leaving[k][0]];
-        const double neck = std::max(s.minTrackWidth, std::ceil(t.width / 1.25 * 100 - 1e-6) / 100);
-        if (t.arc || t.teardrop || t.locked || neck >= t.width || (neck >= 0.6 && neck > 3 * lo)) continue;
-        // The stretch from the pad out to 0.25 mm beyond its edge.
+        if (hi < 0.6 || hi <= 3 * lo || leaving[k].empty()) continue;
+        // Every track leaving the heavy pad necked to its current width, when that balances the pads.
+        double after = hi;
+        std::vector<std::pair<size_t, double>> plan;
+        bool fixed = false;
+        for (size_t i : leaving[k]) {
+            const Track& t = pcb.tracks[i];
+            const double neck = std::max(s.minTrackWidth, std::ceil(t.width / 1.25 * 100 - 1e-6) / 100);
+            fixed = fixed || t.arc || t.teardrop || t.locked;
+            if (neck < t.width) {
+                after -= t.width - neck;
+                plan.emplace_back(i, neck);
+            }
+        }
+        if (fixed || plan.empty() || (after >= 0.6 && after > 3 * lo)) continue;
         const Pad& p = *mine[static_cast<size_t>(k)];
-        const bool aIn = p.bounds().contains(t.a);
-        const Vec2 in = aIn ? t.a : t.b, out = aIn ? t.b : t.a;
-        const double len = (out - in).length();
-        const double reach = std::max(p.size.x, p.size.y) / 2 + 0.25;
-        if (len <= reach + 0.05) {
-            t.width = neck;
-        } else {
-            Track rest = t;
-            const Vec2 cut = in + (out - in) * (reach / len);
-            t.a = in;
-            t.b = cut;
-            t.width = neck;
-            rest.a = cut;
-            rest.b = out;
-            pcb.addTrack(rest);
+        for (const auto& [i, neck] : plan) {
+            // The stretch from the pad out to 0.25 mm beyond its edge.
+            Track& t = pcb.tracks[i];
+            const bool aIn = p.bounds().contains(t.a);
+            const Vec2 in = aIn ? t.a : t.b, out = aIn ? t.b : t.a;
+            const double len = (out - in).length();
+            const double reach = std::max(p.size.x, p.size.y) / 2 + 0.25;
+            if (len <= reach + 0.05) {
+                t.width = neck;
+            } else {
+                Track rest = t;
+                const Vec2 cut = in + (out - in) * (reach / len);
+                t.a = in;
+                t.b = cut;
+                t.width = neck;
+                rest.a = cut;
+                rest.b = out;
+                pcb.addTrack(rest);
+            }
         }
         ++necked;
     }
