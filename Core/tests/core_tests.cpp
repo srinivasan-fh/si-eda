@@ -1990,6 +1990,15 @@ TEST(board_outline_holes_and_pours) {
             CHECK(p.pcb.settings.holeDistance(rc.center()) > 0);
         }
     }
+    // The board mask is kept between fills by its inputs: a wider edge clearance pours less, the old one the same.
+    auto refill = [&] { return p.pcb.fillZones(s, p.pcb.pads(s), p.pcb.tracks, p.pcb.vias); };
+    const double area0 = fills[0].area() + fills[1].area();
+    p.pcb.settings.edgeClearance += 1;
+    const auto wider = refill();
+    CHECK(wider.size() == 2 && wider[0].area() + wider[1].area() < area0);
+    p.pcb.settings.edgeClearance -= 1;
+    const auto again = refill();
+    CHECK(again.size() == 2 && again[0].rects.size() == fills[0].rects.size() && again[1].area() == fills[1].area());
     std::string first;
     CHECK(drcErrors(p, &first) == 0);
     if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
@@ -19739,6 +19748,42 @@ TEST(json_hostile_nesting_and_number_format) {
     CHECK(Json::parse("[0.1,1e-7,-2.5e300,123456789012,0.30000000000000004,1e15,-0.0,3.14159265358979,-7]").dump() ==
           "[0.1,1e-07,-2.5e+300,123456789012,0.3,1e+15,0,3.141592654,-7]");
     CHECK(Json(std::string("a\x01\"b\\c\n")).dump() == "\"a\\u0001\\\"b\\\\c\\n\"");
+}
+
+TEST(json_short_decimals_match_printf) {
+    // Short decimals (coordinates, widths) take a fast path in the writer; every one must read as "%.10g" does.
+    for (double v : {0.0001, 0.00015, 0.00005, 9.9999e-5, 0.1, 0.3, 0.30000000000000004, 117.25, -117.25, 0.5,
+                     -0.0625, 99999.9999, 999999.9999, 999999.99999, 10000.000001, 9999.999999, 0.333333, 0.3333333,
+                     1234.56789, 123456.789, 1e-7, 2.5e300, 1e15 + 0.5, 0.000999, 0.001, 65535.5}) {
+        char buf[40];
+        std::snprintf(buf, sizeof buf, "%.10g", v);
+        CHECK(Json(v).dump() == buf);
+    }
+    CHECK(Json(0.1 + 0.2).dump() == "0.3" && Json(-0.0).dump() == "0" && Json(1e6).dump() == "1000000");
+}
+
+TEST(json_objects_keep_map_order) {
+    // Objects are flat vectors in key order (what std::map gave), whatever order the keys arrive in.
+    Json j = Json::object();
+    j["b"] = 1;
+    j["a"] = 2;
+    j["c"] = 3;
+    j["a"] = 4;
+    CHECK(j.dump() == "{\"a\":4,\"b\":1,\"c\":3}" && j.size() == 3 && j.has("c") && !j.has("d"));
+    CHECK(Json::parse("{\"z\":1,\"y\":{\"q\":2,\"p\":3},\"\":0}").dump() == "{\"\":0,\"y\":{\"p\":3,\"q\":2},\"z\":1}");
+    Json a = Json::array();
+    a.reserve(3);
+    a.push(1);
+    a.push("x\"y");
+    CHECK(a.size() == 1 + 1 && a.dump() == "[1,\"x\\\"y\"]");
+    CHECK(Json::parse("[1e5,-0.5,12,\"a\\u00e9\\n\"]").dump() == "[100000,-0.5,12,\"aé\\n\"]");
+    bool threw = false;
+    try {
+        Json::parse("[0x1A]");
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
 }
 
 #include "sieda/FieldSolver.hpp"
