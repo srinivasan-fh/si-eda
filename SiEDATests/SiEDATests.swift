@@ -3104,57 +3104,6 @@ final class RealisticAssemblyTests: XCTestCase {
     }
 }
 
-/// TEMPORARY diagnostic: every reference design with placement improvement on.
-@MainActor
-final class PlacementImprovementDiagnostics: XCTestCase {
-    func testPlacementImprovementFindings() throws {
-        executionTimeAllowance = 1800
-        for template in OfflineProvider.templates {
-            func build(_ improve: Bool) -> EDAEngine {
-                let engine = EDAEngine()
-                DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
-                var options = engine.autorouteOptions()
-                options.improvePlacement = improve
-                engine.setAutorouteOptions(options)
-                engine.autoPlace(all: true)
-                engine.fitBoard(margin: 2.5)
-                return engine
-            }
-            let greedy = build(false).snapshot()?.components ?? []
-            let engine = build(true)
-            let parts = engine.snapshot()?.components ?? []
-            let stats = engine.autoRoute()
-            let report = engine.runVerification()
-            let moved = parts.compactMap { c -> String? in
-                guard let g = greedy.first(where: { $0.ref == c.ref }), abs(g.pcb.x - c.pcb.x) + abs(g.pcb.y - c.pcb.y) > 1e-6
-                else { return nil }
-                return String(format: "%@(%.1f,%.1f→%.1f,%.1f)", c.ref, g.pcb.x, g.pcb.y, c.pcb.x, c.pcb.y)
-            }
-            print("[PlaceDiag] \(template.plan.title): failed \(stats.failed), verdict \(String(describing: report?.verdict))")
-            print("[PlaceDiag]   moved: \(moved.joined(separator: " "))")
-            let snap = engine.snapshot()
-            let nets = snap?.nets ?? []
-            func netName(_ n: Int) -> String { nets.first { $0.index == n }?.name ?? "\(n)" }
-            for f in report?.stages.flatMap(\.findings) ?? [] where f.severity != .info {
-                let refs = f.components.compactMap { id in parts.first { $0.id == id }?.ref }
-                print(String(format: "[PlaceDiag]   %@ %@ @(%.2f,%.2f) %@", f.code, f.message, f.x, f.y, refs.joined(separator: ",")))
-                for t in snap?.tracks ?? [] where min(hypot(t.ax - f.x, t.ay - f.y), hypot(t.bx - f.x, t.by - f.y)) < 1.5 {
-                    print(String(format: "[PlaceDiag]     track %@ L%d w%.2f (%.2f,%.2f)-(%.2f,%.2f)", netName(t.net), t.layer, t.width,
-                                 t.ax, t.ay, t.bx, t.by))
-                }
-            }
-            for l in snap?.ratsnest ?? [] { print("[PlaceDiag]   open \(l)") }
-            if stats.failed > 0 {
-                var options = engine.autorouteOptions()
-                options.shapeCompletion = true
-                engine.setAutorouteOptions(options)
-                let again = engine.autoRoute()
-                print("[PlaceDiag]   with shape completion: failed \(again.failed), verdict \(String(describing: engine.runVerification()?.verdict))")
-            }
-        }
-    }
-}
-
 /// Productivity: the biggest reference designs go from plan to a placed, routed, verified and 3D board quickly, through
 /// the same engine calls the app makes (Debug builds compile the C++ core with -O2).
 @MainActor
