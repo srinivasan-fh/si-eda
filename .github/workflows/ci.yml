@@ -124,6 +124,9 @@ jobs:
             SWIFT_COMPILATION_MODE=wholemodule \
             -test-timeouts-enabled YES -default-test-execution-time-allowance 240 \
             test 2>&1 | tee xcodebuild.log
+      - name: Placement diagnostics (temporary)
+        if: always()
+        run: grep -F "[PlaceDiag]" xcodebuild.log || true
       - name: Report compiler and test errors
         if: failure()
         run: |
