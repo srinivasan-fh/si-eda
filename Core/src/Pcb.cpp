@@ -2853,6 +2853,25 @@ std::vector<TamperMeshGeometry> PcbLayout::tamperMeshGeometry(const Schematic& s
     return out;
 }
 
+/// Extra clearance (beyond the board's) each net keeps to other nets' copper: leakage spacing around high-impedance
+/// nets, 3W around fast nets, and the schematic's net-class clearances. The router and its clean-up both keep it.
+static std::map<int, double> netExtraClearances(const BoardSettings& settings, const Schematic& sch, const NetClassification& classes) {
+    std::map<int, double> extraClearance;
+    for (const auto& [net, guard] : classes.highImpedance)
+        extraClearance[net] = std::max(0.0, leakageSpacing(settings) - settings.clearance);
+    for (int net : classes.fast) {
+        double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
+        extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
+    }
+    // Net classes from the schematic's directives: their clearance to other nets' copper.
+    if (!settings.netClearances.empty())
+        for (const auto& n : sch.nets()) {
+            const double need = settings.clearanceFor(n.name) - settings.clearance;
+            if (need > 1e-9) extraClearance[n.index] = std::max(extraClearance[n.index], need);
+        }
+    return extraClearance;
+}
+
 RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control) {
     RouteProfile profile;
     // Progress and cancellation (RouteControl): reported from this thread only, between nets / batches.
@@ -2885,19 +2904,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             if (!settings.netWidths.count(name)) settings.netWidths[name] = std::max(settings.minTrackWidth, std::ceil(w * 100) / 100);
         }
     }
-    std::map<int, double> extraClearance;
-    for (const auto& [net, guard] : classes.highImpedance)
-        extraClearance[net] = std::max(0.0, leakageSpacing(settings) - settings.clearance);
-    for (int net : classes.fast) {
-        double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
-        extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
-    }
-    // Net classes from the schematic's directives: their clearance to other nets' copper.
-    if (!settings.netClearances.empty())
-        for (const auto& n : sch.nets()) {
-            const double need = settings.clearanceFor(n.name) - settings.clearance;
-            if (need > 1e-9) extraClearance[n.index] = std::max(extraClearance[n.index], need);
-        }
+    const std::map<int, double> extraClearance = netExtraClearances(settings, sch, classes);
     auto extra = [&](int net) {
         auto it = extraClearance.find(net);
         return it == extraClearance.end() ? 0.0 : it->second;
@@ -5310,6 +5317,14 @@ int PcbLayout::applyHdiVias(const Schematic& sch) {
 int PcbLayout::cleanupRouting(const Schematic& sch) {
     const auto ps = pads(sch);
     const double clr = settings.clearance;
+    // Each net's extra clearance (leakage, 3W, net classes): a reshaped piece keeps the larger of the two nets'.
+    const std::map<int, double> extraOf = netExtraClearances(settings, sch, classifyNets(sch, ""));
+    double maxExtra = 0;
+    for (const auto& e : extraOf) maxExtra = std::max(maxExtra, e.second);
+    auto need = [&](int a, int b) {
+        auto ia = extraOf.find(a), ib = extraOf.find(b);
+        return clr + std::max(ia == extraOf.end() ? 0.0 : ia->second, ib == extraOf.end() ? 0.0 : ib->second);
+    };
     int changes = 0;
     auto key = [](int layer, Vec2 p) {
         return std::make_tuple(layer, std::llround(p.x * 1e4), std::llround(p.y * 1e4));
@@ -5337,7 +5352,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
     };
     // Clearance of a new piece of copper (segment a–b, width w, net) to everything of other nets on its layer.
     auto clear = [&](int layer, int net, Vec2 a, Vec2 b, double w, size_t skipA, size_t skipB) {
-        const Rect reach = segmentBox(a, b, w / 2 + clr + 1e-3);
+        const Rect reach = segmentBox(a, b, w / 2 + clr + maxExtra + 1e-3);
         // A track that absorbed another one this pass now also spans that one's rectangle.
         nearTracks.clear();
         for (size_t i : trackIx->query(reach.inflated(widestTrack / 2))) {
@@ -5347,19 +5362,19 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
         for (size_t i : nearTracks) {
             const Track& t = tracks[i];
             if (i == skipA || i == skipB || t.layer != layer || t.net == net) continue;
-            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < clr - 1e-6) return false;
+            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < need(net, t.net) - 1e-6) return false;
         }
         for (size_t pi : padIx.query(reach)) {
             const Pad& pd = ps[pi];
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
             double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
                                 : segmentRectDistance(a, b, pd.bounds());
-            if (d - w / 2 < clr - 1e-6) return false;
+            if (d - w / 2 < need(net, pd.net) - 1e-6) return false;
         }
         for (size_t vi : viaIx.query(reach)) {
             const Via& v = vias[vi];
             if (v.net == net || !v.spans(layer)) continue;
-            if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
+            if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < need(net, v.net) - 1e-6) return false;
         }
         Vec2 mid = (a + b) * 0.5;
         return settings.edgeDistance(mid) >= settings.edgeClearance + w / 2 - 1e-6;
