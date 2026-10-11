@@ -7452,6 +7452,16 @@ TEST(router_tunes_length_with_meanders) {
     CHECK(r.beginRoute(padAt(p, r1, 1), 0));
     r.moveTo(padAt(p, r2, 0));
     CHECK(r.commit().ok);
+    // A branch of the net that joins the track part-way would be cut off by a meander: that track is left alone.
+    Project branched = p;
+    Track stub = branched.pcb.tracks.front();
+    stub.id = 1 << 20;
+    stub.a = (stub.a + stub.b) * 0.5;
+    stub.b = stub.a + Vec2{0, 3};
+    branched.pcb.tracks.push_back(stub);
+    const LengthTuneResult refused = tuneTrackLength(branched.pcb, branched.schematic, branched.pcb.tracks.front().id,
+                                                     routedNetLength(branched.pcb, net) + 3);
+    CHECK(!refused.ok && !refused.applied && netRouted(branched, net));
     const double before = routedNetLength(p.pcb, net);
     const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
     CHECK(t.ok);
@@ -17998,6 +18008,181 @@ TEST(autoroute_coupled_pair_changes_layer_with_coupled_vias) {
     if (!wide.report.pairs.empty()) CHECK(!wide.report.pairs.front().coupled && !wide.report.pairs.front().reason.empty());
 }
 
+namespace {
+/// Two 64-ball 0.8 mm BGAs side by side on 6 layers (GND and +3V3 planes), four differential pairs between them on
+/// outer balls with ground balls beside them (two on the facing columns, one on the top and one on the bottom rows),
+/// and a fifth pair from U1's far column to two AC-coupling capacitors.
+struct BgaPairBoard {
+    Project p;
+    int u1 = -1, u2 = -1;
+};
+BgaPairBoard bgaPairBoard() {
+    BgaPairBoard b;
+    Project& p = b.p;
+    auto& s = p.schematic;
+    CustomPartSpec spec;
+    spec.name = "SI-BGA64";
+    spec.package.type = "BGA";
+    spec.package.pinCount = 64;
+    spec.package.pitch = 0.8;
+    for (int i = 0; i < 64; ++i) {
+        CustomPin pin;
+        pin.number = std::string(1, "ABCDEFGH"[i / 8]) + std::to_string(i % 8 + 1);
+        pin.name = pin.number;
+        pin.type = PinType::Bidirectional;
+        spec.pins.push_back(pin);
+    }
+    const std::string part = p.addCustomPart(spec);
+    const int u1 = b.u1 = s.addCustomComponent(part, "", {0, 0}), u2 = b.u2 = s.addCustomComponent(part, "", {400, 0});
+    const int gnd = s.addComponent(ComponentKind::Ground, "", {-100, 100});
+    const int vcc = s.addComponent(ComponentKind::NetLabel, "+3V3", {-100, -100});
+    for (const char* ball : {"A8", "D8", "G8", "H8", "H5", "A5"}) wire(s, u1, ball, gnd, "GND");
+    for (const char* ball : {"A1", "D1", "G1", "H1", "H4", "A4"}) wire(s, u2, ball, gnd, "GND");
+    for (int u : {u1, u2})
+        for (const char* ball : {"D4", "E5"}) wire(s, u, ball, vcc, "N");
+    const int cp = s.addComponent(ComponentKind::Capacitor, "100n", {-200, 0}), cn = s.addComponent(ComponentKind::Capacitor, "100n", {-200, 100});
+    for (int c : {cp, cn}) s.setPackage(c, "C_0603");
+    siPlace(p, u1, {12, 12});
+    siPlace(p, u2, {28, 12});
+    siPlace(p, cp, {4, 10.2});
+    siPlace(p, cn, {4, 11.4});
+    const char* capIn = siPad(p, cp, "2").x > siPad(p, cp, "1").x ? "2" : "1";  // the capacitor pad facing U1
+    // Lane k: U1's P / N balls to U2's (the top and bottom pairs turn twice the same way, so P ends on the outer
+    // ball); lane 4 to the capacitors.
+    const char* lanes[4][4] = {{"B8", "C8", "B1", "C1"}, {"E8", "F8", "E1", "F1"}, {"H6", "H7", "H3", "H2"}, {"A6", "A7", "A3", "A2"}};
+    for (int k = 0; k < 5; ++k) {
+        const std::string stem = "L" + std::to_string(k);
+        const int lp = s.addComponent(ComponentKind::NetLabel, stem + "_P", {200, -50.0 + 20 * k});
+        const int ln = s.addComponent(ComponentKind::NetLabel, stem + "_N", {200, 50.0 + 20 * k});
+        const char* ballP = k < 4 ? lanes[k][0] : "C1";
+        const char* ballN = k < 4 ? lanes[k][1] : "D1";
+        if (k < 4) {
+            wire(s, u1, ballP, u2, lanes[k][2]);
+            wire(s, u1, ballN, u2, lanes[k][3]);
+        } else {
+            wire(s, u1, ballP, cp, capIn);
+            wire(s, u1, ballN, cn, capIn);
+        }
+        wire(s, u1, ballP, lp, "N");
+        wire(s, u1, ballN, ln, "N");
+    }
+    p.schematicChanged();
+    p.pcb.settings.applyPreset("HDI / Fine-Pitch BGA (IPC-2226)");
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 26;
+    p.pcb.settings.layerCount = 6;
+    p.pcb.zones.push_back({"GND", 1, true, 0});
+    p.pcb.zones.push_back({"+3V3", 4, true, 0});
+    p.pcb.settings.autorouter.coupledPairs = true;
+    return b;
+}
+}  // namespace
+
+TEST(autoroute_coupled_pairs_from_bga_dogbone_vias) {
+    // Pairs on BGA balls start from the balls' dog-bone vias and route coupled to the other BGA's (or to AC-coupling
+    // capacitors): DRC-clean, every pair coupled with the stack-up's inner-layer width and gap on the inner layers, and
+    // the same copper from the corridor router on 1 and 4 threads (the board is the classic router's by default).
+    RouterOverride restore;
+    std::string corridor;
+    for (int run = 0; run < 3; ++run) {
+        setRouterStrategy(run == 0 ? RouterStrategy::Auto : RouterStrategy::Corridor);
+        setRoutingThreads(run == 2 ? 4 : 1);
+        BgaPairBoard b = bgaPairBoard();
+        Project& p = b.p;
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0 && st.report.pairs.size() == 5);
+        const BoardSettings& bs = p.pcb.settings;
+        const auto inner = differentialPairGeometry(bs, 2, bs.differentialImpedance);
+        const double iw = std::max(bs.minTrackWidth, std::ceil(inner.first * 100) / 100), ig = std::max(inner.second, bs.clearance);
+        for (const PairRouteReport& pr : st.report.pairs) {
+            int np = -1, nn = -1;
+            for (const auto& n : p.schematic.nets()) {
+                if (n.name == pr.positive) np = n.index;
+                if (n.name == pr.negative) nn = n.index;
+            }
+            if (!pr.coupled) std::printf("    %s not coupled: %s\n", pr.positive.c_str(), pr.reason.c_str());
+            std::set<int> layers;
+            for (const auto& t : p.pcb.tracks)
+                if (t.net == np) layers.insert(t.layer);
+            if (run == 0) {
+                std::printf("    %s: coupled %.1f mm, uncoupled %.1f mm, %d via pairs, skew %.3f, layers", pr.positive.c_str(),
+                            pr.coupledLength, pr.uncoupledLength, pr.viaPairs, pr.skew);
+                for (int l : layers) std::printf(" %d", l);
+                std::printf("\n");
+            }
+            CHECK(pr.coupled && pr.coupledLength > 1.5 && pr.skew <= bs.pairSkewTolerance + 1e-6);
+            // Inner layers carry the stack-up's inner geometry (stripline: narrower than the outer microstrip).
+            CHECK(pr.width > iw + 0.05);
+            for (const auto& t : p.pcb.tracks)
+                if ((t.net == np || t.net == nn) && t.layer == 2) CHECK(std::fabs(t.width - iw) < 1e-9);
+            if (pr.positive == "L0_P" || pr.positive == "L1_P") CHECK(layers.count(2) && parallelAt(p, np, nn, iw + ig) >= 1);
+        }
+        const auto errors = routeDrcErrors(p);
+        for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+        CHECK(errors.empty());
+        // Each member leaves its ball by the dog-bone: a via within one ball pitch of the ball, on the pair's net.
+        for (const auto& pad : p.pcb.pads(p.schematic)) {
+            if (pad.net < 0 || (pad.componentId != b.u1 && pad.componentId != b.u2) ||
+                p.schematic.nets()[static_cast<size_t>(pad.net)].name.rfind("L", 0) != 0)
+                continue;
+            bool via = false;
+            for (const auto& v : p.pcb.vias) via = via || (v.net == pad.net && (v.position - pad.position).length() < 0.8);
+            CHECK(via);
+        }
+        if (run == 0) continue;
+        const std::string fp = copperFingerprint(p.pcb);
+        if (corridor.empty()) corridor = fp;
+        CHECK(fp == corridor);
+    }
+}
+
+TEST(autoroute_coupled_pair_takes_each_layers_geometry) {
+    // The SERDES pair restricted to the inner layers (net-class layers) leaves its pads on the top layer at the outer
+    // width and gap, changes layer through coupled vias and runs on the inner layer at the stack-up's inner width and
+    // gap (stripline), then back: DRC-clean. With a pair gap set, every layer keeps the one geometry.
+    for (bool fixedGap : {false, true}) {
+        DiffBoard b = diffBoard(0.2);
+        Project& p = b.p;
+        auto& s = p.schematic;
+        p.pcb.clearRouting();
+        CHECK(s.setNetClassDef({"INNER", 0, 0}));
+        for (const char* pinName : {"TXP", "TXN"}) {
+            NetDirective d;
+            d.component = b.u1;
+            d.pin = pin(s, b.u1, pinName);
+            d.netClass = "INNER";
+            CHECK(s.addDirective(d) > 0);
+        }
+        p.schematicChanged();
+        BoardSettings& bs = p.pcb.settings;
+        bs.autorouter.classLayers["INNER"] = {1, 2};
+        bs.autorouter.coupledPairs = true;
+        if (fixedGap) bs.autorouter.pairGap = 0.2;
+        RouteStats st = p.pcb.autoRoute(s);
+        CHECK(st.failed == 0 && st.report.pairs.size() == 1);
+        if (st.report.pairs.size() != 1) return;
+        const PairRouteReport& pr = st.report.pairs.front();
+        if (!pr.coupled) std::printf("    pair not coupled: %s\n", pr.reason.c_str());
+        CHECK(pr.coupled && pr.viaPairs >= 2);
+        const auto inner = differentialPairGeometry(bs, 1, bs.differentialImpedance);
+        const double iw = std::max(bs.minTrackWidth, std::ceil(inner.first * 100) / 100), ig = std::max(inner.second, bs.clearance);
+        const double w = fixedGap ? pr.width : iw, gap = fixedGap ? pr.gap : ig;
+        if (!fixedGap) std::printf("    outer %.3f / %.3f mm, inner %.3f / %.3f mm (width / gap)\n", pr.width, pr.gap, iw, ig);
+        CHECK(fixedGap || std::fabs(iw - pr.width) > 0.01);
+        double innerLength = 0;
+        for (const auto& t : p.pcb.tracks)
+            if ((t.net == b.np || t.net == b.nn) && (t.layer == 1 || t.layer == 2)) {
+                CHECK(std::fabs(t.width - w) < 1e-9);
+                if (t.net == b.np) innerLength += trackLength(t);
+            }
+        CHECK(innerLength > 50);
+        CHECK(parallelAt(p, b.np, b.nn, w + gap) >= 1);  // side by side at the inner pitch
+        const auto errors = routeDrcErrors(p);
+        for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+        CHECK(errors.empty());
+    }
+}
+
 TEST(autoroute_keeps_net_class_clearance) {
     // A net class (schematic directive) asks for more than the board clearance: the autorouter keeps it between that
     // net's copper and every other net's, whichever was routed first.
@@ -18088,6 +18273,151 @@ TEST(autoroute_length_aware_rules_and_match_groups) {
     // Options round-trip as JSON.
     CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(p.pcb.settings.autorouter)) == p.pcb.settings.autorouter);
     CHECK(routeReportJson(st.report).get("lengths").size() == 5);
+}
+
+TEST(autoroute_length_aware_search) {
+    // A four-net bus in a match group whose ends are staggered 10 mm apart (direct lengths 20–50 mm): the shortest
+    // member is 30 mm short. Meanders alone have to make all of it up; with the length-aware search the short members
+    // are routed again through a waypoint first, so less is meandered and the group ends closer together.
+    auto bus = [](bool search) {
+        Project p;
+        auto& s = p.schematic;
+        p.pcb.settings.width = 90;
+        p.pcb.settings.height = 70;
+        MatchGroup g;
+        g.name = "BUS";
+        g.tolerance = 0.25;
+        for (int k = 0; k < 4; ++k) {
+            const int a = placeR(p, {8, 26.0 + 6 * k}), b = placeR(p, {30.0 + 10 * k, 26.0 + 6 * k});
+            wire(s, a, "2", b, "1");
+            p.schematicChanged();
+            g.nets.push_back(s.nets()[static_cast<size_t>(s.netOf({a, 1}))].name);
+        }
+        p.pcb.settings.matchGroups.push_back(g);
+        p.pcb.settings.autorouter.lengthAware = true;
+        p.pcb.settings.autorouter.lengthAwareSearch = search;
+        return p;
+    };
+    struct Outcome {
+        double skew = 0, meandered = 0;
+        int ok = 0, tracks = 0, rerouted = 0;
+    };
+    auto run = [&](bool search) {
+        Project p = bus(search);
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0);
+        CHECK(routeDrcErrors(p).empty());
+        Outcome o;
+        double lo = 1e9, hi = 0;
+        for (const auto& l : st.report.lengths) {
+            std::printf("    %s %-8s target %6.2f  routed %6.2f  achieved %6.2f %s\n", search ? "search" : "plain ", l.net.c_str(),
+                        l.target, l.routed, l.achieved, l.ok ? "ok" : "OUT");
+            lo = std::min(lo, l.achieved);
+            hi = std::max(hi, l.achieved);
+            o.meandered += l.achieved - l.routed;
+            o.ok += l.ok ? 1 : 0;
+        }
+        for (const auto& t : p.pcb.tracks) o.tracks += t.net >= 0 ? 1 : 0;
+        o.skew = hi - lo;
+        o.rerouted = st.report.metrics.lengthRerouted;
+        std::printf("    %s: skew %.2f mm, meandered %.1f mm, %d tracks, %d nets routed again, %d / 4 in tolerance\n",
+                    search ? "search" : "plain ", o.skew, o.meandered, o.tracks, o.rerouted, o.ok);
+        CHECK(routeReportJson(st.report).get("metrics").has("lengthRerouted") == (o.rerouted > 0));
+        return o;
+    };
+    // Both routers: the classic one (this board is small) and the corridor router (forced).
+    for (RouterStrategy router : {RouterStrategy::Auto, RouterStrategy::Corridor}) {
+        setRouterStrategy(router);
+        const Outcome plain = run(false), search = run(true);
+        setRouterStrategy(RouterStrategy::Auto);
+        CHECK(plain.rerouted == 0);
+        CHECK(search.rerouted >= 2);
+        CHECK(search.meandered < plain.meandered - 10.0);
+        CHECK(search.skew <= plain.skew + 1e-9);
+        CHECK(search.ok >= plain.ok);
+        CHECK(search.tracks < plain.tracks);
+    }
+    // A ruled net whose straight path is walled off on the top layer by another net's locked track: routed around it,
+    // it comes out longer than its target (meanders cannot shorten it); the search routes it again with cheaper vias.
+    for (bool searchOn : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        p.pcb.settings.width = 60;
+        p.pcb.settings.height = 50;
+        const int a = placeR(p, {10, 25}), b = placeR(p, {50, 25});
+        const int c = placeR(p, {30, 21}, 90), d = placeR(p, {30, 29}, 90);
+        wire(s, a, "2", b, "1");
+        wire(s, c, "2", d, "1");
+        p.schematicChanged();
+        addPath(p.pcb, s.netOf({c, 1}), kTopLayer, 0.25, {padAt(p, c, 1), padAt(p, d, 0)}, true);
+        p.pcb.settings.autorouter.protectLocked = true;
+        const int net = s.netOf({a, 1});
+        const double direct = (padAt(p, b, 0) - padAt(p, a, 1)).length();
+        p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(net)].name, direct, 0.5});
+        p.pcb.settings.autorouter.lengthAware = true;
+        p.pcb.settings.autorouter.lengthAwareSearch = searchOn;
+        const RouteStats st = p.pcb.autoRoute(s);
+        CHECK(st.failed == 0 && st.report.lengths.size() == 1);
+        if (st.report.lengths.empty()) continue;
+        const auto& l = st.report.lengths[0];
+        std::printf("    %s: ruled net target %.2f ± %.2f, achieved %.2f (%d vias, %d routed again)\n", searchOn ? "search" : "plain ",
+                    l.target, l.tolerance, l.achieved, st.vias, st.report.metrics.lengthRerouted);
+        CHECK(routeDrcErrors(p).empty());
+        CHECK(searchOn ? l.ok && st.report.metrics.lengthRerouted == 1 : !l.ok);
+    }
+    // On a board without length targets the option changes nothing.
+    Project a = amplifierProject(), b = amplifierProject();
+    for (Project* p : {&a, &b}) {
+        p->pcb.settings.width = 40;
+        p->pcb.settings.height = 30;
+        p->pcb.settings.autorouter.lengthAware = true;
+        p->pcb.autoPlace(p->schematic, true);
+    }
+    b.pcb.settings.autorouter.lengthAwareSearch = true;
+    a.pcb.autoRoute(a.schematic);
+    b.pcb.autoRoute(b.schematic);
+    bool same = a.pcb.tracks.size() == b.pcb.tracks.size() && a.pcb.vias.size() == b.pcb.vias.size();
+    for (size_t i = 0; same && i < a.pcb.tracks.size(); ++i)
+        same = a.pcb.tracks[i].a == b.pcb.tracks[i].a && a.pcb.tracks[i].b == b.pcb.tracks[i].b && a.pcb.tracks[i].layer == b.pcb.tracks[i].layer;
+    CHECK(same);
+    // JSON: written only when on.
+    AutorouteOptions o;
+    CHECK(!autorouteOptionsToJson(o).has("lengthAwareSearch"));
+    o.lengthAwareSearch = true;
+    CHECK(autorouteOptionsToJson(o).get("lengthAwareSearch").asBool(false));
+    CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(o)) == o && o != AutorouteOptions{});
+}
+
+TEST(corridor_router_leaves_no_acute_joins) {
+    // A one-cluster, two-layer bench board on which the corridor router used to leave one acute join (a connection
+    // leaving its net's track at 45°, DRC_ACUTE_ANGLE): every join is now square or obtuse, the DRC is clean, and
+    // the copper is the same on 1 and 4 threads.
+    bench::BenchBoard b = bench::makeBenchBoard({8, 1, 2, false, false, 0.45});
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    setRouterStrategy(RouterStrategy::Corridor);
+    std::vector<Track> tracks[2];
+    for (int k = 0; k < 2; ++k) {
+        Project p = b.project;
+        setRoutingThreads(k == 0 ? 1 : 4);
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0);
+        int acute = 0, warnings = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) {
+            acute += v.code == "DRC_ACUTE_ANGLE";
+            warnings += v.severity == Severity::Warning;
+        }
+        std::printf("    %d thread(s): %d / %d routed, %d acute joins, %d warnings\n", k == 0 ? 1 : 4, st.routed, st.connections,
+                    acute, warnings);
+        CHECK(acute == 0 && warnings == 0);
+        CHECK(routeDrcErrors(p).empty());
+        tracks[k] = p.pcb.tracks;
+    }
+    setRoutingThreads(0);
+    setRouterStrategy(RouterStrategy::Auto);
+    bool same = tracks[0].size() == tracks[1].size();
+    for (size_t i = 0; same && i < tracks[0].size(); ++i)
+        same = tracks[0][i].a == tracks[1][i].a && tracks[0][i].b == tracks[1][i].b && tracks[0][i].layer == tracks[1][i].layer;
+    CHECK(same);
 }
 
 TEST(autoroute_keepouts_and_quality_passes) {
@@ -18640,6 +18970,7 @@ TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
     // spacing (no overlap, nothing outside the board), the board routes at least as well, and the same placement again.
     bench::BenchBoard b = bench::makeBenchBoard({5, 2, 4, false, false, 0.45});
     Project greedy = b.project;
+    greedy.pcb.settings.autorouter.improvePlacement = false;
     greedy.pcb.autoPlace(greedy.schematic, true);
     Project improved = b.project;
     improved.pcb.settings.autorouter.improvePlacement = true;

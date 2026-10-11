@@ -98,6 +98,11 @@ struct AutorouteOptions {
     /// of same-size parts that shorten the ratsnest (half-perimeter wire length) while every courtyard stays clear by
     /// the placer's own spacing. Deterministic and bounded. JSON "improvePlacement", written only when on.
     bool improvePlacement = false;
+    /// Length-aware search (with lengthAware): the nets with a target route longest first; after the routing passes a
+    /// net routed longer than its target is routed again with cheaper vias, kept when shorter, and a net far short of
+    /// its target is routed again through a waypoint that adds most of the missing length, so fewer meanders are
+    /// needed. JSON "lengthAwareSearch", written only when on.
+    bool lengthAwareSearch = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
@@ -498,6 +503,7 @@ struct RouteMetrics {
     // What the quality passes did.
     int viasRemoved = 0;              // via minimisation
     int netsRerouted = 0;             // nets whose copper via minimisation replaced
+    int lengthRerouted = 0;           // nets the length-aware search routed again (shorter or longer)
     int glossed = 0;                  // lines glossing improved
     int arcsAdded = 0;                // corners made arcs
     int teardropsAdded = 0;

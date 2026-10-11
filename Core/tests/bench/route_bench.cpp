@@ -4,6 +4,7 @@
 //   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--save board.siedaproj]
 //                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
 //                     [--options '{"minimizeVias":true,...}']  autorouter strategy options (AutorouteOptions JSON)
+//                     [--length-groups]  the 33 Ω links between each two ICs become a match group (±0.5 mm)
 //                     [--edit-budget <ms>]  exit 1 when an edit (move + undo state + delta snapshot) takes longer (p95)
 //                     [--budget <seconds> <MB>]   exit 1 when place + route + DRC + snapshot take longer or the
 //                                                  peak memory is higher (the CTest scale guard)
@@ -15,6 +16,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cmath>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -47,6 +51,31 @@ double peakMegabytes() {
 std::string g_snapshot;  // --snapshot: where to write the routed board (Project::snapshot JSON)
 std::string g_save;      // --save: where to write the routed project (.siedaproj JSON, to profile edits on it)
 std::string g_options;   // --options: autorouter strategy options as JSON
+bool g_lengthGroups = false;  // --length-groups: each IC pair's 33 Ω links form a match group
+
+/// The bus between two ICs (their 33 Ω series links, named by the IC-side net) as one match group per IC pair.
+void addLengthGroups(Project& p) {
+    const Schematic& s = p.schematic;
+    auto icOn = [&](int net, int except) {
+        if (net < 0) return -1;
+        for (const auto& pin : s.nets()[static_cast<size_t>(net)].pins)
+            if (pin.component != except) return pin.component;
+        return -1;
+    };
+    std::map<std::pair<int, int>, MatchGroup> groups;
+    for (const auto& c : s.components()) {
+        if (c.kind != ComponentKind::Resistor || c.value != "33") continue;
+        const int a = s.netOf({c.id, 0}), b = s.netOf({c.id, 1});
+        const int ia = icOn(a, c.id), ib = icOn(b, c.id);
+        if (ia < 0 || ib < 0) continue;
+        MatchGroup& g = groups[{ia, ib}];
+        g.name = "BUS" + std::to_string(ia) + "_" + std::to_string(ib);
+        g.tolerance = 0.5;
+        g.nets.push_back(s.nets()[static_cast<size_t>(a)].name);
+    }
+    for (auto& [key, g] : groups)
+        if (g.nets.size() >= 2) p.pcb.settings.matchGroups.push_back(g);
+}
 double g_editP95 = 0;    // the app's per-edit path, 95th percentile (ms), measured after routing
 
 /// What one edit costs the app on this board, through the C API like the app: move a part, take the undo state and
@@ -89,6 +118,7 @@ double run(const bench::BenchSpec& spec, bool brute) {
                 b.components, b.nets, b.pins, p.pcb.settings.width, p.pcb.settings.height);
     std::fflush(stdout);
     if (!g_options.empty()) p.pcb.settings.autorouter = autorouteOptionsFromJson(Json::parse(g_options));
+    if (g_lengthGroups) addLengthGroups(p);
     auto t0 = clock::now();
     p.pcb.autoPlace(p.schematic, true);
     const double place = secs(t0);
@@ -107,6 +137,22 @@ double run(const bench::BenchSpec& spec, bool brute) {
     if (!g_options.empty())
         std::printf("  quality  vias removed %d (nets re-routed %d), glossed %d, pairs %zu\n", st.report.metrics.viasRemoved,
                     st.report.metrics.netsRerouted, st.report.metrics.glossed, st.report.pairs.size());
+    if (!st.report.lengths.empty()) {
+        // Length targets: in tolerance, residual (worst distance to target), meandered (achieved − routed) and tracks.
+        int ok = 0, tracks = 0;
+        double residual = 0, meandered = 0;
+        std::set<std::string> targeted;
+        for (const auto& l : st.report.lengths) {
+            ok += l.ok ? 1 : 0;
+            residual = std::max(residual, std::fabs(l.achieved - l.target));
+            meandered += std::max(0.0, l.achieved - l.routed);
+            targeted.insert(l.net);
+        }
+        for (const auto& t : p.pcb.tracks)
+            tracks += t.net >= 0 && targeted.count(p.schematic.nets()[static_cast<size_t>(t.net)].name) ? 1 : 0;
+        std::printf("  lengths  %d / %zu in tolerance, worst %.2f mm off target, meandered %.0f mm, %d tracks, %d nets routed again\n",
+                    ok, st.report.lengths.size(), residual, meandered, tracks, st.report.metrics.lengthRerouted);
+    }
     if (std::getenv("SIEDA_BENCH_VERBOSE")) {
         std::printf("  failed nets:");
         for (const auto& n : st.failedNets) std::printf(" %s", n.c_str());
@@ -123,9 +169,13 @@ double run(const bench::BenchSpec& spec, bool brute) {
         warnings += v.severity == Severity::Warning;
     }
     std::printf("  drc     %8.2f s   %d errors, %d warnings\n", drcTime, errors, warnings);
-    if (std::getenv("SIEDA_BENCH_VERBOSE"))
+    if (std::getenv("SIEDA_BENCH_VERBOSE")) {
+        std::map<std::string, int> byCode;
         for (const auto& v : drc)
             if (v.severity == Severity::Error) std::printf("    %s: %s\n", v.code.c_str(), v.message.c_str());
+            else ++byCode[v.code];
+        for (const auto& [code, n] : byCode) std::printf("    %s × %d\n", code.c_str(), n);
+    }
     if (brute) {
         setDrcBruteForce(true);
         t0 = clock::now();
@@ -188,6 +238,7 @@ int main(int argc, char** argv) {
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
         else if (a == "--save" && i + 1 < argc) g_save = argv[++i];
+        else if (a == "--length-groups") g_lengthGroups = custom = true;
         else if (a == "--options" && i + 1 < argc) {
             g_options = argv[++i];
             custom = true;
@@ -203,7 +254,7 @@ int main(int argc, char** argv) {
             setRouterStrategy(r == "classic" ? RouterStrategy::Classic : r == "corridor" ? RouterStrategy::Corridor : RouterStrategy::Auto);
         }
         else {
-            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--options json] [--budget seconds MB] [--edit-budget ms] [--save file]\n");
+            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--options json] [--length-groups] [--budget seconds MB] [--edit-budget ms] [--save file]\n");
             return 2;
         }
     }
