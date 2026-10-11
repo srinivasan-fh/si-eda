@@ -430,7 +430,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_replace` | edit | Replaces text in part values and net label names. |
 | `schematic_align` | edit | Aligns or distributes parts: left, right, top, bottom, centerX, centerY, distributeX, distributeY. |
 | `schematic_sheets` | read | The sheets with hierarchy (parent, depth), component counts, ports and the active sheet. |
-| `schematic_sheet_edit` | edit | Sheet commands: add (name, parent), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
+| `schematic_sheet_edit` | edit | Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new parts go to), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
 | `schematic_move_to_sheet` | edit | Moves parts to another sheet (wires that would cross sheets are removed; join them with labels). |
 | `schematic_set_label_scope` | edit | Sets a net label's scope: global, local (its sheet), port (hierarchical port) or entry (sheet entry into targetSheet). |
 | `schematic_add_bus` | edit | Draws a named bus ("D[0..7]", "A[15..0]", "D[0..3],WR") on the active sheet; then schematic_bus_connect wires its members to a part. |
@@ -583,4 +583,3 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
-

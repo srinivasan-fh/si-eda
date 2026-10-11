@@ -20464,6 +20464,61 @@ TEST(mcp_render_images) {
     CHECK(mcp::base64Encode("Man") == "TWFu" && mcp::base64Encode("Ma") == "TWE=" && mcp::base64Encode("M") == "TQ==");
 }
 
+TEST(mcp_multi_page_schematic) {
+    // A second page through tools/call: parts go to the active page, a connection across pages becomes a pair of
+    // global labels, and a ground for a pin lands on that pin's page whichever page is active.
+    const auto root = mcpRoot("pages");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    Json a = Json::object();
+    a["name"] = "Pages";
+    CHECK(!mcpFailed(mcpTool(s, "project_new", a)));
+    auto add = [&](const char* kind, const char* value) {
+        Json c = Json::object();
+        c["kind"] = kind;
+        c["value"] = value;
+        return mcpData(mcpTool(s, "schematic_add_component", c));
+    };
+    auto ground = [&](const char* pin) {
+        Json g = Json::object();
+        g["pins"] = pinArgs({pin});
+        CHECK(!mcpFailed(mcpTool(s, "schematic_connect_to_ground", g)));
+    };
+    CHECK(add("voltage_source", "5").get("sheet").asInt(0) == 1);
+    ground("V1.-");
+    Json page = Json::object();
+    page["action"] = "add";
+    page["name"] = "LED";
+    page["activate"] = true;
+    const int led = mcpData(mcpTool(s, "schematic_sheet_edit", page)).get("sheet").asInt(0);
+    CHECK(led == 2 && add("resistor", "330").get("sheet").asInt(0) == 2 && add("led", "Red").get("sheet").asInt(0) == 2);
+    Json conn = Json::object();
+    conn["chain"] = pinArgs({"V1.+", "R1.1"});
+    Json cross = mcpTool(s, "schematic_connect", conn);
+    CHECK(!mcpFailed(cross) && mcpData(cross).get("wiresAdded").asInt(0) == 1);
+    conn["chain"] = pinArgs({"R1.2", "D1.A"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_connect", conn)));
+    Json back = Json::object();
+    back["action"] = "activate";
+    back["sheet"] = 1;
+    CHECK(!mcpFailed(mcpTool(s, "schematic_sheet_edit", back)));
+    ground("D1.K");
+    CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("errors").asInt(-1) == 0);
+    Json dc = mcpData(mcpTool(s, "sim_dc_op", Json::object()));
+    double led_mA = 0;
+    for (const auto& d : dc.get("devices").items())
+        if (d.get("ref").asString("") == "D1") led_mA = d.get("current").asNumber() * 1000;
+    std::printf("    LED current across pages %.2f mA\n", led_mA);
+    CHECK(led_mA > 5 && led_mA < 15);
+    // Page 2 holds R1, D1, the label and D1's ground; page 1 is still the active one.
+    Json sheets = mcpData(mcpTool(s, "schematic_sheets", Json::object()));
+    CHECK(sheets.get("active").asInt(0) == 1);
+    for (const auto& sh : sheets.get("sheets").items())
+        if (sh.get("id").asInt(0) == 2) CHECK(sh.get("components").asInt(0) == 4);
+}
+
 TEST(mcp_end_to_end_board) {
     // A small board built purely through tools/call: schematic → ERC → board → Update PCB → autoroute → DRC → Gerbers.
     const auto root = mcpRoot("e2e");

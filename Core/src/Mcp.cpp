@@ -105,7 +105,12 @@ A typical flow:
 2. Check: `schematic_erc` (fix every error), `sim_dc_op` for voltages and currents, `sim_transient` / `sim_ac`.
 3. Board: `pcb_set_board` (size, layers, rules), `pcb_update_from_schematic` (places new footprints),
    optionally `pcb_place_footprint`, then `pcb_autoroute` and `pcb_drc`.
-4. Sign-off and outputs: `verify_design`, `output_fabrication_package` / `output_gerbers` / `output_bom`
+4. Multi-page schematics: `schematic_sheet_edit` (action "add", name, activate: true) starts the next page;
+   new parts, labels and grounds go to the active page (or pass `sheet` to `schematic_add_component` /
+   `library_add_part`; "activate" switches pages). Pages join through global net labels of the same name
+   (`schematic_net_label` puts each label on its pin's page); `schematic_connect` between pins on different pages adds
+   that label pair itself. `schematic_sheets` lists the pages, `render_schematic` takes a `sheet`.
+5. Sign-off and outputs: `verify_design`, `output_fabrication_package` / `output_gerbers` / `output_bom`
    (files are written only inside the server's root folder), `render_schematic` / `render_pcb` to look at it.
 )";
 
