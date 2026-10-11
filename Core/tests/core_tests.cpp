@@ -10800,7 +10800,14 @@ R1 a b 1
     }
     SpiceFlatCircuit da = flattenSpiceModel(lib, "DA");
     CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Warning, "FOO not modelled"));
-    CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Info, "XTI"));
+    CHECK(!hasDiag(da.diagnostics, SpiceDiagnostic::Level::Info, "XTI"));  // XTI is modelled (temperature)
+    // The deck's temperatures: `.options tnom` is the models' reference, `.temp` only a hint in the diagnostics.
+    SpiceLibrary temps = parseSpiceLibrary(".temp 85\n.options tnom=25 reltol=1e-4\n.options gmin=1e-12\n.model DT D(IS=1n)\n");
+    CHECK_NEAR(temps.tnom, 25, 1e-12);
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, ".TEMP 85"));
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, "TNOM = 25"));
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, ".OPTIONS is a simulation command"));
+    CHECK_NEAR(flattenSpiceModel(temps, "DT").prims[0].tnom, 25, 1e-12);
     SpiceFlatCircuit amp = flattenSpiceModel(lib, "AMP");
     CHECK(amp.ok && amp.ports == (std::vector<std::string>{"IN", "OUT"}));
     if (amp.ok) {
@@ -11016,6 +11023,252 @@ TEST(spice_semiconductor_models_dc) {
         DcResult dc = Simulator(s).dcOperatingPoint();
         CHECK(dc.converged && netV(s, dc, m, "D") > 4.0);
     }
+}
+
+namespace {
+/// Thermal voltage at `celsius` and the SPICE3 diode saturation current IS(T) of a model given at 27 °C.
+double vtAt(double celsius) { return 1.380649e-23 * (celsius + 273.15) / 1.602176634e-19; }
+double isAt(double is, double celsius, double xti, double eg, double n) {
+    const double ratio = (celsius + 273.15) / 300.15;
+    return is * std::pow(ratio, xti / n) * std::exp(eg / (n * vtAt(celsius)) * (ratio - 1));
+}
+}  // namespace
+
+TEST(spice_models_follow_the_simulation_temperature) {
+    // Diode fed 10 mA: V = N·V_T(T)·ln(I / IS(T) + 1) with IS(T) from XTI and EG; 27 °C is bit-identical to the default.
+    auto diodeV = [](const std::string& model, double celsius, bool setTemperature = true) {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "10m", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{model, "DX", ""});
+        Simulator sim(s);
+        if (setTemperature) sim.setTemperature(celsius);
+        DcResult dc = sim.dcOperatingPoint();
+        return dc.converged ? netV(s, dc, d, "A") : NAN;
+    };
+    const double v27 = diodeV(".model DX D(IS=1e-14 N=1)", 27);
+    CHECK(v27 == diodeV(".model DX D(IS=1e-14 N=1)", 27, false));  // the default temperature: bit-identical
+    CHECK_NEAR(v27, spicedevVt() * std::log(1e-2 / 1e-14 + 1), 1e-6);  // the established 27 °C value
+    for (double t : {-40.0, 100.0}) {
+        CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1)", t), vtAt(t) * std::log(1e-2 / isAt(1e-14, t, 3, 1.11, 1) + 1), 1e-6);
+        CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1.5 XTI=2 EG=0.69)", t),
+                   1.5 * vtAt(t) * std::log(1e-2 / isAt(1e-14, t, 2, 0.69, 1.5) + 1), 1e-6);
+    }
+    CHECK(diodeV(".model DX D(IS=1e-14 N=1)", 100) < v27 - 0.1);  // ≈ −2 mV/K
+    // A model given at TNOM = 25 simulated at 25 °C is at its own reference: IS as written, V_T at 25 °C.
+    CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1 TNOM=25)", 25), vtAt(25) * std::log(1e-2 / 1e-14 + 1), 1e-6);
+    // BJT: forced base current 10 µA, I_C = BF·(T/TNOM)^XTB·I_B at 100 °C.
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int ib = s.addComponent(ComponentKind::CurrentSource, "10u", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1k", {200, -80});
+        int q = s.addComponent(ComponentKind::NPN, "", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, ib, "+", q, "B");
+        wire(s, ib, "-", g, "GND");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q, "C");
+        wire(s, q, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        s.setSpiceModel(q, SpiceModelRef{".model QN NPN(IS=1e-15 BF=100 BR=1 XTB=1.5)", "QN", ""});
+        Simulator sim(s);
+        sim.setTemperature(100);
+        DcResult dc = sim.dcOperatingPoint();
+        CHECK(dc.converged);
+        const double bf = 100 * std::pow(373.15 / 300.15, 1.5);
+        CHECK_NEAR(reading(dc, q)->current, 1e-5 * bf, 1e-7);
+        CHECK_NEAR(reading(dc, q)->voltage, 10 - 1e3 * 1e-5 * bf, 1e-4);
+        // Its V_BE falls with temperature as the diode's does.
+        Simulator cold(s);
+        cold.setTemperature(-40);
+        DcResult dcc = cold.dcOperatingPoint();
+        CHECK(dcc.converged && netV(s, dcc, q, "B") > netV(s, dc, q, "B") + 0.15);
+    }
+    // MOSFET: KP ∝ (T/TNOM)^-1.5 in saturation; VTO drifts about −1 mV/K (band gap and Fermi potential, mostemp.c).
+    {
+        Schematic s;
+        int vg = s.addComponent(ComponentKind::VoltageSource, "3", {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, "5", {0, 100});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vg, "+", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, vg, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{".model MN NMOS(VTO=1 KP=2m)", "MN", ""});
+        Simulator sim(s);
+        sim.setTemperature(127);
+        DcResult dc = sim.dcOperatingPoint();
+        CHECK(dc.converged);
+        const double id = reading(dc, m)->current, kpT = 2e-3 / std::pow(400.15 / 300.15, 1.5);
+        CHECK(id < 4e-3 * 0.8 && id > 0.5 * kpT * 4 * 1.0 && id < 0.5 * kpT * 4 * 1.2);
+        // VTO at 127 °C from the operating points: Id = KP(T)/2·(Vgs − VTO(T))² → VTO(T) ≈ 0.9 V.
+        const double vtoT = 3 - std::sqrt(2 * id / kpT);
+        CHECK(vtoT > 0.85 && vtoT < 0.95);
+    }
+    // Resistors inside a model: TC1 / TC2 from the model's TNOM (here .options tnom = 25).
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "2", {0, 0});
+        int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", u, "1");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(u, SpiceModelRef{".options tnom=25\n.subckt T in out\nR1 in out 1k TC=1m,1e-5\nR2 out 0 1k TC1=0\n.ends\n", "T", "1 2"});
+        Simulator sim(s);
+        sim.setTemperature(125);
+        DcResult dc = sim.dcOperatingPoint();
+        const double r1 = 1e3 * (1 + 1e-3 * 100 + 1e-5 * 100 * 100);
+        CHECK(dc.converged);
+        CHECK_NEAR(netV(s, dc, u, "2"), 2 * 1e3 / (r1 + 1e3), 1e-9);
+    }
+}
+
+TEST(spice_mosfet_level3_equations) {
+    auto mosId = [](const std::string& model, double vgs, double vds, double celsius = 27) {
+        Schematic s;
+        int vg = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vgs, "", 9), {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vds, "", 9), {0, 100});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vg, "+", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, vg, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{model, "MN", ""});
+        Simulator sim(s);
+        sim.setTemperature(celsius);
+        DcResult dc = sim.dcOperatingPoint();
+        return dc.converged ? reading(dc, m)->current : NAN;
+    };
+    // Without the short-channel parameters level 3 is the level-1 square law: 2 mA·(3 − 1)² / 2 = 4 mA, THETA halves it.
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m)", 3, 5), 4e-3, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m THETA=0.5)", 3, 5), 2e-3, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m)", 3, 0.5), 2e-3 * (2 - 0.25) * 0.5, 1e-8);  // triode
+    // VMAX velocity saturation (SPICE3 mos3load.c): V_dsat = a + V_dsc − √(a² + V_dsc²), V_dsc = L·VMAX / µ, and the
+    // current divided by 1 + V_ds / V_dsc; it is below the level-1 value.
+    {
+        const double a = 2, vdsc = 100e-6 * 1e5 / (600e-4), vdsat = a + vdsc - std::sqrt(a * a + vdsc * vdsc);
+        const double expected = 2e-3 * (a - 0.5 * vdsat) * vdsat / (1 + vdsat / vdsc);
+        const double id = mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m UO=600 VMAX=1e5)", 3, 5);
+        CHECK_NEAR(id, expected, 1e-9);
+        CHECK(id < 4e-3 - 1e-5);
+        CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m UO=600 VMAX=1e4)", 3, 5) < id);  // harder saturation
+    }
+    // KAPPA channel-length modulation needs NSUB (the depletion-layer constant): the saturation current then rises
+    // with V_ds, faster for larger KAPPA; without NSUB it is flat (as SPICE). A 2 µm channel, so ΔL matters.
+    {
+        const std::string base = ".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u NSUB=1e16 ";
+        const double k2a = mosId(base + "KAPPA=0.2)", 3, 5), k2b = mosId(base + "KAPPA=0.2)", 3, 10);
+        const double k5a = mosId(base + "KAPPA=0.5)", 3, 5), k5b = mosId(base + "KAPPA=0.5)", 3, 10);
+        CHECK(k2b > k2a * 1.001 && k5b > k5a * 1.001);
+        CHECK((k5b - k5a) > (k2b - k2a) * 1.2);
+        CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u KAPPA=0.5)", 3, 10),
+                   mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u KAPPA=0.5)", 3, 5), 1e-12);
+        // With VMAX the same modulation uses the velocity-saturated branch and still rises with V_ds.
+        CHECK(mosId(base + "KAPPA=0.5 VMAX=1e5 UO=600)", 3, 10) > mosId(base + "KAPPA=0.5 VMAX=1e5 UO=600)", 3, 5) * 1.001);
+    }
+    // ETA static feedback lowers the threshold with V_ds (σ = ETA·8.15e-22 / (Cox·L³)): more current at the same drive.
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u ETA=0.5)", 3, 5) > 4e-3 * 1.01);
+    // NFS: weak inversion below the threshold instead of a hard cut-off; DELTA narrows the channel (less current).
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n NFS=1e11)", 0.9, 5) > 1e-9);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n)", 0.9, 5), 0, 1e-12);
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n GAMMA=0.5 DELTA=1)", 3, 5) <
+          mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n GAMMA=0.5)", 3, 5));
+    // Level 1 is untouched by the level-3 parameters.
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m VMAX=1e5 KAPPA=0.5 NSUB=1e16)", 3, 5), 4e-3, 1e-8);
+    // The level-3 model is diagnosed as modelled (no "level-1 equations" note) and VMAX / KAPPA are not "ignored".
+    SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(".model MN NMOS(LEVEL=3 VTO=1 KP=2m VMAX=1e5 KAPPA=0.5 ETA=0.1 NFS=1e11 XJ=0.5u NSUB=1e16 DELTA=1)"), "MN");
+    CHECK(flat.ok);
+    for (const auto& d : flat.diagnostics) CHECK(d.message.find("level-1") == std::string::npos && d.message.find("ignored") == std::string::npos);
+}
+
+TEST(spice_switch_hysteresis_holds_its_state) {
+    // S with VH: on above VT + VH, off below VT − VH, the last state in between (held between Newton iterations).
+    const std::string sw = ".subckt T in out\n.model SWM SW(VT=1 VH=0.5 RON=1 ROFF=1MEG)\nS1 out x in 0 SWM\nV2 x 0 5\nR1 out 0 1k\n.ends\n";
+    SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(sw), "T");
+    CHECK(flat.ok && !hasDiag(flat.diagnostics, SpiceDiagnostic::Level::Warning, "hysteresis"));
+    const double on = 5 * (1e3 * 1e6 / (1e3 + 1e6)) / (1e3 * 1e6 / (1e3 + 1e6) + 1);
+    CHECK_NEAR(spiceTwoPort(sw, "T", 2), on, 1e-3);  // above 1.5 V: on
+    CHECK(spiceTwoPort(sw, "T", 1.2) < 0.01);        // inside the band from the initial (off) state: stays off
+    CHECK(spiceTwoPort(sw, "T", 0.3) < 0.01);
+    // The same control voltage inside the band reads differently depending on where the sweep came from.
+    auto sweep = [&](double from, double to) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "0", {0, 0});
+        int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1MEG", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", u, "1");
+        wire(s, v, "-", g, "GND");
+        wire(s, u, "2", r, "1");
+        wire(s, r, "2", g, "GND");
+        s.setSpiceModel(u, SpiceModelRef{sw, "T", "1 2"});
+        Simulator sim(s);
+        DcSweepResult res = sim.dcSweep(v, from, to, 0.1);
+        CHECK(res.ok);
+        return res.ok ? res.netVoltages[static_cast<size_t>(s.netOf({u, 1}))] : std::vector<double>{};
+    };
+    std::vector<double> up = sweep(0, 2), down = sweep(2, 0);
+    CHECK(up.size() == 21 && down.size() == 21);
+    if (up.size() == 21 && down.size() == 21) {
+        CHECK(up[14] < 0.01 && up[16] > on - 1e-3);      // 1.4 V rising: still off; 1.6 V: on
+        CHECK(down[12] > on - 1e-3 && down[16] < 0.01);  // 0.8 V falling: still on; 0.4 V: off
+        CHECK(up[10] < 0.01 && down[10] > on - 1e-3);    // 1.0 V = VT: the state decides
+    }
+}
+
+TEST(temperature_sweep_operating_points) {
+    // A 1N4148-style imported diode from 5 V through 1 kΩ: its forward drop falls with temperature.
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+    int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    s.setSpiceModel(d, SpiceModelRef{".model DX D(IS=2.52n N=1.752 RS=0.568 XTI=3 EG=1.11)", "DX", ""});
+    Simulator sim(s);
+    DcSweepResult res = sim.temperatureSweep({-40, 27, 85, 125});
+    CHECK(res.ok);
+    if (!res.ok) return;
+    CHECK(res.values.size() == 4 && res.values[1] == 27);
+    const auto& va = res.netVoltages[static_cast<size_t>(s.netOf({d, 0}))];
+    CHECK(va.size() == 4 && va[0] > va[1] && va[1] > va[2] && va[2] > va[3]);
+    CHECK(va[0] - va[3] > 0.2 && va[0] - va[3] < 0.5);  // about −2 mV/K over 165 K
+    CHECK(res.currents.count(d) == 1 && res.currents.at(d).size() == 4);
+    // 27 °C is the ordinary operating point (bit-identical when solved first, from zero), and the sweep leaves the
+    // simulator's temperature as it was.
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(va[1], netV(s, dc, d, "A"), 1e-9);
+    DcSweepResult one = sim.temperatureSweep({27});
+    CHECK(one.ok && one.netVoltages[static_cast<size_t>(s.netOf({d, 0}))][0] == netV(s, dc, d, "A"));
+    CHECK(sim.temperature() == 27);
+    CHECK(!sim.temperatureSweep({}).ok && !sim.temperatureSweep({-300}).ok);
+    // JSON form: a range or a list, values in °C.
+    Json o = Json::object();
+    o["start"] = -40;
+    o["stop"] = 125;
+    o["step"] = 55;
+    Json j = simulateTemperatureSweepJson(s, o);
+    CHECK(j.get("ok").asBool(false) && j.get("unit").asString("") == "°C" && j.get("values").size() == 4);
+    CHECK_NEAR(j.get("values")[3].asNumber(), 125, 1e-12);
+    Json list = Json::object();
+    Json temps = Json::array();
+    temps.push(0);
+    temps.push(50);
+    list["temperatures"] = temps;
+    CHECK(simulateTemperatureSweepJson(s, list).get("values").size() == 2);
 }
 
 TEST(spice_opamp_macromodel) {
@@ -19179,6 +19432,7 @@ TEST(mcp_tools_list_schemas) {
                              "pcb_set_board", "pcb_update_from_schematic", "pcb_place_footprint", "pcb_autoroute",
                              "pcb_route", "pcb_teardrops", "pcb_add_pour", "pcb_drc", "pcb_route_report", "sim_dc_op",
                              "sim_transient", "sim_ac", "sim_noise", "sim_measure", "sim_set_spice_model",
+                             "sim_temperature_sweep",
                              "si_impedance", "si_length_report", "si_memory_checks", "verify_design", "output_gerbers",
                              "output_bom", "output_pick_and_place", "output_schematic_pdf", "output_3d_model",
                              "render_schematic", "render_pcb"})

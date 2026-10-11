@@ -906,6 +906,10 @@ char* sieda_simulate_dc_sweep(const SiedaProject* project, const char* options_j
     return runAnalysis(project, options_json, simulateDcSweepJson);
 }
 
+char* sieda_simulate_temperature_sweep(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateTemperatureSweepJson);
+}
+
 char* sieda_simulate_param_sweep(const SiedaProject* project, const char* options_json) {
     return runAnalysis(project, options_json, simulateParamSweepJson);
 }
@@ -3128,6 +3132,7 @@ char* sieda_simulate_transient_ex(const SiedaProject* project, const char* optio
         const Schematic circuit = project->project.simulationSchematic();
         Simulator sim(circuit);
         sim.setConvergenceAids(true);
+        sim.setTemperature(number("temperature", 27));
         Json result = project->project.transientToJson(sim.transient(options));
         addAssemblyNote(project->project, result);
         return dup(result.dump());

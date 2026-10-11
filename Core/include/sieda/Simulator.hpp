@@ -174,6 +174,9 @@ public:
     AcResult ac(const AcOptions& options);
     /// DC sweep of the independent source `componentId` from `start` to `stop` in steps of |step|.
     DcSweepResult dcSweep(int componentId, double start, double stop, double step);
+    /// Temperature sweep: the DC operating point at each temperature (°C, at most 1000), `values` = the temperatures.
+    /// Imported models follow their SPICE temperature equations (setTemperature); built-in parts do not move.
+    DcSweepResult temperatureSweep(const std::vector<double>& celsius);
     /// Small-signal noise analysis (sieda/Noise.hpp, Noise.cpp).
     NoiseResult noise(const NoiseOptions& options);
     /// Multiplies the values of resistors, capacitors and inductors by a factor per component id (tolerance analysis).
@@ -185,6 +188,12 @@ public:
     /// sub-steps. They only ever turn a failure into a result. Off by default (the design checks keep the
     /// established behaviour), on in the app's analyses, always on with imported SPICE models.
     void setConvergenceAids(bool on) { aids_ = on; }
+    /// Simulation temperature (°C, default 27 = SPICE's, where every result is unchanged). Imported SPICE models take
+    /// their SPICE3 temperature updates from it (V_T, IS with XTI / EG, BF with XTB, VTO / PHI / KP, junction
+    /// potentials and capacitances, R / C with TC1 / TC2, each from the model's TNOM); the built-in device models
+    /// keep their 300 K parameters. Takes effect at the next analysis.
+    void setTemperature(double celsius) { temperatureC_ = celsius; }
+    double temperature() const { return temperatureC_; }
 
     // ---- incremental (live) simulation --------------------------------------------------------------------------------
     /// Starts at the t = 0 operating point. False with `error` when the circuit cannot be simulated.
@@ -246,6 +255,7 @@ private:
     bool limitJunctions_ = false;      // pnjlim on the built-in diodes and NPNs (new transient modes, retries)
     bool aids_ = false;                // setConvergenceAids
     bool noLimit_ = false;             // the AC / noise linearisation: devices at their exact operating point
+    double temperatureC_ = 27;         // setTemperature
     /// Junction limiting for a built-in diode or NPN's terminal voltages (Convergence.cpp).
     void limitBuiltinJunctions(const Element& e, std::array<double, 3>& v) const;
     /// A transient step from t0 over h that failed: 20, then 200 sub-steps with junction limiting (Convergence.cpp).

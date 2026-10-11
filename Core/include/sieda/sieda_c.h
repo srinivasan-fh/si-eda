@@ -186,7 +186,8 @@ void sieda_simulation_stop(int32_t stop);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
 /* Advanced analyses (docs/SIMULATION.md). Each takes a JSON options object (numbers may be engineering strings such as
  * "10k" or "1MEG"; NULL or "" = defaults) and returns {"ok","error",…}. Nets are named as in the schematic, parts by
- * reference.
+ * reference. Every options object takes "temperature" (°C, default 27): imported SPICE models follow their SPICE3
+ * temperature equations; built-in parts do not move.
  * AC small-signal sweep: {"start":1,"stop":1e6,"pointsPerDecade":50,"source":"V1"} →
  *   {"stimulus":[refs],"frequency":[Hz],"nets":[{index,name,dc,magnitudeDb:[],phaseDeg:[],metrics:{lowFreqDb,peakDb,
  *   peakHz,f3dbHz,bwLowHz,bwHighHz,unityHz,phaseMarginDeg}}]} (readouts outside the sweep are null). */
@@ -194,6 +195,10 @@ char* sieda_simulate_ac(const SiedaProject* project, const char* options_json);
 /* DC sweep of a source: {"source":"V1","start":0,"stop":5,"step":0.05} →
  *   {"source","unit","values":[],"nets":[{index,name,values}],"currents":[{component,ref,values}]}. */
 char* sieda_simulate_dc_sweep(const SiedaProject* project, const char* options_json);
+/* Temperature sweep: the DC operating point at each temperature, {"temperatures":[-40,27,85,125]} or
+ *   {"start":-40,"stop":125,"step":5} (at most 1000 points) → {"unit":"°C","values":[°C],"nets":[{index,name,values}],
+ *   "currents":[{component,ref,values}]}. */
+char* sieda_simulate_temperature_sweep(const SiedaProject* project, const char* options_json);
 /* Parameter sweep: {"component":"R1","values":["1k","2k2"],"analysis":"dc|ac|transient","net":"OUT" (optional),
  *   AC options as above, "stop"/"step" for transient} → {"component","analysis","runs":[{value,ok,error,x:[Hz or s],
  *   nets:[{index,name, voltage | values | magnitudeDb,phaseDeg,metrics}]}]}. */
@@ -809,7 +814,7 @@ char* sieda_measure_waveform(const char* request_json);
 /* ---- transient with options (docs/SIMULATION.md) ------------------------------------------------------------------ */
 /* Like sieda_simulate_transient, with options {"stop","step" (s or engineering text),"method":"be"|"trap",
  * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
- * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
+ * (1e-6 V),"maxStep" (adaptive; default the step),"temperature" (°C, 27)}. Convergence aids are on. Same result JSON. */
 char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
 
 /* ---- schematic capture: channel parameters (docs/SCHEMATIC.md) -------------------------------------------------- */

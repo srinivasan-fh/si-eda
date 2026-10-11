@@ -37,12 +37,15 @@
   `AppTheme.current`, the app redraws through `.id(appTheme)`; Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
-  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations) +
+  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations: SPICE3
+  temperature updates per model TNOM, MOS3 level 3 `channel3`, switch hysteresis `$SWH` state in `SpiceExpr::state`) +
   `SpiceBuild.cpp` (models and op-amp macromodel in the simulator), noise in `Noise.cpp`, adaptive / trapezoidal
-  transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; app in
+  transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; simulation
+  temperature `Simulator::setTemperature` (27 °C default = every result unchanged; JSON `"temperature"` on every analysis,
+  `temperatureSweep` / `sieda_simulate_temperature_sweep` / MCP `sim_temperature_sweep`); app in
   `SiEDA/Views/Simulation/` and `SiEDA/App/DesignStore+Simulation.swift`; guide in `docs/SIMULATION.md`. Parts without
   an imported model must keep their exact results: new behaviour is opt-in (a model, macromodel parameters, transient
-  options, `setConvergenceAids`).
+  options, `setConvergenceAids`, `setTemperature`).
 - Built-in AI model (no outside app): engine in `Core/src/LocalModel.cpp` (GGUF reader, F16…Q6_K blocks, Llama / Mistral /
   Qwen transformer, BPE + SentencePiece tokenizers; tokens equal and logits within 0.5 % of exact — tests against
   llama.cpp fixtures from `tools/make_llm_fixtures.py`), C API `sieda_llm_*` in `Core/src/sieda_c_llm.cpp`, CLI

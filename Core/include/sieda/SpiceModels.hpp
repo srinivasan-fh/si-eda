@@ -42,6 +42,7 @@ struct SpiceExpr {
     std::string name2;  // second node of V(a,b)
     std::vector<std::shared_ptr<SpiceExpr>> args;
     int slot = -1, slot2 = -1;  // simulator control slots of a voltage / current leaf
+    mutable double state = 0;   // $SWH: the switch state (1 on) held between Newton iterations, the SPICE way
 };
 using SpiceExprPtr = std::shared_ptr<SpiceExpr>;
 
@@ -96,6 +97,7 @@ struct SpiceLibrary {
     std::vector<std::string> paramText;                        // the global .param cards as written
     std::vector<SpiceFunc> funcs;
     std::vector<SpiceDiagnostic> diagnostics;
+    double tnom = 27;  // `.options tnom` (°C): the reference temperature of models without their own TNOM
 
     /// Model / subckt visible from `scope` (a subckt index, -1 global): the innermost definition wins.
     const SpiceModelCard* findModel(const std::string& name, int scope = -1) const;
@@ -137,6 +139,8 @@ struct SpicePrimitive {
     std::map<std::string, double> model;
     int level = 1;
     double area = 1, multiplier = 1, w = 0, l = 0, ad = 0, as = 0, pd = 0, ps = 0;
+    double tnom = 27;         // the library's reference temperature (°C); a model's TNOM overrides it
+    double tc1 = 0, tc2 = 0;  // R, C: value · (1 + TC1·ΔT + TC2·ΔT²), ΔT from tnom
 };
 
 struct SpiceFlatCircuit {
