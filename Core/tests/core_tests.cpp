@@ -18729,8 +18729,13 @@ TEST(classic_router_copper_fingerprint) {
     setRouterStrategy(RouterStrategy::Auto);
     const unsigned long long fp = projectFingerprint(b.project);
     std::printf("    %d / %d routed, %d vias, fingerprint %llu\n", st.routed, st.connections, st.vias, fp);
-    constexpr unsigned long long kExpected = 14563538764380718061ull;  // gcc, Release
-    CHECK(fp == kExpected && st.routed == 165 && st.connections == 166 && st.vias == 131);
+    CHECK(st.connections == 166 && st.routed >= 165);
+#if defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__) && defined(NDEBUG)
+    // The exact copper is pinned for the build that measured it (gcc, x86-64, Release): other compilers may contract
+    // multiply-adds and round, and so route, differently (docs/ROUTING.md, Limits).
+    constexpr unsigned long long kExpected = 14563538764380718061ull;
+    CHECK(fp == kExpected && st.routed == 165 && st.vias == 131);
+#endif
 }
 
 extern "C" int sieda_c_api_autoroute_strategy_test(void);
