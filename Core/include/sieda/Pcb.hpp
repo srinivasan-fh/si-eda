@@ -594,6 +594,9 @@ private:
     mutable std::vector<ZoneFill> fillCache_;
     mutable size_t fillKey_ = 0;
     mutable bool fillValid_ = false;
+    /// fillZones: the cells inside the outline and clear of the holes, kept while boardMaskKey_ (its inputs) holds.
+    mutable std::vector<char> boardMask_;
+    mutable std::string boardMaskKey_;
 };
 
 }  // namespace sieda

@@ -532,6 +532,7 @@ Json Project::toJson() const {
     if (Json models = models3dForParts(customLibrary); models.size() > 0) root["models3d"] = models;
 
     Json comps = Json::array();
+    comps.reserve(schematic.components().size());
     for (const auto& c : schematic.components()) {
         Json j = Json::object();
         j["id"] = c.id;
@@ -576,6 +577,7 @@ Json Project::toJson() const {
     root["components"] = comps;
 
     Json wires = Json::array();
+    wires.reserve(schematic.wires().size());
     for (const auto& w : schematic.wires()) {
         Json j = Json::object();
         j["id"] = w.id;
@@ -640,6 +642,7 @@ Json Project::toJson() const {
     }
 
     Json tracks = Json::array();
+    tracks.reserve(pcb.tracks.size());
     for (const auto& t : pcb.tracks) {
         Json j = Json::object();
         j["layer"] = static_cast<int>(t.layer);
@@ -654,6 +657,7 @@ Json Project::toJson() const {
     root["tracks"] = tracks;
 
     Json vias = Json::array();
+    vias.reserve(pcb.vias.size());
     for (const auto& v : pcb.vias) {
         Json j = vec(v.position);
         j["drill"] = v.drill;
@@ -1253,7 +1257,9 @@ Json Project::snapshot() const {
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();
-    for (const auto& p : pcb.pads(schematic)) {
+    const std::vector<Pad> padList = pcb.pads(schematic);
+    pads.reserve(padList.size());
+    for (const auto& p : padList) {
         Json j = Json::object();
         j["component"] = p.componentId;
         j["pin"] = p.pinIndex;
@@ -1331,6 +1337,7 @@ Json Project::snapshot() const {
         j["islands"] = f.islands;
         j["area"] = f.area();
         Json rects = Json::array();  // flat x0, y0, x1, y1 quadruples
+        rects.reserve(4 * f.rects.size());
         for (const auto& r : f.rects) {
             rects.push(r.x0);
             rects.push(r.y0);

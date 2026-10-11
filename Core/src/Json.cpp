@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <charconv>
 #include "sieda/Json.hpp"
 
@@ -76,13 +77,40 @@ private:
     Json parseNumber() {
         size_t start = pos_;
         if (s_[pos_] == '-') ++pos_;
+        // Plain decimals with at most 15 significant digits and 22 decimals (every coordinate and value SiEDA writes)
+        // are exact in a double, so one correctly rounded division gives strtod's result without its cost.
+        {
+            uint64_t m = 0;
+            int digits = 0, frac = 0;
+            bool dot = false;
+            size_t q = pos_;
+            for (; q < s_.size(); ++q) {
+                const char c = s_[q];
+                if (c >= '0' && c <= '9') {
+                    if (++digits <= 15) m = m * 10 + static_cast<uint64_t>(c - '0');
+                    if (dot) ++frac;
+                } else if (c == '.' && !dot) {
+                    dot = true;
+                } else {
+                    break;
+                }
+            }
+            const bool ends =
+                q >= s_.size() || (s_[q] != 'e' && s_[q] != 'E' && s_[q] != '.' && s_[q] != '+' && s_[q] != '-');
+            if (digits >= 1 && digits <= 15 && frac <= 22 && (!dot || frac >= 1) && ends) {
+                static const double pow10[] = {1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9,  1e10, 1e11,
+                                               1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22};
+                const double v = static_cast<double>(m) / pow10[frac];
+                pos_ = q;
+                return Json(s_[start] == '-' ? -v : v);
+            }
+        }
         while (pos_ < s_.size() && (isdigit(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '.' ||
                                     s_[pos_] == 'e' || s_[pos_] == 'E' || s_[pos_] == '+' || s_[pos_] == '-'))
             ++pos_;
-        std::string tok = s_.substr(start, pos_ - start);
         char* end = nullptr;
-        double v = std::strtod(tok.c_str(), &end);
-        if (end == tok.c_str() || *end != '\0') fail("invalid number '" + tok + "'");
+        double v = std::strtod(s_.c_str() + start, &end);  // the text is NUL-terminated; must stop where the scan did
+        if (end != s_.c_str() + pos_) fail("invalid number '" + s_.substr(start, pos_ - start) + "'");
         return Json(v);
     }
 
@@ -124,13 +152,12 @@ private:
         ++pos_;
         std::string out;
         while (true) {
+            size_t run = pos_;  // plain characters up to the next quote or escape go in one append
+            while (run < s_.size() && s_[run] != '"' && s_[run] != '\\') ++run;
+            out.append(s_, pos_, run - pos_);
+            pos_ = run;
             if (pos_ >= s_.size()) fail("unterminated string");
-            char c = s_[pos_++];
-            if (c == '"') break;
-            if (c != '\\') {
-                out += c;
-                continue;
-            }
+            if (s_[pos_++] == '"') break;
             if (pos_ >= s_.size()) fail("unterminated escape");
             char e = s_[pos_++];
             switch (e) {
@@ -225,6 +252,32 @@ void escapeString(std::string& out, const std::string& s) {
     out += '"';
 }
 
+/// Writes x when it is a short decimal (coordinates, widths: at most 4, or 6, decimals and at most 10 significant
+/// digits) as "%.10g" would, without the general-format conversion: 117.25 → "117.25". Any other value → false.
+bool shortDecimal(std::string& out, double x) {
+    const double a = std::fabs(x);
+    if (!(a >= 1e-4 && a < 1e6)) return false;  // "%.10g" would use exponent form, or more than 10 digits
+    for (const auto& [scale, limit] : {std::pair{1e4, 1e6}, std::pair{1e6, 1e4}}) {
+        if (a >= limit) continue;
+        const double k = std::nearbyint(a * scale);
+        if (k / scale != a) continue;  // not exactly this decimal
+        const long long n = static_cast<long long>(k), s = static_cast<long long>(scale);
+        char buf[24];
+        if (x < 0) out += '-';
+        out.append(buf, std::to_chars(buf, buf + sizeof buf, n / s).ptr);
+        out += '.';
+        char frac[8];
+        const auto r = std::to_chars(frac, frac + sizeof frac, n % s);
+        const size_t digits = static_cast<size_t>(r.ptr - frac), width = scale == 1e4 ? 4 : 6;
+        out.append(width - digits, '0');
+        size_t end = digits;
+        while (end > 0 && frac[end - 1] == '0') --end;
+        out.append(frac, end);
+        return true;
+    }
+    return false;
+}
+
 void newline(std::string& out, bool pretty, int indent) {
     if (!pretty) return;
     out += '\n';
@@ -232,28 +285,72 @@ void newline(std::string& out, bool pretty, int indent) {
 }
 }  // namespace
 
-const std::string& Json::asString() const { return type_ == Type::String ? str_ : kEmptyString; }
-const Json::Array& Json::items() const { return type_ == Type::Array && arr_ ? *arr_ : kEmptyArray; }
-const Json::Object& Json::fields() const { return type_ == Type::Object && obj_ ? *obj_ : kEmptyObject; }
+Json::Object::const_iterator Json::Object::find(std::string_view key) const {
+    auto it = std::lower_bound(items_.begin(), items_.end(), key,
+                               [](const value_type& a, std::string_view k) { return a.first < k; });
+    return it != items_.end() && it->first == key ? it : items_.end();
+}
+
+Json::Object::iterator Json::Object::find(std::string_view key) {
+    auto it = std::lower_bound(items_.begin(), items_.end(), key,
+                               [](const value_type& a, std::string_view k) { return a.first < k; });
+    return it != items_.end() && it->first == key ? it : items_.end();
+}
+
+Json& Json::Object::operator[](std::string_view key) {
+    // Keys usually arrive in order (our own files and builders), so the common case is an append; most objects
+    // have a handful of keys, so one allocation holds them.
+    if (items_.empty()) items_.reserve(8);
+    if (items_.empty() || items_.back().first < key) {
+        items_.emplace_back(std::piecewise_construct, std::forward_as_tuple(key), std::forward_as_tuple());
+        return items_.back().second;
+    }
+    auto it = std::lower_bound(items_.begin(), items_.end(), key,
+                               [](const value_type& a, std::string_view k) { return a.first < k; });
+    if (it == items_.end() || it->first != key)
+        it = items_.emplace(it, std::piecewise_construct, std::forward_as_tuple(key), std::forward_as_tuple());
+    return it->second;
+}
+
+const std::string& Json::asString() const {
+    const std::string* p = std::get_if<std::string>(&v_);
+    return p ? *p : kEmptyString;
+}
+
+const Json::Array& Json::items() const {
+    const auto* p = std::get_if<std::shared_ptr<Array>>(&v_);
+    return p && *p ? **p : kEmptyArray;
+}
+
+const Json::Object& Json::fields() const {
+    const auto* p = std::get_if<std::shared_ptr<Object>>(&v_);
+    return p && *p ? **p : kEmptyObject;
+}
 
 void Json::detach() {
-    if (type_ == Type::Array && arr_ && arr_.use_count() > 1) arr_ = std::make_shared<Array>(*arr_);
-    if (type_ == Type::Object && obj_ && obj_.use_count() > 1) obj_ = std::make_shared<Object>(*obj_);
+    if (auto* a = std::get_if<std::shared_ptr<Array>>(&v_); a && *a && a->use_count() > 1)
+        *a = std::make_shared<Array>(**a);
+    if (auto* o = std::get_if<std::shared_ptr<Object>>(&v_); o && *o && o->use_count() > 1)
+        *o = std::make_shared<Object>(**o);
 }
 
 void Json::push(Json v) {
-    if (type_ == Type::Null) {
-        type_ = Type::Array;
-        arr_ = std::make_shared<Array>();
-    }
-    if (type_ != Type::Array) throw JsonError("push on non-array");
+    if (isNull()) v_.emplace<std::shared_ptr<Array>>(std::make_shared<Array>());
+    if (!isArray()) throw JsonError("push on non-array");
     detach();
-    arr_->push_back(std::move(v));
+    std::get<std::shared_ptr<Array>>(v_)->push_back(std::move(v));
+}
+
+void Json::reserve(size_t n) {
+    if (isNull()) v_.emplace<std::shared_ptr<Array>>(std::make_shared<Array>());
+    if (!isArray()) throw JsonError("reserve on non-array");
+    detach();
+    std::get<std::shared_ptr<Array>>(v_)->reserve(n);
 }
 
 size_t Json::size() const {
-    if (type_ == Type::Array) return arr_ ? arr_->size() : 0;
-    if (type_ == Type::Object) return obj_ ? obj_->size() : 0;
+    if (isArray()) return items().size();
+    if (isObject()) return fields().size();
     return 0;
 }
 
@@ -262,23 +359,20 @@ const Json& Json::operator[](size_t i) const {
     return i < a.size() ? a[i] : kNull;
 }
 
-Json& Json::operator[](const std::string& key) {
-    if (type_ == Type::Null) {
-        type_ = Type::Object;
-        obj_ = std::make_shared<Object>();
-    }
-    if (type_ != Type::Object) throw JsonError("key access on non-object");
+Json& Json::operator[](std::string_view key) {
+    if (isNull()) v_.emplace<std::shared_ptr<Object>>(std::make_shared<Object>());
+    if (!isObject()) throw JsonError("key access on non-object");
     detach();
-    return (*obj_)[key];
+    return (*std::get<std::shared_ptr<Object>>(v_))[key];
 }
 
-const Json& Json::get(const std::string& key) const {
+const Json& Json::get(std::string_view key) const {
     const Object& o = fields();
     auto it = o.find(key);
     return it == o.end() ? kNull : it->second;
 }
 
-bool Json::has(const std::string& key) const { return fields().count(key) != 0; }
+bool Json::has(std::string_view key) const { return fields().count(key) != 0; }
 
 std::string Json::dump(bool pretty) const {
     std::string out;
@@ -287,23 +381,25 @@ std::string Json::dump(bool pretty) const {
 }
 
 void Json::dumpTo(std::string& out, bool pretty, int indent) const {
-    switch (type_) {
+    switch (type()) {
         case Type::Null: out += "null"; break;
-        case Type::Bool: out += bool_ ? "true" : "false"; break;
+        case Type::Bool: out += std::get<bool>(v_) ? "true" : "false"; break;
         case Type::Number: {
+            const double num_ = std::get<double>(v_);
             if (!std::isfinite(num_)) {
                 out += "null";
             } else {
                 // std::to_chars: the same text as printf ("%lld" / "%.10g") without locale or format parsing.
                 char buf[40];
-                const auto r = num_ == std::floor(num_) && std::fabs(num_) < 1e15
-                                   ? std::to_chars(buf, buf + sizeof buf, static_cast<long long>(num_))
-                                   : std::to_chars(buf, buf + sizeof buf, num_, std::chars_format::general, 10);
-                out.append(buf, r.ptr);
+                if (num_ == std::floor(num_) && std::fabs(num_) < 1e15) {
+                    out.append(buf, std::to_chars(buf, buf + sizeof buf, static_cast<long long>(num_)).ptr);
+                } else if (!shortDecimal(out, num_)) {
+                    out.append(buf, std::to_chars(buf, buf + sizeof buf, num_, std::chars_format::general, 10).ptr);
+                }
             }
             break;
         }
-        case Type::String: escapeString(out, str_); break;
+        case Type::String: escapeString(out, std::get<std::string>(v_)); break;
         case Type::Array: {
             const Array& a = items();
             out += '[';

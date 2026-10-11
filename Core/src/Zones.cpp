@@ -1,5 +1,6 @@
 // SiEDA Core — copper pours and plane layers (raster fill with clearance, thermal reliefs and island removal).
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -106,13 +107,30 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
     const double half = cell * 0.7072;  // centre-to-corner of a cell
 
     // Board area available to copper: inside the outline by the edge clearance and outside the hole keep-outs.
-    std::vector<char> board(n, 0);
-    for (int j = 0; j < rows; ++j)
-        for (int i = 0; i < cols; ++i) {
-            Vec2 p{(i + 0.5) * cell, (j + 0.5) * cell};
-            board[static_cast<size_t>(j * cols + i)] =
-                s.edgeDistance(p) >= s.edgeClearance + half && s.holeDistance(p) >= half;
-        }
+    // Only the outline, holes, edge clearance and cell size go in, so the mask is kept between fills: on a large
+    // board every edit refills the pours, and this part runs before the per-layer threads.
+    std::string maskKey;
+    {
+        char buf[32];
+        auto add = [&](double v) {
+            maskKey.append(buf, std::to_chars(buf, buf + sizeof buf, v).ptr);
+            maskKey += ',';
+        };
+        for (double v : {s.width, s.height, s.edgeClearance, cell}) add(v);
+        for (const Vec2& v : s.outline) add(v.x), add(v.y);
+        for (const auto& h : s.holes) add(h.position.x), add(h.position.y), add(h.keepout);
+    }
+    if (maskKey != boardMaskKey_ || boardMask_.size() != n) {
+        boardMask_.assign(n, 0);
+        for (int j = 0; j < rows; ++j)
+            for (int i = 0; i < cols; ++i) {
+                Vec2 p{(i + 0.5) * cell, (j + 0.5) * cell};
+                boardMask_[static_cast<size_t>(j * cols + i)] =
+                    s.edgeDistance(p) >= s.edgeClearance + half && s.holeDistance(p) >= half;
+            }
+        boardMaskKey_ = std::move(maskKey);
+    }
+    const std::vector<char>& board = boardMask_;
     const int k = std::max(1, static_cast<int>(std::ceil(s.minTrackWidth / (2 * cell) - 1e-9)));
     // Isolation barrier: a pour keeps the barrier gap from copper of other galvanic domains.
     // Isolation barrier and mains spacing: a pour keeps the fence gap from copper of other domains.

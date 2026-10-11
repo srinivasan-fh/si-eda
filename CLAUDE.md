@@ -128,14 +128,17 @@
     use the indented `sieda_project_save_json`. The view refresh uses `sieda_project_snapshot_delta` (only changed
     top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`); a new snapshot section
     must be decoded through `field(...)` there.
-  - **JSON writer:** `Json::dump` uses `std::to_chars` and a no-escape fast path, and must stay byte-identical to
-    `%.10g` / `%lld`.
+  - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
+    arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and
+    `shortDecimal` (≤ 6 decimals by integer arithmetic), and must stay byte-identical to `%.10g` / `%lld`
+    (test `json_short_decimals_match_printf`).
   - **JSON parser:** limits nesting to 256 levels (hostile files and requests).
   - **Measured:** every Schematic / board edit records its undo-state, engine and refresh time (`DesignStore.editTimings`,
     Help → Performance…, os_signpost "edit" intervals for Instruments); `sieda_route_bench --edit-budget <ms>` fails when
     the app's per-edit core path (move + undo state + delta snapshot) is slower at p95 (in CTest `sieda_scale_budget`).
   - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
-    layer, and must stay identical to the sequential fill.
+    layer, and must stay identical to the sequential fill; the board mask (cells inside the outline, clear of holes)
+    is kept between fills while its inputs are unchanged (`boardMask_`).
   - **MCP:** file reads are capped at 128 MB.
   - **Live endpoint:** at most 16 connections.
   - **`sieda-mcp --connect`:** only connects to 127.0.0.1 / localhost / ::1 and caps replies at 64 MB.
