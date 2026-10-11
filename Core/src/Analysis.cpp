@@ -75,6 +75,7 @@ std::optional<double> measure(const Schematic& schematic, const Measurement& m, 
     }
     Simulator sim(schematic);
     sim.setValueScale(scale);
+    sim.setTemperature(m.temperatureC);
     if (m.kind == Measurement::Kind::DcVoltage) {
         DcResult r = sim.dcOperatingPoint();
         if (!r.converged) {
@@ -222,6 +223,7 @@ std::vector<ParamSweepRun> parameterSweep(const Schematic& schematic, const Para
         ParamSweepRun run;
         run.value = value;
         Simulator sim(copy);
+        sim.setTemperature(options.temperatureC);
         switch (options.analysis) {
             case SweepAnalysis::Dc: run.dc = sim.dcOperatingPoint(); break;
             case SweepAnalysis::Ac: run.ac = sim.ac(options.ac); break;
@@ -408,6 +410,9 @@ Json errorResult(const std::string& error) {
     return j;
 }
 
+/// The "temperature" option (°C) of every analysis; 27 (SPICE's default) when absent.
+double temperatureOption(const Json& options) { return num(options.get("temperature"), 27); }
+
 // Nets worth reporting: not ground, connected to at least two pins (as the transient result lists them).
 bool reportable(const Net& n) { return !n.isGround && n.pins.size() >= 2; }
 
@@ -483,6 +488,7 @@ Json simulateAcJson(const Schematic& s, const Json& options) {
     AcOptions o = acOptions(s, options, error);
     if (!error.empty()) return errorResult(error);
     Simulator sim(s);
+    sim.setTemperature(temperatureOption(options));
     AcResult r = sim.ac(o);
     if (!r.ok) return errorResult(r.error);
     Json root = Json::object();
@@ -494,18 +500,12 @@ Json simulateAcJson(const Schematic& s, const Json& options) {
     return root;
 }
 
-Json simulateDcSweepJson(const Schematic& s, const Json& options) {
-    int id = componentByRef(s, options.get("source"));
-    if (id < 0) return errorResult("Choose the source to sweep.");
-    Simulator sim(s);
-    DcSweepResult r = sim.dcSweep(id, num(options.get("start"), 0), num(options.get("stop"), 5),
-                                  num(options.get("step"), 0.1));
+namespace {
+/// The nets and currents of a DC or temperature sweep.
+Json sweepJson(const Schematic& s, const DcSweepResult& r) {
     Json root = Json::object();
     root["ok"] = r.ok;
     root["error"] = r.error;
-    root["source"] = options.get("source").asString("");
-    const Component* c = s.find(id);
-    root["unit"] = c && c->kind == ComponentKind::CurrentSource ? "A" : "V";
     root["values"] = numbers(r.values);
     Json nets = Json::array();
     for (const auto& n : s.nets()) {
@@ -527,6 +527,39 @@ Json simulateDcSweepJson(const Schematic& s, const Json& options) {
         currents.push(j);
     }
     root["currents"] = currents;
+    return root;
+}
+}  // namespace
+
+Json simulateDcSweepJson(const Schematic& s, const Json& options) {
+    int id = componentByRef(s, options.get("source"));
+    if (id < 0) return errorResult("Choose the source to sweep.");
+    Simulator sim(s);
+    sim.setTemperature(temperatureOption(options));
+    Json root = sweepJson(s, sim.dcSweep(id, num(options.get("start"), 0), num(options.get("stop"), 5),
+                                         num(options.get("step"), 0.1)));
+    root["source"] = options.get("source").asString("");
+    const Component* c = s.find(id);
+    root["unit"] = c && c->kind == ComponentKind::CurrentSource ? "A" : "V";
+    return root;
+}
+
+Json simulateTemperatureSweepJson(const Schematic& s, const Json& options) {
+    std::vector<double> temps;
+    const Json& list = options.get("temperatures");
+    if (list.isArray()) {
+        for (size_t i = 0; i < list.size(); ++i) temps.push_back(num(list[i], NAN));
+    } else {
+        const double start = num(options.get("start"), -40), stop = num(options.get("stop"), 125);
+        const double step = std::fabs(num(options.get("step"), 5));
+        if (!(step > 0) || !std::isfinite(start) || !std::isfinite(stop) || std::fabs(stop - start) / step > 1000)
+            return errorResult("The temperature sweep needs finite start and stop temperatures and a step giving at most 1000 points.");
+        const double dir = stop >= start ? 1.0 : -1.0;
+        for (double t = start; dir * (t - stop) <= 1e-9 * step; t += dir * step) temps.push_back(t);
+    }
+    Simulator sim(s);
+    Json root = sweepJson(s, sim.temperatureSweep(temps));
+    root["unit"] = "°C";
     return root;
 }
 
@@ -551,6 +584,7 @@ Json simulateParamSweepJson(const Schematic& s, const Json& options) {
     if (!error.empty()) return errorResult(error);
     o.tStop = num(options.get("stop"), 1e-3);
     o.tStep = num(options.get("step"), 1e-6);
+    o.temperatureC = temperatureOption(options);
     int only = -1;
     if (options.has("net")) {
         only = netByName(s, options.get("net"));
@@ -613,6 +647,7 @@ Json simulateToleranceJson(const Schematic& s, const Json& options) {
     }
     std::string error;
     m.ac = acOptions(s, options, error);
+    m.temperatureC = temperatureOption(options);
     if (!error.empty()) return errorResult(error);
     ToleranceOptions o;
     o.runs = static_cast<int>(num(options.get("runs"), 100));
@@ -705,6 +740,7 @@ Json simulateFftJson(const Schematic& s, const Json& options) {
                 }
     const double stop = num(options.get("stop"), 10e-3);
     Simulator sim(s);
+    sim.setTemperature(temperatureOption(options));
     TransientResult tr = sim.transient(stop, num(options.get("step"), 1e-6));
     if (!tr.ok) return errorResult(tr.error);
     // Default window: the second half of the run, after start-up transients have (usually) settled.

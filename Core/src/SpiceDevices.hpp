@@ -1,8 +1,10 @@
 // SiEDA Core (internal) — semiconductor device equations for imported SPICE models: diode (with junction and
-// diffusion charge, breakdown), Gummel–Poon BJT (level 1 subset), MOSFET levels 1 and 3 (Shichman–Hodges, THETA
-// mobility reduction, body effect, overlap / junction / gate charge) and JFET. Each device gives the currents into
-// its terminals and the charges stored at them as functions of the terminal voltages; the simulator differentiates
-// them (Newton, AC admittance, transient companion models). Series resistances become separate resistors.
+// diffusion charge, breakdown), Gummel–Poon BJT (level 1 subset), MOSFET level 1 (Shichman–Hodges, body effect,
+// overlap / junction / gate charge) and level 3 (SPICE3 MOS3: ETA, THETA, VMAX, KAPPA, DELTA, NFS, XJ / NSUB) and
+// JFET, each with the SPICE3 temperature updates of its model (TNOM, EG, XTI, XTB, …). Each device gives the
+// currents into its terminals and the charges stored at them as functions of the terminal voltages; the simulator
+// differentiates them (Newton, AC admittance, transient companion models). Series resistances become separate
+// resistors.
 #pragma once
 
 #include <array>
@@ -50,8 +52,9 @@ public:
     virtual void noise(const double* v, std::vector<NoiseTerm>& out) const = 0;
 };
 
-/// Builds the device of a flattened D / Q / M / J primitive. nullptr with `error` for an unknown type.
-std::shared_ptr<const Device> makeDevice(const SpicePrimitive& p, std::string& error);
+/// Builds the device of a flattened D / Q / M / J primitive at the simulation temperature `tempC` (°C; the model's
+/// parameters hold at its TNOM, 27 °C unless given). nullptr with `error` for an unknown type.
+std::shared_ptr<const Device> makeDevice(const SpicePrimitive& p, std::string& error, double tempC = 27.0);
 
 /// SPICE depletion charge of a junction with zero-bias capacitance cj0, potential vj, grading m and forward-bias
 /// coefficient fc (linearised above fc·vj).

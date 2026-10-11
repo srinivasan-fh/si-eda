@@ -95,6 +95,10 @@ std::atomic<bool> g_drcBruteForce{false};
 void setDrcBruteForce(bool on) { g_drcBruteForce = on; }
 bool drcBruteForce() { return g_drcBruteForce; }
 namespace {
+std::atomic<int> g_viaMinGrids{0};
+}  // namespace
+void setViaMinimisationGrids(int grids) { g_viaMinGrids = std::max(0, grids); }
+namespace {
 std::atomic<int> g_routerStrategy{static_cast<int>(RouterStrategy::Auto)};
 std::atomic<int> g_routingThreads{0};
 }  // namespace
@@ -711,6 +715,154 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                                     : Vec2{settings.width / 2, settings.height / 2};
             c.pcb.placed = true;
         }
+    }
+    if (settings.autorouter.improvePlacement) improvePlacement(sch, todo, escapeOf, meshKeep, isoGap, domainOf);
+}
+
+// Iterative improvement after the greedy pass (AutorouteOptions::improvePlacement): over the parts just placed, in
+// order, the best of a few small shifts and of swaps with the nearest same-size parts is made when it lowers the
+// ratsnest's half-perimeter wire length (pad bounding boxes of the signal nets) and every courtyard stays clear by
+// the greedy pass's own spacing (margin, escape rings, barrier gaps, edge, holes, radios away from switchers).
+// Deterministic (one thread, parts in placement order, ties to the first candidate) and bounded (at most
+// kImproveRounds sweeps, each part against a fixed number of candidates).
+void PcbLayout::improvePlacement(Schematic& sch, const std::vector<size_t>& todo, const std::map<int, double>& escapeOf,
+                                 const std::map<int, double>& meshKeep, double isoGap, const std::map<int, int>& domainOf) {
+    auto& comps = sch.mutableComponents();
+    constexpr int kImproveRounds = 8, kSwapPartners = 12;
+    constexpr double margin = 1.2, step = 0.5;
+    constexpr size_t kMaxNetPads = 64;  // larger nets (ground, supplies) are planes or pours: no airwires to shorten
+    const bool custom = settings.hasCustomOutline();
+    // Movable parts (those the greedy pass placed), and each part's pads on the nets that count.
+    std::vector<size_t> parts;
+    for (size_t idx : todo)
+        if (comps[idx].pcb.placed && !comps[idx].pcb.locked && !embeddedElement(comps[idx], settings)) parts.push_back(idx);
+    std::map<int, std::vector<std::pair<size_t, Vec2>>> netPads;  // net → (component index, pad offset)
+    for (size_t i = 0; i < comps.size(); ++i) {
+        const Component& c = comps[i];
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+        if (!fp) continue;
+        for (const auto& pd : fp->pads)
+            if (pd.pinIndex >= 0)
+                if (const int net = sch.netOf({c.id, pd.pinIndex}); net >= 0) netPads[net].push_back({i, pd.offset});
+    }
+    for (auto it = netPads.begin(); it != netPads.end();)
+        it = it->second.size() < 2 || it->second.size() > kMaxNetPads || isZoneNet(sch, it->first) ? netPads.erase(it) : std::next(it);
+    std::map<size_t, std::vector<int>> netsOf;  // component index → its nets (ascending)
+    for (const auto& [net, list] : netPads)
+        for (const auto& [i, offset] : list)
+            if (netsOf[i].empty() || netsOf[i].back() != net) netsOf[i].push_back(net);
+    // Half-perimeter wire length of a net with the parts in `moved` at their new placement.
+    using Moves = std::vector<std::pair<size_t, PcbPlacement>>;
+    auto hpwl = [&](int net, const Moves& moved) {
+        Rect box;
+        bool first = true;
+        for (const auto& [i, offset] : netPads[net]) {
+            const PcbPlacement* pl = &comps[i].pcb;
+            for (const auto& [mi, mp] : moved)
+                if (mi == i) pl = &mp;
+            const Vec2 p = transformFootprintPoint(offset, *pl);
+            box = first ? Rect(p.x, p.y, p.x, p.y) : Rect(std::min(box.x0, p.x), std::min(box.y0, p.y), std::max(box.x1, p.x), std::max(box.y1, p.y));
+            first = false;
+        }
+        return box.width() + box.height();
+    };
+    auto gain = [&](const Moves& moved) {  // ratsnest saved by the moves (positive = shorter)
+        std::vector<int> nets;
+        for (const auto& [i, pl] : moved)
+            if (auto it = netsOf.find(i); it != netsOf.end()) nets.insert(nets.end(), it->second.begin(), it->second.end());
+        std::sort(nets.begin(), nets.end());
+        nets.erase(std::unique(nets.begin(), nets.end()), nets.end());
+        double g = 0;
+        for (int net : nets) g += hpwl(net, {}) - hpwl(net, moved);
+        return g;
+    };
+    auto escape = [&](int id) { auto it = escapeOf.find(id); return it == escapeOf.end() ? 0.0 : it->second; };
+    auto barrierGap = [&](int a, int b) {
+        if (isoGap <= 0) return 0.0;
+        const auto da = domainOf.find(a), db = domainOf.find(b);
+        return da != domainOf.end() && db != domainOf.end() && da->second >= 0 && db->second >= 0 && da->second != db->second ? isoGap : 0.0;
+    };
+    auto bodyAt = [&](size_t i, const PcbPlacement& pl) {
+        Component c = comps[i];
+        c.pcb = pl;
+        return courtyard(c);
+    };
+    // The greedy pass's placement rules for part `i` at `pl`, against every other part (the moved ones at their
+    // new placement).
+    auto clear = [&](size_t i, const PcbPlacement& pl, const Moves& moved) {
+        const Component& c = comps[i];
+        const Rect body = bodyAt(i, pl);
+        const double e = settings.edgeClearance + 0.5 + (meshKeep.count(c.id) ? meshKeep.at(c.id) : 0.0);
+        if (body.x0 < e - 1e-9 || body.y0 < e - 1e-9 || body.x1 > settings.width - e + 1e-9 || body.y1 > settings.height - e + 1e-9) return false;
+        if (custom && !settings.rectInside(body, e)) return false;
+        if (!custom && !settings.holes.empty() && !settings.rectInside(body, 0)) return false;
+        if (c.kind == ComponentKind::Capacitor)
+            for (const auto& h : settings.holes)
+                if (pointRectDistance(h.position, body) < h.keepout / 2 + 2.0) return false;
+        const bool radio = isRadioPart(c) || isImuPart(c), switching = isSwitchingPart(c);
+        const Rect mine = body.inflated(margin / 2 + escape(c.id));
+        for (size_t k = 0; k < comps.size(); ++k) {
+            const Component& o = comps[k];
+            if (k == i || !o.hasFootprint() || !o.pcb.placed) continue;
+            if (mountPlane(o, settings) != mountPlane(c, settings)) continue;  // moves change positions only
+            const PcbPlacement* op = &o.pcb;
+            for (const auto& [mi, mp] : moved)
+                if (mi == k) op = &mp;
+            const Rect ob = op == &o.pcb ? courtyard(o) : bodyAt(k, *op);
+            if (ob.inflated(margin / 2 + escape(o.id) + barrierGap(o.id, c.id)).intersects(mine)) return false;
+            if ((radio && isSwitchingPart(o)) || (switching && (isRadioPart(o) || isImuPart(o)))) {
+                const double dx = std::max({0.0, ob.x0 - body.x1, body.x0 - ob.x1}), dy = std::max({0.0, ob.y0 - body.y1, body.y0 - ob.y1});
+                if (std::hypot(dx, dy) < 10.0) return false;
+            }
+        }
+        return true;
+    };
+    for (int round = 0; round < kImproveRounds; ++round) {
+        int made = 0;
+        for (size_t a : parts) {
+            Component& ca = comps[a];
+            if (!netsOf.count(a)) continue;
+            std::vector<Moves> candidates;
+            for (double d : {step, -step, 2 * step, -2 * step, 4 * step, -4 * step})
+                for (int axis = 0; axis < 2; ++axis) {
+                    PcbPlacement pl = ca.pcb;
+                    (axis ? pl.position.y : pl.position.x) += d;
+                    candidates.push_back({{a, pl}});
+                }
+            // Swap partners: the nearest parts of the same courtyard size on the same side.
+            const Rect ba = courtyard(ca);
+            std::vector<std::pair<double, size_t>> partners;
+            for (size_t b : parts) {
+                const Component& cb = comps[b];
+                if (b == a || cb.pcb.bottom != ca.pcb.bottom || mountPlane(cb, settings) != mountPlane(ca, settings)) continue;
+                const Rect bb = courtyard(cb);
+                if (std::fabs(bb.width() - ba.width()) > 1e-6 || std::fabs(bb.height() - ba.height()) > 1e-6) continue;
+                partners.push_back({(cb.pcb.position - ca.pcb.position).length(), b});
+            }
+            std::sort(partners.begin(), partners.end());
+            for (size_t k = 0; k < partners.size() && k < kSwapPartners; ++k) {
+                const size_t b = partners[k].second;
+                PcbPlacement pa = ca.pcb, pb = comps[b].pcb;
+                std::swap(pa.position, pb.position);
+                candidates.push_back({{a, pa}, {b, pb}});
+            }
+            double best = 1e-6;
+            const Moves* bestMove = nullptr;
+            for (const Moves& m : candidates) {
+                const double g = gain(m);
+                if (g <= best) continue;
+                bool ok = true;
+                for (const auto& [i, pl] : m) ok = ok && clear(i, pl, m);
+                if (!ok) continue;
+                best = g;
+                bestMove = &m;
+            }
+            if (!bestMove) continue;
+            for (const auto& [i, pl] : *bestMove) comps[i].pcb = pl;
+            ++made;
+        }
+        if (made == 0) break;
     }
 }
 
@@ -3166,6 +3318,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     constexpr int kRipUpRounds = 30, kRipUpStall = 4;
     constexpr int kCorridorWidth = 2;  // tiles either side of a connection's global route (and straight line)
     int ripChain = 0;
+    // The strategy in force: after the last one gives up, ripChain is one past the table and the via-minimisation
+    // passes that follow keep the last strategy.
+    auto ripStrategy = [&]() -> const RipUpChain& {
+        return kRipUpChains[std::min<size_t>(static_cast<size_t>(ripChain), std::size(kRipUpChains) - 1)];
+    };
     std::map<int, NetCopper> bestCopper;  // the best pass's signal copper, and the nets its rip-up re-routes
     std::vector<int> bestRip;
     int ripRound = 0, ripStall = 0;
@@ -3252,7 +3409,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     size_t viaBatch = 0;
     struct ViaCandidate {
         int net;
-        Rect box;  // where its new route must stay
+        Rect box;            // where its new route must stay
+        bool shared = false;  // last batch: routed beside its own copper (and every other net's), see below
     };
     std::vector<std::vector<ViaCandidate>> viaBatches;
     int viasRemoved = 0, netsRerouted = 0;
@@ -3268,7 +3426,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         // Recovery and corridor rip-up passes make layer changes cheaper, which helps a net past a blockage.
         const double passViaCost = viaStage ? kViaMinCost : recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
         const Congestion* passCongestion =
-            recovery || (corridorMode && pass > 0 && kRipUpChains[ripChain].congestion) ? congestion.get() : nullptr;
+            recovery || (corridorMode && pass > 0 && ripStrategy().congestion) ? congestion.get() : nullptr;
         std::vector<FailedConnection> failedConnections;
         size_t fixedTracks = 0, fixedVias = 0;  // copper laid before any net routes (BGA fan-outs, tamper meshes)
         auto tGrid = profile.now();
@@ -3479,7 +3637,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             // The best pass's copper, without the batch nets' own routed copper; then each batch net alone, inside its box.
             const std::vector<ViaCandidate>& batch = viaBatches[viaBatch];
             std::set<int> inBatch;
-            for (const ViaCandidate& vc : batch) inBatch.insert(vc.net);
+            for (const ViaCandidate& vc : batch)
+                if (!vc.shared) inBatch.insert(vc.net);
             for (size_t t = 0; t < bestTracks.size(); ++t)
                 if (t < bestFixedTracks || !inBatch.count(bestTracks[t].net)) markFixedTrack(grid, bestTracks[t]);
             for (size_t v = 0; v < bestVias.size(); ++v)
@@ -4003,7 +4162,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             };
             // A rip-up pass routes the failing nets (and their bus) completely, retries included, before the nets that
             // were ripped to make room for them take any space back.
-            if (pass > 0 && kRipUpChains[ripChain].headFirst && ripHead > 0 && ripHead < toRoute.size()) {
+            if (pass > 0 && ripStrategy().headFirst && ripHead > 0 && ripHead < toRoute.size()) {
                 routeGroup(std::vector<int>(toRoute.begin(), toRoute.begin() + static_cast<std::ptrdiff_t>(ripHead)));
                 routeGroup(std::vector<int>(toRoute.begin() + static_cast<std::ptrdiff_t>(ripHead), toRoute.end()));
             } else {
@@ -4637,10 +4796,15 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 if (bestTracks[t].net == net) grow(Rect(bestTracks[t].a.x, bestTracks[t].a.y, bestTracks[t].a.x, bestTracks[t].a.y)), grow(Rect(bestTracks[t].b.x, bestTracks[t].b.y, bestTracks[t].b.x, bestTracks[t].b.y));
             cands.push_back({net, box.inflated(2.0)});
         }
-        // Greedy batches in routing order; at most kViaMinBatches grids are built.
-        constexpr size_t kViaMinBatches = 24;
+        // Greedy batches in routing order, each on a grid of its own: at least kViaMinBatches of them, more on small
+        // grids (kViaMinNodeBudget grid nodes in all). The candidates left over are tried in one last batch on a grid
+        // that keeps every net's copper, their own included: a net's new route is then clear of whichever copper of the
+        // others (routed before it in that batch or not) stays. So every net is tried within a bounded number of grids.
+        constexpr size_t kViaMinBatches = 24, kViaMinNodeBudget = size_t{400} << 20;
+        const size_t maxBatches = g_viaMinGrids > 0 ? static_cast<size_t>(g_viaMinGrids.load())
+                                                    : std::max(kViaMinBatches, kViaMinNodeBudget / std::max<size_t>(1, gridNodes));
         std::vector<char> placed(cands.size(), 0);
-        for (size_t b = 0; b < kViaMinBatches; ++b) {
+        for (size_t b = 0; b < maxBatches; ++b) {
             std::vector<ViaCandidate> batch;
             for (size_t k = 0; k < cands.size(); ++k) {
                 if (placed[k]) continue;
@@ -4653,6 +4817,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             if (batch.empty()) break;
             viaBatches.push_back(std::move(batch));
         }
+        std::vector<ViaCandidate> rest;
+        for (size_t k = 0; k < cands.size(); ++k)
+            if (!placed[k]) rest.push_back({cands[k].net, cands[k].box, true});
+        if (!rest.empty()) viaBatches.push_back(std::move(rest));
         if (!viaBatches.empty()) {
             viaStage = true;
             for (int pass = lastPass + 1;; ++pass)

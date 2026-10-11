@@ -3,6 +3,7 @@
 //   sieda_route_bench                      medium board (the CI case) and the large board
 //   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--save board.siedaproj]
 //                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
+//                     [--options '{"minimizeVias":true,...}']  autorouter strategy options (AutorouteOptions JSON)
 //                     [--edit-budget <ms>]  exit 1 when an edit (move + undo state + delta snapshot) takes longer (p95)
 //                     [--budget <seconds> <MB>]   exit 1 when place + route + DRC + snapshot take longer or the
 //                                                  peak memory is higher (the CTest scale guard)
@@ -22,6 +23,7 @@
 #endif
 
 #include "BoardGenerator.hpp"
+#include "sieda/Autoroute.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/sieda_c.h"
 
@@ -44,6 +46,7 @@ double peakMegabytes() {
 
 std::string g_snapshot;  // --snapshot: where to write the routed board (Project::snapshot JSON)
 std::string g_save;      // --save: where to write the routed project (.siedaproj JSON, to profile edits on it)
+std::string g_options;   // --options: autorouter strategy options as JSON
 double g_editP95 = 0;    // the app's per-edit path, 95th percentile (ms), measured after routing
 
 /// What one edit costs the app on this board, through the C API like the app: move a part, take the undo state and
@@ -85,6 +88,7 @@ double run(const bench::BenchSpec& spec, bool brute) {
                 spec.seed, spec.clusters, spec.layers, spec.bga ? ", BGAs" : "", spec.fpga ? ", FPGA" : "",
                 b.components, b.nets, b.pins, p.pcb.settings.width, p.pcb.settings.height);
     std::fflush(stdout);
+    if (!g_options.empty()) p.pcb.settings.autorouter = autorouteOptionsFromJson(Json::parse(g_options));
     auto t0 = clock::now();
     p.pcb.autoPlace(p.schematic, true);
     const double place = secs(t0);
@@ -100,6 +104,9 @@ double run(const bench::BenchSpec& spec, bool brute) {
     std::printf("  route   %8.2f s   %d / %d connections (%.1f %%), %d vias, %zu tracks, %.0f mm (CPU %.1f s, %d threads)\n",
                 route, st.routed, st.connections, st.connections ? 100.0 * st.routed / st.connections : 100.0, st.vias,
                 p.pcb.tracks.size(), st.trackLength, cpu, effectiveRoutingThreads());
+    if (!g_options.empty())
+        std::printf("  quality  vias removed %d (nets re-routed %d), glossed %d, pairs %zu\n", st.report.metrics.viasRemoved,
+                    st.report.metrics.netsRerouted, st.report.metrics.glossed, st.report.pairs.size());
     if (std::getenv("SIEDA_BENCH_VERBOSE")) {
         std::printf("  failed nets:");
         for (const auto& n : st.failedNets) std::printf(" %s", n.c_str());
@@ -181,6 +188,10 @@ int main(int argc, char** argv) {
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
         else if (a == "--save" && i + 1 < argc) g_save = argv[++i];
+        else if (a == "--options" && i + 1 < argc) {
+            g_options = argv[++i];
+            custom = true;
+        }
         else if (a == "--budget" && i + 2 < argc) {
             budgetSeconds = std::atof(argv[++i]);
             budgetMegabytes = std::atof(argv[++i]);
@@ -192,7 +203,7 @@ int main(int argc, char** argv) {
             setRouterStrategy(r == "classic" ? RouterStrategy::Classic : r == "corridor" ? RouterStrategy::Corridor : RouterStrategy::Auto);
         }
         else {
-            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--budget seconds MB] [--edit-budget ms] [--save file]\n");
+            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--options json] [--budget seconds MB] [--edit-budget ms] [--save file]\n");
             return 2;
         }
     }

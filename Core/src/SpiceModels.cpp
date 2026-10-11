@@ -409,7 +409,7 @@ const std::map<std::string, std::pair<int, int>>& builtinFunctions() {
         {"TANH", {1, 1}},  {"MIN", {2, 64}},  {"MAX", {2, 64}},  {"POW", {2, 2}},   {"PWR", {2, 2}},
         {"PWRS", {2, 2}},  {"SGN", {1, 1}},   {"SIGN", {1, 2}},  {"U", {1, 1}},     {"URAMP", {1, 1}},
         {"LIMIT", {3, 3}}, {"IF", {3, 3}},    {"FLOOR", {1, 1}}, {"CEIL", {1, 1}},  {"ROUND", {1, 1}},
-        {"INT", {1, 1}},   {"TABLE", {3, 513}}, {"$SWG", {5, 5}},
+        {"INT", {1, 1}},   {"TABLE", {3, 513}}, {"$SWG", {5, 5}}, {"$SWH", {5, 5}},
     };
     return f;
 }
@@ -550,6 +550,12 @@ double evalSpiceExpression(const SpiceExpr& e, const double* c, double t) {
         case Op::Cond: return arg(0) != 0 ? arg(1) : arg(2);
         case Op::Call: {
             if (e.name == "IF") return arg(0) != 0 ? arg(1) : arg(2);
+            if (e.name == "$SWH") {  // switch with hysteresis: on above v1, off below v0, otherwise the last state
+                const double x = arg(0);
+                if (x > arg(2)) e.state = 1;
+                else if (x < arg(1)) e.state = 0;
+                return e.state != 0 ? arg(3) : arg(4);
+            }
             std::vector<double> a(e.args.size());
             for (size_t i = 0; i < a.size(); ++i) a[i] = arg(i);
             return callBuiltin(e.name, a);
@@ -950,6 +956,23 @@ SpiceLibrary parseSpiceLibrary(const std::string& text) {
                                            tokens[1].find('.') != std::string::npos || tokens[1].find('"') != std::string::npos))
                     diag(L::Warning, card.line, kw + " " + tokens[1] +
                                                     " is not followed: paste the contents of that file into the model text.");
+            } else if (kw == ".TEMP" || ((kw == ".OPTIONS" || kw == ".OPTION" || kw == ".OPT") && tokens.size() > 1)) {
+                // The deck's temperatures: TNOM is the reference of models without their own, TEMP only a hint
+                // (the simulation's temperature setting decides).
+                bool handled = false;
+                for (size_t i = 1; i < tokens.size(); ++i) {
+                    std::string k, v;
+                    double x = 0;
+                    if (kw == ".TEMP" ? parseSpiceNumber(tokens[i], x)
+                                      : splitAssign(tokens[i], k, v) && (k == "TEMP" || k == "TNOM") && parseSpiceNumber(v, x)) {
+                        handled = true;
+                        if (k == "TNOM") lib.tnom = x;
+                        diag(L::Info, card.line,
+                             k == "TNOM" ? "TNOM = " + v + " °C: the reference temperature of models without their own."
+                                         : kw + " " + tokens[i] + ": the simulation temperature setting is used instead (27 °C unless set).");
+                    }
+                }
+                if (!handled) diag(L::Info, card.line, kw + " is a simulation command and is ignored.");
             } else if (ignoredDotCommands().count(kw)) {
                 diag(L::Info, card.line, kw + " is a simulation command and is ignored.");
             } else {
@@ -1011,30 +1034,29 @@ struct Ctx {
     int depth = 0;
 };
 
-// Model parameters the simulator uses, and ones it knowingly ignores without consequence at 27 °C (temperature
-// coefficients, ratings, vendor metadata). Anything else gets a warning.
+// Model parameters the simulator uses, and ones it knowingly ignores (temperature coefficients it does not model,
+// ratings, vendor metadata). Anything else gets a warning.
 struct ParamSets {
     std::set<std::string> used, info;
 };
 const ParamSets& paramSets(const std::string& type) {
-    static const std::set<std::string> commonInfo = {"TNOM", "EG", "XTI", "XTB", "MFG", "TYPE", "IAVE", "VPK", "IPK",
-                                                     "IREV", "VREV", "VCEO", "ICRATING", "VDS", "RON", "QG", "BVJ",
-                                                     "TEMP", "KIND", "IMAX", "VMAX_RATING", "DESC", "PART", "VOLTAGE",
-                                                     "CURRENT", "POWER"};
+    static const std::set<std::string> commonInfo = {"MFG", "TYPE", "IAVE", "VPK", "IPK", "IREV", "VREV", "VCEO",
+                                                     "ICRATING", "VDS", "RON", "QG", "BVJ", "TEMP", "KIND", "IMAX",
+                                                     "VMAX_RATING", "DESC", "PART", "VOLTAGE", "CURRENT", "POWER"};
     static const std::map<std::string, ParamSets> sets = {
         {"D", {{"IS", "N", "RS", "CJO", "CJ0", "CJ", "VJ", "PB", "M", "MJ", "TT", "FC", "BV", "VB", "IBV", "NBV", "KF",
-                "AF", "LEVEL", "AREA"},
+                "AF", "LEVEL", "AREA", "TNOM", "T_MEASURED", "EG", "XTI"},
                commonInfo}},
         {"BJT", {{"IS", "BF", "BR", "NF", "NR", "VAF", "VA", "VAR", "VB", "IKF", "IK", "IKR", "ISE", "NE", "ISC", "NC",
                   "RB", "RC", "RE", "CJE", "VJE", "PE", "MJE", "ME", "CJC", "VJC", "PC", "MJC", "MC", "TF", "TR", "FC",
-                  "KF", "AF", "LEVEL"},
+                  "KF", "AF", "LEVEL", "TNOM", "T_MEASURED", "EG", "XTI", "XTB"},
                  commonInfo}},
         {"MOS", {{"LEVEL", "VTO", "VT0", "KP", "GAMMA", "PHI", "LAMBDA", "THETA", "RD", "RS", "CBD", "CBS", "IS", "PB",
                   "CGSO", "CGDO", "CGBO", "CJ", "MJ", "CJSW", "MJSW", "FC", "TOX", "UO", "U0", "LD", "KF", "AF", "JS",
-                  "L", "W"},
+                  "L", "W", "TNOM", "T_MEASURED", "NSUB", "XJ", "NFS", "ETA", "VMAX", "KAPPA", "DELTA"},
                  commonInfo}},
         {"JFET", {{"VTO", "VT0", "BETA", "LAMBDA", "IS", "N", "RD", "RS", "CGS", "CGD", "PB", "M", "FC", "KF", "AF",
-                   "LEVEL"},
+                   "LEVEL", "TNOM", "T_MEASURED", "VTOTC", "BETATCE"},
                   commonInfo}},
         {"SW", {{"VT", "VH", "RON", "ROFF", "VON", "VOFF", "IT", "IH", "ION", "IOFF", "LEVEL"}, commonInfo}},
     };
@@ -1080,6 +1102,7 @@ public:
             out_.name = m->displayName;
             SpicePrimitive p;
             p.name = m->displayName;
+            p.tnom = lib_.tnom;
             std::vector<std::string> roles;
             if (m->type == "D") {
                 p.type = 'D';
@@ -1344,15 +1367,9 @@ private:
                 warn(m.line, "Model " + m.displayName + ": " + join(unsupported) + " not modelled (ignored).");
             if (!ignored.empty())
                 info(m.line, "Model " + m.displayName + ": " + join(ignored) +
-                                 " (temperature, rating or vendor data) ignored; the simulation is at 27 °C.");
-            if ((m.type == "NMOS" || m.type == "PMOS")) {
-                if (p.level == 3)
-                    info(m.line, "Model " + m.displayName +
-                                     ": LEVEL=3 is simulated with the level-1 equations plus THETA mobility reduction "
-                                     "(ETA, VMAX, KAPPA, NFS ignored).");
-                else if (p.level == 2)
-                    warn(m.line, "Model " + m.displayName + ": LEVEL=2 is simulated with the level-1 equations.");
-            }
+                                 " (temperature coefficient not modelled, rating or vendor data) ignored.");
+            if ((m.type == "NMOS" || m.type == "PMOS") && p.level == 2)
+                warn(m.line, "Model " + m.displayName + ": LEVEL=2 is simulated with the level-1 equations.");
         }
         if ((m.type == "NMOS" || m.type == "PMOS") && (p.level < 1 || p.level > 3)) {
             error(line, "Model " + m.displayName + ": MOSFET LEVEL=" + std::to_string(p.level) +
@@ -1452,6 +1469,7 @@ private:
         SpicePrimitive p;
         p.type = type;
         p.name = c.prefix + name;
+        p.tnom = lib_.tnom;
         auto need = [&](size_t n) {
             if (tok.size() < n) {
                 error(line, name + ": too few fields.");
@@ -1476,6 +1494,9 @@ private:
                             have = true;
                         } else if (k == "M") {
                             if (!evalValue(c, v, mult, line, name)) return;
+                        } else if (k == "TC" || k == "TC1" || k == "TC2") {  // TC=tc1[,tc2] (the comma splits the token)
+                            if (!evalValue(c, v, k == "TC2" ? p.tc2 : p.tc1, line, name)) return;
+                            if (k == "TC" && i + 1 < tok.size() && parseSpiceNumber(tok[i + 1], p.tc2)) ++i;
                         } else if (k == "RSER" || k == "RPAR" || k == "CPAR" || k == "LSER") {
                             warn(line, name + ": " + k + " is not modelled (ignored).");
                         }
@@ -1819,7 +1840,7 @@ private:
             case 'S':
             case 'W': {
                 // Switches become a behavioural current: I = V(n+, n−)·g(control), g log-interpolated between
-                // 1/ROFF and 1/RON across the threshold (no hysteresis).
+                // 1/ROFF and 1/RON across the threshold; with VH / IH a hysteresis latch ($SWH) across VT ± VH.
                 const bool vc = type == 'S';
                 if (!need(vc ? 6 : 5)) return;
                 const std::string mname = vc ? tok[5] : tok[4];
@@ -1836,6 +1857,7 @@ private:
                 };
                 double ron = std::max(get("RON", 1.0), 1e-9), roff = std::max(get("ROFF", 1e12), 1e-9);
                 double v0, v1;
+                bool hysteresis = false;
                 if (m->type == "VSWITCH") {
                     v0 = get("VOFF", 0.0);
                     v1 = get("VON", 1.0);
@@ -1847,7 +1869,7 @@ private:
                     double width = std::max(vh, vc ? 0.01 : 1e-5);
                     v0 = vt - width;
                     v1 = vt + width;
-                    if (vh > 0) warn(line, name + ": switch hysteresis is not modelled; it switches across VT ± VH.");
+                    hysteresis = vh > 0;
                 }
                 auto ctl = vc ? std::make_shared<SpiceExpr>() : std::make_shared<SpiceExpr>();
                 if (vc) {
@@ -1863,7 +1885,7 @@ private:
                 across->name = nd(1);
                 across->name2 = nd(2);
                 auto g = node(SpiceExpr::Op::Call, {ctl, number(v0), number(v1), number(1.0 / ron), number(1.0 / roff)});
-                g->name = "$SWG";
+                g->name = hysteresis ? "$SWH" : "$SWG";
                 p.type = 'B';
                 p.nodes = {nd(1), nd(2)};
                 p.voltageOutput = false;

@@ -186,7 +186,8 @@ void sieda_simulation_stop(int32_t stop);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
 /* Advanced analyses (docs/SIMULATION.md). Each takes a JSON options object (numbers may be engineering strings such as
  * "10k" or "1MEG"; NULL or "" = defaults) and returns {"ok","error",…}. Nets are named as in the schematic, parts by
- * reference.
+ * reference. Every options object takes "temperature" (°C, default 27): imported SPICE models follow their SPICE3
+ * temperature equations; built-in parts do not move.
  * AC small-signal sweep: {"start":1,"stop":1e6,"pointsPerDecade":50,"source":"V1"} →
  *   {"stimulus":[refs],"frequency":[Hz],"nets":[{index,name,dc,magnitudeDb:[],phaseDeg:[],metrics:{lowFreqDb,peakDb,
  *   peakHz,f3dbHz,bwLowHz,bwHighHz,unityHz,phaseMarginDeg}}]} (readouts outside the sweep are null). */
@@ -194,6 +195,10 @@ char* sieda_simulate_ac(const SiedaProject* project, const char* options_json);
 /* DC sweep of a source: {"source":"V1","start":0,"stop":5,"step":0.05} →
  *   {"source","unit","values":[],"nets":[{index,name,values}],"currents":[{component,ref,values}]}. */
 char* sieda_simulate_dc_sweep(const SiedaProject* project, const char* options_json);
+/* Temperature sweep: the DC operating point at each temperature, {"temperatures":[-40,27,85,125]} or
+ *   {"start":-40,"stop":125,"step":5} (at most 1000 points) → {"unit":"°C","values":[°C],"nets":[{index,name,values}],
+ *   "currents":[{component,ref,values}]}. */
+char* sieda_simulate_temperature_sweep(const SiedaProject* project, const char* options_json);
 /* Parameter sweep: {"component":"R1","values":["1k","2k2"],"analysis":"dc|ac|transient","net":"OUT" (optional),
  *   AC options as above, "stop"/"step" for transient} → {"component","analysis","runs":[{value,ok,error,x:[Hz or s],
  *   nets:[{index,name, voltage | values | magnitudeDb,phaseDeg,metrics}]}]}. */
@@ -278,7 +283,8 @@ int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
 int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
 /* JSON route statistics {"connections","routed","failed","vias","trackLength","lengthTuned","failedNets",
  * "thermalVias"}; with the strategy's "pinSwap" on, pins and gates are swapped (back-annotated) first and the JSON adds
- * "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter" (mm). */
+ * "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter" (mm); with "coupledPairs" on, a pair whose ends are crossed
+ * has its P / N pins swapped at the end whose part allows it ("pairSwaps", only when > 0). */
 char* sieda_pcb_autoroute(SiedaProject* project);
 /* Autoroute with progress and cancel: as sieda_pcb_autoroute, but calls progress(user, phase, pass, done, total,
  * unrouted) every few nets, always on the calling thread and never concurrently. phase: 0 preparing, 1 routing,
@@ -296,8 +302,9 @@ int32_t sieda_router_strategy(void);
 void sieda_router_set_threads(int32_t threads);
 /* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
  * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
- * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]},"pinSwap" (only
- * when true)}, plus "teardropStyle":"curved" when the teardrops are curved (absent = "straight"). Setting takes
+ * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]},"pinSwap",
+ * "improvePlacement" (the last two only when true; improvePlacement = Auto Place's iterative improvement pass)}, plus
+ * "teardropStyle":"curved" when the teardrops are curved (absent = "straight"). Setting takes
  * the fields given (others keep their value); returns 1 when the JSON was valid. */
 char* sieda_pcb_autoroute_options(const SiedaProject* project);
 int32_t sieda_pcb_set_autoroute_options(SiedaProject* project, const char* options_json);
@@ -679,11 +686,12 @@ SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_compone
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);
-/* Imported 3D models of parts (docs/LIBRARY_IMPORT.md#3d-models): VRML 2.0 (.wrl), STL (ASCII / binary), OBJ.
+/* Imported 3D models of parts (docs/LIBRARY_IMPORT.md#3d-models): VRML 2.0 (.wrl), STL (ASCII / binary), OBJ,
+ * STEP AP203 / AP214 (.step / .stp, tessellated by the core, converted to mm by the file's unit).
  * request {"name":"SOIC-8.wrl","content":"<text>"} or {"name":"part.stl","contentBase64":"…"} →
  * {"ok","error","id","name","format","unit","vertices","triangles","bounds":[minx,miny,minz,maxx,maxy,maxz],
  *  "warnings":[…]}. The mesh is registered; a part refers to it with spec "model3d":{"id","name","unit","scale":[3],
- *  "rotate":[3],"offset":[3]} and it is saved with the project. STEP files are refused with the reason. Caller frees. */
+ *  "rotate":[3],"offset":[3]} and it is saved with the project. Caller frees. */
 char* sieda_model3d_import(const char* request_json);
 /* Aligned bounds (mm, footprint frame, z up) of a spec's model and the alignment that centres it on the footprint
  * and seats it on the board: {"ok","error","bounds":[6],"seated":{model3d}}. Caller frees. */
@@ -807,7 +815,7 @@ char* sieda_measure_waveform(const char* request_json);
 /* ---- transient with options (docs/SIMULATION.md) ------------------------------------------------------------------ */
 /* Like sieda_simulate_transient, with options {"stop","step" (s or engineering text),"method":"be"|"trap",
  * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
- * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
+ * (1e-6 V),"maxStep" (adaptive; default the step),"temperature" (°C, 27)}. Convergence aids are on. Same result JSON. */
 char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
 
 /* ---- schematic capture: channel parameters (docs/SCHEMATIC.md) -------------------------------------------------- */

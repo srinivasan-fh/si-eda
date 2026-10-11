@@ -28,7 +28,7 @@ both editors and save them with the project.
 | `.lbr` (Eagle 6–9, Fusion Electronics libraries exported as `.lbr`) | Packages, symbols, device sets with their devices, technologies and pin–pad connects | Complete parts, one per device and technology |
 | `.SchLib` (Altium Designer binary schematic library) | Components: pins with designator, name, electrical type, position and orientation; multi-part components; designator prefix, parameters (manufacturer, datasheet) and the PCB footprint models they link | A part's pins and symbol layout, paired with the linked footprint |
 | `.PcbLib` (Altium Designer binary PCB library) | Footprints: pads with position, size, shape, drill, layer and rotation; top overlay outline | A land pattern |
-| `.wrl` (VRML 2.0 / 97), `.stl` (ASCII or binary), `.obj` | A 3D model | The 3D body of the footprint that names it (see [3D models](#3d-models)) |
+| `.wrl` (VRML 2.0 / 97), `.stl` (ASCII or binary), `.obj`, `.step` / `.stp` (AP203 / AP214) | A 3D model | The 3D body of the footprint that names it (see [3D models](#3d-models)) |
 
 You can pick several files at once, or folders. A folder is searched for these file types, so a KiCad `.pretty`
 folder or `.kicad_symdir` folder imports as a whole (up to 2000 files, 32 MB each). Choosing a `X.pretty` folder also
@@ -202,20 +202,21 @@ published layout; libraries saved by every Altium version could not be tested he
 
 ## 3D models
 
-A part can carry an imported 3D model instead of SiEDA's generated body: VRML 2.0 / 97 (`.wrl`, what KiCad's
-libraries ship next to every STEP model), STL (ASCII or binary) or Wavefront OBJ. The model is drawn in the 3D view,
-included in the STL / OBJ exports and the fabrication package's `3d/` STL, and saved with the project.
+A part can carry an imported 3D model instead of SiEDA's generated body: VRML 2.0 / 97 (`.wrl`), STL (ASCII or
+binary), Wavefront OBJ or STEP (`.step` / `.stp`, AP203 / AP214, what KiCad's libraries ship). The model is drawn in
+the 3D view, included in the STL / OBJ exports and the fabrication package's `3d/` STL, and saved with the project.
 
 **With a KiCad import.** A KiCad footprint names its model, for example
 `${KICAD8_3DMODEL_DIR}/Package_SO.3dshapes/SOIC-8_3.9x4.9mm_P1.27mm.wrl`, with an offset, scale and rotation. When a
-model file of that name (`.wrl`, `.stl` or `.obj`; a `.step` reference takes the file of the same name) is in the
-import, the part gets it, with the footprint's offset, scale and rotation, moved with the pads when the land pattern
-is centred, and a note "3D model … attached". When it is not, a note says to add the library's `.3dshapes` folder.
-KiCad VRML files are in 0.1 inch units; STL and OBJ are taken as millimetres.
+model file of that name is in the import, the part gets it (the file named, else any `.wrl`, `.stl`, `.obj` or
+`.step` of the same stem), with the footprint's offset, scale and rotation, moved with the pads when the land
+pattern is centred, and a note "3D model … attached". When it is not, a note says to add the library's `.3dshapes`
+folder. KiCad VRML files are in 0.1 inch units; STL and OBJ are taken as millimetres; STEP files are converted to
+millimetres by their own unit.
 
 **By hand.** Select a part in the Component Library and click **3D Model…**:
 
-1. **Choose File…** reads a `.wrl`, `.stl` or `.obj` file and seats it on the footprint.
+1. **Choose File…** reads a `.wrl`, `.stl`, `.obj` or `.step` file and seats it on the footprint.
 2. Align it: **File unit** (mm, 0.1 inch, inch, mil, m), **Offset** (mm), **Rotation** (degrees about x, then y, then
    z) and **Scale**. Axes: x right, y towards the top of the PCB view, z up from the board. The preview shows the
    part on a piece of board with its pads; **Seat on Board** centres the model on the footprint and puts its lowest
@@ -230,18 +231,31 @@ negative indices; colours are guessed from `usemtl` names (`.mtl` files are not 
 material in the 3D view: bright greys render as tinned metal, gold as gold, transparent parts as glass, the rest as
 moulded plastic.
 
+**STEP.** ISO 10303-21 files (AP203 / AP214) are read by SiEDA's own tessellator, without a CAD kernel: entity
+instances including complex entities, `MANIFOLD_SOLID_BREP` / `BREP_WITH_VOIDS` / `FACETED_BREP`,
+`SHELL_BASED_SURFACE_MODEL`, closed and open shells, `ADVANCED_FACE` / `FACE_SURFACE` with `EDGE_LOOP` (oriented
+edges on lines, circles, ellipses, polylines and B-spline curves, rational ones included, sampled at up to 48 points;
+circles every 15°) and `POLY_LOOP` bounds, assembly placements through `MAPPED_ITEM` and
+`REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION` (the parent found through the product structure), the file's
+`LENGTH_UNIT` (SI prefixes and conversion-based units such as inches) and `STYLED_ITEM` → `COLOUR_RGB` colours per
+solid, shell or face. Each face's boundary samples are mapped to the parameters of its surface — plane, cylinder,
+cone, sphere, torus and surface of revolution exactly, with seams unwrapped — and triangulated there (ear clipping
+with holes bridged in, the fattest ear first), so faces share their boundary samples and closed solids stay closed.
+A full cylinder without a seam is joined into a band, a seamless cap is fanned to its apex or pole, and a whole
+sphere or torus bounded only by seams is gridded. **Approximations, counted in the import notes:** faces on
+B-spline, offset, extruded and other surfaces are triangulated from their boundary in its best-fit plane (no points
+inside the face; a strongly curved spline patch comes out as chords), edges on other curve types are drawn straight,
+and faces that still cannot be triangulated are fanned. Hostile files are safe: nesting to 64 levels, at most two
+million instances, 4096 boundary samples per face, a work budget on the triangulation, and a bound on assembly depth
+and instance count; what cannot be read is refused with the line where reading stopped.
+
 **Limits.** 32 MB per file, 200 000 triangles and 600 000 vertices per model, coordinates within ±10⁶ units, VRML
 nesting to 64 levels. A file beyond them is refused with the reason and the line where reading stopped.
-
-**STEP is not read.** STEP (`.step` / `.stp`) files describe exact surfaces (B-rep, NURBS) that need a CAD geometry
-kernel to tessellate, which SiEDA does not include. They are recognised and refused with that reason; use the `.wrl`
-KiCad ships beside each `.step`, or export VRML / STL / OBJ from the CAD tool.
 
 ## Not supported
 
 - **Altium integrated libraries** (`.IntLib`) and ASCII Altium libraries are refused with a message (see
   [Altium libraries](#altium-libraries)); binary `.SchLib` and `.PcbLib` are read.
-- **STEP 3D models** (see [3D models](#3d-models)); VRML, STL and OBJ models are imported.
 - **Other graphics.** Silkscreen and fab graphics are used only for the body outline; text and other drawings are not
   imported.
 - **Paste and mask.** Paste and solder-mask expansions are SiEDA's own; per-pad overrides are ignored.
@@ -360,11 +374,14 @@ empty `parts` list with the reason.
     (800 mutations of the container and records): the CFB reader (mini stream and regular sectors, case-insensitive
     names, truncation and looping chains), the SchLib / PcbLib records, pairing, explicit pairs, `.IntLib` refusal and
     base64 transport.
-  - `model3d_readers_vrml_stl_obj`, `model3d_alignment_assembly_and_project_file`,
-    `library_import_attaches_kicad_3d_models`, `model3d_readers_survive_fuzzing` (1200 mutations): the readers and
-    their limits, alignment, the model in the assembly on both sides, project save / load, KiCad model attachment,
-    base64 transport, STEP refusal. The VRML fixture `Core/tests/fixtures/models/SOIC-8_3.9x4.9mm_P1.27mm.wrl` is
-    synthetic, written in the layout of KiCad's models; STL / OBJ cubes are generated by the tests.
+  - `model3d_readers_vrml_stl_obj`, `model3d_step_reader_solids_units_colours_assembly`,
+    `model3d_alignment_assembly_and_project_file`, `library_import_attaches_kicad_3d_models`,
+    `model3d_readers_survive_fuzzing` (1500 mutations), `step_import_round_trip_of_export`: the readers and their
+    limits, a hand-written STEP in inches (cylinder, box, colour, `MAPPED_ITEM` and relationship placements, a face
+    on a B-spline surface, malformed files), the exported board read back closed with its volumes, alignment, the
+    model in the assembly on both sides, project save / load, KiCad model attachment, base64 transport. The VRML
+    fixture `Core/tests/fixtures/models/SOIC-8_3.9x4.9mm_P1.27mm.wrl` is synthetic, written in the layout of KiCad's
+    models; STL / OBJ cubes and the STEP files are generated by the tests.
 - **App** (`SiEDATests/SiEDATests.swift`):
   - `LibraryImportTests`: import through the engine, adding to the library, and finding files in folders.
   - `PartQueryTests`: filter parsing and the search in the standard library.

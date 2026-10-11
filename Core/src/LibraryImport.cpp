@@ -1875,8 +1875,8 @@ struct ImportedModel {
     std::string id, name, format;
 };
 
-/// Attaches the imported 3D model each footprint names (by file name; a .step reference takes the .wrl / .stl /
-/// .obj of the same name) to the parts that use the footprint.
+/// Attaches the imported 3D model each footprint names to the parts that use the footprint: the file named
+/// (by lower-case name), else any model of the same stem (a .step reference takes the .wrl / .stl / .obj).
 void attachModels(LibraryImport& out, const std::map<std::string, ImportedModel>& models) {
     for (auto& part : out.parts) {
         if (part.footprintName.empty()) continue;
@@ -1884,12 +1884,13 @@ void attachModels(LibraryImport& out, const std::map<std::string, ImportedModel>
         for (const auto& f : out.footprints)
             if (f.name == part.footprintName && part.source.find(f.source) != std::string::npos) fp = &f;
         if (!fp || fp->modelPath.empty()) continue;
-        auto it = models.find(modelStem(fp->modelPath));
+        const size_t slash = fp->modelPath.find_last_of("/\\");
+        const std::string file = slash == std::string::npos ? fp->modelPath : fp->modelPath.substr(slash + 1);
+        auto it = models.find(lower(file));
+        if (it == models.end()) it = models.find(modelStem(fp->modelPath));
         if (it == models.end()) {
-            const size_t slash = fp->modelPath.find_last_of("/\\");
-            const std::string file = slash == std::string::npos ? fp->modelPath : fp->modelPath.substr(slash + 1);
             part.warnings.push_back("3D model " + clean(file, 120) + " is not in the import: add the library's .3dshapes "
-                                    "folder (its .wrl files) to attach it");
+                                    "folder (its .wrl or .step files) to attach it");
             continue;
         }
         Model3DRef ref = fp->modelAlign;
@@ -1933,7 +1934,7 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
                 Model3DMesh mesh = parseModel3D(f.content, fr.name);
                 const std::string format = mesh.format;
                 const std::string id = Model3DRegistry::instance().add(std::move(mesh));
-                models[modelStem(fr.name)] = {id, fr.name, format};
+                models[modelStem(fr.name)] = models[lower(fr.name)] = {id, fr.name, format};
             } else {
                 throw ImportError("unknown file type: import KiCad .kicad_mod / .kicad_sym or Eagle .lbr files");
             }

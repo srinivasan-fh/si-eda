@@ -47,6 +47,7 @@ struct Measurement {
     enum class Kind { DcVoltage, AcGainDb, AcF3db, AcPeakHz } kind = Kind::DcVoltage;
     int net = -1;   // schematic net index
     AcOptions ac;   // sweep for the AC measurements (measureNets is set to `net`)
+    double temperatureC = 27;  // Simulator::setTemperature
 };
 
 /// Runs the measurement with the given value scale factors. nullopt with `error` when the analysis fails or the
@@ -95,6 +96,7 @@ struct ParamSweepOptions {
     SweepAnalysis analysis = SweepAnalysis::Dc;
     AcOptions ac;
     double tStop = 1e-3, tStep = 1e-6;
+    double temperatureC = 27;  // Simulator::setTemperature
 };
 
 struct ParamSweepRun {
@@ -142,6 +144,8 @@ SpectrumResult spectrum(const std::vector<double>& time, const std::vector<doubl
 
 Json simulateAcJson(const Schematic& schematic, const Json& options);
 Json simulateDcSweepJson(const Schematic& schematic, const Json& options);
+/// Temperature sweep (sieda_simulate_temperature_sweep): {"temperatures":[°C…]} or {"start","stop","step"}.
+Json simulateTemperatureSweepJson(const Schematic& schematic, const Json& options);
 Json simulateParamSweepJson(const Schematic& schematic, const Json& options);
 Json simulateToleranceJson(const Schematic& schematic, const Json& options);
 Json simulateFftJson(const Schematic& schematic, const Json& options);

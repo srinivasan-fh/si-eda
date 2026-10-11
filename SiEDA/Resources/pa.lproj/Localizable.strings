@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "SiEDA ਦੇ ਏਜੰਟਾਂ ਲਈ ਵਰਤੋ";
 "Use the Bundled Model" = "ਨਾਲ ਆਇਆ ਮਾਡਲ ਵਰਤੋ";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "ਸਰਕਟ ਮਾਡਲ ਵਰਤਣ ਨਾਲ ਉਹ ਨਵੇਂ ਸਰਕਟ ਡਿਜ਼ਾਈਨ ਕਰਨ ਵਾਲਾ AI ਬਣ ਜਾਂਦਾ ਹੈ: ਇਹ ਇਸੇ Mac ਉੱਤੇ ਚੱਲਦਾ ਹੈ, ਨਾ ਖਾਤਾ ਨਾ ਡਾਊਨਲੋਡ ਚਾਹੀਦਾ; ਵੇਰਵੇ ਅਤੇ ਸਮੀਖਿਆਵਾਂ Offline Designer ਤੋਂ ਆਉਂਦੀਆਂ ਹਨ।";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "VRML (.wrl), STL, OBJ ਜਾਂ STEP ਮਾਡਲ ਜੋੜੋ ਅਤੇ ਇਸਨੂੰ ਫੁੱਟਪ੍ਰਿੰਟ 'ਤੇ ਇਕਸਾਰ ਕਰੋ";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "KiCad ਲਾਇਬ੍ਰੇਰੀਆਂ ਵਾਂਗ VRML (.wrl), STL, OBJ ਜਾਂ STEP (.step / .stp) ਫਾਈਲ ਚੁਣੋ।";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl), STL, OBJ ਜਾਂ STEP (.step / .stp, KiCad ਲਾਇਬ੍ਰੇਰੀਆਂ ਵਾਂਗ)।";

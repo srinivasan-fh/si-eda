@@ -1,12 +1,11 @@
-// SiEDA Core — imported 3D models of parts: VRML 2.0 / 97 (.wrl, what KiCad libraries ship next to their STEP
-// files), STL (ASCII and binary) and Wavefront OBJ, read into a triangle mesh with per-material colours.
+// SiEDA Core — imported 3D models of parts: VRML 2.0 / 97 (.wrl), STL (ASCII and binary), Wavefront OBJ and STEP
+// AP203 / AP214 (.step / .stp, the B-rep tessellated by SiEDA's own reader: planes, cylinders, cones, spheres, tori
+// and B-spline edges exactly, other surfaces from their boundary), read into a triangle mesh with per-material
+// colours.
 //
 // A part refers to its model by id (CustomPartSpec::model3d) with an alignment: file unit, scale, rotation and
 // offset. The meshes live in a process-wide registry keyed by a content hash, are saved with the project
 // ("models3d") and replace the generated body in the 3D assembly view and in the STL / OBJ exports.
-//
-// STEP (.step / .stp) is not read: it is a B-rep (NURBS surfaces and trimmed faces) that needs a geometry kernel
-// to tessellate. KiCad ships a .wrl next to every .step; import that instead.
 //
 // Files are untrusted input: size, nesting, vertex and triangle counts and every number are limited, and a file
 // that cannot be read throws Model3DError with the line where reading stopped.
@@ -34,7 +33,7 @@ struct Model3DError : std::runtime_error {
 /// A triangle mesh in the file's own units and axes (x right, y away from the viewer, z up, as KiCad models are).
 struct Model3DMesh {
     std::string name;    // file name
-    std::string format;  // "vrml", "stl", "obj"
+    std::string format;  // "vrml", "stl", "obj", "step"
     std::vector<float> positions;   // xyz
     std::vector<uint32_t> indices;  // triangles
     struct Group {
@@ -54,18 +53,23 @@ struct Model3DLimits {
     static constexpr size_t maxFile = 32u << 20;    // bytes
     static constexpr size_t maxTriangles = 200000;  // per model (kept in the project file)
     static constexpr size_t maxVertices = 600000;
-    static constexpr int maxDepth = 64;             // VRML node nesting
+    static constexpr int maxDepth = 64;             // VRML node nesting, STEP argument nesting
 };
 
 Model3DMesh parseVrml(const std::string& text, const std::string& name = {});
 Model3DMesh parseStl(const std::string& bytes, const std::string& name = {});
 Model3DMesh parseObj(const std::string& text, const std::string& name = {});
-/// By extension (.wrl / .vrml, .stl, .obj); .step / .stp and anything else throw with the reason.
+/// STEP Part 21 (AP203 / AP214): solids, shells and assembly placements; coordinates are converted to mm by the
+/// file's LENGTH_UNIT; colours from STYLED_ITEM; faces on surfaces the reader cannot parametrise and edges on
+/// unknown curves are approximated and counted in `warnings`.
+Model3DMesh parseStep(const std::string& text, const std::string& name = {});
+/// By extension (.wrl / .vrml, .stl, .obj, .step / .stp); anything else throws with the reason.
 Model3DMesh parseModel3D(const std::string& bytes, const std::string& name);
-/// True for the file types parseModel3D reads, plus .step / .stp (recognised so they can be refused clearly).
+/// True for the file types parseModel3D reads.
 bool isModel3DFile(const std::string& name);
 
-/// Millimetres per file unit a format is usually written in: KiCad VRML uses 0.1 inch (2.54 mm), STL / OBJ mm.
+/// Millimetres per file unit a format is usually written in: KiCad VRML uses 0.1 inch (2.54 mm), STL / OBJ mm,
+/// STEP is converted to mm when read.
 double defaultModelUnit(const std::string& format);
 
 class Model3DRegistry {

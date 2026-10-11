@@ -75,6 +75,7 @@ jobs:
                          *.PcbLib) b='\004';; *.IntLib) b='\005';; *) continue;; esac
             { printf "$b"; cat "$f"; } > corpus/library/seed$((i += 1))
           done
+          for f in Core/tests/fixtures/step/*.step; do { printf '\011'; cat "$f"; } > corpus/library/seed$((i += 1)); done
           for t in json project spice library idf; do
             ./build-san/sieda_fuzz_$t corpus/$t -max_total_time=60 -timeout=10 -rss_limit_mb=2048 -max_len=262144 \
               -print_final_stats=1 || exit 1

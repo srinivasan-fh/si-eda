@@ -10800,7 +10800,14 @@ R1 a b 1
     }
     SpiceFlatCircuit da = flattenSpiceModel(lib, "DA");
     CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Warning, "FOO not modelled"));
-    CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Info, "XTI"));
+    CHECK(!hasDiag(da.diagnostics, SpiceDiagnostic::Level::Info, "XTI"));  // XTI is modelled (temperature)
+    // The deck's temperatures: `.options tnom` is the models' reference, `.temp` only a hint in the diagnostics.
+    SpiceLibrary temps = parseSpiceLibrary(".temp 85\n.options tnom=25 reltol=1e-4\n.options gmin=1e-12\n.model DT D(IS=1n)\n");
+    CHECK_NEAR(temps.tnom, 25, 1e-12);
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, ".TEMP 85"));
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, "TNOM = 25"));
+    CHECK(hasDiag(temps.diagnostics, SpiceDiagnostic::Level::Info, ".OPTIONS is a simulation command"));
+    CHECK_NEAR(flattenSpiceModel(temps, "DT").prims[0].tnom, 25, 1e-12);
     SpiceFlatCircuit amp = flattenSpiceModel(lib, "AMP");
     CHECK(amp.ok && amp.ports == (std::vector<std::string>{"IN", "OUT"}));
     if (amp.ok) {
@@ -11016,6 +11023,252 @@ TEST(spice_semiconductor_models_dc) {
         DcResult dc = Simulator(s).dcOperatingPoint();
         CHECK(dc.converged && netV(s, dc, m, "D") > 4.0);
     }
+}
+
+namespace {
+/// Thermal voltage at `celsius` and the SPICE3 diode saturation current IS(T) of a model given at 27 °C.
+double vtAt(double celsius) { return 1.380649e-23 * (celsius + 273.15) / 1.602176634e-19; }
+double isAt(double is, double celsius, double xti, double eg, double n) {
+    const double ratio = (celsius + 273.15) / 300.15;
+    return is * std::pow(ratio, xti / n) * std::exp(eg / (n * vtAt(celsius)) * (ratio - 1));
+}
+}  // namespace
+
+TEST(spice_models_follow_the_simulation_temperature) {
+    // Diode fed 10 mA: V = N·V_T(T)·ln(I / IS(T) + 1) with IS(T) from XTI and EG; 27 °C is bit-identical to the default.
+    auto diodeV = [](const std::string& model, double celsius, bool setTemperature = true) {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "10m", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{model, "DX", ""});
+        Simulator sim(s);
+        if (setTemperature) sim.setTemperature(celsius);
+        DcResult dc = sim.dcOperatingPoint();
+        return dc.converged ? netV(s, dc, d, "A") : NAN;
+    };
+    const double v27 = diodeV(".model DX D(IS=1e-14 N=1)", 27);
+    CHECK(v27 == diodeV(".model DX D(IS=1e-14 N=1)", 27, false));  // the default temperature: bit-identical
+    CHECK_NEAR(v27, spicedevVt() * std::log(1e-2 / 1e-14 + 1), 1e-6);  // the established 27 °C value
+    for (double t : {-40.0, 100.0}) {
+        CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1)", t), vtAt(t) * std::log(1e-2 / isAt(1e-14, t, 3, 1.11, 1) + 1), 1e-6);
+        CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1.5 XTI=2 EG=0.69)", t),
+                   1.5 * vtAt(t) * std::log(1e-2 / isAt(1e-14, t, 2, 0.69, 1.5) + 1), 1e-6);
+    }
+    CHECK(diodeV(".model DX D(IS=1e-14 N=1)", 100) < v27 - 0.1);  // ≈ −2 mV/K
+    // A model given at TNOM = 25 simulated at 25 °C is at its own reference: IS as written, V_T at 25 °C.
+    CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1 TNOM=25)", 25), vtAt(25) * std::log(1e-2 / 1e-14 + 1), 1e-6);
+    // BJT: forced base current 10 µA, I_C = BF·(T/TNOM)^XTB·I_B at 100 °C.
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int ib = s.addComponent(ComponentKind::CurrentSource, "10u", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1k", {200, -80});
+        int q = s.addComponent(ComponentKind::NPN, "", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, ib, "+", q, "B");
+        wire(s, ib, "-", g, "GND");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q, "C");
+        wire(s, q, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        s.setSpiceModel(q, SpiceModelRef{".model QN NPN(IS=1e-15 BF=100 BR=1 XTB=1.5)", "QN", ""});
+        Simulator sim(s);
+        sim.setTemperature(100);
+        DcResult dc = sim.dcOperatingPoint();
+        CHECK(dc.converged);
+        const double bf = 100 * std::pow(373.15 / 300.15, 1.5);
+        CHECK_NEAR(reading(dc, q)->current, 1e-5 * bf, 1e-7);
+        CHECK_NEAR(reading(dc, q)->voltage, 10 - 1e3 * 1e-5 * bf, 1e-4);
+        // Its V_BE falls with temperature as the diode's does.
+        Simulator cold(s);
+        cold.setTemperature(-40);
+        DcResult dcc = cold.dcOperatingPoint();
+        CHECK(dcc.converged && netV(s, dcc, q, "B") > netV(s, dc, q, "B") + 0.15);
+    }
+    // MOSFET: KP ∝ (T/TNOM)^-1.5 in saturation; VTO drifts about −1 mV/K (band gap and Fermi potential, mostemp.c).
+    {
+        Schematic s;
+        int vg = s.addComponent(ComponentKind::VoltageSource, "3", {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, "5", {0, 100});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vg, "+", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, vg, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{".model MN NMOS(VTO=1 KP=2m)", "MN", ""});
+        Simulator sim(s);
+        sim.setTemperature(127);
+        DcResult dc = sim.dcOperatingPoint();
+        CHECK(dc.converged);
+        const double id = reading(dc, m)->current, kpT = 2e-3 / std::pow(400.15 / 300.15, 1.5);
+        CHECK(id < 4e-3 * 0.8 && id > 0.5 * kpT * 4 * 1.0 && id < 0.5 * kpT * 4 * 1.2);
+        // VTO at 127 °C from the operating points: Id = KP(T)/2·(Vgs − VTO(T))² → VTO(T) ≈ 0.9 V.
+        const double vtoT = 3 - std::sqrt(2 * id / kpT);
+        CHECK(vtoT > 0.85 && vtoT < 0.95);
+    }
+    // Resistors inside a model: TC1 / TC2 from the model's TNOM (here .options tnom = 25).
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "2", {0, 0});
+        int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", u, "1");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(u, SpiceModelRef{".options tnom=25\n.subckt T in out\nR1 in out 1k TC=1m,1e-5\nR2 out 0 1k TC1=0\n.ends\n", "T", "1 2"});
+        Simulator sim(s);
+        sim.setTemperature(125);
+        DcResult dc = sim.dcOperatingPoint();
+        const double r1 = 1e3 * (1 + 1e-3 * 100 + 1e-5 * 100 * 100);
+        CHECK(dc.converged);
+        CHECK_NEAR(netV(s, dc, u, "2"), 2 * 1e3 / (r1 + 1e3), 1e-9);
+    }
+}
+
+TEST(spice_mosfet_level3_equations) {
+    auto mosId = [](const std::string& model, double vgs, double vds, double celsius = 27) {
+        Schematic s;
+        int vg = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vgs, "", 9), {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vds, "", 9), {0, 100});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vg, "+", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, vg, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{model, "MN", ""});
+        Simulator sim(s);
+        sim.setTemperature(celsius);
+        DcResult dc = sim.dcOperatingPoint();
+        return dc.converged ? reading(dc, m)->current : NAN;
+    };
+    // Without the short-channel parameters level 3 is the level-1 square law: 2 mA·(3 − 1)² / 2 = 4 mA, THETA halves it.
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m)", 3, 5), 4e-3, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m THETA=0.5)", 3, 5), 2e-3, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m)", 3, 0.5), 2e-3 * (2 - 0.25) * 0.5, 1e-8);  // triode
+    // VMAX velocity saturation (SPICE3 mos3load.c): V_dsat = a + V_dsc − √(a² + V_dsc²), V_dsc = L·VMAX / µ, and the
+    // current divided by 1 + V_ds / V_dsc; it is below the level-1 value.
+    {
+        const double a = 2, vdsc = 100e-6 * 1e5 / (600e-4), vdsat = a + vdsc - std::sqrt(a * a + vdsc * vdsc);
+        const double expected = 2e-3 * (a - 0.5 * vdsat) * vdsat / (1 + vdsat / vdsc);
+        const double id = mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m UO=600 VMAX=1e5)", 3, 5);
+        CHECK_NEAR(id, expected, 1e-9);
+        CHECK(id < 4e-3 - 1e-5);
+        CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m UO=600 VMAX=1e4)", 3, 5) < id);  // harder saturation
+    }
+    // KAPPA channel-length modulation needs NSUB (the depletion-layer constant): the saturation current then rises
+    // with V_ds, faster for larger KAPPA; without NSUB it is flat (as SPICE). A 2 µm channel, so ΔL matters.
+    {
+        const std::string base = ".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u NSUB=1e16 ";
+        const double k2a = mosId(base + "KAPPA=0.2)", 3, 5), k2b = mosId(base + "KAPPA=0.2)", 3, 10);
+        const double k5a = mosId(base + "KAPPA=0.5)", 3, 5), k5b = mosId(base + "KAPPA=0.5)", 3, 10);
+        CHECK(k2b > k2a * 1.001 && k5b > k5a * 1.001);
+        CHECK((k5b - k5a) > (k2b - k2a) * 1.2);
+        CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u KAPPA=0.5)", 3, 10),
+                   mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u KAPPA=0.5)", 3, 5), 1e-12);
+        // With VMAX the same modulation uses the velocity-saturated branch and still rises with V_ds.
+        CHECK(mosId(base + "KAPPA=0.5 VMAX=1e5 UO=600)", 3, 10) > mosId(base + "KAPPA=0.5 VMAX=1e5 UO=600)", 3, 5) * 1.001);
+    }
+    // ETA static feedback lowers the threshold with V_ds (σ = ETA·8.15e-22 / (Cox·L³)): more current at the same drive.
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n L=2u W=2u ETA=0.5)", 3, 5) > 4e-3 * 1.01);
+    // NFS: weak inversion below the threshold instead of a hard cut-off; DELTA narrows the channel (less current).
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n NFS=1e11)", 0.9, 5) > 1e-9);
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n)", 0.9, 5), 0, 1e-12);
+    CHECK(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n GAMMA=0.5 DELTA=1)", 3, 5) <
+          mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m TOX=50n GAMMA=0.5)", 3, 5));
+    // Level 1 is untouched by the level-3 parameters.
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m VMAX=1e5 KAPPA=0.5 NSUB=1e16)", 3, 5), 4e-3, 1e-8);
+    // The level-3 model is diagnosed as modelled (no "level-1 equations" note) and VMAX / KAPPA are not "ignored".
+    SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(".model MN NMOS(LEVEL=3 VTO=1 KP=2m VMAX=1e5 KAPPA=0.5 ETA=0.1 NFS=1e11 XJ=0.5u NSUB=1e16 DELTA=1)"), "MN");
+    CHECK(flat.ok);
+    for (const auto& d : flat.diagnostics) CHECK(d.message.find("level-1") == std::string::npos && d.message.find("ignored") == std::string::npos);
+}
+
+TEST(spice_switch_hysteresis_holds_its_state) {
+    // S with VH: on above VT + VH, off below VT − VH, the last state in between (held between Newton iterations).
+    const std::string sw = ".subckt T in out\n.model SWM SW(VT=1 VH=0.5 RON=1 ROFF=1MEG)\nS1 out x in 0 SWM\nV2 x 0 5\nR1 out 0 1k\n.ends\n";
+    SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(sw), "T");
+    CHECK(flat.ok && !hasDiag(flat.diagnostics, SpiceDiagnostic::Level::Warning, "hysteresis"));
+    const double on = 5 * (1e3 * 1e6 / (1e3 + 1e6)) / (1e3 * 1e6 / (1e3 + 1e6) + 1);
+    CHECK_NEAR(spiceTwoPort(sw, "T", 2), on, 1e-3);  // above 1.5 V: on
+    CHECK(spiceTwoPort(sw, "T", 1.2) < 0.01);        // inside the band from the initial (off) state: stays off
+    CHECK(spiceTwoPort(sw, "T", 0.3) < 0.01);
+    // The same control voltage inside the band reads differently depending on where the sweep came from.
+    auto sweep = [&](double from, double to) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "0", {0, 0});
+        int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1MEG", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", u, "1");
+        wire(s, v, "-", g, "GND");
+        wire(s, u, "2", r, "1");
+        wire(s, r, "2", g, "GND");
+        s.setSpiceModel(u, SpiceModelRef{sw, "T", "1 2"});
+        Simulator sim(s);
+        DcSweepResult res = sim.dcSweep(v, from, to, 0.1);
+        CHECK(res.ok);
+        return res.ok ? res.netVoltages[static_cast<size_t>(s.netOf({u, 1}))] : std::vector<double>{};
+    };
+    std::vector<double> up = sweep(0, 2), down = sweep(2, 0);
+    CHECK(up.size() == 21 && down.size() == 21);
+    if (up.size() == 21 && down.size() == 21) {
+        CHECK(up[14] < 0.01 && up[16] > on - 1e-3);      // 1.4 V rising: still off; 1.6 V: on
+        CHECK(down[12] > on - 1e-3 && down[16] < 0.01);  // 0.8 V falling: still on; 0.4 V: off
+        CHECK(up[10] < 0.01 && down[10] > on - 1e-3);    // 1.0 V = VT: the state decides
+    }
+}
+
+TEST(temperature_sweep_operating_points) {
+    // A 1N4148-style imported diode from 5 V through 1 kΩ: its forward drop falls with temperature.
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+    int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    s.setSpiceModel(d, SpiceModelRef{".model DX D(IS=2.52n N=1.752 RS=0.568 XTI=3 EG=1.11)", "DX", ""});
+    Simulator sim(s);
+    DcSweepResult res = sim.temperatureSweep({-40, 27, 85, 125});
+    CHECK(res.ok);
+    if (!res.ok) return;
+    CHECK(res.values.size() == 4 && res.values[1] == 27);
+    const auto& va = res.netVoltages[static_cast<size_t>(s.netOf({d, 0}))];
+    CHECK(va.size() == 4 && va[0] > va[1] && va[1] > va[2] && va[2] > va[3]);
+    CHECK(va[0] - va[3] > 0.2 && va[0] - va[3] < 0.5);  // about −2 mV/K over 165 K
+    CHECK(res.currents.count(d) == 1 && res.currents.at(d).size() == 4);
+    // 27 °C is the ordinary operating point (bit-identical when solved first, from zero), and the sweep leaves the
+    // simulator's temperature as it was.
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(va[1], netV(s, dc, d, "A"), 1e-9);
+    DcSweepResult one = sim.temperatureSweep({27});
+    CHECK(one.ok && one.netVoltages[static_cast<size_t>(s.netOf({d, 0}))][0] == netV(s, dc, d, "A"));
+    CHECK(sim.temperature() == 27);
+    CHECK(!sim.temperatureSweep({}).ok && !sim.temperatureSweep({-300}).ok);
+    // JSON form: a range or a list, values in °C.
+    Json o = Json::object();
+    o["start"] = -40;
+    o["stop"] = 125;
+    o["step"] = 55;
+    Json j = simulateTemperatureSweepJson(s, o);
+    CHECK(j.get("ok").asBool(false) && j.get("unit").asString("") == "°C" && j.get("values").size() == 4);
+    CHECK_NEAR(j.get("values")[3].asNumber(), 125, 1e-12);
+    Json list = Json::object();
+    Json temps = Json::array();
+    temps.push(0);
+    temps.push(50);
+    list["temperatures"] = temps;
+    CHECK(simulateTemperatureSweepJson(s, list).get("values").size() == 2);
 }
 
 TEST(spice_opamp_macromodel) {
@@ -12377,6 +12630,165 @@ std::string readModelFixture(const std::string& name) {
 
 const char* const kSoicModel = "SOIC-8_3.9x4.9mm_P1.27mm.wrl";
 
+/// Connected pieces of a mesh (by shared vertices): the signed volume of each and whether it is closed (every
+/// directed edge is matched by its reverse).
+struct MeshSolid {
+    double volume;
+    bool closed;
+};
+std::vector<MeshSolid> meshSolids(const Model3DMesh& m) {
+    std::vector<uint32_t> parent(m.vertexCount());
+    for (uint32_t i = 0; i < parent.size(); ++i) parent[i] = i;
+    std::function<uint32_t(uint32_t)> find = [&](uint32_t i) { return parent[i] == i ? i : parent[i] = find(parent[i]); };
+    for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
+        parent[find(m.indices[t + 1])] = find(m.indices[t]);
+        parent[find(m.indices[t + 2])] = find(m.indices[t]);
+    }
+    std::map<uint32_t, size_t> index;
+    std::vector<MeshSolid> solids;
+    std::vector<std::map<std::pair<uint32_t, uint32_t>, int>> edges;
+    for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
+        const uint32_t root = find(m.indices[t]);
+        auto it = index.find(root);
+        if (it == index.end()) {
+            it = index.emplace(root, solids.size()).first;
+            solids.push_back({0, true});
+            edges.emplace_back();
+        }
+        const uint32_t i[3] = {m.indices[t], m.indices[t + 1], m.indices[t + 2]};
+        Vec3 v[3];
+        for (int k = 0; k < 3; ++k) v[k] = {m.positions[3 * i[k]], m.positions[3 * i[k] + 1], m.positions[3 * i[k] + 2]};
+        solids[it->second].volume += (v[0].x * (v[1].y * v[2].z - v[1].z * v[2].y) - v[0].y * (v[1].x * v[2].z - v[1].z * v[2].x) +
+                                      v[0].z * (v[1].x * v[2].y - v[1].y * v[2].x)) / 6;
+        for (int k = 0; k < 3; ++k) ++edges[it->second][{i[k], i[(k + 1) % 3]}];
+    }
+    for (size_t k = 0; k < solids.size(); ++k)
+        for (const auto& [edge, count] : edges[k])
+            if (count != 1 || !edges[k].count({edge.second, edge.first})) solids[k].closed = false;
+    return solids;
+}
+
+/// A STEP file builder like the exporter's: entities in order, with the inch unit through a conversion-based unit.
+struct StepText {
+    std::string data;
+    int next = 1;
+    int add(const std::string& e) {
+        data += "#" + std::to_string(next) + "=" + e + ";\n";
+        return next++;
+    }
+    static std::string ref(int id) { return "#" + std::to_string(id); }
+    static std::string refs(const std::vector<int>& ids) {
+        std::string s = "(";
+        for (size_t i = 0; i < ids.size(); ++i) s += (i ? "," : "") + ref(ids[i]);
+        return s + ")";
+    }
+    int point(double x, double y, double z) {
+        return add("CARTESIAN_POINT('',(" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) + "))");
+    }
+    int dir(double x, double y, double z) {
+        return add("DIRECTION('',(" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) + "))");
+    }
+    int axis(double x, double y, double z, double nx, double ny, double nz, double rx, double ry, double rz) {
+        return add("AXIS2_PLACEMENT_3D(''," + ref(point(x, y, z)) + "," + ref(dir(nx, ny, nz)) + "," + ref(dir(rx, ry, rz)) + ")");
+    }
+    int vertex(double x, double y, double z) { return add("VERTEX_POINT(''," + ref(point(x, y, z)) + ")"); }
+    int line(int v0, int v1, double dx, double dy, double dz) {
+        return add("EDGE_CURVE(''," + ref(v0) + "," + ref(v1) + "," +
+                   ref(add("LINE(''," + ref(point(0, 0, 0)) + "," + ref(add("VECTOR(''," + ref(dir(dx, dy, dz)) + ",1.)")) + ")")) + ",.T.)");
+    }
+    int oriented(int edge, bool forward) { return add("ORIENTED_EDGE('',*,*," + ref(edge) + (forward ? ",.T.)" : ",.F.)")); }
+    int face(const std::vector<int>& loopEdges, int surface, bool outer = true) {
+        const int loop = add("EDGE_LOOP(''," + refs(loopEdges) + ")");
+        const int bound = add(std::string(outer ? "FACE_OUTER_BOUND" : "FACE_BOUND") + "(''," + ref(loop) + ",.T.)");
+        return add("ADVANCED_FACE('',(" + ref(bound) + ")," + ref(surface) + ",.T.)");
+    }
+    /// An axis-aligned box as a closed B-rep (edges shared by their faces).
+    int box(double x0, double y0, double z0, double x1, double y1, double z1) {
+        int v[8];
+        for (int i = 0; i < 8; ++i) v[i] = vertex(i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? z1 : z0);
+        std::map<std::pair<int, int>, int> edges;
+        auto edge = [&](int a, int b) {
+            if (!edges.count({a, b}) && !edges.count({b, a})) {
+                const double d[3] = {(b & 1) != (a & 1) ? 1.0 : 0.0, (b & 2) != (a & 2) ? 1.0 : 0.0, (b & 4) != (a & 4) ? 1.0 : 0.0};
+                edges[{a, b}] = line(v[a], v[b], d[0], d[1], d[2]);
+            }
+            return edges.count({a, b}) ? oriented(edges[{a, b}], true) : oriented(edges[{b, a}], false);
+        };
+        static const int faces[6][4] = {{0, 2, 3, 1}, {4, 5, 7, 6}, {0, 1, 5, 4}, {2, 6, 7, 3}, {0, 4, 6, 2}, {1, 3, 7, 5}};
+        static const double normals[6][3] = {{0, 0, -1}, {0, 0, 1}, {0, -1, 0}, {0, 1, 0}, {-1, 0, 0}, {1, 0, 0}};
+        std::vector<int> faceIds;
+        for (int f = 0; f < 6; ++f) {
+            std::vector<int> loop;
+            for (int k = 0; k < 4; ++k) loop.push_back(edge(faces[f][k], faces[f][(k + 1) % 4]));
+            const int c = faces[f][0];
+            const double* n = normals[f];
+            const int plane = add("PLANE(''," + ref(axis(c & 1 ? x1 : x0, c & 2 ? y1 : y0, c & 4 ? z1 : z0, n[0], n[1], n[2], n[1], n[2], n[0])) + ")");
+            faceIds.push_back(face(loop, plane));
+        }
+        return add("MANIFOLD_SOLID_BREP('box'," + ref(add("CLOSED_SHELL(''," + refs(faceIds) + ")")) + ")");
+    }
+    /// A cylinder of radius r from z0 to z1 about the z axis through (cx, cy): two full circles and a seam.
+    int cylinder(double cx, double cy, double r, double z0, double z1) {
+        const int v0 = vertex(cx + r, cy, z0), v1 = vertex(cx + r, cy, z1);
+        const int bottom = axis(cx, cy, z0, 0, 0, 1, 1, 0, 0), top = axis(cx, cy, z1, 0, 0, 1, 1, 0, 0), down = axis(cx, cy, z0, 0, 0, -1, 1, 0, 0);
+        const int c0 = add("EDGE_CURVE(''," + ref(v0) + "," + ref(v0) + "," + ref(add("CIRCLE(''," + ref(bottom) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int c1 = add("EDGE_CURVE(''," + ref(v1) + "," + ref(v1) + "," + ref(add("CIRCLE(''," + ref(top) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int seam = line(v0, v1, 0, 0, 1);
+        const int side = add("CYLINDRICAL_SURFACE(''," + ref(bottom) + "," + std::to_string(r) + ")");
+        const std::vector<int> faces = {
+            face({oriented(c0, true), oriented(seam, true), oriented(c1, false), oriented(seam, false)}, side),
+            face({oriented(c1, true)}, add("PLANE(''," + ref(top) + ")")),
+            face({oriented(c0, false)}, add("PLANE(''," + ref(down) + ")"))};
+        return add("MANIFOLD_SOLID_BREP('cylinder'," + ref(add("CLOSED_SHELL(''," + refs(faces) + ")")) + ")");
+    }
+    /// A hemisphere of radius r on the plane z = z0, as CAD writes it: the rim circle, and a seam up to the pole
+    /// and back again (the pole has no longitude of its own).
+    int dome(double cx, double cy, double r, double z0) {
+        const int rim = vertex(cx + r, cy, z0), pole = vertex(cx, cy, z0 + r);
+        const int centre = axis(cx, cy, z0, 0, 0, 1, 1, 0, 0), down = axis(cx, cy, z0, 0, 0, -1, 1, 0, 0);
+        const int circle = add("EDGE_CURVE(''," + ref(rim) + "," + ref(rim) + "," + ref(add("CIRCLE(''," + ref(centre) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int meridian = add("EDGE_CURVE(''," + ref(rim) + "," + ref(pole) + "," +
+                                 ref(add("CIRCLE(''," + ref(axis(cx, cy, z0, 0, -1, 0, 1, 0, 0)) + "," + std::to_string(r) + ")")) + ",.T.)");
+        const int sphere = add("SPHERICAL_SURFACE(''," + ref(centre) + "," + std::to_string(r) + ")");
+        const std::vector<int> faces = {face({oriented(circle, true), oriented(meridian, true), oriented(meridian, false)}, sphere),
+                                        face({oriented(circle, false)}, add("PLANE(''," + ref(down) + ")"))};
+        return add("MANIFOLD_SOLID_BREP('dome'," + ref(add("CLOSED_SHELL(''," + refs(faces) + ")")) + ")");
+    }
+    std::string file() const {
+        return "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('test'),'2;1');\nFILE_NAME('t.step','',(''),(''),'','','');\n"
+               "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\nENDSEC;\nDATA;\n" + data + "ENDSEC;\nEND-ISO-10303-21;\n";
+    }
+};
+
+/// Cylinder (r 0.5", 1" tall at the origin) and a red box (1" × 2" × 0.5" at x 1–2"), in inches, in one
+/// representation; the cylinder again through a MAPPED_ITEM 3" along y, the box again in a child representation
+/// placed 2" up.
+std::string inchStep() {
+    StepText w;
+    const int mm = w.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+    const int dim = w.add("DIMENSIONAL_EXPONENTS(1.,0.,0.,0.,0.,0.,0.)");
+    const int inch = w.add("(CONVERSION_BASED_UNIT('INCH'," + w.ref(w.add("MEASURE_WITH_UNIT(LENGTH_MEASURE(25.4)," + w.ref(mm) + ")")) +
+                           ")LENGTH_UNIT()NAMED_UNIT(" + w.ref(dim) + "))");
+    const int ctx = w.add("(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT((" + w.ref(inch) + "))REPRESENTATION_CONTEXT('',''))");
+    const int cyl = w.cylinder(0, 0, 0.5, 0, 1);
+    const int box = w.box(1, 0, 0, 2, 2, 0.5);
+    const int red = w.add("COLOUR_RGB('',1.,0.,0.)");
+    const int fill = w.add("FILL_AREA_STYLE('',(" + w.ref(w.add("FILL_AREA_STYLE_COLOUR(''," + w.ref(red) + ")")) + "))");
+    const int side = w.add("SURFACE_SIDE_STYLE('',(" + w.ref(w.add("SURFACE_STYLE_FILL_AREA(" + w.ref(fill) + ")")) + "))");
+    const int usage = w.add("SURFACE_STYLE_USAGE(.BOTH.," + w.ref(side) + ")");
+    w.add("STYLED_ITEM('',(" + w.ref(w.add("PRESENTATION_STYLE_ASSIGNMENT((" + w.ref(usage) + "))")) + ")," + w.ref(box) + ")");
+    const int origin = w.axis(0, 0, 0, 0, 0, 1, 1, 0, 0);
+    const int cylRep = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('cyl',(" + w.ref(origin) + "," + w.ref(cyl) + ")," + w.ref(ctx) + ")");
+    const int map = w.add("REPRESENTATION_MAP(" + w.ref(origin) + "," + w.ref(cylRep) + ")");
+    const int mapped = w.add("MAPPED_ITEM(''," + w.ref(map) + "," + w.ref(w.axis(0, 3, 0, 0, 0, 1, 1, 0, 0)) + ")");
+    const int top = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('top',(" + w.ref(origin) + "," + w.ref(cyl) + "," + w.ref(box) + "," + w.ref(mapped) + ")," + w.ref(ctx) + ")");
+    const int boxRep = w.add("ADVANCED_BREP_SHAPE_REPRESENTATION('box',(" + w.ref(origin) + "," + w.ref(box) + ")," + w.ref(ctx) + ")");
+    const int xf = w.add("ITEM_DEFINED_TRANSFORMATION('',''," + w.ref(origin) + "," + w.ref(w.axis(0, 0, 2, 0, 0, 1, 1, 0, 0)) + ")");
+    w.add("(REPRESENTATION_RELATIONSHIP('',''," + w.ref(boxRep) + "," + w.ref(top) + ")REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(" + w.ref(xf) +
+          ")SHAPE_REPRESENTATION_RELATIONSHIP())");
+    return w.file();
+}
+
 /// A unit cube [0, 1]³ as an ASCII STL.
 std::string cubeStlAscii() {
     const float v[8][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
@@ -12514,18 +12926,105 @@ TEST(model3d_readers_vrml_stl_obj) {
     CHECK(obj.warnings.size() == 2);  // bad face, guessed materials
     M3_THROWS(parseObj("v 1 2\nf 1 2 3\n"));
 
-    // STEP is refused with the reason; unknown types too.
-    try {
-        parseModel3D("ISO-10303-21;", "part.step");
-        CHECK(false);
-    } catch (const Model3DError& e) {
-        CHECK(std::string(e.what()).find(".wrl") != std::string::npos);
-    }
+    // STEP by extension (an empty file has no solid); unknown types are refused.
+    M3_THROWS(parseModel3D("ISO-10303-21;", "part.step"));
     M3_THROWS(parseModel3D("x", "part.3ds"));
     CHECK(isModel3DFile("A.WRL") && isModel3DFile("b.stp") && !isModel3DFile("c.kicad_mod"));
-    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0);
+    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0 && defaultModelUnit("step") == 1.0);
     CHECK(decodeBase64(base64("hello 3D")) == "hello 3D");
     M3_THROWS(decodeBase64("not*base64"));
+}
+
+TEST(model3d_step_reader_solids_units_colours_assembly) {
+    const Model3DMesh m = parseModel3D(inchStep(), "test.step");
+    CHECK(m.format == "step");
+    // Inches became millimetres: cylinder r 12.7 at the origin (and 76.2 along y), box x 25.4–50.8, up to z 63.5.
+    const auto b = m.bounds();
+    CHECK_NEAR(b[0], -12.7, 1e-3);
+    CHECK_NEAR(b[1], -12.7, 1e-3);
+    CHECK_NEAR(b[2], 0, 1e-6);
+    CHECK_NEAR(b[3], 50.8, 1e-3);
+    CHECK_NEAR(b[4], 88.9, 1e-3);
+    CHECK_NEAR(b[5], 63.5, 1e-3);
+    // Two cylinders (24 sides) and two boxes, each closed, with their volumes.
+    const auto solids = meshSolids(m);
+    CHECK(solids.size() == 4);
+    int cylinders = 0, boxes = 0;
+    for (const auto& s : solids) {
+        CHECK(s.closed);
+        if (std::fabs(s.volume - 12 * 12.7 * 12.7 * std::sin(3.14159265358979 / 12) * 25.4) < 1) ++cylinders;
+        if (std::fabs(s.volume - 25.4 * 50.8 * 12.7) < 1e-3) ++boxes;
+    }
+    CHECK(cylinders == 2 && boxes == 2);
+    CHECK(m.triangleCount() == 2 * (48 + 2 * 22) + 2 * 12);  // side band zigzagged, caps, boxes
+    // The box's STYLED_ITEM colour; the cylinder keeps the default grey. Nothing to warn about.
+    CHECK(m.groups.size() >= 2);
+    bool red = false, grey = false;
+    for (const auto& g : m.groups) {
+        red = red || (g.r == 1.0f && g.g == 0.0f);
+        grey = grey || (g.r > 0.5f && g.g > 0.5f && g.b > 0.5f);
+    }
+    CHECK(red && grey);
+    CHECK(m.warnings.empty());
+
+    // A spherical cap (its loop runs up a seam to the pole and back): closed, near a hemisphere's volume.
+    {
+        StepText d;
+        d.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+        d.dome(1, 2, 2.5, 3);
+        const Model3DMesh cap = parseStep(d.file());
+        const auto pieces = meshSolids(cap);
+        CHECK(pieces.size() == 1 && pieces[0].closed && cap.warnings.empty());
+        CHECK_NEAR(pieces[0].volume, 2.0 / 3 * 3.14159265358979 * 2.5 * 2.5 * 2.5, 2.5);  // 24 × 6 facets
+        CHECK_NEAR(cap.bounds()[5], 5.5, 1e-6);
+        CHECK_NEAR(cap.bounds()[0], -1.5, 1e-6);
+    }
+
+    // Faces on a B-spline surface (a bulged B-spline edge, the rest lines) and on an unknown surface are
+    // triangulated from their boundary, with the counts in the warnings.
+    StepText w;
+    w.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+    const int v[4] = {w.vertex(0, 0, 0), w.vertex(10, 0, 0), w.vertex(10, 10, 0), w.vertex(0, 10, 0)};
+    const int bulge = w.add("B_SPLINE_CURVE_WITH_KNOTS('',2,(" + w.ref(w.point(0, 0, 0)) + "," + w.ref(w.point(5, -4, 3)) + "," + w.ref(w.point(10, 0, 0)) +
+                            "),.UNSPECIFIED.,.F.,.F.,(3,3),(0.,1.),.UNSPECIFIED.)");
+    const int e0 = w.add("EDGE_CURVE(''," + w.ref(v[0]) + "," + w.ref(v[1]) + "," + w.ref(bulge) + ",.T.)");
+    const int e1 = w.line(v[1], v[2], 0, 1, 0), e2 = w.line(v[2], v[3], -1, 0, 0), e3 = w.line(v[3], v[0], 0, -1, 0);
+    const int surface = w.add("B_SPLINE_SURFACE_WITH_KNOTS('',1,1,((" + w.ref(w.point(0, 0, 0)) + "," + w.ref(w.point(0, 10, 0)) + "),(" +
+                              w.ref(w.point(10, 0, 0)) + "," + w.ref(w.point(10, 10, 2)) + ")),.UNSPECIFIED.,.F.,.F.,.F.,(2,2),(2,2),(0.,1.),(0.,1.),.UNSPECIFIED.)");
+    const int spline = w.face({w.oriented(e0, true), w.oriented(e1, true), w.oriented(e2, true), w.oriented(e3, true)}, surface);
+    const int odd = w.face({w.oriented(e0, false), w.oriented(e3, false), w.oriented(e2, false), w.oriented(e1, false)},
+                           w.add("OFFSET_SURFACE(''," + w.ref(surface) + ",1.,.F.)"));
+    w.add("SHELL_BASED_SURFACE_MODEL('',(" + w.ref(w.add("OPEN_SHELL('',(" + w.ref(spline) + "," + w.ref(odd) + "))")) + "))");
+    const Model3DMesh sheet = parseStep(w.file());
+    CHECK(sheet.triangleCount() == 2 * 5);  // 4 corners + 3 samples on the spline edge → 7-gon, twice
+    CHECK(sheet.bounds()[1] < -1.5 && sheet.bounds()[5] > 1);
+    CHECK(sheet.warnings.size() == 2);
+    CHECK(sheet.warnings[0].find("1 face(s) on B-spline") == 0);
+    CHECK(sheet.warnings[1].find("OFFSET_SURFACE") != std::string::npos);
+    const auto pieces = meshSolids(sheet);
+    CHECK(pieces.size() == 1 && std::fabs(pieces[0].volume) < 1e-9);  // the two faces share every boundary sample and cancel
+
+    // A faceted B-rep of plain FACEs (polygon loops, no surface) reads from its loops, without a surface warning.
+    const Model3DMesh tet = parseStep(
+        "ISO-10303-21;\nDATA;\n#1=CARTESIAN_POINT('',(0.,0.,0.));\n#2=CARTESIAN_POINT('',(10.,0.,0.));\n#3=CARTESIAN_POINT('',(0.,10.,0.));\n#4=CARTESIAN_POINT('',(0.,0.,10.));\n#5=POLY_LOOP('',(#1,#3,#2));\n#6=POLY_LOOP('',(#1,#2,#4));\n#7=POLY_LOOP('',(#1,#4,#3));\n#8=POLY_LOOP('',(#2,#3,#4));\n#9=FACE_OUTER_BOUND('',#5,.T.);\n#10=FACE_OUTER_BOUND('',#6,.T.);\n#11=FACE_OUTER_BOUND('',#7,.T.);\n#12=FACE_OUTER_BOUND('',#8,.T.);\n#13=FACE('',(#9));\n#14=FACE('',(#10));\n#15=FACE('',(#11));\n#16=FACE('',(#12));\n#17=CLOSED_SHELL('',(#13,#14,#15,#16));\n#18=FACETED_BREP('tet',#17);\nENDSEC;\n");
+    CHECK(tet.indices.size() == 12 && tet.warnings.size() == 1);  // 4 triangles; only "no length unit"
+
+    // Malformed files are refused, never crash.
+    M3_THROWS(parseStep("solid cube"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=CARTESIAN_POINT('',(0,0,0));\nENDSEC;\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=CLOSED_SHELL('',(#2));\n#2=ADVANCED_FACE('',(#3),#4,.T.);\n"));  // dangling
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X('unterminated);\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X(" + std::string(300, '(') + "1" + std::string(300, ')') + ");\nENDSEC;\n"));
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=X(1.E+400);\nENDSEC;\n"));
+    try {
+        parseStep("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=CARTESIAN_POINT('',(0,0,0)\n#2=X();\n");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find("line 6") != std::string::npos);
+    }
+    // A representation that maps itself: the depth / visit bound stops it.
+    M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=SHAPE_REPRESENTATION('',(#2,#2),#9);\n#2=MAPPED_ITEM('',#3,#4);\n"
+                        "#3=REPRESENTATION_MAP(#4,#1);\n#4=AXIS2_PLACEMENT_3D('',#5,$,$);\n#5=CARTESIAN_POINT('',(0,0,0));\nENDSEC;\n"));
 }
 
 TEST(model3d_alignment_assembly_and_project_file) {
@@ -12672,7 +13171,17 @@ TEST(library_import_attaches_kicad_3d_models) {
         CHECK_NEAR(r.parts[0].spec.model3d.offset[1], hd.centreY, 1e-6);  // the model moves with the pads
     }
 
-    // Binary files travel as base64 through the C API's request; STEP files are reported.
+    // The file the footprint names wins over other models of the same stem: a .step reference takes the STEP.
+    std::string soicFpStep = soicFp;
+    soicFpStep.replace(soicFpStep.find("P1.27mm.wrl"), 11, "P1.27mm.step");
+    const std::string stepName = "SOIC-8_3.9x4.9mm_P1.27mm.step";
+    r = importLibraryFiles({{kSoic, soicFpStep}, {kSoicModel, readModelFixture(kSoicModel)}, {stepName, inchStep()}});
+    CHECK(r.files.size() == 3 && r.files[2].format == "model3d" && r.files[2].error.empty());
+    CHECK(r.parts.size() >= 1 && r.parts[0].spec.model3d.name == stepName && r.parts[0].spec.model3d.unit == 1.0);
+    r = importLibraryFiles({{kSoic, soicFp}, {kSoicModel, readModelFixture(kSoicModel)}, {stepName, inchStep()}});
+    CHECK(r.parts.size() >= 1 && r.parts[0].spec.model3d.name == kSoicModel && r.parts[0].spec.model3d.unit == 2.54);
+
+    // Binary files travel as base64 through the C API's request; a STEP file is read like the others.
     Json req = Json::object();
     Json files = Json::array();
     Json f1 = Json::object();
@@ -12684,8 +13193,8 @@ TEST(library_import_attaches_kicad_3d_models) {
     f2["contentBase64"] = base64(cubeStlBinary());
     files.push(f2);
     Json f3 = Json::object();
-    f3["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.step";
-    f3["content"] = "ISO-10303-21;";
+    f3["name"] = stepName;
+    f3["content"] = inchStep();
     files.push(f3);
     req["files"] = files;
     const Json out = importLibraryRequest(req);
@@ -12693,7 +13202,7 @@ TEST(library_import_attaches_kicad_3d_models) {
     for (const auto& p : out.get("parts").items())
         attached = attached || p.get("spec").get("model3d").get("unit").asNumber(0) == 1.0;
     CHECK(attached);
-    CHECK(out.get("files")[2].get("error").asString().find("STEP") != std::string::npos);
+    CHECK(out.get("files")[2].get("format").asString() == "model3d" && out.get("files")[2].get("error").asString("").empty());
 }
 
 TEST(model3d_readers_survive_fuzzing) {
@@ -12701,7 +13210,8 @@ TEST(model3d_readers_survive_fuzzing) {
         {kSoicModel, readModelFixture(kSoicModel)},
         {"cube.stl", cubeStlAscii()},
         {"cube.stl", cubeStlBinary()},
-        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"}};
+        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"},
+        {"parts.step", inchStep()}};
     uint32_t seed = 0x3D3D3D3Du;
     auto rnd = [&]() {
         seed ^= seed << 13;
@@ -17977,6 +18487,262 @@ TEST(autoroute_pin_swap_option_json) {
     CHECK(!routeReportJson(RouteReport{}).get("metrics").has("pinSwaps") && !routeReportJson(RouteReport{}).has("swaps"));
 }
 
+namespace {
+/// A SERDES link whose pair ends are crossed on the board: TX (unit 1: 1 TXP, 2 TXN) of U1 drives RX (unit 2: 3 RXP,
+/// 4 RXN, swappable when `swappable`) of U2, wired TXP → RXN and TXN → RXP; nets D_P / D_N.
+struct CrossedPair {
+    Project p;
+    int tx = -1, rx = -1, pkg1 = -1, pkg2 = -1, np = -1, nn = -1;
+};
+CrossedPair crossedPairBoard(bool swappable) {
+    CrossedPair b;
+    CustomPartSpec spec;
+    spec.name = swappable ? "SERDES-SWAP-TEST" : "SERDES-FIXED-TEST";
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    const char* names[] = {"TXP", "TXN", "RXP", "RXN", "VDD", "GND", "NC7", "NC8"};
+    for (int i = 0; i < 8; ++i) {
+        CustomPin pin;
+        pin.number = std::to_string(i + 1);
+        pin.name = names[i];
+        pin.type = i < 2 ? PinType::Output : i < 4 ? PinType::Input : i < 6 ? PinType::PowerIn : PinType::NoConnect;
+        spec.pins.push_back(pin);
+    }
+    spec.units = {{"TX", {"1", "2"}}, {"RX", {"3", "4"}}};
+    spec.units[0].swapGroup = spec.units[1].swapGroup = -1;
+    if (swappable) spec.units[1].pinSwap = {{"3", "4"}};
+    const auto part = CustomPartRegistry::instance().registerPart(spec);
+    Schematic& s = b.p.schematic;
+    b.tx = s.addCustomUnits(part->id, "SERDES", {0, 0});
+    const int tx2 = s.addCustomUnits(part->id, "SERDES", {400, 200});
+    b.rx = s.addPartUnit(tx2, 2, {400, 0});
+    b.pkg1 = s.unitPackage(b.tx);
+    b.pkg2 = s.unitPackage(b.rx);
+    CHECK(b.tx > 0 && b.rx > 0 && b.pkg1 > 0 && b.pkg2 > 0 && b.pkg1 != b.pkg2);
+    const int lp = s.addComponent(ComponentKind::NetLabel, "D_P", {200, -50});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "D_N", {200, 50});
+    CHECK(s.connect({b.tx, 0}, {b.rx, 1}) >= 0 && s.connect({b.tx, 1}, {b.rx, 0}) >= 0);  // crossed
+    CHECK(s.connect({b.tx, 0}, {lp, pin(s, lp, "N")}) >= 0 && s.connect({b.tx, 1}, {ln, pin(s, ln, "N")}) >= 0);
+    b.p.schematicChanged();
+    b.p.pcb.settings.width = 140;
+    b.p.pcb.settings.height = 40;
+    b.p.pcb.settings.layerCount = 4;
+    s.find(b.pkg1)->pcb = PcbPlacement{{10, 20}, 0, false, true};
+    s.find(b.pkg2)->pcb = PcbPlacement{{120, 20}, 0, false, true};
+    b.np = s.netOf({b.tx, 0});
+    b.nn = s.netOf({b.tx, 1});
+    b.p.pcbSync = b.p.currentSync();
+    b.p.pcb.settings.autorouter.coupledPairs = true;
+    return b;
+}
+}  // namespace
+
+TEST(autoroute_coupled_pair_crossover_swaps_pn_at_target) {
+    CrossedPair b = crossedPairBoard(true);
+    CHECK(b.np >= 0 && b.nn >= 0 && b.np != b.nn && differentialPairs(b.p.schematic).size() == 1);
+    // The board's own route cannot couple a crossed pair: two single nets.
+    Project plain = b.p;
+    const RouteStats sp = plain.pcb.autoRoute(plain.schematic);
+    CHECK(sp.report.pairs.size() == 1 && !sp.report.pairs.front().coupled);
+    // The project's route swaps RXP / RXN at the receiver (the input end), then routes the pair coupled.
+    Project on = b.p;
+    const RouteStats st = on.autoRoute();
+    for (const auto& line : st.report.swaps) std::printf("    %s\n", line.c_str());
+    CHECK(st.report.metrics.pairSwaps == 1 && st.report.swaps.size() == 1 && !st.report.metrics.swapRun);
+    CHECK(st.failed == 0 && st.report.pairs.size() == 1);
+    if (!st.report.pairs.empty()) {
+        if (!st.report.pairs.front().coupled) std::printf("    pair not coupled: %s\n", st.report.pairs.front().reason.c_str());
+        CHECK(st.report.pairs.front().coupled);
+    }
+    CHECK(parallelAt(on, b.np, b.nn, st.report.pairs.front().gap + st.report.pairs.front().width) >= 1);
+    for (const auto& e : routeDrcErrors(on)) std::printf("    %s\n", e.c_str());
+    CHECK(routeDrcErrors(on).empty());
+    // Back-annotated: RXP now sits on D_P and RXN on D_N, in the schematic and on the board; U1 is untouched.
+    const Schematic& s = on.schematic;
+    CHECK(s.netOf({b.rx, 0}) == b.np && s.netOf({b.rx, 1}) == b.nn);
+    CHECK(s.netOf({b.tx, 0}) == b.np && s.netOf({b.tx, 1}) == b.nn);
+    CHECK(padNet(on, b.pkg2, 2) == b.np && padNet(on, b.pkg2, 3) == b.nn && on.pcbEcoPreview().empty());
+    // The report's JSON carries the swap; a plain report does not.
+    const Json j = routeReportJson(on.pcb.lastRouteReport);
+    CHECK(j.get("metrics").get("pairSwaps").asInt(0) == 1 && j.get("swaps").size() == 1 && !j.get("metrics").has("pinSwaps"));
+    CHECK(!routeReportJson(plain.pcb.lastRouteReport).get("metrics").has("pairSwaps"));
+    // Deterministic: the same swap and copper again.
+    Project again = b.p;
+    again.autoRoute();
+    CHECK(sameCopper(on, again));
+    // A locked receiver is never swapped, and the transmitter allows no swap: the pair stays crossed.
+    Project locked = b.p;
+    locked.schematic.find(b.pkg2)->pcb.locked = true;
+    const RouteStats sl = locked.autoRoute();
+    CHECK(sl.report.metrics.pairSwaps == 0 && sl.report.swaps.empty() && locked.schematic.netOf({b.rx, 0}) == b.nn);
+    CHECK(sl.report.pairs.size() == 1 && !sl.report.pairs.front().coupled);
+    // A part whose P / N pins are not a swap group keeps its pins.
+    CrossedPair fixed = crossedPairBoard(false);
+    const RouteStats sf = fixed.p.autoRoute();
+    CHECK(sf.report.metrics.pairSwaps == 0 && fixed.p.schematic.netOf({fixed.rx, 0}) == fixed.nn);
+    // With the option off nothing is swapped; with it on and no crossed pair, the project's route is the board's.
+    Project off = b.p;
+    off.pcb.settings.autorouter.coupledPairs = false;
+    CHECK(off.autoRoute().report.metrics.pairSwaps == 0 && off.schematic.netOf({b.rx, 0}) == b.nn);
+    DiffBoard straight = diffBoard(0.2);
+    straight.p.pcb.clearRouting();
+    straight.p.pcb.settings.autorouter.coupledPairs = true;
+    Project boardRoute = straight.p, projectRoute = straight.p;
+    boardRoute.pcb.autoRoute(boardRoute.schematic);
+    const RouteStats sr = projectRoute.autoRoute();
+    CHECK(sr.report.metrics.pairSwaps == 0 && sr.report.pairs.size() == 1 && sr.report.pairs.front().coupled);
+    CHECK(sameCopper(boardRoute, projectRoute));
+}
+
+namespace {
+/// Half-perimeter wire length of the board's ratsnest as the placement improvement measures it: the pad bounding
+/// box of every net with 2 … 64 pads that is not poured.
+double ratsnestHpwl(const Project& p) {
+    std::map<int, Rect> box;
+    std::map<int, int> count;
+    for (const auto& pad : p.pcb.pads(p.schematic)) {
+        if (pad.net < 0) continue;
+        const Vec2 q = pad.position;
+        auto it = box.find(pad.net);
+        if (it == box.end()) box[pad.net] = Rect(q.x, q.y, q.x, q.y);
+        else it->second = Rect(std::min(it->second.x0, q.x), std::min(it->second.y0, q.y), std::max(it->second.x1, q.x), std::max(it->second.y1, q.y));
+        ++count[pad.net];
+    }
+    double total = 0;
+    for (const auto& [net, r] : box)
+        if (count[net] >= 2 && count[net] <= 64 && !p.pcb.isZoneNet(p.schematic, net)) total += r.width() + r.height();
+    return total;
+}
+bool samePlacement(const Project& a, const Project& b) {
+    const auto& ca = a.schematic.components();
+    const auto& cb = b.schematic.components();
+    if (ca.size() != cb.size()) return false;
+    for (size_t i = 0; i < ca.size(); ++i)
+        if (!(ca[i].pcb.position == cb[i].pcb.position) || ca[i].pcb.rotation != cb[i].pcb.rotation || ca[i].pcb.bottom != cb[i].pcb.bottom)
+            return false;
+    return true;
+}
+int drcCount(const Project& p, const char* code) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code ? 1 : 0;
+    return n;
+}
+/// FNV-1a of the project's JSON: placement, copper and settings, byte for byte.
+unsigned long long projectFingerprint(const Project& p) {
+    unsigned long long h = 1469598103934665603ull;
+    for (unsigned char c : p.toJson().dump()) h = (h ^ c) * 1099511628211ull;
+    return h;
+}
+}  // namespace
+
+TEST(autoplace_improvement_shortens_ratsnest_and_keeps_courtyards_clear) {
+    // The greedy placement, then with the improvement pass: shorter ratsnest, courtyards still clear by the placer's
+    // spacing (no overlap, nothing outside the board), the board routes at least as well, and the same placement again.
+    bench::BenchBoard b = bench::makeBenchBoard({5, 2, 4, false, false, 0.45});
+    Project greedy = b.project;
+    greedy.pcb.autoPlace(greedy.schematic, true);
+    Project improved = b.project;
+    improved.pcb.settings.autorouter.improvePlacement = true;
+    improved.pcb.autoPlace(improved.schematic, true);
+    const double before = ratsnestHpwl(greedy), after = ratsnestHpwl(improved);
+    std::printf("    ratsnest HPWL %.1f -> %.1f mm\n", before, after);
+    CHECK(after < before - 1.0);
+    CHECK(improved.pcb.settings.width == greedy.pcb.settings.width && improved.pcb.settings.height == greedy.pcb.settings.height);
+    CHECK(drcCount(improved, "DRC_COURTYARD_OVERLAP") == 0 && drcCount(improved, "DRC_OUT_OF_BOARD") == 0);
+    Project again = b.project;
+    again.pcb.settings.autorouter.improvePlacement = true;
+    again.pcb.autoPlace(again.schematic, true);
+    CHECK(samePlacement(improved, again) && !samePlacement(improved, greedy));
+    const RouteStats sg = greedy.pcb.autoRoute(greedy.schematic), si = improved.pcb.autoRoute(improved.schematic);
+    std::printf("    greedy: %d / %d, %d vias, %.0f mm; improved: %d / %d, %d vias, %.0f mm\n", sg.routed, sg.connections, sg.vias,
+                sg.trackLength, si.routed, si.connections, si.vias, si.trackLength);
+    CHECK(si.failed <= sg.failed && si.trackLength < sg.trackLength);
+    CHECK(routeDrcErrors(improved).empty());
+    // Locked parts stay; only the parts Auto Place placed move. The option is saved only when on.
+    Project locked = b.project;
+    locked.pcb.settings.autorouter.improvePlacement = true;
+    Component* fixed = nullptr;
+    for (auto& c : locked.schematic.mutableComponents())
+        if (c.hasFootprint() && !fixed) fixed = &c;
+    CHECK(fixed != nullptr);
+    if (!fixed) return;
+    fixed->pcb = PcbPlacement{{30, 30}, 0, false, true};
+    fixed->pcb.locked = true;
+    locked.pcb.autoPlace(locked.schematic, true);
+    const Vec2 kept{30, 30};
+    CHECK(fixed->pcb.position == kept && drcCount(locked, "DRC_COURTYARD_OVERLAP") == 0);
+    CHECK(Project().toJson().dump().find("improvePlacement") == std::string::npos);
+    const Json j = autorouteOptionsToJson(improved.pcb.settings.autorouter);
+    CHECK(j.get("improvePlacement").asBool(false) && autorouteOptionsFromJson(j).improvePlacement);
+    CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("improvePlacement"));
+    CHECK(Project::fromJson(improved.toJson()).pcb.settings.autorouter.improvePlacement);
+}
+
+TEST(autoroute_via_minimisation_tries_every_net) {
+    // Via minimisation on a board with many vias: with grids for the separated batches (automatic), and with a single
+    // one, so that the rest of the nets go through the last, shared batch — both complete, DRC-clean, with no more
+    // vias than the plain route and the metrics agreeing with the board; the same copper on 1 and 4 threads.
+    bench::BenchBoard b = bench::makeBenchBoard({2, 2, 4, false, false, 0.45});
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    Project plain = b.project;
+    setRouterStrategy(RouterStrategy::Corridor);
+    setRoutingThreads(1);
+    const RouteStats sp = plain.pcb.autoRoute(plain.schematic);
+    setRouterStrategy(RouterStrategy::Auto);
+    setRoutingThreads(0);
+    struct Run {
+        int grids;
+        int threads;
+    };
+    std::vector<Project> routed;
+    std::vector<RouteStats> stats;
+    for (Run run : {Run{0, 1}, Run{1, 1}, Run{1, 4}}) {
+        setViaMinimisationGrids(run.grids);
+        setRoutingThreads(run.threads);
+        setRouterStrategy(RouterStrategy::Corridor);
+        Project q = b.project;
+        q.pcb.settings.autorouter.minimizeVias = true;
+        stats.push_back(q.pcb.autoRoute(q.schematic));
+        setRouterStrategy(RouterStrategy::Auto);
+        setRoutingThreads(0);
+        setViaMinimisationGrids(0);
+        const RouteStats& st = stats.back();
+        std::printf("    grids %d, %d threads: %d / %d, %d vias (-%d, %d nets re-routed), %.0f mm; plain %d vias\n", run.grids, run.threads,
+                    st.routed, st.connections, st.report.metrics.vias, st.report.metrics.viasRemoved, st.report.metrics.netsRerouted,
+                    st.report.metrics.trackLength, sp.vias);
+        CHECK(st.report.metrics.vias == static_cast<int>(q.pcb.vias.size()) && st.report.metrics.viasRemoved >= 0);
+        CHECK(st.report.metrics.unrouted == sp.report.metrics.unrouted && st.failed == sp.failed);  // never costs a connection
+        for (const auto& e : routeDrcErrors(q)) std::printf("    %s\n", e.c_str());
+        CHECK(routeDrcErrors(q).empty());
+        routed.push_back(std::move(q));
+    }
+    CHECK(sp.vias > 20);
+    CHECK(stats[0].report.metrics.vias < sp.vias && stats[1].report.metrics.vias < sp.vias);
+    CHECK(stats[0].report.metrics.vias == sp.vias - stats[0].report.metrics.viasRemoved);
+    CHECK(stats[1].report.metrics.viasRemoved > 0);  // the shared batch removes vias too
+    CHECK(sameCopper(routed[1], routed[2]));
+}
+
+TEST(classic_router_copper_fingerprint) {
+    // Regression guard: a board below 2 M grid nodes placed and routed by the classic router, as a fingerprint of the
+    // whole project (placement, copper, settings). A change to the classic router's copper or to the greedy placement
+    // changes it; update the constant only on purpose (the value is printed).
+    bench::BenchBoard b = bench::makeBenchBoard({1, 1, 2, false, false, 0.45});
+    setRouterStrategy(RouterStrategy::Classic);
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    const RouteStats st = b.project.pcb.autoRoute(b.project.schematic);
+    setRouterStrategy(RouterStrategy::Auto);
+    const unsigned long long fp = projectFingerprint(b.project);
+    std::printf("    %d / %d routed, %d vias, fingerprint %llu\n", st.routed, st.connections, st.vias, fp);
+    CHECK(st.connections == 166 && st.routed >= 165);
+#if defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__) && defined(NDEBUG)
+    // The exact copper is pinned for the build that measured it (gcc, x86-64, Release): other compilers may contract
+    // multiply-adds and round, and so route, differently (docs/ROUTING.md, Limits).
+    constexpr unsigned long long kExpected = 14563538764380718061ull;
+    CHECK(fp == kExpected && st.routed == 165 && st.vias == 131);
+#endif
+}
+
 extern "C" int sieda_c_api_autoroute_strategy_test(void);
 TEST(c_api_autoroute_strategy) {
     const int rc = sieda_c_api_autoroute_strategy_test();
@@ -18928,6 +19694,7 @@ TEST(mcp_tools_list_schemas) {
                              "pcb_set_board", "pcb_update_from_schematic", "pcb_place_footprint", "pcb_autoroute",
                              "pcb_route", "pcb_teardrops", "pcb_add_pour", "pcb_drc", "pcb_route_report", "sim_dc_op",
                              "sim_transient", "sim_ac", "sim_noise", "sim_measure", "sim_set_spice_model",
+                             "sim_temperature_sweep",
                              "si_impedance", "si_length_report", "si_memory_checks", "verify_design", "output_gerbers",
                              "output_bom", "output_pick_and_place", "output_schematic_pdf", "output_3d_model",
                              "render_schematic", "render_pcb"})
@@ -19492,6 +20259,62 @@ TEST(step_export_closed_named_solids) {
     CHECK(step.find("FACETED_BREP('PCB'") != std::string::npos);
     CHECK(step.find("FACETED_BREP('U1'") != std::string::npos);
     CHECK(step.find("COLOUR_RGB") != std::string::npos);
+}
+
+TEST(step_import_round_trip_of_export) {
+    Project p = placedBenchBoard();
+    const std::string step = exportStep(p.schematic, p.pcb, "bench");
+    const Model3DMesh m = parseModel3D(step, "bench.step");
+    CHECK(m.format == "step" && m.warnings.empty());
+    // Expected per solid from the file itself: volume by the divergence theorem over its polygon faces, bounds
+    // from its points.
+    std::map<int, std::string> e;
+    std::istringstream in(step);
+    for (std::string l; std::getline(in, l);)
+        if (l.size() > 1 && l[0] == '#') e[std::atoi(l.c_str() + 1)] = l.substr(l.find('=') + 1);
+    auto refs = [](const std::string& s) {
+        std::vector<int> r;
+        for (size_t i = s.find('#'); i != std::string::npos; i = s.find('#', i + 1)) r.push_back(std::atoi(s.c_str() + i + 1));
+        return r;
+    };
+    auto pointOf = [&](int id) {
+        const std::string& s = e[id];  // CARTESIAN_POINT('',(x,y,z))
+        Vec3 v;
+        std::sscanf(s.c_str() + s.find('(', s.find('(') + 1), "(%lf,%lf,%lf", &v.x, &v.y, &v.z);
+        return v;
+    };
+    std::vector<double> expected;
+    std::array<double, 6> box{1e300, 1e300, 1e300, -1e300, -1e300, -1e300};
+    for (const auto& [id, body] : e) {
+        if (body.rfind("FACETED_BREP(", 0) != 0) continue;
+        double volume = 0;
+        for (int face : refs(e[refs(body)[0]]))
+            for (int r : refs(e[face])) {
+                if (e[r].rfind("PLANE", 0) == 0) continue;
+                const auto pts = refs(e[refs(e[r])[0]]);
+                const Vec3 a = pointOf(pts[0]);
+                for (size_t i = 1; i + 1 < pts.size(); ++i) {
+                    const Vec3 b = pointOf(pts[i]), c = pointOf(pts[i + 1]);
+                    volume += a.x * (b.y * c.z - b.z * c.y) - a.y * (b.x * c.z - b.z * c.x) + a.z * (b.x * c.y - b.y * c.x);
+                }
+                for (int pt : pts) {
+                    const Vec3 v = pointOf(pt);
+                    box = {std::min(box[0], v.x), std::min(box[1], v.y), std::min(box[2], v.z), std::max(box[3], v.x), std::max(box[4], v.y), std::max(box[5], v.z)};
+                }
+            }
+        expected.push_back(volume / 6);
+    }
+    auto solids = meshSolids(m);
+    CHECK(solids.size() == expected.size() && expected.size() == static_cast<size_t>(placedBodies(p) + 1));
+    std::sort(expected.begin(), expected.end());
+    std::sort(solids.begin(), solids.end(), [](const MeshSolid& a, const MeshSolid& b) { return a.volume < b.volume; });
+    for (size_t i = 0; i < solids.size() && i < expected.size(); ++i) {
+        CHECK(solids[i].closed);
+        CHECK(expected[i] > 0);
+        CHECK_NEAR(solids[i].volume, expected[i], 0.01 * expected[i]);
+    }
+    const auto b = m.bounds();
+    for (int k = 0; k < 6; ++k) CHECK_NEAR(b[k], box[k], 1e-3);
 }
 
 TEST(idf_export_and_placement_round_trip) {

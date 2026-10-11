@@ -1494,4 +1494,47 @@ DcSweepResult Simulator::dcSweep(int componentId, double start, double stop, dou
     return res;
 }
 
+DcSweepResult Simulator::temperatureSweep(const std::vector<double>& celsius) {
+    DcSweepResult res;
+    if (celsius.empty() || celsius.size() > 1000) {
+        res.error = "The temperature sweep needs 1 to 1000 temperatures.";
+        return res;
+    }
+    for (double t : celsius)
+        if (!(t > -273.15) || !(t <= 1000)) {
+            res.error = "Temperatures must be above -273.15 °C and at most 1000 °C.";
+            return res;
+        }
+    const double saved = temperatureC_;
+    const auto& nets = sch_.nets();
+    res.netVoltages.assign(nets.size(), {});
+    std::vector<double> x;
+    for (double t : celsius) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            break;
+        }
+        temperatureC_ = t;
+        if (!build(res.error)) break;  // the models are built at this temperature
+        x.resize(static_cast<size_t>(unknowns_), 0.0);
+        int iters = 0;
+        bool ok = !res.values.empty() && solve(0, 0, x, iters, 0.0, 1.0);  // continuation from the previous temperature
+        if (!ok) {
+            std::fill(x.begin(), x.end(), 0.0);
+            ok = operatingPoint(x, iters);
+        }
+        if (!ok) {
+            res.error = "Temperature sweep did not converge at " + formatEngineeringValue(t, "", 6) + " °C.";
+            break;
+        }
+        res.values.push_back(t);
+        for (size_t k = 0; k < nets.size(); ++k) res.netVoltages[k].push_back(nodeV(x, netToNode_[k]));
+        for (const auto& r : readings(x, 0))
+            if (r.subIndex == 0) res.currents[r.componentId].push_back(r.current);
+    }
+    temperatureC_ = saved;
+    res.ok = res.error.empty();
+    return res;
+}
+
 }  // namespace sieda

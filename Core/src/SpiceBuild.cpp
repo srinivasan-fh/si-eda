@@ -328,6 +328,10 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
                     Element e = base(p.type == 'R' ? ElemType::Resistor : ElemType::Capacitor);
                     e.n = {nodeOf(p.nodes[0]), nodeOf(p.nodes[1]), -1};
                     e.value = p.value;
+                    if (p.tc1 != 0 || p.tc2 != 0) {  // TC1 / TC2 from the model's reference temperature
+                        const double dt = temperatureC_ - p.tnom;
+                        e.value *= 1.0 + p.tc1 * dt + p.tc2 * dt * dt;
+                    }
                     elements_.push_back(e);
                     break;
                 }
@@ -393,7 +397,7 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
                 case 'M':
                 case 'J': {
                     std::string err;
-                    auto dev = spicedev::makeDevice(p, err);
+                    auto dev = spicedev::makeDevice(p, err, temperatureC_);
                     if (!dev) return fail(err);
                     Element e = base(ElemType::Device);
                     e.dev = dev;

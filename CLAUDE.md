@@ -37,12 +37,15 @@
   `AppTheme.current`, the app redraws through `.id(appTheme)`; Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
-  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations) +
+  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations: SPICE3
+  temperature updates per model TNOM, MOS3 level 3 `channel3`, switch hysteresis `$SWH` state in `SpiceExpr::state`) +
   `SpiceBuild.cpp` (models and op-amp macromodel in the simulator), noise in `Noise.cpp`, adaptive / trapezoidal
-  transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; app in
+  transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; simulation
+  temperature `Simulator::setTemperature` (27 °C default = every result unchanged; JSON `"temperature"` on every analysis,
+  `temperatureSweep` / `sieda_simulate_temperature_sweep` / MCP `sim_temperature_sweep`); app in
   `SiEDA/Views/Simulation/` and `SiEDA/App/DesignStore+Simulation.swift`; guide in `docs/SIMULATION.md`. Parts without
   an imported model must keep their exact results: new behaviour is opt-in (a model, macromodel parameters, transient
-  options, `setConvergenceAids`).
+  options, `setConvergenceAids`, `setTemperature`).
 - Built-in AI model (no outside app): engine in `Core/src/LocalModel.cpp` (GGUF reader, F16…Q6_K blocks, Llama / Mistral /
   Qwen transformer, BPE + SentencePiece tokenizers; tokens equal and logits within 0.5 % of exact — tests against
   llama.cpp fixtures from `tools/make_llm_fixtures.py`), C API `sieda_llm_*` in `Core/src/sieda_c_llm.cpp`, CLI
@@ -62,9 +65,13 @@
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
 - Altium libraries: `Core/src/AltiumLibrary.cpp` (MS-CFB `CompoundFile`, SchLib / PcbLib records), converted in
   `LibraryImport.cpp` (`importAltium`); fixtures written by `tools/make_altium_fixtures.py` (don't edit the binaries).
-- 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers, `Model3DRegistry`, project
-  `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its mesh by `CustomPartSpec::model3d`; app
-  `SiEDA/Views/Library/Model3DEditorView.swift`. STEP is deliberately not read (no CAD kernel).
+- 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers and the STEP AP203 / AP214 reader
+  `parseStep`: Part 21 parser, B-rep faces triangulated in their surface's parameters with seams unwrapped so shells
+  stay closed, assembly placements, units, colours; B-spline / unknown surfaces use their boundary and are counted in
+  `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
+  mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. Tests:
+  `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),
+  `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target.
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
@@ -79,7 +86,12 @@
   behaviour; JSON in `Core/src/Autoroute.cpp`), keep-outs, C API in `Core/src/sieda_c_autoroute.cpp`; app
   `SiEDA/Views/PCB/RoutingStrategy*.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`; guide in
   `docs/ROUTING.md`. `SIEDA_ROUTE_PROFILE=1` prints phase timings; the corridor router must give the same copper for
-  any thread count.
+  any thread count. Placement improvement after the greedy `autoPlace` (`PcbLayout::improvePlacement`, opt-in
+  `AutorouteOptions::improvePlacement`); coupled pairs' P/N crossover (`Project::autoPairCrossovers` in
+  `Core/src/PcbSwap.cpp`, a pin swap of a unit's pin-swap group, run by `Project::autoRoute` with `coupledPairs`);
+  via minimisation tries every net (adaptive batches + one shared grid, serial, `setViaMinimisationGrids` for tests);
+  `classic_router_copper_fingerprint` pins the classic router's and greedy placer's result — update its constant
+  only on purpose. `sieda_route_bench --options '{json}' --save file` measures strategy options and lets `cmp` compare runs.
 - MCP (any AI client drives SiEDA): engine in `Core/src/Mcp.cpp` (JSON-RPC dispatch, root-folder sandbox, resources,
   prompts, examples; `Core/include/sieda/Mcp.hpp`), the data-driven tool table in `Core/src/McpTools.cpp` (handlers
   call the C API), PNG / SVG renders in `Core/src/McpRender.cpp`, C API `sieda_mcp_*` in `Core/src/sieda_c_mcp.cpp`

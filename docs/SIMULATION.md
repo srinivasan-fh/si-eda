@@ -11,6 +11,7 @@ SPICE. The **Simulation** workspace shows the DC operating point on the left and
 | Transient | Waveforms over time, microcontroller firmware co-simulation | Transient | `sieda_simulate_transient` |
 | AC small-signal | Magnitude / phase of every node over a log frequency sweep; bandwidth, peak, unity gain, phase margin | AC Sweep (Bode plot) | `sieda_simulate_ac` |
 | DC sweep | Operating point at each value of a swept source | DC Sweep | `sieda_simulate_dc_sweep` |
+| Temperature sweep | Operating point at each temperature (imported models follow their SPICE temperature equations) | — | `sieda_simulate_temperature_sweep` |
 | Parameter sweep | DC, AC or transient once per value of one component | Parameter Sweep | `sieda_simulate_param_sweep` |
 | Monte Carlo / worst case | Spread of a node's DC voltage, low-frequency gain, −3 dB frequency or peak frequency over R/C/L tolerances | Monte Carlo | `sieda_simulate_monte_carlo` |
 | FFT / THD | Spectrum and harmonic distortion of a node's transient waveform | FFT / THD | `sieda_simulate_fft` |
@@ -165,6 +166,26 @@ solves the operating point at every value, continuing from the previous solution
 stepping fallback when a point does not converge). Reports node voltages and component currents per point: transfer
 curves, diode I–V, transistor characteristics, regulator dropout. Up to 100 000 points.
 
+## Temperature
+
+Every analysis runs at a **simulation temperature**, 27 °C unless set (`Simulator::setTemperature`, the `"temperature"`
+option of every JSON analysis, `temperature` on the `sim_*` MCP tools). At 27 °C every result is exactly what it was.
+Imported SPICE models follow the SPICE3 temperature equations from their reference temperature (`TNOM` on the model
+card, else the deck's `.options tnom`, else 27 °C): V_T = kT/q; diode IS·(T/TNOM)^(XTI/N)·exp(EG/(N·V_T)·(T/TNOM − 1))
+(EG 1.11, XTI 3 by default), VJ and CJO shifted with the band gap; BJT IS / ISE / ISC the same way, BF and BR by
+(T/TNOM)^XTB, VJE / VJC / CJE / CJC shifted; MOSFET KP and UO by (T/TNOM)^−1.5, VTO and PHI through the band gap and the
+Fermi potential, the bulk junction IS, PB and the junction capacitances; JFET IS (EG 1.11), VTO + VTOTC·ΔT,
+BETA·1.01^(BETATCE·ΔT), PB / CGS / CGD; resistors and capacitors inside models with `TC=tc1,tc2` / `TC1=` / `TC2=`:
+value·(1 + TC1·ΔT + TC2·ΔT²). A `.temp` or `.options temp` line in a vendor deck is reported as an info line and
+otherwise ignored: the simulation setting decides. The built-in device models (diode, NPN, N-MOSFET, op-amp, regulators)
+keep their 300 K parameters at every temperature.
+
+**Temperature sweep** (`Simulator::temperatureSweep`, C API `sieda_simulate_temperature_sweep`, MCP
+`sim_temperature_sweep`): the DC operating point at each temperature of a list (`"temperatures": [-40, 27, 85, 125]`)
+or a range (`"start"`, `"stop"`, `"step"`, default −40 … 125 °C in 5 °C), at most 1000 points, each solved from the
+previous one (with the full fallback when that fails); the result has the shape of a DC sweep with the temperatures
+as `values` and `"unit": "°C"`. A 1N4148-class diode reads about −2 mV/K of forward drop over it (tested).
+
 ## Parameter sweep
 
 **Analysis type → Parameter Sweep**: name the part (**Part**, e.g. `R1`), its **Values** (`1k 2k2 4k7`, up to 100,
@@ -191,7 +212,8 @@ complex solve per frequency, however many sources there are) and the powers add 
 | N-MOSFET (built-in), MOSFET / JFET (imported) | (8/3)kT·g_m + KF·I_D^AF / (f·Cox·L²) (KF·I_D^AF / f without TOX) | drain – source |
 | Op-amp with `EN=` / `IN=` (V/√Hz, A/√Hz) | EN²·(1 + FNC / f) at the input; IN²·(1 + FNC / f) from each input to ground | — |
 
-T = 300.15 K (27 °C; the C API's `"temperature"` in °C changes it). Results: the output density (V/√Hz), the gain from
+T = 300.15 K (27 °C; the C API's `"temperature"` in °C changes it, and with it the simulation temperature of the
+imported models). Results: the output density (V/√Hz), the gain from
 the input source and the input-referred density (V/√Hz for a voltage source, A/√Hz for a current source), the RMS noise
 integrated over the sweep (trapezoidal in f, so a fine sweep integrates a 1/f slope well), and every part's
 integrated contribution, largest first. The input is the source named as **Input**, else the AC stimulus rule.
@@ -267,21 +289,28 @@ R C L K V I E F G H B D Q M J S W X. Controlled sources accept the linear form, 
 `VALUE = {…}` and `TABLE {…} = (x, y) …`; B sources take `V=` or `I=` expressions of `V(a)`, `V(a,b)`, `I(Vx)` and
 `time` with + − * / `**` `^` comparisons, `&& || !`, `?:` and abs sqrt exp ln log log10 sin cos tan asin acos atan
 atan2 sinh cosh tanh min max pow pwr pwrs sgn sign u uramp limit if floor ceil round int table. Simulation commands
-(`.tran`, `.options`, …) and test-circuit elements outside a `.subckt` are ignored with an info line; `.include` /
-`.lib file` are reported (paste the included text). Anything the simulator cannot honour is an error with its line:
-T / O / U / A / Z elements, LAPLACE / FREQ sources, `ddt` / `idt`, MOSFET LEVEL ≥ 4 (BSIM), BJT LEVEL > 1 (VBIC). Model
-parameters it does not use are listed as a warning (or an info line for temperature coefficients, ratings and vendor
-metadata — the simulation is at 27 °C).
+(`.tran`, `.options`, …) and test-circuit elements outside a `.subckt` are ignored with an info line (`.options tnom`
+sets the reference temperature of models without their own TNOM; `.temp` / `.options temp` are only reported);
+`.include` / `.lib file` are reported (paste the included text). Anything the simulator cannot honour is an error with
+its line: T / O / U / A / Z elements, LAPLACE / FREQ sources, `ddt` / `idt`, MOSFET LEVEL ≥ 4 (BSIM), BJT LEVEL > 1
+(VBIC). Model parameters it does not use are listed as a warning (or an info line for temperature coefficients it does
+not model, ratings and vendor metadata).
 
 **Device equations.** Diode: Shockley with emission coefficient, series resistance, reverse breakdown (BV, IBV, NBV),
 depletion charge (CJO, VJ, M, FC) and diffusion charge (TT). BJT: Gummel–Poon level 1 — IS, BF, BR, NF, NR, Early
 voltages VAF / VAR, high injection IKF / IKR, leakage ISE / NE, ISC / NC, RB / RC / RE, junction charges CJE / VJE /
 MJE, CJC / VJC / MJC and transit times TF / TR (XTF, RBM, CJS ignored). MOSFET: Shichman–Hodges level 1 with body effect
 (GAMMA, PHI), λ, RD / RS, KP or UO·Cox, LD, overlap capacitances CGSO / CGDO / CGBO, bulk junctions (IS, CBD / CBS or
-CJ·AD / AS + CJSW·PD / PS, PB, MJ, MJSW) and, when TOX is given, an intrinsic gate charge of ⅔·Cox·W·L; LEVEL 3 adds
-THETA mobility reduction (ETA, VMAX, KAPPA ignored). JFET: Shichman–Hodges with gate diodes and CGS / CGD. Switches are
-smooth log-interpolated conductances between ROFF and RON across the threshold (no hysteresis). Model temperature is
-27 °C (V_T = 25.865 mV); built-in models keep their 300 K value.
+CJ·AD / AS + CJSW·PD / PS, PB, MJ, MJSW) and, when TOX is given, an intrinsic gate charge of ⅔·Cox·W·L. LEVEL 3 is the
+SPICE3 MOS3 DC model (mos3load.c): threshold with short-channel charge sharing (XJ, NSUB, LD), narrow-width DELTA and
+ETA static feedback (σ = ETA·8.15e-22 / (Cox·L³)), NFS weak inversion, THETA mobility reduction, VMAX velocity
+saturation (V_dsat = a + V_dsc − √(a² + V_dsc²), current / (1 + V_ds / V_dsc)) and KAPPA channel-length modulation
+(needs NSUB; the punch-through approximation above L/2); TOX defaults to 100 nm, LAMBDA is not a level-3 parameter.
+JFET: Shichman–Hodges with gate diodes and CGS / CGD. Switches are smooth log-interpolated conductances between ROFF
+and RON across the threshold; with VH / IH they latch: on above VT + VH, off below VT − VH, otherwise the state of the
+previous Newton iteration (the SPICE way; the initial state is off). Model parameters hold at the model's TNOM and are
+moved to the simulation temperature as described under *Temperature* (27 °C by default, V_T = 25.865 mV); built-in
+models keep their 300 K value.
 
 **Pin map.** One entry per model port, in port order: a pin name or number of the part, `0` (ground), `net:NAME` (a
 schematic net), `dc:15` (an ideal supply to ground) or `nc` (left open); `;` separates instances (`3 2 8 4 1; 5 6 8 4 7`
@@ -363,7 +392,12 @@ The core tests (`Core/tests/core_tests.cpp`) check the numerics against closed-f
   form (E G F H linear, POLY, VALUE, TABLE, B with V(), I() and functions, switches, nested subckts with parameters)
   against exact DC values; Shockley diode with RS (10 mA·10 Ω exactly), Zener breakdown, Gummel–Poon I_C = β·I_B and
   the Early effect, PNP on a catalog part mapped by pin name, MOSFET level 1 saturation / triode and level 3 THETA to
-  10⁻⁸ A; the µA741 Boyle macromodel: DC gain, closed-loop bandwidth at GBW/100, slew rate ≈ 0.5 V/µs.
+  10⁻⁸ A, level 3 VMAX against the closed form to 10⁻⁹ A, KAPPA slope (with NSUB, flat without), ETA, NFS, DELTA;
+  the µA741 Boyle macromodel: DC gain, closed-loop bandwidth at GBW/100, slew rate ≈ 0.5 V/µs.
+- Temperature: diode forward drop at −40 / 100 °C against N·V_T(T)·ln(I / IS(T) + 1) with XTI / EG, a model at its own
+  TNOM, BJT I_C = BF·(T/TNOM)^XTB·I_B at 100 °C, MOSFET KP ∝ T^−1.5 and VTO drift, TC1 / TC2 from `.options tnom`;
+  27 °C bit-identical to the default; the temperature sweep (monotonic diode drop, one point per temperature, JSON
+  range and list). Switch hysteresis: the same control voltage reads on or off by the sweep direction.
 - Capacitances: reverse-biased junction corner 1/(2πR·Cj(V)) to 0.2 %, diffusion corner 1/(2π·TT) to 0.1 %, BJT
   f_T = 1/(2π·TF) to 1 %, MOSFET overlap pole to 0.1 %; a junction with M = 0 matches a capacitor sample for sample in
   transient; reverse-recovery charge ≈ TT·I_F.
@@ -385,11 +419,12 @@ established strategy failed, and only in the app's entry points.
 
 ## Limits
 
-- Imported models: no temperature dependence (27 °C), no BSIM / VBIC / HICUM / EKV, no LAPLACE / FREQ sources, no
-  `ddt` / `idt`, no transmission lines or digital / XSPICE primitives (all reported as errors with their line); MOSFET
-  level 3 is level 1 with THETA (ETA, VMAX, KAPPA ignored); the intrinsic gate charge is the saturation value; BJT
-  XTF / RBM / substrate capacitance ignored; switches have no hysteresis; SFFM / AM sources inside a model are held
-  at their DC value. **Open File…** follows `.include` / `.inc` / `.lib file [section]` to files in the model's own
+- Imported models: no BSIM / VBIC / HICUM / EKV, no LAPLACE / FREQ sources, no `ddt` / `idt`, no transmission lines
+  or digital / XSPICE primitives (all reported as errors with their line); MOSFET level 2 is simulated as level 1 and
+  the level-3 charge model is the level-1 one (the intrinsic gate charge is the saturation value); BJT XTF / RBM /
+  substrate capacitance ignored; temperature coefficients beyond those listed under *Temperature* (TRS, TBV, TIKF,
+  resistor `.model` cards, …) are ignored with an info line; the built-in device models do not move with temperature;
+  SFFM / AM sources inside a model are held at their DC value. **Open File…** follows `.include` / `.inc` / `.lib file [section]` to files in the model's own
   folder (relative paths, up to 8 levels, 8 MB; `sieda_spice_inline_includes`); pasted text cannot, so paste those files
   too.
 - The built-in diode, NPN and N-MOSFET have no capacitances and no noise flicker term; the built-in op-amp without

@@ -272,6 +272,7 @@ NoiseResult Simulator::noise(const NoiseOptions& o) {
 
 NoiseResult noiseAnalysis(const Schematic& schematic, const NoiseOptions& options) {
     Simulator sim(schematic);
+    if (options.temperature != 300.15) sim.setTemperature(options.temperature - 273.15);  // the models follow kT too
     return sim.noise(options);
 }
 

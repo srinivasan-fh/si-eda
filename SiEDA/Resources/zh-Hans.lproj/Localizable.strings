@@ -1414,3 +1414,8 @@
 "Use for SiEDA's Agents" = "用于 SiEDA 的智能体";
 "Use the Bundled Model" = "使用内置模型";
 "Using a circuit model makes it the AI that designs new circuits: it runs on this Mac with no account and no download; specifications and reviews come from the Offline Designer." = "使用电路模型会让它成为设计新电路的 AI：它在这台 Mac 上运行，无需账户和下载；规格和评审由 Offline Designer 负责。";
+
+/* 3D models: STEP import */
+"Attach a VRML (.wrl), STL, OBJ or STEP model and align it on the footprint" = "附加 VRML (.wrl)、STL、OBJ 或 STEP 模型并与封装对齐";
+"Choose a VRML (.wrl), STL, OBJ or STEP (.step / .stp) file, as KiCad libraries ship them." = "请选择 VRML (.wrl)、STL、OBJ 或 STEP (.step / .stp) 文件，即 KiCad 库附带的格式。";
+"VRML (.wrl), STL, OBJ or STEP (.step / .stp, as KiCad libraries ship)." = "VRML (.wrl)、STL、OBJ 或 STEP（.step / .stp，KiCad 库附带）。";
