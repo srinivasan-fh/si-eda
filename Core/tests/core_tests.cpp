@@ -13534,6 +13534,7 @@ TEST(standard_catalog_has_over_a_thousand_registrable_parts) {
 
 // ============================================================================ corridor router (large boards)
 #include "../src/GlobalRouter.hpp"
+#include "../src/RouteQuality.hpp"
 
 TEST(global_router_capacity_batches_and_threads) {
     using namespace sieda::routing;
@@ -18420,6 +18421,91 @@ TEST(corridor_router_leaves_no_acute_joins) {
     CHECK(same);
 }
 
+TEST(project_multiple_boards) {
+    // One schematic, two boards: parts assigned to the second board leave the first (and its checks), each board
+    // places and routes its own parts, the file keeps both, and removing the second board brings its parts back.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK(!p.toJson().has("boards") && p.boardCount() == 1);
+    std::vector<int> moved;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.kind == ComponentKind::Resistor && moved.size() < 2) moved.push_back(c.id);
+    CHECK(moved.size() == 2);
+    CHECK(p.addBoard("Sensor") == 1 && p.boardCount() == 2 && p.activeBoard == 0);
+    CHECK(p.assignToBoard(moved, 1) == 2);
+    auto unplacedWarnings = [&] {
+        int n = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == "DRC_UNPLACED";
+        return n;
+    };
+    CHECK(unplacedWarnings() == 0);  // the moved parts are on the other board, not missing from this one
+    const size_t mainTracks = p.pcb.tracks.size();
+    std::map<int, Vec2> mainPlaces;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.pcb.board == 0) mainPlaces[c.id] = c.pcb.position;
+    CHECK(p.setActiveBoard(1) && p.pcb.tracks.empty() && p.pcb.board == 1);
+    p.pcb.autoPlace(p.schematic, false);
+    int placedHere = 0;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed) {
+            ++placedHere;
+            CHECK(c.pcb.board == 1);
+        }
+    CHECK(placedHere == 2 && unplacedWarnings() == 0);
+    p.pcb.autoRoute(p.schematic);
+    // Saved and loaded: both boards, the active one, the parked placements.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.boardCount() == 2 && q.boardNames[1] == "Sensor" && q.activeBoard == 1 && q.pcb.tracks.size() == p.pcb.tracks.size());
+    CHECK(q.setActiveBoard(0) && q.pcb.tracks.size() == mainTracks);
+    for (const auto& [id, at] : mainPlaces) {
+        const Component* c = q.schematic.find(id);
+        CHECK(c && c->pcb.placed && (c->pcb.position - at).length() < 1e-9);
+    }
+    for (int id : moved) CHECK(!q.schematic.find(id)->pcb.placed);
+    // Removing the second board: its parts come back to the first, unplaced; the project is single-board again.
+    CHECK(q.removeBoard(1) && q.boardCount() == 1 && q.activeBoard == 0 && !q.toJson().has("boards"));
+    for (int id : moved) CHECK(q.schematic.find(id)->pcb.board == 0 && !q.schematic.find(id)->pcb.placed);
+    CHECK(!q.removeBoard(0));
+}
+
+TEST(autoroute_shape_completion) {
+    // Off by default and not saved; saved when on.
+    CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("shapeCompletion"));
+    AutorouteOptions on;
+    on.shapeCompletion = true;
+    CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(on)).shapeCompletion);
+    // Connections taken off a routed board are routed again on the exact shapes, between the copper already there.
+    Project p = amplifierProject();
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    std::set<int> cut;
+    for (const auto& t : p.pcb.tracks)
+        if (cut.size() < 3 && p.schematic.netRole(t.net) == NetRole::Signal) cut.insert(t.net);
+    p.pcb.tracks.erase(std::remove_if(p.pcb.tracks.begin(), p.pcb.tracks.end(), [&](const Track& t) { return cut.count(t.net) > 0; }),
+                       p.pcb.tracks.end());
+    p.pcb.vias.erase(std::remove_if(p.pcb.vias.begin(), p.pcb.vias.end(), [&](const Via& v) { return cut.count(v.net) > 0; }),
+                     p.pcb.vias.end());
+    const size_t open = p.pcb.ratsnest(p.schematic).size();
+    const int done = routequality::shapeComplete(p.pcb, p.schematic);
+    std::printf("    %zu connections open, %d completed, %zu left\n", open, done, p.pcb.ratsnest(p.schematic).size());
+    CHECK(open > 0 && done == static_cast<int>(open) && p.pcb.ratsnest(p.schematic).empty());
+    CHECK(routeDrcErrors(p).empty());
+    // Pads on opposite sides: the second leg goes through a via onto the other layer.
+    Project q;
+    q.pcb.settings.width = 50;
+    q.pcb.settings.height = 30;
+    const int a = placeR(q, {10, 15}), b = placeR(q, {40, 15});
+    q.schematic.find(b)->pcb.bottom = true;
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    CHECK(routequality::shapeComplete(q.pcb, q.schematic) == 1);
+    CHECK(q.pcb.ratsnest(q.schematic).empty() && routeDrcErrors(q).empty());
+    std::printf("    opposite sides: %zu tracks, %zu vias\n", q.pcb.tracks.size(), q.pcb.vias.size());
+}
+
 TEST(autoroute_keepouts_and_quality_passes) {
     // A keep-out across the direct path: the router goes around it, and the DRC flags copper drawn into it.
     {
@@ -20424,6 +20510,110 @@ TEST(mcp_render_images) {
     CHECK(res.get("text").asString("").find("<svg") != std::string::npos);
     CHECK(res.get("text").asString("").find("Q1") != std::string::npos);
     CHECK(mcp::base64Encode("Man") == "TWFu" && mcp::base64Encode("Ma") == "TWE=" && mcp::base64Encode("M") == "TQ==");
+}
+
+TEST(mcp_labels_point_away_from_the_part) {
+    // Labels on an IC's pins: right-hand pins (also the lowest ones of a tall IC) get labels to the right, left-hand
+    // pins labels turned to the left, each beside its own pin and on no other pin's end.
+    const auto root = mcpRoot("labels");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    Json part = Json::object();
+    part["name"] = "PIC16F877A";
+    CHECK(!mcpFailed(mcpTool(s, "library_add_part", part)));
+    const std::vector<std::pair<const char*, const char*>> labels{
+        {"UART_RX", "U1.RC7"}, {"US_ECHO", "U1.RB0"}, {"IR_LEFT", "U1.RA0"}, {"PWM_R", "U1.RC1"}};
+    for (const auto& [net, pin] : labels) {
+        Json a = Json::object();
+        a["net"] = net;
+        a["pins"] = pinArgs({pin});
+        CHECK(!mcpFailed(mcpTool(s, "schematic_net_label", a)));
+    }
+    Json q = Json::object();
+    q["uri"] = "sieda://project/current";
+    const Json project = Json::parse(mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString(""));
+    std::map<std::string, std::pair<double, int>> at;  // label → x, rotation
+    for (const auto& c : project.get("components").items())
+        if (c.get("kind").asInt(-1) == static_cast<int>(ComponentKind::NetLabel))
+            at[c.get("value").asString("")] = {c.get("x").asNumber(), c.get("rotation").asInt(-1)};
+    CHECK(at["UART_RX"].first > 0 && at["UART_RX"].second == 0 && at["US_ECHO"].first > 0 && at["US_ECHO"].second == 0);
+    CHECK(at["IR_LEFT"].first < 0 && at["IR_LEFT"].second == 180 && at["PWM_R"].first < 0 && at["PWM_R"].second == 180);
+    // Every labelled pin is on its own net.
+    Json nets = mcpData(mcpTool(s, "schematic_list_components", Json::object()));
+    std::set<std::string> seen;
+    for (const auto& pin : nets.get("components")[0].get("pins").items())
+        if (pin.get("net").isString()) CHECK(seen.insert(pin.get("net").asString()).second || pin.get("name").asString("") == "VDD" || pin.get("name").asString("") == "VSS");
+    CHECK(seen.count("UART_RX") && seen.count("US_ECHO") && seen.count("IR_LEFT") && seen.count("PWM_R"));
+}
+
+TEST(mcp_multi_page_schematic) {
+    // A second page through tools/call: parts go to the active page, a connection across pages becomes a pair of
+    // global labels, and a ground for a pin lands on that pin's page whichever page is active.
+    const auto root = mcpRoot("pages");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    Json a = Json::object();
+    a["name"] = "Pages";
+    CHECK(!mcpFailed(mcpTool(s, "project_new", a)));
+    auto add = [&](const char* kind, const char* value) {
+        Json c = Json::object();
+        c["kind"] = kind;
+        c["value"] = value;
+        return mcpData(mcpTool(s, "schematic_add_component", c));
+    };
+    auto ground = [&](const char* pin) {
+        Json g = Json::object();
+        g["pins"] = pinArgs({pin});
+        CHECK(!mcpFailed(mcpTool(s, "schematic_connect_to_ground", g)));
+    };
+    CHECK(add("voltage_source", "5").get("sheet").asInt(0) == 1);
+    ground("V1.-");
+    Json page = Json::object();
+    page["action"] = "add";
+    page["name"] = "LED";
+    page["activate"] = true;
+    const int led = mcpData(mcpTool(s, "schematic_sheet_edit", page)).get("sheet").asInt(0);
+    CHECK(led == 2 && add("resistor", "330").get("sheet").asInt(0) == 2 && add("led", "Red").get("sheet").asInt(0) == 2);
+    Json conn = Json::object();
+    conn["chain"] = pinArgs({"V1.+", "R1.1"});
+    Json cross = mcpTool(s, "schematic_connect", conn);
+    CHECK(!mcpFailed(cross) && mcpData(cross).get("wiresAdded").asInt(0) == 1);
+    conn["chain"] = pinArgs({"R1.2", "D1.A"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_connect", conn)));
+    Json back = Json::object();
+    back["action"] = "activate";
+    back["sheet"] = 1;
+    CHECK(!mcpFailed(mcpTool(s, "schematic_sheet_edit", back)));
+    ground("D1.K");
+    CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("errors").asInt(-1) == 0);
+    Json dc = mcpData(mcpTool(s, "sim_dc_op", Json::object()));
+    double led_mA = 0;
+    for (const auto& d : dc.get("devices").items())
+        if (d.get("ref").asString("") == "D1") led_mA = d.get("current").asNumber() * 1000;
+    std::printf("    LED current across pages %.2f mA\n", led_mA);
+    CHECK(led_mA > 5 && led_mA < 15);
+    // Page 2 holds R1, D1, the label and D1's ground; page 1 is still the active one.
+    Json sheets = mcpData(mcpTool(s, "schematic_sheets", Json::object()));
+    CHECK(sheets.get("active").asInt(0) == 1);
+    for (const auto& sh : sheets.get("sheets").items())
+        if (sh.get("id").asInt(0) == 2) CHECK(sh.get("components").asInt(0) == 4);
+    // A second board for the LED page's parts.
+    Json board = Json::object();
+    board["action"] = "add";
+    board["name"] = "LED board";
+    Json added = mcpData(mcpTool(s, "pcb_boards", board));
+    CHECK(added.get("board").asInt(-1) == 1 && added.get("boards").get("names").size() == 2);
+    board = Json::object();
+    board["action"] = "assign";
+    board["board"] = 1;
+    board["refs"] = pinArgs({"R1", "D1"});
+    Json assigned = mcpData(mcpTool(s, "pcb_boards", board));
+    CHECK(assigned.get("moved").asInt(0) == 2 && assigned.get("boards").get("parts")[1].asInt(0) == 2);
 }
 
 TEST(mcp_end_to_end_board) {

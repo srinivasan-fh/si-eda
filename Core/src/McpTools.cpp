@@ -97,14 +97,57 @@ Vec2 freeSpot(const Project& p) {
 }
 
 /// Where a label / ground symbol goes next to a pin: away from the part's centre, 20 units out (on the grid).
-Vec2 outsidePin(const Project& p, PinAddress a, double distance) {
+/// The way a pin leaves its part (a unit axis vector): the edge of the part's pin outline it sits on — left / right
+/// at the outline's x extremes, top / bottom at its y extremes, a corner pin by its larger offset from the centre —
+/// else away from the centre. (A tall IC's lower right-hand pins are right-hand pins, not bottom ones.)
+Vec2 pinOutward(const Project& p, PinAddress a) {
     const Schematic& s = p.schematic;
     const Component* c = s.find(a.component);
     const Vec2 pin = s.pinPosition({a.component, a.pin});
-    Vec2 d = c ? pin - c->position : Vec2{1, 0};
-    if (std::fabs(d.x) >= std::fabs(d.y)) d = {d.x >= 0 ? 1.0 : -1.0, 0};
-    else d = {0, d.y >= 0 ? 1.0 : -1.0};
+    if (!c) return {1, 0};
+    double x0 = pin.x, x1 = pin.x, y0 = pin.y, y1 = pin.y;
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+        const Vec2 q = s.pinPosition({c->id, i});
+        x0 = std::min(x0, q.x), x1 = std::max(x1, q.x), y0 = std::min(y0, q.y), y1 = std::max(y1, q.y);
+    }
+    const double eps = 1e-6;
+    const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
+    const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
+    const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
+    bool horizontal = std::fabs(off.x) >= std::fabs(off.y);
+    if (atX != atY) horizontal = atX;
+    if (!atX && !atY && x1 - x0 <= eps && y1 - y0 <= eps) {  // a one-pin part: away from its origin
+        const Vec2 d = pin - c->position;
+        horizontal = std::fabs(d.x) >= std::fabs(d.y);
+        return horizontal ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
+    }
+    return horizontal ? Vec2{off.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, off.y >= 0 ? 1.0 : -1.0};
+}
+
+/// Rotation (clockwise degrees, y down) that points a net label's tag along `d`.
+int outwardRotation(Vec2 d) { return d.x > 0.5 ? 0 : d.x < -0.5 ? 180 : d.y > 0.5 ? 90 : 270; }
+
+Vec2 outsidePin(const Project& p, PinAddress a, double distance) {
+    const Vec2 pin = p.schematic.pinPosition({a.component, a.pin});
+    const Vec2 d = pinOutward(p, a);
     return {std::round((pin.x + d.x * distance) / 10) * 10, std::round((pin.y + d.y * distance) / 10) * 10};
+}
+
+/// Runs `f` with the component's sheet active (a label or ground symbol for one of its pins belongs on that sheet),
+/// then makes the sheet that was active before active again.
+template <typename F>
+auto onPinSheet(SiedaProject* p, int component, F f) {
+    const int was = p->project.schematic.activeSheet();
+    const Component* c = p->project.schematic.find(component);
+    if (c && c->sheet != was) sieda_set_active_sheet(p, c->sheet);
+    struct Restore {
+        SiedaProject* p;
+        int was;
+        ~Restore() {
+            if (p->project.schematic.activeSheet() != was) sieda_set_active_sheet(p, was);
+        }
+    } restore{p, was};
+    return f();
 }
 
 int netIndex(const Project& p, const std::string& name) {
@@ -201,7 +244,7 @@ Json projectSummary(McpServer& s) {
             continue;
         }
         ++parts;
-        if (c.hasFootprint()) (c.pcb.placed ? placed : unplaced)++;
+        if (c.hasFootprint() && p.pcb.onBoard(c)) (c.pcb.placed ? placed : unplaced)++;
     }
     j["components"] = parts;
     j["netSymbols"] = labels;
@@ -512,7 +555,8 @@ void schematicTools(Table& t) {
           });
     t.add("schematic", "schematic_connect", "Connect pins", Kind::Edit, false,
           "Draws wires between pins. Give from + to, a chain (each pin wired to the next), or a list of pairs. Pins "
-          "are REF.PIN (\"R1.2\", \"D1.A\", \"Q1.B\", \"U1.VCC\", \"U1.14\"). Returns the nets that result.",
+          "are REF.PIN (\"R1.2\", \"D1.A\", \"Q1.B\", \"U1.VCC\", \"U1.14\"). Pins on different sheets are joined "
+          "through a pair of global net labels (the net's name, or REF_PIN). Returns the nets that result.",
           Schema()
               .pin("from", "First pin.")
               .pin("to", "Second pin.")
@@ -535,13 +579,35 @@ void schematicTools(Table& t) {
               int made = 0;
               for (const auto& [x, y] : pairs) {
                   const PinAddress pa = pinAddress(*p, x), pb = pinAddress(*p, y);
-                  const int w = sieda_connect(p, pa.component, pa.pin, pb.component, pb.pin);
+                  const Component* ca = p->project.schematic.find(pa.component);
+                  const Component* cb = p->project.schematic.find(pb.component);
                   Json r = obj();
                   r["from"] = pinLabel(*p, pa);
                   r["to"] = pinLabel(*p, pb);
-                  r["wire"] = w;
-                  if (w < 0) r["note"] = "not connected (same pin, or already joined)";
-                  else ++made;
+                  if (ca && cb && ca->sheet != cb->sheet) {
+                      // Across sheets: a global label of one name at each pin, on each pin's sheet.
+                      std::string name;
+                      for (const PinAddress& q : {pa, pb}) {
+                          const std::string n = netName(p->project, p->project.schematic.netOf({q.component, q.pin}));
+                          if (name.empty() && !n.empty() && n.rfind("N$", 0) != 0) name = n;
+                      }
+                      if (name.empty()) name = ca->ref + "_" + std::to_string(pa.pin + 1);
+                      for (const PinAddress& q : {pa, pb})
+                          onPinSheet(p, q.component, [&] {
+                              const Vec2 at = outsidePin(p->project, q, 20);
+                              const int l = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), name.c_str(), at.x, at.y,
+                                                                outwardRotation(pinOutward(p->project, q)), nullptr);
+                              check(l >= 0 && sieda_connect(p, q.component, q.pin, l, 0) >= 0, "Could not label " + pinLabel(*p, q));
+                              return l;
+                          });
+                      r["label"] = name;
+                      ++made;
+                  } else {
+                      const int w = sieda_connect(p, pa.component, pa.pin, pb.component, pb.pin);
+                      r["wire"] = w;
+                      if (w < 0) r["note"] = "not connected (same pin, or already joined)";
+                      else ++made;
+                  }
                   const int net = p->project.schematic.netOf({pa.component, pa.pin});
                   r["net"] = netName(p->project, net);
                   results.push(r);
@@ -598,8 +664,8 @@ void schematicTools(Table& t) {
               const std::string net = requireStr(a, "net");
               const std::string scope = argStr(a, "scope", "");
               Json labels = Json::array();
-              auto place = [&](Vec2 at) {
-                  const int id = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, 0, nullptr);
+              auto place = [&](Vec2 at, int rotation = 0) {
+                  const int id = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, rotation, nullptr);
                   check(id >= 0, "Could not add the label");
                   if (!scope.empty() && scope != "global")
                       check(sieda_set_label_scope(p, id, scope.c_str(), argInt(a, "targetSheet", 0)) == 1, "Invalid scope");
@@ -608,8 +674,11 @@ void schematicTools(Table& t) {
               if (a.get("pins").isArray() && a.get("pins").size()) {
                   for (const auto& pin : a.get("pins").items()) {
                       const PinAddress pa = pinAddress(*p, pin);
-                      const int id = place(outsidePin(p->project, pa, 20));
-                      check(sieda_connect(p, pa.component, pa.pin, id, 0) >= 0, "Could not wire the label to " + pinLabel(*p, pa));
+                      const int id = onPinSheet(p, pa.component, [&] {
+                          const int l = place(outsidePin(p->project, pa, 20), outwardRotation(pinOutward(p->project, pa)));
+                          check(sieda_connect(p, pa.component, pa.pin, l, 0) >= 0, "Could not wire the label to " + pinLabel(*p, pa));
+                          return l;
+                      });
                       Json l = obj();
                       l["label"] = p->project.schematic.find(id)->ref;
                       l["pin"] = pinLabel(*p, pa);
@@ -635,11 +704,16 @@ void schematicTools(Table& t) {
               Json done = Json::array();
               for (const auto& pin : a.get("pins").items()) {
                   const PinAddress pa = pinAddress(*p, pin);
-                  const Vec2 pos = p->project.schematic.pinPosition({pa.component, pa.pin});
-                  const Vec2 at{std::round(pos.x / 10) * 10, std::round(pos.y / 10) * 10 + 30};
-                  const int g = sieda_add_component(p, static_cast<int>(ComponentKind::Ground), nullptr, at.x, at.y, 0, nullptr);
-                  check(g >= 0, "Could not add a ground symbol");
-                  check(sieda_connect(p, pa.component, pa.pin, g, 0) >= 0, "Could not wire " + pinLabel(*p, pa) + " to ground");
+                  onPinSheet(p, pa.component, [&] {
+                      // Clear of the part: out from a side pin, below a bottom pin, above (upside down) a top pin.
+                      const Vec2 d = pinOutward(p->project, pa);
+                      const Vec2 at = outsidePin(p->project, pa, 30);
+                      const int g = sieda_add_component(p, static_cast<int>(ComponentKind::Ground), nullptr, at.x, at.y,
+                                                        d.y < -0.5 ? 180 : 0, nullptr);
+                      check(g >= 0, "Could not add a ground symbol");
+                      check(sieda_connect(p, pa.component, pa.pin, g, 0) >= 0, "Could not wire " + pinLabel(*p, pa) + " to ground");
+                      return g;
+                  });
                   done.push(pinLabel(*p, pa));
               }
               Json j = obj();
@@ -782,7 +856,8 @@ void schematicTools(Table& t) {
           "The sheets with hierarchy (parent, depth), component counts, ports and the active sheet.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_sheets_json(P(s)))); });
     t.add("schematic", "schematic_sheet_edit", "Edit sheets", Kind::Edit, false,
-          "Sheet commands: add (name, parent), rename (sheet, name), activate (sheet: new parts go there), remove "
+          "Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new "
+          "parts go to), rename (sheet, name), activate (sheet: new parts go there), remove "
           "(sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), "
           "place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size \"A4\"… or \"\").",
           Schema()
@@ -794,7 +869,8 @@ void schematicTools(Table& t) {
               .boolean("deleteContents", "Remove a sheet with its components")
               .num("x", "Entries x")
               .num("y", "Entries y")
-              .str("size", "Template size"),
+              .str("size", "Template size")
+              .boolean("activate", "add: make the new sheet active"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const std::string act = requireStr(a, "action");
@@ -803,6 +879,7 @@ void schematicTools(Table& t) {
               if (act == "add") {
                   const int id = sieda_add_sheet(p, requireStr(a, "name").c_str(), argInt(a, "parent", 0));
                   check(id >= 0, "Could not add the sheet (is the name unique?)");
+                  if (argBool(a, "activate", false)) check(sieda_set_active_sheet(p, id) == 1, "Could not activate the sheet");
                   j["sheet"] = id;
               } else if (act == "rename") {
                   check(sieda_rename_sheet(p, sheet, requireStr(a, "name").c_str()) == 1, "Could not rename");
@@ -825,6 +902,42 @@ void schematicTools(Table& t) {
                   check(sieda_set_sheet_size(p, sheet, argStr(a, "size", "").c_str()) == 1, "Unknown sheet or size");
               }
               j["sheets"] = takeJson(sieda_sheets_json(p));
+              return out(j);
+          });
+    t.add("pcb", "pcb_boards", "Boards", Kind::Edit, false,
+          "Several boards in one project (one schematic): list, add (name, activate), activate (board: the pcb_* tools "
+          "work on it), assign (refs, board: the parts move there unplaced; place them with pcb_update_from_schematic "
+          "or pcb_autoplace), rename (board, name), remove (board). Boards are numbered from 0.",
+          Schema()
+              .str("action", "What to do", true, {"list", "add", "activate", "assign", "rename", "remove"})
+              .integer("board", "Board index")
+              .str("name", "Board name")
+              .array("refs", "Designators to assign", "string")
+              .boolean("activate", "add: make the new board active"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              const std::string act = requireStr(a, "action");
+              const int board = argInt(a, "board", 0);
+              Json j = obj();
+              if (act == "add") {
+                  const int i = sieda_add_board(p, argStr(a, "name", "").c_str());
+                  check(i >= 0, "Could not add a board");
+                  if (argBool(a, "activate", false)) sieda_set_active_board(p, i);
+                  j["board"] = i;
+              } else if (act == "activate") {
+                  check(sieda_set_active_board(p, board) == 1, "Unknown board");
+              } else if (act == "assign") {
+                  std::vector<int32_t> ids;
+                  for (const auto& r : a.get("refs").items()) ids.push_back(componentId(*p, r));
+                  check(!ids.empty(), "Give refs");
+                  check(board >= 0 && board < p->project.boardCount(), "Unknown board");
+                  j["moved"] = sieda_assign_to_board(p, ids.data(), static_cast<int32_t>(ids.size()), board);
+              } else if (act == "rename") {
+                  check(sieda_rename_board(p, board, requireStr(a, "name").c_str()) == 1, "Unknown board or empty name");
+              } else if (act == "remove") {
+                  check(sieda_remove_board(p, board) == 1, "Could not remove (the last board, or an unknown index)");
+              }
+              j["boards"] = takeJson(sieda_boards_json(p));
               return out(j);
           });
     t.add("schematic", "schematic_move_to_sheet", "Move to sheet", Kind::Edit, false,
@@ -1153,11 +1266,13 @@ void libraryTools(Table& t) {
               .num("x", "Schematic x")
               .num("y", "Schematic y")
               .integer("rotation", "Rotation (degrees)")
-              .boolean("units", "Place by units (multi-unit parts)"),
+              .boolean("units", "Place by units (multi-unit parts)")
+              .integer("sheet", "Sheet id to place it on (default: the active sheet)"),
           [](McpServer& s, const Json& a) {
               const StandardPart* sp = findStandardPart(requireStr(a, "name"));
               if (!sp) throw ToolError("No catalog part \"" + argStr(a, "name") + "\" (library_search finds names)");
               SiedaProject* p = P(s);
+              if (a.has("sheet")) check(sieda_set_active_sheet(p, argInt(a, "sheet", 1)) == 1, "Unknown sheet");
               std::string partId;
               try {
                   partId = p->project.addCustomPart(sp->spec);
@@ -1565,7 +1680,8 @@ void pcbTools(Table& t) {
           "{coupledPairs, lengthAware, minimizeVias, gloss, arcCorners, arcRadius, teardrops, teardropStyle, fast, "
           "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap, "
           "improvePlacement (Auto Place's improvement pass), lengthAwareSearch (with lengthAware: nets with a length "
-          "target are routed again toward it, shorter or through a waypoint, before meandering)}. Returns "
+          "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
+          "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. Returns "
           "routed / failed connections, vias and track length.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")

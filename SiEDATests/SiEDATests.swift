@@ -4790,6 +4790,28 @@ final class SignalIntegrityBridgeTests: XCTestCase {
 /// Schematic capture: repeated sheets, buses, multi-unit parts, variants in simulation, search and navigation.
 @MainActor
 final class SchematicCaptureTests: XCTestCase {
+    /// One schematic, two boards: a sheet's parts move to the second board, which places only them.
+    func testSecondBoardTakesASheetsParts() throws {
+        let store = DesignStore()
+        let first = store.addComponent(.resistor, at: .zero)
+        let page = try XCTUnwrap(store.addSheet(named: "Display"))
+        let second = store.addComponent(.resistor, at: CGPoint(x: 80, y: 0))
+        store.addBoard()
+        XCTAssertEqual(store.snapshot.boards.names, ["Board 1", "Board 2"])
+        XCTAssertEqual(store.snapshot.boards.active, 1)
+        store.assignParts(store.snapshot.components.filter { $0.sheetId == page && !$0.footprint.isEmpty }.map(\.id), toBoard: 1)
+        XCTAssertEqual(store.snapshot.component(second)?.boardIndex, 1)
+        XCTAssertEqual(store.snapshot.component(first)?.boardIndex, 0)
+        store.perform("Place") { $0.autoPlace(all: false) }
+        XCTAssertEqual(store.snapshot.component(second)?.pcb.placed, true)
+        XCTAssertEqual(store.snapshot.component(first)?.pcb.placed, false)
+        store.selectBoard(0)
+        XCTAssertEqual(store.snapshot.boards.active, 0)
+        XCTAssertEqual(store.snapshot.component(second)?.pcb.placed, false)  // waits on its own board
+        store.renameBoard(0, to: "Main")
+        XCTAssertEqual(store.snapshot.boards.activeName, "Main")
+    }
+
     func testRepeatedSheetChannelsThroughTheStore() throws {
         let store = DesignStore()
         let block = try XCTUnwrap(store.addSheet(named: "Amp", parent: 1))

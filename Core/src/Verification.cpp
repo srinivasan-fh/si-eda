@@ -103,7 +103,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
     int footprinted = 0, placed = 0;
     bool hasSource = false;
     for (const auto& c : sch.components()) {
-        if (c.hasFootprint()) {
+        if (c.hasFootprint() && pcb.onBoard(c)) {
             ++footprinted;
             placed += c.pcb.placed;
         }
@@ -181,7 +181,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             st.summary = "No parts with footprints";
         } else {
             for (const auto& c : sch.components())
-                if (c.hasFootprint() && !c.pcb.placed) {
+                if (c.hasFootprint() && pcb.onBoard(c) && !c.pcb.placed) {
                     auto v = finding(Severity::Error, "VER_UNPLACED", c.ref + " is not placed on the board.");
                     v.components = {c.id};
                     st.findings.push_back(std::move(v));

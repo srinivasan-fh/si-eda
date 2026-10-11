@@ -11,8 +11,8 @@ namespace sieda {
 
 /// {"coupledPairs","pairGap","lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast",
 /// "fanoutOnly","nets":[name],"netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked",
-/// "classLayers":{class:[layer]},"pinSwap","improvePlacement","lengthAwareSearch"} — every field, as saved with the
-/// board ("pinSwap", "improvePlacement" and "lengthAwareSearch" only when on) — plus
+/// "classLayers":{class:[layer]},"pinSwap","improvePlacement","lengthAwareSearch","shapeCompletion"} — every field, as
+/// saved with the board ("pinSwap", "improvePlacement", "lengthAwareSearch" and "shapeCompletion" only when on) — plus
 /// "teardropStyle":"curved" only when the teardrops are curved (absent = straight, so older files stay identical).
 Json autorouteOptionsToJson(const AutorouteOptions& o);
 /// Options from JSON; missing fields keep their value in `base`, out-of-range values are clamped.
@@ -23,7 +23,7 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions base =
 ///  "unrouted","viasRemoved","netsRerouted","glossed","arcsAdded","teardropsAdded"}}; with pin / gate swap on, the
 ///  metrics add "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter","crossingsBefore","crossingsAfter" and the
 ///  report "swaps":[line]; coupled pairs uncrossed by a P/N swap add "pairSwaps" (and their lines to "swaps"); nets the
-///  length-aware search routed again add "lengthRerouted".
+///  length-aware search routed again add "lengthRerouted"; connections the shape-based completion routed add "shapeCompleted".
 Json routeReportJson(const RouteReport& r);
 /// [{"name","title","description","options":{…}}] (autoroutePresets()).
 Json autoroutePresetsJson();

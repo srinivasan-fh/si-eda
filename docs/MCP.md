@@ -430,7 +430,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_replace` | edit | Replaces text in part values and net label names. |
 | `schematic_align` | edit | Aligns or distributes parts: left, right, top, bottom, centerX, centerY, distributeX, distributeY. |
 | `schematic_sheets` | read | The sheets with hierarchy (parent, depth), component counts, ports and the active sheet. |
-| `schematic_sheet_edit` | edit | Sheet commands: add (name, parent), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
+| `schematic_sheet_edit` | edit | Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new parts go to), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
 | `schematic_move_to_sheet` | edit | Moves parts to another sheet (wires that would cross sheets are removed; join them with labels). |
 | `schematic_set_label_scope` | edit | Sets a net label's scope: global, local (its sheet), port (hierarchical port) or entry (sheet entry into targetSheet). |
 | `schematic_add_bus` | edit | Draws a named bus ("D[0..7]", "A[15..0]", "D[0..3],WR") on the active sheet; then schematic_bus_connect wires its members to a part. |
@@ -460,12 +460,13 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (37)
+### pcb (38)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
 | Tool | Kind | What it does |
 |---|---|---|
+| `pcb_boards` | edit | Several boards in one project (one schematic): list, add (name, activate), activate (board: the pcb_* tools work on it), assign (refs, board: the parts move there unplaced; place them with pcb_update_from_schematic or pcb_autoplace), rename (board, name), remove (board). |
 | `pcb_summary` | read | The board: size, outline, layers, rules, every footprint with position / rotation / side, routing progress (tracks, vias, unrouted connections), pours, keep-outs and mounting holes. |
 | `pcb_set_board` | edit | Sets the board size (mm), copper layers (1, 2, 4, 6), default track width and clearance, a rule preset (pcb_rule_presets), thickness, solder mask colour and conformal coating. |
 | `pcb_set_outline` | edit | Board shape: a polygon (points in mm, ≥ 3; [] = the plain rectangle) or a preset: rectangle (w × h), rounded (corner radius param), circle (diameter w), quad-x (quadcopter frame: span w, body h, arm param). |
@@ -583,4 +584,3 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
-

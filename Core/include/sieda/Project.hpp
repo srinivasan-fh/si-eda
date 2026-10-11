@@ -150,7 +150,25 @@ public:
         }
     } memoryLimits;
     Schematic schematic;
+    /// The board being edited. Multi-board projects (one schematic, several boards): `boardNames` names every board
+    /// (empty = a single board), `pcb` is board `activeBoard`, the others wait in `parkedBoards` and the placements of
+    /// their parts in `parkedPlacements` (by component id; those parts read as unplaced while another board is
+    /// active). Saved only with two or more boards.
     PcbLayout pcb;
+    std::vector<std::string> boardNames;
+    int activeBoard = 0;
+    std::map<int, PcbLayout> parkedBoards;
+    std::map<int, PcbPlacement> parkedPlacements;
+    int boardCount() const { return std::max(1, static_cast<int>(boardNames.size())); }
+    /// Adds an empty board with the active board's rules and stack-up (no outline, copper or parts); returns its index.
+    int addBoard(const std::string& name);
+    /// Makes board `index` the one `pcb` holds (parks the other). False for an unknown index.
+    bool setActiveBoard(int index);
+    /// Moves parts to board `index`; they arrive unplaced (their copper on the old board stays). Returns parts moved.
+    int assignToBoard(const std::vector<int>& componentIds, int index);
+    bool renameBoard(int index, const std::string& name);
+    /// Removes a board (not the last one); its parts move to the first remaining board, unplaced.
+    bool removeBoard(int index);
     /// Signal / power integrity: imported IBIS models, model assignments, PDN rail inputs and SI sign-off.
     SiSettings si;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

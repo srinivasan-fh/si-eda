@@ -447,7 +447,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
     auto& comps = sch.mutableComponents();
     std::vector<size_t> todo;
     for (size_t i = 0; i < comps.size(); ++i) {
-        if (!comps[i].hasFootprint()) continue;
+        if (!comps[i].hasFootprint() || !onBoard(comps[i])) continue;
         if (all && !comps[i].pcb.locked) comps[i].pcb.placed = false;
         if (!comps[i].pcb.placed) todo.push_back(i);
     }
@@ -2853,6 +2853,25 @@ std::vector<TamperMeshGeometry> PcbLayout::tamperMeshGeometry(const Schematic& s
     return out;
 }
 
+/// Extra clearance (beyond the board's) each net keeps to other nets' copper: leakage spacing around high-impedance
+/// nets, 3W around fast nets, and the schematic's net-class clearances. The router and its clean-up both keep it.
+static std::map<int, double> netExtraClearances(const BoardSettings& settings, const Schematic& sch, const NetClassification& classes) {
+    std::map<int, double> extraClearance;
+    for (const auto& [net, guard] : classes.highImpedance)
+        extraClearance[net] = std::max(0.0, leakageSpacing(settings) - settings.clearance);
+    for (int net : classes.fast) {
+        double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
+        extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
+    }
+    // Net classes from the schematic's directives: their clearance to other nets' copper.
+    if (!settings.netClearances.empty())
+        for (const auto& n : sch.nets()) {
+            const double need = settings.clearanceFor(n.name) - settings.clearance;
+            if (need > 1e-9) extraClearance[n.index] = std::max(extraClearance[n.index], need);
+        }
+    return extraClearance;
+}
+
 RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control) {
     RouteProfile profile;
     // Progress and cancellation (RouteControl): reported from this thread only, between nets / batches.
@@ -2866,6 +2885,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         if (was / step != progressNow.done / step || progressNow.done >= progressNow.total) report();
     };
     report();
+    outerOnlyNets_.clear();
     if (settings.autoSizeNets) autoNetWidths(sch);
     // Reliability net classes: RF lines get their 50 Ω width (when the stack-up allows a practical one);
     // leakage-sensitive and fast nets keep extra spacing and route first, so everything else keeps away from them.
@@ -2884,19 +2904,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             if (!settings.netWidths.count(name)) settings.netWidths[name] = std::max(settings.minTrackWidth, std::ceil(w * 100) / 100);
         }
     }
-    std::map<int, double> extraClearance;
-    for (const auto& [net, guard] : classes.highImpedance)
-        extraClearance[net] = std::max(0.0, leakageSpacing(settings) - settings.clearance);
-    for (int net : classes.fast) {
-        double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
-        extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
-    }
-    // Net classes from the schematic's directives: their clearance to other nets' copper.
-    if (!settings.netClearances.empty())
-        for (const auto& n : sch.nets()) {
-            const double need = settings.clearanceFor(n.name) - settings.clearance;
-            if (need > 1e-9) extraClearance[n.index] = std::max(extraClearance[n.index], need);
-        }
+    const std::map<int, double> extraClearance = netExtraClearances(settings, sch, classes);
     auto extra = [&](int net) {
         auto it = extraClearance.find(net);
         return it == extraClearance.end() ? 0.0 : it->second;
@@ -3041,7 +3049,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     if (strategy0.fanoutOnly) order.clear();  // fan-outs only (BGA dog-bones, pour pad vias)
     // Net-class layers: masks of the layers each net may route on, and of its SMD pads' layers (to leave them).
     std::vector<uint32_t> netLayerMask, netPadLayerMask;
-    if (!strategy0.classLayers.empty()) {
+    const bool outerOnly = settings.layerCount > 2 && settings.layerCount <= 32 && !outerOnlyNets_.empty();
+    if (!strategy0.classLayers.empty() || outerOnly) {
         netLayerMask.assign(nets.size(), 0);
         netPadLayerMask.assign(nets.size(), 0);
         for (const NetRule& r : sch.netRules()) {
@@ -3052,6 +3061,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 if (l >= 0 && l < std::max(1, settings.layerCount) && l < 32) m |= 1u << l;
             netLayerMask[static_cast<size_t>(r.net)] = m;
         }
+        // Current-carrying nets too narrow for an inner layer (IPC-2221 inner width) keep to the outer layers.
+        const uint32_t outer = 1u | (1u << (settings.layerCount - 1));
+        for (int n : outerOnly ? outerOnlyNets_ : std::set<int>{})
+            if (n >= 0 && static_cast<size_t>(n) < nets.size()) {
+                uint32_t& m = netLayerMask[static_cast<size_t>(n)];
+                m = (m & outer) ? (m & outer) : outer;
+            }
         for (const Pad& p : ps)
             if (p.net >= 0 && !p.throughHole && p.smdLayer < 32) netPadLayerMask[static_cast<size_t>(p.net)] |= 1u << p.smdLayer;
     }
@@ -5177,6 +5193,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     cleanupKeepsJoins_ = false;
     profile.since("clean-up", tFinish);
     tFinish = profile.now();
+    // Shape-based completion: what the grid left unrouted, on the exact shapes.
+    const int shapeCompleted = ropt.shapeCompletion && best.failed > 0 && best.failed != std::numeric_limits<int>::max() ? routequality::shapeComplete(*this, sch) : 0;
+    if (shapeCompleted > 0) best.failed = std::max(0, best.failed - shapeCompleted);
+    profile.since("shape completion", tFinish);
+    tFinish = profile.now();
     // Coupled pairs are left out of glossing and via minimisation (both members would have to move together).
     std::set<int> pairNets;
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k)
@@ -5185,6 +5206,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     metrics.viasRemoved = viasRemoved;
     metrics.netsRerouted = netsRerouted;
     metrics.lengthRerouted = lengthRerouted;
+    metrics.shapeCompleted = shapeCompleted;
     if (ropt.gloss) metrics.glossed = routequality::glossRouted(*this, sch, pairNets);
     profile.since("gloss", tFinish);
     tFinish = profile.now();
@@ -5203,8 +5225,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         for (const auto& l : best.report.lengths)
             if (l.tuned) ++best.lengthTuned;
     }
-    // Corridor routes: no acute joins (a branch that left its net's track at 45° joins it square instead).
-    if (corridorMode) routequality::fixAcuteJoins(*this, sch);
+    // No acute joins (a branch that left its net's track at 45° joins it square instead).
+    routequality::fixAcuteJoins(*this, sch);
+    // Small chips: a single wide track necked at the pad where it would tombstone the part.
+    routequality::balanceChipPads(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     // Report: every differential pair, coupled or not, with its skew after tuning.
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k) {
@@ -5293,6 +5317,14 @@ int PcbLayout::applyHdiVias(const Schematic& sch) {
 int PcbLayout::cleanupRouting(const Schematic& sch) {
     const auto ps = pads(sch);
     const double clr = settings.clearance;
+    // Each net's extra clearance (leakage, 3W, net classes): a reshaped piece keeps the larger of the two nets'.
+    const std::map<int, double> extraOf = netExtraClearances(settings, sch, classifyNets(sch, ""));
+    double maxExtra = 0;
+    for (const auto& e : extraOf) maxExtra = std::max(maxExtra, e.second);
+    auto need = [&](int a, int b) {
+        auto ia = extraOf.find(a), ib = extraOf.find(b);
+        return clr + std::max(ia == extraOf.end() ? 0.0 : ia->second, ib == extraOf.end() ? 0.0 : ib->second);
+    };
     int changes = 0;
     auto key = [](int layer, Vec2 p) {
         return std::make_tuple(layer, std::llround(p.x * 1e4), std::llround(p.y * 1e4));
@@ -5320,7 +5352,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
     };
     // Clearance of a new piece of copper (segment a–b, width w, net) to everything of other nets on its layer.
     auto clear = [&](int layer, int net, Vec2 a, Vec2 b, double w, size_t skipA, size_t skipB) {
-        const Rect reach = segmentBox(a, b, w / 2 + clr + 1e-3);
+        const Rect reach = segmentBox(a, b, w / 2 + clr + maxExtra + 1e-3);
         // A track that absorbed another one this pass now also spans that one's rectangle.
         nearTracks.clear();
         for (size_t i : trackIx->query(reach.inflated(widestTrack / 2))) {
@@ -5330,19 +5362,19 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
         for (size_t i : nearTracks) {
             const Track& t = tracks[i];
             if (i == skipA || i == skipB || t.layer != layer || t.net == net) continue;
-            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < clr - 1e-6) return false;
+            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < need(net, t.net) - 1e-6) return false;
         }
         for (size_t pi : padIx.query(reach)) {
             const Pad& pd = ps[pi];
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
             double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
                                 : segmentRectDistance(a, b, pd.bounds());
-            if (d - w / 2 < clr - 1e-6) return false;
+            if (d - w / 2 < need(net, pd.net) - 1e-6) return false;
         }
         for (size_t vi : viaIx.query(reach)) {
             const Via& v = vias[vi];
             if (v.net == net || !v.spans(layer)) continue;
-            if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
+            if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < need(net, v.net) - 1e-6) return false;
         }
         Vec2 mid = (a + b) * 0.5;
         return settings.edgeDistance(mid) >= settings.edgeClearance + w / 2 - 1e-6;
@@ -5476,13 +5508,17 @@ std::map<std::string, double> PcbLayout::autoNetWidths(const Schematic& sch) {
     for (auto [net, amps] : current) {
         double need = ipc2221TrackWidth(amps, settings.maxTempRise, settings.copperWeightOz, false) * 1.25;
         need = std::min(3.0, std::ceil(need / 0.05) * 0.05);
-        if (need <= settings.trackWidth + 1e-9) continue;
         const std::string& name = nets[static_cast<size_t>(net)].name;
-        double& w = settings.netWidths[name];
-        if (w < need) {
-            w = need;
-            set[name] = need;
+        if (need > settings.trackWidth + 1e-9) {
+            double& w = settings.netWidths[name];
+            if (w < need) {
+                w = need;
+                set[name] = need;
+            }
         }
+        const bool poured = std::any_of(zones.begin(), zones.end(), [&](const CopperZone& z) { return z.net == name; });
+        if (!poured && settings.widthFor(name) + 1e-9 < ipc2221TrackWidth(amps, settings.maxTempRise, settings.copperWeightOz, true))
+            outerOnlyNets_.insert(net);
     }
     return set;
 }
@@ -5580,7 +5616,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     // Placement checks.
     std::vector<const Component*> placed;
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint()) continue;
+        if (!c.hasFootprint() || !onBoard(c)) continue;
         if (!c.pcb.placed) {
             add(Severity::Warning, "DRC_UNPLACED", c.ref + " has not been placed on the board.", {0, 0}, {c.id});
             continue;

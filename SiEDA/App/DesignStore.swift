@@ -882,6 +882,63 @@ final class DesignStore: ObservableObject {
         perform("\(c.ref) → \(text) (\(series.title))") { $0.setValue(id, text) }
     }
 
+    // MARK: - Boards (one schematic, several boards)
+
+    /// Shows another board in the PCB views; its parts are placed and routed there, the others wait.
+    func selectBoard(_ index: Int) {
+        let boards = snapshot.boards
+        guard index != boards.active, boards.names.indices.contains(index) else { return }
+        guard performChecked("Switched to \(boards.names[index])", invalidatesAnalysis: false, { $0.setActiveBoard(index) }) else { return }
+        selection = []
+        fitToken &+= 1
+    }
+
+    /// Adds a board with this board's rules and stack-up, and shows it.
+    func addBoard() {
+        let name = "Board \(snapshot.boards.names.count + 1)"
+        var index: Int?
+        performChecked("Added \(name)", invalidatesAnalysis: false) { engine in
+            index = engine.addBoard(name)
+            if let index { engine.setActiveBoard(index) }
+            return index != nil
+        }
+        if index != nil {
+            selection = []
+            fitToken &+= 1
+        }
+    }
+
+    func renameBoard(_ index: Int, to name: String) {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, snapshot.boards.names.indices.contains(index), snapshot.boards.names[index] != title else { return }
+        performChecked("Renamed board to \(title)", invalidatesAnalysis: false) { $0.renameBoard(index, to: title) }
+    }
+
+    func removeBoard(_ index: Int) {
+        let boards = snapshot.boards
+        guard boards.names.count > 1, boards.names.indices.contains(index) else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Delete board “\(boards.names[index])”?"
+        alert.informativeText = "Its copper is deleted; its parts move to another board, unplaced. You can undo this."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if performChecked("Deleted \(boards.names[index])", invalidatesAnalysis: false, { $0.removeBoard(index) }) {
+            selection = []
+            fitToken &+= 1
+        }
+    }
+
+    /// Moves parts (the selection, or every part of a sheet) to another board, where they wait unplaced.
+    func assignParts(_ ids: [Int], toBoard index: Int) {
+        guard !ids.isEmpty, snapshot.boards.names.indices.contains(index) else { return }
+        performChecked("Moved \(ids.count) part(s) to \(snapshot.boards.names[index])",
+                       failureMessage: "Those parts are already on \(snapshot.boards.names[index])") {
+            $0.assignToBoard(ids, board: index) > 0
+        }
+    }
+
     // MARK: - Sheets
 
     /// Shows another sheet in the schematic (and places new parts there). Not an edit: no undo step.

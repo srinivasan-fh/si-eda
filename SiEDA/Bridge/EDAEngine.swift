@@ -289,6 +289,30 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Moves components to another sheet; returns how many moved (junctions that follow them included).
     @discardableResult
+    // MARK: - Boards (one schematic, several boards)
+
+    func addBoard(_ name: String) -> Int? {
+        let index = withHandle { sieda_add_board($0, name) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    @discardableResult
+    func setActiveBoard(_ index: Int) -> Bool { withHandle { sieda_set_active_board($0, Int32(index)) } == 1 }
+
+    @discardableResult
+    func assignToBoard(_ ids: [Int], board: Int) -> Int {
+        let list = ids.map { Int32($0) }
+        return Int(withHandle { handle in
+            list.withUnsafeBufferPointer { sieda_assign_to_board(handle, $0.baseAddress, Int32($0.count), Int32(board)) }
+        })
+    }
+
+    @discardableResult
+    func renameBoard(_ index: Int, to name: String) -> Bool { withHandle { sieda_rename_board($0, Int32(index), name) } == 1 }
+
+    @discardableResult
+    func removeBoard(_ index: Int) -> Bool { withHandle { sieda_remove_board($0, Int32(index)) } == 1 }
+
     func moveToSheet(_ ids: [Int], sheet: Int) -> Int {
         let list = ids.map { Int32($0) }
         return Int(withHandle { handle in

@@ -610,6 +610,18 @@ int32_t sieda_set_active_sheet(SiedaProject* project, int32_t sheet);
 /* Moves `count` components to `sheet` (junctions joining only moved parts follow; wires that would cross sheets are
  * removed). Returns the number moved. */
 int32_t sieda_move_to_sheet(SiedaProject* project, const int32_t* component_ids, int32_t count, int32_t sheet);
+/* Multi-board projects (one schematic, several boards). The PCB functions work on the active board; parts of the other
+ * boards read as unplaced there and are left alone. {"names":["…"],"active": index,"parts":[count per board]} */
+char* sieda_boards_json(const SiedaProject* project);
+/* Adds an empty board (the active board's rules and stack-up); returns its index or -1. */
+int32_t sieda_add_board(SiedaProject* project, const char* name);
+/* Makes board `index` the one the PCB functions work on. 1 on success. */
+int32_t sieda_set_active_board(SiedaProject* project, int32_t index);
+/* Moves `count` parts to board `index` (they arrive unplaced). Returns the number moved. */
+int32_t sieda_assign_to_board(SiedaProject* project, const int32_t* component_ids, int32_t count, int32_t index);
+int32_t sieda_rename_board(SiedaProject* project, int32_t index, const char* name);
+/* Removes a board (not the last); its parts move to the first remaining board. 1 on success. */
+int32_t sieda_remove_board(SiedaProject* project, int32_t index);
 /* Net label scope: "global" (default), "local" (its sheet only), "port" (hierarchical port) or "entry" (sheet entry
  * into target_sheet). 1 on success. */
 int32_t sieda_set_label_scope(SiedaProject* project, int32_t component_id, const char* scope, int32_t target_sheet);

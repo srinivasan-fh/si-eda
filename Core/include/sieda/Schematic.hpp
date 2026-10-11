@@ -34,6 +34,8 @@ struct PcbPlacement {
     /// Embedded passive: the inner copper layer it is formed on (1 … layers-2); 0 = an ordinary surface part.
     int embeddedLayer = 0;
     bool embedded() const { return embeddedLayer > 0; }
+    /// Multi-board projects: the board the part is on (Project::boardNames index; 0 = the first board).
+    int board = 0;
 };
 
 /// How a part is bought and fitted (BOM): who makes it, the orderable part number, the distributor / assembly-house
