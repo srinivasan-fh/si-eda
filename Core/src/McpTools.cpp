@@ -218,7 +218,7 @@ Json projectSummary(McpServer& s) {
             continue;
         }
         ++parts;
-        if (c.hasFootprint()) (c.pcb.placed ? placed : unplaced)++;
+        if (c.hasFootprint() && p.pcb.onBoard(c)) (c.pcb.placed ? placed : unplaced)++;
     }
     j["components"] = parts;
     j["netSymbols"] = labels;
@@ -873,6 +873,42 @@ void schematicTools(Table& t) {
                   check(sieda_set_sheet_size(p, sheet, argStr(a, "size", "").c_str()) == 1, "Unknown sheet or size");
               }
               j["sheets"] = takeJson(sieda_sheets_json(p));
+              return out(j);
+          });
+    t.add("pcb", "pcb_boards", "Boards", Kind::Edit, false,
+          "Several boards in one project (one schematic): list, add (name, activate), activate (board: the pcb_* tools "
+          "work on it), assign (refs, board: the parts move there unplaced; place them with pcb_update_from_schematic "
+          "or pcb_autoplace), rename (board, name), remove (board). Boards are numbered from 0.",
+          Schema()
+              .str("action", "What to do", true, {"list", "add", "activate", "assign", "rename", "remove"})
+              .integer("board", "Board index")
+              .str("name", "Board name")
+              .array("refs", "Designators to assign", "string")
+              .boolean("activate", "add: make the new board active"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              const std::string act = requireStr(a, "action");
+              const int board = argInt(a, "board", 0);
+              Json j = obj();
+              if (act == "add") {
+                  const int i = sieda_add_board(p, argStr(a, "name", "").c_str());
+                  check(i >= 0, "Could not add a board");
+                  if (argBool(a, "activate", false)) sieda_set_active_board(p, i);
+                  j["board"] = i;
+              } else if (act == "activate") {
+                  check(sieda_set_active_board(p, board) == 1, "Unknown board");
+              } else if (act == "assign") {
+                  std::vector<int32_t> ids;
+                  for (const auto& r : a.get("refs").items()) ids.push_back(componentId(*p, r));
+                  check(!ids.empty(), "Give refs");
+                  check(board >= 0 && board < p->project.boardCount(), "Unknown board");
+                  j["moved"] = sieda_assign_to_board(p, ids.data(), static_cast<int32_t>(ids.size()), board);
+              } else if (act == "rename") {
+                  check(sieda_rename_board(p, board, requireStr(a, "name").c_str()) == 1, "Unknown board or empty name");
+              } else if (act == "remove") {
+                  check(sieda_remove_board(p, board) == 1, "Could not remove (the last board, or an unknown index)");
+              }
+              j["boards"] = takeJson(sieda_boards_json(p));
               return out(j);
           });
     t.add("schematic", "schematic_move_to_sheet", "Move to sheet", Kind::Edit, false,

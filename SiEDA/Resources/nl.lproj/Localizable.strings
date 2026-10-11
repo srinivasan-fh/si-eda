@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "Vormgebaseerde aanvulling";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Verbindingen die de rasterrouter niet routeert, worden op de exacte kopervormen gerouteerd en duwen andere sporen opzij";
 "Shape-completed connections" = "Vormgebaseerd aangevulde verbindingen";
+"Add Board" = "Board toevoegen";
+"Board name" = "Boardnaam";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "Boards van dit project: één schema, meerdere boards. Elk board plaatst en routeert zijn eigen onderdelen.";
+"Delete Board…" = "Board verwijderen…";
+"Move Selected Parts to" = "Geselecteerde onderdelen verplaatsen naar";
+"Move a Sheet's Parts to" = "Onderdelen van een blad verplaatsen naar";
+"Rename Board" = "Board hernoemen";
+"Rename Board…" = "Board hernoemen…";

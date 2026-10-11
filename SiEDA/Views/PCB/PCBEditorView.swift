@@ -180,6 +180,7 @@ struct PCBEditorView: View {
 
             VStack(spacing: 0) {
                 OptionsBar {
+                    BoardMenu()
                     autoRouteButton
                     RoutingStrategyMenu()
                     if tuneTool {
@@ -1412,4 +1413,62 @@ func memberLengthsText(_ members: [RouteMemberLength], snap: DesignSnapshot) -> 
         text += " · " + name + String(format: " %.2f/%.2f", m.length, m.target) + mark
     }
     return text
+}
+
+/// The project's boards (one schematic, several boards): show one, add, rename or delete a board, and move parts —
+/// the selection or a whole sheet's — to another board.
+struct BoardMenu: View {
+    @EnvironmentObject var store: DesignStore
+    @State private var renaming = false
+    @State private var boardName = ""
+
+    var body: some View {
+        let boards = store.snapshot.boards
+        Menu {
+            ForEach(Array(boards.names.enumerated()), id: \.offset) { item in
+                Button { store.selectBoard(item.offset) } label: {
+                    if item.offset == boards.active { Label(item.element, systemImage: "checkmark") } else { Text(item.element) }
+                }
+            }
+            Divider()
+            Button("Add Board") { store.addBoard() }
+            Button("Rename Board…") {
+                boardName = boards.activeName
+                renaming = true
+            }
+            Button("Delete Board…") { store.removeBoard(boards.active) }
+                .disabled(boards.names.count < 2)
+            Divider()
+            Menu("Move Selected Parts to") {
+                ForEach(Array(boards.names.enumerated()), id: \.offset) { item in
+                    Button(item.element) {
+                        store.assignParts(store.selectedComponents.filter { !$0.footprint.isEmpty }.map(\.id), toBoard: item.offset)
+                    }
+                }
+            }
+            .disabled(store.selection.isEmpty || boards.names.count < 2)
+            Menu("Move a Sheet's Parts to") {
+                ForEach(store.snapshot.sheets) { sheet in
+                    Menu(sheet.name) {
+                        ForEach(Array(boards.names.enumerated()), id: \.offset) { item in
+                            Button(item.element) {
+                                let ids = store.snapshot.components.filter { $0.sheetId == sheet.id && !$0.footprint.isEmpty }.map(\.id)
+                                store.assignParts(ids, toBoard: item.offset)
+                            }
+                        }
+                    }
+                }
+            }
+            .disabled(boards.names.count < 2)
+        } label: {
+            Label(boards.activeName, systemImage: "square.stack")
+        }
+        .fixedSize()
+        .help("Boards of this project: one schematic, several boards. Each board places and routes its own parts.")
+        .alert("Rename Board", isPresented: $renaming) {
+            TextField("Board name", text: $boardName)
+            Button("OK") { store.renameBoard(store.snapshot.boards.active, to: boardName) }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
 }

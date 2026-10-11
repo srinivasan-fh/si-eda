@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "Hoàn tất theo hình dạng";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Các kết nối mà bộ đi dây lưới bỏ sót được đi dây trên hình dạng đồng chính xác, đẩy các đường khác sang bên";
 "Shape-completed connections" = "Kết nối hoàn tất theo hình dạng";
+"Add Board" = "Thêm bo mạch";
+"Board name" = "Tên bo mạch";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "Các bo mạch của dự án: một sơ đồ, nhiều bo mạch. Mỗi bo mạch đặt và đi dây linh kiện của riêng nó.";
+"Delete Board…" = "Xóa bo mạch…";
+"Move Selected Parts to" = "Chuyển linh kiện đã chọn sang";
+"Move a Sheet's Parts to" = "Chuyển linh kiện của trang sang";
+"Rename Board" = "Đổi tên bo mạch";
+"Rename Board…" = "Đổi tên bo mạch…";

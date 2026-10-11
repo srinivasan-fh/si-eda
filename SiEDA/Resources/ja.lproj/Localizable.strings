@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "形状ベースの補完";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "グリッドルーターが未配線で残した接続を、正確な銅形状上で他の配線を押しのけて配線";
 "Shape-completed connections" = "形状ベースで補完した接続";
+"Add Board" = "基板を追加";
+"Board name" = "基板名";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "このプロジェクトの基板: 回路図は1つ、基板は複数。各基板が自分の部品を配置・配線します。";
+"Delete Board…" = "基板を削除…";
+"Move Selected Parts to" = "選択した部品の移動先";
+"Move a Sheet's Parts to" = "シートの部品の移動先";
+"Rename Board" = "基板名を変更";
+"Rename Board…" = "基板名を変更…";

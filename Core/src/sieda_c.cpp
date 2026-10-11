@@ -1952,6 +1952,52 @@ int32_t sieda_move_to_sheet(SiedaProject* project, const int32_t* component_ids,
     });
 }
 
+char* sieda_boards_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        const Project& p = project->project;
+        Json out = Json::object(), names = Json::array(), parts = Json::array();
+        std::vector<int> count(static_cast<size_t>(p.boardCount()), 0);
+        for (const auto& c : p.schematic.components())
+            if (c.hasFootprint() && c.pcb.board < p.boardCount()) ++count[static_cast<size_t>(c.pcb.board)];
+        for (int i = 0; i < p.boardCount(); ++i) {
+            names.push(p.boardNames.empty() ? std::string("Board 1") : p.boardNames[static_cast<size_t>(i)]);
+            parts.push(count[static_cast<size_t>(i)]);
+        }
+        out["names"] = names;
+        out["active"] = p.activeBoard;
+        out["parts"] = parts;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_add_board(SiedaProject* project, const char* name) {
+    if (!project || project->project.boardCount() >= 64) return -1;
+    return guarded([&] { return project->project.addBoard(str(name)); });
+}
+
+int32_t sieda_set_active_board(SiedaProject* project, int32_t index) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.setActiveBoard(index) ? 1 : 0; });
+}
+
+int32_t sieda_assign_to_board(SiedaProject* project, const int32_t* component_ids, int32_t count, int32_t index) {
+    if (!project || !component_ids || count <= 0) return 0;
+    return guarded([&] { return project->project.assignToBoard(std::vector<int>(component_ids, component_ids + count), index); });
+}
+
+int32_t sieda_rename_board(SiedaProject* project, int32_t index, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.renameBoard(index, str(name)) ? 1 : 0; });
+}
+
+int32_t sieda_remove_board(SiedaProject* project, int32_t index) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.removeBoard(index) ? 1 : 0; });
+}
+
 int32_t sieda_set_label_scope(SiedaProject* project, int32_t component_id, const char* scope, int32_t target_sheet) {
     if (!project || !scope) return 0;
     return guarded([&] {

@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "ਆਕਾਰ-ਅਧਾਰਿਤ ਪੂਰਤੀ";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "ਗ੍ਰਿਡ ਰਾਊਟਰ ਜੋ ਕਨੈਕਸ਼ਨ ਰੂਟ ਨਹੀਂ ਕਰਦਾ ਉਹ ਸਹੀ ਤਾਂਬੇ ਦੇ ਆਕਾਰਾਂ ਉੱਤੇ, ਹੋਰ ਟ੍ਰੈਕ ਪਾਸੇ ਕਰਕੇ ਰੂਟ ਹੁੰਦੇ ਹਨ";
 "Shape-completed connections" = "ਆਕਾਰ-ਅਧਾਰਿਤ ਪੂਰੇ ਕੀਤੇ ਕਨੈਕਸ਼ਨ";
+"Add Board" = "ਬੋਰਡ ਜੋੜੋ";
+"Board name" = "ਬੋਰਡ ਦਾ ਨਾਮ";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "ਇਸ ਪ੍ਰੋਜੈਕਟ ਦੇ ਬੋਰਡ: ਇੱਕ ਸਕੀਮੈਟਿਕ, ਕਈ ਬੋਰਡ। ਹਰ ਬੋਰਡ ਆਪਣੇ ਹਿੱਸੇ ਰੱਖਦਾ ਅਤੇ ਰੂਟ ਕਰਦਾ ਹੈ।";
+"Delete Board…" = "ਬੋਰਡ ਮਿਟਾਓ…";
+"Move Selected Parts to" = "ਚੁਣੇ ਹਿੱਸੇ ਭੇਜੋ";
+"Move a Sheet's Parts to" = "ਸ਼ੀਟ ਦੇ ਹਿੱਸੇ ਭੇਜੋ";
+"Rename Board" = "ਬੋਰਡ ਦਾ ਨਾਮ ਬਦਲੋ";
+"Rename Board…" = "ਬੋਰਡ ਦਾ ਨਾਮ ਬਦਲੋ…";

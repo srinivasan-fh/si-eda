@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "வடிவ அடிப்படை நிறைவு";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "கிரிட் ரூட்டர் வழிப்படுத்தாத இணைப்புகள் துல்லியமான செம்பு வடிவங்களில், மற்ற தடங்களை தள்ளி வழிப்படுத்தப்படும்";
 "Shape-completed connections" = "வடிவ அடிப்படையில் நிறைவான இணைப்புகள்";
+"Add Board" = "போர்டு சேர்";
+"Board name" = "போர்டு பெயர்";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "இந்த திட்டத்தின் போர்டுகள்: ஒரு சர்க்யூட் வரைபடம், பல போர்டுகள். ஒவ்வொரு போர்டும் தன் பாகங்களை வைத்து வழிப்படுத்தும்.";
+"Delete Board…" = "போர்டை நீக்கு…";
+"Move Selected Parts to" = "தேர்ந்த பாகங்களை நகர்த்து";
+"Move a Sheet's Parts to" = "தாளின் பாகங்களை நகர்த்து";
+"Rename Board" = "போர்டு பெயர் மாற்று";
+"Rename Board…" = "போர்டு பெயர் மாற்று…";

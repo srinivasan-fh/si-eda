@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "Shape-based completion";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside";
 "Shape-completed connections" = "Shape-completed connections";
+"Add Board" = "Add Board";
+"Board name" = "Board name";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "Boards of this project: one schematic, several boards. Each board places and routes its own parts.";
+"Delete Board…" = "Delete Board…";
+"Move Selected Parts to" = "Move Selected Parts to";
+"Move a Sheet's Parts to" = "Move a Sheet's Parts to";
+"Rename Board" = "Rename Board";
+"Rename Board…" = "Rename Board…";

@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "Formbasierte Vervollständigung";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Verbindungen, die der Raster-Router nicht verlegt, werden auf den exakten Kupferformen verlegt und schieben andere Leiterbahnen beiseite";
 "Shape-completed connections" = "Formbasiert vervollständigte Verbindungen";
+"Add Board" = "Platine hinzufügen";
+"Board name" = "Platinenname";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "Platinen dieses Projekts: ein Schaltplan, mehrere Platinen. Jede Platine platziert und routet ihre eigenen Bauteile.";
+"Delete Board…" = "Platine löschen…";
+"Move Selected Parts to" = "Ausgewählte Bauteile verschieben nach";
+"Move a Sheet's Parts to" = "Bauteile eines Blatts verschieben nach";
+"Rename Board" = "Platine umbenennen";
+"Rename Board…" = "Platine umbenennen…";

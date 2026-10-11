@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "基于形状的补全";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "网格布线器未布通的连接在精确的铜形状上布线，并推开其他走线";
 "Shape-completed connections" = "基于形状补全的连接";
+"Add Board" = "添加电路板";
+"Board name" = "电路板名称";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "本项目的电路板：一份原理图，多块电路板。每块电路板布局并布线自己的元件。";
+"Delete Board…" = "删除电路板…";
+"Move Selected Parts to" = "将所选元件移到";
+"Move a Sheet's Parts to" = "将图纸的元件移到";
+"Rename Board" = "重命名电路板";
+"Rename Board…" = "重命名电路板…";

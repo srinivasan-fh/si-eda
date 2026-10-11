@@ -46,6 +46,8 @@ struct DesignSnapshot: Decodable, Equatable {
     /// Schematic sheets in tab order (one for a single-sheet design) and the sheet new parts are placed on.
     var sheets: [SheetInfo] = []
     var activeSheet = 1
+    /// The project's boards (one schematic, several boards) and the one the PCB views show.
+    var boards = BoardsInfo()
     /// Assembly variants and the active one ("" = the base design).
     var variants: [VariantInfo] = []
     var activeVariant = ""
@@ -124,6 +126,7 @@ struct DesignSnapshot: Decodable, Equatable {
         zoneFills = try field(.zoneFills, \.zoneFills, [])
         sheets = try field(.sheets, \.sheets, [])
         activeSheet = try field(.activeSheet, \.activeSheet, 1)
+        boards = try field(.boards, \.boards, BoardsInfo())
         variants = try field(.variants, \.variants, [])
         activeVariant = try field(.activeVariant, \.activeVariant, "")
         buses = try field(.buses, \.buses, [])
@@ -146,7 +149,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes, netClassDefs, directives, ercSeverities, delta
+        case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -233,6 +236,13 @@ struct PackageOption: Decodable, Equatable, Identifiable, Hashable {
     var label: String
 }
 
+/// Snapshot "boards": every board's name (at least one) and the active board's index.
+struct BoardsInfo: Decodable, Equatable {
+    var names = ["Board 1"]
+    var active = 0
+    var activeName: String { names.indices.contains(active) ? names[active] : "" }
+}
+
 struct SnapComponent: Decodable, Equatable, Identifiable {
     var id: Int
     var kind: Int
@@ -287,6 +297,9 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     /// "U1A" for a unit, the designator otherwise.
     var displayRef: String { ref + (unitName ?? "") }
 
+    /// The board the part is on (multi-board projects; nil = the first board).
+    var board: Int?
+    var boardIndex: Int { board ?? 0 }
     var sheetId: Int { sheet ?? 1 }
     var labelScope: String { scope ?? "global" }
     var isFitted: Bool { fitted ?? true }

@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "Pagkumpleto batay sa hugis";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "Ang mga koneksiyong hindi na-route ng grid router ay iruruta sa eksaktong hugis ng tanso, itinutulak ang ibang track";
 "Shape-completed connections" = "Mga koneksiyong kinumpleto batay sa hugis";
+"Add Board" = "Magdagdag ng Board";
+"Board name" = "Pangalan ng board";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "Mga board ng proyektong ito: isang schematic, ilang board. Bawat board ay naglalagay at nagru-route ng sarili nitong mga piyesa.";
+"Delete Board…" = "Burahin ang Board…";
+"Move Selected Parts to" = "Ilipat ang Napiling Piyesa sa";
+"Move a Sheet's Parts to" = "Ilipat ang mga Piyesa ng Sheet sa";
+"Rename Board" = "Palitan ang Pangalan ng Board";
+"Rename Board…" = "Palitan ang Pangalan ng Board…";

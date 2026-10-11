@@ -447,7 +447,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
     auto& comps = sch.mutableComponents();
     std::vector<size_t> todo;
     for (size_t i = 0; i < comps.size(); ++i) {
-        if (!comps[i].hasFootprint()) continue;
+        if (!comps[i].hasFootprint() || !onBoard(comps[i])) continue;
         if (all && !comps[i].pcb.locked) comps[i].pcb.placed = false;
         if (!comps[i].pcb.placed) todo.push_back(i);
     }
@@ -5616,7 +5616,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     // Placement checks.
     std::vector<const Component*> placed;
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint()) continue;
+        if (!c.hasFootprint() || !onBoard(c)) continue;
         if (!c.pcb.placed) {
             add(Severity::Warning, "DRC_UNPLACED", c.ref + " has not been placed on the board.", {0, 0}, {c.id});
             continue;

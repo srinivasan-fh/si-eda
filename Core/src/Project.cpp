@@ -499,6 +499,69 @@ bool Project::removeCustomPart(const std::string& id) {
     return true;
 }
 
+/// A board's own content as saved: settings ("board"), tracks, vias, pours and tamper meshes.
+static Json boardContentJson(const PcbLayout& pcb) {
+    Json root = Json::object();
+    root["board"] = boardJson(pcb.settings);
+    Json tracks = Json::array();
+    tracks.reserve(pcb.tracks.size());
+    for (const auto& t : pcb.tracks) {
+        Json j = Json::object();
+        j["layer"] = static_cast<int>(t.layer);
+        j["width"] = t.width;
+        j["a"] = vec(t.a);
+        j["b"] = vec(t.b);
+        if (t.locked) j["locked"] = true;
+        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
+        if (t.teardrop) j["teardrop"] = true;
+        tracks.push(j);
+    }
+    root["tracks"] = tracks;
+
+    Json vias = Json::array();
+    vias.reserve(pcb.vias.size());
+    for (const auto& v : pcb.vias) {
+        Json j = vec(v.position);
+        j["drill"] = v.drill;
+        j["diameter"] = v.diameter;
+        if (!v.isThrough()) {
+            j["fromLayer"] = v.fromLayer;
+            j["toLayer"] = v.toLayer;
+        }
+        vias.push(j);
+    }
+    root["vias"] = vias;
+    root["zones"] = zonesJson(pcb.zones);
+    root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
+    return root;
+}
+
+/// A part's placement on its board (PcbPlacement), as saved.
+static Json placementJson(const PcbPlacement& pl) {
+    Json p = Json::object();
+    p["x"] = pl.position.x;
+    p["y"] = pl.position.y;
+    p["rotation"] = pl.rotation;
+    p["bottom"] = pl.bottom;
+    p["placed"] = pl.placed;
+    if (pl.locked) p["locked"] = true;
+    if (pl.embedded()) p["embeddedLayer"] = pl.embeddedLayer;
+    if (pl.board != 0) p["board"] = pl.board;
+    return p;
+}
+
+static PcbPlacement placementFromJson(const Json& pc) {
+    PcbPlacement pl;
+    pl.position = {pc.get("x").asNumber(), pc.get("y").asNumber()};
+    pl.rotation = pc.get("rotation").asInt(0);
+    pl.bottom = pc.get("bottom").asBool(false);
+    pl.placed = pc.get("placed").asBool(false);
+    pl.locked = pl.placed && pc.get("locked").asBool(false);
+    pl.embeddedLayer = std::max(0, pc.get("embeddedLayer").asInt(0));
+    pl.board = std::max(0, pc.get("board").asInt(0));
+    return pl;
+}
+
 Json Project::toJson() const {
     Json root = Json::object();
     root["format"] = "sieda-project";
@@ -517,7 +580,6 @@ Json Project::toJson() const {
     if (!memoryLimits.isDefault()) root["memoryLimits"] = memoryLimitsJson(memoryLimits);
     if (!si.isDefault()) root["signalIntegrity"] = si.toJson();
     root["buildQuantity"] = buildQuantity;
-    root["board"] = boardJson(pcb.settings);
 
     Json library = Json::array();
     for (const auto& id : customLibrary)
@@ -563,15 +625,7 @@ Json Project::toJson() const {
         if (!c.sourcing.empty()) j["sourcing"] = sourcingJson(c.sourcing);
         if (!c.package.empty()) j["package"] = c.package;
         componentSheetJson(j, c);
-        Json p = Json::object();
-        p["x"] = c.pcb.position.x;
-        p["y"] = c.pcb.position.y;
-        p["rotation"] = c.pcb.rotation;
-        p["bottom"] = c.pcb.bottom;
-        p["placed"] = c.pcb.placed;
-        if (c.pcb.locked) p["locked"] = true;
-        if (c.pcb.embedded()) p["embeddedLayer"] = c.pcb.embeddedLayer;
-        j["pcb"] = p;
+        j["pcb"] = placementJson(c.pcb);
         comps.push(j);
     }
     root["components"] = comps;
@@ -641,67 +695,38 @@ Json Project::toJson() const {
         root["pcbSync"] = sync;
     }
 
-    Json tracks = Json::array();
-    tracks.reserve(pcb.tracks.size());
-    for (const auto& t : pcb.tracks) {
-        Json j = Json::object();
-        j["layer"] = static_cast<int>(t.layer);
-        j["width"] = t.width;
-        j["a"] = vec(t.a);
-        j["b"] = vec(t.b);
-        if (t.locked) j["locked"] = true;
-        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
-        if (t.teardrop) j["teardrop"] = true;
-        tracks.push(j);
-    }
-    root["tracks"] = tracks;
-
-    Json vias = Json::array();
-    vias.reserve(pcb.vias.size());
-    for (const auto& v : pcb.vias) {
-        Json j = vec(v.position);
-        j["drill"] = v.drill;
-        j["diameter"] = v.diameter;
-        if (!v.isThrough()) {
-            j["fromLayer"] = v.fromLayer;
-            j["toLayer"] = v.toLayer;
+    const Json board = boardContentJson(pcb);
+    for (const auto& [key, value] : board.fields()) root[key] = value;
+    if (boardNames.size() >= 2) {
+        // Multi-board: every board's name, the active one, the parked boards and their parts' placements.
+        Json b = Json::object();
+        Json names = Json::array();
+        for (const auto& n : boardNames) names.push(n);
+        b["names"] = names;
+        b["active"] = activeBoard;
+        Json parked = Json::array();
+        for (const auto& [index, layout] : parkedBoards) {
+            Json j = boardContentJson(layout);
+            j["index"] = index;
+            parked.push(j);
         }
-        vias.push(j);
+        b["parked"] = parked;
+        Json placements = Json::array();
+        for (const auto& [id, pl] : parkedPlacements) {
+            Json j = placementJson(pl);
+            j["id"] = id;
+            placements.push(j);
+        }
+        b["placements"] = placements;
+        root["boards"] = b;
     }
-    root["vias"] = vias;
-    root["zones"] = zonesJson(pcb.zones);
-    root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
     return root;
 }
 
-Project Project::fromJson(const Json& root) {
-    if (root.get("format").asString("") != "sieda-project") throw JsonError("Not a SiEDA project file");
-    Project p;
-    p.name = root.get("name").asString("Untitled");
-    p.requirements = root.get("requirements").asString("");
-    p.industry = root.get("industry").asString("general");
-    p.robotPlatform = root.get("robotPlatform").asString("");
-    if (!p.robotPlatform.empty() && !findRobotPlatform(p.robotPlatform)) p.robotPlatform.clear();
-    p.ecuType = root.get("ecuType").asString("");
-    if (!p.ecuType.empty() && !findEcuType(p.ecuType)) p.ecuType.clear();
-    p.aerospaceMission = root.get("aerospaceMission").asString("");
-    if (!p.aerospaceMission.empty() && !findAerospaceMission(p.aerospaceMission)) p.aerospaceMission.clear();
-    p.navalPlatform = root.get("navalPlatform").asString("");
-    if (!p.navalPlatform.empty() && !findNavalPlatform(p.navalPlatform)) p.navalPlatform.clear();
-    p.medicalClass = root.get("medicalClass").asString("");
-    if (!p.medicalClass.empty() && !findMedicalClass(p.medicalClass)) p.medicalClass.clear();
-    p.retailDevice = root.get("retailDevice").asString("");
-    if (!p.retailDevice.empty() && !findRetailDevice(p.retailDevice)) p.retailDevice.clear();
-    p.applianceType = root.get("applianceType").asString("");
-    if (!p.applianceType.empty() && !findApplianceType(p.applianceType)) p.applianceType.clear();
-    p.memoryDesign = root.get("memoryDesign").asString("");
-    if (!p.memoryDesign.empty() && !findMemoryDesignType(p.memoryDesign)) p.memoryDesign.clear();
-    p.memoryLimits = memoryLimitsFromJson(root.get("memoryLimits"));
-    p.si = SiSettings::fromJson(root.get("signalIntegrity"));
-    p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
-    if (!findIndustry(p.industry)) p.industry = "general";
+/// A board's own content (settings, pours, tamper meshes, tracks, vias) from a project file or a parked board.
+static void readBoardContent(const Json& root, PcbLayout& pcb) {
     const Json& b = root.get("board");
-    BoardSettings& s = p.pcb.settings;
+    BoardSettings& s = pcb.settings;
     s.width = b.get("width").asNumber(s.width);
     s.height = b.get("height").asNumber(s.height);
     s.thickness = b.get("thickness").asNumber(s.thickness);
@@ -801,7 +826,7 @@ Project Project::fromJson(const Json& root) {
         z.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
         z.plane = j.get("plane").asBool(false);
         z.clearance = std::max(0.0, j.get("clearance").asNumber(0));
-        if (!z.net.empty()) p.pcb.zones.push_back(z);
+        if (!z.net.empty()) pcb.zones.push_back(z);
     }
     for (const auto& j : root.get("tamperMeshes").items()) {
         TamperMesh m;
@@ -811,8 +836,62 @@ Project Project::fromJson(const Json& root) {
         m.layerA = j.get("layerA").asInt(1);
         m.layerB = j.get("layerB").asInt(2);
         m.margin = std::clamp(j.get("margin").asNumber(2.0), 0.0, 20.0);
-        if (!m.componentRef.empty()) p.pcb.tamperMeshes.push_back(m);
+        if (!m.componentRef.empty()) pcb.tamperMeshes.push_back(m);
     }
+    for (const auto& j : root.get("tracks").items()) {
+        Track t;
+        t.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
+        t.width = j.get("width").asNumber(s.trackWidth);
+        t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
+        t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
+        t.locked = j.get("locked").asBool(false);
+        if (j.get("mid").isObject()) {
+            t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
+            t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
+        }
+        t.teardrop = j.get("teardrop").asBool(false);
+        pcb.addTrack(t);
+    }
+    for (const auto& j : root.get("vias").items()) {
+        Via v;
+        v.position = {j.get("x").asNumber(), j.get("y").asNumber()};
+        v.drill = j.get("drill").asNumber(s.viaDrill);
+        v.diameter = j.get("diameter").asNumber(s.viaDiameter);
+        const int last = std::max(0, s.layerCount - 1);
+        v.fromLayer = std::clamp(static_cast<int>(j.get("fromLayer").asNumber(0)), 0, last);
+        v.toLayer = static_cast<int>(j.get("toLayer").asNumber(-1));
+        if (v.toLayer >= last || v.toLayer < v.fromLayer) v.toLayer = -1;
+        pcb.addVia(v);
+    }
+}
+
+Project Project::fromJson(const Json& root) {
+    if (root.get("format").asString("") != "sieda-project") throw JsonError("Not a SiEDA project file");
+    Project p;
+    p.name = root.get("name").asString("Untitled");
+    p.requirements = root.get("requirements").asString("");
+    p.industry = root.get("industry").asString("general");
+    p.robotPlatform = root.get("robotPlatform").asString("");
+    if (!p.robotPlatform.empty() && !findRobotPlatform(p.robotPlatform)) p.robotPlatform.clear();
+    p.ecuType = root.get("ecuType").asString("");
+    if (!p.ecuType.empty() && !findEcuType(p.ecuType)) p.ecuType.clear();
+    p.aerospaceMission = root.get("aerospaceMission").asString("");
+    if (!p.aerospaceMission.empty() && !findAerospaceMission(p.aerospaceMission)) p.aerospaceMission.clear();
+    p.navalPlatform = root.get("navalPlatform").asString("");
+    if (!p.navalPlatform.empty() && !findNavalPlatform(p.navalPlatform)) p.navalPlatform.clear();
+    p.medicalClass = root.get("medicalClass").asString("");
+    if (!p.medicalClass.empty() && !findMedicalClass(p.medicalClass)) p.medicalClass.clear();
+    p.retailDevice = root.get("retailDevice").asString("");
+    if (!p.retailDevice.empty() && !findRetailDevice(p.retailDevice)) p.retailDevice.clear();
+    p.applianceType = root.get("applianceType").asString("");
+    if (!p.applianceType.empty() && !findApplianceType(p.applianceType)) p.applianceType.clear();
+    p.memoryDesign = root.get("memoryDesign").asString("");
+    if (!p.memoryDesign.empty() && !findMemoryDesignType(p.memoryDesign)) p.memoryDesign.clear();
+    p.memoryLimits = memoryLimitsFromJson(root.get("memoryLimits"));
+    p.si = SiSettings::fromJson(root.get("signalIntegrity"));
+    p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
+    if (!findIndustry(p.industry)) p.industry = "general";
+    readBoardContent(root, p.pcb);
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
     std::map<std::string, std::string> idMap;
@@ -871,6 +950,7 @@ Project Project::fromJson(const Json& root) {
         c.pcb.placed = pc.get("placed").asBool(false);
         c.pcb.locked = c.pcb.placed && pc.get("locked").asBool(false);
         c.pcb.embeddedLayer = canEmbed(c) ? std::max(0, pc.get("embeddedLayer").asInt(0)) : 0;
+        c.pcb.board = std::max(0, pc.get("board").asInt(0));
         c.sheet = j.get("sheet").asInt(1);
         if (c.kind == ComponentKind::NetLabel && !labelScopeFromName(j.get("scope").asString("global"), &c.scope))
             c.scope = LabelScope::Local;  // a scope from a newer version: keep the label to its sheet
@@ -997,31 +1077,29 @@ Project Project::fromJson(const Json& root) {
         p.titleBlock = {field("title"), field("company"), field("revision"), field("date"), field("drawnBy")};
     }
     if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
-    for (const auto& j : root.get("tracks").items()) {
-        Track t;
-        t.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
-        t.width = j.get("width").asNumber(s.trackWidth);
-        t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
-        t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
-        t.locked = j.get("locked").asBool(false);
-        if (j.get("mid").isObject()) {
-            t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
-            t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
+    if (const Json& b = root.get("boards"); b.isObject()) {
+        for (const auto& n : b.get("names").items())
+            if (n.isString() && p.boardNames.size() < 64) p.boardNames.push_back(n.asString().substr(0, 128));
+        if (p.boardNames.size() < 2) p.boardNames.clear();
+        const int count = p.boardCount();
+        p.activeBoard = std::clamp(b.get("active").asInt(0), 0, count - 1);
+        for (const auto& j : b.get("parked").items()) {
+            const int i = j.get("index").asInt(-1);
+            if (i < 0 || i >= count || i == p.activeBoard || p.parkedBoards.count(i)) continue;
+            readBoardContent(j, p.parkedBoards[i]);
+            p.parkedBoards[i].board = i;
         }
-        t.teardrop = j.get("teardrop").asBool(false);
-        p.pcb.addTrack(t);
+        for (int i = 0; i < count; ++i)
+            if (i != p.activeBoard && !p.parkedBoards.count(i)) p.parkedBoards[i].board = i;
+        for (const auto& j : b.get("placements").items()) {
+            const Component* c = p.schematic.find(j.get("id").asInt(0));
+            PcbPlacement pl = placementFromJson(j);
+            if (c && c->pcb.board == pl.board && pl.board != p.activeBoard && pl.board < count) p.parkedPlacements[c->id] = pl;
+        }
     }
-    for (const auto& j : root.get("vias").items()) {
-        Via v;
-        v.position = {j.get("x").asNumber(), j.get("y").asNumber()};
-        v.drill = j.get("drill").asNumber(s.viaDrill);
-        v.diameter = j.get("diameter").asNumber(s.viaDiameter);
-        const int last = std::max(0, s.layerCount - 1);
-        v.fromLayer = std::clamp(static_cast<int>(j.get("fromLayer").asNumber(0)), 0, last);
-        v.toLayer = static_cast<int>(j.get("toLayer").asNumber(-1));
-        if (v.toLayer >= last || v.toLayer < v.fromLayer) v.toLayer = -1;
-        p.pcb.addVia(v);
-    }
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.pcb.board >= p.boardCount()) c.pcb.board = 0;
+    p.pcb.board = p.activeBoard;
     p.schematicChanged();  // assigns nets to copper from pad contact
     // The board's baseline for Update PCB: a file without one is in sync with its schematic.
     if (const Json& sync = root.get("pcbSync"); sync.isObject()) {
@@ -1072,6 +1150,7 @@ Json Project::snapshot() const {
         j["footprint"] = c.footprintName();
         if (!c.package.empty()) j["package"] = c.package;
         j["sheet"] = c.sheet;
+        if (c.pcb.board != 0) j["board"] = c.pcb.board;
         if (c.kind == ComponentKind::NetLabel) {
             j["scope"] = labelScopeName(c.scope);
             if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
@@ -1224,6 +1303,14 @@ Json Project::snapshot() const {
         }
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
+        {
+            Json boards = Json::object();
+            Json names = Json::array();
+            for (int i = 0; i < boardCount(); ++i) names.push(boardNames.empty() ? std::string("Board 1") : boardNames[static_cast<size_t>(i)]);
+            boards["names"] = names;
+            boards["active"] = activeBoard;
+            root["boards"] = boards;
+        }
         root["buses"] = busesJson(schematic, true);
         root["harnessTypes"] = harnessTypesJson(schematic);
         root["netClassDefs"] = netClassDefsJson(schematic);
@@ -1546,4 +1633,98 @@ Json Project::libraryJson() {
     return arr;
 }
 
+
+// ===================================================================== multi-board projects
+
+int Project::addBoard(const std::string& boardName) {
+    if (boardNames.empty()) boardNames.push_back("Board 1");
+    const int index = static_cast<int>(boardNames.size());
+    boardNames.push_back(boardName.empty() ? "Board " + std::to_string(index + 1) : boardName.substr(0, 128));
+    // The same rules, stack-up and strategy as the active board; its own size, outline, holes, keep-outs and panel.
+    PcbLayout fresh;
+    fresh.settings = pcb.settings;
+    const BoardSettings plain;
+    fresh.settings.width = plain.width;
+    fresh.settings.height = plain.height;
+    fresh.settings.outline.clear();
+    fresh.settings.holes.clear();
+    fresh.settings.keepouts.clear();
+    fresh.settings.panel = plain.panel;
+    fresh.board = index;
+    parkedBoards[index] = std::move(fresh);
+    return index;
+}
+
+bool Project::setActiveBoard(int index) {
+    if (index < 0 || index >= boardCount()) return false;
+    if (index == activeBoard) return true;
+    for (auto& c : schematic.mutableComponents())
+        if (c.hasFootprint() && c.pcb.board == activeBoard) {
+            parkedPlacements[c.id] = c.pcb;
+            c.pcb.placed = c.pcb.locked = false;
+        }
+    parkedBoards[activeBoard] = std::move(pcb);
+    pcb = std::move(parkedBoards[index]);
+    parkedBoards.erase(index);
+    for (auto& c : schematic.mutableComponents())
+        if (c.pcb.board == index)
+            if (auto it = parkedPlacements.find(c.id); it != parkedPlacements.end()) {
+                c.pcb = it->second;
+                parkedPlacements.erase(it);
+            }
+    activeBoard = index;
+    pcb.board = index;
+    schematicChanged();
+    return true;
+}
+
+int Project::assignToBoard(const std::vector<int>& componentIds, int index) {
+    if (index < 0 || index >= boardCount()) return 0;
+    int moved = 0;
+    for (int id : componentIds) {
+        Component* c = schematic.find(id);
+        if (!c || !c->hasFootprint() || c->pcb.board == index) continue;
+        parkedPlacements.erase(id);
+        c->pcb.placed = c->pcb.locked = false;
+        c->pcb.board = index;
+        ++moved;
+    }
+    if (moved) schematicChanged();
+    return moved;
+}
+
+bool Project::renameBoard(int index, const std::string& boardName) {
+    if (index < 0 || index >= boardCount() || boardName.empty()) return false;
+    if (boardNames.empty()) boardNames.push_back(boardName.substr(0, 128));  // naming the single board: kept, unsaved
+    else boardNames[static_cast<size_t>(index)] = boardName.substr(0, 128);
+    return true;
+}
+
+bool Project::removeBoard(int index) {
+    if (boardCount() < 2 || index < 0 || index >= boardCount()) return false;
+    if (index == activeBoard) setActiveBoard(index == 0 ? 1 : 0);
+    const int target = index == 0 ? 1 : 0;  // its parts go to the first remaining board
+    std::vector<int> parts;
+    for (const auto& c : schematic.components())
+        if (c.pcb.board == index) parts.push_back(c.id);
+    assignToBoard(parts, target);
+    parkedBoards.erase(index);
+    // Boards after it move up one.
+    std::map<int, PcbLayout> boards;
+    for (auto& [i, layout] : parkedBoards) {
+        layout.board = i > index ? i - 1 : i;
+        boards[layout.board] = std::move(layout);
+    }
+    parkedBoards = std::move(boards);
+    for (auto& c : schematic.mutableComponents())
+        if (c.pcb.board > index) --c.pcb.board;
+    for (auto& [id, pl] : parkedPlacements)
+        if (pl.board > index) --pl.board;
+    if (activeBoard > index) --activeBoard;
+    pcb.board = activeBoard;
+    boardNames.erase(boardNames.begin() + index);
+    if (boardNames.size() < 2) boardNames.clear();
+    schematicChanged();
+    return true;
+}
 }  // namespace sieda

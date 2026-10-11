@@ -460,12 +460,13 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (37)
+### pcb (38)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
 | Tool | Kind | What it does |
 |---|---|---|
+| `pcb_boards` | edit | Several boards in one project (one schematic): list, add (name, activate), activate (board: the pcb_* tools work on it), assign (refs, board: the parts move there unplaced; place them with pcb_update_from_schematic or pcb_autoplace), rename (board, name), remove (board). |
 | `pcb_summary` | read | The board: size, outline, layers, rules, every footprint with position / rotation / side, routing progress (tracks, vias, unrouted connections), pours, keep-outs and mounting holes. |
 | `pcb_set_board` | edit | Sets the board size (mm), copper layers (1, 2, 4, 6), default track width and clearance, a rule preset (pcb_rule_presets), thickness, solder mask colour and conformal coating. |
 | `pcb_set_outline` | edit | Board shape: a polygon (points in mm, ≥ 3; [] = the plain rectangle) or a preset: rectangle (w × h), rounded (corner radius param), circle (diameter w), quad-x (quadcopter frame: span w, body h, arm param). |

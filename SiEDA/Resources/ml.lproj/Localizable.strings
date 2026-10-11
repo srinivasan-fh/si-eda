@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "ആകൃതി-അടിസ്ഥാന പൂർത്തീകരണം";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "ഗ്രിഡ് റൂട്ടർ റൂട്ട് ചെയ്യാത്ത കണക്ഷനുകൾ കൃത്യമായ ചെമ്പ് ആകൃതികളിൽ, മറ്റ് ട്രാക്കുകൾ നീക്കി റൂട്ട് ചെയ്യുന്നു";
 "Shape-completed connections" = "ആകൃതി-അടിസ്ഥാനത്തിൽ പൂർത്തിയാക്കിയ കണക്ഷനുകൾ";
+"Add Board" = "ബോർഡ് ചേർക്കുക";
+"Board name" = "ബോർഡിന്റെ പേര്";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "ഈ പ്രോജക്റ്റിന്റെ ബോർഡുകൾ: ഒരു സ്കീമാറ്റിക്, പല ബോർഡുകൾ. ഓരോ ബോർഡും സ്വന്തം ഭാഗങ്ങൾ സ്ഥാപിച്ച് റൂട്ട് ചെയ്യുന്നു.";
+"Delete Board…" = "ബോർഡ് ഇല്ലാതാക്കുക…";
+"Move Selected Parts to" = "തിരഞ്ഞെടുത്ത ഭാഗങ്ങൾ മാറ്റുക";
+"Move a Sheet's Parts to" = "ഷീറ്റിലെ ഭാഗങ്ങൾ മാറ്റുക";
+"Rename Board" = "ബോർഡിന്റെ പേര് മാറ്റുക";
+"Rename Board…" = "ബോർഡിന്റെ പേര് മാറ്റുക…";

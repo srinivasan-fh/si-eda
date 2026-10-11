@@ -21,7 +21,10 @@
   `pcbSync` baseline) in `Core/src/Eco.cpp` (its new parts placed by hand afterwards: `Core/src/InteractivePlacement.cpp`,
 `SiEDA/App/DesignStore+Placement.swift`, `SiEDA/Views/PCB/PlaceNewPartsOverlay.swift`), PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
   `Core/src/SchematicPdf.cpp` with TrueType subsetting and optional HarfBuzz shaping (`TrueTypeFont::shape`, CMake `SIEDA_HARFBUZZ`) in `Core/src/PdfFont.cpp`; app in `SiEDA/Views/Schematic/`;
-  guide in `docs/SCHEMATIC.md`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
+  guide in `docs/SCHEMATIC.md`. Several boards per project (one schematic): `Project::boardNames` / `activeBoard`,
+  `pcb` = the active board, the others in `parkedBoards` with their parts' `parkedPlacements`; `PcbPlacement::board`,
+  `PcbLayout::onBoard` (Auto Place and the unplaced checks skip other boards' parts); saved only with ≥ 2 boards; app
+  `BoardMenu` in `PCBEditorView.swift`, MCP `pcb_boards`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
   (Swift); keep their JSON identical. Nested repetition and per-channel values
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
   directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste in

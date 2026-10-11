@@ -1426,3 +1426,11 @@
 "Shape-based completion" = "ఆకార-ఆధారిత పూర్తి";
 "Connections the grid router leaves unrouted are routed on the exact copper shapes, pushing other tracks aside" = "గ్రిడ్ రూటర్ రూట్ చేయని కనెక్షన్‌లు ఖచ్చితమైన రాగి ఆకారాలపై, ఇతర ట్రాక్‌లను పక్కకు జరిపి రూట్ అవుతాయి";
 "Shape-completed connections" = "ఆకార-ఆధారితంగా పూర్తయిన కనెక్షన్‌లు";
+"Add Board" = "బోర్డు జోడించు";
+"Board name" = "బోర్డు పేరు";
+"Boards of this project: one schematic, several boards. Each board places and routes its own parts." = "ఈ ప్రాజెక్ట్ బోర్డులు: ఒక స్కీమాటిక్, పలు బోర్డులు. ప్రతి బోర్డు తన భాగాలను ఉంచి రూట్ చేస్తుంది.";
+"Delete Board…" = "బోర్డు తొలగించు…";
+"Move Selected Parts to" = "ఎంచుకున్న భాగాలను తరలించు";
+"Move a Sheet's Parts to" = "షీట్ భాగాలను తరలించు";
+"Rename Board" = "బోర్డు పేరు మార్చు";
+"Rename Board…" = "బోర్డు పేరు మార్చు…";

@@ -34,6 +34,27 @@ BOM and PCB layout always see the whole design — there is no separate flatteni
   (connect them again with labels).
 - Selecting parts from a list — a Design Checks finding, the BOM, simulation results — brings up the sheet they are on.
 - Every sheet has its own drawing area: parts on different sheets may share coordinates.
+- An AI client over MCP builds multi-page designs the same way: `schematic_sheet_edit` (add with `activate`, activate),
+  `sheet` on `schematic_add_component` / `library_add_part`; net labels and grounds land on their pin's own page, and
+  `schematic_connect` between pins on different pages joins them through a pair of global labels.
+
+## Several boards in one project
+
+One schematic can feed several boards (a main board and a display board, a backplane and its cards). The **board
+menu** at the left of the PCB options bar lists the boards; pick one to show it in the PCB, 3D and output views.
+**Add Board** creates an empty board with the current board's rules, stack-up and routing strategy; **Rename Board…**
+and **Delete Board…** (its parts move to another board, unplaced) work on the board shown. Parts start on the first
+board; **Move Selected Parts to** or **Move a Sheet's Parts to** sends them to another board, where they arrive
+unplaced. Each board then places, routes, checks and exports only its own parts: parts of the other boards are left
+out of Auto Place, the unplaced-part checks (DRC_UNPLACED, VER_UNPLACED) and the part counts, and a net that runs
+between boards (through their connectors) is routed on each board between that board's own pins. ERC, simulation and
+the BOM work on the whole schematic. Switching boards, adding, renaming, deleting and moving parts are undoable.
+
+Files: the project keeps the board shown as before, and only with two or more boards adds `"boards"` (names, the
+active index, the other boards' copper and settings, the placements of their parts) and a part's `"board"` index, so
+single-board files load and save unchanged. C API `sieda_boards_json`, `sieda_add_board`, `sieda_set_active_board`,
+`sieda_assign_to_board`, `sieda_rename_board`, `sieda_remove_board`; MCP `pcb_boards` (list, add, activate, assign,
+rename, remove).
 
 ## Label scopes
 

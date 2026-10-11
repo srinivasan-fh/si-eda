@@ -18421,6 +18421,54 @@ TEST(corridor_router_leaves_no_acute_joins) {
     CHECK(same);
 }
 
+TEST(project_multiple_boards) {
+    // One schematic, two boards: parts assigned to the second board leave the first (and its checks), each board
+    // places and routes its own parts, the file keeps both, and removing the second board brings its parts back.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK(!p.toJson().has("boards") && p.boardCount() == 1);
+    std::vector<int> moved;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.kind == ComponentKind::Resistor && moved.size() < 2) moved.push_back(c.id);
+    CHECK(moved.size() == 2);
+    CHECK(p.addBoard("Sensor") == 1 && p.boardCount() == 2 && p.activeBoard == 0);
+    CHECK(p.assignToBoard(moved, 1) == 2);
+    auto unplacedWarnings = [&] {
+        int n = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == "DRC_UNPLACED";
+        return n;
+    };
+    CHECK(unplacedWarnings() == 0);  // the moved parts are on the other board, not missing from this one
+    const size_t mainTracks = p.pcb.tracks.size();
+    std::map<int, Vec2> mainPlaces;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.pcb.board == 0) mainPlaces[c.id] = c.pcb.position;
+    CHECK(p.setActiveBoard(1) && p.pcb.tracks.empty() && p.pcb.board == 1);
+    p.pcb.autoPlace(p.schematic, false);
+    int placedHere = 0;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed) {
+            ++placedHere;
+            CHECK(c.pcb.board == 1);
+        }
+    CHECK(placedHere == 2 && unplacedWarnings() == 0);
+    p.pcb.autoRoute(p.schematic);
+    // Saved and loaded: both boards, the active one, the parked placements.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.boardCount() == 2 && q.boardNames[1] == "Sensor" && q.activeBoard == 1 && q.pcb.tracks.size() == p.pcb.tracks.size());
+    CHECK(q.setActiveBoard(0) && q.pcb.tracks.size() == mainTracks);
+    for (const auto& [id, at] : mainPlaces) {
+        const Component* c = q.schematic.find(id);
+        CHECK(c && c->pcb.placed && (c->pcb.position - at).length() < 1e-9);
+    }
+    for (int id : moved) CHECK(!q.schematic.find(id)->pcb.placed);
+    // Removing the second board: its parts come back to the first, unplaced; the project is single-board again.
+    CHECK(q.removeBoard(1) && q.boardCount() == 1 && q.activeBoard == 0 && !q.toJson().has("boards"));
+    for (int id : moved) CHECK(q.schematic.find(id)->pcb.board == 0 && !q.schematic.find(id)->pcb.placed);
+    CHECK(!q.removeBoard(0));
+}
+
 TEST(autoroute_shape_completion) {
     // Off by default and not saved; saved when on.
     CHECK(!autorouteOptionsToJson(AutorouteOptions{}).has("shapeCompletion"));
@@ -20517,6 +20565,18 @@ TEST(mcp_multi_page_schematic) {
     CHECK(sheets.get("active").asInt(0) == 1);
     for (const auto& sh : sheets.get("sheets").items())
         if (sh.get("id").asInt(0) == 2) CHECK(sh.get("components").asInt(0) == 4);
+    // A second board for the LED page's parts.
+    Json board = Json::object();
+    board["action"] = "add";
+    board["name"] = "LED board";
+    Json added = mcpData(mcpTool(s, "pcb_boards", board));
+    CHECK(added.get("board").asInt(-1) == 1 && added.get("boards").get("names").size() == 2);
+    board = Json::object();
+    board["action"] = "assign";
+    board["board"] = 1;
+    board["refs"] = pinArgs({"R1", "D1"});
+    Json assigned = mcpData(mcpTool(s, "pcb_boards", board));
+    CHECK(assigned.get("moved").asInt(0) == 2 && assigned.get("boards").get("parts")[1].asInt(0) == 2);
 }
 
 TEST(mcp_end_to_end_board) {

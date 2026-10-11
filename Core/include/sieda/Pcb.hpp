@@ -547,6 +547,10 @@ public:
     std::vector<Via> vias;
     std::vector<CopperZone> zones;
     std::vector<TamperMesh> tamperMeshes;
+    /// Which of the project's boards this layout is (Project::activeBoard; not saved with it). Parts of another board
+    /// (PcbPlacement::board) are left alone: Auto Place, the unplaced-part checks and the part counts skip them.
+    int board = 0;
+    bool onBoard(const Component& c) const { return c.pcb.board == board; }
     /// Layout of every tamper mesh for the current placement (see TamperMesh).
     std::vector<TamperMeshGeometry> tamperMeshGeometry(const Schematic& sch, const std::vector<Pad>& pads) const;
 
