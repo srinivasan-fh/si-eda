@@ -5714,10 +5714,37 @@ final class Model3DImportTests: XCTestCase {
         XCTAssertEqual(copy.snapshot()?.customParts.first?.model3d?.id, id)
     }
 
-    func testStepAndBadFilesAreRefusedWithAReason() {
-        let step = EDAEngine.importModel3D(name: "part.step", data: Data("ISO-10303-21;".utf8))
-        XCTAssertFalse(step.ok)
-        XCTAssertTrue(step.error.contains("STEP"), step.error)
+    /// STEP models are read (a faceted tetrahedron); truncated and bad files are refused with a reason.
+    func testStepIsReadAndBadFilesAreRefusedWithAReason() {
+        let tetrahedron = """
+        ISO-10303-21;
+        DATA;
+        #1=CARTESIAN_POINT('',(0.,0.,0.));
+        #2=CARTESIAN_POINT('',(10.,0.,0.));
+        #3=CARTESIAN_POINT('',(0.,10.,0.));
+        #4=CARTESIAN_POINT('',(0.,0.,10.));
+        #5=POLY_LOOP('',(#1,#3,#2));
+        #6=POLY_LOOP('',(#1,#2,#4));
+        #7=POLY_LOOP('',(#1,#4,#3));
+        #8=POLY_LOOP('',(#2,#3,#4));
+        #9=FACE_OUTER_BOUND('',#5,.T.);
+        #10=FACE_OUTER_BOUND('',#6,.T.);
+        #11=FACE_OUTER_BOUND('',#7,.T.);
+        #12=FACE_OUTER_BOUND('',#8,.T.);
+        #13=FACE('',(#9));
+        #14=FACE('',(#10));
+        #15=FACE('',(#11));
+        #16=FACE('',(#12));
+        #17=CLOSED_SHELL('',(#13,#14,#15,#16));
+        #18=FACETED_BREP('tet',#17);
+        ENDSEC;
+        END-ISO-10303-21;
+        """
+        let step = EDAEngine.importModel3D(name: "part.step", data: Data(tetrahedron.utf8))
+        XCTAssertTrue(step.ok, step.error)
+        let truncated = EDAEngine.importModel3D(name: "part.stp", data: Data("ISO-10303-21;".utf8))
+        XCTAssertFalse(truncated.ok)
+        XCTAssertFalse(truncated.error.isEmpty)
         let bad = EDAEngine.importModel3D(name: "part.stl", data: Data([0, 1, 2, 3]))
         XCTAssertFalse(bad.ok)
         XCTAssertFalse(bad.error.isEmpty)

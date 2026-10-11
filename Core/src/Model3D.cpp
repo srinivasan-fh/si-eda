@@ -1305,7 +1305,10 @@ private:
 
     void face(int id, const Affine& m, const Model3DMesh::Group& colour) {
         const SPart* f = first(id);
-        if (!f || (f->type != "ADVANCED_FACE" && f->type != "FACE_SURFACE") || f->args.size() < 3 || f->args[1].kind != SVal::List) {
+        // A plain FACE (faceted B-reps: polygon loops, no surface) is triangulated from its boundary.
+        const bool plain = f && f->type == "FACE" && f->args.size() == 2;
+        if (!f || (!plain && f->type != "ADVANCED_FACE" && f->type != "FACE_SURFACE") || f->args.size() < (plain ? 2u : 3u) ||
+            f->args[1].kind != SVal::List) {
             ++badFaces_;
             return;
         }
@@ -1329,7 +1332,7 @@ private:
             for (const auto& l : loops) fan(l, m);
             return;
         }
-        tessellate(loops, f->args[2].ref(), f->args.size() > 3 ? f->args[3].isTrue() : true, m);
+        tessellate(loops, plain ? 0 : f->args[2].ref(), f->args.size() > 3 ? f->args[3].isTrue() : true, m);
     }
 
     Surface surfaceKind(int id, Frame& f, double& r1, double& r2) {
@@ -1348,7 +1351,7 @@ private:
             return Surface::Revolution;
         }
         if (type.find("B_SPLINE_SURFACE") != std::string::npos || is(id, "B_SPLINE_SURFACE")) ++splineFaces_;
-        else {
+        else if (id != 0) {  // 0: a plain FACE, which has no surface
             ++otherFaces_;
             if (otherSurfaces_.size() < 8) otherSurfaces_.insert(type.empty() ? "missing" : type);
         }

@@ -13004,6 +13004,11 @@ TEST(model3d_step_reader_solids_units_colours_assembly) {
     const auto pieces = meshSolids(sheet);
     CHECK(pieces.size() == 1 && std::fabs(pieces[0].volume) < 1e-9);  // the two faces share every boundary sample and cancel
 
+    // A faceted B-rep of plain FACEs (polygon loops, no surface) reads from its loops, without a surface warning.
+    const Model3DMesh tet = parseStep(
+        "ISO-10303-21;\nDATA;\n#1=CARTESIAN_POINT('',(0.,0.,0.));\n#2=CARTESIAN_POINT('',(10.,0.,0.));\n#3=CARTESIAN_POINT('',(0.,10.,0.));\n#4=CARTESIAN_POINT('',(0.,0.,10.));\n#5=POLY_LOOP('',(#1,#3,#2));\n#6=POLY_LOOP('',(#1,#2,#4));\n#7=POLY_LOOP('',(#1,#4,#3));\n#8=POLY_LOOP('',(#2,#3,#4));\n#9=FACE_OUTER_BOUND('',#5,.T.);\n#10=FACE_OUTER_BOUND('',#6,.T.);\n#11=FACE_OUTER_BOUND('',#7,.T.);\n#12=FACE_OUTER_BOUND('',#8,.T.);\n#13=FACE('',(#9));\n#14=FACE('',(#10));\n#15=FACE('',(#11));\n#16=FACE('',(#12));\n#17=CLOSED_SHELL('',(#13,#14,#15,#16));\n#18=FACETED_BREP('tet',#17);\nENDSEC;\n");
+    CHECK(tet.indices.size() == 12 && tet.warnings.size() == 1);  // 4 triangles; only "no length unit"
+
     // Malformed files are refused, never crash.
     M3_THROWS(parseStep("solid cube"));
     M3_THROWS(parseStep("ISO-10303-21;\nDATA;\n#1=CARTESIAN_POINT('',(0,0,0));\nENDSEC;\n"));
