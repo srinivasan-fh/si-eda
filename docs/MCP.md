@@ -291,6 +291,19 @@ Addressing: parts by designator (`R1`), pins as `REF.PIN` (`R1.2`, `D1.A`, `U1.V
 Schematic coordinates are grid units (10 = one grid step, y down); board coordinates are millimetres (y down, origin
 at the board's top-left corner). Without coordinates, new parts go to a free spot.
 
+What the agent gets back, so it can wire correctly without guessing:
+
+- Every placed part lists each pin's `name`, `number`, `type` (power_in, input, output, bidirectional, passive …),
+  `net` (null = unwired), `x` / `y` of the pin end and `side` (left / right / top / bottom). A multi-function pin
+  answers to each function (`U1.RB0` = `INT/RB0`); a name several pins share is written and accepted with its number,
+  `U1.VDD(32)`.
+- `schematic_connect` refuses to join two differently named nets (`VCC` and `GND`) unless `merge` is true, and its
+  `warnings` name any part whose two pins end up on one net. A chain puts all its pins on one net; it does not pass
+  through a part. `N$…` names are automatic and change; `schematic_net_label` names a net.
+- `schematic_erc` adds `unconnectedPins` per part; `schematic_set_no_connect` takes `pins` to mark the unused ones.
+- An unknown catalog name (an orderable number such as `PIC16F877A-I/P`) answers with the closest catalog parts and
+  their packages.
+
 ## Resources and prompts
 
 | Resource | Content |
@@ -341,7 +354,8 @@ and the tool table is `sieda::mcp::mcpTools()`.
   protocol errors, tool failures as `isError` results, read-only mode, the root sandbox (`..`, absolute paths,
   symbolic links), resources and prompts, examples, tool filter, attach + change callback, PNG / SVG rendering, and
   an end-to-end board built only through `tools/call` (schematic → ERC → Update PCB → autoroute → clean DRC →
-  Gerbers in the root).
+  Gerbers in the root). `mcp_agent_gets_full_pin_detail_and_guards`: pin detail, shared pin names, the VCC–GND
+  merge guard, short warnings, `unconnectedPins` and catalog suggestions.
 - `Core/tests/c_api_test.c`, `sieda_c_api_mcp_test`: the `sieda_mcp_*` round trip with an attached project.
 - CTest `sieda_mcp_stdio` (`Core/tests/mcp_stdio_test.py`, transcript `Core/tests/fixtures/mcp/transcript.jsonl`): runs
   the `sieda-mcp` binary and checks every stdout line is a JSON-RPC response in order (and that the PNG inflates).
@@ -418,7 +432,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
 | `schematic_net_label` | edit | Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins net "net" (also across sheets for scope global). |
 | `schematic_connect_to_ground` | edit | Wires each pin to its own ground symbol (net GND, the simulation reference). |
-| `schematic_set_no_connect` | edit | Marks a pin as deliberately unconnected (ERC stops reporting it), or clears the mark. |
+| `schematic_set_no_connect` | edit | Marks pins as deliberately unconnected (ERC stops reporting them), or clears the mark. |
 | `schematic_list_components` | read | Every part with designator, kind, value, position, footprint, board placement and the net of each pin. |
 | `schematic_list_nets` | read | Every net with its name, role (signal / power / ground) and the part pins on it. |
 | `schematic_net_places` | read | Every place a net appears (pins, labels, ports, entries, buses, grounds) across the sheets. |

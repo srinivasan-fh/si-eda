@@ -20549,6 +20549,62 @@ TEST(mcp_labels_point_away_from_the_part) {
     CHECK(seen.count("UART_RX") && seen.count("US_ECHO") && seen.count("IR_LEFT") && seen.count("PWM_R"));
 }
 
+TEST(mcp_agent_gets_full_pin_detail_and_guards) {
+    // What an AI agent needs to build a circuit right: each pin's number, type, position and side; shared pin names
+    // written with their number (and accepted back); no silent VCC-GND merge; a warning for a shorted part; the
+    // unconnected pins per part; and the base catalog part suggested for an orderable number.
+    const auto root = mcpRoot("agent");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    Json part = Json::object();
+    part["name"] = "PIC16F877A-I/P";
+    const Json bad = mcpTool(s, "library_add_part", part);
+    CHECK(mcpFailed(bad));
+    CHECK(mcpErrorText(bad).find("Closest: PIC16F877A (DIP-40)") != std::string::npos);
+    part["name"] = "PIC16F877A";
+    const Json u1 = mcpData(mcpTool(s, "library_add_part", part));
+    const Json& vdd = u1.get("pins")[31];
+    CHECK(vdd.get("number").asString("") == "32" && vdd.get("type").asString("") == "power_in");
+    CHECK(vdd.get("side").isString() && vdd.get("x").isNumber() && vdd.get("y").isNumber());
+    Json c = Json::object();
+    c["kind"] = "resistor";
+    c["value"] = "330";
+    const Json r1 = mcpData(mcpTool(s, "schematic_add_component", c));
+    CHECK(r1.get("pins")[0].get("side").asString("") == "left" && r1.get("pins")[1].get("side").asString("") == "right");
+    Json label = Json::object();
+    label["net"] = "VCC";
+    label["pins"] = pinArgs({"U1.VDD(32)"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_net_label", label)));
+    Json g = Json::object();
+    g["pins"] = pinArgs({"U1.VSS"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_connect_to_ground", g)));
+    // VCC to GND is refused unless merge is asked for.
+    Json w = Json::object();
+    w["from"] = "U1.VDD(32)";
+    w["to"] = "U1.VSS(31)";
+    Json r = mcpData(mcpTool(s, "schematic_connect", w));
+    CHECK(r.get("wiresAdded").asInt(-1) == 0 && r.get("warnings").size() == 1);
+    // A wire across the resistor is reported as a short.
+    w["from"] = "R1.1";
+    w["to"] = "R1.2";
+    r = mcpData(mcpTool(s, "schematic_connect", w));
+    CHECK(r.get("wiresAdded").asInt(0) == 1 && r.get("warnings")[0].asString("").find("R1 is shorted") == 0);
+    Json nets = mcpData(mcpTool(s, "schematic_list_nets", Json::object()));
+    bool split = false;
+    for (const auto& n : nets.get("nets").items())
+        if (n.get("name").asString("") == "VCC") split = n.get("pins")[0].asString("") == "U1.VDD(11)";
+    CHECK(split);
+    Json nc = Json::object();
+    nc["pins"] = pinArgs({"U1.RB1", "U1.RB2"});
+    CHECK(mcpData(mcpTool(s, "schematic_set_no_connect", nc)).get("pins").size() == 2);
+    const Json erc = mcpData(mcpTool(s, "schematic_erc", Json::object()));
+    const Json& open = erc.get("unconnectedPins").get("U1");
+    CHECK(open.size() == 40 - 6);  // VDD ×2, VSS ×2, RB1 and RB2 are taken care of
+}
+
 TEST(mcp_multi_page_schematic) {
     // A second page through tools/call: parts go to the active page, a connection across pages becomes a pair of
     // global labels, and a ground for a pin lands on that pin's page whichever page is active.

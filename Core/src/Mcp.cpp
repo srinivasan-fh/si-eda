@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "McpInternal.hpp"
+#include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 
@@ -96,7 +97,20 @@ power integrity and fabrication outputs. Every tool works on one open project (s
 
 Units: schematic coordinates are grid units (10 = one grid step, y down); PCB coordinates are millimetres (y down,
 origin at the board's top-left corner). Parts are addressed by designator ("R1"), pins as REF.PIN ("R1.2", "D1.A",
-"U1.VCC" or a pin number "U1.14").
+"U1.VCC" or a pin number "U1.14"). A multi-function pin answers to each function ("U1.RB0" = "INT/RB0"); a name several
+pins share is written with its number: U1.VDD(32).
+
+Conventions an agent needs:
+- Rotation is clockwise in degrees with y down: 0 = right, 90 = down, 180 = left, 270 = up.
+- Every placed part comes back with its pins: name, number, type (power_in, input, output, bidirectional, passive …),
+  net (null = unwired), x / y of the pin end and side (left / right / top / bottom: the way the pin leaves the part).
+  Place parts and labels from those, so nothing overlaps.
+- Wires join pins into nets. Automatic net names (N$12) change as the circuit changes; name a net with
+  `schematic_net_label` to refer to it. `schematic_connect` refuses to join two differently named nets (VCC and GND)
+  unless merge is true, and warns when a part's two pins end up on one net (a short). Read every "warnings" field.
+- `schematic_erc` lists unconnectedPins per part: wire them or mark unused ones with `schematic_set_no_connect`
+  (pins: [...]). A design is done when `schematic_erc` has no errors and `schematic_list_nets` shows the intended nets.
+- Unknown catalog names (an orderable number such as "PIC16F877A-I/P") give the closest catalog names.
 
 A typical flow:
 1. Schematic: `schematic_add_component` (built-in kinds: resistor, capacitor, inductor, diode, led, voltage_source,
@@ -250,6 +264,9 @@ PinAddress pinAddress(const SiedaProject& p, const Json& spec) {
     PinAddress a;
     a.component = componentId(p, Json(ref));
     a.pin = p.project.schematic.pinIndex(a.component, pin);
+    // "VDD(32)", as pinLabel writes a name several pins share: the pin numbered 32.
+    if (a.pin < 0 && pin.size() > 2 && pin.back() == ')' && pin.find('(') != std::string::npos)
+        a.pin = p.project.schematic.pinIndex(a.component, pin.substr(pin.rfind('(') + 1, pin.size() - pin.rfind('(') - 2));
     if (a.pin < 0) {
         const Component* c = p.project.schematic.find(a.component);
         std::string names;
@@ -268,7 +285,12 @@ PinAddress pinAddress(const SiedaProject& p, const Json& spec) {
 std::string pinLabel(const SiedaProject& p, PinAddress a) {
     const Component* c = p.project.schematic.find(a.component);
     if (!c || a.pin < 0 || a.pin >= static_cast<int>(c->def().pins.size())) return "?";
-    return c->ref + "." + c->def().pins[static_cast<size_t>(a.pin)].name;
+    const auto& pins = c->def().pins;
+    const PinDef& d = pins[static_cast<size_t>(a.pin)];
+    // A name several pins share ("VDD" on pins 11 and 32) gets its number: "U1.VDD(32)".
+    const bool shared = !d.number.empty() &&
+                        std::count_if(pins.begin(), pins.end(), [&](const PinDef& q) { return q.name == d.name; }) > 1;
+    return c->ref + "." + d.name + (shared ? "(" + d.number + ")" : "");
 }
 
 std::string kindName(int kind) {
@@ -298,6 +320,33 @@ int kindFromName(const Json& kind) {
     return it == names.end() ? -1 : it->second;
 }
 
+/// The way a pin leaves its part (a unit axis vector): the edge of the part's pin outline it sits on — left / right
+/// at the outline's x extremes, top / bottom at its y extremes, a corner pin by its larger offset from the centre —
+/// else away from the centre. (A tall IC's lower right-hand pins are right-hand pins, not bottom ones.)
+Vec2 pinOutward(const Project& p, PinAddress a) {
+    const Schematic& s = p.schematic;
+    const Component* c = s.find(a.component);
+    const Vec2 pin = s.pinPosition({a.component, a.pin});
+    if (!c) return {1, 0};
+    double x0 = pin.x, x1 = pin.x, y0 = pin.y, y1 = pin.y;
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+        const Vec2 q = s.pinPosition({c->id, i});
+        x0 = std::min(x0, q.x), x1 = std::max(x1, q.x), y0 = std::min(y0, q.y), y1 = std::max(y1, q.y);
+    }
+    const double eps = 1e-6;
+    const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
+    const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
+    const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
+    bool horizontal = std::fabs(off.x) >= std::fabs(off.y);
+    if (atX != atY) horizontal = atX;
+    if (!atX && !atY && x1 - x0 <= eps && y1 - y0 <= eps) {  // a one-pin part: away from its origin
+        const Vec2 d = pin - c->position;
+        horizontal = std::fabs(d.x) >= std::fabs(d.y);
+        return horizontal ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
+    }
+    return horizontal ? Vec2{off.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, off.y >= 0 ? 1.0 : -1.0};
+}
+
 Json componentJson(const SiedaProject& p, int id, bool withPins) {
     const Schematic& s = p.project.schematic;
     const Component* c = s.find(id);
@@ -325,6 +374,13 @@ Json componentJson(const SiedaProject& p, int id, bool withPins) {
             const bool connected = n >= 0 && s.isPinConnected({c->id, static_cast<int>(i)});
             pj["net"] = connected && n < static_cast<int>(nets.size()) ? Json(nets[static_cast<size_t>(n)].name) : Json();
             if (c->isNoConnect(static_cast<int>(i))) pj["noConnect"] = true;
+            // Electrical type, where the pin end is and the way it leaves the part: enough to wire and lay out.
+            pj["type"] = pinTypeName(static_cast<PinType>(defs[i].type));
+            const Vec2 at = s.pinPosition({c->id, static_cast<int>(i)});
+            pj["x"] = at.x;
+            pj["y"] = at.y;
+            const Vec2 d = pinOutward(p.project, {c->id, static_cast<int>(i)});
+            pj["side"] = d.x > 0.5 ? "right" : d.x < -0.5 ? "left" : d.y > 0.5 ? "bottom" : "top";
             pins.push(pj);
         }
         j["pins"] = pins;
@@ -1090,8 +1146,10 @@ Json McpServer::handleMessage(const Json& msg, bool* respond) {
             result["serverInfo"] = info;
             std::string instructions =
                 "SiEDA electronic design tools. Read sieda://docs/mcp-quickstart first. One project is open at a time "
-                "(project_summary). Parts are addressed by designator (R1), pins as REF.PIN (R1.2). Schematic units: "
-                "10 = one grid step; PCB units: millimetres. Check with schematic_erc and pcb_drc after changes.";
+                "(project_summary). Parts are addressed by designator (R1), pins as REF.PIN (R1.2, U1.VDD(32) for a shared "
+                "name). Schematic units: 10 = one grid step, y down, rotation clockwise (0 right, 90 down). Placed parts "
+                "return each pin's number, type, net, position and side. Read the warnings of every result; check with "
+                "schematic_erc (unconnectedPins) and pcb_drc after changes.";
             if (options_.readOnly) instructions += " This server is read-only: tools that change the design are refused.";
             if (options_.allowedRoot.empty()) instructions += " File access is disabled.";
             else instructions += " Files are read and written only inside " + options_.allowedRoot + ".";
