@@ -3318,6 +3318,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     constexpr int kRipUpRounds = 30, kRipUpStall = 4;
     constexpr int kCorridorWidth = 2;  // tiles either side of a connection's global route (and straight line)
     int ripChain = 0;
+    // The strategy in force: after the last one gives up, ripChain is one past the table and the via-minimisation
+    // passes that follow keep the last strategy.
+    auto ripStrategy = [&]() -> const RipUpChain& {
+        return kRipUpChains[std::min<size_t>(static_cast<size_t>(ripChain), std::size(kRipUpChains) - 1)];
+    };
     std::map<int, NetCopper> bestCopper;  // the best pass's signal copper, and the nets its rip-up re-routes
     std::vector<int> bestRip;
     int ripRound = 0, ripStall = 0;
@@ -3421,7 +3426,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         // Recovery and corridor rip-up passes make layer changes cheaper, which helps a net past a blockage.
         const double passViaCost = viaStage ? kViaMinCost : recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
         const Congestion* passCongestion =
-            recovery || (corridorMode && pass > 0 && kRipUpChains[ripChain].congestion) ? congestion.get() : nullptr;
+            recovery || (corridorMode && pass > 0 && ripStrategy().congestion) ? congestion.get() : nullptr;
         std::vector<FailedConnection> failedConnections;
         size_t fixedTracks = 0, fixedVias = 0;  // copper laid before any net routes (BGA fan-outs, tamper meshes)
         auto tGrid = profile.now();
@@ -4157,7 +4162,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             };
             // A rip-up pass routes the failing nets (and their bus) completely, retries included, before the nets that
             // were ripped to make room for them take any space back.
-            if (pass > 0 && kRipUpChains[ripChain].headFirst && ripHead > 0 && ripHead < toRoute.size()) {
+            if (pass > 0 && ripStrategy().headFirst && ripHead > 0 && ripHead < toRoute.size()) {
                 routeGroup(std::vector<int>(toRoute.begin(), toRoute.begin() + static_cast<std::ptrdiff_t>(ripHead)));
                 routeGroup(std::vector<int>(toRoute.begin() + static_cast<std::ptrdiff_t>(ripHead), toRoute.end()));
             } else {
