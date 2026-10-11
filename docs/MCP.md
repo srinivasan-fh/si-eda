@@ -24,7 +24,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 132 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 133 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -504,7 +504,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
 
-### sim (13)
+### sim (14)
 
 Circuit simulation: DC, transient, AC, noise, sweeps, Monte Carlo, FFT, measurements, SPICE models.
 
@@ -514,6 +514,7 @@ Circuit simulation: DC, transient, AC, noise, sweeps, Monte Carlo, FFT, measurem
 | `sim_transient` | read | Time-domain simulation to stop (s or "10m") with step. |
 | `sim_ac` | read | Small-signal frequency sweep: magnitude (dB) and phase per net with metrics (low-frequency gain, peak, f3dB, bandwidth, unity gain, phase margin). |
 | `sim_dc_sweep` | read | Sweeps a source from start to stop in step and returns net voltages and part currents along the sweep. |
+| `sim_temperature_sweep` | read | DC operating point at each temperature (°C): net voltages and part currents per temperature. |
 | `sim_param_sweep` | read | Re-runs an analysis (dc, ac or transient) for each value of one part: {component, values:[…], analysis, net, AC options or stop / step}. |
 | `sim_monte_carlo` | read | Monte Carlo and worst case over R / C / L tolerances for a net measure (dc, gain, f3db, peak). |
 | `sim_fft` | read | Spectrum and total harmonic distortion of a net over a transient run. |

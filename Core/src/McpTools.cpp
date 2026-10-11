@@ -1866,6 +1866,22 @@ Json pickNets(const Json& nets, const std::set<std::string>& want, size_t points
     return list;
 }
 
+/// A DC / temperature sweep result trimmed to the asked nets and points (its error becomes a tool error).
+Json sweepOut(Json r, const Json& a) {
+    if (r.has("error") && !r.get("error").asString("").empty()) throw ToolError(r.get("error").asString(""));
+    const size_t points = static_cast<size_t>(std::max(1, argInt(a, "maxPoints", 200)));
+    r["values"] = decimate(r.get("values"), points);
+    r["nets"] = pickNets(r.get("nets"), nameSet(a, "nets"), points, {"values"});
+    Json cur = Json::array();
+    for (const auto& c : r.get("currents").items()) {
+        Json m = c;
+        m["values"] = decimate(c.get("values"), points);
+        cur.push(m);
+    }
+    r["currents"] = cur;
+    return r;
+}
+
 void simTools(Table& t) {
     t.add("sim", "sim_dc_op", "DC operating point", Kind::Read, true,
           "DC operating point of the schematic (the active variant as assembled): every net voltage and each "
@@ -1894,6 +1910,7 @@ void simTools(Table& t) {
               .str("step", "Time step, e.g. \"10u\" (default stop/1000)")
               .str("method", "be (default) or trap", false, {"be", "trap"})
               .boolean("adaptive", "Adaptive step (LTE control)")
+              .num("temperature", "°C (default 27; imported SPICE models follow it)")
               .array("nets", "Nets to return (default all)", "string")
               .integer("maxPoints", "Samples per waveform (default 200; 0 = measurements only)"),
           [](McpServer& s, const Json& a) {
@@ -1904,6 +1921,7 @@ void simTools(Table& t) {
               o["step"] = argNum(a, "step", stop / 1000);
               if (a.has("method")) o["method"] = argStr(a, "method");
               if (a.has("adaptive")) o["adaptive"] = argBool(a, "adaptive", false);
+              if (a.has("temperature")) o["temperature"] = argNum(a, "temperature", 27);
               Json r = takeJson(sieda_simulate_transient_ex(P(s), o.dump().c_str()));
               if (!r.get("ok").asBool(false)) throw ToolError("Transient failed: " + r.get("error").asString("?"));
               const std::set<std::string> want = nameSet(a, "nets");
@@ -1944,6 +1962,7 @@ void simTools(Table& t) {
               .str("stop", "Stop frequency (default 1MEG)")
               .integer("pointsPerDecade", "Points per decade (default 50)")
               .str("source", "Stimulus source designator (default the AC source rule)")
+              .num("temperature", "°C (default 27; imported SPICE models follow it)")
               .array("nets", "Nets to return (default all)", "string")
               .integer("maxPoints", "Points per curve (default 100; 0 = metrics only)"),
           [](McpServer& s, const Json& a) {
@@ -1976,22 +1995,24 @@ void simTools(Table& t) {
               .str("start", "Start value", true)
               .str("stop", "Stop value", true)
               .str("step", "Step", true)
+              .num("temperature", "°C (default 27; imported SPICE models follow it)")
               .array("nets", "Nets to return (default all)", "string")
               .integer("maxPoints", "Points per curve (default 200)"),
           [](McpServer& s, const Json& a) {
-              Json r = takeJson(sieda_simulate_dc_sweep(P(s), optionsFrom(a, {"nets", "maxPoints"}).c_str()));
-              if (r.has("error") && !r.get("error").asString("").empty()) throw ToolError(r.get("error").asString(""));
-              const size_t points = static_cast<size_t>(std::max(1, argInt(a, "maxPoints", 200)));
-              r["values"] = decimate(r.get("values"), points);
-              r["nets"] = pickNets(r.get("nets"), nameSet(a, "nets"), points, {"values"});
-              Json cur = Json::array();
-              for (const auto& c : r.get("currents").items()) {
-                  Json m = c;
-                  m["values"] = decimate(c.get("values"), points);
-                  cur.push(m);
-              }
-              r["currents"] = cur;
-              return out(r);
+              return out(sweepOut(takeJson(sieda_simulate_dc_sweep(P(s), optionsFrom(a, {"nets", "maxPoints"}).c_str())), a));
+          });
+    t.add("sim", "sim_temperature_sweep", "Temperature sweep", Kind::Read, true,
+          "DC operating point at each temperature (°C): net voltages and part currents per temperature. Imported SPICE "
+          "models follow their temperature equations (IS, BF, VTO, TC1 / TC2 …); built-in parts do not move.",
+          Schema()
+              .array("temperatures", "Temperatures in °C, e.g. [-40, 27, 85, 125]", "number")
+              .num("start", "First temperature when no list is given (default -40)")
+              .num("stop", "Last temperature (default 125)")
+              .num("step", "Temperature step (default 5)")
+              .array("nets", "Nets to return (default all)", "string")
+              .integer("maxPoints", "Points per curve (default 200)"),
+          [](McpServer& s, const Json& a) {
+              return out(sweepOut(takeJson(sieda_simulate_temperature_sweep(P(s), optionsFrom(a, {"nets", "maxPoints"}).c_str())), a));
           });
     t.add("sim", "sim_param_sweep", "Parameter sweep", Kind::Read, true,
           "Re-runs an analysis (dc, ac or transient) for each value of one part: {component, values:[…], analysis, "
