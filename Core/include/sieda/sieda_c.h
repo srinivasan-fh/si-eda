@@ -303,7 +303,9 @@ void sieda_router_set_threads(int32_t threads);
 /* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
  * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
  * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]},"pinSwap",
- * "improvePlacement" (the last two only when true; improvePlacement = Auto Place's iterative improvement pass)}, plus
+ * "improvePlacement","lengthAwareSearch" (the last three only when true; improvePlacement = Auto Place's iterative
+ * improvement pass; lengthAwareSearch = with lengthAware, nets with a length target are routed toward it: again
+ * shorter, or through a waypoint, before the meanders)}, plus
  * "teardropStyle":"curved" when the teardrops are curved (absent = "straight"). Setting takes
  * the fields given (others keep their value); returns 1 when the JSON was valid. */
 char* sieda_pcb_autoroute_options(const SiedaProject* project);

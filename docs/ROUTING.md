@@ -132,7 +132,9 @@ after wide corridors (retries, pour joins, rip-up repairs) and idle thread works
 heap's freed memory is returned to the system (`malloc_trim` with glibc).
 
 **Clean-up.** On corridor routes the 45° clean-up no longer reshapes a corner that a T-join or the edge of a via depends
-on (a chamfer could cut such a join off and leave a connection open). Classic routes keep their clean-up exactly.
+on (a chamfer could cut such a join off and leave a connection open), and an acute joint of two track ends (a
+connection leaving its net's path at 45°) is squared after the length tuning (Quality passes, acute joins). Classic
+routes keep their clean-up exactly.
 
 `SIEDA_ROUTE_PROFILE=1` prints the phase timings (grid set-up, fixed copper, corridor batches and retries, pour fill,
 pour joins, rip-up analysis, clean-up, finishing passes) and the peak memory at the end of each phase to stderr.
@@ -189,6 +191,11 @@ isolation-barrier gaps, edge clearance, holes, MLCCs away from mounting holes, r
 and already placed parts never move. Deterministic (single-threaded, ties to the first candidate) and bounded (at most
 8 sweeps). On every benchmark board it routes shorter, with fewer vias and faster (Measured numbers), and the app's
 reference designs verify with it; switch it off for the plain greedy placement.
+
+**Length-aware search** (`lengthAwareSearch`, off by default; JSON `"lengthAwareSearch"`, written only when on; it
+needs `lengthAware`): nets with a length target route longest first, and after the routing passes they are routed again
+toward their targets — shorter with cheaper vias, or longer through a waypoint — before the meanders (Length-aware
+routing). It is not part of the High quality preset, so that preset routes as before.
 
 In the app, the **Routing Strategy** menu next to Auto Route switches presets and options, routes the selected nets, a
 net class or the selected parts' area (one-shot: the board keeps its own strategy, one undo step) and opens the
@@ -259,6 +266,29 @@ a coupled pair is tuned as a pair from its P member). `RouteReport::lengths` lis
 tolerance for every net with a target; the DRC's `DRC_LENGTH` check agrees. On the test board a four-net bus with
 staggered ends (29.5–41.5 mm) and a ruled net 12 mm above its direct length all end within tolerance.
 
+**Length-aware search** (`lengthAwareSearch`, with `lengthAware`; off by default, JSON `"lengthAwareSearch"` written
+only when on) makes the search aim for the targets, so less is left to the meanders:
+
+1. **Order.** The nets with a target route longest first (by the half-perimeter of their pads): a match group's
+   longest member sets everyone's target, so it takes the most direct path and the shorter members have room to detour.
+2. **Shorter.** After the routing passes (and via minimisation), a net whose xSignal comes out longer than it needs to
+   be — above its rule's target, or a group member above the group's next longest member (never below its end pads'
+   45° distance) — is routed again alone with layer changes a third of the normal cost (fewer detours around a
+   blockage) and keeps the new copper when its xSignal is shorter.
+3. **Longer.** A net more than 2 mm short of its target is routed again through a waypoint: on the widest two-pad net
+   of its xSignal, pad → waypoint → pad, the waypoint off the middle of the pads' line on either side where a 45° route
+   through it would add all or 70 % of what is missing. The two legs are searched on that net's grid (the second leaves
+   the waypoint at most 90° off the first leg's heading and keeps hole spacing to its vias; legs that touch away from
+   the waypoint are refused), and the longest route that does not overshoot the target is kept when the xSignal comes
+   out longer and still within target + tolerance. The meanders then make up the rest.
+
+Each job (one net, or the nets of one xSignal) runs on a grid of its own holding all other copper, one after the other,
+so the copper is the same for any thread count. If the pours then leave a connection open, the whole search is undone.
+`RouteMetrics::lengthRerouted` (JSON `"lengthRerouted"`, only when > 0) counts the nets it routed again. On the test
+bus (four members, direct lengths 20–50 mm, ±0.25 mm) the meanders add 60 mm in 148 tracks without the search and
+4.4 mm in 42 tracks with it (three members detoured), every member within tolerance either way; a ruled net walled off by
+another net's locked track comes out 2.4 mm over its target without the search and on target with it (two vias).
+
 ## Quality passes, keep-outs and net classes
 
 - **Via minimisation** (`minimizeVias`): after the routing passes, every routed signal net with vias of its own is routed
@@ -276,6 +306,15 @@ staggered ends (29.5–41.5 mm) and a ruled net 12 mm above its direct length al
   the routed copper. Each is undone if it leaves more connections open than before. `teardropStyle` (`"straight"`,
   the default, or `"curved"`; saved only when curved, so older files are unchanged) picks straight fans or curved
   (concave) teardrops — see docs/INTERACTIVE_ROUTING.md, Teardrops; Routing strategy menu and sheet → Teardrop style.
+- **Acute joins** (corridor routes, always; `routequality::fixAcuteJoins`): where two tracks of a net end at one point
+  at less than 90° (an acid trap, DRC_ACUTE_ANGLE) outside a pad or via — typically a connection that left its net's
+  path at a corner, at 45° to one leg — one track's end moves back along itself and a short link (one track width off
+  the other track) joins it square to the other: 90° there and 90° + the old angle at the bend. The other track is
+  trimmed back to the link when nothing else meets it at the old joint. Each link keeps every other net's clearance,
+  the keep-outs and the board edge, the pass is undone if it opened a connection, and it runs after the length tuning,
+  on the finished copper, single-threaded. Like the DRC it looks only at track ends: a branch from the middle of a
+  straight track is left alone (tuned meanders put their short pieces against each other there; squaring those made
+  new acute joins on the length-group boards). Classic routes are left as they are (their copper stays bit-identical).
 - **Keep-outs** (`BoardSettings::keepouts`, saved when present): no track and / or via of any net inside an area on one
   layer or all layers. The router routes around them, the DRC reports copper inside one (`DRC_KEEPOUT`).
 - **Net-class clearances** (`BoardSettings::netClearances`, from schematic directives) are kept both ways: a class
@@ -405,11 +444,14 @@ cmake --build build --target sieda_route_bench
 ./build/sieda_route_bench                       # the medium (CI) board, then the large board
 ./build/sieda_route_bench --clusters 16 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--snapshot out.json]
                           [--threads N] [--router auto|classic|corridor] [--save board.siedaproj]
-                          [--options '{"minimizeVias":true,"improvePlacement":true}']
+                          [--options '{"minimizeVias":true,"improvePlacement":true}'] [--length-groups]
 ```
 
 `--options` sets the board's strategy (`AutorouteOptions` JSON) before placing and routing, and prints what the
-quality passes did; `--save` writes the routed project, so two runs can be compared with `cmp`.
+quality passes did; `--save` writes the routed project, so two runs can be compared with `cmp`. `--length-groups` makes
+the 33 Ω links between each two ICs a match group (±0.5 mm) and prints how many targets are met, the worst distance to
+a target, the meandered length, the tracks of the targeted nets and the nets the length-aware search routed again.
+`SIEDA_BENCH_VERBOSE=1` also counts the DRC warnings by code (DRC_ACUTE_ANGLE …).
 
 It prints component, net and pin counts, the time of auto-place, auto-route (wall and CPU) and DRC, completion, the
 ratsnest and snapshot times, and peak memory. `--drc-brute` also times the pairwise DRC and confirms the reports are
@@ -456,8 +498,9 @@ In total 10 → 9 unrouted connections, each board in 1–43 s against 4–31 s.
 
 The reference designs with the corridor router forced (2- and 4-layer defaults): with gcc all 40 pass verification as
 with the classic router, except that the satellite computer gets one DRC warning (an acute T-join on a length-matched
-lane); with clang and fused multiply-add the quadcopter also leaves one connection unrouted. No short or clearance
-error on any. By default they use the classic router, with unchanged results.
+lane, measured before the acute-join pass, which corridor routes now get; the reference designs are verified from the
+app and have not been re-run since); with clang and fused multiply-add the quadcopter also leaves one connection
+unrouted. No short or clearance error on any. By default they use the classic router, with unchanged results.
 
 **Placement improvement and via minimisation** (same container, gcc, default options otherwise; the first row of
 each board is the greedy placement, the second the improved one, routed with the default strategy; via
@@ -485,6 +528,36 @@ The improved placement and the adaptive via minimisation give byte-identical sav
 (16-cluster board, `--save` and `cmp`); the demo project and the 2-cluster classic board route byte-identically
 before and after this work with the default options.
 
+**Acute joins** (DRC_ACUTE_ANGLE before → after the acute-join pass; same container, gcc). The benchmark boards with
+default options had none and route byte-identically (`--save` and `cmp`): the medium (CI) board, its 4-layer variant,
+the 16-cluster board and the 923-part board. With the corridor router forced on small boards (1 thread):
+
+| Board (corridor router forced) | Before | After | Completion (unchanged) |
+|---|---|---|---|
+| 1 cluster, 2 layers, no BGA, seed 8 | 1 | 0 | 158 / 158 |
+| 2 clusters, 2 layers, no BGA, seed 2 | 1 | 0 | 171 / 175 |
+| 2 clusters, 2 layers, no BGA, seed 12 | 1 | 0 | 174 / 175 |
+| 6 clusters, 2 layers, no BGA, seed 3 | 1 | 0 | 352 / 352 |
+| 3 clusters, 4 layers, BGA, seed 8 | 1 | 0 | 248 / 249 |
+
+No other DRC warning on any of them. With the length groups below (meanders on 60 and 166 nets) there is no acute join
+either way.
+
+**Length-aware search** (`--length-groups`: each IC pair's 33 Ω links a match group, ±0.5 mm; `lengthAware` on, without
+and with `lengthAwareSearch`; "meandered" is achieved − routed summed over the targeted nets, "tracks" their track
+count):
+
+| Board | Search | Route | In tolerance | Meandered | Tracks | Nets routed again |
+|---|---|---|---|---|---|---|
+| Medium (CI): 6 clusters, 2 BGAs, 6 layers | off | 7.6 s | 37 / 60 | 965 mm | 6013 | — |
+| | on | 24.6 s | **45 / 60** | **666 mm** | **5167** | 29 |
+| 16 clusters, 4 BGAs, 8 layers | off | 41.8 s | 125 / 166 | 2669 mm | 17043 | — |
+| | on | 134.9 s | **144 / 166** | **1615 mm** | **10999** | 92 |
+
+The members still out of tolerance are long cross-board links whose group partners cannot be lengthened that far in
+the room there (worst 83 / 117 mm off target with and without the search). Without the search the 16-cluster board
+ends with one connection open after the meanders (the DRC's DRC_UNROUTED; the route itself completes); with it, none.
+
 Thread scaling on the corridor router is modest: on the large board 1 → 3 → 4 threads take 128.6 → 107.6 → 106.2 s
 (peak memory 748 → 840 → 860 MB), with byte-identical results. Most of a pass is parallel, but the rip-up passes route few nets each, and grid set-up, pours and pour
 connections are serial.
@@ -510,8 +583,13 @@ connections are serial.
   crossover swaps the pins only of a part that declares them a pin-swap group (a pair into a part without one stays
   crossed and routes as two nets); the per-layer width and gap apply only to pairs at the stack-up's own geometry (a
   `pairGap` or a net-class width is used on every layer).
-- **Length-aware routing** reaches targets by meandering after routing (the A* does not aim for a length); a net routed
-  longer than its target cannot be shortened, and meanders need free room beside the tracks.
+- **Length-aware routing** reaches targets by meandering after routing, and meanders need free room beside the tracks.
+  The length-aware search (`lengthAwareSearch`) narrows the gap before the meanders but is not a length-constrained
+  search: a net longer than it needs to be is only routed again with cheaper vias (kept when shorter), and a short one
+  gets one waypoint detour, only on a two-pad net of its xSignal and only where the route through the waypoint finds
+  room; each job builds a routing grid of its own, so it costs time on large boards with many targeted nets (3 × the
+  route time on the 16-cluster board with 166 targeted nets). On that board with length groups and no search, the
+  meanders leave one connection open (DRC_UNROUTED); not yet investigated.
 - **Via minimisation** tries every net, but the nets beyond the separate batches (24 on the largest grids) share one
   grid that also holds their own old copper and each other's new copper, so fewer of them improve than would on a
   grid of their own; a net never moves vias of other nets out of its way.
@@ -520,8 +598,11 @@ connections are serial.
   by their critical path (the slowest net of each batch; about 30 s of 35 s) because nets whose corridors meet must
   route one after the other to keep the copper identical for any thread count; the rip-up repair searches now run in
   parallel (5.2 → 2.1 s), retries, pours and pour joins remain serial.
-- **T-joins.** A path never turns sharper than 90°, but a connection that leaves its net's existing track at a 45°
-  angle can still form an acute join (a DRC_ACUTE_ANGLE warning), as with the classic router.
+- **T-joins.** A corridor route never turns sharper than 90°, and a connection that leaves its net's path at a joint
+  at 45° is joined square to it afterwards (Quality passes, acute joins), so corridor routes give no DRC_ACUTE_ANGLE on
+  any board measured. A join whose square link would not keep clearance (or would need a longer track than there is)
+  stays as it was, and a branch from the middle of a straight track at 45° — which the DRC does not report — is not
+  changed. The classic router keeps its copper bit-identical and can still form such a join.
 - **Compilers.** Routing is deterministic for a given build and any thread count; builds with and without fused
   multiply-add can round differently and route differently (as the classic router can).
 - **Placement** is greedy and connectivity-driven; the improvement pass (`improvePlacement`, on by default) only
@@ -540,9 +621,9 @@ connections are serial.
 | App | `EDAEngine.autoRouteChecked(progress:)`, `RouteProgressChannel`, `DesignStore.cancelAutoRoute`, `RouteProgressView` |
 | Spatial index, DRC, connectivity, ratsnest | `Core/src/Pcb.cpp` (`RectIndex`, `PcbLayout::runDRC`, `copperClusters`, `PcbLayout::ratsnest`) |
 | Clean-up | `Core/src/Pcb.cpp` (`PcbLayout::cleanupRouting`) |
-| Pass loop, via minimisation stage, multi-resolution grid, lattice fallback, profile | `Core/src/Pcb.cpp` (`runPass`, `RoutingGrid::setCoarse`, `routeWithVoltageSpacing`, `RouteProfile`) |
+| Pass loop, via minimisation and length-aware search stages, multi-resolution grid, lattice fallback, profile | `Core/src/Pcb.cpp` (`runPass`, `RoutingGrid::setCoarse`, `routeWithVoltageSpacing`, `RouteProfile`) |
 | Coupled differential pairs | `Core/src/CoupledPairRouter.inc` (`routeCoupledPair`), `RoutingGrid::trackClearExact` / `viaClearExact` |
-| Length-aware tuning, gloss, arcs, teardrops, metrics | `Core/src/RouteQuality.{hpp,cpp}` |
+| Length-aware tuning, acute joins, gloss, arcs, teardrops, metrics | `Core/src/RouteQuality.{hpp,cpp}` (`fixAcuteJoins`) |
 | Automatic pin / gate swap and the pairs' P/N crossover before routing | `Core/src/PcbSwap.cpp` (`Project::autoSwapForRouting`, `Project::autoPairCrossovers`, `Project::autoRoute`) |
 | Placement improvement | `Core/src/Pcb.cpp` (`PcbLayout::improvePlacement`, from `autoPlace`) |
 | Strategy options, presets, report and keep-outs as JSON | `Core/include/sieda/Autoroute.hpp`, `Core/src/Autoroute.cpp`; C API `Core/src/sieda_c_autoroute.cpp` |
@@ -566,6 +647,11 @@ connections are serial.
 - `autoroute_keeps_net_class_clearance`: a net-class clearance holds both ways on a dense board.
 - `autoroute_length_aware_rules_and_match_groups`: a staggered four-net bus group and a ruled net end within
   tolerance; the DRC length check agrees.
+- `autoroute_length_aware_search`: on a bus 30 mm short at its shortest member the search detours the short members
+  and meanders far less (fewer tracks, skew no worse), with the classic and the corridor router; a ruled net routed around another net's locked track is routed
+  again shorter, through vias, onto its target; on a board without targets the option changes no copper; its JSON.
+- `corridor_router_leaves_no_acute_joins`: a one-cluster, two-layer board that had an acute join routes without
+  DRC_ACUTE_ANGLE (no warning at all), DRC-clean, the same copper on 1 and 4 threads.
 - `autoroute_keepouts_and_quality_passes`: keep-outs routed around and reported by the DRC; via minimisation, gloss,
   arcs and teardrops complete and DRC-clean with consistent metrics. `curved_teardrops_router_and_autorouter`,
   `curved_teardrops_json_and_c_api`: the curved teardrop pass is DRC-clean; `teardropStyle` round-trips.

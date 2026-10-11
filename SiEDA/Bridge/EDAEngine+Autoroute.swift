@@ -28,6 +28,9 @@ struct AutorouteOptions: Codable, Equatable {
     var pinSwap = false
     /// Auto Place's iterative improvement pass (shifts and swaps that shorten the ratsnest).
     var improvePlacement = true
+    /// With lengthAware: nets with a length target are routed again toward it (shorter, or through a waypoint) before
+    /// the meanders.
+    var lengthAwareSearch = false
 
     init() {}
 
@@ -54,6 +57,7 @@ struct AutorouteOptions: Codable, Equatable {
         classLayers = try c.decodeIfPresent([String: [Int]].self, forKey: .classLayers) ?? [:]
         pinSwap = try c.decodeIfPresent(Bool.self, forKey: .pinSwap) ?? false
         improvePlacement = try c.decodeIfPresent(Bool.self, forKey: .improvePlacement) ?? true
+        lengthAwareSearch = try c.decodeIfPresent(Bool.self, forKey: .lengthAwareSearch) ?? false
     }
 
     /// Routes only part of the board (selected nets, a net class or an area).

@@ -24,6 +24,12 @@ int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipN
 int arcRouted(PcbLayout& pcb, const Schematic& sch, double radius);
 /// Teardrops on every pad and via joint (addTeardrops). Returns the teardrops added.
 int teardropsRouted(PcbLayout& pcb, const Schematic& sch, TeardropStyle style = TeardropStyle::Straight);
+/// Acute joins (corridor routes): where two tracks of a net end at one point at less than 90° (an acid trap, the DRC's
+/// DRC_ACUTE_ANGLE), outside pads and vias, one end moves back along its track and a short link joins it square to the
+/// other track (90° there, 90° + the angle at the bend); a track left dangling at the old joint is trimmed to the
+/// link. Each link keeps every clearance, keep-out and the board edge; undone if a connection opens. Returns the joins
+/// fixed.
+int fixAcuteJoins(PcbLayout& pcb, const Schematic& sch);
 /// Fills the board measurements of `m` (vias by kind, length per layer, segments, arcs, teardrops, unrouted).
 void measure(const PcbLayout& pcb, const Schematic& sch, RouteMetrics& m);
 

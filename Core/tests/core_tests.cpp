@@ -18265,6 +18265,151 @@ TEST(autoroute_length_aware_rules_and_match_groups) {
     CHECK(routeReportJson(st.report).get("lengths").size() == 5);
 }
 
+TEST(autoroute_length_aware_search) {
+    // A four-net bus in a match group whose ends are staggered 10 mm apart (direct lengths 20–50 mm): the shortest
+    // member is 30 mm short. Meanders alone have to make all of it up; with the length-aware search the short members
+    // are routed again through a waypoint first, so less is meandered and the group ends closer together.
+    auto bus = [](bool search) {
+        Project p;
+        auto& s = p.schematic;
+        p.pcb.settings.width = 90;
+        p.pcb.settings.height = 70;
+        MatchGroup g;
+        g.name = "BUS";
+        g.tolerance = 0.25;
+        for (int k = 0; k < 4; ++k) {
+            const int a = placeR(p, {8, 26.0 + 6 * k}), b = placeR(p, {30.0 + 10 * k, 26.0 + 6 * k});
+            wire(s, a, "2", b, "1");
+            p.schematicChanged();
+            g.nets.push_back(s.nets()[static_cast<size_t>(s.netOf({a, 1}))].name);
+        }
+        p.pcb.settings.matchGroups.push_back(g);
+        p.pcb.settings.autorouter.lengthAware = true;
+        p.pcb.settings.autorouter.lengthAwareSearch = search;
+        return p;
+    };
+    struct Outcome {
+        double skew = 0, meandered = 0;
+        int ok = 0, tracks = 0, rerouted = 0;
+    };
+    auto run = [&](bool search) {
+        Project p = bus(search);
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0);
+        CHECK(routeDrcErrors(p).empty());
+        Outcome o;
+        double lo = 1e9, hi = 0;
+        for (const auto& l : st.report.lengths) {
+            std::printf("    %s %-8s target %6.2f  routed %6.2f  achieved %6.2f %s\n", search ? "search" : "plain ", l.net.c_str(),
+                        l.target, l.routed, l.achieved, l.ok ? "ok" : "OUT");
+            lo = std::min(lo, l.achieved);
+            hi = std::max(hi, l.achieved);
+            o.meandered += l.achieved - l.routed;
+            o.ok += l.ok ? 1 : 0;
+        }
+        for (const auto& t : p.pcb.tracks) o.tracks += t.net >= 0 ? 1 : 0;
+        o.skew = hi - lo;
+        o.rerouted = st.report.metrics.lengthRerouted;
+        std::printf("    %s: skew %.2f mm, meandered %.1f mm, %d tracks, %d nets routed again, %d / 4 in tolerance\n",
+                    search ? "search" : "plain ", o.skew, o.meandered, o.tracks, o.rerouted, o.ok);
+        CHECK(routeReportJson(st.report).get("metrics").has("lengthRerouted") == (o.rerouted > 0));
+        return o;
+    };
+    // Both routers: the classic one (this board is small) and the corridor router (forced).
+    for (RouterStrategy router : {RouterStrategy::Auto, RouterStrategy::Corridor}) {
+        setRouterStrategy(router);
+        const Outcome plain = run(false), search = run(true);
+        setRouterStrategy(RouterStrategy::Auto);
+        CHECK(plain.rerouted == 0);
+        CHECK(search.rerouted >= 2);
+        CHECK(search.meandered < plain.meandered - 10.0);
+        CHECK(search.skew <= plain.skew + 1e-9);
+        CHECK(search.ok >= plain.ok);
+        CHECK(search.tracks < plain.tracks);
+    }
+    // A ruled net whose straight path is walled off on the top layer by another net's locked track: routed around it,
+    // it comes out longer than its target (meanders cannot shorten it); the search routes it again with cheaper vias.
+    for (bool searchOn : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        p.pcb.settings.width = 60;
+        p.pcb.settings.height = 50;
+        const int a = placeR(p, {10, 25}), b = placeR(p, {50, 25});
+        const int c = placeR(p, {30, 21}, 90), d = placeR(p, {30, 29}, 90);
+        wire(s, a, "2", b, "1");
+        wire(s, c, "2", d, "1");
+        p.schematicChanged();
+        addPath(p.pcb, s.netOf({c, 1}), kTopLayer, 0.25, {padAt(p, c, 1), padAt(p, d, 0)}, true);
+        p.pcb.settings.autorouter.protectLocked = true;
+        const int net = s.netOf({a, 1});
+        const double direct = (padAt(p, b, 0) - padAt(p, a, 1)).length();
+        p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(net)].name, direct, 0.5});
+        p.pcb.settings.autorouter.lengthAware = true;
+        p.pcb.settings.autorouter.lengthAwareSearch = searchOn;
+        const RouteStats st = p.pcb.autoRoute(s);
+        CHECK(st.failed == 0 && st.report.lengths.size() == 1);
+        if (st.report.lengths.empty()) continue;
+        const auto& l = st.report.lengths[0];
+        std::printf("    %s: ruled net target %.2f ± %.2f, achieved %.2f (%d vias, %d routed again)\n", searchOn ? "search" : "plain ",
+                    l.target, l.tolerance, l.achieved, st.vias, st.report.metrics.lengthRerouted);
+        CHECK(routeDrcErrors(p).empty());
+        CHECK(searchOn ? l.ok && st.report.metrics.lengthRerouted == 1 : !l.ok);
+    }
+    // On a board without length targets the option changes nothing.
+    Project a = amplifierProject(), b = amplifierProject();
+    for (Project* p : {&a, &b}) {
+        p->pcb.settings.width = 40;
+        p->pcb.settings.height = 30;
+        p->pcb.settings.autorouter.lengthAware = true;
+        p->pcb.autoPlace(p->schematic, true);
+    }
+    b.pcb.settings.autorouter.lengthAwareSearch = true;
+    a.pcb.autoRoute(a.schematic);
+    b.pcb.autoRoute(b.schematic);
+    bool same = a.pcb.tracks.size() == b.pcb.tracks.size() && a.pcb.vias.size() == b.pcb.vias.size();
+    for (size_t i = 0; same && i < a.pcb.tracks.size(); ++i)
+        same = a.pcb.tracks[i].a == b.pcb.tracks[i].a && a.pcb.tracks[i].b == b.pcb.tracks[i].b && a.pcb.tracks[i].layer == b.pcb.tracks[i].layer;
+    CHECK(same);
+    // JSON: written only when on.
+    AutorouteOptions o;
+    CHECK(!autorouteOptionsToJson(o).has("lengthAwareSearch"));
+    o.lengthAwareSearch = true;
+    CHECK(autorouteOptionsToJson(o).get("lengthAwareSearch").asBool(false));
+    CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(o)) == o && o != AutorouteOptions{});
+}
+
+TEST(corridor_router_leaves_no_acute_joins) {
+    // A one-cluster, two-layer bench board on which the corridor router used to leave one acute join (a connection
+    // leaving its net's track at 45°, DRC_ACUTE_ANGLE): every join is now square or obtuse, the DRC is clean, and
+    // the copper is the same on 1 and 4 threads.
+    bench::BenchBoard b = bench::makeBenchBoard({8, 1, 2, false, false, 0.45});
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    setRouterStrategy(RouterStrategy::Corridor);
+    std::vector<Track> tracks[2];
+    for (int k = 0; k < 2; ++k) {
+        Project p = b.project;
+        setRoutingThreads(k == 0 ? 1 : 4);
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        CHECK(st.failed == 0);
+        int acute = 0, warnings = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) {
+            acute += v.code == "DRC_ACUTE_ANGLE";
+            warnings += v.severity == Severity::Warning;
+        }
+        std::printf("    %d thread(s): %d / %d routed, %d acute joins, %d warnings\n", k == 0 ? 1 : 4, st.routed, st.connections,
+                    acute, warnings);
+        CHECK(acute == 0 && warnings == 0);
+        CHECK(routeDrcErrors(p).empty());
+        tracks[k] = p.pcb.tracks;
+    }
+    setRoutingThreads(0);
+    setRouterStrategy(RouterStrategy::Auto);
+    bool same = tracks[0].size() == tracks[1].size();
+    for (size_t i = 0; same && i < tracks[0].size(); ++i)
+        same = tracks[0][i].a == tracks[1][i].a && tracks[0][i].b == tracks[1][i].b && tracks[0][i].layer == tracks[1][i].layer;
+    CHECK(same);
+}
+
 TEST(autoroute_keepouts_and_quality_passes) {
     // A keep-out across the direct path: the router goes around it, and the DRC flags copper drawn into it.
     {

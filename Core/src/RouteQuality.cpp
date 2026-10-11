@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthRules.hpp"
@@ -145,6 +146,115 @@ int teardropsRouted(PcbLayout& pcb, const Schematic& sch, TeardropStyle style) {
         to.style = style;
         const BoardEditResult r = addTeardrops(pcb, sch, to);
         return r.applied ? r.added : 0;
+    });
+}
+
+int fixAcuteJoins(PcbLayout& pcb, const Schematic& sch) {
+    return keepingConnections(pcb, sch, [&] {
+        const auto ps = pcb.pads(sch);
+        const BoardSettings& s = pcb.settings;
+        auto clearanceOf = [&](int net) {
+            return net >= 0 && static_cast<size_t>(net) < sch.nets().size() ? s.clearanceFor(sch.nets()[static_cast<size_t>(net)].name)
+                                                                            : s.clearance;
+        };
+        // A joint inside a pad or via of its net is covered by copper (as the DRC sees it).
+        auto covered = [&](int net, int layer, Vec2 p) {
+            for (const Pad& pd : ps)
+                if (pd.net == net && pd.onLayer(layer) &&
+                    (pd.round ? (p - pd.position).length() - std::min(pd.size.x, pd.size.y) / 2 : pointRectDistance(p, pd.bounds())) <= 0)
+                    return true;
+            for (const Via& v : pcb.vias)
+                if (v.net == net && (v.position - p).length() <= v.diameter / 2) return true;
+            return false;
+        };
+        // A new link a–b (width w) keeps every other net's clearance, the keep-outs and the board edge.
+        auto clear = [&](int net, int layer, Vec2 a, Vec2 b, double w) {
+            const double own = clearanceOf(net);
+            for (const Track& t : pcb.tracks)
+                if (t.layer == layer && t.net != net &&
+                    trackSegmentDistance(t, a, b) - (w + t.width) / 2 < std::max(own, clearanceOf(t.net)) + 1e-3) return false;
+            for (const Pad& pd : ps) {
+                if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
+                const double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
+                                          : segmentRectDistance(a, b, pd.bounds());
+                if (d - w / 2 < std::max(own, clearanceOf(pd.net)) + 1e-3) return false;
+            }
+            for (const Via& v : pcb.vias)
+                if (v.net != net && v.spans(layer) &&
+                    pointSegmentDistance(v.position, a, b) - (v.diameter + w) / 2 < std::max(own, clearanceOf(v.net)) + 1e-3) return false;
+            for (const RouteKeepout& k : s.keepouts)
+                if (k.tracks && (k.layer < 0 || k.layer == layer) && segmentRectDistance(a, b, k.area) < w / 2) return false;
+            return s.segmentEdgeDistance(a, b) >= s.edgeClearance + w / 2 - 1e-6;
+        };
+        const double minCos = std::cos(89.0 * kPi / 180);  // the DRC's limit
+        int fixed = 0;
+        for (int pass = 0; pass < 4; ++pass) {
+            // Straight tracks by the 1 mm cells their boxes cover, so a joint finds the tracks through it.
+            std::map<std::tuple<int, long long, long long>, std::vector<size_t>> cells;
+            auto cell = [](double v) { return static_cast<long long>(std::floor(v)); };
+            for (size_t i = 0; i < pcb.tracks.size(); ++i) {
+                const Track& t = pcb.tracks[i];
+                if (t.arc || t.teardrop || t.net < 0) continue;
+                for (long long x = cell(std::min(t.a.x, t.b.x) - 1e-6); x <= cell(std::max(t.a.x, t.b.x) + 1e-6); ++x)
+                    for (long long y = cell(std::min(t.a.y, t.b.y) - 1e-6); y <= cell(std::max(t.a.y, t.b.y) + 1e-6); ++y)
+                        cells[{t.layer, x, y}].push_back(i);
+            }
+            std::vector<char> touched(pcb.tracks.size(), 0);
+            std::vector<Track> added;
+            const int before = fixed;
+            for (size_t j = 0; j < pcb.tracks.size(); ++j)
+                for (int end = 0; end < 2 && !touched[j]; ++end) {
+                    const Track& b = pcb.tracks[j];
+                    if (b.arc || b.teardrop || b.locked || b.net < 0) break;
+                    const Vec2 p = end == 0 ? b.a : b.b, q = end == 0 ? b.b : b.a;
+                    const double lb = (q - p).length();
+                    const auto it = cells.find({b.layer, cell(p.x), cell(p.y)});
+                    if (lb < 1e-6 || it == cells.end()) continue;
+                    int isCovered = -1;  // tested only at an acute angle
+                    const Vec2 ub = (q - p) * (1.0 / lb);
+                    // The net's other tracks through the joint: when only one stays there and ends there, it is
+                    // trimmed back to the new link (it would dangle otherwise).
+                    int others = 0;
+                    for (size_t i : it->second)
+                        others += i != j && pcb.tracks[i].net == b.net && trackPointDistance(pcb.tracks[i], p) <= 1e-6;
+                    for (size_t i : it->second) {
+                        const Track& a = pcb.tracks[i];
+                        // Joints of two track ends, as the DRC checks them (a track's middle is left alone: tuned
+                        // meanders put their short pieces against each other there).
+                        const bool atA = (a.a - p).length() <= 1e-6;
+                        if (i == j || touched[i] || touched[j] || a.net != b.net || a.locked || (!atA && (a.b - p).length() > 1e-6))
+                            continue;
+                        const Vec2 far = atA ? a.b : a.a;
+                        const double la = (far - p).length();
+                        if (la < 1e-6) continue;
+                        const Vec2 ua = (far - p) * (1.0 / la);
+                        const double cosine = ua.dot(ub), sine = std::sqrt(std::max(0.0, 1 - cosine * cosine));
+                        if (cosine <= minCos || sine < 0.1) continue;
+                        if (isCovered < 0) isCovered = covered(b.net, b.layer, p) ? 1 : 0;
+                        if (isCovered) break;
+                        // At an acute angle, b's end moves back off the joint to R on b, joined to `a` at F by a link
+                        // square to `a` (90° at F, 90° + the angle at R).
+                        for (double k : {1.0, 1.5, 0.75}) {
+                            const double d = k * std::max(a.width, b.width) / sine, along = d * cosine;
+                            if (d > lb - 1e-3 || along > la - 1e-3) continue;
+                            const Vec2 r = p + ub * d, f = p + ua * along;
+                            if (!clear(b.net, b.layer, f, r, b.width)) continue;
+                            Track link = b;
+                            link.a = f;
+                            link.b = r;
+                            added.push_back(link);
+                            (end == 0 ? pcb.tracks[j].a : pcb.tracks[j].b) = r;
+                            if (others == 1) (atA ? pcb.tracks[i].a : pcb.tracks[i].b) = f;
+                            touched[i] = touched[j] = 1;
+                            ++fixed;
+                            break;
+                        }
+                    }
+                }
+            for (Track& t : added) pcb.addTrack(t);
+            if (fixed == before) break;
+        }
+        return fixed;
     });
 }
 

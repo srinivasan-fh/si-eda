@@ -92,6 +92,9 @@
   coupled pairs start from BGA balls' dog-bone vias (`PairPlan::viaEnd`) and use each layer's stack-up width / gap
   (`PairPlan::layerWidth`);
   via minimisation tries every net (adaptive batches + one shared grid, serial, `setViaMinimisationGrids` for tests);
+  corridor routes get `routequality::fixAcuteJoins` (no DRC_ACUTE_ANGLE; classic copper untouched); opt-in
+  `AutorouteOptions::lengthAwareSearch` (with `lengthAware`: longest first, then a `routeAll` stage after via
+  minimisation re-routes target nets shorter with cheap vias or longer through a waypoint before the meanders);
   `classic_router_copper_fingerprint` pins the classic router's and greedy placer's result — update its constant
   only on purpose. `sieda_route_bench --options '{json}' --save file` measures strategy options and lets `cmp` compare runs.
 - MCP (any AI client drives SiEDA): engine in `Core/src/Mcp.cpp` (JSON-RPC dispatch, root-folder sandbox, resources,
