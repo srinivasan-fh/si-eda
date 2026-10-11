@@ -97,13 +97,39 @@ Vec2 freeSpot(const Project& p) {
 }
 
 /// Where a label / ground symbol goes next to a pin: away from the part's centre, 20 units out (on the grid).
-Vec2 outsidePin(const Project& p, PinAddress a, double distance) {
+/// The way a pin leaves its part (a unit axis vector): the edge of the part's pin outline it sits on — left / right
+/// at the outline's x extremes, top / bottom at its y extremes, a corner pin by its larger offset from the centre —
+/// else away from the centre. (A tall IC's lower right-hand pins are right-hand pins, not bottom ones.)
+Vec2 pinOutward(const Project& p, PinAddress a) {
     const Schematic& s = p.schematic;
     const Component* c = s.find(a.component);
     const Vec2 pin = s.pinPosition({a.component, a.pin});
-    Vec2 d = c ? pin - c->position : Vec2{1, 0};
-    if (std::fabs(d.x) >= std::fabs(d.y)) d = {d.x >= 0 ? 1.0 : -1.0, 0};
-    else d = {0, d.y >= 0 ? 1.0 : -1.0};
+    if (!c) return {1, 0};
+    double x0 = pin.x, x1 = pin.x, y0 = pin.y, y1 = pin.y;
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+        const Vec2 q = s.pinPosition({c->id, i});
+        x0 = std::min(x0, q.x), x1 = std::max(x1, q.x), y0 = std::min(y0, q.y), y1 = std::max(y1, q.y);
+    }
+    const double eps = 1e-6;
+    const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
+    const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
+    const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
+    bool horizontal = std::fabs(off.x) >= std::fabs(off.y);
+    if (atX != atY) horizontal = atX;
+    if (!atX && !atY && x1 - x0 <= eps && y1 - y0 <= eps) {  // a one-pin part: away from its origin
+        const Vec2 d = pin - c->position;
+        horizontal = std::fabs(d.x) >= std::fabs(d.y);
+        return horizontal ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
+    }
+    return horizontal ? Vec2{off.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, off.y >= 0 ? 1.0 : -1.0};
+}
+
+/// Rotation (clockwise degrees, y down) that points a net label's tag along `d`.
+int outwardRotation(Vec2 d) { return d.x > 0.5 ? 0 : d.x < -0.5 ? 180 : d.y > 0.5 ? 90 : 270; }
+
+Vec2 outsidePin(const Project& p, PinAddress a, double distance) {
+    const Vec2 pin = p.schematic.pinPosition({a.component, a.pin});
+    const Vec2 d = pinOutward(p, a);
     return {std::round((pin.x + d.x * distance) / 10) * 10, std::round((pin.y + d.y * distance) / 10) * 10};
 }
 
@@ -568,8 +594,9 @@ void schematicTools(Table& t) {
                       if (name.empty()) name = ca->ref + "_" + std::to_string(pa.pin + 1);
                       for (const PinAddress& q : {pa, pb})
                           onPinSheet(p, q.component, [&] {
-                              const int l = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), name.c_str(),
-                                                                outsidePin(p->project, q, 20).x, outsidePin(p->project, q, 20).y, 0, nullptr);
+                              const Vec2 at = outsidePin(p->project, q, 20);
+                              const int l = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), name.c_str(), at.x, at.y,
+                                                                outwardRotation(pinOutward(p->project, q)), nullptr);
                               check(l >= 0 && sieda_connect(p, q.component, q.pin, l, 0) >= 0, "Could not label " + pinLabel(*p, q));
                               return l;
                           });
@@ -637,8 +664,8 @@ void schematicTools(Table& t) {
               const std::string net = requireStr(a, "net");
               const std::string scope = argStr(a, "scope", "");
               Json labels = Json::array();
-              auto place = [&](Vec2 at) {
-                  const int id = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, 0, nullptr);
+              auto place = [&](Vec2 at, int rotation = 0) {
+                  const int id = sieda_add_component(p, static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, rotation, nullptr);
                   check(id >= 0, "Could not add the label");
                   if (!scope.empty() && scope != "global")
                       check(sieda_set_label_scope(p, id, scope.c_str(), argInt(a, "targetSheet", 0)) == 1, "Invalid scope");
@@ -648,7 +675,7 @@ void schematicTools(Table& t) {
                   for (const auto& pin : a.get("pins").items()) {
                       const PinAddress pa = pinAddress(*p, pin);
                       const int id = onPinSheet(p, pa.component, [&] {
-                          const int l = place(outsidePin(p->project, pa, 20));
+                          const int l = place(outsidePin(p->project, pa, 20), outwardRotation(pinOutward(p->project, pa)));
                           check(sieda_connect(p, pa.component, pa.pin, l, 0) >= 0, "Could not wire the label to " + pinLabel(*p, pa));
                           return l;
                       });
@@ -678,9 +705,11 @@ void schematicTools(Table& t) {
               for (const auto& pin : a.get("pins").items()) {
                   const PinAddress pa = pinAddress(*p, pin);
                   onPinSheet(p, pa.component, [&] {
-                      const Vec2 pos = p->project.schematic.pinPosition({pa.component, pa.pin});
-                      const Vec2 at{std::round(pos.x / 10) * 10, std::round(pos.y / 10) * 10 + 30};
-                      const int g = sieda_add_component(p, static_cast<int>(ComponentKind::Ground), nullptr, at.x, at.y, 0, nullptr);
+                      // Clear of the part: out from a side pin, below a bottom pin, above (upside down) a top pin.
+                      const Vec2 d = pinOutward(p->project, pa);
+                      const Vec2 at = outsidePin(p->project, pa, 30);
+                      const int g = sieda_add_component(p, static_cast<int>(ComponentKind::Ground), nullptr, at.x, at.y,
+                                                        d.y < -0.5 ? 180 : 0, nullptr);
                       check(g >= 0, "Could not add a ground symbol");
                       check(sieda_connect(p, pa.component, pa.pin, g, 0) >= 0, "Could not wire " + pinLabel(*p, pa) + " to ground");
                       return g;

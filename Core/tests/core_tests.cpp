@@ -20512,6 +20512,43 @@ TEST(mcp_render_images) {
     CHECK(mcp::base64Encode("Man") == "TWFu" && mcp::base64Encode("Ma") == "TWE=" && mcp::base64Encode("M") == "TQ==");
 }
 
+TEST(mcp_labels_point_away_from_the_part) {
+    // Labels on an IC's pins: right-hand pins (also the lowest ones of a tall IC) get labels to the right, left-hand
+    // pins labels turned to the left, each beside its own pin and on no other pin's end.
+    const auto root = mcpRoot("labels");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    Json part = Json::object();
+    part["name"] = "PIC16F877A";
+    CHECK(!mcpFailed(mcpTool(s, "library_add_part", part)));
+    const std::vector<std::pair<const char*, const char*>> labels{
+        {"UART_RX", "U1.RC7"}, {"US_ECHO", "U1.RB0"}, {"IR_LEFT", "U1.RA0"}, {"PWM_R", "U1.RC1"}};
+    for (const auto& [net, pin] : labels) {
+        Json a = Json::object();
+        a["net"] = net;
+        a["pins"] = pinArgs({pin});
+        CHECK(!mcpFailed(mcpTool(s, "schematic_net_label", a)));
+    }
+    Json q = Json::object();
+    q["uri"] = "sieda://project/current";
+    const Json project = Json::parse(mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString(""));
+    std::map<std::string, std::pair<double, int>> at;  // label → x, rotation
+    for (const auto& c : project.get("components").items())
+        if (c.get("kind").asInt(-1) == static_cast<int>(ComponentKind::NetLabel))
+            at[c.get("value").asString("")] = {c.get("x").asNumber(), c.get("rotation").asInt(-1)};
+    CHECK(at["UART_RX"].first > 0 && at["UART_RX"].second == 0 && at["US_ECHO"].first > 0 && at["US_ECHO"].second == 0);
+    CHECK(at["IR_LEFT"].first < 0 && at["IR_LEFT"].second == 180 && at["PWM_R"].first < 0 && at["PWM_R"].second == 180);
+    // Every labelled pin is on its own net.
+    Json nets = mcpData(mcpTool(s, "schematic_list_components", Json::object()));
+    std::set<std::string> seen;
+    for (const auto& pin : nets.get("components")[0].get("pins").items())
+        if (pin.get("net").isString()) CHECK(seen.insert(pin.get("net").asString()).second || pin.get("name").asString("") == "VDD" || pin.get("name").asString("") == "VSS");
+    CHECK(seen.count("UART_RX") && seen.count("US_ECHO") && seen.count("IR_LEFT") && seen.count("PWM_R"));
+}
+
 TEST(mcp_multi_page_schematic) {
     // A second page through tools/call: parts go to the active page, a connection across pages becomes a pair of
     // global labels, and a ground for a pin lands on that pin's page whichever page is active.
