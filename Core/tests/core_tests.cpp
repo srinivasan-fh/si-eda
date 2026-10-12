@@ -20870,6 +20870,18 @@ TEST(mcp_decoupling_board_checks_and_consistent_reports) {
     q["query"] = "isp 2x03";
     const Json closest = mcpData(mcpTool(s, "library_search", q));
     CHECK(closest.get("total").asInt(-1) == 0 && closest.get("parts").size() > 0 && closest.has("closest"));
+    // A via joining the GND pours of both layers, with no track, survives an edit and a save / open.
+    Project f = amplifierProject();
+    f.pcb.zones.push_back({"GND", 0, false, 0});
+    f.pcb.zones.push_back({"GND", 1, false, 0});
+    f.pcb.autoPlace(f.schematic, true);
+    Via stitch;
+    stitch.position = {2.5, 2.5};
+    for (size_t n = 0; n < f.schematic.nets().size(); ++n)
+        if (f.schematic.nets()[n].name == "GND") stitch.net = static_cast<int>(n);
+    f.pcb.addVia(stitch);
+    f.schematicChanged();
+    CHECK(f.pcb.vias.size() == 1 && Project::fromJson(Json::parse(f.toJson().dump())).pcb.vias.size() == 1);
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {

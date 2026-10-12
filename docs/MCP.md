@@ -353,10 +353,13 @@ What the agent gets back, so it can wire correctly without guessing:
 - `schematic_build` lays each two-pin part on a named net (a capacitor on a supply, a pull-up on RESET) beside the
   pin it serves and draws a wire where the run is straight and clear, named by a tag halfway along it; the rest
   keeps labels. Parts keep room for their labels.
-- `pcb_autoplace` `decoupling` gives each IC supply pin its own small capacitor (≤ 1 µF; bulk capacitors stay),
-  and reports `boardGrown` when the parts did not fit. A batch `pcb_place_footprint` lifts its own parts first.
+- `pcb_autoplace` `decoupling` gives each IC supply pin its own small capacitor (≤ 1 µF; a regulator's input and
+  output also take bulk ones), puts a crystal (`Y…`) by the pins it drives with its load capacitors beside it, and
+  reports `boardGrown` when the parts did not fit. A batch `pcb_place_footprint` lifts its own parts first; moving
+  a part removes the tracks left on its old pads and the stubs they leave (`copperRemoved`).
+- A via that joins pours only (stitching the GND pours of two layers) is kept through edits and save / open.
 - `pcb_drc` flags a part whose courtyard leaves the board or overlaps another (`DRC_PLACE_*`, a forced pose) and an
-  antenna part with no pour keep-out over it (`DRC_ANTENNA_KEEPOUT`, info).
+  antenna part with no pour keep-out over it (`DRC_ANTENNA_KEEPOUT`, info, with the antenna end's area).
 - `pcb_summary` with `pads: ["U1"]` lists those parts' pads (pin, net, x / y, size, layer).
 - `pcb_autoroute` lists in `failedNets` only nets still open (a pour joined the rest: `joinedLater`).
 - `verify_design` counts parts and nets as `project_summary` does; a board fed through a connector gets

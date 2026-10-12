@@ -479,9 +479,9 @@ std::string packageChoices(ComponentKind kind) {
 /// serve, one capacitor per pin in pin order: one further than 5 mm goes to the nearest legal spot 2.5–6 mm from the
 /// pin (room left for the pins' escape routes). Locked parts stay. Returns "C3 → U1.VDD" for each one moved.
 Json placeDecoupling(SiedaProject* p) {
-    // Each IC supply pin gets the nearest small capacitor (≤ 1 µF; bulk capacitors stay where they are) between its
-    // net and ground, one capacitor per pin; one further than 3 mm goes to the nearest free spot 1.5 – 9 mm from the
-    // pin, on the side away from the IC.
+    // Each IC supply pin gets the nearest small capacitor (≤ 1 µF) between its net and ground, one capacitor per pin
+    // (a regulator's input and output pins take bulk ones too; other bulk capacitors stay); one further than 3 mm
+    // goes to the nearest free spot 1.5 – 9 mm from the pin, on the side away from the IC.
     Json moved = Json::array();
     const Schematic& sch = p->project.schematic;
     const auto pads = p->project.pcb.pads(sch);
@@ -489,23 +489,30 @@ Json placeDecoupling(SiedaProject* p) {
     for (const auto& pad : pads) {
         const Component* c = sch.find(pad.componentId);
         if (!c || pad.net < 0 || pad.pinIndex < 0 || c->def().pins.size() < 3 || sch.netRole(pad.net) != NetRole::Power) continue;
-        if (static_cast<PinType>(c->def().pins[static_cast<size_t>(pad.pinIndex)].type) == PinType::PowerIn)
-            supply.push_back(&pad);
+        const auto type = static_cast<PinType>(c->def().pins[static_cast<size_t>(pad.pinIndex)].type);
+        if (type == PinType::PowerIn || type == PinType::PowerOut) supply.push_back(&pad);
     }
-    std::vector<std::pair<int, int>> caps;  // component id, supply net
+    auto regulator = [&](int id) {  // a part with a supply output: its input and output take bulk capacitors too
+        for (const auto& pin : sch.find(id)->def().pins)
+            if (static_cast<PinType>(pin.type) == PinType::PowerOut) return true;
+        return false;
+    };
+    struct Cap { int id, net; bool bulk; };
+    std::vector<Cap> caps;
     for (const auto& c : sch.components()) {
         if (c.kind != ComponentKind::Capacitor || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2) continue;
-        if (const auto v = parseEngineeringValue(c.value); v && *v > 1.01e-6) continue;
+        const auto v = parseEngineeringValue(c.value);
         const int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
         if (n0 < 0 || n1 < 0) continue;
         const int net = sch.netRole(n0) == NetRole::Ground ? n1 : sch.netRole(n1) == NetRole::Ground ? n0 : -1;
-        if (net >= 0) caps.push_back({c.id, net});
+        if (net >= 0) caps.push_back({c.id, net, v && *v > 1.01e-6});
     }
     struct Pair { double d; const Pad* pad; int cap; };
     std::vector<Pair> pairs;
     for (const Pad* pad : supply)
-        for (const auto& [id, net] : caps)
-            if (net == pad->net) pairs.push_back({(sch.find(id)->pcb.position - pad->position).length(), pad, id});
+        for (const auto& c : caps)
+            if (c.net == pad->net && (!c.bulk || regulator(pad->componentId)))
+                pairs.push_back({(sch.find(c.id)->pcb.position - pad->position).length(), pad, c.id});
     std::stable_sort(pairs.begin(), pairs.end(), [](const Pair& l, const Pair& r) { return l.d < r.d; });
     std::set<const Pad*> served;
     std::set<int> used;
@@ -532,7 +539,98 @@ Json placeDecoupling(SiedaProject* p) {
                     }
                 }
     }
+    // A crystal (Y…) goes beside the IC pins it drives, and each load capacitor (its net to ground) beside it.
+    auto nearest = [&](int id, Vec2 target, double from, double to) {
+        for (double r = from; r <= to; r += 0.5)
+            for (int k = 0; k < 16; ++k)
+                for (int rot : {0, 90}) {
+                    const Vec2 at = target + Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
+                    if (takeJson(sieda_pcb_place_footprint(p, id, at.x, at.y, rot, 0, 0.25, 0)).get("committed").asBool(false))
+                        return true;
+                }
+        return false;
+    };
+    for (const auto& y : sch.components()) {
+        if (y.ref.size() < 2 || y.ref[0] != 'Y' || !std::isdigit(static_cast<unsigned char>(y.ref[1])) || y.pcb.locked || !y.pcb.placed)
+            continue;
+        std::set<int> nets;
+        for (int i = 0; i < static_cast<int>(y.def().pins.size()); ++i)
+            if (const int n = sch.netOf({y.id, i}); n >= 0 && sch.netRole(n) == NetRole::Signal) nets.insert(n);
+        Vec2 sum{0, 0};
+        int count = 0, icId = -1;
+        for (const auto& pad : p->project.pcb.pads(sch)) {
+            const Component* c = sch.find(pad.componentId);
+            if (c && c->id != y.id && c->def().pins.size() >= 3 && nets.count(pad.net)) sum = sum + pad.position, ++count, icId = c->id;
+        }
+        if (!count) continue;
+        const Vec2 pins = sum * (1.0 / count);
+        if ((y.pcb.position - pins).length() > 4 && nearest(y.id, pins, 2.5, 9))
+            moved.push(y.ref + " → " + sch.find(icId)->ref + " " + std::to_string(count) + " pins");
+        for (const auto& c : sch.components()) {
+            if (c.kind != ComponentKind::Capacitor || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2) continue;
+            const int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
+            const int net = nets.count(n0) && n1 >= 0 && sch.netRole(n1) == NetRole::Ground   ? n0
+                            : nets.count(n1) && n0 >= 0 && sch.netRole(n0) == NetRole::Ground ? n1 : -1;
+            if (net < 0) continue;
+            for (const auto& pad : p->project.pcb.pads(sch))
+                if (pad.componentId == y.id && pad.net == net) {
+                    if ((sch.find(c.id)->pcb.position - pad.position).length() > 3 && nearest(c.id, pad.position, 1.5, 6))
+                        moved.push(c.ref + " → " + y.ref);
+                    break;
+                }
+        }
+    }
     return moved;
+}
+
+/// After a part moved: the tracks that ended on its old pads, then every track of those nets left with a free end
+/// and every via left alone, so no stubs stay behind. Returns how many tracks and vias went.
+int removeStranded(Project& pr, const std::vector<Pad>& old) {
+    std::set<int> nets;
+    for (const auto& pad : old)
+        if (pad.net >= 0) nets.insert(pad.net);
+    auto onPad = [](const std::vector<Pad>& pads, Vec2 v, int net) {
+        for (const auto& pad : pads)
+            if (pad.net == net && std::fabs(v.x - pad.position.x) <= pad.size.x / 2 + 0.01 &&
+                std::fabs(v.y - pad.position.y) <= pad.size.y / 2 + 0.01)
+                return true;
+        return false;
+    };
+    auto& tracks = pr.pcb.tracks;
+    auto& vias = pr.pcb.vias;
+    const size_t before = tracks.size() + vias.size();
+    tracks.erase(std::remove_if(tracks.begin(), tracks.end(), [&](const Track& t) {
+                     return nets.count(t.net) && !t.locked && (onPad(old, t.a, t.net) || onPad(old, t.b, t.net));
+                 }), tracks.end());
+    const auto pads = pr.pcb.pads(pr.schematic);
+    for (bool again = true; again;) {
+        auto held = [&](Vec2 v, int net, const Track* self) {  // another track, a via or a pad holds this end
+            if (onPad(pads, v, net)) return true;
+            for (const auto& w : vias)
+                if (w.net == net && (w.position - v).length() <= w.diameter / 2 + 0.01) return true;
+            for (const auto& t : tracks)
+                if (&t != self && t.net == net && ((t.a - v).length() < 0.01 || (t.b - v).length() < 0.01)) return true;
+            return false;
+        };
+        const size_t n = tracks.size();
+        std::vector<char> drop(n, 0);
+        for (size_t i = 0; i < n; ++i)
+            drop[i] = nets.count(tracks[i].net) && !tracks[i].locked && (!held(tracks[i].a, tracks[i].net, &tracks[i]) ||
+                                                                         !held(tracks[i].b, tracks[i].net, &tracks[i]));
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (!drop[i]) tracks[k++] = tracks[i];
+        tracks.resize(k);
+        again = k < n;
+    }
+    vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& w) {
+                   if (!nets.count(w.net)) return false;
+                   for (const auto& t : tracks)
+                       if (t.net == w.net && ((t.a - w.position).length() <= w.diameter / 2 + 0.01 || (t.b - w.position).length() <= w.diameter / 2 + 0.01))
+                           return false;
+                   return !onPad(pads, w.position, w.net);
+               }), vias.end());
+    return static_cast<int>(before - tracks.size() - vias.size());
 }
 
 Json violationsOut(McpServer& s, char* raw) { return summariseViolations(*P(s), takeJson(raw)); }
@@ -2336,9 +2434,10 @@ void pcbTools(Table& t) {
           });
     t.add("pcb", "pcb_autoplace", "Auto place", Kind::Edit, false,
           "Automatic placement: all = true re-places every unlocked footprint; false places only those not on the "
-          "board yet. decoupling: true then gives each IC supply pin the nearest small capacitor (≤ 1 µF) between its "
-          "net and ground, one per pin, and moves one further than 3 mm to the nearest free spot by the pin (shorter "
-          "supply loops; on a dense 2-layer board it leaves the router less room around the IC).",
+          "board yet. decoupling: true then gives each IC supply pin the nearest small capacitor (≤ 1 µF; a regulator's "
+          "input / output also a bulk one) between its net and ground, one per pin, moves one further than 3 mm to the "
+          "nearest free spot by the pin, and puts a crystal (Y…) by the pins it drives with its load capacitors beside "
+          "it (shorter loops; on a dense 2-layer board it leaves the router less room around the IC).",
           Schema().boolean("all", "Re-place everything (default false)")
               .boolean("decoupling", "Then place a small capacitor next to each IC supply pin"),
           [](McpServer& s, const Json& a) {
@@ -2361,7 +2460,8 @@ void pcbTools(Table& t) {
           "Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: "
           "[{ref, x, y, rotation, bottom, force}]). A pose that overlaps another part, leaves the board or hits a "
           "keep-out is refused (the issues are returned) unless force is true; force also moves a locked part (it "
-          "stays locked). A batch tries each refused pose again once the others have moved.",
+          "stays locked). A batch tries each refused pose again once the others have moved. Tracks left on a moved "
+          "part's old pads (and stubs they leave) are removed (copperRemoved).",
           Schema()
               .str("ref", "Designator")
               .num("x", "Centre x (mm)")
@@ -2379,6 +2479,11 @@ void pcbTools(Table& t) {
                   const Component* c = p->project.schematic.find(id);
                   if (!c->hasFootprint()) throw ToolError(c->ref + " has no footprint");
                   const bool force = argBool(e, "force", argBool(a, "force", false)), locked = c->pcb.locked;
+                  std::vector<Pad> oldPads;  // its copper before the move: the tracks on them are ripped up
+                  if (c->pcb.placed)
+                      for (const auto& pad : p->project.pcb.pads(p->project.schematic))
+                          if (pad.componentId == id) oldPads.push_back(pad);
+                  const PcbPlacement was = c->pcb;
                   if (force && locked) sieda_pcb_lock_footprint(p, id, 0);
                   Json r = takeJson(sieda_pcb_place_footprint(p, id, argNum(e, "x", 0), argNum(e, "y", 0),
                                                               argInt(e, "rotation", c->pcb.rotation),
@@ -2389,6 +2494,9 @@ void pcbTools(Table& t) {
                   Json j = obj();
                   j["ref"] = c->ref;
                   for (const char* k : {"x", "y", "rotation", "bottom", "legal", "committed", "issues"}) j[k] = r.get(k);
+                  if (const Component* m = p->project.schematic.find(id); r.get("committed").asBool(false) && !oldPads.empty() &&
+                      ((m->pcb.position - was.position).length() > 1e-6 || m->pcb.rotation != was.rotation || m->pcb.bottom != was.bottom))
+                      if (const int gone = removeStranded(p->project, oldPads)) j["copperRemoved"] = gone;
                   if (!r.get("committed").asBool(false))
                       j["note"] = "Not placed: the pose is illegal (see issues). Try pcb_suggest_placement or force.";
                   return j;
@@ -2736,10 +2844,31 @@ void pcbTools(Table& t) {
                   bool kept = false;
                   for (const auto& k : pr.pcb.settings.keepouts) kept |= k.pours && k.area.intersects(pr.pcb.courtyard(c));
                   if (kept) continue;
+                  // The antenna end: the side of the courtyard furthest from the pads (a module's pads sit at the
+                  // other end and along its sides).
+                  const Rect cy = pr.pcb.courtyard(c);
+                  double lx0 = 1e9, ly0 = 1e9, lx1 = -1e9, ly1 = -1e9;  // the pads' extent
+                  for (const auto& pad : pr.pcb.pads(pr.schematic))
+                      if (pad.componentId == c.id) {
+                          lx0 = std::min(lx0, pad.position.x - pad.size.x / 2), ly0 = std::min(ly0, pad.position.y - pad.size.y / 2);
+                          lx1 = std::max(lx1, pad.position.x + pad.size.x / 2), ly1 = std::max(ly1, pad.position.y + pad.size.y / 2);
+                      }
+                  const Rect lands(lx0, ly0, lx1, ly1);
+                  const double gaps[4] = {lands.y0 - cy.y0, cy.y1 - lands.y1, lands.x0 - cy.x0, cy.x1 - lands.x1};
+                  const int side = static_cast<int>(std::max_element(gaps, gaps + 4) - gaps);
+                  Rect area = cy;
+                  if (side == 0) area.y1 = lands.y0 - 0.5;
+                  else if (side == 1) area.y0 = lands.y1 + 0.5;
+                  else if (side == 2) area.x1 = lands.x0 - 0.5;
+                  else area.x0 = lands.x1 + 0.5;
+                  char box[200];
+                  std::snprintf(box, sizeof box, "{\"x0\":%.2f,\"y0\":%.2f,\"x1\":%.2f,\"y1\":%.2f}", area.x0, area.y0, area.x1, area.y1);
                   Json v = obj(), refs = Json::array();
                   v["code"] = "DRC_ANTENNA_KEEPOUT";
                   v["message"] = c.ref + " has an antenna: keep copper out from under it (pcb_set_keepouts with pours: "
-                                 "true over the antenna end) and place that end at the board edge.";
+                                 "true and tracks / vias false over its antenna end, " + std::string(box) +
+                                 " where it stands now, past the board edge if it can) and place that end at the board edge.";
+                  if (gaps[side] > 1) v["area"] = Json::parse(box);
                   v["severity"] = "info";
                   refs.push(c.ref);
                   v["refs"] = refs;
