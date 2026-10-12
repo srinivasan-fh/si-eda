@@ -408,11 +408,13 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         }
     }
 
-    // A capacitor on `net` whose other pin is on ground.
-    auto capToGround = [&](int net) {
+    // Capacitors on `net` whose other pin is on ground (`highFrequency`: 1 µF or less, not bulk).
+    auto capToGround = [&](int net, bool highFrequency = false) {
         int n = 0;
         for (const auto& pr : nets[static_cast<size_t>(net)].pins) {
             const Component* cap = sch.find(pr.component);
+            const auto farads = cap ? parseEngineeringValue(primaryValue(cap->value)) : std::nullopt;
+            if (highFrequency && farads && *farads > 1.01e-6) continue;
             if (cap && cap->kind == ComponentKind::Capacitor && cap->def().pins.size() == 2) {
                 const int other = sch.netOf({cap->id, pr.pin == 0 ? 1 : 0});
                 n += other >= 0 && sch.netRole(other) == NetRole::Ground;
@@ -434,15 +436,15 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         }
     }
     for (const auto& [n, list] : supplyPins) {
-        const int caps = capToGround(n);
-        if (caps > 0 && caps < static_cast<int>(list.size())) {
+        const int caps = capToGround(n, true);  // a bulk capacitor does not decouple a pin
+        if (capToGround(n) > 0 && caps < static_cast<int>(list.size())) {
             std::string names;
             for (const auto& x : list) names += (names.empty() ? "" : ", ") + x;
             RuleViolation v;
             v.severity = Severity::Warning;
             v.code = "VAL_DECOUPLING_PER_PIN";
             v.message = nets[static_cast<size_t>(n)].name + " feeds " + std::to_string(list.size()) + " supply pins (" + names +
-                        ") but has " + std::to_string(caps) + " decoupling capacitor" + (caps == 1 ? "" : "s") +
+                        ") but has " + std::to_string(caps) + " decoupling capacitor" + (caps == 1 ? "" : "s") + " of 1 µF or less" +
                         ": one 100 nF per supply pin, each placed at its pin.";
             out.push_back(std::move(v));
         }

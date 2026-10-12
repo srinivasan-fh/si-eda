@@ -327,7 +327,11 @@ What the agent gets back, so it can wire correctly without guessing:
 - `pcb_autoroute`: a whole-board route on a small board that leaves connections open tries again, keeping what
   helps: shape-based completion, then each two-pin part on an open connection turned round. The result lists the
   `repairs` kept. A partial preset (`nets`, `area`, `fanout`) applies to its call only.
-- `pcb_set_keepouts` takes `pours: true` to keep copper pours out of an area (the area under an antenna).
+- `pcb_set_keepouts` takes `pours: true` to keep copper pours out of an area (the area under an antenna); Auto Place
+  keeps parts out of a keep-out on every layer.
+- In `schematic_build`, neighbouring pins of one part on one side and net (an IC's supply pins) share one label,
+  joined by a short wire along their ends. A part whose package is wrong is still placed; the error lists the
+  packages it comes in.
 - The built-in op-amp has no supply pins and swings ±15 V unless its value sets the output limits
   (`"LM358 VOH=3.5 VOL=0"`); `schematic_validate` warns (`VAL_OPAMP_RAILS`) when the supply is lower.
 - `schematic_validate` also checks one decoupling capacitor per supply pin of a rail (`VAL_DECOUPLING_PER_PIN`),

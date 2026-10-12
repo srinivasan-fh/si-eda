@@ -418,6 +418,13 @@ Json finishRouting(SiedaProject* p, Json* stats) {
     return done;
 }
 
+/// "Packages: R_0402, R_0603 …" for an error that names a package the part does not come in.
+std::string packageChoices(ComponentKind kind) {
+    std::string list;
+    for (const auto& v : Library::packageVariants(kind)) list += (list.empty() ? "" : ", ") + v;
+    return list.empty() ? "This kind has one package." : "Packages: " + list + ".";
+}
+
 Json violationsOut(McpServer& s, char* raw) { return summariseViolations(*P(s), takeJson(raw)); }
 
 /// Pad centre and layer of a pin on the board.
@@ -634,7 +641,8 @@ void schematicTools(Table& t) {
               check(id >= 0, "Could not add the component");
               if (a.has("package"))
                   check(sieda_set_component_package(p, id, argStr(a, "package").c_str()) == 1,
-                        "Unknown package \"" + argStr(a, "package") + "\" for this part (the part was added)");
+                        "Unknown package \"" + argStr(a, "package") + "\" for this part (the part was added). " +
+                            packageChoices(static_cast<ComponentKind>(kind)));
               return out(componentJson(*p, id));
           });
     t.add("schematic", "schematic_remove_component", "Remove component", Kind::Destructive, false,
@@ -665,7 +673,8 @@ void schematicTools(Table& t) {
           [](McpServer& s, const Json& a) {
               const int id = componentId(*P(s), a.get("ref"));
               check(sieda_set_component_package(P(s), id, argStr(a, "package").c_str()) == 1,
-                    "This part has no package \"" + argStr(a, "package") + "\"");
+                    "This part has no package \"" + argStr(a, "package") + "\". " +
+                        packageChoices(proj(s).schematic.find(id)->kind));
               return out(componentJson(*P(s), id, false));
           });
     t.add("schematic", "schematic_rename", "Rename designator", Kind::Edit, true, "Changes a part's designator.",
@@ -1055,6 +1064,8 @@ void schematicTools(Table& t) {
           [](McpServer& s, const Json& a) {
               Json placed = Json::array(), failed = Json::array();
               std::vector<int> ids, unplaced;  // unplaced: parts without x / y, laid out here
+              std::set<int> before;
+              for (const auto& c : proj(s).schematic.components()) before.insert(c.id);
               auto run = [&](const std::string& tool, const Json& args, const std::string& what) {
                   for (const auto& t : mcpTools())
                       if (t.name == tool) try {
@@ -1079,8 +1090,12 @@ void schematicTools(Table& t) {
                       }
                   const Json r = run(tool, args,
                                      part.get("ref").asString(catalog ? part.get("part").asString("") : "part"));
-                  if (!r.get("id").isNumber()) continue;
-                  ids.push_back(r.get("id").asInt());
+                  int id = r.get("id").isNumber() ? r.get("id").asInt() : -1;
+                  if (id < 0)  // added, then a step failed (an unknown package): lay it out all the same
+                      if (const Component* c = proj(s).schematic.findByRef(part.get("ref").asString("")); c && !before.count(c->id))
+                          id = c->id;
+                  if (id < 0) continue;
+                  ids.push_back(id);
                   if (!part.has("x")) unplaced.push_back(ids.back());
               }
               layoutBuilt(P(s), unplaced, a.get("wires"));
@@ -1095,8 +1110,44 @@ void schematicTools(Table& t) {
                   return ok;
               };
               for (const auto& [net, pins] : a.get("nets").fields()) {
-                  Json args = obj();
-                  args["pins"] = valid(pins, net);
+                  // Neighbouring pins of one part on one side (an IC's VDD pins) share one label: a short wire
+                  // joins their ends, so their labels do not stack on top of each other.
+                  Json args = obj(), labelled = Json::array();
+                  struct Seen { Json pin; PinAddress at; Vec2 pos, out; };
+                  std::vector<Seen> seen;
+                  const Json checked = valid(pins, net);
+                  for (const auto& pin : checked.items()) {
+                      const PinAddress pa = pinAddress(*P(s), pin);
+                      const Vec2 pos = proj(s).schematic.pinPosition({pa.component, pa.pin}), d = pinOutward(proj(s), pa);
+                      bool joined = false;
+                      // Same part, same side, in line, and no other pin of the part between the two.
+                      auto neighbours = [&](const Seen& o) {
+                          if (o.at.component != pa.component || (o.out - d).length() > 0.1) return false;
+                          const bool vertical = std::fabs(d.x) > 0.5;  // pins on the left / right: a column
+                          if (std::fabs(vertical ? o.pos.x - pos.x : o.pos.y - pos.y) > 0.1) return false;
+                          const double lo = std::min(vertical ? o.pos.y : o.pos.x, vertical ? pos.y : pos.x);
+                          const double hi = std::max(vertical ? o.pos.y : o.pos.x, vertical ? pos.y : pos.x);
+                          const Component* c = proj(s).schematic.find(pa.component);
+                          for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+                              const Vec2 q = proj(s).schematic.pinPosition({c->id, i});
+                              const double along = vertical ? q.y : q.x;
+                              if (std::fabs(vertical ? q.x - pos.x : q.y - pos.y) < 0.1 && along > lo + 0.1 && along < hi - 0.1)
+                                  return false;
+                          }
+                          return true;
+                      };
+                      for (const Seen& o : seen)
+                          if (!joined && neighbours(o)) {
+                              Json w = obj();
+                              w["from"] = o.pin;
+                              w["to"] = pin;
+                              run("schematic_connect", w, net);
+                              joined = true;
+                          }
+                      seen.push_back({pin, pa, pos, d});
+                      if (!joined) labelled.push(pin);
+                  }
+                  args["pins"] = labelled;
                   if (!args.get("pins").size()) continue;
                   std::string up = net;
                   for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
@@ -2042,7 +2093,9 @@ void pcbTools(Table& t) {
           "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
           "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. A whole-board route "
           "on a small board that leaves connections open tries again (shape-based completion, two-pin parts turned "
-          "round) and lists the repairs kept. Partial presets (nets, area, fanout) apply to this call only. Returns "
+          "round) and lists the repairs kept. A whole-board route re-routes every net, hand routing included: to keep "
+          "hand-routed nets, route the others with preset nets. A preset or options given become the board's strategy, "
+          "except partial ones (nets, area, fanout), which apply to this call only. Returns "
           "routed / failed connections, vias and track length.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")
@@ -2075,12 +2128,12 @@ void pcbTools(Table& t) {
               const Json repairs = finishRouting(p, &stats);
               if (repairs.size()) j["repairs"] = repairs;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
+              j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed
               const AutorouteOptions used = p->project.pcb.settings.autorouter;
               if ((used.scoped() || used.fanoutOnly) && !previous.scoped() && !previous.fanoutOnly)
                   p->project.pcb.settings.autorouter = previous;
               j["stats"] = stats;
               j["unroutedConnections"] = p->project.pcb.ratsnest(p->project.schematic).size();
-              j["options"] = takeJson(sieda_pcb_autoroute_options(p));
               const Json report = takeJson(sieda_pcb_route_report(p));
               if (report.isObject()) j["metrics"] = report.get("metrics");
               return out(j);

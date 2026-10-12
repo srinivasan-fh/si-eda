@@ -20804,6 +20804,15 @@ TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
         CHECK(f.pcb.zoneFills(f.schematic)[0].islandAt({4, 4}) < 0 && f.pcb.zoneFills(f.schematic)[0].area() > 0);
         const Json saved = keepoutsToJson(f.pcb.settings.keepouts);
         CHECK(saved.items().front().get("pours").asBool(false));
+        // Auto Place keeps parts out of an all-layer keep-out.
+        Project g = amplifierProject();
+        g.pcb.settings.width = 60;
+        g.pcb.settings.height = 40;
+        RouteKeepout side;
+        side.area = Rect(0, 0, 25, 40);
+        g.pcb.settings.keepouts.push_back(side);
+        g.pcb.autoPlace(g.schematic, true);
+        for (const auto& pad : g.pcb.pads(g.schematic)) CHECK(pad.position.x > 25);
     }
     // An op-amp with no output limits on a 5 V supply is flagged; with them the output clips; the gain at 1 kHz.
     CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
@@ -20827,13 +20836,15 @@ TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
     const Json tran = mcpData(mcpTool(s, "sim_transient", Json::parse(R"J({"stop": "3m", "step": "10u", "probes": ["OUT"]})J")));
     CHECK(tran.get("measurements").get("OUT").get("max").asNumber() <= 3.5 + 1e-6 &&
           tran.get("measurements").get("OUT").get("max").asNumber() > 3.4);  // 5.5 V asked: clipped at VOH
-    // Chip-aware review: one decoupling capacitor for VCC and AVCC, a crystal side with no load capacitor, BOOT0 open.
+    // Chip-aware review: one decoupling capacitor for VCC and AVCC (the 10 µF bulk one does not count), a crystal side
+    // with no load capacitor, BOOT0 open.
     CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
     review = mcpData(mcpTool(s, "schematic_build", Json::parse(R"J({
         "parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "U1", "part": "ATMEGA328P-PU"},
                   {"ref": "C1", "kind": "capacitor", "value": "100n"}, {"ref": "Y1", "part": "Crystal_16MHz"},
-                  {"ref": "C2", "kind": "capacitor", "value": "22p"}, {"ref": "U2", "part": "STM32F103RBT6"}],
-        "nets": {"+5V": ["V1.+", "U1.VCC", "U1.AVCC", "C1.1"], "GND": ["V1.-", "C1.2", "C2.2"],
+                  {"ref": "C2", "kind": "capacitor", "value": "22p"}, {"ref": "U2", "part": "STM32F103RBT6"},
+                  {"ref": "C3", "kind": "capacitor", "value": "10u"}],
+        "nets": {"+5V": ["V1.+", "U1.VCC", "U1.AVCC", "C1.1", "C3.1"], "GND": ["V1.-", "C1.2", "C2.2", "C3.2"],
                  "XTAL1": ["U1.XTAL1", "Y1.1", "C2.1"], "XTAL2": ["U1.XTAL2", "Y1.2"]}, "pins": false})J")))
                  .get("checks").get("review");
     std::set<std::string> codes;
@@ -20847,6 +20858,18 @@ TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
     CHECK(has("VAL_CRYSTAL_LOAD:Y1.2"));
     CHECK(!has("VAL_CRYSTAL_LOAD:Y1.1"));
     CHECK(has("VAL_FLOATING_CONTROL:U2.BOOT0"));
+    // Neighbouring supply pins of one part share one label; a wrong package lists the right ones.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json esp = mcpData(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ESP32-C3"}, {"ref": "L1", "kind": "inductor", "package": "L_0402"}],
+        "nets": {"+3V3": ["U1.VDD3P3(2)", "U1.VDD3P3_RTC", "U1.VDD3P3_CPU", "U1.VDDA(31)"]}, "pins": false})J")));
+    CHECK(esp.get("parts").size() == 2 && esp.get("failed")[size_t{0}].asString("").find("Packages: L_0603") != std::string::npos);
+    Json syms = Json::object();
+    syms["netSymbols"] = true;
+    int labels = 0;
+    const Json listed = mcpData(mcpTool(s, "schematic_list_components", syms));
+    for (const auto& c : listed.get("components").items()) labels += c.get("kind").asString("") == "net_label";
+    CHECK(labels == 1);
 }
 
 TEST(mcp_library_search_wireless_words_and_new_radio_parts) {
