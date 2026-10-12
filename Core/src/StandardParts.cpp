@@ -64,6 +64,7 @@ void catalog(std::vector<StandardPart>& parts, const char* category, const char*
     p.spec.package.pitch = pitch;
     p.spec.package.bodySize = bodySize;
     p.spec.datasheet = std::string("Pinout and ") + footprint + " footprint from the " + manufacturer + " datasheet";
+    p.footprint = footprint;
     parts.push_back(std::move(p));
 }
 

@@ -20804,6 +20804,74 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_decoupling_board_checks_and_consistent_reports) {
+    // Decoupling: each supply pin gets its own small capacitor, the 10 µF bulk one stays put. A forced pose off the
+    // board and an antenna without a pour keep-out show in pcb_drc; a grown board is reported; verify counts parts
+    // like the summary and a connector-fed board has no stimulus warning; searches name the footprint and fall back
+    // to the closest parts; pcb_summary lists a part's pads; the update report skips single-pin nets.
+    const auto root = mcpRoot("round5");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ATMEGA328P-AU"}, {"ref": "J1", "part": "PinHeader_1x02_P2.54mm"},
+                  {"ref": "C1", "kind": "capacitor", "value": "10u"}, {"ref": "C2", "kind": "capacitor", "value": "100n"},
+                  {"ref": "C3", "kind": "capacitor", "value": "100n"}, {"ref": "C4", "kind": "capacitor", "value": "100n"}],
+        "nets": {"+5V": ["J1.1", "U1.VCC(4)", "U1.VCC(6)", "U1.AVCC", "C1.1", "C2.1", "C3.1", "C4.1"],
+                 "GND": ["J1.2", "U1.GND(3)", "U1.GND(5)", "U1.GND(21)", "C1.2", "C2.2", "C3.2", "C4.2"]}, "pins": false})J"))));
+    const Json eco = mcpData(mcpTool(s, "pcb_update_from_schematic", Json::object()));
+    CHECK(eco.get("report").items().back().asString("").find("single-pin nets") != std::string::npos);
+    Json all = Json::object();
+    all["all"] = true;
+    all["decoupling"] = true;
+    const Json placed = mcpData(mcpTool(s, "pcb_autoplace", all));
+    std::set<std::string> served;
+    for (const auto& m : placed.get("decouplingPlaced").items()) served.insert(m.asString("").substr(0, 2));
+    CHECK(!served.count("C1"));
+    Json pads = Json::object();
+    pads["pads"] = Json::parse(R"(["U1", "C2", "C3", "C4"])");
+    const Json board = mcpData(mcpTool(s, "pcb_summary", pads));
+    CHECK(board.get("pads").get("U1").size() == 32 && board.get("pads").get("U1")[0].has("x"));
+    for (const char* cap : {"C2", "C3", "C4"}) {  // within reach of a supply pad
+        double nearest = 1e9;
+        for (const auto& q : board.get("pads").get(cap).items())
+            for (const auto& u : board.get("pads").get("U1").items())
+                if (u.get("net").asString("") == "+5V")
+                    nearest = std::min(nearest, std::hypot(q.get("x").asNumber() - u.get("x").asNumber(),
+                                                           q.get("y").asNumber() - u.get("y").asNumber()));
+        CHECK(nearest < 10);
+    }
+    const Json verify = mcpData(mcpTool(s, "verify_design", Json::object()));
+    for (const auto& st : verify.get("stages").items()) {
+        if (st.get("id").asString("") == "erc") CHECK(st.get("details")[0].asString("") == "6 components, 2 nets");
+        for (const auto& f : st.get("findings").items())
+            if (f.get("code").asString("") == "VER_NO_SOURCE") CHECK(f.get("severity").asString("") == "info");
+    }
+    // A forced pose half off the board, an antenna module without a pour keep-out.
+    CHECK(!mcpFailed(mcpTool(s, "library_add_part", Json::parse(R"({"name": "ESP32-C3-MINI-1", "ref": "U2"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"ref": "U2", "x": 2, "y": 30, "force": true})"))));
+    std::set<std::string> drc;
+    const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    for (const auto& v : drcResult.get("violations").items()) drc.insert(v.get("code").asString(""));
+    CHECK(drc.count("DRC_PLACE_OUTSIDE") && drc.count("DRC_ANTENNA_KEEPOUT"));
+    // Too many parts for the board: it grows, and says so.
+    Json size = Json::object();
+    size["width"] = 12;
+    size["height"] = 12;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", size)));
+    CHECK(mcpData(mcpTool(s, "pcb_autoplace", all)).get("boardGrown").asString("").find("grew from 12 x 12") != std::string::npos);
+    // Search: the footprint a part's pads follow; nothing with every word gives the closest parts.
+    Json q = Json::object();
+    q["query"] = "ATMEGA328P-AU";
+    CHECK(mcpData(mcpTool(s, "library_search", q)).get("parts")[0].get("package").asString("") == "TQFP-32_7x7mm_P0.8mm");
+    q["query"] = "isp 2x03";
+    const Json closest = mcpData(mcpTool(s, "library_search", q));
+    CHECK(closest.get("total").asInt(-1) == 0 && closest.get("parts").size() > 0 && closest.has("closest"));
+}
+
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
     // A USB-C input with its CC pull-downs routes completely in one call (the repair turns the blocking resistor);
     // a partial preset applies to its call only.

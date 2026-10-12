@@ -14,6 +14,7 @@ namespace sieda {
 struct StandardPart {
     std::string category;  // "Timers", "Regulators", "Op-Amps", "Microcontrollers · Microchip", "Logic", "Drivers", "Connectors"
     CustomPartSpec spec;
+    std::string footprint;  // the KiCad footprint a catalog part's pads follow ("TQFP-32_7x7mm_P0.8mm"); empty: none
 };
 
 const std::vector<StandardPart>& standardParts();

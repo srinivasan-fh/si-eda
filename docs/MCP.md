@@ -350,6 +350,19 @@ What the agent gets back, so it can wire correctly without guessing:
   connections still open returns `hints` (an exposed pad: thermal vias and a pour; a finer rule preset).
 - Catalog: the ESP32-C3-MINI-1 (Espressif's KiCad library) and ESP32-C3-WROOM-02 modules, 12 / 25 / 40 MHz
   3.2 × 2.5 mm crystals and a 2.45 GHz chip antenna; the USB-C receptacle and the 6 mm switch have all their pads.
+- `schematic_build` lays each two-pin part on a named net (a capacitor on a supply, a pull-up on RESET) beside the
+  pin it serves and draws a wire where the run is straight and clear, named by a tag halfway along it; the rest
+  keeps labels. Parts keep room for their labels.
+- `pcb_autoplace` `decoupling` gives each IC supply pin its own small capacitor (≤ 1 µF; bulk capacitors stay),
+  and reports `boardGrown` when the parts did not fit. A batch `pcb_place_footprint` lifts its own parts first.
+- `pcb_drc` flags a part whose courtyard leaves the board or overlaps another (`DRC_PLACE_*`, a forced pose) and an
+  antenna part with no pour keep-out over it (`DRC_ANTENNA_KEEPOUT`, info).
+- `pcb_summary` with `pads: ["U1"]` lists those parts' pads (pin, net, x / y, size, layer).
+- `pcb_autoroute` lists in `failedNets` only nets still open (a pour joined the rest: `joinedLater`).
+- `verify_design` counts parts and nets as `project_summary` does; a board fed through a connector gets
+  `VER_NO_SOURCE` as info.
+- `library_search` gives a catalog part's KiCad footprint as its `package`; when no part has every word it lists
+  the parts matching the most words (`closest`). `pcb_update_from_schematic` sums up single-pin nets in one line.
 
 ## Resources and prompts
 
@@ -487,7 +500,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_net_places` | read | Every place a net appears (pins, labels, ports, entries, buses, grounds) across the sheets. |
 | `schematic_erc` | read | Runs the ERC: unconnected pins, driver conflicts, missing ground, power pins without a source, hierarchy, bus and directive errors. |
 | `schematic_validate` | read | Checks values and ratings (E-series values, decoupling, part ratings from the DC operating point) and reviews the design: an LED with no series resistor, a reset / enable input left floating. |
-| `schematic_build` | edit | Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets ground symbols; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. |
+| `schematic_build` | edit | Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets ground symbols; a 2 – 3 pin signal net is drawn as wires with one label; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. |
 | `schematic_set_erc_severity` | edit | Reports an ERC rule as error, warning, info or off ("default" restores it). |
 | `schematic_annotate` | edit | Re-numbers designators in reading order (rows or columns), optionally keeping existing ones or numbering by sheet (R101, R201…). |
 | `schematic_find` | read | Finds text in designators, values, net labels, net names (and pins) across every sheet. |
@@ -554,7 +567,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_remove_pour` | edit (destructive) | Removes one copper pour by index (pcb_summary zones) or all of them. |
 | `pcb_add_mounting_hole` | edit | Adds a non-plated mounting hole with a keep-out (default M3: 3.2 mm drill). |
 | `pcb_set_keepouts` | edit | Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias, pours}] (mm). |
-| `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks. |
+| `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks, and flags a part whose courtyard leaves the board or overlaps another part (DRC_PLACE_*, a forced pose). |
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
 | `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 2 mm pitch), optionally inside an area. |
 | `pcb_length_rules` | edit | Length / phase matching: enable serpentine tuning and tolerances, set per-net length rules [{net, target, tolerance}] (target 0 removes), match groups [{name, nets:[…], tolerance}], and tune now. |
