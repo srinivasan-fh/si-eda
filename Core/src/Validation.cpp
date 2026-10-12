@@ -1,6 +1,7 @@
 #include "sieda/Validation.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <map>
 #include <set>
@@ -321,6 +322,90 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                           (imax > 0 ? fmt(imax, "A") + " continuous, " + fmt(4 * imax, "A") + " peak" : std::string()) +
                           (imax > 0 && pmax > 0 ? ", " : "") + (pmax > 0 ? fmt(pmax, "W") : std::string()) + ").";
         addOnce(sev, "VAL_TRANSIENT_STRESS", msg, c);
+    }
+    return out;
+}
+
+std::vector<RuleViolation> designReview(const Schematic& sch) {
+    std::vector<RuleViolation> out;
+    auto add = [&](Severity s, const std::string& code, const std::string& msg, const Component& c) {
+        RuleViolation v;
+        v.severity = s;
+        v.code = code;
+        v.message = msg;
+        v.components = {c.id};
+        v.location = c.position;
+        v.hasLocation = true;
+        out.push_back(std::move(v));
+    };
+    const auto& nets = sch.nets();
+    // --- An LED (or a series string of them) needs something that sets its current.
+    std::set<int> seenLeds;
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::LED || seenLeds.count(c.id)) continue;
+        std::vector<const Component*> group{&c};
+        seenLeds.insert(c.id);
+        bool limited = false;
+        for (size_t g = 0; g < group.size(); ++g)
+            for (int p = 0; p < 2; ++p) {
+                const int n = sch.netOf({group[g]->id, p});
+                // In series means on the LED's own net: a resistor elsewhere on a supply rail does not count.
+                if (n < 0 || sch.netRole(n) != NetRole::Signal) continue;
+                const auto& pins = nets[static_cast<size_t>(n)].pins;
+                for (const auto& pr : pins) {
+                    const Component* o = sch.find(pr.component);
+                    if (!o || o == group[g]) continue;
+                    if (o->kind == ComponentKind::Resistor || o->kind == ComponentKind::CurrentSource) limited = true;
+                    else if (pins.size() == 2 && o->kind == ComponentKind::LED && seenLeds.insert(o->id).second)
+                        group.push_back(o);
+                }
+            }
+        if (!limited)
+            add(Severity::Warning, "VAL_LED_NO_RESISTOR",
+                c.ref + " has no series resistor: add one sized for its current (e.g. (V − Vf) / 5 mA), unless a "
+                        "constant-current driver feeds it.", c);
+    }
+
+    // --- Reset / enable inputs must be tied to a level (pull-up, pull-down, a supply or a driver), not left open.
+    static const std::set<std::string> controls = {"RST", "RESET", "NRST", "NRESET", "MCLR", "EN", "ENABLE", "CE",
+                                                   "SHDN", "NSHDN", "CHIP_PU", "CHIP_EN", "PDN", "NPD", "SLEEP",
+                                                   "NSLEEP", "STBY", "RUN"};
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::Custom && c.kind != ComponentKind::PartUnit) continue;
+        const auto& pins = c.def().pins;
+        for (size_t i = 0; i < pins.size(); ++i) {
+            const auto t = static_cast<PinType>(pins[i].type);
+            if (t != PinType::Input && t != PinType::Bidirectional) continue;
+            // Each function of a multi-function pin ("PC6/RST"), without its active-low marks ("~{RESET}", "!EN").
+            bool control = false;
+            std::string name;
+            for (char ch : pins[i].name + "/") {
+                if (ch == '/') {
+                    control |= controls.count(name) > 0;
+                    name.clear();
+                } else if (ch != '~' && ch != '!' && ch != '{' && ch != '}') {
+                    name += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                }
+            }
+            if (!control || c.isNoConnect(static_cast<int>(i))) continue;
+            const int n = sch.netOf({c.id, static_cast<int>(i)});
+            bool set = n >= 0 && sch.netRole(n) != NetRole::Signal;
+            if (n >= 0)
+                for (const auto& pr : nets[static_cast<size_t>(n)].pins) {
+                    const Component* o = sch.find(pr.component);
+                    if (!o || isNetSymbolKind(o->kind) || (o == &c && pr.pin == static_cast<int>(i))) continue;
+                    // A resistor, a source or a driving pin sets the level; a switch, a connector or a capacitor
+                    // (passive pins) leaves it open part of the time.
+                    const auto ot = static_cast<PinType>(o->def().pins[static_cast<size_t>(pr.pin)].type);
+                    if (o->kind == ComponentKind::Resistor || isSourceKind(o->kind) || ot == PinType::Output ||
+                        ot == PinType::PowerOut || ot == PinType::Bidirectional || ot == PinType::OpenCollector)
+                        set = true;
+                }
+            if (!set)
+                add(Severity::Warning, "VAL_FLOATING_CONTROL",
+                    c.ref + "." + pins[i].name + " is floating: tie it to its supply (or GND) through a resistor, or "
+                                                   "drive it, so the part starts in a known state.", c);
+        }
     }
     return out;
 }

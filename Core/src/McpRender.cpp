@@ -485,6 +485,49 @@ Scene schematicScene(const Project& project, int sheet) {
                     if (x1 - x0 > 30) x0 += 10, x1 -= 10;
                     if (y1 - y0 > 30) y0 += 10, y1 -= 10;
                 }
+                // Op-amps, capacitors, diodes / LEDs and switches get their usual glyph, laid along their pins.
+                const auto at = [&](int i) { return sch.pinPosition({c.id, i}); };
+                const bool twoPin = pins.size() == 2 && (c.kind == ComponentKind::Capacitor || c.kind == ComponentKind::Diode ||
+                                                         c.kind == ComponentKind::LED || c.kind == ComponentKind::Switch);
+                if (twoPin || (c.kind == ComponentKind::OpAmp && pins.size() == 3)) {
+                    const Vec2 a = twoPin ? at(0) : (at(0) + at(1)) * 0.5, e = twoPin ? at(1) : at(2);
+                    const double len = std::hypot(e.x - a.x, e.y - a.y);
+                    const Vec2 u = len > 0 ? (e - a) * (1 / len) : Vec2{1, 0}, n{-u.y, u.x}, m = (a + e) * 0.5;
+                    if (c.kind == ComponentKind::OpAmp) {
+                        const Vec2 base = a + u * 10, tip = e - u * 10;
+                        s.polygon({base + n * 25, base - n * 25, tip}, false, 1.5, body);
+                        s.line(tip, e, 1.2, pinC);
+                        for (int i = 0; i < 2; ++i) {
+                            const Vec2 p = at(i), q = p + u * 10;
+                            s.line(p, q, 1.2, pinC);
+                            s.text(q + u * 6 + Vec2{0, 3}, i == 0 ? "+" : "-", 9, body, true);
+                        }
+                    } else if (c.kind == ComponentKind::Capacitor) {
+                        s.line(a, m - u * 3, 1.2, pinC);
+                        s.line(e, m + u * 3, 1.2, pinC);
+                        s.line(m - u * 3 + n * 10, m - u * 3 - n * 10, 2, body);
+                        s.line(m + u * 3 + n * 10, m + u * 3 - n * 10, 2, body);
+                    } else if (c.kind == ComponentKind::Switch) {
+                        s.line(a, m - u * 10, 1.2, pinC);
+                        s.line(e, m + u * 10, 1.2, pinC);
+                        s.disc(m - u * 10, 2, body);
+                        s.disc(m + u * 10, 2, body);
+                        s.line(m - u * 10, m + u * 9 + n * 8, 1.5, body);
+                    } else {  // anode → cathode: triangle and bar
+                        s.line(a, m - u * 6, 1.2, pinC);
+                        s.line(e, m + u * 6, 1.2, pinC);
+                        s.polygon({m - u * 6 + n * 7, m - u * 6 - n * 7, m + u * 6}, c.kind == ComponentKind::LED, 1.5, body);
+                        s.line(m + u * 6 + n * 7, m + u * 6 - n * 7, 1.5, body);
+                        if (c.kind == ComponentKind::LED)
+                            for (double k : {-2.0, 3.0}) s.line(m + u * k + n * 9, m + u * (k + 4) + n * 15, 1, body);
+                    }
+                    for (int i = 0; i < static_cast<int>(pins.size()); ++i) s.disc(at(i), 1.6, pinC);
+                    s.text({(x0 + x1) / 2, y0 - 4}, sch.displayRef(c), 8, textC, true);
+                    if (!c.value.empty()) s.text({(x0 + x1) / 2, y1 + 10}, c.value, 7, textC, true);
+                    grow(b, any, {(x0 + x1) / 2, y0 - 14});
+                    grow(b, any, {(x0 + x1) / 2, y1 + 12});
+                    break;
+                }
                 s.box(Rect(x0, y0, x1, y1), true, 0, "#fff7e6");
                 s.box(Rect(x0, y0, x1, y1), false, 1.5, body);
                 for (size_t i = 0; i < pins.size(); ++i) {

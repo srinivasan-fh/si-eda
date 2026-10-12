@@ -302,7 +302,27 @@ What the agent gets back, so it can wire correctly without guessing:
 - `schematic_connect` refuses to join two differently named nets (`VCC` and `GND`) unless `merge` is true, and its
   `warnings` name any part whose two pins end up on one net. A chain puts all its pins on one net; it does not pass
   through a part. `N$…` names are automatic and change; `schematic_net_label` names a net.
-- `schematic_erc` adds `unconnectedPins` per part; `schematic_set_no_connect` takes `pins` to mark the unused ones.
+- Each part also gives its `bounds` (`x0`, `y0`, `x1`, `y1`), so other parts and labels can be kept outside it.
+  Built-in parts have pin types too: a source's `+` is power_out, an op-amp's `IN±` are inputs and `OUT` an output.
+- `schematic_erc` gives a `status` (clean / warnings / errors; `clean` alone means no errors) and `unconnectedPins` per part, with one summary line
+  for them instead of one violation per pin; `schematic_set_no_connect` takes `pins` to mark the unused ones.
+- `schematic_validate` also reviews the design: no decoupling capacitor on an IC supply pin, an LED with nothing that
+  sets its current (`VAL_LED_NO_RESISTOR`), a reset / enable input left floating (`VAL_FLOATING_CONTROL`). The two
+  new checks run only here, not in the app's verification.
+- `schematic_build` builds a circuit in one call:
+  `{"parts":[{"ref":"U1","part":"NE555"},{"ref":"R1","kind":"resistor","value":"1k"}],
+  "nets":{"VCC":["U1.VCC"],"GND":["U1.GND"]},"wires":[["U1.OUT","R1.1"]],"noConnect":["U1.CONT"]}`.
+  Named nets get net labels (`GND` gets ground symbols). Wired parts are placed side by side so the wires run
+  straight, and the rest go in rows. It returns `checks` (the ERC and the review), the parts with their nets
+  (`"pins": false` gives only pin number → net) and every step that `failed` (a wrong pin drops only itself). A `part` may also be one made with `library_create_part`.
+- `project_quickstart` returns the quick start for clients that cannot read MCP resources.
+- `pcb_drc` lists each `unrouted` connection by its pins and net (`{"from":"J1.CC1","to":"R1.1","net":"N$1"}`).
+  `schematic_remove_component` also removes the net labels and grounds that were wired to that part alone, and
+  `schematic_move_component` moves them with it.
+- `library_search` that matches nothing says how many parts each word matches. `library_check_part` checks a
+  parametric package (SOIC, QFN …) on the footprint it generates.
+- `render_schematic` draws op-amps as triangles with + / − inputs, and capacitors, diodes / LEDs and switches with
+  their usual symbols (other parts are boxes with pin names). Text is in capitals, so "100n" shows as 100N.
 - An unknown catalog name (an orderable number such as `PIC16F877A-I/P`) answers with the closest catalog parts and
   their packages.
 
@@ -396,7 +416,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (15)
+### project (16)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -413,23 +433,24 @@ Create, open, save and inspect projects; built-in examples.
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
+| `project_quickstart` | read | The quick start: units, pin addressing, what results carry, the usual flow (the resource sieda://docs/mcp-quickstart, for clients that cannot read resources). |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
 | `project_review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
 | `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
-### schematic (34)
+### schematic (35)
 
 Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC, variants.
 
 | Tool | Kind | What it does |
 |---|---|---|
 | `schematic_add_component` | edit | Places a built-in component: resistor, capacitor, inductor, diode, led, voltage_source (value "5" or "SIN(0 1 1k)" / "PULSE(0 5 1m)"), current_source, ground, npn, nmos, opamp (pins IN+, IN-, OUT), switch, connector, ic8, fuse, net_label, battery, ac_source. |
-| `schematic_remove_component` | edit (destructive) | Deletes a component (and its wires) by designator. |
+| `schematic_remove_component` | edit (destructive) | Deletes a component by designator, with its wires and the net labels / grounds wired to it alone. |
 | `schematic_set_value` | edit | Sets a part's value ("4k7", "100n", "Blue", a source's "3.3" or "SIN(0 1 50)"). |
 | `schematic_set_package` | edit | Sets the package variant of a passive / diode ("R_0603", "C_1206", "CP_Tant_B", "D_DO41_THT"; "" = default). |
 | `schematic_rename` | edit | Changes a part's designator. |
-| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
+| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
 | `schematic_connect` | edit | Draws wires between pins. |
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
 | `schematic_net_label` | edit | Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins net "net" (also across sheets for scope global). |
@@ -439,7 +460,8 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_list_nets` | read | Every net with its name, role (signal / power / ground) and the part pins on it. |
 | `schematic_net_places` | read | Every place a net appears (pins, labels, ports, entries, buses, grounds) across the sheets. |
 | `schematic_erc` | read | Runs the ERC: unconnected pins, driver conflicts, missing ground, power pins without a source, hierarchy, bus and directive errors. |
-| `schematic_validate` | read | Checks values and ratings: E-series values, decoupling, part ratings from the DC operating point. |
+| `schematic_validate` | read | Checks values and ratings (E-series values, decoupling, part ratings from the DC operating point) and reviews the design: an LED with no series resistor, a reset / enable input left floating. |
+| `schematic_build` | edit | Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets ground symbols; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. |
 | `schematic_set_erc_severity` | edit | Reports an ERC rule as error, warning, info or off ("default" restores it). |
 | `schematic_annotate` | edit | Re-numbers designators in reading order (rows or columns), optionally keeping existing ones or numbering by sheet (R101, R201…). |
 | `schematic_find` | read | Finds text in designators, values, net labels, net names (and pins) across every sheet. |
@@ -600,3 +622,4 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
+

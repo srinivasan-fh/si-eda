@@ -16,6 +16,7 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
+#include "sieda/Validation.hpp"
 
 namespace fs = std::filesystem;
 
@@ -291,6 +292,86 @@ Json projectSummary(McpServer& s) {
     return j;
 }
 
+/// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
+/// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
+void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires) {
+    const Schematic& sch = p->project.schematic;
+    std::vector<std::pair<PinAddress, PinAddress>> links;
+    for (const auto& chain : wires.items())
+        for (size_t i = 1; i < chain.size(); ++i) try {
+                links.push_back({pinAddress(*p, chain.items()[i - 1]), pinAddress(*p, chain.items()[i])});
+            } catch (const std::exception&) {}
+    std::set<int> mine(ids.begin(), ids.end()), done;
+    auto moveBy = [&](int id, Vec2 d) {
+        const Vec2 at = sch.find(id)->position;
+        sieda_move_component(p, id, std::round((at.x + d.x) / 10) * 10, std::round((at.y + d.y) / 10) * 10);
+    };
+    double x = 0, y = 0, rowHeight = 0;
+    std::vector<int> roots = ids;  // a group grows from its biggest part (the IC), so its signals read left to right
+    std::stable_sort(roots.begin(), roots.end(), [&](int l, int r) {
+        return sch.find(l)->def().pins.size() > sch.find(r)->def().pins.size();
+    });
+    for (int root : roots) {
+        if (done.count(root)) continue;
+        std::vector<int> group{root};
+        done.insert(root);
+        for (size_t g = 0; g < group.size(); ++g)
+            for (const auto& [a0, b0] : links)
+                for (const auto& [a, b] : {std::pair{a0, b0}, std::pair{b0, a0}}) {
+                    if (a.component != group[g] || !mine.count(b.component) || done.count(b.component)) continue;
+                    const Vec2 d = pinOutward(p->project, a);
+                    if (sch.find(b.component)->def().pins.size() == 2)
+                        for (int turn = 0; turn < 3; ++turn) {
+                            const Vec2 e = pinOutward(p->project, b);
+                            if (std::fabs(e.x + d.x) < 0.5 && std::fabs(e.y + d.y) < 0.5) break;
+                            sieda_rotate_component(p, b.component, 90);
+                        }
+                    const Vec2 from = sch.pinPosition({a.component, a.pin}), to = sch.pinPosition({b.component, b.pin});
+                    // Clear of the labels on an IC's other pins; close up between two-pin parts.
+                    const double run = sch.find(a.component)->def().pins.size() == 2 ? 40 : 120;
+                    moveBy(b.component, {from.x + d.x * run - to.x, from.y + d.y * run - to.y});
+                    // Two parts on one pin (or a chain folding back): step sideways until it is clear of the group.
+                    for (int step = 0; step < 20; ++step) {
+                        const auto o = sch.symbolOutline(*sch.find(b.component));
+                        bool hit = false;
+                        for (int other : group) {
+                            const auto q = sch.symbolOutline(*sch.find(other));
+                            hit |= o[0] < q[2] + 20 && q[0] < o[2] + 20 && o[1] < q[3] + 20 && q[1] < o[3] + 20;
+                        }
+                        if (!hit) break;
+                        moveBy(b.component, std::fabs(d.x) > 0.5 ? Vec2{0, o[3] - o[1] + 40} : Vec2{o[2] - o[0] + 40, 0});
+                    }
+                    done.insert(b.component);
+                    group.push_back(b.component);
+                }
+        double x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
+        for (int id : group) {
+            const auto o = sch.symbolOutline(*sch.find(id));
+            x0 = std::min(x0, o[0]), y0 = std::min(y0, o[1]), x1 = std::max(x1, o[2]), y1 = std::max(y1, o[3]);
+        }
+        if (x > 0 && x + (x1 - x0) > 1200) x = 0, y += rowHeight + 120, rowHeight = 0;
+        for (int id : group) moveBy(id, {x + 100 - x0, y - y0});
+        x += x1 - x0 + 200;
+        rowHeight = std::max(rowHeight, y1 - y0);
+    }
+}
+
+/// Net labels and grounds wired to this part alone (they belong to it: they move and go with it).
+std::vector<int> ownNetSymbols(const Schematic& sch, int id) {
+    std::map<int, bool> alone;
+    for (const auto& w : sch.wires())
+        for (const auto& [mine, other] : {std::pair{w.a, w.b}, std::pair{w.b, w.a}}) {
+            const Component* o = sch.find(other.component);
+            if (!o || !isNetSymbolKind(o->kind) || o->kind == ComponentKind::Junction) continue;
+            if (mine.component == id) alone.emplace(o->id, true);
+            else alone[o->id] = false;
+        }
+    std::vector<int> out;
+    for (const auto& [sym, only] : alone)
+        if (only) out.push_back(sym);
+    return out;
+}
+
 Json violationsOut(McpServer& s, char* raw) { return summariseViolations(*P(s), takeJson(raw)); }
 
 /// Pad centre and layer of a pin on the board.
@@ -510,12 +591,17 @@ void schematicTools(Table& t) {
               return out(componentJson(*p, id));
           });
     t.add("schematic", "schematic_remove_component", "Remove component", Kind::Destructive, false,
-          "Deletes a component (and its wires) by designator.",
+          "Deletes a component by designator, with its wires and the net labels / grounds wired to it alone.",
           Schema().str("ref", "Designator, e.g. \"R3\"", true), [](McpServer& s, const Json& a) {
               const int id = componentId(*P(s), a.get("ref"));
+              const std::vector<int> own = ownNetSymbols(proj(s).schematic, id);
               check(sieda_remove_component(P(s), id) == 1, "Could not remove " + argStr(a, "ref"));
+              int symbols = 0;
+              for (int sym : own)
+                  if (proj(s).schematic.find(sym)) symbols += sieda_remove_component(P(s), sym) == 1;
               Json j = obj();
               j["removed"] = argStr(a, "ref");
+              if (symbols) j["netSymbolsRemoved"] = symbols;
               return out(j);
           });
     t.add("schematic", "schematic_set_value", "Set value", Kind::Edit, true,
@@ -544,8 +630,8 @@ void schematicTools(Table& t) {
               return out(componentJson(*P(s), id, false));
           });
     t.add("schematic", "schematic_move_component", "Move component", Kind::Edit, true,
-          "Moves a part on the schematic (x, y in grid units) and/or turns it (rotation: absolute degrees; rotate: "
-          "relative degrees).",
+          "Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it) "
+          "and/or turns it (rotation: absolute degrees; rotate: relative degrees).",
           Schema()
               .str("ref", "Designator", true)
               .num("x", "New x")
@@ -556,9 +642,16 @@ void schematicTools(Table& t) {
               SiedaProject* p = P(s);
               const int id = componentId(*p, a.get("ref"));
               const Component* c = p->project.schematic.find(id);
-              if (a.has("x") || a.has("y"))
+              if (a.has("x") || a.has("y")) {
+                  const Vec2 from = c->position;
                   check(sieda_move_component(p, id, argNum(a, "x", c->position.x), argNum(a, "y", c->position.y)) == 1,
                         "Could not move");
+                  const Vec2 by = p->project.schematic.find(id)->position - from;  // its own labels / grounds come along
+                  for (int sym : ownNetSymbols(p->project.schematic, id)) {
+                      const Vec2 at = p->project.schematic.find(sym)->position;
+                      sieda_move_component(p, sym, at.x + by.x, at.y + by.y);
+                  }
+              }
               c = p->project.schematic.find(id);
               int delta = argInt(a, "rotate", 0);
               if (a.has("rotation")) delta = argInt(a, "rotation", 0) - c->rotation;
@@ -853,19 +946,149 @@ void schematicTools(Table& t) {
               Json j = violationsOut(s, sieda_run_erc(P(s)));
               const Schematic& sch = proj(s).schematic;
               Json open = obj();
+              size_t openCount = 0;
               for (const auto& c : sch.components()) {
                   if (c.packageOnly || isNetSymbolKind(c.kind)) continue;
                   Json pins = Json::array();
                   for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i)
                       if (!sch.isPinConnected({c.id, i}) && !c.isNoConnect(i)) pins.push(pinLabel(*P(s), {c.id, i}));
+                  openCount += pins.size();
                   if (pins.size()) open[c.ref] = pins;
               }
               j["unconnectedPins"] = open;
+              // One line for the unconnected pins (unconnectedPins lists them), not one violation each.
+              Json kept = Json::array();
+              int unconnected = 0;
+              for (const auto& v : j.get("violations").items())
+                  if (v.get("code").asString("") == "ERC_UNCONNECTED_PIN") ++unconnected;
+                  else kept.push(v);
+              if (unconnected) {
+                  j["warnings"] = j.get("warnings").asInt(0) - unconnected + 1;  // counts match the list
+                  Json v = obj();
+                  v["severity"] = "warning";
+                  v["code"] = "ERC_UNCONNECTED_PIN";
+                  v["message"] = std::to_string(openCount) + " unconnected pins: see unconnectedPins";
+                  kept.push(v);
+              }
+              j["violations"] = kept;
               return out(j);
           });
     t.add("schematic", "schematic_validate", "Circuit validation", Kind::Read, true,
-          "Checks values and ratings: E-series values, decoupling, part ratings from the DC operating point.", Schema(),
-          [](McpServer& s, const Json&) { return out(violationsOut(s, sieda_run_circuit_validation(P(s)))); });
+          "Checks values and ratings (E-series values, decoupling, part ratings from the DC operating point) and "
+          "reviews the design: an LED with no series resistor, a reset / enable input left floating.", Schema(),
+          [](McpServer& s, const Json&) {
+              Json all = takeJson(sieda_run_circuit_validation(P(s)));
+              const Json review = Project::violationsToJson(designReview(proj(s).schematic));
+              if (all.isArray())
+                  for (const auto& v : review.items()) all.push(v);
+              return out(summariseViolations(*P(s), all));
+          });
+    t.add("project", "project_quickstart", "Quick start", Kind::Read, true,
+          "The quick start: units, pin addressing, what results carry, the usual flow (the resource "
+          "sieda://docs/mcp-quickstart, for clients that cannot read resources).",
+          Schema(), [](McpServer& s, const Json&) {
+              Json j = obj();
+              j["text"] = s.readResource("sieda://docs/mcp-quickstart").get("contents")[size_t{0}].get("text");
+              return out(j);
+          });
+    t.add("schematic", "schematic_build", "Build from a netlist", Kind::Edit, false,
+          "Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets "
+          "ground symbols; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin "
+          "lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. "
+          "Returns checks (erc, review), the placed parts with their pins and any step that failed (the others still "
+          "run). Adds to the open project.",
+          Schema()
+              .array("parts", "[{\"ref\":\"U1\",\"part\":\"NE555\"}, {\"ref\":\"R1\",\"kind\":\"resistor\","
+                              "\"value\":\"10k\"}]: part = catalog or project-library name, kind = built-in kind; also value, package, "
+                              "x, y, rotation", "object", true)
+              .object("nets", "{\"VCC\": [\"U1.VCC\", \"R1.1\"], \"GND\": [\"U1.GND\"]}")
+              .array("wires", "Pins wired one after the other: [[\"R1.2\", \"D1.A\"], …]", "array")
+              .array("noConnect", "Pins left open on purpose", "string")
+              .boolean("pins", "Each part's full pin detail (default true); false gives pin number → net only"),
+          [](McpServer& s, const Json& a) {
+              Json placed = Json::array(), failed = Json::array();
+              std::vector<int> ids, unplaced;  // unplaced: parts without x / y, laid out here
+              auto run = [&](const std::string& tool, const Json& args, const std::string& what) {
+                  for (const auto& t : mcpTools())
+                      if (t.name == tool) try {
+                              const std::string problem = validateArguments(t.inputSchema, args);
+                              if (!problem.empty()) throw ToolError(problem);
+                              return t.handler(s, args).data;
+                          } catch (const std::exception& e) {
+                              failed.push(what + ": " + e.what());
+                          }
+                  return Json();
+              };
+              for (const auto& part : a.get("parts").items()) {
+                  Json args = part;
+                  const bool catalog = part.has("part");
+                  std::string tool = catalog ? "library_add_part" : "schematic_add_component";
+                  if (catalog) args["name"] = part.get("part");
+                  for (const auto& id : proj(s).customLibrary)  // a part made with library_create_part
+                      if (const CustomPart* cp = CustomPartRegistry::instance().find(id);
+                          catalog && cp && (id == part.get("part").asString("") || cp->spec.name == part.get("part").asString(""))) {
+                          tool = "library_place_custom_part";
+                          args["partId"] = id;
+                      }
+                  const Json r = run(tool, args,
+                                     part.get("ref").asString(catalog ? part.get("part").asString("") : "part"));
+                  if (!r.get("id").isNumber()) continue;
+                  ids.push_back(r.get("id").asInt());
+                  if (!part.has("x")) unplaced.push_back(ids.back());
+              }
+              layoutBuilt(P(s), unplaced, a.get("wires"));
+              auto valid = [&](const Json& pins, const std::string& what) {  // a wrong pin drops only itself
+                  Json ok = Json::array();
+                  for (const auto& pin : pins.items()) try {
+                          pinAddress(*P(s), pin);
+                          ok.push(pin);
+                      } catch (const std::exception& e) {
+                          failed.push(what + ": " + e.what());
+                      }
+                  return ok;
+              };
+              for (const auto& [net, pins] : a.get("nets").fields()) {
+                  Json args = obj();
+                  args["pins"] = valid(pins, net);
+                  if (!args.get("pins").size()) continue;
+                  std::string up = net;
+                  for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                  if (up == "GND" || up == "0") {
+                      run("schematic_connect_to_ground", args, net);
+                  } else {
+                      args["net"] = net;
+                      run("schematic_net_label", args, net);
+                  }
+              }
+              for (const auto& chain : a.get("wires").items()) {
+                  Json args = obj();
+                  args["chain"] = chain;
+                  run("schematic_connect", args, "wire " + chain.dump());
+              }
+              Json args = obj();
+              args["pins"] = valid(a.get("noConnect"), "noConnect");
+              if (args.get("pins").size()) {
+                  run("schematic_set_no_connect", args, "noConnect");
+              }
+              Json j = obj();
+              for (int id : ids) {  // with the nets they joined; pins: false keeps the reply short
+                  Json part = componentJson(*P(s), id);
+                  if (!a.get("pins").asBool(true)) {
+                      Json nets = obj();
+                      for (const auto& pin : part.get("pins").items())
+                          nets[pin.get("number").asString(pin.get("name").asString(""))] = pin.get("net");
+                      part["pins"] = nets;
+                  }
+                  placed.push(part);
+              }
+              j["parts"] = placed;
+              Json checks = obj();  // ahead of the parts in the reply
+              checks["erc"] = run("schematic_erc", obj(), "erc");
+              checks["review"] = run("schematic_validate", obj(), "review");
+              j["checks"] = checks;
+              if (failed.size()) j["failed"] = failed;
+              return out(j);
+          });
     t.add("schematic", "schematic_set_erc_severity", "ERC severity", Kind::Edit, true,
           "Reports an ERC rule as error, warning, info or off (\"default\" restores it).",
           Schema().str("code", "Rule code, e.g. ERC_UNCONNECTED_PIN", true)
@@ -1299,6 +1522,18 @@ void libraryTools(Table& t) {
               j["total"] = total;
               j["parts"] = list;
               if (total > limit) j["note"] = "More parts match: refine the query or raise limit.";
+              if (!total) {  // say which word narrowed it to nothing
+                  std::string per;
+                  for (const auto& w : words) {
+                      int n = 0;
+                      for (const auto& p : standardParts())
+                          n += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
+                      per += (per.empty() ? "" : ", ") + w + " " + std::to_string(n);
+                  }
+                  j["note"] = "Nothing matches every word" + (per.empty() ? std::string() : " (parts per word: " + per + ")") +
+                              ". Use fewer words or a cat: filter (an empty query lists the categories); resistors, "
+                              "capacitors, LEDs, switches and generic connectors are schematic_add_component kinds.";
+              }
               return out(j);
           });
     t.add("library", "library_part_details", "Part details", Kind::Read, true,
@@ -1455,9 +1690,14 @@ void libraryTools(Table& t) {
           Schema().object("spec", "Part spec", true).num("minGap", "Copper gap limit for pads (mm, default 0.15)"),
           [](McpServer&, const Json& a) {
               const std::string spec = a.get("spec").dump();
+              // A parametric package (SOIC, QFN …) is checked on the footprint it generates.
+              std::string lands = spec;
+              try {
+                  lands = customPartSpecToJson(landPatternFromFootprint(customPartSpecFromJson(a.get("spec")))).dump();
+              } catch (const std::exception&) {}  // an invalid spec: the checks below say why
               Json j = obj();
               j["symbol"] = takeJson(sieda_check_symbol(spec.c_str()));
-              j["landPattern"] = takeJson(sieda_check_land_pattern(spec.c_str(), argNum(a, "minGap", 0.15)));
+              j["landPattern"] = takeJson(sieda_check_land_pattern(lands.c_str(), argNum(a, "minGap", 0.15)));
               j["units"] = takeJson(sieda_check_units(spec.c_str()));
               return out(j);
           });
@@ -1939,7 +2179,30 @@ void pcbTools(Table& t) {
     t.add("pcb", "pcb_drc", "Design rule check", Kind::Read, true,
           "Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the "
           "design-for-reliability checks. Returns counts and the violations (errors first, mm coordinates).",
-          Schema(), [](McpServer& s, const Json&) { return out(violationsOut(s, sieda_pcb_run_drc(P(s)))); });
+          Schema(), [](McpServer& s, const Json&) {
+              Json j = violationsOut(s, sieda_pcb_run_drc(P(s)));
+              // Each unrouted connection by its pins and net, so it can be routed or looked at.
+              const Project& pr = proj(s);
+              const auto pads = pr.pcb.pads(pr.schematic);
+              auto pinAt = [&](Vec2 v) -> const Pad* {
+                  for (const auto& pad : pads)
+                      if (std::hypot(pad.position.x - v.x, pad.position.y - v.y) < 1e-3) return &pad;
+                  return nullptr;
+              };
+              Json open = Json::array();
+              for (const auto& [a, b] : pr.pcb.ratsnest(pr.schematic)) {
+                  const Pad *pa = pinAt(a), *pb = pinAt(b);
+                  if (!pa || !pb || open.size() >= 50) continue;
+                  Json u = obj();
+                  u["from"] = pinLabel(*P(s), {pa->componentId, pa->pinIndex});
+                  u["to"] = pinLabel(*P(s), {pb->componentId, pb->pinIndex});
+                  const int net = pr.schematic.netOf({pa->componentId, pa->pinIndex});
+                  if (net >= 0) u["net"] = pr.schematic.nets()[static_cast<size_t>(net)].name;
+                  open.push(u);
+              }
+              if (open.size()) j["unrouted"] = open;
+              return out(j);
+          });
     t.add("pcb", "pcb_fanout", "Fanout", Kind::Edit, false,
           "Fans out a component: an escape track and a via on every SMD pad whose net has other pins.",
           Schema()

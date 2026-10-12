@@ -20655,6 +20655,106 @@ TEST(mcp_agent_gets_full_pin_detail_and_guards) {
     CHECK(u2.get("pins")[12].get("side").asString("") == "right" && u2.get("pins")[23].get("side").asString("") == "right");
 }
 
+TEST(mcp_build_from_a_netlist_reviews_the_design) {
+    // schematic_build: one call places, joins and checks; a wrong part or pin is reported and the rest still built.
+    // The review flags an LED with no resistor and a floating reset; the ERC gives one line for open pins.
+    const auto root = mcpRoot("build");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json r = mcpData(mcpTool(s, "schematic_build", Json::parse(R"({
+        "parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "U1", "part": "NE555"},
+                  {"ref": "D1", "kind": "led"}, {"ref": "R1", "kind": "resistor", "value": "1k"},
+                  {"ref": "D2", "kind": "led"}, {"ref": "A1", "kind": "opamp"}, {"ref": "X1", "part": "NOPE123"}],
+        "nets": {"VCC": ["V1.+", "U1.VCC", "U1.Q"], "GND": ["V1.-", "U1.GND", "D1.K", "D2.K"]},
+        "wires": [["U1.OUT", "D1.A"], ["U1.DISCH", "R1.1"], ["R1.2", "D2.A"]],
+        "noConnect": ["U1.CONT"]})")));
+    CHECK(r.get("parts").size() == 6 && r.get("failed").size() == 2);  // X1 and U1.Q
+    const Json& v1 = r.get("parts")[0];
+    CHECK(v1.get("pins")[0].get("net").asString("") == "VCC" && v1.get("pins")[0].get("type").asString("") == "power_out");
+    CHECK(v1.get("bounds").get("x1").asNumber() > v1.get("bounds").get("x0").asNumber());
+    const Json& a1 = r.get("parts")[5];
+    CHECK(a1.get("pins")[0].get("type").asString("") == "input" && a1.get("pins")[2].get("type").asString("") == "output");
+    // The wired pins line up, so the wires run straight.
+    const Json& d2 = r.get("parts")[4];
+    CHECK(d2.get("pins")[0].get("y").asNumber() == r.get("parts")[3].get("pins")[1].get("y").asNumber());
+    std::set<std::string> review, erc;
+    for (const auto& v : r.get("checks").get("review").get("violations").items()) review.insert(v.get("code").asString(""));
+    CHECK(review.count("VAL_LED_NO_RESISTOR") && review.count("VAL_FLOATING_CONTROL"));
+    int ledWarnings = 0;
+    for (const auto& v : r.get("checks").get("review").get("violations").items())
+        ledWarnings += v.get("code").asString("") == "VAL_LED_NO_RESISTOR";
+    CHECK(ledWarnings == 1);  // D1 only: D2 has R1
+    int unconnected = 0;
+    for (const auto& v : r.get("checks").get("erc").get("violations").items())
+        unconnected += v.get("code").asString("") == "ERC_UNCONNECTED_PIN";
+    CHECK(unconnected == 1 && r.get("checks").get("erc").get("status").asString("") == "warnings");
+    CHECK(r.get("checks").get("erc").get("unconnectedPins").get("U1").size() == 3);  // TRIG, RESET, THRES
+    // A reset with only a button to GND floats while the button is open; with a pull-up it is set.
+    auto flagged = [&](const char* netlist, const char* code = "VAL_FLOATING_CONTROL") {
+        CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+        const Json review = mcpData(mcpTool(s, "schematic_build", Json::parse(netlist))).get("checks").get("review");
+        bool found = false;
+        for (const auto& v : review.get("violations").items()) found |= v.get("code").asString("") == code;
+        return found;
+    };
+    auto floating = [&](const char* netlist) { return flagged(netlist); };
+    // An LED straight across the rails is flagged though a pull-up sits on the same VCC rail.
+    CHECK(flagged(R"({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "D1", "kind": "led"},
+                                {"ref": "R1", "kind": "resistor"}],
+                      "nets": {"VCC": ["V1.+", "D1.A", "R1.1"], "GND": ["V1.-", "D1.K"]}})", "VAL_LED_NO_RESISTOR"));
+    // A multi-function reset pin (the ATmega328P's PC6/RST) is checked too.
+    CHECK(flagged(R"({"parts": [{"ref": "U1", "part": "ATMEGA328P-PU"}], "nets": {}})"));
+    CHECK(floating(R"({"parts": [{"ref": "U1", "part": "NE555"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"}],
+                       "nets": {"GND": ["SW1.2"], "RST": ["U1.RESET", "SW1.1"]}})"));
+    CHECK(!floating(R"({"parts": [{"ref": "U1", "part": "NE555"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"},
+                                  {"ref": "R1", "kind": "resistor", "value": "10k"}],
+                        "nets": {"GND": ["SW1.2"], "RST": ["U1.RESET", "SW1.1", "R1.1"], "VCC": ["R1.2"]}})"));
+    // A search that matches nothing says which word narrowed it; a USB-C receptacle is in the catalog.
+    Json q = Json::object();
+    q["query"] = "usb zzqx";
+    CHECK(mcpData(mcpTool(s, "library_search", q)).get("note").asString("").find("zzqx 0") != std::string::npos);
+    q["query"] = "usb-c receptacle";
+    CHECK(mcpData(mcpTool(s, "library_search", q)).get("parts")[0].get("name").asString("") == "USB-C-RECEPTACLE-USB2");
+    // For clients without resources the quick start is a tool; a parametric package is checked on its footprint.
+    CHECK(mcpData(mcpTool(s, "project_quickstart", Json::object())).get("text").asString("").find("schematic_build") != std::string::npos);
+    const Json spec = Json::parse(R"({"name": "MYPART", "pins": [{"number": "1", "name": "X1"}, {"number": "2", "name": "X2"}],
+                                      "package": {"type": "SOIC", "pinCount": 8}})");
+    Json chk = Json::object();
+    chk["spec"] = spec;
+    CHECK(mcpData(mcpTool(s, "library_check_part", chk)).get("landPattern").size() == 0);
+    // A project-library part builds like a catalog one; removing a part takes its own labels with it; the DRC names
+    // each unrouted connection.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "library_create_part", spec)));
+    const Json b = mcpData(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [{"ref": "U1", "part": "MYPART"},
+        {"ref": "R1", "kind": "resistor"}, {"ref": "R2", "kind": "resistor"}],
+        "nets": {"A": ["U1.X1", "R1.1"], "B": ["R2.1"]}, "wires": [["R1.2", "U1.X2"]]})")));
+    CHECK(b.get("parts").size() == 3 && !b.has("failed"));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    CHECK(drc.get("unrouted").size() == 2 && drc.get("unrouted")[0].get("from").asString("").find('.') != std::string::npos);
+    Json rm = Json::object();
+    rm["ref"] = "R2";
+    CHECK(mcpData(mcpTool(s, "schematic_remove_component", rm)).get("netSymbolsRemoved").asInt(0) == 1);
+    // Moving a part brings its own labels along: the label stays beside its pin.
+    Json mv = Json::object();
+    mv["ref"] = "R1";
+    mv["x"] = 900;
+    mv["y"] = 900;
+    CHECK(!mcpFailed(mcpTool(s, "schematic_move_component", mv)));
+    Json all = Json::object();
+    all["netSymbols"] = true;
+    const Json listed = mcpData(mcpTool(s, "schematic_list_components", all));
+    bool near = false;
+    for (const auto& c : listed.get("components").items())
+        if (c.get("kind").asString("") == "net_label" && c.get("value").asString("") == "A")
+            near |= std::fabs(c.get("x").asNumber() - 900) < 100 && std::fabs(c.get("y").asNumber() - 900) < 100;
+    CHECK(near);
+}
+
 TEST(mcp_library_search_wireless_words_and_new_radio_parts) {
     // "wifi" finds "Wi-Fi", "ble" finds Bluetooth parts but not the "adjustable" / "enable" regulators, and the
     // low-power radio parts (ESP32-C6 / H2, the S3 / C6 modules, nRF52840 / nRF5340) place with their footprints.

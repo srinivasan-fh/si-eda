@@ -1177,3 +1177,13 @@ catalog(parts, "Power", "MAX17048G+T10", "Analog Devices", "Single-cell Li-ion f
     {{"1", "CTG", T::Input}, {"2", "CELL", T::PowerIn}, {"3", "VDD", T::PowerIn}, {"4", "GND", T::PowerIn}, {"5", "nALRT", T::Output}, {"6", "QSTRT", T::Input}, {"7", "SCL", T::Bidirectional}, {"8", "SDA", T::Bidirectional}, {"9", "GND", T::PowerIn}});
 parts.back().spec.package.bodyDepth = 2;
 parts.back().spec.package.lands = {{-0.99, -0.75, 0.7, 0.3}, {-0.99, -0.25, 0.7, 0.3}, {-0.99, 0.25, 0.7, 0.3}, {-0.99, 0.75, 0.7, 0.3}, {0.99, 0.75, 0.7, 0.3}, {0.99, 0.25, 0.7, 0.3}, {0.99, -0.25, 0.7, 0.3}, {0.99, -0.75, 0.7, 0.3}, {0, 0, 0.8, 1.38}};
+catalog(parts, "Connectors", "USB-C-RECEPTACLE-USB2", "GCT", "USB Type-C receptacle, USB 2.0 (16 pins): VBUS, GND, CC1 / CC2, D+ / D-, shield; 5 V USB input", "J",
+    "LGA", 13, 0, 0, "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    {{"A1", "GND", T::Passive}, {"A4", "VBUS", T::Passive}, {"A5", "CC1", T::Bidirectional}, {"A6", "D+", T::Bidirectional}, {"A7", "D-", T::Bidirectional}, {"A8", "SBU1", T::Bidirectional}, {"A9", "VBUS", T::Passive}, {"A12", "GND", T::Passive}, {"B5", "CC2", T::Bidirectional}, {"B6", "D+", T::Bidirectional}, {"B7", "D-", T::Bidirectional}, {"B8", "SBU2", T::Bidirectional}, {"SH", "SHIELD", T::Passive}});
+parts.back().spec.package.bodyDepth = 0;
+parts.back().spec.package.lands = {{-2.54, -0.525, 0.6, 1.15, 0, false, "A1"}, {-1.74, -0.525, 0.6, 1.15, 0, false, "A4"}, {-0.59, -0.525, 0.3, 1.15, 0, false, "A5"}, {0.41, -0.525, 0.3, 1.15, 0, false, "A6"}, {0.91, -0.525, 0.3, 1.15, 0, false, "A7"}, {1.91, -0.525, 0.3, 1.15, 0, false, "A8"}, {3.06, -0.525, 0.6, 1.15, 0, false, "A9"}, {3.86, -0.525, 0.6, 1.15, 0, false, "A12"}, {2.41, -0.525, 0.3, 1.15, 0, false, "B5"}, {1.41, -0.525, 0.3, 1.15, 0, false, "B6"}, {-0.09, -0.525, 0.3, 1.15, 0, false, "B7"}, {-1.09, -0.525, 0.3, 1.15, 0, false, "B8"}, {-3.66, 0.05, 1, 2.1, 0.6, true, "SH"}};
+catalog(parts, "Connectors", "TACTILE-SWITCH-6MM", "Generic", "Tactile push-button switch, 6 mm, normally open (reset / boot button)", "SW",
+    "LGA", 2, 0, 0, "SW_PUSH_6mm",
+    {{"1", "1", T::Passive}, {"2", "2", T::Passive}});
+parts.back().spec.package.bodyDepth = 0;
+parts.back().spec.package.lands = {{0, -2.25, 2, 2, 1.1, true, "1"}, {0, 2.25, 2, 2, 1.1, true, "2"}};
