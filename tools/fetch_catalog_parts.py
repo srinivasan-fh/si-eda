@@ -751,6 +751,15 @@ PARTS = [
      "High-accuracy 16-bit ambient light sensor, 0-120k lux, I2C", "U", ""),
     ("Power", "sparkfun:SparkFun-IC-Power.kicad_sym", "MAX17048", "MAX17048G+T10", "Analog Devices",
      "Single-cell Li-ion fuel gauge (ModelGauge), 3 uA, I2C, TDFN-8", "U", ""),
+    # ESP32-C3 modules (antenna, crystal and flash inside) and a 2.4 GHz chip antenna for the bare chip.
+    ("Microcontrollers · Espressif", "RF_Module", "ESP32-C3-WROOM-02", "ESP32-C3-WROOM-02", "Espressif",
+     "Wi-Fi 4 + Bluetooth LE 5 module (ESP32-C3, RISC-V 160 MHz, 4 MB flash) with a PCB antenna, 18 x 20 mm", "U", ""),
+    ("Microcontrollers · Espressif", "Espressif", "ESP32-C3-MINI-1", "ESP32-C3-MINI-1", "Espressif",
+     "Small Wi-Fi 4 + Bluetooth LE 5 module (ESP32-C3, RISC-V 160 MHz, 4 MB flash) with a PCB antenna, 13.2 x 16.6 mm",
+     "U", ""),
+    ("RF", "Device", "Antenna_Chip", "ANTENNA-2450AT18A100", "Johanson Technology",
+     "2.4 GHz ceramic chip antenna (Wi-Fi / Bluetooth / 802.15.4), 3.2 x 1.6 mm; FEED to the radio's match, keep "
+     "copper out from under it", "AE", "RF_Antenna:Johanson_2450AT18x100"),
     # Board inputs every agent-built board needs: a USB connector and a push-button.
     ("Connectors", "Connector", "USB_C_Receptacle_USB2.0_16P", "USB-C-RECEPTACLE-USB2", "GCT",
      "USB Type-C receptacle, USB 2.0 (16 pins): VBUS, GND, CC1 / CC2, D+ / D-, shield; 5 V USB input", "J",
@@ -763,19 +772,26 @@ PARTS = [
 FOOTPRINTS = "https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-footprints/repository/files/{}/raw?ref=master"
 
 
-def lands(footprint, named=False, tht=False):
+# Parts whose every pad is kept (a pin's extra pads as "NAME#n": shield tabs, a switch's paired legs), not only the
+# largest pad of each number.
+ALL_PADS = {"USB-C-RECEPTACLE-USB2", "TACTILE-SWITCH-6MM"}
+
+
+def lands(footprint, named=False, tht=False, every=False):
     """Exact land pattern of a KiCad footprint: [(number, x, y, w, h)] of its numbered SMD pads (the largest pad of
     each number; paste-only and thermal-via pads skipped), and the body (w, h) from the name when it carries one.
     named: ball-named pads ("A8", "EP") count too. An RF module's body is its fabrication outline, the pads moved so
     the body is centred on the origin (as SiEDA draws it)."""
     lib, name = footprint.split(":")
-    community = lib == "digikey-footprints" or lib.startswith("SparkFun-")
+    community = lib in ("digikey-footprints", "PCM_Espressif") or lib.startswith("SparkFun-")
     path = os.path.join(kicad.CACHE, f"fp__{lib}__{name}.kicad_mod" if community else f"fp__{name}.kicad_mod")
     if not os.path.exists(path):
         os.makedirs(kicad.CACHE, exist_ok=True)
         url = FOOTPRINTS.format(urllib.parse.quote(f"{lib}.pretty/{name}.kicad_mod", safe=""))
         if lib == "digikey-footprints":
             url = f"https://raw.githubusercontent.com/Digi-Key/digikey-kicad-library/master/{lib}.pretty/{name}.kicad_mod"
+        elif lib == "PCM_Espressif":  # Espressif's own library (installed through KiCad's plugin manager)
+            url = f"https://raw.githubusercontent.com/espressif/kicad-libraries/main/footprints/Espressif.pretty/{name}.kicad_mod"
         elif community:
             url = f"https://raw.githubusercontent.com/sparkfun/SparkFun-KiCad-Libraries/main/footprints/{lib}.pretty/{name}.kicad_mod"
         with urllib.request.urlopen(url, timeout=60) as r, open(path, "wb") as f:
@@ -788,7 +804,8 @@ def lands(footprint, named=False, tht=False):
             float(m.group(5)), float(m.group(6))
         if round(rot) % 180 == 90: w, h = h, w
         if not (num.isdigit() or (named and num)): continue
-        if num not in best or w * h > best[num][2] * best[num][3]: best[num] = (x, y, w, h)
+        if every and num in best: best[f"{num}#{sum(k.split('#')[0] == num for k in best)}"] = (x, y, w, h)
+        elif num not in best or w * h > best[num][2] * best[num][3]: best[num] = (x, y, w, h)
     if tht:  # plated through-hole pads too: (x, y, w, h, drill, round)
         for m in re.finditer(r'\(pad "([^"]+)" thru_hole (\w+)\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)\s*'
                              r'\(size ([\d.]+) ([\d.]+)\)\s*\(drill (?:oval )?([\d.]+)', text):
@@ -796,8 +813,9 @@ def lands(footprint, named=False, tht=False):
             w, h, drill = float(m.group(6)), float(m.group(7)), float(m.group(8))
             if round(rot) % 180 == 90: w, h = h, w
             if num and num not in best: best[num] = (x, y, w, h, drill, shape in ("circle", "oval"))
+            elif num and every: best[f"{num}#{sum(k.split('#')[0] == num for k in best)}"] = (x, y, w, h, drill, shape in ("circle", "oval"))
     body = re.search(r"_([\d.]+)x([\d.]+)mm", name)
-    if lib == "RF_Module" and not body:
+    if lib in ("RF_Module", "PCM_Espressif") and not body:
         fab = [(float(a), float(b)) for blk, layer in re.findall(r'\(fp_(?:line|rect)(.*?)\(layer "([^"]+)"\)', text, re.S)
                if layer == "F.Fab" for a, b in re.findall(r'\((?:start|end) ([-\d.]+) ([-\d.]+)\)', blk)]
         if fab:
@@ -940,7 +958,7 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
             # A footprint no parametric package draws (WSON / LFCSP variants, SOT-886, SMA, DO-41, TO-247-4, bridges,
             # modules): KiCad's own pads, through-hole ones with their drills, each land naming its pin; a pad the
             # symbol does not use is a no-connect pin.
-            pads, (bw, bd) = lands(footprint, named=True, tht=True)
+            pads, (bw, bd) = lands(footprint, named=True, tht=True, every=name in ALL_PADS)
             if not bw:  # no body in the name (KiCad puts a through-hole part's origin on pin 1): centre the pads
                 xs = [v[0] - v[2] / 2 for v in pads.values()] + [v[0] + v[2] / 2 for v in pads.values()]
                 ys = [v[1] - v[3] / 2 for v in pads.values()] + [v[1] + v[3] / 2 for v in pads.values()]
@@ -957,15 +975,16 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
                 if spot in seen: numbers.remove(k)
                 else: seen[spot] = k
             fpname = footprint.split(":")[-1]
-            land = lambda v, k: ("{%g, %g, %g, %g, 0, false, %s}" % (v + (cpp(k),)) if len(v) == 4 else
-                                 "{%g, %g, %g, %g, %g, %s, %s}" % (v[:5] + ("true" if v[5] else "false", cpp(k))))
+            land = lambda v, k: ("{%g, %g, %g, %g, 0, false, %s}" % (v + (cpp(k.split("#")[0]),)) if len(v) == 4 else
+                                 "{%g, %g, %g, %g, %g, %s, %s}" % (v[:5] + ("true" if v[5] else "false", cpp(k.split("#")[0]))))
+            pins = [k for k in numbers if "#" not in k]  # a pin's extra pads are lands only
             out.append(f"catalog(parts, {cpp(category)}, {cpp(name)}, {cpp(maker)}, {cpp(desc)}, {cpp(ref)},")
-            out.append(f"    \"LGA\", {len(numbers)}, 0, {bw:g}, {cpp(fpname)},")
+            out.append(f"    \"LGA\", {len(pins)}, 0, {bw:g}, {cpp(fpname)},")
             out.append("    {" + ", ".join("{%s, %s, T::%s}" % ((cpp(k),) + ((cpp(found[k][0]), found[k][1]) if k in found
-                                                               else (cpp("NC"), "NoConnect"))) for k in numbers) + "});")
+                                                               else (cpp("NC"), "NoConnect"))) for k in pins) + "});")
             out.append(f"parts.back().spec.package.bodyDepth = {bd:g};")
             out.append("parts.back().spec.package.lands = {" + ", ".join(land(pads[k], k) for k in numbers) + "};")
-            summary.append(f"{name:20} {'LGA':9} n={len(numbers):3} pins={len(numbers):3} {fpname}")
+            summary.append(f"{name:20} {'LGA':9} n={len(numbers):3} pins={len(pins):3} {fpname}")
             return out
         if kind == "BGA":
             numbers = sorted(found, key=lambda b: (len(b.rstrip("0123456789")), b.rstrip("0123456789"),

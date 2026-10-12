@@ -1628,8 +1628,9 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
         XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)
-        // ESP32-C3 / S3 / PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 modules.
-        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 8)
+        // ESP32-C3 / S3 / PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
+        // C3-WROOM-02 / C3-MINI-1 modules.
+        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 10)
         XCTAssertEqual(groups["Microcontrollers · Nordic"]?.count, 2)  // nRF52840, nRF5340
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")

@@ -112,7 +112,11 @@
   `designReview` (`Validation.cpp`: LED without resistor, floating reset / enable / BOOT0, op-amp without output limits,
   decoupling per supply pin, crystal load caps), which the app's verification does not run; `pcb_autoroute` runs
   `finishRouting` (shape completion, turned two-pin parts, kept only when fewer stay open; partial presets per call);
-  `RouteKeepout::pours` keeps pours out (saved only when on). Tool failures are `isError` results, never crashes; file
+  `RouteKeepout::pours` keeps pours out (saved only when on);
+  `finishRouting` also fans fine-pitch parts out first; `project_undo` = `McpServer::undo` (state before each mutating
+  call, 30 kept, cleared when the project changes); `placeDecoupling` (opt-in `pcb_autoplace` `decoupling`);
+  `schematic_build` draws 2 – 3 pin signal nets as wires. Catalog rows may name `PCM_Espressif` footprints, and
+  `ALL_PADS` in `tools/fetch_catalog_parts.py` keeps every pad of a footprint. Tool failures are `isError` results, never crashes; file
   access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in

@@ -16,6 +16,7 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
+#include "sieda/InteractiveRouter.hpp"
 #include "sieda/Validation.hpp"
 
 namespace fs = std::filesystem;
@@ -381,11 +382,11 @@ Json finishRouting(SiedaProject* p, Json* stats) {
     if (chosen.scoped() || chosen.fanoutOnly || p->project.schematic.components().size() > 300)
         return done;  // a partial route keeps the rest of the board as it is
     size_t open = p->project.pcb.ratsnest(p->project.schematic).size();
-    auto attempt = [&](const std::string& what, const std::function<void()>& change) {
+    auto attempt = [&](const std::string& what, const std::function<void()>& change, bool clear = true) {
         if (!open) return;
         Project before = p->project;
         change();
-        sieda_pcb_clear_routing(p);
+        if (clear) sieda_pcb_clear_routing(p);
         Json st = takeJson(sieda_pcb_autoroute(p));
         const size_t now = p->project.pcb.ratsnest(p->project.schematic).size();
         if (now < open) {
@@ -413,6 +414,36 @@ Json finishRouting(SiedaProject* p, Json* stats) {
                     m->pcb.rotation = (m->pcb.rotation + 180) % 360;
                 });
             }
+    // A fine-pitch part (pad pitch under 0.65 mm) on an open connection: its pins fanned out first (escape track and
+    // via, held while the rest routes), so later nets cannot wall them in.
+    std::set<int> fanned;
+    for (const auto& [a, b] : p->project.pcb.ratsnest(p->project.schematic))
+        for (Vec2 end : {a, b})
+            for (const auto& pad : pads) {
+                if (std::hypot(pad.position.x - end.x, pad.position.y - end.y) > 1e-3 || !fanned.insert(pad.componentId).second)
+                    continue;
+                const Component* c = p->project.schematic.find(pad.componentId);
+                const FootprintDef* fp = c ? Library::instance().footprint(c->footprintName()) : nullptr;
+                double pitch = 1e9;
+                for (size_t i = 0; fp && i < fp->pads.size(); ++i)
+                    for (size_t k = i + 1; k < fp->pads.size(); ++k)
+                        pitch = std::min(pitch, (fp->pads[i].offset - fp->pads[k].offset).length());
+                if (pitch >= 0.65) continue;
+                const int id = c->id;
+                for (const bool shove : {false, true})  // walk around at the pad's edge; shoving, 1.4 mm out
+                    attempt(c->ref + " fanned out first" + (shove ? " (shoving)" : ""), [&] {
+                        sieda_pcb_clear_routing(p);
+                        FanoutOptions fo;
+                        fo.onlyUnrouted = false;
+                        fo.shove = shove;
+                        fo.distance = shove ? 1.4 : 0;
+                        fanoutComponent(p->project.pcb, p->project.schematic, id, fo);
+                        for (auto& t : p->project.pcb.tracks) t.locked = true;
+                        p->project.pcb.settings.autorouter.protectLocked = true;
+                    }, false);
+                for (auto& t : p->project.pcb.tracks) t.locked = false;  // the stubs are ordinary copper again
+                p->project.pcb.settings.autorouter.protectLocked = chosen.protectLocked;
+            }
     p->project.pcb.settings.autorouter.shapeCompletion = chosen.shapeCompletion;  // the board's strategy as chosen
     p->router.reset();
     return done;
@@ -423,6 +454,48 @@ std::string packageChoices(ComponentKind kind) {
     std::string list;
     for (const auto& v : Library::packageVariants(kind)) list += (list.empty() ? "" : ", ") + v;
     return list.empty() ? "This kind has one package." : "Packages: " + list + ".";
+}
+
+/// Decoupling capacitors (one pin on an IC's supply net, the other on ground) moved next to the IC supply pin they
+/// serve, one capacitor per pin in pin order: one further than 5 mm goes to the nearest legal spot 2.5–6 mm from the
+/// pin (room left for the pins' escape routes). Locked parts stay. Returns "C3 → U1.VDD" for each one moved.
+Json placeDecoupling(SiedaProject* p) {
+    Json moved = Json::array();
+    const Schematic& sch = p->project.schematic;
+    const auto pads = p->project.pcb.pads(sch);
+    std::map<int, std::vector<const Pad*>> supplyPads;  // net → IC supply pads
+    for (const auto& pad : pads) {
+        const Component* c = sch.find(pad.componentId);
+        if (!c || pad.net < 0 || pad.pinIndex < 0 || c->def().pins.size() < 3 || sch.netRole(pad.net) != NetRole::Power) continue;
+        if (static_cast<PinType>(c->def().pins[static_cast<size_t>(pad.pinIndex)].type) == PinType::PowerIn)
+            supplyPads[pad.net].push_back(&pad);
+    }
+    std::map<int, size_t> next;  // net → next supply pad to serve
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::Capacitor || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2) continue;
+        const int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
+        if (n0 < 0 || n1 < 0) continue;
+        const int supply = sch.netRole(n0) == NetRole::Ground ? n1 : sch.netRole(n1) == NetRole::Ground ? n0 : -1;
+        auto it = supplyPads.find(supply);
+        if (it == supplyPads.end() || it->second.empty()) continue;
+        const Pad* target = it->second[next[supply]++ % it->second.size()];
+        if ((c.pcb.position - target->position).length() <= 5.0) continue;  // already close: leave it
+        bool done = false;
+        for (double r = 2.5; r <= 6.0 && !done; r += 0.5)
+            for (int k = 0; k < 16 && !done; ++k)
+                for (int rot : {0, 90}) {
+                    const double ang = k * kPi / 8;
+                    const Vec2 at = target->position + Vec2{std::cos(ang), std::sin(ang)} * r;
+                    Json res = takeJson(sieda_pcb_place_footprint(p, c.id, at.x, at.y, rot, 0, 0.25, 0));
+                    if (res.get("committed").asBool(false)) {
+                        const Component* ic = sch.find(target->componentId);
+                        moved.push(c.ref + " → " + pinLabel(*p, {ic->id, target->pinIndex}));
+                        done = true;
+                        break;
+                    }
+                }
+    }
+    return moved;
 }
 
 Json violationsOut(McpServer& s, char* raw) { return summariseViolations(*P(s), takeJson(raw)); }
@@ -1039,6 +1112,17 @@ void schematicTools(Table& t) {
                   for (const auto& v : review.items()) all.push(v);
               return out(summariseViolations(*P(s), all));
           });
+    t.add("project", "project_undo", "Undo", Kind::Edit, false,
+          "Takes back the last tool call that changed the design (up to 30 steps; steps: n takes back several).",
+          Schema().integer("steps", "How many calls to take back (default 1)"), [](McpServer& s, const Json& a) {
+              int undone = 0;
+              for (int i = 0; i < std::max(1, argInt(a, "steps", 1)) && s.undo(); ++i) ++undone;
+              if (!undone) throw ToolError("Nothing to undo in this session");
+              Json j = obj();
+              j["undone"] = undone;
+              j["left"] = s.undoSteps();
+              return out(j);
+          });
     t.add("project", "project_quickstart", "Quick start", Kind::Read, true,
           "The quick start: units, pin addressing, what results carry, the usual flow (the resource "
           "sieda://docs/mcp-quickstart, for clients that cannot read resources).",
@@ -1049,7 +1133,8 @@ void schematicTools(Table& t) {
           });
     t.add("schematic", "schematic_build", "Build from a netlist", Kind::Edit, false,
           "Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets "
-          "ground symbols; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin "
+          "ground symbols; a 2 – 3 pin signal net is drawn as wires with one label; a net may also name one pin of a "
+          "wired chain), wires the wires chains (straight pin-to-pin "
           "lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. "
           "Returns checks (erc, review), the placed parts with their pins and any step that failed (the others still "
           "run). Adds to the open project.",
@@ -1098,7 +1183,38 @@ void schematicTools(Table& t) {
                   ids.push_back(id);
                   if (!part.has("x")) unplaced.push_back(ids.back());
               }
-              layoutBuilt(P(s), unplaced, a.get("wires"));
+              // A small signal net (2 – 3 pins, no supply pin or supply name) is drawn as wires from its biggest
+              // part's pin, laid out like a wire chain; one label keeps its name. Supplies keep their labels.
+              Json wires = a.get("wires").isArray() ? a.get("wires") : Json::array();
+              std::set<std::string> drawn;
+              for (const auto& [net, pins] : a.get("nets").fields()) {
+                  std::string up = net;
+                  for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                  bool supply = up.empty() || up == "0" || up[0] == '+' || up[0] == '-' ||
+                                (std::isdigit(static_cast<unsigned char>(up[0])) && up.find('V') != std::string::npos);
+                  for (const char* w : {"GND", "VCC", "VDD", "VSS", "VEE", "VBAT", "VIN", "VBUS", "AGND", "DGND", "PGND"})
+                      supply = supply || up.rfind(w, 0) == 0;
+                  std::vector<std::pair<Json, PinAddress>> at;
+                  for (const auto& pin : pins.items()) try {
+                          at.push_back({pin, pinAddress(*P(s), pin)});
+                          const PinType t = static_cast<PinType>(
+                              proj(s).schematic.find(at.back().second.component)->def().pins[static_cast<size_t>(at.back().second.pin)].type);
+                          supply = supply || t == PinType::PowerIn || t == PinType::PowerOut;
+                      } catch (const std::exception&) {}
+                  if (supply || at.size() < 2 || at.size() > 3 || at.size() != pins.size()) continue;
+                  std::stable_sort(at.begin(), at.end(), [&](const auto& l, const auto& r) {
+                      return proj(s).schematic.find(l.second.component)->def().pins.size() >
+                             proj(s).schematic.find(r.second.component)->def().pins.size();
+                  });
+                  for (size_t i = 1; i < at.size(); ++i) {
+                      Json chain = Json::array();
+                      chain.push(at[0].first);
+                      chain.push(at[i].first);
+                      wires.push(chain);
+                  }
+                  drawn.insert(net);
+              }
+              layoutBuilt(P(s), unplaced, wires);
               auto valid = [&](const Json& pins, const std::string& what) {  // a wrong pin drops only itself
                   Json ok = Json::array();
                   for (const auto& pin : pins.items()) try {
@@ -1115,7 +1231,12 @@ void schematicTools(Table& t) {
                   Json args = obj(), labelled = Json::array();
                   struct Seen { Json pin; PinAddress at; Vec2 pos, out; };
                   std::vector<Seen> seen;
-                  const Json checked = valid(pins, net);
+                  Json checked = valid(pins, net);
+                  if (drawn.count(net)) {  // wired below; one label names it
+                      Json first = Json::array();
+                      first.push(checked.items()[0]);
+                      checked = first;
+                  }
                   for (const auto& pin : checked.items()) {
                       const PinAddress pa = pinAddress(*P(s), pin);
                       const Vec2 pos = proj(s).schematic.pinPosition({pa.component, pa.pin}), d = pinOutward(proj(s), pa);
@@ -1158,7 +1279,7 @@ void schematicTools(Table& t) {
                       run("schematic_net_label", args, net);
                   }
               }
-              for (const auto& chain : a.get("wires").items()) {
+              for (const auto& chain : wires.items()) {
                   Json args = obj();
                   args["chain"] = chain;
                   run("schematic_connect", args, "wire " + chain.dump());
@@ -2031,36 +2152,70 @@ void pcbTools(Table& t) {
           });
     t.add("pcb", "pcb_autoplace", "Auto place", Kind::Edit, false,
           "Automatic placement: all = true re-places every unlocked footprint; false places only those not on the "
-          "board yet.",
-          Schema().boolean("all", "Re-place everything (default false)"), [](McpServer& s, const Json& a) {
+          "board yet. decoupling: true then moves each decoupling capacitor that ended up further than 5 mm from its IC "
+          "supply pin to the nearest legal spot 2.5–6 mm from it (shorter supply loops; on a dense 2-layer board it "
+          "leaves the router less room around the IC).",
+          Schema().boolean("all", "Re-place everything (default false)")
+              .boolean("decoupling", "Then move each decoupling capacitor further than 5 mm from its IC supply pin next to it"),
+          [](McpServer& s, const Json& a) {
               sieda_pcb_autoplace(P(s), argBool(a, "all", false) ? 1 : 0);
-              return out(pcbSummary(s));
+              Json j = pcbSummary(s);
+              if (argBool(a, "decoupling", false)) {
+                  const Json moved = placeDecoupling(P(s));
+                  if (moved.size()) j["decouplingPlaced"] = moved;
+              }
+              return out(j);
           });
     t.add("pcb", "pcb_place_footprint", "Place footprint", Kind::Edit, true,
-          "Moves / turns / flips one footprint (centre x, y in mm). Refused when the pose overlaps another part, "
-          "leaves the board or hits a hole keep-out (the issues are returned) unless force is true.",
+          "Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: "
+          "[{ref, x, y, rotation, bottom, force}]). A pose that overlaps another part, leaves the board or hits a "
+          "keep-out is refused (the issues are returned) unless force is true; force also moves a locked part (it "
+          "stays locked). A batch tries each refused pose again once the others have moved.",
           Schema()
-              .str("ref", "Designator", true)
-              .num("x", "Centre x (mm)", true)
-              .num("y", "Centre y (mm)", true)
+              .str("ref", "Designator")
+              .num("x", "Centre x (mm)")
+              .num("y", "Centre y (mm)")
               .integer("rotation", "Rotation (0, 90, 180, 270; default unchanged)")
               .boolean("bottom", "Bottom side (default unchanged)")
               .num("grid", "Snap grid (mm; 0 = none)")
-              .boolean("force", "Place even if illegal"),
+              .boolean("force", "Place even if illegal or locked")
+              .array("placements", "Several parts: [{\"ref\":\"C1\",\"x\":10,\"y\":5,\"rotation\":90}, …]", "object"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
-              const int id = componentId(*p, a.get("ref"));
-              const Component* c = p->project.schematic.find(id);
-              if (!c->hasFootprint()) throw ToolError(c->ref + " has no footprint");
-              Json r = takeJson(sieda_pcb_place_footprint(p, id, argNum(a, "x", 0), argNum(a, "y", 0),
-                                                          argInt(a, "rotation", c->pcb.rotation), argBool(a, "bottom", c->pcb.bottom) ? 1 : 0,
-                                                          argNum(a, "grid", 0), argBool(a, "force", false) ? 1 : 0));
-              if (!r.isObject()) throw ToolError("Could not place " + c->ref);
+              auto placeOne = [&](const Json& e) {
+                  if (!e.has("ref") || !e.has("x") || !e.has("y")) throw ToolError("Each placement needs ref, x and y");
+                  const int id = componentId(*p, e.get("ref"));
+                  const Component* c = p->project.schematic.find(id);
+                  if (!c->hasFootprint()) throw ToolError(c->ref + " has no footprint");
+                  const bool force = argBool(e, "force", argBool(a, "force", false)), locked = c->pcb.locked;
+                  if (force && locked) sieda_pcb_lock_footprint(p, id, 0);
+                  Json r = takeJson(sieda_pcb_place_footprint(p, id, argNum(e, "x", 0), argNum(e, "y", 0),
+                                                              argInt(e, "rotation", c->pcb.rotation),
+                                                              argBool(e, "bottom", c->pcb.bottom) ? 1 : 0,
+                                                              argNum(e, "grid", argNum(a, "grid", 0)), force ? 1 : 0));
+                  if (force && locked) sieda_pcb_lock_footprint(p, id, 1);
+                  if (!r.isObject()) throw ToolError("Could not place " + c->ref);
+                  Json j = obj();
+                  j["ref"] = c->ref;
+                  for (const char* k : {"x", "y", "rotation", "bottom", "legal", "committed", "issues"}) j[k] = r.get(k);
+                  if (!r.get("committed").asBool(false))
+                      j["note"] = "Not placed: the pose is illegal (see issues). Try pcb_suggest_placement or force.";
+                  return j;
+              };
+              if (!a.get("placements").isArray()) return out(placeOne(a));
+              std::vector<Json> list;
+              int placed = 0;
+              for (int pass = 0; pass < 2; ++pass)  // a pose refused first may be free once the others have moved
+                  for (size_t i = 0; i < a.get("placements").size(); ++i)
+                      if (!pass || !list[i].get("committed").asBool(false)) {
+                          Json r = placeOne(a.get("placements").items()[i]);
+                          placed += r.get("committed").asBool(false);
+                          if (pass) list[i] = r; else list.push_back(r);
+                      }
               Json j = obj();
-              j["ref"] = c->ref;
-              for (const char* k : {"x", "y", "rotation", "bottom", "legal", "committed", "issues"}) j[k] = r.get(k);
-              if (!r.get("committed").asBool(false))
-                  j["note"] = "Not placed: the pose is illegal (see issues). Try pcb_suggest_placement or force.";
+              j["placed"] = placed;
+              j["results"] = Json::array();
+              for (auto& r : list) j["results"].push(std::move(r));
               return out(j);
           });
     t.add("pcb", "pcb_suggest_placement", "Suggest placement", Kind::Read, true,
@@ -2074,13 +2229,23 @@ void pcbTools(Table& t) {
               return out(j);
           });
     t.add("pcb", "pcb_lock_footprint", "Lock footprint", Kind::Edit, true,
-          "Locks a footprint where it is (Auto Place and the autorouter's placement keep it) or unlocks it.",
-          Schema().str("ref", "Designator", true).boolean("locked", "true locks (default), false unlocks"),
+          "Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or "
+          "refs.",
+          Schema().str("ref", "Designator").array("refs", "Several designators", "string")
+              .boolean("locked", "true locks (default), false unlocks"),
           [](McpServer& s, const Json& a) {
-              check(sieda_pcb_lock_footprint(P(s), componentId(*P(s), a.get("ref")), argBool(a, "locked", true) ? 1 : 0) == 1,
-                    "Not placed on the board");
+              std::vector<Json> refs;
+              if (a.has("ref")) refs.push_back(a.get("ref"));
+              for (const auto& r : a.get("refs").items()) refs.push_back(r);
+              if (refs.empty()) throw ToolError("Give ref or refs");
+              Json done = Json::array();
+              for (const auto& r : refs) {
+                  check(sieda_pcb_lock_footprint(P(s), componentId(*P(s), r), argBool(a, "locked", true) ? 1 : 0) == 1,
+                        r.asString("") + " is not placed on the board");
+                  done.push(r);
+              }
               Json j = obj();
-              j["ref"] = argStr(a, "ref");
+              j["refs"] = done;
               j["locked"] = argBool(a, "locked", true);
               return out(j);
           });
@@ -2133,7 +2298,28 @@ void pcbTools(Table& t) {
               if ((used.scoped() || used.fanoutOnly) && !previous.scoped() && !previous.fanoutOnly)
                   p->project.pcb.settings.autorouter = previous;
               j["stats"] = stats;
-              j["unroutedConnections"] = p->project.pcb.ratsnest(p->project.schematic).size();
+              const auto open = p->project.pcb.ratsnest(p->project.schematic);
+              j["unroutedConnections"] = open.size();
+              if (!open.empty()) {  // what to do about the connections left open
+                  Json hints = Json::array();
+                  std::set<std::string> said;
+                  const auto pads = p->project.pcb.pads(p->project.schematic);
+                  for (const auto& [ea, eb] : open)
+                      for (Vec2 end : {ea, eb})
+                          for (const auto& pad : pads) {
+                              if (std::hypot(pad.position.x - end.x, pad.position.y - end.y) > 1e-3) continue;
+                              double largest = 0;  // an exposed pad is its part's largest pad
+                              for (const auto& q : pads)
+                                  if (q.componentId == pad.componentId) largest = std::max(largest, q.size.x * q.size.y);
+                              const Component* c = p->project.schematic.find(pad.componentId);
+                              if (c && pad.size.x * pad.size.y >= largest && largest > 4 && said.insert(c->ref).second)
+                                  hints.push(c->ref + "'s exposed pad: pcb_add_thermal_vias {\"ref\":\"" + c->ref +
+                                             "\"} and a pour of its net on the bottom (pcb_add_pour) connect it.");
+                          }
+                  hints.push("A finer rule preset (pcb_set_board rulePreset \"Fab House Advanced (4/4 mil)\"), more "
+                             "layers or a larger board gives the router room; pcb_drc lists each open connection.");
+                  j["hints"] = hints;
+              }
               const Json report = takeJson(sieda_pcb_route_report(p));
               if (report.isObject()) j["metrics"] = report.get("metrics");
               return out(j);

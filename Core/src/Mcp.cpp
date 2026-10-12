@@ -810,6 +810,12 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     const Json args = arguments.isNull() ? Json::object() : arguments;
     const std::string problem = validateArguments(tool->inputSchema, args);
     if (!problem.empty()) return toolErrorResult("Invalid arguments for " + name + ": " + problem);
+    // Undo history: the state before each call that changes the design (not the undo itself), for this project only.
+    constexpr size_t kUndoSteps = 30;
+    if (undoOf_ != project_) undo_.clear(), undoOf_ = project_;
+    std::string before;
+    if (tool->mutates && name != "project_undo" && project_)
+        before = project_->project.toJson().dump();
     ToolOutput out;
     try {
         out = tool->handler(*this, args);
@@ -822,6 +828,10 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         if (tool->mutates && onChange_) onChange_(name);
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
+    if (!before.empty() && project_ == undoOf_) {
+        undo_.push_back(std::move(before));
+        if (undo_.size() > kUndoSteps) undo_.erase(undo_.begin());
+    }
     if (tool->mutates && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
@@ -832,6 +842,14 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     if (out.data.isObject() && protocol_ >= std::string("2025-06-18")) r["structuredContent"] = out.data;
     r["isError"] = false;
     return r;
+}
+
+bool McpServer::undo() {
+    if (undoOf_ != project_ || undo_.empty() || !project_) return false;
+    project_->project = Project::fromJson(Json::parse(undo_.back()));
+    project_->router.reset();
+    undo_.pop_back();
+    return true;
 }
 
 // ---- resources ----------------------------------------------------------------------------------------------------

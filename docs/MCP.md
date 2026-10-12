@@ -339,6 +339,17 @@ What the agent gets back, so it can wire correctly without guessing:
 - `sim_ac` with `at: ["1k"]` gives each net's gain (dB and V/V) and phase at those frequencies.
 - An unknown catalog name (an orderable number such as `PIC16F877A-I/P`) answers with the closest catalog parts and
   their packages.
+- `project_undo` (`steps`, default 1) steps back over this session's edits to the open project, one tool call per
+  step (the last 30 are kept).
+- `schematic_build` draws a 2 – 3 pin signal net as wires from its biggest part's pin, with one label naming it;
+  supplies (a power pin on the net, or a name like `VCC`, `3V3`, `+5V`) keep their labels.
+- `pcb_place_footprint` takes `placements` to place many parts at once (a refused pose is tried again once the
+  others have moved); `pcb_lock_footprint` takes `refs`. `pcb_autoplace` with `decoupling: true` then moves each
+  decoupling capacitor further than 5 mm from its IC supply pin to a free spot 2.5 – 6 mm from it.
+- `pcb_autoroute` also fans out each fine-pitch part (pitch < 0.65 mm) on an open connection first, and with
+  connections still open returns `hints` (an exposed pad: thermal vias and a pour; a finer rule preset).
+- Catalog: the ESP32-C3-MINI-1 (Espressif's KiCad library) and ESP32-C3-WROOM-02 modules, 12 / 25 / 40 MHz
+  3.2 × 2.5 mm crystals and a 2.45 GHz chip antenna; the USB-C receptacle and the 6 mm switch have all their pads.
 
 ## Resources and prompts
 
@@ -430,7 +441,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (16)
+### project (17)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -447,6 +458,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
+| `project_undo` | edit | Takes back the last tool call that changed the design (up to 30 steps; steps: n takes back several). |
 | `project_quickstart` | read | The quick start: units, pin addressing, what results carry, the usual flow (the resource sieda://docs/mcp-quickstart, for clients that cannot read resources). |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
 | `project_review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
@@ -529,9 +541,9 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_eco_preview` | read | What "Update PCB from schematic" would change: footprints to add / remove, nets, pours, rules. |
 | `pcb_update_from_schematic` | edit | Forward annotation: places the footprints of new parts (Auto Place spots), removes parts that are gone, carries net rules, records the baseline. |
 | `pcb_autoplace` | edit | Automatic placement: all = true re-places every unlocked footprint; false places only those not on the board yet. |
-| `pcb_place_footprint` | edit | Moves / turns / flips one footprint (centre x, y in mm). |
+| `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
 | `pcb_suggest_placement` | read | The nearest free legal spot for a footprint, close to the pads it connects to. |
-| `pcb_lock_footprint` | edit | Locks a footprint where it is (Auto Place and the autorouter's placement keep it) or unlocks it. |
+| `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
 | `pcb_autoroute` | edit | Routes the board. |
 | `pcb_autoroute_presets` | read | The autorouter strategy presets with their options, and the board's current strategy. |
 | `pcb_route_report` | read | The last autoroute's report: differential pairs, lengths against their rules, quality metrics. |

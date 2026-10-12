@@ -632,6 +632,13 @@ std::vector<StandardPart> build() {
                          "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
     parts.push_back(part("Timing", "Crystal_8MHz_3225", "Generic", "8 MHz crystal, 3.2 × 2.5 mm SMD, ±20 ppm, 12 pF load",
                          "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
+    // Crystals the common radios / MCUs want: ESP32-C3 / S3 40 MHz, Ethernet PHY 25 MHz, USB 12 MHz.
+    parts.push_back(part("Timing", "Crystal_40MHz_3225", "Generic", "40 MHz crystal (ESP32-C3 / S3 / C6 reference), 3.2 × 2.5 mm SMD, ±10 ppm, 10 pF load (2 × 15 pF caps)",
+                         "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_25MHz_3225", "Generic", "25 MHz crystal (Ethernet PHY / switch reference), 3.2 × 2.5 mm SMD, ±10 ppm, 10 pF load",
+                         "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_12MHz_3225", "Generic", "12 MHz crystal (USB full-speed / MCU), 3.2 × 2.5 mm SMD, ±20 ppm, 12 pF load",
+                         "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
     parts.push_back(part("Timing", "Crystal_32.768kHz_3215", "Generic", "32.768 kHz RTC crystal, 3.2 × 1.5 mm SMD, 12.5 pF load",
                          "XTAL3215", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     parts.push_back(part("Timing", "Crystal_32.768kHz_Cylinder", "Generic",

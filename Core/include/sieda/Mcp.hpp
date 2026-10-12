@@ -130,6 +130,10 @@ public:
     Json getPrompt(const std::string& name, const Json& arguments) const;  // throws ToolError
     /// Runs a tool and wraps the result as an MCP CallToolResult. Unknown tools throw std::out_of_range.
     Json callTool(const std::string& name, const Json& arguments);
+    /// Puts the project back as it was before the last tool call that changed it (up to kUndoSteps back). False
+    /// when there is nothing to undo.
+    bool undo();
+    size_t undoSteps() const { return undo_.size(); }
 
 private:
     McpOptions options_;
@@ -140,6 +144,8 @@ private:
     bool initialized_ = false;
     std::function<void(const std::string&)> onChange_;
     std::vector<std::string> log_;
+    std::vector<std::string> undo_;  // project states before the last design-changing calls, oldest first
+    const SiedaProject* undoOf_ = nullptr;  // the project they belong to (history clears when it changes)
 };
 
 /// The built-in example designs (project_list_examples / project_load_example): {id, title, description}.
