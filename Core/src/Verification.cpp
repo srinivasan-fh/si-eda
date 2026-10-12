@@ -122,8 +122,10 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
         }
         st.status = statusOf(st.findings);
         st.summary = countSummary(st.findings, "No electrical rule violations");
-        st.details.push_back(std::to_string(sch.components().size()) + " components, " + std::to_string(sch.nets().size()) +
-                             " nets");
+        int parts = 0, nets = 0;  // as the project summary counts them: no net symbols, nets joining pins
+        for (const auto& c : sch.components()) parts += !c.packageOnly && !isNetSymbolKind(c.kind);
+        for (const auto& n : sch.nets()) nets += n.pins.size() > 1;
+        st.details.push_back(std::to_string(parts) + " components, " + std::to_string(nets) + " nets");
         report.stages.push_back(std::move(st));
     }
 
@@ -141,9 +143,21 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                 st.summary = "Did not converge";
             } else {
                 st.summary = "Converged in " + std::to_string(dc.iterations) + " iterations";
+                // Powered through a connector (a J / P / CN / X part on a supply net): no stimulus is expected.
+                std::string inlet;
+                for (const auto& c : sch.components()) {
+                    const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+                    if (!inlet.empty() || (prefix != "J" && prefix != "P" && prefix != "CN" && prefix != "X")) continue;
+                    for (int i = 0; i < static_cast<int>(c.def().pins.size()) && inlet.empty(); ++i)
+                        if (const int n = sch.netOf({c.id, i}); n >= 0 && sch.netRole(n) == NetRole::Power) inlet = c.ref;
+                }
                 if (!hasSource)
-                    st.findings.push_back(finding(Severity::Warning, "VER_NO_SOURCE",
-                                                  "No voltage or current source: the circuit has no stimulus to simulate."));
+                    st.findings.push_back(
+                        inlet.empty() ? finding(Severity::Warning, "VER_NO_SOURCE",
+                                                "No voltage or current source: the circuit has no stimulus to simulate.")
+                                      : finding(Severity::Info, "VER_NO_SOURCE",
+                                                "Power comes in on " + inlet + ": no source to simulate (add one to "
+                                                "simulate the circuit)."));
                 double supply = 0;
                 for (const auto& d : dc.devices) {
                     const Component* c = sch.find(d.componentId);

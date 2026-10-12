@@ -1107,16 +1107,30 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
         tr.net = n;
         keptT.push_back(tr);
     }
-    std::vector<Via> keptV;
+    std::vector<Via> keptV, alone;
     for (size_t v = 0; v < vias.size(); ++v) {
         int n = netFor(np + nt + v);
-        if (n < 0) continue;
+        if (n < 0) {
+            alone.push_back(vias[v]);
+            continue;
+        }
         Via via = vias[v];
         via.net = n;
         keptV.push_back(via);
     }
     tracks = std::move(keptT);
     vias = std::move(keptV);
+    // A via reaching no pad through tracks may join pours (stitching the GND pours of two layers): it stays, on the
+    // net of the pour it stands in, filled without it.
+    if (alone.empty() || zones.empty()) return;
+    const std::vector<ZoneFill> fills = zoneFills(sch);
+    for (Via via : alone)
+        for (const auto& f : fills)
+            if (via.spans(f.layer) && f.islandNear(via.position, via.diameter / 2) >= 0) {
+                via.net = f.net;
+                vias.push_back(via);
+                break;
+            }
 }
 
 std::vector<std::pair<Vec2, Vec2>> PcbLayout::ratsnest(const Schematic& sch) const {

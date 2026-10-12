@@ -115,7 +115,12 @@
   `RouteKeepout::pours` keeps pours out (saved only when on);
   `finishRouting` also fans fine-pitch parts out first; `project_undo` = `McpServer::undo` (state before each mutating
   call, 30 kept, cleared when the project changes); `placeDecoupling` (opt-in `pcb_autoplace` `decoupling`);
-  `schematic_build` draws 2 – 3 pin signal nets as wires. Catalog rows may name `PCM_Espressif` footprints, and
+  `schematic_build` lays two-pin parts beside the IC pin of their named net (`layoutBuilt` keeps label room) and
+  draws a straight, clear link as a wire named by a mid-wire tag, else labels; `pcb_drc` adds DRC_PLACE_* (courtyard
+  off board / overlapping) and DRC_ANTENNA_KEEPOUT; Verification counts parts / nets as `project_summary`, and
+  VER_NO_SOURCE is info on a connector-fed board; `StandardPart::footprint` = the catalog row's KiCad footprint;
+  `placeDecoupling` also places crystals (Y…) and regulator bulk caps; `removeStranded` rips a moved part's old
+  copper. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching). Catalog rows may name `PCM_Espressif` footprints, and
   `ALL_PADS` in `tools/fetch_catalog_parts.py` keeps every pad of a footprint. Tool failures are `isError` results, never crashes; file
   access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
