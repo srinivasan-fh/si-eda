@@ -210,6 +210,21 @@ const StandardPart& catalogPart(const std::string& name) {
                     " (library_search finds names)");
 }
 
+/// A search word against a part's text (as the app's PartQuery): a short word (≤ 3 letters) starts a word of the text
+/// ("ble" finds "BLE-MODULE", not "adjustable"; "esp" finds "ESP32"), a longer one appears in it, separators ignored
+/// ("wifi" finds "Wi-Fi"); "ble" / "bt" also find Bluetooth and "wlan" Wi-Fi.
+bool wordMatches(const std::string& hay, const std::string& word) {
+    static const std::map<std::string, std::string> alias = {{"ble", "bluetooth"}, {"bt", "bluetooth"}, {"wlan", "wifi"}};
+    if (auto it = alias.find(word); it != alias.end() && wordMatches(hay, it->second)) return true;
+    const bool letters = !word.empty() && std::all_of(word.begin(), word.end(), [](unsigned char c) { return std::isalpha(c); });
+    if (letters && word.size() <= 3) {
+        for (size_t at = hay.find(word); at != std::string::npos; at = hay.find(word, at + 1))
+            if (at == 0 || !std::isalnum(static_cast<unsigned char>(hay[at - 1]))) return true;
+        return false;
+    }
+    return hay.find(word) != std::string::npos || (!compact(word).empty() && compact(hay).find(compact(word)) != std::string::npos);
+}
+
 /// "8" → 8…8, "6-10", ">40", "<8", ">=40", "<=8" (as the app's PartQuery).
 bool pinRange(const std::string& v, int* lo, int* hi) {
     try {
@@ -1206,7 +1221,8 @@ void libraryTools(Table& t) {
           });
     t.add("library", "library_search", "Search catalog", Kind::Read, true,
           "Searches the standard-part catalog (regulators, MCUs, op-amps, logic, interfaces, sensors, connectors …). "
-          "query words must all match name / description / category / manufacturer / package; the query also takes "
+          "query words must all match name / description / category / manufacturer / package (a word of 3 letters or "
+          "fewer starts a word there, longer ones ignore separators: \"wifi\" finds Wi-Fi, \"ble\" Bluetooth LE); the query also takes "
           "filters as in the app: \"cat:regulators pkg:sot-23 pins:3-5 mfr:ti\". Separate filter arguments do the "
           "same. Empty query: the categories with their part counts.",
           Schema()
@@ -1267,7 +1283,7 @@ void libraryTools(Table& t) {
                   const std::string hay = lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " +
                                                    p.spec.manufacturer + " " + p.spec.package.type + "-" +
                                                    std::to_string(p.spec.package.pinCount));
-                  for (const auto& w : words) ok = ok && hay.find(w) != std::string::npos;
+                  for (const auto& w : words) ok = ok && wordMatches(hay, w);
                   if (!ok) continue;
                   ++total;
                   if (static_cast<int>(list.size()) >= limit) continue;

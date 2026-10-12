@@ -169,7 +169,9 @@
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes
   `Core/src/StandardCatalogExtra.inc` (don't edit either by hand; `EXCLUDE` in the script lists symbols the core
-  cannot draw). AI prompts get a digest of the catalog (`SiEDA/AI/CatalogDigest.swift`), never the whole list.
+  cannot draw). RF modules (`RF_Module`) and Nordic aQFN parts use KiCad's exact land pattern (aQFN lands name
+  their balls); chips KiCad lacks (ESP32-C6, ESP32-H2) come from Espressif's own KiCad library (`ESPRESSIF` in
+  `tools/fetch_mcu_pinouts.py`). Catalog search words: `wordMatches` (core MCP) = `PartQuery.wordMatches` (app). AI prompts get a digest of the catalog (`SiEDA/AI/CatalogDigest.swift`), never the whole list.
 
 ## Missing IC parts
 

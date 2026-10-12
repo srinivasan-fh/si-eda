@@ -375,6 +375,26 @@ PARTS = [
      "Dual Xtensa LX7 240 MHz Wi-Fi 4 + Bluetooth LE 5 SoC, USB OTG, vector instructions, QFN-56", "U", ""),
     ("Microcontrollers · Espressif", "MCU_Espressif", "ESP32-PICO-D4", "ESP32-PICO-D4", "Espressif",
      "ESP32 system-in-package with 4 MB flash and crystal, QFN-48", "U", ""),
+    ("Microcontrollers · Espressif", "Espressif", "ESP32-C6", "ESP32-C6", "Espressif",
+     "Low-power RISC-V 160 MHz Wi-Fi 6 + Bluetooth LE 5 + Thread / Zigbee (802.15.4) SoC with a 20 MHz low-power "
+     "core, external flash or 4 / 8 MB in package (C6FH4 / C6FH8), QFN-40", "U", ""),
+    ("Microcontrollers · Espressif", "Espressif", "ESP32-H2", "ESP32-H2", "Espressif",
+     "Low-power RISC-V 96 MHz SoC, radios Bluetooth LE 5 and Thread / Zigbee (802.15.4) only, 2 / 4 MB in-package "
+     "flash (H2FH2 / H2FH4), QFN-32", "U", ""),
+    ("Microcontrollers · Espressif", "RF_Module", "ESP32-S3-WROOM-1", "ESP32-S3-WROOM-1", "Espressif",
+     "Wi-Fi 4 + Bluetooth LE 5 module (ESP32-S3, up to 16 MB flash / 8 MB PSRAM) with a PCB antenna, 41 pads",
+     "U", ""),
+    ("Microcontrollers · Espressif", "RF_Module", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1", "Espressif",
+     "Small Wi-Fi 4 + Bluetooth LE 5 module (ESP32-S3, 8 MB flash) with a PCB antenna, 15.4 x 20.5 mm LGA", "U", ""),
+    ("Microcontrollers · Espressif", "RF_Module", "ESP32-C6-MINI-1", "ESP32-C6-MINI-1", "Espressif",
+     "Low-power Wi-Fi 6 + Bluetooth LE 5 + Thread / Zigbee (802.15.4) module (ESP32-C6, RISC-V 160 MHz + "
+     "low-power core, 4 MB flash) with a PCB antenna", "U", ""),
+    # Microcontrollers · Nordic
+    ("Microcontrollers · Nordic", "MCU_Nordic", "nRF52840", "nRF52840", "Nordic Semiconductor",
+     "Low-power Cortex-M4F 64 MHz Bluetooth LE 5 / Thread / Zigbee SoC, 1 MB flash, 256 KB RAM, USB, aQFN-73",
+     "U", ""),
+    ("Microcontrollers · Nordic", "MCU_Nordic", "nRF5340-QKxx", "nRF5340", "Nordic Semiconductor",
+     "Dual Cortex-M33 (128 + 64 MHz) Bluetooth LE 5.3 / LE Audio / Thread SoC, 1 MB flash, USB, aQFN-94", "U", ""),
     # Microcontrollers · Microchip
     ("Microcontrollers · Microchip", "MCU_Microchip_ATtiny", "ATtiny202-SS", "ATTINY202-SSN", "Microchip",
      "tinyAVR 0-series 20 MHz, 2 KB flash, UPDI, SOIC-8", "U", ""),
@@ -672,9 +692,11 @@ PARTS = [
 FOOTPRINTS = "https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-footprints/repository/files/{}/raw?ref=master"
 
 
-def lands(footprint):
+def lands(footprint, named=False):
     """Exact land pattern of a KiCad footprint: [(number, x, y, w, h)] of its numbered SMD pads (the largest pad of
-    each number; paste-only and thermal-via pads skipped), and the body (w, h) from the name when it carries one."""
+    each number; paste-only and thermal-via pads skipped), and the body (w, h) from the name when it carries one.
+    named: ball-named pads ("A8", "EP") count too. An RF module's body is its fabrication outline, the pads moved so
+    the body is centred on the origin (as SiEDA draws it)."""
     lib, name = footprint.split(":")
     path = os.path.join(kicad.CACHE, f"fp__{name}.kicad_mod")
     if not os.path.exists(path):
@@ -689,9 +711,18 @@ def lands(footprint):
         num, x, y, rot, w, h = m.group(1), float(m.group(2)), float(m.group(3)), float(m.group(4) or 0), \
             float(m.group(5)), float(m.group(6))
         if round(rot) % 180 == 90: w, h = h, w
-        if not num.isdigit(): continue
+        if not (num.isdigit() or (named and num)): continue
         if num not in best or w * h > best[num][2] * best[num][3]: best[num] = (x, y, w, h)
     body = re.search(r"_([\d.]+)x([\d.]+)mm", name)
+    if lib == "RF_Module" and not body:
+        fab = [(float(a), float(b)) for blk, layer in re.findall(r'\(fp_(?:line|rect)(.*?)\(layer "([^"]+)"\)', text, re.S)
+               if layer == "F.Fab" for a, b in re.findall(r'\((?:start|end) ([-\d.]+) ([-\d.]+)\)', blk)]
+        if fab:
+            x0, x1 = min(p[0] for p in fab), max(p[0] for p in fab)
+            y0, y1 = min(p[1] for p in fab), max(p[1] for p in fab)
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            best = {k: (round(x - cx, 4), round(y - cy, 4), w, h) for k, (x, y, w, h) in best.items()}
+            return best, (round(x1 - x0, 4), round(y1 - y0, 4))
     return best, (float(body.group(1)), float(body.group(2))) if body else (0, 0)
 
 
@@ -700,7 +731,8 @@ def irregular(footprint):
     clockwise numbering, uneven pad rows, multi-slug power packages, power SON with a fused drain pad, 0.65 mm SC-70."""
     lib, name = footprint.split(":")
     u = name.upper()
-    if lib in ("Package_LGA", "Sensor_Distance") or any(k in u for k in ("MULTIPOWERSO", "R-PVQFN", "TDSON", "SC-70")):
+    if lib in ("Package_LGA", "Sensor_Distance", "RF_Module") or u.startswith("NORDIC_AQFN") or \
+            any(k in u for k in ("MULTIPOWERSO", "R-PVQFN", "TDSON", "SC-70")):
         return True
     body = re.search(r"(?:QFN|DFN)-\d+.*?_([\d.]+)x([\d.]+)mm", name)
     return bool(body and body.group(1) != body.group(2))
@@ -781,6 +813,22 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
             del found[k]
         footprint = override or footprint
         if not footprint: raise SystemExit(f"{sym}: no footprint")
+        if not override and irregular(footprint) and not all(k.isdigit() for k in found):
+            # Ball-named pins (Nordic aQFN: "A8", "EP"): one land per pin, in ball order, each naming its pin.
+            pads, (bw, bd) = lands(footprint, named=True)
+            numbers = sorted(found, key=lambda b: (len(b.rstrip("0123456789")), b.rstrip("0123456789"),
+                                                   int(b[len(b.rstrip("0123456789")):] or 0)))
+            for k in numbers:
+                if k not in pads: raise SystemExit(f"{sym}: pin {k} has no pad")
+            fpname = footprint.split(":")[-1]
+            out.append(f"catalog(parts, {cpp(category)}, {cpp(name)}, {cpp(maker)}, {cpp(desc)}, {cpp(ref)},")
+            out.append(f"    \"LGA\", {len(numbers)}, 0, {bw:g}, {cpp(fpname)},")
+            out.append("    {" + ", ".join("{%s, %s, T::%s}" % (cpp(k), cpp(found[k][0]), found[k][1]) for k in numbers) + "});")
+            out.append(f"parts.back().spec.package.bodyDepth = {bd:g};")
+            out.append("parts.back().spec.package.lands = {" + ", ".join(
+                "{%g, %g, %g, %g, 0, false, %s}" % (pads[k] + (cpp(k),)) for k in numbers) + "};")
+            summary.append(f"{name:20} {'LGA':9} n={len(numbers):3} pins={len(numbers):3} {fpname}")
+            return out
         if not override and irregular(footprint):
             pads, (bw, bd) = lands(footprint)
             if not pads: raise SystemExit(f"{footprint}: no SMD pads")

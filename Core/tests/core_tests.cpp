@@ -20623,6 +20623,42 @@ TEST(mcp_agent_gets_full_pin_detail_and_guards) {
     CHECK(u2.get("pins")[12].get("side").asString("") == "right" && u2.get("pins")[23].get("side").asString("") == "right");
 }
 
+TEST(mcp_library_search_wireless_words_and_new_radio_parts) {
+    // "wifi" finds "Wi-Fi", "ble" finds Bluetooth parts but not the "adjustable" / "enable" regulators, and the
+    // low-power radio parts (ESP32-C6 / H2, the S3 / C6 modules, nRF52840 / nRF5340) place with their footprints.
+    const auto root = mcpRoot("radio");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    auto names = [&](const char* query) {
+        Json a = Json::object();
+        a["query"] = query;
+        a["limit"] = 200;
+        std::set<std::string> found;
+        const Json result = mcpData(mcpTool(s, "library_search", a));
+        for (const auto& p : result.get("parts").items()) found.insert(p.get("name").asString(""));
+        return found;
+    };
+    const auto wifi = names("wifi"), ble = names("ble");
+    CHECK(wifi.count("ESP32-C6") && wifi.count("ESP32-S3-WROOM-1") && wifi.count("ESP32-C6-MINI-1") && !wifi.count("ESP32-H2"));
+    CHECK(ble.count("nRF52840") && ble.count("nRF5340") && ble.count("ESP32-H2") && ble.count("BLE-MODULE"));
+    CHECK(!ble.count("LM317") && !ble.count("AP2112K-3.3"));
+    CHECK(names("esp").count("ESP32-C3"));
+    for (const char* n : {"ESP32-C6", "ESP32-H2", "ESP32-C6-MINI-1", "ESP32-S3-WROOM-1", "ESP32-S3-MINI-1", "nRF52840", "nRF5340"}) {
+        Json a = Json::object();
+        a["name"] = n;
+        const Json part = mcpData(mcpTool(s, "library_add_part", a));
+        CHECK(part.get("footprint").isString());
+    }
+    CHECK(mcpData(mcpTool(s, "pcb_update_from_schematic", Json::object())).get("board").get("footprintsPlaced").asInt(0) == 7);
+    Json q = Json::object();
+    q["pin"] = "U6.A8";  // nRF52840 ball A8
+    q["noConnect"] = true;
+    CHECK(mcpData(mcpTool(s, "schematic_set_no_connect", q)).get("pin").asString("") == "U6.AIN7/P0.31");
+}
+
 TEST(mcp_multi_page_schematic) {
     // A second page through tools/call: parts go to the active page, a connection across pages becomes a pair of
     // global labels, and a ground for a pin lands on that pin's page whichever page is active.

@@ -4709,6 +4709,18 @@ final class PartQueryTests: XCTestCase {
         XCTAssertEqual(PartQuery("Barometric").words, ["barometric"])
     }
 
+    func testWirelessWordsFindTheRadioParts() {
+        // "wifi" finds Wi-Fi, "ble" finds Bluetooth parts and not the "adjustable" / "enable" regulators.
+        let all = StandardLibrary.parts
+        let wifi = all.filter { PartQuery("wifi").matches($0) }.map(\.spec.name)
+        XCTAssertTrue(wifi.contains("ESP32-C6") && wifi.contains("ESP32-S3-WROOM-1"))
+        XCTAssertFalse(wifi.contains("ESP32-H2"))
+        let ble = all.filter { PartQuery("ble").matches($0) }.map(\.spec.name)
+        XCTAssertTrue(ble.contains("nRF52840") && ble.contains("ESP32-H2") && ble.contains("BLE-MODULE"))
+        XCTAssertFalse(ble.contains("LM317") || ble.contains("AP2112K-3.3"))
+        XCTAssertTrue(PartQuery.wordMatches("esp32-c3 risc-v", "esp"))
+    }
+
     func testStandardLibrarySearchByCategoryPackageAndPins() {
         let all = StandardLibrary.parts
         let fets = ComponentLibraryView.filterStandard(all, search: "cat:transistors pkg:sot23 mosfet", kit: nil)
