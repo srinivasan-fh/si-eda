@@ -87,9 +87,10 @@ Vec2 freeSpot(const Project& p) {
     for (int i = 0; i < 400; ++i) {
         const Vec2 c{static_cast<double>((i % 8) * 120), static_cast<double>((i / 8) * 120)};
         bool taken = false;
-        for (const auto& comp : s.components()) {
+        for (const auto& comp : s.components()) {  // clear of every symbol's outline, not only its origin
             if (comp.sheet != sheet || comp.packageOnly) continue;
-            if (std::fabs(comp.position.x - c.x) < 70 && std::fabs(comp.position.y - c.y) < 70) {
+            const auto o = s.symbolOutline(comp);
+            if (c.x + 70 > o[0] && c.x - 70 < o[2] && c.y + 70 > o[1] && c.y - 70 < o[3]) {
                 taken = true;
                 break;
             }
@@ -478,6 +479,92 @@ std::string packageChoices(ComponentKind kind) {
 /// Decoupling capacitors (one pin on an IC's supply net, the other on ground) moved next to the IC supply pin they
 /// serve, one capacitor per pin in pin order: one further than 5 mm goes to the nearest legal spot 2.5–6 mm from the
 /// pin (room left for the pins' escape routes). Locked parts stay. Returns "C3 → U1.VDD" for each one moved.
+/// The open end of a footprint: the side its pads lean away from (an antenna, a connector's mouth) — 0 top,
+/// 1 bottom, 2 left, 3 right — with how far the pads' centre sits off the courtyard's, and the area past the pads.
+int openEnd(const Rect& cy, const std::vector<Pad>& pads, double* gap, Rect* area) {
+    double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    Vec2 sum{0, 0};
+    for (const auto& pad : pads) {
+        x0 = std::min(x0, pad.position.x - pad.size.x / 2), y0 = std::min(y0, pad.position.y - pad.size.y / 2);
+        x1 = std::max(x1, pad.position.x + pad.size.x / 2), y1 = std::max(y1, pad.position.y + pad.size.y / 2);
+        sum = sum + pad.position;
+    }
+    const Vec2 off = cy.center() - sum * (1.0 / std::max<size_t>(1, pads.size()));
+    const int side = std::fabs(off.y) >= std::fabs(off.x) ? (off.y < 0 ? 0 : 1) : (off.x < 0 ? 2 : 3);
+    *gap = std::max(std::fabs(off.x), std::fabs(off.y));
+    *area = cy;
+    if (side == 0) area->y1 = y0 - 0.5;
+    else if (side == 1) area->y0 = y1 + 0.5;
+    else if (side == 2) area->x1 = x0 - 0.5;
+    else area->x0 = x1 + 0.5;
+    return side;
+}
+
+bool hasAntenna(const Component& c) {
+    const CustomPart* cp = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+    std::string text = cp ? cp->spec.description : "";
+    for (auto& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    return text.find("antenna") != std::string::npos;
+}
+
+/// Auto Place's edge pass (before the others are placed): a part with an antenna goes to the top edge with its
+/// antenna end outwards and a keep-out (tracks, vias, pours) over that end; a USB / connector part (J…, P…, CN…,
+/// USB…) with an open end (its mouth) goes to the bottom edge facing out. Each slides along its edge to the first
+/// free spot from the middle. Returns what moved and the ids placed (held while the rest is placed).
+Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
+    Json moved = Json::array();
+    Project& pr = p->project;
+    const BoardSettings& st = pr.pcb.settings;
+    if (st.hasCustomOutline()) return moved;  // a rectangle only
+    for (const auto& c : pr.schematic.components()) {
+        if (!c.hasFootprint() || c.pcb.locked || isNetSymbolKind(c.kind) || !pr.pcb.onBoard(c)) continue;
+        const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+        const bool antenna = hasAntenna(c);
+        if (!antenna && prefix != "J" && prefix != "P" && prefix != "CN" && prefix != "USB") continue;
+        const int edge = antenna ? 0 : 1;  // top / bottom
+        int rotation = -1;
+        Rect cy;
+        for (int rot : {0, 90, 180, 270}) {  // the turn that faces its open end out over that edge
+            const PlacementCheck k = pr.checkPlacement(c.id, {st.width / 2, st.height / 2}, rot, c.pcb.bottom, 0);
+            double gap = 0;
+            Rect area;
+            if (openEnd(k.courtyard, k.pads, &gap, &area) == edge && gap >= 0.5) {
+                rotation = rot;
+                cy = k.courtyard;
+                break;
+            }
+        }
+        if (rotation < 0) continue;  // no open end (a pin header): Auto Place puts it
+        // The antenna end at the edge; a connector 1 mm in, so copper can still pass in front of its pads.
+        const double half = cy.height() / 2, y = edge == 0 ? st.edgeClearance + half : st.height - st.edgeClearance - half - 1;
+        for (int k = 0; k < 4 * static_cast<int>(st.width); ++k) {
+            const double x = st.width / 2 + (k % 2 ? 1 : -1) * 0.5 * ((k + 1) / 2);
+            if (!takeJson(sieda_pcb_place_footprint(p, c.id, x, y, rotation, c.pcb.bottom ? 1 : 0, 0.25, 0)).get("committed").asBool(false))
+                continue;
+            held->push_back(c.id);
+            moved.push(c.ref + " → " + (edge == 0 ? "top" : "bottom") + " edge");
+            if (antenna) {  // copper kept out from under the antenna
+                const Component& m = *pr.schematic.find(c.id);
+                std::vector<Pad> pads;
+                for (const auto& pad : pr.pcb.pads(pr.schematic))
+                    if (pad.componentId == m.id) pads.push_back(pad);
+                double gap = 0;
+                Rect area;
+                openEnd(pr.pcb.courtyard(m), pads, &gap, &area);
+                RouteKeepout kp;
+                kp.name = "antenna " + m.ref;
+                kp.area = area;
+                kp.pours = true;
+                auto& kos = pr.pcb.settings.keepouts;
+                kos.erase(std::remove_if(kos.begin(), kos.end(), [&](const RouteKeepout& o) { return o.name == kp.name; }), kos.end());
+                kos.push_back(kp);
+            }
+            break;
+        }
+    }
+    return moved;
+}
+
 Json placeDecoupling(SiedaProject* p) {
     // Each IC supply pin gets the nearest small capacitor (≤ 1 µF) between its net and ground, one capacitor per pin
     // (a regulator's input and output pins take bulk ones too; other bulk capacitors stay); one further than 3 mm
@@ -1044,11 +1131,26 @@ void schematicTools(Table& t) {
                       ids.push_back(w.id);
                   }
               }
-              if (ids.empty()) throw ToolError("No such wire");
+              int tags = 0;
+              if (ids.empty() && a.has("from") && a.has("to")) {  // through a net tag between them (schematic_build)
+                  const PinAddress pa = pinAddress(*p, a.get("from")), pb = pinAddress(*p, a.get("to"));
+                  std::map<int, int> touches;  // net symbol → which of the two pins it is wired to (bit 1 / 2)
+                  for (const auto& w : p->project.schematic.wires())
+                      for (const auto& [end, other] : {std::pair{w.a, w.b}, std::pair{w.b, w.a}}) {
+                          const Component* c = p->project.schematic.find(other.component);
+                          if (!c || c->kind != ComponentKind::NetLabel) continue;
+                          if (end.component == pa.component && end.pin == pa.pin) touches[c->id] |= 1;
+                          if (end.component == pb.component && end.pin == pb.pin) touches[c->id] |= 2;
+                      }
+                  for (const auto& [id, bits] : touches)
+                      if (bits == 3) tags += sieda_remove_component(p, id) == 1;  // its wires go with it
+              }
+              if (ids.empty() && !tags) throw ToolError("No such wire");
               int removed = 0;
               for (int id : ids) removed += sieda_remove_wire(p, id) == 1;
               Json j = obj();
               j["wiresRemoved"] = removed;
+              if (tags) j["tagsRemoved"] = tags;
               return out(j);
           });
     t.add("schematic", "schematic_net_label", "Net label", Kind::Edit, false,
@@ -2433,19 +2535,35 @@ void pcbTools(Table& t) {
               return out(r);
           });
     t.add("pcb", "pcb_autoplace", "Auto place", Kind::Edit, false,
-          "Automatic placement: all = true re-places every unlocked footprint; false places only those not on the "
-          "board yet. decoupling: true then gives each IC supply pin the nearest small capacitor (≤ 1 µF; a regulator's "
+          "Automatic placement: all = true re-places every unlocked footprint (antenna parts and USB / connectors with "
+          "an open end first, at the top / bottom edge facing out; edges: false skips that); false places only those "
+          "not on the board yet. decoupling (default on with all) gives each IC supply pin the nearest small capacitor (≤ 1 µF; a regulator's "
           "input / output also a bulk one) between its net and ground, one per pin, moves one further than 3 mm to the "
           "nearest free spot by the pin, and puts a crystal (Y…) by the pins it drives with its load capacitors beside "
           "it (shorter loops; on a dense 2-layer board it leaves the router less room around the IC).",
           Schema().boolean("all", "Re-place everything (default false)")
-              .boolean("decoupling", "Then place a small capacitor next to each IC supply pin"),
+              .boolean("edges", "With all: antenna parts to the top edge (with a keep-out), USB / connectors with an open "
+                                "end to the bottom edge, facing out (default true)")
+              .boolean("decoupling", "Then place a small capacitor next to each IC supply pin and crystals by their pins "
+                                     "(default: on with all)"),
           [](McpServer& s, const Json& a) {
               const double w0 = proj(s).pcb.settings.width, h0 = proj(s).pcb.settings.height;
+              std::vector<int> held;  // placed at an edge first, held while the rest is placed
+              Json edges;
+              if (argBool(a, "all", false) && argBool(a, "edges", true)) {
+                  std::vector<int> lift;  // everything unlocked is placed again: the edge parts first
+                  for (const auto& c : proj(s).schematic.components())
+                      if (!c.pcb.locked && c.hasFootprint() && proj(s).pcb.onBoard(c)) lift.push_back(c.id);
+                  for (int id : lift) P(s)->project.schematic.find(id)->pcb.placed = false;
+                  edges = placeAtEdges(P(s), &held);
+                  for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = true;
+              }
               sieda_pcb_autoplace(P(s), argBool(a, "all", false) ? 1 : 0);
-              const Json moved = argBool(a, "decoupling", false) ? placeDecoupling(P(s)) : Json();
+              for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = false;
+              const Json moved = argBool(a, "decoupling", argBool(a, "all", false)) ? placeDecoupling(P(s)) : Json();
               Json j = pcbSummary(s);
               if (moved.size()) j["decouplingPlaced"] = moved;
+              if (edges.size()) j["edgesPlaced"] = edges;
               if (const auto& st = proj(s).pcb.settings; st.width != w0 || st.height != h0) {
                   char note[400];
                   std::snprintf(note, sizeof note,
@@ -2837,38 +2955,24 @@ void pcbTools(Table& t) {
               }
               // A part with an antenna and no pour keep-out over it: copper under the antenna detunes it.
               for (const auto& c : pr.schematic.components()) {
-                  const CustomPart* cp = c.kind == ComponentKind::Custom && c.pcb.placed ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
-                  std::string text = cp ? cp->spec.description : "";
-                  for (auto& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-                  if (text.find("antenna") == std::string::npos || !pr.pcb.onBoard(c)) continue;
+                  if (!c.pcb.placed || !hasAntenna(c) || !pr.pcb.onBoard(c)) continue;
                   bool kept = false;
                   for (const auto& k : pr.pcb.settings.keepouts) kept |= k.pours && k.area.intersects(pr.pcb.courtyard(c));
                   if (kept) continue;
-                  // The antenna end: the side of the courtyard furthest from the pads (a module's pads sit at the
-                  // other end and along its sides).
-                  const Rect cy = pr.pcb.courtyard(c);
-                  double lx0 = 1e9, ly0 = 1e9, lx1 = -1e9, ly1 = -1e9;  // the pads' extent
+                  std::vector<Pad> pads;
                   for (const auto& pad : pr.pcb.pads(pr.schematic))
-                      if (pad.componentId == c.id) {
-                          lx0 = std::min(lx0, pad.position.x - pad.size.x / 2), ly0 = std::min(ly0, pad.position.y - pad.size.y / 2);
-                          lx1 = std::max(lx1, pad.position.x + pad.size.x / 2), ly1 = std::max(ly1, pad.position.y + pad.size.y / 2);
-                      }
-                  const Rect lands(lx0, ly0, lx1, ly1);
-                  const double gaps[4] = {lands.y0 - cy.y0, cy.y1 - lands.y1, lands.x0 - cy.x0, cy.x1 - lands.x1};
-                  const int side = static_cast<int>(std::max_element(gaps, gaps + 4) - gaps);
-                  Rect area = cy;
-                  if (side == 0) area.y1 = lands.y0 - 0.5;
-                  else if (side == 1) area.y0 = lands.y1 + 0.5;
-                  else if (side == 2) area.x1 = lands.x0 - 0.5;
-                  else area.x0 = lands.x1 + 0.5;
+                      if (pad.componentId == c.id) pads.push_back(pad);
+                  double gap = 0;
+                  Rect area;
+                  openEnd(pr.pcb.courtyard(c), pads, &gap, &area);
                   char box[200];
                   std::snprintf(box, sizeof box, "{\"x0\":%.2f,\"y0\":%.2f,\"x1\":%.2f,\"y1\":%.2f}", area.x0, area.y0, area.x1, area.y1);
                   Json v = obj(), refs = Json::array();
                   v["code"] = "DRC_ANTENNA_KEEPOUT";
-                  v["message"] = c.ref + " has an antenna: keep copper out from under it (pcb_set_keepouts with pours: "
-                                 "true and tracks / vias false over its antenna end, " + std::string(box) +
-                                 " where it stands now, past the board edge if it can) and place that end at the board edge.";
-                  if (gaps[side] > 1) v["area"] = Json::parse(box);
+                  v["message"] = c.ref + " has an antenna: keep copper out from under it (pcb_set_keepouts with tracks, "
+                                 "vias and pours true over its antenna end, " + std::string(box) +
+                                 " where it stands now; pcb_autoplace all puts it at the top edge with that keep-out).";
+
                   v["severity"] = "info";
                   refs.push(c.ref);
                   v["refs"] = refs;
@@ -2910,14 +3014,31 @@ void pcbTools(Table& t) {
               return out(takeJson(sieda_pcb_fanout(P(s), componentId(*P(s), a.get("ref")), optionsFrom(a, {"ref"}).c_str())));
           });
     t.add("pcb", "pcb_stitch_vias", "Via stitching", Kind::Edit, false,
-          "Stitches vias where a net's pours overlap on two or more layers (default the ground net, 2 mm pitch), "
-          "optionally inside an area.",
-          Schema().str("net", "Net (default ground)").num("pitch", "Pitch (mm)").num("x0", "Area x0").num("y0", "Area y0").num("x1", "Area x1").num("y1", "Area y1"),
+          "Stitches vias where a net's pours overlap on two or more layers (default the ground net, 5 mm pitch), "
+          "optionally inside an area; none under a part's courtyard.",
+          Schema().str("net", "Net (default ground)").num("pitch", "Pitch (mm, default 5)").num("x0", "Area x0").num("y0", "Area y0").num("x1", "Area x1").num("y1", "Area y1"),
           [](McpServer& s, const Json& a) {
-              Json r = takeJson(sieda_pcb_stitch_vias(P(s), optionsFrom(a).c_str()));
+              Json o = a.isObject() ? a : obj();
+              if (!o.has("pitch")) o["pitch"] = 5.0;
+              Project& pr = P(s)->project;
+              const size_t before = pr.pcb.vias.size();
+              Json r = takeJson(sieda_pcb_stitch_vias(P(s), o.dump().c_str()));
+              int under = 0;  // a stitch under a part (a module, a switch, a connector shell) goes again
+              for (size_t i = pr.pcb.vias.size(); i-- > before;)
+                  for (const auto& c : pr.schematic.components())
+                      if (c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c) &&
+                          pr.pcb.courtyard(c).inflated(pr.pcb.vias[i].diameter / 2).contains(pr.pcb.vias[i].position)) {
+                          pr.pcb.vias.erase(pr.pcb.vias.begin() + static_cast<long>(i));
+                          ++under;
+                          break;
+                      }
               Json j = obj();
               for (const char* k : {"ok", "message", "added", "skipped", "error"})
                   if (r.has(k)) j[k] = r.get(k);
+              if (under) {
+                  j["added"] = r.get("added").asInt(0) - under;
+                  j["underParts"] = under;
+              }
               return out(j);
           });
     t.add("pcb", "pcb_length_rules", "Length rules", Kind::Edit, false,

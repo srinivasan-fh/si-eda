@@ -20796,6 +20796,11 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     undo["steps"] = 10;
     CHECK(!mcpFailed(mcpTool(s, "project_undo", undo)));
     CHECK(state().schematic.components().empty() && mcpFailed(mcpTool(s, "project_undo", undo)));
+    // Undo never steps back past an open: the opened design stays.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor"}]})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "project_save_as", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+    CHECK(mcpFailed(mcpTool(s, "project_undo", Json::object())) && state().schematic.findByRef("R9"));
     // Catalog: the ESP32-C3 modules, a 40 MHz crystal and the chip antenna.
     for (const char* name : {"ESP32-C3-MINI-1", "ESP32-C3-WROOM-02", "Crystal_40MHz_3225", "ANTENNA-2450AT18A100"}) {
         Json add = Json::object();
@@ -20882,6 +20887,62 @@ TEST(mcp_decoupling_board_checks_and_consistent_reports) {
     f.pcb.addVia(stitch);
     f.schematicChanged();
     CHECK(f.pcb.vias.size() == 1 && Project::fromJson(Json::parse(f.toJson().dump())).pcb.vias.size() == 1);
+}
+
+TEST(mcp_edges_stitching_and_tags) {
+    // Auto Place puts the antenna module at the top edge with a keep-out and the USB-C at the bottom edge; the
+    // board still routes. Stitching keeps clear of parts; a wire named by a tag disconnects by its two pins; a
+    // part added with no position lands clear of the others.
+    const auto root = mcpRoot("edges");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ESP32-C3-MINI-1"}, {"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"},
+                  {"ref": "C1", "kind": "capacitor", "value": "100n"}, {"ref": "R1", "kind": "resistor", "value": "10k"},
+                  {"ref": "C2", "kind": "capacitor", "value": "1u"}],
+        "nets": {"+3V3": ["U1.3V3", "C1.1", "R1.1"], "GND": ["U1.GND(1)", "C1.2", "C2.2", "J1.GND(A1)"],
+                 "EN": ["U1.EN/CHIP_PU", "R1.2", "C2.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    const Json placed = mcpData(mcpTool(s, "pcb_autoplace", all));
+    CHECK(placed.get("edgesPlaced").size() == 2 && placed.has("decouplingPlaced"));
+    const Json board = mcpData(mcpTool(s, "pcb_summary", Json::object()));
+    const double h = board.get("board").get("height").asNumber();
+    for (const auto& f : board.get("footprints").items()) {
+        if (f.get("ref").asString("") == "U1") CHECK(f.get("y").asNumber() < h / 2);
+        if (f.get("ref").asString("") == "J1") CHECK(f.get("y").asNumber() > h / 2);
+    }
+    CHECK(board.get("keepouts").size() == 1 && board.get("keepouts")[0].get("pours").asBool(false));
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    std::set<std::string> drc;
+    const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    for (const auto& v : drcResult.get("violations").items()) drc.insert(v.get("code").asString(""));
+    CHECK(!drc.count("DRC_ANTENNA_KEEPOUT") && !drc.count("DRC_PLACE_OUTSIDE"));
+    Json pour = Json::object();
+    pour["net"] = "GND";
+    for (int layer : {0, 1}) {
+        pour["layer"] = layer;
+        CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", pour)));
+    }
+    const Json stitched = mcpData(mcpTool(s, "pcb_stitch_vias", Json::object()));
+    CHECK(stitched.get("added").asInt(0) > 0 && stitched.get("underParts").asInt(0) > 0);
+    CHECK(!mcpFailed(mcpTool(s, "render_pcb", Json::object())));
+    // EN: R1 and C2 drawn from the module's pin; a tag names the wire to the first, and disconnecting it works.
+    Json dc = Json::object();
+    dc["from"] = "U1.EN/CHIP_PU";
+    dc["to"] = "R1.2";
+    const Json gone = mcpData(mcpTool(s, "schematic_disconnect", dc));
+    CHECK(gone.get("wiresRemoved").asInt(0) + gone.get("tagsRemoved").asInt(0) > 0);
+    // A part with no position lands clear of the module's symbol.
+    const Json added = mcpData(mcpTool(s, "schematic_add_component", Json::parse(R"({"kind": "resistor", "ref": "R9"})")));
+    const Json u1 = mcpData(mcpTool(s, "schematic_list_components", Json::parse(R"({"refs": ["U1"]})"))).get("components")[0];
+    const Json& bx = u1.get("bounds");
+    CHECK(added.get("x").asNumber() + 30 < bx.get("x0").asNumber() || added.get("x").asNumber() - 30 > bx.get("x1").asNumber() ||
+          added.get("y").asNumber() + 30 < bx.get("y0").asNumber() || added.get("y").asNumber() - 30 > bx.get("y1").asNumber());
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
