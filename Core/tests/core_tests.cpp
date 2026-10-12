@@ -2713,7 +2713,9 @@ TEST(microcontroller_library_by_vendor) {
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.
     CHECK(perGroup["Microcontrollers · Microchip"] == 24);
-    CHECK(perGroup["Microcontrollers · Espressif"] == 3);  // ESP32-C3, ESP32-S3, ESP32-PICO-D4
+    // ESP32-C3, ESP32-S3, ESP32-PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 modules.
+    CHECK(perGroup["Microcontrollers · Espressif"] == 8);
+    CHECK(perGroup["Microcontrollers · Nordic"] == 2);  // nRF52840, nRF5340 (aQFN, lands by ball name)
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;
