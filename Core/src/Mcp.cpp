@@ -828,7 +828,9 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         if (tool->mutates && onChange_) onChange_(name);
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
-    if (!before.empty() && project_ == undoOf_) {
+    if (name == "project_open" || name == "project_new" || name == "project_load_example") {
+        undo_.clear();  // a fresh design: undo never steps back past it
+    } else if (!before.empty() && project_ == undoOf_) {
         undo_.push_back(std::move(before));
         if (undo_.size() > kUndoSteps) undo_.erase(undo_.begin());
     }

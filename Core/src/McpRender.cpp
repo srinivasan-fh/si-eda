@@ -685,6 +685,12 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
         b.x1 = std::max(b.x1, p.x);
         b.y1 = std::max(b.y1, p.y);
     }
+    for (const auto& k : pcb.settings.keepouts) {  // keep-outs: an orange box with a cross and its name
+        s.box(k.area, false, 0.12, "#ff9933");
+        s.line({k.area.x0, k.area.y0}, {k.area.x1, k.area.y1}, 0.06, "#ff9933");
+        s.line({k.area.x0, k.area.y1}, {k.area.x1, k.area.y0}, 0.06, "#ff9933");
+        if (!k.name.empty()) s.text({k.area.center().x, k.area.y1 - 0.4}, k.name, 0.8, "#ff9933", true);
+    }
     s.polygon(outline, false, 0.15, "#e8e8e8");
     s.bounds = b.inflated(2);
     return s;

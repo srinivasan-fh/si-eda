@@ -358,6 +358,12 @@ What the agent gets back, so it can wire correctly without guessing:
   reports `boardGrown` when the parts did not fit. A batch `pcb_place_footprint` lifts its own parts first; moving
   a part removes the tracks left on its old pads and the stubs they leave (`copperRemoved`).
 - A via that joins pours only (stitching the GND pours of two layers) is kept through edits and save / open.
+- `pcb_autoplace` with `all` first puts an antenna part at the top edge, antenna end out, with a keep-out (tracks,
+  vias, pours) over it, and a USB / connector part with an open end (its mouth) at the bottom edge facing out
+  (`edgesPlaced`; `edges: false` skips it); `decoupling` is on by default with `all`.
+- `project_undo` never steps back past `project_open` / `project_new` / `project_load_example`.
+- `pcb_stitch_vias` defaults to a 5 mm pitch and keeps vias out from under parts (`underParts`); `render_pcb`
+  draws keep-outs; `schematic_disconnect` between two pins joined through a `schematic_build` tag removes the tag.
 - `pcb_drc` flags a part whose courtyard leaves the board or overlaps another (`DRC_PLACE_*`, a forced pose) and an
   antenna part with no pour keep-out over it (`DRC_ANTENNA_KEEPOUT`, info, with the antenna end's area).
 - `pcb_summary` with `pads: ["U1"]` lists those parts' pads (pin, net, x / y, size, layer).
@@ -556,7 +562,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_set_net_width` | edit | Routes one net with its own track width (mm; 0 removes it). |
 | `pcb_eco_preview` | read | What "Update PCB from schematic" would change: footprints to add / remove, nets, pours, rules. |
 | `pcb_update_from_schematic` | edit | Forward annotation: places the footprints of new parts (Auto Place spots), removes parts that are gone, carries net rules, records the baseline. |
-| `pcb_autoplace` | edit | Automatic placement: all = true re-places every unlocked footprint; false places only those not on the board yet. |
+| `pcb_autoplace` | edit | Automatic placement: all = true re-places every unlocked footprint (antenna parts and USB / connectors with an open end first, at the top / bottom edge facing out; edges: false skips that); false places only those not on the board yet. |
 | `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
 | `pcb_suggest_placement` | read | The nearest free legal spot for a footprint, close to the pads it connects to. |
 | `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
@@ -572,7 +578,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_set_keepouts` | edit | Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias, pours}] (mm). |
 | `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks, and flags a part whose courtyard leaves the board or overlaps another part (DRC_PLACE_*, a forced pose). |
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
-| `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 2 mm pitch), optionally inside an area. |
+| `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 5 mm pitch), optionally inside an area; none under a part's courtyard. |
 | `pcb_length_rules` | edit | Length / phase matching: enable serpentine tuning and tolerances, set per-net length rules [{net, target, tolerance}] (target 0 removes), match groups [{name, nets:[…], tolerance}], and tune now. |
 | `pcb_set_hdi` | edit | HDI (IPC-2226): blind / buried vias and laser microvias (drill / pad mm), via-in-pad. |
 | `pcb_remove_copper` | edit (destructive) | Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias). |
