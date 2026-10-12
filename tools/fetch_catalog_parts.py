@@ -751,6 +751,12 @@ PARTS = [
      "High-accuracy 16-bit ambient light sensor, 0-120k lux, I2C", "U", ""),
     ("Power", "sparkfun:SparkFun-IC-Power.kicad_sym", "MAX17048", "MAX17048G+T10", "Analog Devices",
      "Single-cell Li-ion fuel gauge (ModelGauge), 3 uA, I2C, TDFN-8", "U", ""),
+    # Board inputs every agent-built board needs: a USB connector and a push-button.
+    ("Connectors", "Connector", "USB_C_Receptacle_USB2.0_16P", "USB-C-RECEPTACLE-USB2", "GCT",
+     "USB Type-C receptacle, USB 2.0 (16 pins): VBUS, GND, CC1 / CC2, D+ / D-, shield; 5 V USB input", "J",
+     "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"),
+    ("Connectors", "Switch", "SW_Push", "TACTILE-SWITCH-6MM", "Generic",
+     "Tactile push-button switch, 6 mm, normally open (reset / boot button)", "SW", "Button_Switch_THT:SW_PUSH_6mm"),
 ]
 
 
@@ -931,7 +937,6 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
         try:
             kind, n, pitch, body, fpname = package(footprint)
         except (SystemExit, Exception):
-            if override: raise
             # A footprint no parametric package draws (WSON / LFCSP variants, SOT-886, SMA, DO-41, TO-247-4, bridges,
             # modules): KiCad's own pads, through-hole ones with their drills, each land naming its pin; a pad the
             # symbol does not use is a no-connect pin.
@@ -945,6 +950,12 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
             for k in found:
                 if k not in pads: raise SystemExit(f"{sym}: pin {k} has no pad in {footprint}")
             numbers = sorted(set(found) | set(pads), key=key)
+            # Two pins of one name on one pad (a USB-C receptacle's A1 / B12 GND): that pad is the first pin's.
+            seen = {}
+            for k in list(numbers):
+                spot = (pads[k][:2], found.get(k, ("NC",))[0])
+                if spot in seen: numbers.remove(k)
+                else: seen[spot] = k
             fpname = footprint.split(":")[-1]
             land = lambda v, k: ("{%g, %g, %g, %g, 0, false, %s}" % (v + (cpp(k),)) if len(v) == 4 else
                                  "{%g, %g, %g, %g, %g, %s, %s}" % (v[:5] + ("true" if v[5] else "false", cpp(k))))

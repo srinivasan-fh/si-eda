@@ -30,5 +30,8 @@ struct PartRatings {
 };
 
 std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatings& ratings = {});
+/// Design-sense review an agent asks for (MCP schematic_validate), not part of verification: an LED with nothing
+/// setting its current (VAL_LED_NO_RESISTOR), a reset / enable input left without a level (VAL_FLOATING_CONTROL).
+std::vector<RuleViolation> designReview(const Schematic& sch);
 
 }  // namespace sieda

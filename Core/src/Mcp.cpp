@@ -103,17 +103,20 @@ pins share is written with its number: U1.VDD(32).
 Conventions an agent needs:
 - Rotation is clockwise in degrees with y down: 0 = right, 90 = down, 180 = left, 270 = up.
 - Every placed part comes back with its pins: name, number, type (power_in, input, output, bidirectional, passive …),
-  net (null = unwired), x / y of the pin end and side (left / right / top / bottom: the way the pin leaves the part).
-  Place parts and labels from those, so nothing overlaps.
+  net (null = unwired), x / y of the pin end and side (left / right / top / bottom: the way the pin leaves the part),
+  and the part's bounds (x0, y0, x1, y1). Place parts and labels from those, so nothing overlaps.
 - Wires join pins into nets. Automatic net names (N$12) change as the circuit changes; name a net with
   `schematic_net_label` to refer to it. `schematic_connect` refuses to join two differently named nets (VCC and GND)
   unless merge is true, and warns when a part's two pins end up on one net (a short). Read every "warnings" field.
 - `schematic_erc` lists unconnectedPins per part: wire them or mark unused ones with `schematic_set_no_connect`
-  (pins: [...]). A design is done when `schematic_erc` has no errors and `schematic_list_nets` shows the intended nets.
+  (pins: [...]). A design is done when `schematic_erc` has status "clean" (or only warnings you have read),
+  `schematic_validate` raises nothing you did not intend (no decoupling, an LED with no resistor, a floating reset /
+  enable) and `schematic_list_nets` shows the intended nets.
 - Unknown catalog names (an orderable number such as "PIC16F877A-I/P") give the closest catalog names.
 
 A typical flow:
-1. Schematic: `schematic_add_component` (built-in kinds: resistor, capacitor, inductor, diode, led, voltage_source,
+1. Schematic: `schematic_build` does it in one call from a netlist (parts, named nets, wires, noConnect) and returns
+   the parts with their nets, what failed, the ERC and the review. Or step by step: `schematic_add_component` (built-in kinds: resistor, capacitor, inductor, diode, led, voltage_source,
    current_source, ground, npn, nmos, opamp, switch, connector, fuse, battery, ac_source) or `library_search` +
    `library_add_part` for ICs; then `schematic_connect`, `schematic_net_label`, `schematic_connect_to_ground`.
 2. Check: `schematic_erc` (fix every error), `sim_dc_op` for voltages and currents, `sim_transient` / `sim_ac`.
@@ -373,6 +376,15 @@ Json componentJson(const SiedaProject& p, int id, bool withPins) {
     j["rotation"] = c->rotation;
     j["sheet"] = c->sheet;
     if (c->hasFootprint()) j["footprint"] = c->footprintName();
+    {  // The symbol's outline (schematic units): keep other parts and labels outside it.
+        const auto o = s.symbolOutline(*c);
+        Json b = Json::object();
+        b["x0"] = o[0];
+        b["y0"] = o[1];
+        b["x1"] = o[2];
+        b["y1"] = o[3];
+        j["bounds"] = b;
+    }
     if (withPins) {
         Json pins = Json::array();
         const auto& defs = c->def().pins;
@@ -387,6 +399,14 @@ Json componentJson(const SiedaProject& p, int id, bool withPins) {
             if (c->isNoConnect(static_cast<int>(i))) pj["noConnect"] = true;
             // Electrical type, where the pin end is and the way it leaves the part: enough to wire and lay out.
             pj["type"] = pinTypeName(static_cast<PinType>(defs[i].type));
+            // Built-in parts carry no electrical types: a source's + supplies, an op-amp's IN± / OUT are in / out.
+            if (c->kind == ComponentKind::VoltageSource || c->kind == ComponentKind::Battery || c->kind == ComponentKind::ACSource) {
+                if (defs[i].name == "+") pj["type"] = "power_out";
+            } else if (c->kind == ComponentKind::OpAmp) {
+                pj["type"] = defs[i].name == "OUT" ? "output" : "input";
+            } else if (c->kind == ComponentKind::Ground) {
+                pj["type"] = "power_in";
+            }
             const Vec2 at = s.pinPosition({c->id, static_cast<int>(i)});
             pj["x"] = at.x;
             pj["y"] = at.y;
@@ -451,6 +471,7 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
     out["warnings"] = warnings;
     out["infos"] = infos;
     out["clean"] = errors == 0;
+    out["status"] = errors ? "errors" : warnings ? "warnings" : "clean";
     out["violations"] = list;
     if (static_cast<size_t>(errors + warnings + infos) > limit) out["truncated"] = true;
     return out;
@@ -1156,11 +1177,12 @@ Json McpServer::handleMessage(const Json& msg, bool* respond) {
             info["version"] = sieda_version();
             result["serverInfo"] = info;
             std::string instructions =
-                "SiEDA electronic design tools. Read sieda://docs/mcp-quickstart first. One project is open at a time "
+                "SiEDA electronic design tools. Read sieda://docs/mcp-quickstart (or call project_quickstart) first. One project is open at a time "
                 "(project_summary). Parts are addressed by designator (R1), pins as REF.PIN (R1.2, U1.VDD(32) for a shared "
                 "name). Schematic units: 10 = one grid step, y down, rotation clockwise (0 right, 90 down). Placed parts "
-                "return each pin's number, type, net, position and side. Read the warnings of every result; check with "
-                "schematic_erc (unconnectedPins) and pcb_drc after changes.";
+                "return each pin's number, type, net, position and side. schematic_build makes a whole circuit from a "
+                "netlist in one call. Read the warnings of every result; check with schematic_erc (unconnectedPins), "
+                "schematic_validate and pcb_drc after changes.";
             if (options_.readOnly) instructions += " This server is read-only: tools that change the design are refused.";
             if (options_.allowedRoot.empty()) instructions += " File access is disabled.";
             else instructions += " Files are read and written only inside " + options_.allowedRoot + ".";
