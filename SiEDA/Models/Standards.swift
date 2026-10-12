@@ -96,7 +96,8 @@ enum ESeries: Int, CaseIterable, Identifiable {
 /// Parametric part search, typed into the library and device-picker search fields:
 /// `cat:sensors pkg:soic pins:8 mfr:ti 3.3 V`. Filters: `cat:` category, `pkg:` package (type or name, "sot-23"
 /// matches SOT23), `pins:` pin count (`8`, `6-10`, `>40`, `<8`), `mfr:` manufacturer. Every other word must appear
-/// in the part's name, description, category, manufacturer or package. All terms must match.
+/// in the part's name, description, category, manufacturer or package (`wordMatches`, as MCP `library_search`).
+/// All terms must match.
 struct PartQuery: Equatable {
     var words: [String] = []
     var categories: [String] = []
@@ -148,7 +149,25 @@ struct PartQuery: Equatable {
         if !packages.allSatisfy({ packageKey.contains($0) }) { return false }
         if let pinRange, !pinRange.contains(pinCount) { return false }
         let haystack = [name, description, category, manufacturer, package].joined(separator: " ").lowercased()
-        return words.allSatisfy { haystack.contains($0) }
+        return words.allSatisfy { Self.wordMatches(haystack, $0) }
+    }
+
+    /// A short word (≤ 3 letters) starts a word of the text ("ble" finds "BLE-MODULE", not "adjustable"; "esp" finds
+    /// "ESP32"), a longer one appears in it, separators ignored ("wifi" finds "Wi-Fi"); "ble" / "bt" also find
+    /// Bluetooth and "wlan" Wi-Fi.
+    static func wordMatches(_ haystack: String, _ word: String) -> Bool {
+        let alias = ["ble": "bluetooth", "bt": "bluetooth", "wlan": "wifi"]
+        if let other = alias[word], wordMatches(haystack, other) { return true }
+        if word.count <= 3, word.allSatisfy(\.isLetter) {
+            var rest = haystack[...]
+            while let r = rest.range(of: word) {
+                if r.lowerBound == haystack.startIndex || !(haystack[haystack.index(before: r.lowerBound)].isLetter
+                    || haystack[haystack.index(before: r.lowerBound)].isNumber) { return true }
+                rest = haystack[r.upperBound...]
+            }
+            return false
+        }
+        return haystack.contains(word) || (!compact(word).isEmpty && compact(haystack).contains(compact(word)))
     }
 
     func matches(_ part: StandardPart) -> Bool {

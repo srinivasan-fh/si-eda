@@ -75,13 +75,24 @@ TYPE = {"input": "Input", "output": "Output", "bidirectional": "Bidirectional", 
         "no_connect": "NoConnect"}
 
 
+# Espressif's own KiCad library (one file) for the chips KiCad's library does not carry (ESP32-C6, ESP32-H2).
+ESPRESSIF = "https://raw.githubusercontent.com/espressif/kicad-libraries/main/symbols/Espressif.kicad_sym"
+
+
 def fetch(lib, sym):
     os.makedirs(CACHE, exist_ok=True)
     path = os.path.join(CACHE, f"{lib}__{sym}.kicad_sym")
     if not os.path.exists(path):
-        url = API.format(urllib.parse.quote(f"{lib}.kicad_symdir/{sym}.kicad_sym", safe=""))
-        with urllib.request.urlopen(url, timeout=60) as r, open(path, "wb") as f:
-            f.write(r.read())
+        if lib == "Espressif":
+            with urllib.request.urlopen(ESPRESSIF, timeout=60) as r:
+                whole = r.read().decode("utf-8")
+            m = re.search(r'\n\t\(symbol "%s"\n.*?\n\t\)\n' % re.escape(sym), whole, re.S)
+            if not m: raise SystemExit(f"{sym}: not in Espressif's library")
+            open(path, "w", encoding="utf-8").write(m.group(0))
+        else:
+            url = API.format(urllib.parse.quote(f"{lib}.kicad_symdir/{sym}.kicad_sym", safe=""))
+            with urllib.request.urlopen(url, timeout=60) as r, open(path, "wb") as f:
+                f.write(r.read())
     return open(path, encoding="utf-8").read()
 
 

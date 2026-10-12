@@ -1627,7 +1627,9 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
         XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)
-        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 3)
+        // ESP32-C3 / S3 / PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 modules.
+        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 8)
+        XCTAssertEqual(groups["Microcontrollers · Nordic"]?.count, 2)  // nRF52840, nRF5340
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
@@ -4707,6 +4709,18 @@ final class PartQueryTests: XCTestCase {
         XCTAssertTrue(PartQuery("  ").isEmpty)
         // Plain words still find what a phrase search found.
         XCTAssertEqual(PartQuery("Barometric").words, ["barometric"])
+    }
+
+    func testWirelessWordsFindTheRadioParts() {
+        // "wifi" finds Wi-Fi, "ble" finds Bluetooth parts and not the "adjustable" / "enable" regulators.
+        let all = StandardLibrary.parts
+        let wifi = all.filter { PartQuery("wifi").matches($0) }.map(\.spec.name)
+        XCTAssertTrue(wifi.contains("ESP32-C6") && wifi.contains("ESP32-S3-WROOM-1"))
+        XCTAssertFalse(wifi.contains("ESP32-H2"))
+        let ble = all.filter { PartQuery("ble").matches($0) }.map(\.spec.name)
+        XCTAssertTrue(ble.contains("nRF52840") && ble.contains("ESP32-H2") && ble.contains("BLE-MODULE"))
+        XCTAssertFalse(ble.contains("LM317") || ble.contains("AP2112K-3.3"))
+        XCTAssertTrue(PartQuery.wordMatches("esp32-c3 risc-v", "esp"))
     }
 
     func testStandardLibrarySearchByCategoryPackageAndPins() {
