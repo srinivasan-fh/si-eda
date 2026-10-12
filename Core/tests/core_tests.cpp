@@ -2743,8 +2743,9 @@ TEST(microcontroller_library_by_vendor) {
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.
     CHECK(perGroup["Microcontrollers · Microchip"] == 24);
-    // ESP32-C3, ESP32-S3, ESP32-PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 modules.
-    CHECK(perGroup["Microcontrollers · Espressif"] == 8);
+    // ESP32-C3, ESP32-S3, ESP32-PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
+    // C3-WROOM-02 / C3-MINI-1 modules.
+    CHECK(perGroup["Microcontrollers · Espressif"] == 10);
     CHECK(perGroup["Microcontrollers · Nordic"] == 2);  // nRF52840, nRF5340 (aQFN, lands by ball name)
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
@@ -20739,9 +20740,10 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     Json rm = Json::object();
     rm["ref"] = "R2";
     CHECK(mcpData(mcpTool(s, "schematic_remove_component", rm)).get("netSymbolsRemoved").asInt(0) == 1);
-    // Moving a part brings its own labels along: the label stays beside its pin.
+    // Moving a part brings its own labels along: the label stays beside its pin (the two-pin net A is drawn as a
+    // wire, named by one label on U1's pin).
     Json mv = Json::object();
-    mv["ref"] = "R1";
+    mv["ref"] = "U1";
     mv["x"] = 900;
     mv["y"] = 900;
     CHECK(!mcpFailed(mcpTool(s, "schematic_move_component", mv)));
@@ -20753,6 +20755,53 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
         if (c.get("kind").asString("") == "net_label" && c.get("value").asString("") == "A")
             near |= std::fabs(c.get("x").asNumber() - 900) < 100 && std::fabs(c.get("y").asNumber() - 900) < 100;
     CHECK(near);
+}
+
+TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
+    // A two-pin signal net is drawn as a wire with one label; supplies keep labels. project_undo steps back one
+    // call at a time. Batch placement and lock; decoupling moves the capacitor next to the IC's supply pin.
+    const auto root = mcpRoot("undo");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "NE555"}, {"ref": "R1", "kind": "resistor"}, {"ref": "C1", "kind": "capacitor"}],
+        "nets": {"VCC": ["U1.VCC", "C1.1"], "GND": ["U1.GND", "C1.2"], "TRIG": ["U1.TRIG", "R1.1"]}})J"))));
+    auto state = [&] {
+        char* st = sieda_project_state_json(s.project());
+        Project pr = Project::fromJson(Json::parse(st));
+        sieda_string_free(st);
+        return pr;
+    };
+    const Project built = state();
+    const Schematic& sch = built.schematic;
+    int trigLabels = 0;
+    for (const auto& c : sch.components()) trigLabels += c.kind == ComponentKind::NetLabel && c.value == "TRIG";
+    CHECK(trigLabels == 1 && !sch.wires().empty());
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    const Json placed = mcpData(mcpTool(s, "pcb_place_footprint", Json::parse(R"J({"placements": [
+        {"ref": "U1", "x": 20, "y": 20}, {"ref": "C1", "x": 34, "y": 28}, {"ref": "R1", "x": 8, "y": 28}]})J")));
+    CHECK(placed.get("placed").asInt(0) == 3 && placed.get("results").size() == 3);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_lock_footprint", Json::parse(R"J({"refs": ["U1", "R1"]})J"))));
+    const Json moved = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"decoupling": true})J")));
+    CHECK(moved.get("decouplingPlaced").size() == 1 &&
+          moved.get("decouplingPlaced")[0].asString("").rfind("C1", 0) == 0);
+    CHECK(std::fabs(state().schematic.findByRef("U1")->pcb.position.x - 20) < 1e-6);  // locked
+    Json undo = Json::object();
+    undo["steps"] = 2;
+    CHECK(mcpData(mcpTool(s, "project_undo", undo)).get("undone").asInt(0) == 2);  // autoplace and lock
+    CHECK(std::fabs(state().schematic.findByRef("C1")->pcb.position.x - 34) < 1e-6);
+    undo["steps"] = 10;
+    CHECK(!mcpFailed(mcpTool(s, "project_undo", undo)));
+    CHECK(state().schematic.components().empty() && mcpFailed(mcpTool(s, "project_undo", undo)));
+    // Catalog: the ESP32-C3 modules, a 40 MHz crystal and the chip antenna.
+    for (const char* name : {"ESP32-C3-MINI-1", "ESP32-C3-WROOM-02", "Crystal_40MHz_3225", "ANTENNA-2450AT18A100"}) {
+        Json add = Json::object();
+        add["name"] = name;
+        CHECK(!mcpFailed(mcpTool(s, "library_add_part", add)));
+    }
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
