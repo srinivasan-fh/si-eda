@@ -164,6 +164,9 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         };
         std::vector<char> ok = board;
         auto block = [&](size_t c, Vec2) { ok[c] = 0; };
+        for (const auto& ko : s.keepouts)  // copper keep-outs (an antenna's area): no pour inside
+            if (ko.pours && (ko.layer < 0 || ko.layer == L))
+                forCells(cols, rows, cell, ko.area.inflated(half), block);
 
         // Two-pad SMD chips (resistors, capacitors, LEDs) get thermal reliefs too: a pad joined solidly to the pour
         // heats slower than its partner and the part tombstones during reflow.
@@ -381,6 +384,11 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         hashD(h, m.position.y);
         hashD(h, m.keepout);
     }
+    for (const auto& ko : s.keepouts)
+        if (ko.pours) {
+            for (double v : {ko.area.x0, ko.area.y0, ko.area.x1, ko.area.y1}) hashD(h, v);
+            hashI(h, ko.layer);
+        }
     for (const auto& z : zones) {
         hashBytes(h, z.net.data(), z.net.size());
         hashI(h, z.layer);

@@ -372,6 +372,52 @@ std::vector<int> ownNetSymbols(const Schematic& sch, int id) {
     return out;
 }
 
+/// What a whole-board autoroute leaves unrouted on a small board gets a second try, each kept only when fewer
+/// connections stay open: the shape-based engine, then each two-pin part on an open connection turned round (its far
+/// pad faced the other end, so its own other pad stood in the way). Returns what was changed.
+Json finishRouting(SiedaProject* p, Json* stats) {
+    Json done = Json::array();
+    const AutorouteOptions chosen = p->project.pcb.settings.autorouter;
+    if (chosen.scoped() || chosen.fanoutOnly || p->project.schematic.components().size() > 300)
+        return done;  // a partial route keeps the rest of the board as it is
+    size_t open = p->project.pcb.ratsnest(p->project.schematic).size();
+    auto attempt = [&](const std::string& what, const std::function<void()>& change) {
+        if (!open) return;
+        Project before = p->project;
+        change();
+        sieda_pcb_clear_routing(p);
+        Json st = takeJson(sieda_pcb_autoroute(p));
+        const size_t now = p->project.pcb.ratsnest(p->project.schematic).size();
+        if (now < open) {
+            open = now;
+            *stats = st;
+            done.push(what);
+        } else {
+            p->project = std::move(before);
+        }
+    };
+    if (!chosen.shapeCompletion)
+        attempt("shape-based completion", [&] { p->project.pcb.settings.autorouter.shapeCompletion = true; });
+    std::set<int> tried;
+    const auto pads = p->project.pcb.pads(p->project.schematic);
+    for (const auto& [a, b] : p->project.pcb.ratsnest(p->project.schematic))
+        for (Vec2 end : {a, b})
+            for (const auto& pad : pads) {
+                const Component* c = p->project.schematic.find(pad.componentId);
+                if (std::hypot(pad.position.x - end.x, pad.position.y - end.y) > 1e-3 || !c || c->pcb.locked ||
+                    c->def().pins.size() != 2 || !tried.insert(c->id).second || tried.size() > 8)
+                    continue;
+                const int id = c->id;
+                attempt(c->ref + " turned 180°", [&] {
+                    Component* m = p->project.schematic.find(id);
+                    m->pcb.rotation = (m->pcb.rotation + 180) % 360;
+                });
+            }
+    p->project.pcb.settings.autorouter.shapeCompletion = chosen.shapeCompletion;  // the board's strategy as chosen
+    p->router.reset();
+    return done;
+}
+
 Json violationsOut(McpServer& s, char* raw) { return summariseViolations(*P(s), takeJson(raw)); }
 
 /// Pad centre and layer of a pin on the board.
@@ -554,7 +600,8 @@ void projectTools(Table& t) {
 void schematicTools(Table& t) {
     t.add("schematic", "schematic_add_component", "Add component", Kind::Edit, false,
           "Places a built-in component: resistor, capacitor, inductor, diode, led, voltage_source (value \"5\" or "
-          "\"SIN(0 1 1k)\" / \"PULSE(0 5 1m)\"), current_source, ground, npn, nmos, opamp (pins IN+, IN-, OUT), switch, "
+          "\"SIN(0 1 1k)\" / \"PULSE(0 5 1m)\"), current_source, ground, npn, nmos, opamp (pins IN+, IN-, OUT; no supply pins: it swings ±15 V unless its "
+          "value sets the output limits, e.g. \"LM358 VOH=3.5 VOL=0\" on a 5 V supply, with SR=, AOL=, ROUT= too), switch, "
           "connector, ic8, fuse, net_label, battery, ac_source. Values are engineering text (\"4k7\", \"100n\"). "
           "Without x/y it goes to a free spot. Returns the part with its designator and pins. ICs from the catalog: "
           "library_add_part.",
@@ -1993,7 +2040,9 @@ void pcbTools(Table& t) {
           "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap, "
           "improvePlacement (Auto Place's improvement pass), lengthAwareSearch (with lengthAware: nets with a length "
           "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
-          "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. Returns "
+          "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. A whole-board route "
+          "on a small board that leaves connections open tries again (shape-based completion, two-pin parts turned "
+          "round) and lists the repairs kept. Partial presets (nets, area, fanout) apply to this call only. Returns "
           "routed / failed connections, vias and track length.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")
@@ -2001,6 +2050,7 @@ void pcbTools(Table& t) {
               .boolean("clearFirst", "Remove the existing routing first"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
+              const AutorouteOptions previous = p->project.pcb.settings.autorouter;
               if (a.has("preset") || a.get("options").isObject()) {
                   Json o = obj();
                   const std::string preset = argStr(a, "preset", "");
@@ -2022,6 +2072,12 @@ void pcbTools(Table& t) {
               sieda_pcb_autoplace(p, 0);
               Json stats = takeJson(sieda_pcb_autoroute(p));
               Json j = obj();
+              const Json repairs = finishRouting(p, &stats);
+              if (repairs.size()) j["repairs"] = repairs;
+              // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
+              const AutorouteOptions used = p->project.pcb.settings.autorouter;
+              if ((used.scoped() || used.fanoutOnly) && !previous.scoped() && !previous.fanoutOnly)
+                  p->project.pcb.settings.autorouter = previous;
               j["stats"] = stats;
               j["unroutedConnections"] = p->project.pcb.ratsnest(p->project.schematic).size();
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));
@@ -2170,7 +2226,8 @@ void pcbTools(Table& t) {
               return out(j);
           });
     t.add("pcb", "pcb_set_keepouts", "Routing keep-outs", Kind::Edit, true,
-          "Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias}].",
+          "Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias, pours}] (mm). "
+          "pours: true keeps copper pours out as well (the area under an antenna).",
           Schema().array("keepouts", "Keep-out rectangles (mm)", "object", true), [](McpServer& s, const Json& a) {
               Json j = obj();
               j["kept"] = sieda_pcb_set_keepouts(P(s), a.get("keepouts").dump().c_str());
@@ -2409,7 +2466,8 @@ void simTools(Table& t) {
           });
     t.add("sim", "sim_ac", "AC analysis", Kind::Read, true,
           "Small-signal frequency sweep: magnitude (dB) and phase per net with metrics (low-frequency gain, peak, "
-          "f3dB, bandwidth, unity gain, phase margin).",
+          "f3dB, bandwidth, unity gain, phase margin). at: the gain (dB and V/V) and phase of each net at given "
+          "frequencies.",
           Schema()
               .str("start", "Start frequency (default 1)")
               .str("stop", "Stop frequency (default 1MEG)")
@@ -2417,9 +2475,22 @@ void simTools(Table& t) {
               .str("source", "Stimulus source designator (default the AC source rule)")
               .num("temperature", "°C (default 27; imported SPICE models follow it)")
               .array("nets", "Nets to return (default all)", "string")
-              .integer("maxPoints", "Points per curve (default 100; 0 = metrics only)"),
+              .integer("maxPoints", "Points per curve (default 100; 0 = metrics only)")
+              .array("at", "Frequencies to read the gain at, e.g. [\"1k\", \"20k\"] (the sweep covers them)", "string"),
           [](McpServer& s, const Json& a) {
-              Json r = takeJson(sieda_simulate_ac(P(s), optionsFrom(a, {"nets", "maxPoints"}).c_str()));
+              Json sweep = a;
+              std::vector<double> at;
+              for (const auto& f : a.get("at").items()) {
+                  const auto v = f.isNumber() ? std::optional<double>(f.asNumber()) : parseEngineeringValue(f.asString(""));
+                  if (!v || !(*v > 0)) throw ToolError("\"at\" frequencies must be positive, e.g. \"1k\"");
+                  at.push_back(*v);
+              }
+              if (!at.empty()) {  // widen the sweep to take in every asked frequency
+                  const double lo = *std::min_element(at.begin(), at.end()), hi = *std::max_element(at.begin(), at.end());
+                  if (lo < argNum(a, "start", 1)) sweep["start"] = lo / 2;
+                  if (hi > argNum(a, "stop", 1e6)) sweep["stop"] = hi * 2;
+              }
+              Json r = takeJson(sieda_simulate_ac(P(s), optionsFrom(sweep, {"nets", "maxPoints", "at"}).c_str()));
               if (!r.get("ok").asBool(true) || r.has("error")) {
                   if (!r.get("error").asString("").empty()) throw ToolError("AC analysis failed: " + r.get("error").asString(""));
               }
@@ -2439,6 +2510,34 @@ void simTools(Table& t) {
                   nets = slim;
               }
               j["nets"] = nets;
+              if (!at.empty()) {  // each net's gain and phase at the asked frequencies, interpolated on log f
+                  const Json& freq = r.get("frequency");
+                  const std::set<std::string> want = nameSet(a, "nets");
+                  Json points = Json::array();
+                  for (double f : at) {
+                      Json pt = obj(), per = obj();
+                      pt["frequency"] = f;
+                      for (const auto& n : r.get("nets").items()) {
+                          const std::string name = n.get("name").asString("");
+                          if (!want.empty() && !want.count(name)) continue;
+                          const Json &db = n.get("magnitudeDb"), &ph = n.get("phaseDeg");
+                          for (size_t i = 0; i + 1 < freq.size() && i + 1 < db.size(); ++i) {
+                              const double f0 = freq[i].asNumber(), f1 = freq[i + 1].asNumber();
+                              if (f < f0 || f > f1) continue;
+                              const double t = f1 > f0 ? std::log(f / f0) / std::log(f1 / f0) : 0;
+                              Json g = obj();
+                              g["gainDb"] = db[i].asNumber() + t * (db[i + 1].asNumber() - db[i].asNumber());
+                              g["gain"] = std::pow(10.0, g.get("gainDb").asNumber() / 20);
+                              if (ph.size() > i + 1) g["phaseDeg"] = ph[i].asNumber() + t * (ph[i + 1].asNumber() - ph[i].asNumber());
+                              per[name] = g;
+                              break;
+                          }
+                      }
+                      pt["nets"] = per;
+                      points.push(pt);
+                  }
+                  j["at"] = points;
+              }
               return out(j);
           });
     t.add("sim", "sim_dc_sweep", "DC sweep", Kind::Read, true,

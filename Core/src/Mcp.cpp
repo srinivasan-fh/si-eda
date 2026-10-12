@@ -111,7 +111,10 @@ Conventions an agent needs:
 - `schematic_erc` lists unconnectedPins per part: wire them or mark unused ones with `schematic_set_no_connect`
   (pins: [...]). A design is done when `schematic_erc` has status "clean" (or only warnings you have read),
   `schematic_validate` raises nothing you did not intend (no decoupling, an LED with no resistor, a floating reset /
-  enable) and `schematic_list_nets` shows the intended nets.
+  enable, a crystal without load capacitors, an op-amp without output limits) and `schematic_list_nets` shows the
+  intended nets.
+- The built-in op-amp has no supply pins: give its value the output limits of the part and supply
+  ("LM358 VOH=3.5 VOL=0" on 5 V) so simulation clips where the part does. `sim_ac` with at: ["1k"] reads the gain.
 - Unknown catalog names (an orderable number such as "PIC16F877A-I/P") give the closest catalog names.
 
 A typical flow:

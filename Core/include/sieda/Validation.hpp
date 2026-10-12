@@ -31,7 +31,9 @@ struct PartRatings {
 
 std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatings& ratings = {});
 /// Design-sense review an agent asks for (MCP schematic_validate), not part of verification: an LED with nothing
-/// setting its current (VAL_LED_NO_RESISTOR), a reset / enable input left without a level (VAL_FLOATING_CONTROL).
+/// setting its current (VAL_LED_NO_RESISTOR), a reset / enable input left without a level (VAL_FLOATING_CONTROL), an
+/// op-amp without output limits on a supply below ±15 V (VAL_OPAMP_RAILS), fewer decoupling capacitors on a rail
+/// than supply pins it feeds (VAL_DECOUPLING_PER_PIN), a crystal side with no load capacitor (VAL_CRYSTAL_LOAD).
 std::vector<RuleViolation> designReview(const Schematic& sch);
 
 }  // namespace sieda
