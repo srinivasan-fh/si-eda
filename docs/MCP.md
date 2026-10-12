@@ -307,8 +307,8 @@ What the agent gets back, so it can wire correctly without guessing:
 - `schematic_erc` gives a `status` (clean / warnings / errors; `clean` alone means no errors) and `unconnectedPins` per part, with one summary line
   for them instead of one violation per pin; `schematic_set_no_connect` takes `pins` to mark the unused ones.
 - `schematic_validate` also reviews the design: no decoupling capacitor on an IC supply pin, an LED with nothing that
-  sets its current (`VAL_LED_NO_RESISTOR`), a reset / enable input left floating (`VAL_FLOATING_CONTROL`). The two
-  new checks run only here, not in the app's verification.
+  sets its current (`VAL_LED_NO_RESISTOR`), a reset / enable input left floating (`VAL_FLOATING_CONTROL`). The review
+  checks run only here, not in the app's verification.
 - `schematic_build` builds a circuit in one call:
   `{"parts":[{"ref":"U1","part":"NE555"},{"ref":"R1","kind":"resistor","value":"1k"}],
   "nets":{"VCC":["U1.VCC"],"GND":["U1.GND"]},"wires":[["U1.OUT","R1.1"]],"noConnect":["U1.CONT"]}`.
@@ -322,7 +322,21 @@ What the agent gets back, so it can wire correctly without guessing:
 - `library_search` that matches nothing says how many parts each word matches. `library_check_part` checks a
   parametric package (SOIC, QFN …) on the footprint it generates.
 - `render_schematic` draws op-amps as triangles with + / − inputs, and capacitors, diodes / LEDs and switches with
-  their usual symbols (other parts are boxes with pin names). Text is in capitals, so "100n" shows as 100N.
+  their usual symbols (other parts are boxes with pin names). Wires bend at right angles, two nets never share a wire
+  leg, no-connect pins carry an X, and lower-case letters are drawn as small capitals (100n ≠ 100N).
+- `pcb_autoroute`: a whole-board route on a small board that leaves connections open tries again, keeping what
+  helps: shape-based completion, then each two-pin part on an open connection turned round. The result lists the
+  `repairs` kept. A partial preset (`nets`, `area`, `fanout`) applies to its call only.
+- `pcb_set_keepouts` takes `pours: true` to keep copper pours out of an area (the area under an antenna); Auto Place
+  keeps parts out of a keep-out on every layer.
+- In `schematic_build`, neighbouring pins of one part on one side and net (an IC's supply pins) share one label,
+  joined by a short wire along their ends. A part whose package is wrong is still placed; the error lists the
+  packages it comes in.
+- The built-in op-amp has no supply pins and swings ±15 V unless its value sets the output limits
+  (`"LM358 VOH=3.5 VOL=0"`); `schematic_validate` warns (`VAL_OPAMP_RAILS`) when the supply is lower.
+- `schematic_validate` also checks one decoupling capacitor per supply pin of a rail (`VAL_DECOUPLING_PER_PIN`),
+  a load capacitor on each side of a crystal (`VAL_CRYSTAL_LOAD`), and BOOT0 / BOOT / MODE pins like reset and enable.
+- `sim_ac` with `at: ["1k"]` gives each net's gain (dB and V/V) and phase at those frequencies.
 - An unknown catalog name (an orderable number such as `PIC16F877A-I/P`) answers with the closest catalog parts and
   their packages.
 
@@ -445,7 +459,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 
 | Tool | Kind | What it does |
 |---|---|---|
-| `schematic_add_component` | edit | Places a built-in component: resistor, capacitor, inductor, diode, led, voltage_source (value "5" or "SIN(0 1 1k)" / "PULSE(0 5 1m)"), current_source, ground, npn, nmos, opamp (pins IN+, IN-, OUT), switch, connector, ic8, fuse, net_label, battery, ac_source. |
+| `schematic_add_component` | edit | Places a built-in component: resistor, capacitor, inductor, diode, led, voltage_source (value "5" or "SIN(0 1 1k)" / "PULSE(0 5 1m)"), current_source, ground, npn, nmos, opamp (pins IN+, IN-, OUT; no supply pins: it swings ±15 V unless its value sets the output limits, e.g. |
 | `schematic_remove_component` | edit (destructive) | Deletes a component by designator, with its wires and the net labels / grounds wired to it alone. |
 | `schematic_set_value` | edit | Sets a part's value ("4k7", "100n", "Blue", a source's "3.3" or "SIN(0 1 50)"). |
 | `schematic_set_package` | edit | Sets the package variant of a passive / diode ("R_0603", "C_1206", "CP_Tant_B", "D_DO41_THT"; "" = default). |
@@ -527,7 +541,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_add_pour` | edit | Adds a copper pour of a net (usually GND) on a layer (0 = top, layers-1 = bottom); plane: true reserves the layer for the net. |
 | `pcb_remove_pour` | edit (destructive) | Removes one copper pour by index (pcb_summary zones) or all of them. |
 | `pcb_add_mounting_hole` | edit | Adds a non-plated mounting hole with a keep-out (default M3: 3.2 mm drill). |
-| `pcb_set_keepouts` | edit | Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias}]. |
+| `pcb_set_keepouts` | edit | Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias, pours}] (mm). |
 | `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks. |
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
 | `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 2 mm pitch), optionally inside an area. |

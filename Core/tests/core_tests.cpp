@@ -20755,6 +20755,123 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     CHECK(near);
 }
 
+TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
+    // A USB-C input with its CC pull-downs routes completely in one call (the repair turns the blocking resistor);
+    // a partial preset applies to its call only.
+    const auto root = mcpRoot("repair");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "U1", "part": "AMS1117-3.3"},
+                  {"ref": "C1", "kind": "capacitor", "value": "10u"}, {"ref": "C2", "kind": "capacitor", "value": "10u"},
+                  {"ref": "R1", "kind": "resistor", "value": "5k1"}, {"ref": "R2", "kind": "resistor", "value": "5k1"}],
+        "nets": {"VBUS": ["J1.VBUS(A4)", "J1.VBUS(A9)", "U1.VI", "C1.1"],
+                 "GND": ["J1.GND(A1)", "J1.GND(A12)", "J1.SH", "U1.GND", "C1.2", "C2.2", "R1.2", "R2.2"],
+                 "+3V3": ["U1.VO", "C2.1"]},
+        "wires": [["J1.CC1", "R1.1"], ["J1.CC2", "R2.1"]],
+        "noConnect": ["J1.D+(A6)", "J1.D-(A7)", "J1.D+(B6)", "J1.D-(B7)", "J1.SBU1", "J1.SBU2"], "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
+    CHECK(routed.get("unroutedConnections").asInt(-1) == 0);
+    Json scoped = Json::object();
+    scoped["preset"] = "nets";
+    scoped["options"] = Json::parse(R"J({"nets": ["VBUS"]})J");
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", scoped)));
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute_presets", Json::object())).get("current").get("nets").size() == 0);
+    // A pour keep-out (the area under an antenna) stays free of the ground pour.
+    Json pour = Json::object();
+    pour["net"] = "GND";
+    pour["layer"] = 1;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", pour)));
+    Json ko = Json::object();
+    ko["keepouts"] = Json::parse(R"J([{"name": "antenna", "x0": 1, "y0": 1, "x1": 9, "y1": 7, "tracks": false, "vias": false, "pours": true}])J");
+    CHECK(mcpData(mcpTool(s, "pcb_set_keepouts", ko)).get("kept").asInt(0) == 1);
+    {
+        Project f = amplifierProject();
+        f.pcb.settings.width = 40;
+        f.pcb.settings.height = 30;
+        f.pcb.zones.push_back({"GND", 0, false, 0});
+        f.pcb.autoPlace(f.schematic, true);
+        CHECK(f.pcb.zoneFills(f.schematic)[0].islandAt({4, 4}) >= 0);  // poured there without the keep-out
+        RouteKeepout k;
+        k.area = Rect(1, 1, 9, 7);
+        k.tracks = k.vias = false;
+        k.pours = true;
+        f.pcb.settings.keepouts.push_back(k);
+        CHECK(f.pcb.zoneFills(f.schematic)[0].islandAt({4, 4}) < 0 && f.pcb.zoneFills(f.schematic)[0].area() > 0);
+        const Json saved = keepoutsToJson(f.pcb.settings.keepouts);
+        CHECK(saved.items().front().get("pours").asBool(false));
+        // Auto Place keeps parts out of an all-layer keep-out.
+        Project g = amplifierProject();
+        g.pcb.settings.width = 60;
+        g.pcb.settings.height = 40;
+        RouteKeepout side;
+        side.area = Rect(0, 0, 25, 40);
+        g.pcb.settings.keepouts.push_back(side);
+        g.pcb.autoPlace(g.schematic, true);
+        for (const auto& pad : g.pcb.pads(g.schematic)) CHECK(pad.position.x > 25);
+    }
+    // An op-amp with no output limits on a 5 V supply is flagged; with them the output clips; the gain at 1 kHz.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const char* amp = R"J({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"},
+        {"ref": "V2", "kind": "voltage_source", "value": "SIN(0 0.5 1k)"}, {"ref": "U1", "kind": "opamp", "value": "%s"},
+        {"ref": "R1", "kind": "resistor", "value": "10k"}, {"ref": "R2", "kind": "resistor", "value": "1k"}],
+        "nets": {"GND": ["V1.-", "V2.-", "R2.2"], "VIN": ["V2.+", "U1.IN+"], "OUT": ["U1.OUT", "R1.2"]},
+        "wires": [["U1.IN-", "R1.1"], ["U1.IN-", "R2.1"]], "pins": false})J";
+    char buf[1024];
+    std::snprintf(buf, sizeof buf, amp, "LM358");
+    Json review = mcpData(mcpTool(s, "schematic_build", Json::parse(buf))).get("checks").get("review");
+    bool rails = false;
+    for (const auto& v : review.get("violations").items()) rails |= v.get("code").asString("") == "VAL_OPAMP_RAILS";
+    CHECK(rails);
+    const Json ac = mcpData(mcpTool(s, "sim_ac", Json::parse(R"J({"source": "V2", "at": ["1k"], "nets": ["OUT"], "maxPoints": 0})J")));
+    CHECK(std::fabs(ac.get("at").items().front().get("nets").get("OUT").get("gain").asNumber() - 11) < 0.1);
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    std::snprintf(buf, sizeof buf, amp, "LM358 VOH=3.5 VOL=0");
+    review = mcpData(mcpTool(s, "schematic_build", Json::parse(buf))).get("checks").get("review");
+    for (const auto& v : review.get("violations").items()) CHECK(v.get("code").asString("") != "VAL_OPAMP_RAILS");
+    const Json tran = mcpData(mcpTool(s, "sim_transient", Json::parse(R"J({"stop": "3m", "step": "10u", "probes": ["OUT"]})J")));
+    CHECK(tran.get("measurements").get("OUT").get("max").asNumber() <= 3.5 + 1e-6 &&
+          tran.get("measurements").get("OUT").get("max").asNumber() > 3.4);  // 5.5 V asked: clipped at VOH
+    // Chip-aware review: one decoupling capacitor for VCC and AVCC (the 10 µF bulk one does not count), a crystal side
+    // with no load capacitor, BOOT0 open.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    review = mcpData(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "U1", "part": "ATMEGA328P-PU"},
+                  {"ref": "C1", "kind": "capacitor", "value": "100n"}, {"ref": "Y1", "part": "Crystal_16MHz"},
+                  {"ref": "C2", "kind": "capacitor", "value": "22p"}, {"ref": "U2", "part": "STM32F103RBT6"},
+                  {"ref": "C3", "kind": "capacitor", "value": "10u"}],
+        "nets": {"+5V": ["V1.+", "U1.VCC", "U1.AVCC", "C1.1", "C3.1"], "GND": ["V1.-", "C1.2", "C2.2", "C3.2"],
+                 "XTAL1": ["U1.XTAL1", "Y1.1", "C2.1"], "XTAL2": ["U1.XTAL2", "Y1.2"]}, "pins": false})J")))
+                 .get("checks").get("review");
+    std::set<std::string> codes;
+    for (const auto& v : review.get("violations").items()) codes.insert(v.get("code").asString("") + ":" + v.get("message").asString(""));
+    auto has = [&](const std::string& prefix) {
+        for (const auto& c : codes)
+            if (c.rfind(prefix, 0) == 0) return true;
+        return false;
+    };
+    CHECK(has("VAL_DECOUPLING_PER_PIN:+5V feeds 2 supply pins"));
+    CHECK(has("VAL_CRYSTAL_LOAD:Y1.2"));
+    CHECK(!has("VAL_CRYSTAL_LOAD:Y1.1"));
+    CHECK(has("VAL_FLOATING_CONTROL:U2.BOOT0"));
+    // Neighbouring supply pins of one part share one label; a wrong package lists the right ones.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json esp = mcpData(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ESP32-C3"}, {"ref": "L1", "kind": "inductor", "package": "L_0402"}],
+        "nets": {"+3V3": ["U1.VDD3P3(2)", "U1.VDD3P3_RTC", "U1.VDD3P3_CPU", "U1.VDDA(31)"]}, "pins": false})J")));
+    CHECK(esp.get("parts").size() == 2 && esp.get("failed")[size_t{0}].asString("").find("Packages: L_0603") != std::string::npos);
+    Json syms = Json::object();
+    syms["netSymbols"] = true;
+    int labels = 0;
+    const Json listed = mcpData(mcpTool(s, "schematic_list_components", syms));
+    for (const auto& c : listed.get("components").items()) labels += c.get("kind").asString("") == "net_label";
+    CHECK(labels == 1);
+}
+
 TEST(mcp_library_search_wireless_words_and_new_radio_parts) {
     // "wifi" finds "Wi-Fi", "ble" finds Bluetooth parts but not the "adjustable" / "enable" regulators, and the
     // low-power radio parts (ESP32-C6 / H2, the S3 / C6 modules, nRF52840 / nRF5340) place with their footprints.

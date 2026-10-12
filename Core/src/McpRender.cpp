@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "McpInternal.hpp"
 #include "SiedaProjectInternal.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Mcp.hpp"
@@ -28,6 +29,14 @@ struct Prim {
     std::string text;
     bool centred = false;   // Text: origin is the centre of the baseline
 };
+
+constexpr double kSmallCap = 0.72;
+/// Width of render text: capitals advance their height, lower case (small capitals) kSmallCap of it.
+double textWidth(const std::string& t, double h) {
+    double w = 0;
+    for (char ch : t) w += std::islower(static_cast<unsigned char>(ch)) ? h * kSmallCap : h;
+    return t.empty() ? 0 : w - h / 3;
+}
 
 struct Scene {
     Rect bounds;
@@ -370,11 +379,16 @@ std::string toPng(const Scene& s, int width) {
                 break;
             case Prim::Text: {
                 Vec2 at = p.pts[0];
-                if (p.centred) at.x -= silkscreenTextWidth(p.text, p.width) / 2;
+                if (p.centred) at.x -= textWidth(p.text, p.width) / 2;
                 const double stroke = std::max(1.0, p.width * cv.scale / 8);
-                for (const auto& st : silkscreenText(p.text, at, p.width, false))
-                    for (size_t i = 0; i + 1 < st.size(); ++i)
-                        cv.segment(cv.X(st[i].x), cv.Y(st[i].y), cv.X(st[i + 1].x), cv.Y(st[i + 1].y), stroke, c);
+                // The stroke font has capitals only: a lower-case letter is a smaller capital, so 100n ≠ 100N, m ≠ M.
+                for (char ch : p.text) {
+                    const double h = std::islower(static_cast<unsigned char>(ch)) ? p.width * kSmallCap : p.width;
+                    for (const auto& st : silkscreenText(std::string(1, ch), at, h, false))
+                        for (size_t i = 0; i + 1 < st.size(); ++i)
+                            cv.segment(cv.X(st[i].x), cv.Y(st[i].y), cv.X(st[i + 1].x), cv.Y(st[i + 1].y), stroke, c);
+                    at.x += h;  // the font's advance: 6 units of height / 6
+                }
                 break;
             }
         }
@@ -434,7 +448,23 @@ Scene schematicScene(const Project& project, int sheet) {
     for (const auto& w : sch.wires()) {
         if (!onSheet(w.a.component) || !onSheet(w.b.component)) continue;
         const Vec2 a = sch.pinPosition(w.a), c = sch.pinPosition(w.b);
-        s.line(a, c, 1.5, wireC);
+        // At right angles: out of a part's pin the way the pin leaves it (a label or junction end follows the part).
+        const bool partA = !isNetSymbolKind(sch.find(w.a.component)->kind);
+        const PinRef from = partA ? w.a : w.b;
+        const Vec2 d = pinOutward(project, {from.component, from.pin}), p0 = partA ? a : c, p1 = partA ? c : a;
+        const PinRef to = partA ? w.b : w.a;
+        const Vec2 e = pinOutward(project, {to.component, to.pin});
+        const bool across = std::fabs(d.x) > 0.5, partB = !isNetSymbolKind(sch.find(to.component)->kind);
+        if (partB && across == (std::fabs(e.x) > 0.5) && p0.x != p1.x && p0.y != p1.y) {
+            // Pin to pin on parallel sides: a Z whose middle leg sits a little apart per net, so two nets never
+            // share a leg (a shared one would read as a join).
+            const double shift = static_cast<double>(std::max(0, sch.netOf(w.a)) % 5 - 2) * 8;
+            const double m = across ? (p0.x + p1.x) / 2 + shift : (p0.y + p1.y) / 2 + shift;
+            s.polyline(across ? std::vector<Vec2>{p0, {m, p0.y}, {m, p1.y}, p1} : std::vector<Vec2>{p0, {p0.x, m}, {p1.x, m}, p1},
+                       1.5, wireC);
+        } else {
+            s.polyline({p0, across ? Vec2{p1.x, p0.y} : Vec2{p0.x, p1.y}, p1}, 1.5, wireC);
+        }
         grow(b, any, a);
         grow(b, any, c);
     }
@@ -468,14 +498,14 @@ Scene schematicScene(const Project& project, int sheet) {
                 auto turn = [&](Vec2 v) {
                     return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
                 };
-                const double w = silkscreenTextWidth(name, 9) + 16, hh = 7;
+                const double w = textWidth(name, 9) + 16, hh = 7;
                 s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
                 const Vec2 mid = turn({(w + hh) / 2, 0});
                 s.text(mid + Vec2{0, 3.5}, name, 9, labelC, true);
                 grow(b, any, turn({w, -hh}));
                 grow(b, any, turn({w, hh}));
-                grow(b, any, mid + Vec2{silkscreenTextWidth(name, 9) / 2, 0});
-                grow(b, any, mid - Vec2{silkscreenTextWidth(name, 9) / 2, 0});
+                grow(b, any, mid + Vec2{textWidth(name, 9) / 2, 0});
+                grow(b, any, mid - Vec2{textWidth(name, 9) / 2, 0});
                 break;
             }
             default: {
@@ -542,6 +572,10 @@ Scene schematicScene(const Project& project, int sheet) {
                     else q.y = y1;
                     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) s.line(p, q, 1.2, pinC);
                     s.disc(p, 1.6, pinC);
+                    if (c.isNoConnect(static_cast<int>(i))) {  // a no-connect flag: an X on the pin end
+                        s.line(p + Vec2{-4, -4}, p + Vec2{4, 4}, 1.5, "#1f4f9f");
+                        s.line(p + Vec2{-4, 4}, p + Vec2{4, -4}, 1.5, "#1f4f9f");
+                    }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
                         const std::string& label = pins[i].name;
                         const bool left = m == dl, right = m == dr;

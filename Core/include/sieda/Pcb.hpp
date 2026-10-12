@@ -115,12 +115,14 @@ struct AutorouteOptions {
 };
 
 /// A routing keep-out (Board Setup → Keep-outs): no track and / or no via of any net inside `area` on `layer` (-1 = every
-/// copper layer). The autorouter routes around it and the DRC reports copper inside it (DRC_KEEPOUT).
+/// copper layer). The autorouter routes around it and the DRC reports copper inside it (DRC_KEEPOUT); with `pours`
+/// the copper pours leave it empty too.
 struct RouteKeepout {
     std::string name;
     Rect area;
     int layer = -1;
     bool tracks = true, vias = true;
+    bool pours = false;  // no copper pour inside either (an antenna's area); JSON "pours", written only when on
 };
 
 /// Mechanical height zone (enclosure rib, display, battery): parts on `bottom` / top inside `area` may be at most

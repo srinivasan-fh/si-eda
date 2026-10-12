@@ -369,7 +369,7 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
     // --- Reset / enable inputs must be tied to a level (pull-up, pull-down, a supply or a driver), not left open.
     static const std::set<std::string> controls = {"RST", "RESET", "NRST", "NRESET", "MCLR", "EN", "ENABLE", "CE",
                                                    "SHDN", "NSHDN", "CHIP_PU", "CHIP_EN", "PDN", "NPD", "SLEEP",
-                                                   "NSLEEP", "STBY", "RUN"};
+                                                   "NSLEEP", "STBY", "RUN", "BOOT0", "BOOT1", "BOOT", "MODE"};
     for (const auto& c : sch.components()) {
         if (c.kind != ComponentKind::Custom && c.kind != ComponentKind::PartUnit) continue;
         const auto& pins = c.def().pins;
@@ -407,6 +407,81 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
                                                    "drive it, so the part starts in a known state.", c);
         }
     }
+
+    // Capacitors on `net` whose other pin is on ground (`highFrequency`: 1 µF or less, not bulk).
+    auto capToGround = [&](int net, bool highFrequency = false) {
+        int n = 0;
+        for (const auto& pr : nets[static_cast<size_t>(net)].pins) {
+            const Component* cap = sch.find(pr.component);
+            const auto farads = cap ? parseEngineeringValue(primaryValue(cap->value)) : std::nullopt;
+            if (highFrequency && farads && *farads > 1.01e-6) continue;
+            if (cap && cap->kind == ComponentKind::Capacitor && cap->def().pins.size() == 2) {
+                const int other = sch.netOf({cap->id, pr.pin == 0 ? 1 : 0});
+                n += other >= 0 && sch.netRole(other) == NetRole::Ground;
+            }
+        }
+        return n;
+    };
+    // --- One decoupling capacitor per supply pin: a rail feeding VCC and AVCC needs two, each at its pin.
+    std::map<int, std::vector<std::string>> supplyPins;  // net → "U1.VCC" … (one per part and pin name)
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::Custom && c.kind != ComponentKind::PartUnit) continue;
+        std::set<std::string> seen;
+        const auto& pins = c.def().pins;
+        for (size_t i = 0; i < pins.size(); ++i) {
+            const int n = sch.netOf({c.id, static_cast<int>(i)});
+            if (static_cast<PinType>(pins[i].type) == PinType::PowerIn && n >= 0 && sch.netRole(n) == NetRole::Power &&
+                seen.insert(pins[i].name).second)
+                supplyPins[n].push_back(c.ref + "." + pins[i].name);
+        }
+    }
+    for (const auto& [n, list] : supplyPins) {
+        const int caps = capToGround(n, true);  // a bulk capacitor does not decouple a pin
+        if (capToGround(n) > 0 && caps < static_cast<int>(list.size())) {
+            std::string names;
+            for (const auto& x : list) names += (names.empty() ? "" : ", ") + x;
+            RuleViolation v;
+            v.severity = Severity::Warning;
+            v.code = "VAL_DECOUPLING_PER_PIN";
+            v.message = nets[static_cast<size_t>(n)].name + " feeds " + std::to_string(list.size()) + " supply pins (" + names +
+                        ") but has " + std::to_string(caps) + " decoupling capacitor" + (caps == 1 ? "" : "s") + " of 1 µF or less" +
+                        ": one 100 nF per supply pin, each placed at its pin.";
+            out.push_back(std::move(v));
+        }
+    }
+    // --- A crystal needs a load capacitor to ground on each side.
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::Custom) continue;
+        const CustomPart* cp = CustomPartRegistry::instance().find(c.customPart);
+        std::string name = cp ? cp->spec.name : c.value;
+        for (auto& ch : name) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        if (name.find("CRYSTAL") == std::string::npos && name.rfind("XTAL", 0) != 0) continue;
+        const auto& pins = c.def().pins;
+        for (size_t i = 0; i < pins.size(); ++i) {
+            const int n = sch.netOf({c.id, static_cast<int>(i)});
+            if (n < 0 || sch.netRole(n) != NetRole::Signal || capToGround(n)) continue;
+            add(Severity::Warning, "VAL_CRYSTAL_LOAD",
+                c.ref + "." + pins[i].name + " (" + nets[static_cast<size_t>(n)].name + ") has no load capacitor to GND: "
+                "a crystal needs one on each side, about 2 × (its load capacitance − 3 pF stray), e.g. 22 pF for 14 pF.", c);
+        }
+    }
+
+    // --- An op-amp without output limits swings ±15 V: on lower supplies the simulation would not clip where the part
+    // does (a built-in op-amp has no supply pins; its value sets the limits).
+    double supply = 0;
+    for (const auto& c : sch.components())
+        if (isVoltageSourceKind(c.kind))
+            if (auto v = parseEngineeringValue(primaryValue(c.value))) supply = std::max(supply, std::fabs(*v));
+    if (supply > 0 && supply < 15)
+        for (const auto& c : sch.components())
+            if (c.kind == ComponentKind::OpAmp && c.value.find("VOH=") == std::string::npos) {
+                char v[32];
+                std::snprintf(v, sizeof v, "%g", supply);
+                add(Severity::Warning, "VAL_OPAMP_RAILS",
+                    c.ref + " swings ±15 V (its value sets no output limits) while the supply is " + v +
+                        " V: give it the part's limits, e.g. value \"" + c.value + " VOH=" + v + " VOL=0\" (rail to "
+                        "rail; an LM358 reaches about 1.5 V below its supply), so the simulation clips where the part does.", c);
+            }
     return out;
 }
 

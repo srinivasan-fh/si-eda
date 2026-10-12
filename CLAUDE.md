@@ -109,7 +109,10 @@
   side; a shared pin name is `REF.NAME(number)`; `schematic_connect` never merges two named nets without `merge`
   and warns on shorted parts; `schematic_erc` gives `unconnectedPins` (one summary line) and `status`;
   `schematic_build` = one-call netlist build (`layoutBuilt` lines wired pins up); `schematic_validate` adds
-  `designReview` (`Validation.cpp`: LED without resistor, floating reset / enable), which the app's verification does not run. Tool failures are `isError` results, never crashes; file
+  `designReview` (`Validation.cpp`: LED without resistor, floating reset / enable / BOOT0, op-amp without output limits,
+  decoupling per supply pin, crystal load caps), which the app's verification does not run; `pcb_autoroute` runs
+  `finishRouting` (shape completion, turned two-pin parts, kept only when fewer stay open; partial presets per call);
+  `RouteKeepout::pours` keeps pours out (saved only when on). Tool failures are `isError` results, never crashes; file
   access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in

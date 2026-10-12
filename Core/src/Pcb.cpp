@@ -590,6 +590,8 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
             if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
             keepOut.push_back(courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)));
         }
+        for (const auto& ko : settings.keepouts)  // an all-layer keep-out (an antenna's area) holds no part
+            if (ko.layer < 0) keepOut.push_back(ko.area.inflated(margin / 2));
         if (radio || switching)
             for (const auto& o : comps) {
                 if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
@@ -797,6 +799,8 @@ void PcbLayout::improvePlacement(Schematic& sch, const std::vector<size_t>& todo
         if (body.x0 < e - 1e-9 || body.y0 < e - 1e-9 || body.x1 > settings.width - e + 1e-9 || body.y1 > settings.height - e + 1e-9) return false;
         if (custom && !settings.rectInside(body, e)) return false;
         if (!custom && !settings.holes.empty() && !settings.rectInside(body, 0)) return false;
+        for (const auto& ko : settings.keepouts)
+            if (ko.layer < 0 && ko.area.inflated(margin / 2).intersects(body)) return false;
         if (c.kind == ComponentKind::Capacitor)
             for (const auto& h : settings.holes)
                 if (pointRectDistance(h.position, body) < h.keepout / 2 + 2.0) return false;
