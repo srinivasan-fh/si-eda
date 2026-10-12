@@ -339,6 +339,17 @@ Vec2 pinOutward(const Project& p, PinAddress a) {
     const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
     bool horizontal = std::fabs(off.x) >= std::fabs(off.y);
     if (atX != atY) horizontal = atX;
+    if (atX && atY) {
+        // A corner pin belongs to the side with more pins: an SOIC's pin 1 and 24 to its left and right columns,
+        // not to a "top" row of two.
+        int column = 0, row = 0;
+        for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+            const Vec2 q = s.pinPosition({c->id, i});
+            column += std::fabs(q.x - pin.x) <= eps;
+            row += std::fabs(q.y - pin.y) <= eps;
+        }
+        if (column != row) horizontal = column > row;
+    }
     if (!atX && !atY && x1 - x0 <= eps && y1 - y0 <= eps) {  // a one-pin part: away from its origin
         const Vec2 d = pin - c->position;
         horizontal = std::fabs(d.x) >= std::fabs(d.y);

@@ -707,12 +707,26 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
                 std::string name = s.isHarnessLabel(c) ? c.value + " =" : c.value;
                 const double w = (7.0 * static_cast<double>(name.size()) + 16) * u, hh = 9 * u;
                 // A flag: ports and sheet entries pointed, global labels with a notch, local labels plain.
+                // Laid along the label's rotation (0 right, 90 down, 180 left, 270 up) from its pin, text upright: a
+                // left-hand pin's label reads to the left of the pin, clear of the part.
+                const int r = ((c.rotation % 360) + 360) % 360;
+                auto turn = [&](double x, double y) {
+                    return r == 90 ? Vec2{pin.x - y, pin.y + x} : r == 180 ? Vec2{pin.x - x, pin.y - y}
+                         : r == 270 ? Vec2{pin.x + y, pin.y - x} : Vec2{pin.x + x, pin.y + y};
+                };
                 if (c.scope == LabelScope::Port || c.scope == LabelScope::SheetEntry || c.scope == LabelScope::Global)
-                    cv.polygon({{pin.x, pin.y}, {pin.x + hh, pin.y - hh}, {pin.x + w, pin.y - hh}, {pin.x + w, pin.y + hh},
-                                {pin.x + hh, pin.y + hh}}, false);
-                else
-                    cv.line(pin.x, pin.y, pin.x + w, pin.y);
-                cv.text(pin.x + hh + 1 * u, pin.y + 0.35 * text, text, name, 0, c.scope != LabelScope::Local);
+                    cv.polygon({turn(0, 0), turn(hh, -hh), turn(w, -hh), turn(w, hh), turn(hh, hh)}, false);
+                else {
+                    const Vec2 e = turn(w, 0);
+                    cv.line(pin.x, pin.y, e.x, e.y);
+                }
+                const bool bold = c.scope != LabelScope::Local;
+                if (r == 0) cv.text(pin.x + hh + 1 * u, pin.y + 0.35 * text, text, name, 0, bold);
+                else if (r == 180) cv.text(pin.x - hh - 1 * u, pin.y + 0.35 * text, text, name, 2, bold);
+                else {
+                    const Vec2 mid = turn((w + hh) / 2, 0);
+                    cv.text(mid.x, mid.y + 0.35 * text, text, name, 1, bold);
+                }
                 continue;
             }
             default:

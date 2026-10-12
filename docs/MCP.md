@@ -294,7 +294,9 @@ at the board's top-left corner). Without coordinates, new parts go to a free spo
 What the agent gets back, so it can wire correctly without guessing:
 
 - Every placed part lists each pin's `name`, `number`, `type` (power_in, input, output, bidirectional, passive …),
-  `net` (null = unwired), `x` / `y` of the pin end and `side` (left / right / top / bottom). A multi-function pin
+  `net` (null = unwired), `x` / `y` of the pin end and `side` (left / right / top / bottom; a corner pin belongs to
+  the side with more pins, so an SOIC's pins 1 and 24 are left and right). Net labels and grounds go out on that side,
+  the label's flag pointing at the pin, in the app, the schematic PDF and `render_schematic` alike. A multi-function pin
   answers to each function (`U1.RB0` = `INT/RB0`); a name several pins share is written and accepted with its number,
   `U1.VDD(32)`.
 - `schematic_connect` refuses to join two differently named nets (`VCC` and `GND`) unless `merge` is true, and its
