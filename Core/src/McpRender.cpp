@@ -462,9 +462,20 @@ Scene schematicScene(const Project& project, int sheet) {
             }
             case ComponentKind::NetLabel: {
                 const std::string name = sch.labelNetName(c).empty() ? c.value : sch.labelNetName(c);
-                s.disc(c.position, 2, labelC);
-                s.text(c.position + Vec2{4, -4}, name, 9, labelC, false);
-                grow(b, any, c.position + Vec2{4 + 7.2 * static_cast<double>(name.size()), -14});
+                // A flag pointing at its pin, laid along the label's rotation (0 right, 90 down, 180 left, 270 up),
+                // its text upright in the middle: a left-hand pin's label sits left of the pin, clear of the part.
+                const int r = ((c.rotation % 360) + 360) % 360;
+                auto turn = [&](Vec2 v) {
+                    return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
+                };
+                const double w = silkscreenTextWidth(name, 9) + 16, hh = 7;
+                s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
+                const Vec2 mid = turn({(w + hh) / 2, 0});
+                s.text(mid + Vec2{0, 3.5}, name, 9, labelC, true);
+                grow(b, any, turn({w, -hh}));
+                grow(b, any, turn({w, hh}));
+                grow(b, any, mid + Vec2{silkscreenTextWidth(name, 9) / 2, 0});
+                grow(b, any, mid - Vec2{silkscreenTextWidth(name, 9) / 2, 0});
                 break;
             }
             default: {

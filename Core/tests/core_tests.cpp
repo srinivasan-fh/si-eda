@@ -20603,6 +20603,24 @@ TEST(mcp_agent_gets_full_pin_detail_and_guards) {
     const Json erc = mcpData(mcpTool(s, "schematic_erc", Json::object()));
     const Json& open = erc.get("unconnectedPins").get("U1");
     CHECK(open.size() == 40 - 6);  // VDD ×2, VSS ×2, RB1 and RB2 are taken care of
+    // An SOIC's corner pins (1, 12, 13, 24) belong to its left and right columns, so their labels go sideways too.
+    Json soic = Json::object(), pins = Json::array();
+    for (int i = 1; i <= 24; ++i) {
+        Json pj = Json::object();
+        pj["number"] = std::to_string(i);
+        pj["name"] = "P" + std::to_string(i);
+        pins.push(pj);
+    }
+    soic["name"] = "SOIC24TEST";
+    soic["pins"] = pins;
+    Json pkg = Json::object();
+    pkg["type"] = "SOIC";
+    pkg["pinCount"] = 24;
+    soic["package"] = pkg;
+    soic["place"] = true;
+    const Json u2 = mcpData(mcpTool(s, "library_create_part", soic)).get("component");
+    CHECK(u2.get("pins")[0].get("side").asString("") == "left" && u2.get("pins")[11].get("side").asString("") == "left");
+    CHECK(u2.get("pins")[12].get("side").asString("") == "right" && u2.get("pins")[23].get("side").asString("") == "right");
 }
 
 TEST(mcp_multi_page_schematic) {
