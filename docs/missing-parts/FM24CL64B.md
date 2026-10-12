@@ -1,0 +1,43 @@
+# FM24CL64B-GTR — Infineon (Cypress)
+
+**Status: TODO — pinout not yet taken from the datasheet.**
+
+| Field | Value |
+|---|---|
+| SiEDA part name | `FM24CL64B-GTR` |
+| Manufacturer | Infineon (Cypress) |
+| Function | 64 Kbit 3 V I2C FRAM, 10^14 write cycles |
+| Library category | Memory |
+| Reference prefix | U |
+| Catalog package | SOIC-8 150 mil |
+| SiEDA package type | `SOIC` |
+| Pin count | 8 |
+| Pitch | 1.27 mm |
+| Body size | 3.9 mm |
+| Exposed pad | No |
+| Datasheet | https://www.infineon.com/cms/en/product/memories/f-ram-ferroelectric-ram/ |
+| Datasheet revision used | _fill in (e.g. SLVSxxx rev C, 2023-05)_ |
+| Pin table page | _fill in_ |
+
+## Notes
+
+Requested in the semiconductor IC reference (October 2026). Not in KiCad's symbol library, Espressif's, Digi-Key's or
+SparkFun's KiCad libraries, and the vendor's site could not be reached from the cloud build environment.
+
+- Package values come from the vendor's ordering information and still need checking against the package drawing (step 2 of the README).
+
+## Pin table
+
+Take every row from the datasheet's pin-configuration table, in pin-number order. Types: `Input`, `Output`, `Bidirectional`, `PowerIn`, `PowerOut`, `OpenCollector`, `Passive`, `NoConnect`.
+Use the datasheet's pin name exactly (no spaces; `/` is fine). Ground and supply pins are `PowerIn`; regulator outputs are `PowerOut`; open-drain outputs (nFAULT, nINT …) are `OpenCollector`; NC pins are `NoConnect`.
+
+| Number | Name | Type |
+|---|---|---|
+| 1 |  |  |
+| 2 |  |  |
+| 3 |  |  |
+| 4 |  |  |
+| 5 |  |  |
+| 6 |  |  |
+| 7 |  |  |
+| 8 |  |  |

@@ -171,11 +171,13 @@
   `Core/src/StandardCatalogExtra.inc` (don't edit either by hand; `EXCLUDE` in the script lists symbols the core
   cannot draw). RF modules (`RF_Module`) and Nordic aQFN parts use KiCad's exact land pattern (aQFN lands name
   their balls); chips KiCad lacks (ESP32-C6, ESP32-H2) come from Espressif's own KiCad library (`ESPRESSIF` in
-  `tools/fetch_mcu_pinouts.py`). Catalog search words: `wordMatches` (core MCP) = `PartQuery.wordMatches` (app). AI prompts get a digest of the catalog (`SiEDA/AI/CatalogDigest.swift`), never the whole list.
+  `tools/fetch_mcu_pinouts.py`), then Digi-Key's and SparkFun's (`COMMUNITY`); a footprint no
+  parametric package draws falls back to its exact KiCad pads (through-hole ones with drills, centred). Catalog search words: `wordMatches` (core MCP) = `PartQuery.wordMatches` (app). AI prompts get a digest of the catalog (`SiEDA/AI/CatalogDigest.swift`), never the whole list.
 
 ## Missing IC parts
 
-Fourteen catalog parts still need their pinouts from the vendor datasheet. The list, one file per part, and the
+Fourteen catalog parts, and 89 from the semiconductor IC reference (October 2026), still need their pinouts from the
+vendor datasheet. The list, one file per part, and the
 step-by-step procedure (fill the pin table, add a `catalog(...)` entry, update the tests) are in
 [`docs/missing-parts/README.md`](docs/missing-parts/README.md). When asked to add or update missing parts, follow that
 file and keep each part's Status line current.

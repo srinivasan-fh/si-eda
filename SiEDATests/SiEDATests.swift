@@ -1623,7 +1623,8 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 12)
         // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6, the robotics spares'
         // STM32F446RET6, STM32G474RET6 and STM32H723VGT6, and 11 general-purpose STM32s.
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 27)
+        // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 29)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
         XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)

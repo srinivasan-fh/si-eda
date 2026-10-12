@@ -2699,6 +2699,35 @@ TEST(project_reset_returns_to_a_blank_project) {
     sieda_project_free(p);
 }
 
+TEST(ic_reference_parts_in_the_catalog) {
+    // The parts of the semiconductor IC reference (October 2026) that a KiCad library carries: each in the catalog,
+    // generated (symbol, exact or parametric footprint) with a pad for every pin.
+    const char* names[] = {
+        "STM32L052K8T6", "STM32U575ZGT6Q", "ATECC608B-SSHDA", "SN74LVC1G04DBVR", "CD4017BE", "OPA197ID", "OPA188AID",
+        "ADA4522-2ARZ", "OPA1656ID", "ADA4898-1YRDZ", "AD8421ARZ", "INA228AIDGSR", "REF5025ID", "TS5A23157DGS",
+        "ADG884BRMZ", "TMUX1208PWR", "TLC555CD", "TMP117AIDRVR", "ADS7042IDCUR", "PCM3060PW", "FDC1004DGSR",
+        "CAP1206-1-SL", "ADE7953ACPZ", "ATM90E26-YU", "TPS7A2033PDBVR", "TPS62130RGT", "BQ76952PFB",
+        "BQ27441DRZR-G1A", "LM5069MM-1", "TLC5947DAP", "PAC1952-1-4MX", "C3M0065100K", "1N5819", "SS14",
+        "PESD5V0L4UF", "GBU4M", "MAX-M10S", "PN5321A3HN", "SX1262IMLTRT", "SX1276IMLTRT", "ADF4351BCPZ",
+        "SKY13351-378LF", "DRV5055A4QDBZRQ1", "TUSS4470RTJR", "UCC21520DW", "MAX98357AETE+T", "DRV2605LDGSR",
+        "TCA9535PWR", "PCA9306DR", "RV-3028-C7", "MAX6369KA+T", "ADXL345BCCZ", "OPT3001DNPT", "BQ29700DSET",
+        "MMSZ5231B-7-F", "VEML7700-TT", "MAX17048G+T10",
+    };
+    for (const char* n : names) {
+        const StandardPart* sp = findStandardPart(n);
+        CHECK(sp != nullptr);
+        if (!sp) continue;
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+            ok = part->footprint.pads.size() >= sp->spec.pins.size() && !part->def.pins.empty();
+        } catch (const std::exception&) {
+            ok = false;
+        }
+        CHECK(ok);
+    }
+}
+
 TEST(microcontroller_library_by_vendor) {
     // Ten microcontrollers per vendor group, each on its real package: lead count, pitch, body and exposed pad.
     std::map<std::string, int> perGroup;
@@ -2708,7 +2737,8 @@ TEST(microcontroller_library_by_vendor) {
     CHECK(perGroup["Microcontrollers · Arm"] == 12);
     // + the catalog's STM32F405 / H743 / F765, the robotics spares STM32F446 / G474 / H723 and 11 general-purpose
     // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
-    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 27);
+    // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 29);
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.

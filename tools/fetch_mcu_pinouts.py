@@ -79,11 +79,33 @@ TYPE = {"input": "Input", "output": "Output", "bidirectional": "Bidirectional", 
 ESPRESSIF = "https://raw.githubusercontent.com/espressif/kicad-libraries/main/symbols/Espressif.kicad_sym"
 
 
+# Community KiCad libraries for parts neither KiCad nor the vendor publishes: Digi-Key's (KiCad 5 .lib) and SparkFun's.
+COMMUNITY = {"digikey": "https://raw.githubusercontent.com/Digi-Key/digikey-kicad-library/master/digikey-symbols/",
+             "sparkfun": "https://raw.githubusercontent.com/sparkfun/SparkFun-KiCad-Libraries/main/symbols/"}
+LEGACY = {"I": "input", "O": "output", "B": "bidirectional", "T": "tri_state", "P": "passive", "U": "unspecified",
+          "W": "power_in", "w": "power_out", "C": "open_collector", "E": "open_emitter", "N": "no_connect"}
+
+
 def fetch(lib, sym):
     os.makedirs(CACHE, exist_ok=True)
     path = os.path.join(CACHE, f"{lib}__{sym}.kicad_sym")
     if not os.path.exists(path):
-        if lib == "Espressif":
+        if lib.startswith("digikey:") or lib.startswith("sparkfun:"):
+            whole = urllib.request.urlopen(COMMUNITY[lib.split(":")[0]] + lib.split(":", 1)[1], timeout=60).read().decode("utf-8")
+            if lib.startswith("sparkfun:"):
+                m = re.search(r'\n\t\(symbol "%s"\n.*?\n\t\)\n' % re.escape(sym), whole, re.S)
+                if not m: raise SystemExit(f"{sym}: not in {lib}")
+                text = m.group(0)
+            else:  # KiCad 5 .lib: DEF … ENDDEF with X pin lines, written out as the pins this file reads
+                m = re.search(r'^DEF %s .*?^ENDDEF' % re.escape(sym), whole, re.S | re.M)
+                if not m: raise SystemExit(f"{sym}: not in {lib}")
+                fp = re.search(r'^F2 "([^"]*)"', m.group(0), re.M)
+                text = '(property "Footprint" "%s")\n' % (fp.group(1) if fp else "")
+                for name, num, etype, rest in re.findall(r'^X (\S+) (\S+) (?:\S+ ){7}(\S)(.*)$', m.group(0), re.M):
+                    text += '(pin %s line (at 0 0 0) (length 2.54)%s (name "%s") (number "%s"))\n' % (
+                        LEGACY.get(etype, "passive"), " hide" if rest.strip().startswith("N") else "", num if name == "~" else name, num)
+            open(path, "w", encoding="utf-8").write(text)
+        elif lib == "Espressif":
             with urllib.request.urlopen(ESPRESSIF, timeout=60) as r:
                 whole = r.read().decode("utf-8")
             m = re.search(r'\n\t\(symbol "%s"\n.*?\n\t\)\n' % re.escape(sym), whole, re.S)

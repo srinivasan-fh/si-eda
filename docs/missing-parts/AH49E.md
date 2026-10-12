@@ -1,0 +1,38 @@
+# AH49ENTR-G1 — Diodes Inc.
+
+**Status: TODO — pinout not yet taken from the datasheet.**
+
+| Field | Value |
+|---|---|
+| SiEDA part name | `AH49ENTR-G1` |
+| Manufacturer | Diodes Inc. |
+| Function | Linear Hall-effect sensor, ratiometric output, 3-8 V |
+| Library category | Sensors |
+| Reference prefix | U |
+| Catalog package | SOT-23-3 (or SIP-3 / TO-92S) |
+| SiEDA package type | `SOT23` |
+| Pin count | 3 |
+| Pitch | 0.95 mm |
+| Body size | 1.3 mm |
+| Exposed pad | No |
+| Datasheet | https://www.diodes.com/part/view/AH49E |
+| Datasheet revision used | _fill in (e.g. SLVSxxx rev C, 2023-05)_ |
+| Pin table page | _fill in_ |
+
+## Notes
+
+Requested in the semiconductor IC reference (October 2026). Not in KiCad's symbol library, Espressif's, Digi-Key's or
+SparkFun's KiCad libraries, and the vendor's site could not be reached from the cloud build environment.
+
+- Package values come from the vendor's ordering information and still need checking against the package drawing (step 2 of the README).
+
+## Pin table
+
+Take every row from the datasheet's pin-configuration table, in pin-number order. Types: `Input`, `Output`, `Bidirectional`, `PowerIn`, `PowerOut`, `OpenCollector`, `Passive`, `NoConnect`.
+Use the datasheet's pin name exactly (no spaces; `/` is fine). Ground and supply pins are `PowerIn`; regulator outputs are `PowerOut`; open-drain outputs (nFAULT, nINT …) are `OpenCollector`; NC pins are `NoConnect`.
+
+| Number | Name | Type |
+|---|---|---|
+| 1 |  |  |
+| 2 |  |  |
+| 3 |  |  |

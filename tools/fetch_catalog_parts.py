@@ -686,33 +686,110 @@ PARTS = [
     # Protection
     ("Protection", "Power_Protection", "TPD2E2U06DCK", "TPD2E2U06DCKR", "Texas Instruments",
      "2-channel low-capacitance ESD protection for USB 2.0, SC-70", "D", ""),
+    # From the semiconductor IC reference (October 2026): the parts whose KiCad symbols KiCad's library carries.
+    ("Microcontrollers · STMicroelectronics", "MCU_ST_STM32L0", "STM32L052K_6-8_Tx", "STM32L052K8T6", "STMicroelectronics", "Ultra-low-power Cortex-M0+ 32 MHz, 64 KB flash, 8 KB RAM, USB, LQFP-32", "U", ""),
+    ("Microcontrollers · STMicroelectronics", "MCU_ST_STM32U5", "STM32U575ZGTxQ", "STM32U575ZGT6Q", "STMicroelectronics", "Ultra-low-power Cortex-M33 160 MHz, 1 MB flash, 786 KB RAM, TrustZone, SMPS, LQFP-144", "U", ""),
+    ("Interface", "Security", "ATECC608B-SSHDA", "ATECC608B-SSHDA", "Microchip", "Secure element: hardware key storage (16 keys), ECDSA / ECDH, secure boot, I2C, SOIC-8", "U", ""),
+    ("Logic", "74xGxx", "74LVC1G04", "SN74LVC1G04DBVR", "Texas Instruments", "Single inverter gate, 1.65-5.5 V low-voltage CMOS, SOT-23-5", "U", "Package_TO_SOT_SMD:SOT-23-5"),
+    ("Logic", "4xxx", "4017", "CD4017BE", "Texas Instruments", "CMOS decade (Johnson) counter with 10 decoded outputs, 3-18 V, DIP-16", "U", "Package_DIP:DIP-16_W7.62mm"),
+    ("Op-Amps", "Amplifier_Operational", "OPA197xD", "OPA197ID", "Texas Instruments", "36 V precision rail-to-rail I/O op-amp, low offset, SOIC-8", "U", ""),
+    ("Op-Amps", "Amplifier_Operational", "OPA188xxD", "OPA188AID", "Texas Instruments", "36 V zero-drift precision low-noise op-amp, rail-to-rail output, SOIC-8", "U", ""),
+    ("Op-Amps", "Amplifier_Operational", "ADA4522-2", "ADA4522-2ARZ", "Analog Devices", "Dual 55 V zero-drift op-amp, 5 uV max offset, 5.8 nV/rtHz, rail-to-rail output, SOIC-8", "U", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"),
+    ("Op-Amps", "Amplifier_Operational", "OPA1656ID", "OPA1656ID", "Texas Instruments", "Dual ultra-low-noise, low-distortion FET-input audio op-amp, SOIC-8", "U", ""),
+    ("Op-Amps", "Amplifier_Operational", "ADA4898-1YRDZ", "ADA4898-1YRDZ", "Analog Devices", "High-voltage, low-noise (0.9 nV/rtHz), low-distortion, high-speed op-amp, SOIC-8 with exposed pad", "U", ""),
+    ("Op-Amps", "Amplifier_Instrumentation", "AD8421ARZ", "AD8421ARZ", "Analog Devices", "Low-noise 3 nV/rtHz, 10 MHz instrumentation amplifier, gain set by one resistor, SOIC-8", "U", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"),
+    ("Sensors", "Sensor_Energy", "INA228", "INA228AIDGSR", "Texas Instruments", "85 V, 20-bit current / voltage / power / energy monitor, high or low side, I2C, VSSOP-10", "U", ""),
+    ("Power", "Reference_Voltage", "REF5025ID", "REF5025ID", "Texas Instruments", "2.5 V 0.05 % low-noise precision voltage reference, 3 ppm/C, SOIC-8", "U", ""),
+    ("Logic", "Analog_Switch", "TS5A23157DGS", "TS5A23157DGS", "Texas Instruments", "Dual 10 ohm SPDT analog switch, 1.65-5.5 V, VSSOP-10", "U", ""),
+    ("Logic", "Analog_Switch", "ADG884xRM", "ADG884BRMZ", "Analog Devices", "0.5 ohm dual SPDT (2:1 mux) audio analog switch, MSOP-10", "U", ""),
+    ("Logic", "Analog_Switch", "TMUX1208PW", "TMUX1208PWR", "Texas Instruments", "5 V 8:1 analog multiplexer, 5 ohm Ron, TSSOP-16", "U", ""),
+    ("Timers", "Timer", "TLC555xD", "TLC555CD", "Texas Instruments", "LinCMOS 555 timer, 2-15 V, low power, SOIC-8", "U", ""),
+    ("Sensors", "Sensor_Temperature", "TMP117xxDRV", "TMP117AIDRVR", "Texas Instruments", "High-accuracy digital temperature sensor, +/-0.1 C, 16-bit, I2C / SMBus, alert, WSON-6", "U", ""),
+    ("Data Converters", "Analog_ADC", "ADS7042xDCU", "ADS7042IDCUR", "Texas Instruments", "Ultra-low-power 12-bit 1 MSPS SAR ADC, SPI, VSSOP-8", "U", ""),
+    ("Audio", "Audio", "PCM3060", "PCM3060PW", "Texas Instruments", "24-bit stereo audio codec (ADC + DAC), 96 / 192 kHz, I2S, TSSOP-28", "U", ""),
+    ("Sensors", "Sensor_Proximity", "FDC1004DGS", "FDC1004DGSR", "Texas Instruments", "4-channel 16-bit capacitance-to-digital converter with active shield, +/-15 pF, I2C, VSSOP-10", "U", ""),
+    ("Sensors", "Sensor_Touch", "CAP1206-x-SL", "CAP1206-1-SL", "Microchip", "6-channel capacitive touch sensor, I2C / SMBus, SOIC-14", "U", ""),
+    ("Sensors", "Sensor", "ADE7953xCP", "ADE7953ACPZ", "Analog Devices", "Single-phase energy metering IC with neutral current measurement, SPI / I2C / UART, LFCSP-28", "U", ""),
+    ("Sensors", "Sensor_Energy", "ATM90E26-YU", "ATM90E26-YU", "Microchip", "High-precision single-phase energy metering IC, SPI / UART, SSOP-28", "U", ""),
+    ("Regulators", "Regulator_Linear", "TPS7A20xxxDBV", "TPS7A2033PDBVR", "Texas Instruments", "3.3 V 300 mA ultra-low-noise (7 uVrms), 6.5 uA IQ LDO, 1.6-6 V in, SOT-23-5", "U", ""),
+    ("Regulators", "Regulator_Switching", "TPS62130", "TPS62130RGT", "Texas Instruments", "3 A step-down converter with DCS-Control, 3-17 V in, adjustable output, VQFN-16", "U", ""),
+    ("Power", "Battery_Management", "BQ76952PFB", "BQ76952PFB", "Texas Instruments", "3-16 cell Li-ion battery monitor and protector with integrated balancing, I2C / SPI, TQFP-48", "U", ""),
+    ("Power", "Battery_Management", "BQ27441-G1", "BQ27441DRZR-G1A", "Texas Instruments", "Single-cell Li-ion fuel gauge, system side, I2C, SON-12", "U", ""),
+    ("Power", "Power_Management", "LM5069MM-1", "LM5069MM-1", "Texas Instruments", "9-80 V hot-swap / inrush controller with power limiting, latch-off on fault, VSSOP-10", "U", ""),
+    ("Drivers", "Driver_LED", "TLC5947DAP", "TLC5947DAP", "Texas Instruments", "24-channel 12-bit PWM constant-current LED driver, SPI-style serial, HTSSOP-32", "U", ""),
+    ("Sensors", "Sensor_Energy", "PAC1952x-1x-4MX", "PAC1952-1-4MX", "Microchip", "Two-channel 32 V high-side power / energy monitor, I2C, VQFN-16", "U", ""),
+    ("Transistors", "Transistor_FET", "C3M0065100K", "C3M0065100K", "Wolfspeed", "1000 V 35 A 65 mohm N-channel SiC MOSFET, Kelvin source, TO-247-4", "Q", ""),
+    ("Diodes", "Diode", "1N5819", "1N5819", "onsemi", "40 V 1 A Schottky barrier rectifier, DO-41", "D", ""),
+    ("Diodes", "Diode", "SS14", "SS14", "onsemi", "40 V 1 A Schottky rectifier, SMA", "D", ""),
+    ("Protection", "Power_Protection", "PESD5V0L4UF", "PESD5V0L4UF", "Nexperia", "Quad low-capacitance unidirectional 5 V ESD protection array, common anode, SOT-886", "D", ""),
+    ("Diodes", "Diode_Bridge", "GBU4M", "GBU4M", "Vishay", "1000 V 4 A single-phase bridge rectifier, GBU", "D", ""),
+    ("RF", "RF_GPS", "MAX-M10S", "MAX-M10S", "u-blox", "Ultra-low-power GNSS module (u-blox M10), concurrent GPS / Galileo / GLONASS / BeiDou, 1.65-3.6 V", "U", ""),
+    ("RF", "RF_NFC", "PN5321A3HN_C1xx", "PN5321A3HN", "NXP", "NFC controller (PN532), ISO 14443 / FeliCa reader and card emulation, I2C / SPI / UART, HVQFN-40", "U", ""),
+    ("RF", "RF", "SX1262IMLTRT", "SX1262IMLTRT", "Semtech", "150-960 MHz LoRa / FSK transceiver, +22 dBm, low power, SPI, QFN-24", "U", ""),
+    ("RF", "RF", "SX1276", "SX1276IMLTRT", "Semtech", "137-1020 MHz LoRa / FSK transceiver, +20 dBm, SPI, QFN-28", "U", ""),
+    ("RF", "Timer_PLL", "ADF4351", "ADF4351BCPZ", "Analog Devices", "35-4400 MHz fractional-N / integer-N PLL synthesizer with integrated VCO, LFCSP-32", "U", ""),
+    ("RF", "RF_Switch", "SKY13351-378LF", "SKY13351-378LF", "Skyworks", "20 MHz-6 GHz GaAs SPDT RF switch, MLPD-6", "U", ""),
+    ("Sensors", "Sensor_Magnetic", "DRV5055A4xDBZxQ1", "DRV5055A4QDBZRQ1", "Texas Instruments", "Ratiometric linear Hall-effect sensor, 12.5 mV/mT, +/-169 mT, 3.3 / 5 V, automotive, SOT-23", "U", ""),
+    ("Sensors", "Driver", "TUSS4470", "TUSS4470RTJR", "Texas Instruments", "Direct-drive ultrasonic transducer driver with logarithmic amplifier receiver, WQFN-20", "U", ""),
+    ("Drivers", "Driver_FET", "UCC21520DW", "UCC21520DW", "Texas Instruments", "Isolated dual-channel gate driver, 4 / 6 A, 5.7 kVrms isolation, SOIC-16W", "U", ""),
+    ("Audio", "Audio", "MAX98357A", "MAX98357AETE+T", "Analog Devices", "I2S / TDM mono class-D amplifier with DAC, 3.2 W, TQFN-16", "U", ""),
+    ("Drivers", "Driver", "DRV2605LDGS", "DRV2605LDGSR", "Texas Instruments", "Haptic driver for LRA and ERM actuators with effect library, I2C, VSSOP-10", "U", ""),
+    ("Interface", "Interface_Expansion", "TCA9535PWR", "TCA9535PWR", "Texas Instruments", "16-bit I2C / SMBus I/O expander with interrupt, 1.65-5.5 V, TSSOP-24", "U", ""),
+    ("Logic", "Interface", "PCA9306D", "PCA9306DR", "Texas Instruments", "Dual bidirectional I2C / SMBus voltage-level translator, SOIC-8", "U", ""),
+    ("Timing", "Timer_RTC", "RV-3028-C7", "RV-3028-C7", "Micro Crystal", "Extreme low-power (45 nA) real-time clock with crystal, I2C, 1.1-5.5 V", "U", ""),
+    ("Power", "Power_Supervisor", "MAX6369", "MAX6369KA+T", "Analog Devices", "Pin-selectable watchdog timer, 200 us to 60 s, SOT-23-8", "U", ""),
+    # … and the ones only Digi-Key's or SparkFun's KiCad libraries carry.
+    ("Sensors", "digikey:dk_Motion-Sensors-Accelerometers.lib", "ADXL345BCCZ", "ADXL345BCCZ", "Analog Devices",
+     "3-axis +/-2/4/8/16 g digital accelerometer, 13-bit, SPI / I2C, tap and free-fall detection, LGA-14", "U", ""),
+    ("Sensors", "digikey:dk_Optical-Sensors-Ambient-Light-IR-UV-Sensors.lib", "OPT3001DNPT", "OPT3001DNPT",
+     "Texas Instruments", "Ambient light sensor with human-eye response, 0.01-83k lux, I2C, USON-6", "U", ""),
+    ("Power", "digikey:dk_PMIC-Battery-Management.lib", "BQ29700DSET", "BQ29700DSET", "Texas Instruments",
+     "Single-cell Li-ion protector: over / under-voltage and over-current with protection FET drivers, WSON-6", "U", ""),
+    ("Diodes", "digikey:dk_Diodes-Zener-Single.lib", "MMSZ5231B-7-F", "MMSZ5231B-7-F", "Diodes Inc.",
+     "5.1 V 500 mW Zener diode (MMSZ52xx series), SOD-123", "D", ""),
+    ("Sensors", "sparkfun:SparkFun-Sensor.kicad_sym", "VEML7700-TT", "VEML7700-TT", "Vishay",
+     "High-accuracy 16-bit ambient light sensor, 0-120k lux, I2C", "U", ""),
+    ("Power", "sparkfun:SparkFun-IC-Power.kicad_sym", "MAX17048", "MAX17048G+T10", "Analog Devices",
+     "Single-cell Li-ion fuel gauge (ModelGauge), 3 uA, I2C, TDFN-8", "U", ""),
 ]
 
 
 FOOTPRINTS = "https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-footprints/repository/files/{}/raw?ref=master"
 
 
-def lands(footprint, named=False):
+def lands(footprint, named=False, tht=False):
     """Exact land pattern of a KiCad footprint: [(number, x, y, w, h)] of its numbered SMD pads (the largest pad of
     each number; paste-only and thermal-via pads skipped), and the body (w, h) from the name when it carries one.
     named: ball-named pads ("A8", "EP") count too. An RF module's body is its fabrication outline, the pads moved so
     the body is centred on the origin (as SiEDA draws it)."""
     lib, name = footprint.split(":")
-    path = os.path.join(kicad.CACHE, f"fp__{name}.kicad_mod")
+    community = lib == "digikey-footprints" or lib.startswith("SparkFun-")
+    path = os.path.join(kicad.CACHE, f"fp__{lib}__{name}.kicad_mod" if community else f"fp__{name}.kicad_mod")
     if not os.path.exists(path):
         os.makedirs(kicad.CACHE, exist_ok=True)
         url = FOOTPRINTS.format(urllib.parse.quote(f"{lib}.pretty/{name}.kicad_mod", safe=""))
+        if lib == "digikey-footprints":
+            url = f"https://raw.githubusercontent.com/Digi-Key/digikey-kicad-library/master/{lib}.pretty/{name}.kicad_mod"
+        elif community:
+            url = f"https://raw.githubusercontent.com/sparkfun/SparkFun-KiCad-Libraries/main/footprints/{lib}.pretty/{name}.kicad_mod"
         with urllib.request.urlopen(url, timeout=60) as r, open(path, "wb") as f:
             f.write(r.read())
     text = open(path, encoding="utf-8").read()
     best = {}
-    for m in re.finditer(r'\(pad "([^"]+)" smd \w+\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)\s*\(size ([\d.]+) ([\d.]+)\)',
+    for m in re.finditer(r'\(pad "?([^"\s)]+)"? smd \w+\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)\s*\(size ([\d.]+) ([\d.]+)\)',
                          text):
         num, x, y, rot, w, h = m.group(1), float(m.group(2)), float(m.group(3)), float(m.group(4) or 0), \
             float(m.group(5)), float(m.group(6))
         if round(rot) % 180 == 90: w, h = h, w
         if not (num.isdigit() or (named and num)): continue
         if num not in best or w * h > best[num][2] * best[num][3]: best[num] = (x, y, w, h)
+    if tht:  # plated through-hole pads too: (x, y, w, h, drill, round)
+        for m in re.finditer(r'\(pad "([^"]+)" thru_hole (\w+)\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)\s*'
+                             r'\(size ([\d.]+) ([\d.]+)\)\s*\(drill (?:oval )?([\d.]+)', text):
+            num, shape, x, y, rot = m.group(1), m.group(2), float(m.group(3)), float(m.group(4)), float(m.group(5) or 0)
+            w, h, drill = float(m.group(6)), float(m.group(7)), float(m.group(8))
+            if round(rot) % 180 == 90: w, h = h, w
+            if num and num not in best: best[num] = (x, y, w, h, drill, shape in ("circle", "oval"))
     body = re.search(r"_([\d.]+)x([\d.]+)mm", name)
     if lib == "RF_Module" and not body:
         fab = [(float(a), float(b)) for blk, layer in re.findall(r'\(fp_(?:line|rect)(.*?)\(layer "([^"]+)"\)', text, re.S)
@@ -731,7 +808,8 @@ def irregular(footprint):
     clockwise numbering, uneven pad rows, multi-slug power packages, power SON with a fused drain pad, 0.65 mm SC-70."""
     lib, name = footprint.split(":")
     u = name.upper()
-    if lib in ("Package_LGA", "Sensor_Distance", "RF_Module") or u.startswith("NORDIC_AQFN") or \
+    if lib in ("Package_LGA", "Sensor_Distance", "RF_Module", "digikey-footprints") or lib.startswith("SparkFun-") or \
+            u.startswith("NORDIC_AQFN") or \
             any(k in u for k in ("MULTIPOWERSO", "R-PVQFN", "TDSON", "SC-70")):
         return True
     body = re.search(r"(?:QFN|DFN)-\d+.*?_([\d.]+)x([\d.]+)mm", name)
@@ -749,10 +827,12 @@ def package(footprint):
         return "BGA", n, float(pitch.group(1)) if pitch else 0.8, float(body.group(1)) if body else 0, fp
     if "TO-263" in u:
         return "TO263", int(re.search(r"TO-263-(\d+)", u).group(1)), 0, 0, fp
+    if re.search(r"SOIC-\d+-1EP", u): raise SystemExit(f"unknown package {footprint}")  # SOIC has no EP: exact pads
     if "SOT-223" in u:
         return "SOT223", 3, 0, 0, fp
     if "SOT-23" in u or "SC-70" in u:
         m = re.search(r"(?:SOT-23|SC-70)-(\d+)", u)
+        if m and int(m.group(1)) > 6: raise SystemExit(f"unknown package {footprint}")  # SOT-23-8: exact pads
         return "SOT23", int(m.group(1)) if m else 3, 0, 0, fp
     if re.search(r"H(T)?SOP-8-1EP", u):  # SOIC-8 body with a thermal pad (HSOP / HTSOP / DDA)
         return "TSSOP", 8, 1.27, 3.9, fp
@@ -848,7 +928,34 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
                 "{%g, %g, %g, %g}" % pads[str(i)] for i in range(1, top + 1)) + "};")
             summary.append(f"{name:20} {'LGA':9} n={top:3} pins={len(pin_list):3} {fpname}")
             return out
-        kind, n, pitch, body, fpname = package(footprint)
+        try:
+            kind, n, pitch, body, fpname = package(footprint)
+        except (SystemExit, Exception):
+            if override: raise
+            # A footprint no parametric package draws (WSON / LFCSP variants, SOT-886, SMA, DO-41, TO-247-4, bridges,
+            # modules): KiCad's own pads, through-hole ones with their drills, each land naming its pin; a pad the
+            # symbol does not use is a no-connect pin.
+            pads, (bw, bd) = lands(footprint, named=True, tht=True)
+            if not bw:  # no body in the name (KiCad puts a through-hole part's origin on pin 1): centre the pads
+                xs = [v[0] - v[2] / 2 for v in pads.values()] + [v[0] + v[2] / 2 for v in pads.values()]
+                ys = [v[1] - v[3] / 2 for v in pads.values()] + [v[1] + v[3] / 2 for v in pads.values()]
+                cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+                pads = {k: (round(v[0] - cx, 4), round(v[1] - cy, 4)) + v[2:] for k, v in pads.items()}
+            key = lambda b: (len(b.rstrip("0123456789")), b.rstrip("0123456789"), int(b[len(b.rstrip("0123456789")):] or 0))
+            for k in found:
+                if k not in pads: raise SystemExit(f"{sym}: pin {k} has no pad in {footprint}")
+            numbers = sorted(set(found) | set(pads), key=key)
+            fpname = footprint.split(":")[-1]
+            land = lambda v, k: ("{%g, %g, %g, %g, 0, false, %s}" % (v + (cpp(k),)) if len(v) == 4 else
+                                 "{%g, %g, %g, %g, %g, %s, %s}" % (v[:5] + ("true" if v[5] else "false", cpp(k))))
+            out.append(f"catalog(parts, {cpp(category)}, {cpp(name)}, {cpp(maker)}, {cpp(desc)}, {cpp(ref)},")
+            out.append(f"    \"LGA\", {len(numbers)}, 0, {bw:g}, {cpp(fpname)},")
+            out.append("    {" + ", ".join("{%s, %s, T::%s}" % ((cpp(k),) + ((cpp(found[k][0]), found[k][1]) if k in found
+                                                               else (cpp("NC"), "NoConnect"))) for k in numbers) + "});")
+            out.append(f"parts.back().spec.package.bodyDepth = {bd:g};")
+            out.append("parts.back().spec.package.lands = {" + ", ".join(land(pads[k], k) for k in numbers) + "};")
+            summary.append(f"{name:20} {'LGA':9} n={len(numbers):3} pins={len(numbers):3} {fpname}")
+            return out
         if kind == "BGA":
             numbers = sorted(found, key=lambda b: (len(b.rstrip("0123456789")), b.rstrip("0123456789"),
                                                    int(b[len(b.rstrip("0123456789")):] or 0)))
