@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "참조 레이어 %@ 숨기기";
 "Show Reference Layer %@" = "참조 레이어 %@ 표시";
 "Remove Reference Layer %@" = "참조 레이어 %@ 삭제";
+"Copper thieving" = "구리 시빙";
+"Import Logo…" = "로고 가져오기…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "보드의 빈 영역에 정사각형 구리 점을 넣어 도금과 층별 구리량을 고르게 합니다(휨과 비틀림 감소)";
+"Make Plain Keep-out" = "일반 금지 영역으로 만들기";
+"Make Isolation Barrier" = "절연 장벽으로 만들기";
+"Delete Graphic" = "그래픽 삭제";
+"Pitch" = "피치";

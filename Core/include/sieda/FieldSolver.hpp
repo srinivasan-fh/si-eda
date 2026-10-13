@@ -17,6 +17,7 @@ struct FieldGeometry {
     double tanD = 0;       // dielectric loss tangent (Df)
     double roughness = 0;  // copper RMS roughness, µm (0 = smooth)
     double mask = 0, erMask = 3.6;  // microstrip: conformal solder-mask coating (mm) over the laminate and the track
+    double cpw = 0;  // coplanar waveguide: gap (mm) from the track edges to ground copper on the same layer (0 = none)
 };
 
 struct FieldResult {
@@ -43,7 +44,7 @@ FieldResult solveField(const FieldGeometry& g);
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap = 0);
 Json fieldResultJson(const FieldGeometry& g, const FieldResult& r);
 /// Goal seek: the width on `layer` whose field-solved Z0 (gap > 0: Zdiff of a pair `gap` apart) is `ohms`, to 0.2 %,
-/// starting from the closed-form width; 0 when no width from 0.02 to 10 mm reaches it.
-double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap = 0);
+/// with `cpw` > 0 a coplanar waveguide with ground that far from the track; starting from the closed-form width; 0 when no width from 0.02 to 10 mm reaches it.
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap = 0, double cpw = 0);
 
 }  // namespace sieda

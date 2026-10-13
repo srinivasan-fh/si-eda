@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਲੁਕਾਓ";
 "Show Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਵਿਖਾਓ";
 "Remove Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਹਟਾਓ";
+"Copper thieving" = "ਕਾਪਰ ਥੀਵਿੰਗ";
+"Import Logo…" = "ਲੋਗੋ ਆਯਾਤ ਕਰੋ…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "ਬੋਰਡ ਦੇ ਖਾਲੀ ਹਿੱਸੇ ਵਿੱਚ ਵਰਗਾਕਾਰ ਕਾਪਰ ਬਿੰਦੂ ਪਲੇਟਿੰਗ ਅਤੇ ਪਰਤਾਂ ਦੇ ਕਾਪਰ ਨੂੰ ਬਰਾਬਰ ਕਰਦੇ ਹਨ (ਝੁਕਾਅ ਅਤੇ ਮਰੋੜ)";
+"Make Plain Keep-out" = "ਆਮ ਕੀਪ-ਆਊਟ ਬਣਾਓ";
+"Make Isolation Barrier" = "ਆਈਸੋਲੇਸ਼ਨ ਬੈਰੀਅਰ ਬਣਾਓ";
+"Delete Graphic" = "ਗ੍ਰਾਫਿਕ ਮਿਟਾਓ";
+"Pitch" = "ਪਿੱਚ";

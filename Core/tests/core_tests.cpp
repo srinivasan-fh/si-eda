@@ -5560,8 +5560,9 @@ TEST(every_package_type_autoroutes) {
 
 TEST(library_footprints_keep_pads_apart) {
     // No footprint puts copper of two different pins closer than 0.1 mm (an exposed pad or a corner pad touching a
-    // pin pad would short them on the board).
+    // pin pad would short them on the board). A net tie joins its two pads on purpose.
     for (const auto& sp : standardParts()) {
+        if (sp.spec.package.type == "NETTIE") continue;
         auto part = CustomPartRegistry::instance().registerPart(sp.spec);
         const auto& pads = part->footprint.pads;
         double worst = 1e9;
@@ -22253,6 +22254,36 @@ TEST(spice_includes_are_inlined_from_the_model_folder) {
     fs::remove_all(dir);
 }
 
+TEST(field_solver_grounded_coplanar_waveguide) {
+    // Zero-thickness grounded CPW vs the conformal map (Wadell): 1/Z0 = √εeff/(60π) · (K(k)/K(k') + K(k3)/K(k3')),
+    // k = w/(w+2s), k3 = tanh(πw/4h)/tanh(π(w+2s)/4h), εeff = (1 + εr·q)/(1 + q), q = K(k')K(k3)/(K(k)K(k3')).
+    // The map treats the slots as magnetic walls, good while s ≲ h; far from the plane it is plain CPW, exactly
+    // 30π·K(k')/K(k) in air.
+    const double pi = 3.14159265358979, h = 0.2, er = 4.4;
+    auto kr = [](double k) { return ellipticK(k) / ellipticK(std::sqrt(1 - k * k)); };
+    for (auto [w, s] : {std::pair{0.3, 0.15}, std::pair{0.2, 0.1}, std::pair{0.1, 0.05}}) {
+        const double k = w / (w + 2 * s), k3 = std::tanh(pi * w / (4 * h)) / std::tanh(pi * (w + 2 * s) / (4 * h));
+        const double q = kr(k3) / kr(k), ee = (1 + er * q) / (1 + q), z0 = 60 * pi / std::sqrt(ee) / (kr(k) + kr(k3));
+        FieldGeometry g{w, 0, h, 0, 0, er};
+        g.cpw = s;
+        const auto r = solveField(g);
+        CHECK_NEAR(r.z0, z0, 0.02 * z0);
+        CHECK_NEAR(r.eeff, ee, 0.01 * ee);
+        CHECK(r.z0 < solveField(FieldGeometry{w, 0, h, 0, 0, er}).z0);  // the side grounds lower Z0
+        FieldGeometry air{w, 0, 4, 0, 0, 1};
+        air.cpw = s;
+        CHECK_NEAR(solveField(air).z0, 30 * pi / kr(k), 0.02 * 30 * pi / kr(k));
+    }
+    // Goal seek with coplanar ground: 50 Ω lands on 50 Ω and is narrower than the plain microstrip width.
+    BoardSettings b;
+    b.layerCount = 4;
+    const double w = fieldSolvedWidth(b, 0, 50, 0, 0.15);
+    FieldGeometry g = trackGeometry(b, 0, w);
+    g.cpw = 0.15;
+    CHECK(w > 0 && w < fieldSolvedWidth(b, 0, 50) && std::fabs(solveField(g).z0 - 50) < 0.25);
+    CHECK(fieldResultJson(g, solveField(g)).get("geometry").get("kind").asString() == "coplanar microstrip");
+}
+
 TEST(field_solver_solder_mask_coating) {
     // A 50 Ω-class FR-4 microstrip: 20 µm of LPI mask (εr 3.6) lowers Z0 by about 1–3 Ω and raises εeff; a coating with
     // εr 1 is the bare line again, and stripline ignores it.
@@ -23371,4 +23402,218 @@ TEST(pcb_part_model_on_a_catalog_part) {
     CHECK(sieda_pcb_set_part_model(sp, led, "", "", 1) == 1);
     CHECK(sp->project.pcb.partModels.empty());
     sieda_project_free(sp);
+}
+
+TEST(copper_thieving_dots_clear_of_copper_and_parts) {
+    // Thieving dots fill the free board area on every copper layer, keep their clearance from copper, holes and the
+    // top-side parts' courtyards, raise the coverage, reach the copper Gerber and the snapshot, and save only when on.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"A": ["J1.1", "R1.1"], "B": ["J1.2", "R1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    Project& p = m.project()->project;
+    p.pcb.settings.holes.push_back({{4, 4}});
+    const auto before = copperCoverage(p.schematic, p.pcb);
+    const std::string gerber0 = exportCopperGerber(p.schematic, p.pcb, 0);
+    CHECK(mcpFailed(mcpTool(m, "pcb_copper_thieving", Json::parse(R"({"pitch": 0.5, "size": 1})"))));  // dots would touch
+    const Json r = mcpTool(m, "pcb_copper_thieving", Json::parse(R"({"pitch": 2, "size": 1, "clearance": 0.8})"));
+    CHECK(!mcpFailed(r));
+    const auto dots = copperThieving(p.schematic, p.pcb);
+    CHECK(dots.size() == 2);
+    const auto pads = p.pcb.pads(p.schematic);
+    for (const auto& f : dots) {
+        CHECK(f.rects.size() > 20 && f.zone == -1 && f.net == -1);
+        for (const Rect& d : f.rects) {
+            const Vec2 c{(d.x0 + d.x1) / 2, (d.y0 + d.y1) / 2};
+            CHECK(p.pcb.settings.edgeDistance(c) > p.pcb.settings.edgeClearance && p.pcb.settings.holeDistance(c) > 0.8);
+            for (const auto& pad : pads)
+                if (pad.onLayer(f.layer)) CHECK(pointRectDistance(c, pad.bounds()) > 0.8 + 0.5);
+            for (const auto& t : p.pcb.tracks)
+                if (t.layer == f.layer) CHECK(trackPointDistance(t, c) - t.width / 2 > 0.8 + 0.5);
+            if (f.layer == 0)
+                for (const auto& comp : p.schematic.components())
+                    if (comp.hasFootprint() && !comp.pcb.bottom) CHECK(!p.pcb.courtyard(comp).contains(c));
+        }
+    }
+    const auto after = copperCoverage(p.schematic, p.pcb);
+    CHECK(after[0] > before[0] + 0.05 && after[1] > before[1] + 0.05);
+    CHECK(exportCopperGerber(p.schematic, p.pcb, 0).size() > gerber0.size() + 100 * dots[0].rects.size());
+    CHECK(p.snapshot().dump().find("\"zone\":-1") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.thieving.pitch == 2 && q.pcb.settings.thieving.clearance == 0.8);
+    CHECK(Project().toJson().dump().find("thieving") == std::string::npos);
+    CHECK(!mcpFailed(mcpTool(m, "pcb_copper_thieving", Json::parse(R"({"pitch": 0})"))));
+    CHECK(copperThieving(p.schematic, p.pcb).empty());
+}
+
+TEST(panel_drc_vscore_copper_bites_tabs_and_overhang) {
+    // No panel: no PANEL_* findings. V-score: copper at the edge and a shaped outline are flagged; tabs: copper and parts
+    // beside the mouse bites, and a part hanging past the routed gap.
+    Project p;
+    p.pcb.settings.width = 30, p.pcb.settings.height = 20;
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code.rfind("PANEL_", 0) == 0) c.insert(v.code);
+        return c;
+    };
+    Track t;
+    t.a = {0.2, 10}, t.b = {10, 10}, t.width = 0.2;
+    p.pcb.tracks.push_back(t);
+    CHECK(codes().empty());
+    p.pcb.settings.panel.nx = 2, p.pcb.settings.panel.vscore = true;
+    CHECK(codes() == std::set<std::string>{"PANEL_VSCORE_COPPER"});
+    p.pcb.tracks[0].a = {2, 10};
+    CHECK(codes().empty());
+    p.pcb.settings.panel.vscore = false, p.pcb.settings.panel.gap = 2, p.pcb.settings.panel.rail = 5;
+    const PanelLayout l = panelLayout(p.pcb.settings);
+    CHECK(!l.mouseBites.empty());
+    // A track up to a tab's mouse bites on the bottom edge (board y = 20) of the first board.
+    const Vec2 bite = l.mouseBites[0] - l.boards[0];
+    p.pcb.tracks[0].a = {bite.x, 20 - 0.6}, p.pcb.tracks[0].b = {bite.x, 10};
+    CHECK(codes().count("PANEL_BITE_COPPER") == 1);
+}
+
+TEST(flex_regions_bend_radius_vias_and_corners) {
+    // IPC-2223 bend radius per flex build; vias and sharp corners in the bend; the regions save, load and pass MCP.
+    Project p;
+    p.pcb.settings.width = 40, p.pcb.settings.height = 30;
+    auto codes = [&] {
+        std::map<std::string, int> c;
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code.rfind("FLEX_", 0) == 0) ++c[v.code];
+        return c;
+    };
+    FlexRegion f;
+    f.area = Rect(10, 0, 20, 30), f.bendRadius = 1.0, f.thickness = 0.11, f.layers = 2;  // 12 × 0.11 = 1.32 mm
+    p.pcb.settings.flexRegions.push_back(f);
+    p.pcb.settings.construction = "rigid-flex";
+    CHECK(codes() == (std::map<std::string, int>{{"FLEX_BEND_RADIUS", 1}}));
+    p.pcb.settings.flexRegions[0].bendRadius = 1.5;
+    CHECK(codes().empty());
+    p.pcb.settings.flexRegions[0].dynamic = true;  // 100 × 0.11 = 11 mm
+    CHECK(codes().count("FLEX_BEND_RADIUS") == 1);
+    p.pcb.settings.flexRegions[0].dynamic = false;
+    Track a, b;
+    a.a = {5, 10}, a.b = {15, 10}, b.a = {15, 10}, b.b = {25, 10}, a.width = b.width = 0.2;
+    p.pcb.tracks = {a, b};  // straight on across the bend: fine
+    CHECK(codes().empty());
+    p.pcb.tracks[1].b = {25, 20};
+    Via v;
+    v.position = {12, 25};
+    p.pcb.vias.push_back(v);
+    p.pcb.settings.construction = "rigid";
+    CHECK(codes() == (std::map<std::string, int>{{"FLEX_TRACK_CORNER", 1}, {"FLEX_VIA", 1}, {"FLEX_CONSTRUCTION", 1}}));
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.flexRegions.size() == 1 && q.pcb.settings.flexRegions[0].bendRadius == 1.5);
+    CHECK(Project().toJson().dump().find("\"flex\"") == std::string::npos);
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    const Json r = mcpTool(m, "pcb_mechanical_limits", Json::parse(R"({"flex": [{"name": "hinge", "x0": 1, "y0": 1, "x1": 5, "y1": 9, "bendRadius": 2}]})"));
+    CHECK(!mcpFailed(r) && m.project()->project.pcb.settings.flexRegions.size() == 1);
+}
+
+TEST(isolation_barrier_keepout_width_and_pads) {
+    // A barrier keep-out blocks every copper kind on every layer, saves as "barrier", and the DRC checks its width
+    // against the isolation gap and pads standing in it.
+    const auto ks = keepoutsFromJson(Json::parse(R"([{"name": "ISO", "x0": 10, "y0": 0, "x1": 14, "y1": 30, "layer": 0,
+        "tracks": false, "vias": false, "barrier": true}])"));
+    CHECK(ks.size() == 1 && ks[0].barrier && ks[0].tracks && ks[0].vias && ks[0].pours && ks[0].layer == -1);
+    CHECK(keepoutsToJson(ks).dump().find("\"barrier\":true") != std::string::npos);
+    Project p;
+    p.pcb.settings.width = 40, p.pcb.settings.height = 30, p.pcb.settings.isolationGap = 8;
+    p.pcb.settings.keepouts = ks;
+    auto has = [&](const char* code) {
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code == code) return true;
+        return false;
+    };
+    CHECK(has("DRC_BARRIER_WIDTH") && !has("DRC_BARRIER_PAD"));
+    p.pcb.settings.keepouts[0].area = Rect(8, 0, 16, 30);
+    CHECK(!has("DRC_BARRIER_WIDTH"));
+    Track t;
+    t.a = {2, 5}, t.b = {30, 5}, t.layer = 1, t.width = 0.2;
+    p.pcb.tracks.push_back(t);
+    CHECK(has("DRC_KEEPOUT"));  // any layer
+}
+
+TEST(test_point_and_net_tie_parts) {
+    // A test point is one round probe pad; a net tie's two touching pads join AGND to GND without a DRC short, while
+    // the same two nets meeting elsewhere still are one.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "TP1", "part": "TestPoint"}, {"ref": "NT1", "part": "NetTie-2"},
+                  {"ref": "R1", "kind": "resistor", "value": "1k"}, {"ref": "R2", "kind": "resistor", "value": "1k"}],
+        "nets": {"AGND": ["NT1.1", "R1.1", "TP1.TP"], "GND": ["NT1.2", "R2.1"], "A": ["R1.2", "R2.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    Project& p = m.project()->project;
+    const auto pads = p.pcb.pads(p.schematic);
+    int tp = 0, nt = 0;
+    for (const auto& pad : pads) {
+        const std::string& ref = p.schematic.find(pad.componentId)->ref;
+        if (ref == "TP1") {
+            ++tp;
+            CHECK(pad.round && !pad.throughHole && std::fabs(pad.size.x - 1.5) < 1e-9);
+        }
+        if (ref == "NT1") ++nt;
+    }
+    CHECK(tp == 1 && nt == 2);
+    std::vector<Rect> tie;
+    for (const auto& pad : pads)
+        if (p.schematic.find(pad.componentId)->ref == "NT1") tie.push_back(pad.bounds());
+    CHECK(tie.size() == 2 && rectRectDistance(tie[0], tie[1]) <= 0);  // touching copper: a short but for the tie
+    for (const auto& v : p.pcb.runDRC(p.schematic)) CHECK(v.code != "DRC_SHORT");
+    const auto* tpPart = findStandardPart("TestPoint");
+    CHECK(tpPart && tpPart->spec.refPrefix == "TP" && tpPart->spec.datasheet.find("no datasheet") != std::string::npos);
+}
+
+TEST(board_graphics_logo_user_layers_and_copper_art) {
+    // A raster logo merges into rectangles on the silkscreen Gerber; user-layer lines get their own Gerber in the
+    // package; netless copper art is checked against other copper; graphics save and load and stay out of plain files.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Project& p = m.project()->project;
+    p.pcb.settings.width = 30, p.pcb.settings.height = 20;
+    const Json r = mcpTool(m, "pcb_graphics", Json::parse(R"({"add": {"name": "logo", "layer": "silk-top",
+        "raster": {"rows": ["0110", "1111", "1111", "0110"], "x": 5, "y": 5, "width": 4}}})"));
+    CHECK(!mcpFailed(r));
+    CHECK(p.pcb.settings.graphics.size() == 1 && p.pcb.settings.graphics[0].rects.size() == 3);  // 0110 / 1111×2 / 0110
+    double ink = 0;
+    for (const Rect& q : p.pcb.settings.graphics[0].rects) ink += q.width() * q.height();
+    CHECK_NEAR(ink, 12.0, 1e-9);  // 12 of 16 one-mm pixels
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk).find("G36*") != std::string::npos);
+    CHECK(!mcpFailed(mcpTool(m, "pcb_graphics", Json::parse(R"({"add": {"name": "keep", "layer": "user-2", "width": 0.2,
+        "lines": [1, 1, 29, 1]}})"))));
+    CHECK(mcpFailed(mcpTool(m, "pcb_graphics", Json::parse(R"({"add": {"layer": "user-9", "lines": [0, 0, 1, 1]}})"))));
+    const auto files = fabricationPackage(p, "t");
+    CHECK(std::any_of(files.begin(), files.end(), [](const FabFile& f) { return f.path.find("User_2.gbr") != std::string::npos; }));
+    CHECK(exportUserLayerGerber(p.pcb, 1).empty() && exportUserLayerGerber(p.pcb, 2).find("Other,User2") != std::string::npos);
+    // Copper art beside a track of another net.
+    CHECK(!mcpFailed(mcpTool(m, "pcb_graphics", Json::parse(R"({"add": {"name": "cu", "layer": "copper-0", "rects": [10, 10, 12, 12]}})"))));
+    Track t;
+    t.a = {12.1, 5}, t.b = {12.1, 15}, t.width = 0.2;
+    p.pcb.tracks.push_back(t);
+    auto has = [&] {
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code == "DRC_GRAPHIC_COPPER") return true;
+        return false;
+    };
+    CHECK(has());
+    p.pcb.tracks[0].a.x = p.pcb.tracks[0].b.x = 14;
+    CHECK(!has());
+    CHECK(exportCopperGerber(p.schematic, p.pcb, 0).find("X10000000Y10000000") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.graphics.size() == 3 && q.pcb.settings.graphics[1].layer == "user-2");
+    CHECK(Project().toJson().dump().find("\"graphics\"") == std::string::npos);
+    CHECK(!mcpFailed(mcpTool(m, "pcb_graphics", Json::parse(R"({"remove": 0})"))) && p.pcb.settings.graphics.size() == 2);
 }

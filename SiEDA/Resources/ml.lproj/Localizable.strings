@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "റഫറൻസ് ലെയർ %@ മറയ്ക്കുക";
 "Show Reference Layer %@" = "റഫറൻസ് ലെയർ %@ കാണിക്കുക";
 "Remove Reference Layer %@" = "റഫറൻസ് ലെയർ %@ നീക്കുക";
+"Copper thieving" = "കോപ്പർ തീവിംഗ്";
+"Import Logo…" = "ലോഗോ ഇറക്കുമതി ചെയ്യുക…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "ബോർഡിലെ ഒഴിഞ്ഞ ഭാഗത്ത് ചതുര കോപ്പർ കുത്തുകൾ പ്ലേറ്റിംഗും പാളികളിലെ കോപ്പറും തുല്യമാക്കുന്നു (വളവും പിരിവും)";
+"Make Plain Keep-out" = "സാധാരണ കീപ്-ഔട്ട് ആക്കുക";
+"Make Isolation Barrier" = "ഐസൊലേഷൻ ബാരിയർ ആക്കുക";
+"Delete Graphic" = "ഗ്രാഫിക് ഇല്ലാതാക്കുക";
+"Pitch" = "പിച്ച്";

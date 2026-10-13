@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Itago ang Reference Layer %@";
 "Show Reference Layer %@" = "Ipakita ang Reference Layer %@";
 "Remove Reference Layer %@" = "Alisin ang Reference Layer %@";
+"Copper thieving" = "Copper thieving";
+"Import Logo…" = "I-import ang Logo…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Mga parisukat na copper dot sa bakanteng bahagi ng board ang nagpapantay sa plating at sa copper ng mga layer (bow at twist)";
+"Make Plain Keep-out" = "Gawing Karaniwang Keep-out";
+"Make Isolation Barrier" = "Gawing Isolation Barrier";
+"Delete Graphic" = "Burahin ang Graphic";
+"Pitch" = "Pitch";

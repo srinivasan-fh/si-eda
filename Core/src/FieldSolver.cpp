@@ -120,14 +120,17 @@ FieldResult solveField(const FieldGeometry& in) {
     const double mask = strip ? 0 : std::clamp(g.mask, 0.0, 1.0);
     const double y1 = g.h, y2 = g.h + g.t, top = strip ? y2 + g.hTop : y2 + 12 * (g.h + g.w);
     const double xa = pair ? g.s / 2 : -g.w / 2, xb = xa + g.w;   // conductor 1; conductor 2 mirrored (pair)
-    const double span = std::max(xb, std::fabs(xa)), side = span + (strip ? 5 * (y2 + g.hTop) : 12 * (g.h + g.w));
+    const double cpw = std::max(g.cpw, 0.0), gx0 = std::max(xb, std::fabs(xa)) + cpw;  // coplanar ground from |x| ≥ gx0
+    const double span = std::max(xb, std::fabs(xa)) + cpw, side = span + (strip ? 5 * (y2 + g.hTop) : 12 * (g.h + g.w));
     double hmin = std::min(g.w, g.h) / 100;
     if (g.t > 0) hmin = std::min(hmin, g.t / 4);
     if (pair) hmin = std::min(hmin, g.s / 30);
     if (strip) hmin = std::min(hmin, g.hTop / 100);
     if (mask > 0) hmin = std::min(hmin, mask / 4);
+    if (cpw > 0) hmin = std::min(hmin, cpw / 30);
     std::vector<double> bx{-side, xa, xb, side}, by{0, y1, y2, top};
     if (pair) bx.insert(bx.end(), {-xa, -xb, 0.0});
+    if (cpw > 0) bx.insert(bx.end(), {-gx0, gx0});
     if (mask > 0) {  // the coating's surfaces are grid lines too
         by.insert(by.end(), {y1 + mask, y2 + mask});
         bx.insert(bx.end(), {xa - mask, xb + mask, -(xa - mask), -(xb + mask)});
@@ -146,6 +149,7 @@ FieldResult solveField(const FieldGeometry& in) {
             if (i == 0 || j == 0 || i + 1 == grid.nx || j + 1 == grid.ny) o = 0;
             else if (y >= y1 - tol && y <= y2 + tol && x >= xa - tol && x <= xb + tol) o = 1;
             else if (pair && y >= y1 - tol && y <= y2 + tol && x >= -xb - tol && x <= -xa + tol) o = 2;
+            else if (cpw > 0 && y >= y1 - tol && y <= y2 + tol && std::fabs(x) >= gx0 - tol) o = 0;
         }
     double rGeom = 0;
     auto solve = [&](bool air) {
@@ -212,9 +216,11 @@ LineLoss lineLoss(const FieldGeometry& g, const FieldResult& r, double f) {
     return l;
 }
 
-double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap) {
+double fieldSolvedWidth(const BoardSettings& s, int layer, double ohms, double gap, double cpw) {
     auto z = [&](double w) {
-        const FieldResult r = solveField(trackGeometry(s, layer, w, gap));
+        FieldGeometry g = trackGeometry(s, layer, w, gap);
+        g.cpw = cpw;
+        const FieldResult r = solveField(g);
         return gap > 0 ? r.zdiff : r.z0;
     };
     // Z falls as the track widens: bracket around the closed-form width, then bisect on log(w).
@@ -250,7 +256,8 @@ Json fieldResultJson(const FieldGeometry& g, const FieldResult& r) {
     j["geometry"]["s"] = g.s, j["geometry"]["er"] = g.er;
     if (g.mask > 0 && g.hTop <= 0) j["geometry"]["mask"] = g.mask, j["geometry"]["erMask"] = g.erMask;
     j["geometry"]["tanD"] = g.tanD, j["geometry"]["roughness"] = g.roughness;
-    j["geometry"]["kind"] = g.hTop > 0 ? "stripline" : "microstrip";
+    if (g.cpw > 0) j["geometry"]["cpw"] = g.cpw;
+    j["geometry"]["kind"] = std::string(g.cpw > 0 ? "coplanar " : "") + (g.hTop > 0 ? "stripline" : "microstrip");
     j["z0"] = r.z0, j["eeff"] = r.eeff, j["delayPsPerMm"] = r.delayPsPerMm;
     j["lNhPerMm"] = r.lNhPerMm, j["cPfPerMm"] = r.cPfPerMm, j["nodes"] = r.nodes;
     Json loss = Json::array();

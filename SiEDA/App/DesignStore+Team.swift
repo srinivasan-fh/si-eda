@@ -80,6 +80,45 @@ extension DesignStore {
         addReferenceLayer(name: picked.0.lastPathComponent, text: picked.1)
     }
 
+    /// An image as a top-silkscreen logo, 10 mm wide in the middle of the board (one undo step).
+    func importLogo() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.message = "Choose an image for a silkscreen logo (dark pixels print)."
+        guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url),
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let rows = Self.logoRows(cg)
+        addLogo(name: url.deletingPathExtension().lastPathComponent, rows: rows, width: 10)
+    }
+
+    /// Thresholded rows of an image ('1' = dark and opaque), at most `maxWidth` pixels across, top row first.
+    nonisolated static func logoRows(_ image: CGImage, maxWidth: Int = 200) -> [String] {
+        let w = min(maxWidth, image.width), h = max(1, Int((Double(image.height) * Double(w) / Double(max(1, image.width))).rounded()))
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return [] }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return (0..<h).map { y in
+            String((0..<w).map { x -> Character in
+                let i = (y * w + x) * 4
+                let a = Int(px[i + 3]), lum = (Int(px[i]) * 3 + Int(px[i + 1]) * 6 + Int(px[i + 2])) / 10
+                return a > 127 && lum < a / 2 ? "1" : "0"  // premultiplied: dark = luminance below half the alpha
+            })
+        }
+    }
+
+    func addLogo(name: String, rows: [String], width: Double) {
+        let b = snapshot.board
+        let height = width * Double(rows.count) / Double(max(1, rows.map(\.count).max() ?? 1))
+        let raster: [String: Any] = ["rows": rows, "x": b.width / 2 - width / 2, "y": b.height / 2 - height / 2, "width": width]
+        let r = runTool("pcb_graphics", arguments: ["add": ["name": name, "layer": "silk-top", "raster": raster]])
+        statusMessage = r.isError ? "\(name): no dark pixels to print" : "\(name) placed on the top silkscreen"
+    }
+
+    func removeGraphic(at index: Int) {
+        _ = runTool("pcb_graphics", arguments: ["remove": index])
+    }
+
     func addReferenceLayer(name: String, text: String) {
         let ok = performExternalEdit("Reference layer \(name)") { $0.addReferenceLayer(name: name, text: text) }
         statusMessage = ok ? "\(name) shown over the board as a reference layer" : "\(name): not a Gerber or drill file with a drawing"

@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "ಉಲ್ಲೇಖ ಪದರ %@ ಮರೆಮಾಡಿ";
 "Show Reference Layer %@" = "ಉಲ್ಲೇಖ ಪದರ %@ ತೋರಿಸಿ";
 "Remove Reference Layer %@" = "ಉಲ್ಲೇಖ ಪದರ %@ ತೆಗೆದುಹಾಕಿ";
+"Copper thieving" = "ತಾಮ್ರ ಥೀವಿಂಗ್";
+"Import Logo…" = "ಲೋಗೋ ಆಮದು ಮಾಡಿ…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "ಬೋರ್ಡ್‌ನ ಖಾಲಿ ಭಾಗದಲ್ಲಿ ಚೌಕ ತಾಮ್ರ ಚುಕ್ಕೆಗಳು ಪ್ಲೇಟಿಂಗ್ ಮತ್ತು ಪದರಗಳ ತಾಮ್ರವನ್ನು ಸಮಗೊಳಿಸುತ್ತವೆ (ಬಾಗುವಿಕೆ ಮತ್ತು ತಿರುಚುವಿಕೆ)";
+"Make Plain Keep-out" = "ಸಾಮಾನ್ಯ ಕೀಪ್-ಔಟ್ ಮಾಡಿ";
+"Make Isolation Barrier" = "ಐಸೋಲೇಶನ್ ತಡೆ ಮಾಡಿ";
+"Delete Graphic" = "ಗ್ರಾಫಿಕ್ ಅಳಿಸಿ";
+"Pitch" = "ಪಿಚ್";

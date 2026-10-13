@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Referenzlage %@ ausblenden";
 "Show Reference Layer %@" = "Referenzlage %@ einblenden";
 "Remove Reference Layer %@" = "Referenzlage %@ entfernen";
+"Copper thieving" = "Kupfer-Thieving";
+"Import Logo…" = "Logo importieren…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Quadratische Kupferpunkte in freien Platinenflächen gleichen Galvanik und Kupfer der Lagen aus (Verwölbung und Verwindung)";
+"Make Plain Keep-out" = "Zu normaler Sperrfläche machen";
+"Make Isolation Barrier" = "Zu Isolationsbarriere machen";
+"Delete Graphic" = "Grafik löschen";
+"Pitch" = "Raster";

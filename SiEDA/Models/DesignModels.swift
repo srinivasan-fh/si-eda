@@ -910,6 +910,10 @@ struct BoardInfo: Decodable, Equatable {
     /// Drawing dimensions (core `BoardSettings::dimensions`): fabrication drawing, DXF and the board view.
     var dimensions: [BoardDimensionInfo] = []
     var keepouts: [RouteKeepout] = []
+    /// Copper thieving (core `BoardSettings::thieving`): nil while off.
+    var thieving: ThievingInfo?
+    /// Logos and user-layer drawings (core `BoardSettings::graphics`).
+    var graphics: [BoardGraphicInfo] = []
     var pairRules: [PairRuleInfo] = []
     var holes: [MountingHoleInfo] = []
     /// Production panel (core `PanelSettings`); nil = a single board.
@@ -963,6 +967,8 @@ struct BoardInfo: Decodable, Equatable {
         cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
         dimensions = try c.decodeIfPresent([BoardDimensionInfo].self, forKey: .dimensions) ?? []
         keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
+        thieving = try c.decodeIfPresent(ThievingInfo.self, forKey: .thieving)
+        graphics = try c.decodeIfPresent([BoardGraphicInfo].self, forKey: .graphics) ?? []
         pairRules = try c.decodeIfPresent([PairRuleInfo].self, forKey: .pairRules) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
         dfmPack = try c.decodeIfPresent(String.self, forKey: .dfmPack) ?? ""
@@ -974,7 +980,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
-        case cutouts, dimensions, keepouts, pairRules
+        case cutouts, dimensions, keepouts, pairRules, thieving, graphics
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -1013,6 +1019,40 @@ struct BoardInfo: Decodable, Equatable {
 }
 
 /// A linear drawing dimension a → b (mm), its line `offset` mm along (−dy, dx).
+/// Board artwork on "silk-top", "silk-bottom", "copper-<n>" or "user-1" … "user-4": rectangles and lines as flat
+/// x0, y0, x1, y1 quadruples (board mm).
+struct BoardGraphicInfo: Codable, Equatable {
+    var name: String
+    var layer: String
+    var width: Double
+    var rects: [Double]
+    var lines: [Double]
+
+    private func quads(_ v: [Double]) -> [(CGPoint, CGPoint)] {
+        stride(from: 0, to: v.count - 3, by: 4).map { (CGPoint(x: v[$0], y: v[$0 + 1]), CGPoint(x: v[$0 + 2], y: v[$0 + 3])) }
+    }
+    /// The filled rectangles.
+    var fillPath: CGPath {
+        let p = CGMutablePath()
+        for (a, b) in quads(rects) { p.addRect(CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)) }
+        return p
+    }
+    /// The lines (stroke them `width` wide).
+    var linePath: CGPath {
+        let p = CGMutablePath()
+        for (a, b) in quads(lines) { p.move(to: a); p.addLine(to: b) }
+        return p
+    }
+    var bounds: CGRect { fillPath.boundingBoxOfPath.union(linePath.boundingBoxOfPath).insetBy(dx: -width / 2, dy: -width / 2) }
+}
+
+/// Copper-thieving dots: `size` mm squares `pitch` mm apart, `clearance` mm from other copper.
+struct ThievingInfo: Codable, Equatable {
+    var pitch = 2.0
+    var size = 1.0
+    var clearance = 1.0
+}
+
 struct BoardDimensionInfo: Codable, Equatable {
     var a: BoardPoint
     var b: BoardPoint

@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ மறை";
 "Show Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ காட்டு";
 "Remove Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ நீக்கு";
+"Copper thieving" = "செம்பு தீவிங்";
+"Import Logo…" = "லோகோவை இறக்குமதி செய்…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "பலகையின் வெற்றுப் பகுதியில் சதுர செம்புப் புள்ளிகள் முலாம் பூச்சையும் அடுக்குகளின் செம்பையும் சமன் செய்கின்றன (வளைவு, முறுக்கு)";
+"Make Plain Keep-out" = "சாதாரண கீப்-அவுட் ஆக்கு";
+"Make Isolation Barrier" = "தனிமைப்படுத்தல் தடையாக்கு";
+"Delete Graphic" = "வரைகலையை நீக்கு";
+"Pitch" = "இடைவெளி";

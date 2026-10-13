@@ -110,27 +110,78 @@ int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, dou
     return 1;
 }
 
-char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um) {
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um,
+                        double cpw) {
     if (!project) return nullptr;
     const auto& s = project->project.pcb.settings;
     if (layer < 0 || layer >= std::max(1, s.layerCount) || !(width > 0 && width < 20) || !(gap >= 0 && gap < 20) ||
-        !(roughness_um >= 0 && roughness_um < 20))
+        !(roughness_um >= 0 && roughness_um < 20) || !(cpw >= 0 && cpw < 20))
         return nullptr;
     FieldGeometry g = trackGeometry(s, layer, width, gap);
-    g.roughness = roughness_um;
+    g.roughness = roughness_um, g.cpw = cpw;
     return dupText(fieldResultJson(g, solveField(g)).dump());
 }
 
-double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap) {
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap, double cpw) {
     if (!project) return 0;
     const auto& s = project->project.pcb.settings;
-    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(ohms > 5 && ohms < 500) || !(gap >= 0 && gap < 20)) return 0;
-    return fieldSolvedWidth(s, layer, ohms, gap);
+    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(ohms > 5 && ohms < 500) || !(gap >= 0 && gap < 20) ||
+        !(cpw >= 0 && cpw < 20))
+        return 0;
+    return fieldSolvedWidth(s, layer, ohms, gap, cpw);
 }
 
 char* sieda_pcb_panel(const SiedaProject* project) {
     if (!project) return nullptr;
     return dupText(panelLayoutJson(project->project.pcb.settings).dump());
+}
+
+char* sieda_pcb_thieving(SiedaProject* project, const char* settings_json) {
+    if (!project) return nullptr;
+    auto& pr = project->project;
+    CopperThieving& th = pr.pcb.settings.thieving;
+    try {
+        if (settings_json) {
+            const Json j = Json::parse(settings_json);
+            const CopperThieving t{j.get("pitch").asNumber(th.pitch), j.get("size").asNumber(th.size), j.get("clearance").asNumber(th.clearance)};
+            if (!(t.pitch >= 0 && t.pitch <= 50 && t.size >= 0.1 && t.size <= 10 && t.clearance >= 0 && t.clearance <= 10) ||
+                (t.pitch > 0 && t.pitch < t.size + 0.1))
+                return nullptr;
+            th = t;
+        }
+        Json out = Json::object(), layers = Json::array();
+        out["pitch"] = th.pitch, out["size"] = th.size, out["clearance"] = th.clearance;
+        const auto dots = copperThieving(pr.schematic, pr.pcb);
+        const auto cover = copperCoverage(pr.schematic, pr.pcb);
+        for (size_t l = 0; l < cover.size(); ++l) {
+            Json e = Json::object();
+            e["layer"] = static_cast<int>(l), e["dots"] = 0, e["coverage"] = cover[l];
+            for (const auto& f : dots)
+                if (f.layer == static_cast<int>(l)) e["dots"] = static_cast<int>(f.rects.size());
+            layers.push(e);
+        }
+        out["layers"] = layers;
+        return dupText(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_pcb_graphics(SiedaProject* project, const char* graphics_json) {
+    if (!project) return nullptr;
+    auto& gs = project->project.pcb.settings.graphics;
+    try {
+        if (graphics_json) {
+            const Json j = Json::parse(graphics_json);
+            if (!j.isArray()) return nullptr;
+            auto next = boardGraphicsFromJson(j);
+            if (next.size() != j.size()) return nullptr;  // an item without artwork or on an unknown layer
+            gs = std::move(next);
+        }
+        return dupText(boardGraphicsToJson(gs).dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json) {

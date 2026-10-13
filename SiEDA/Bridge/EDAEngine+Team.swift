@@ -139,7 +139,7 @@ extension EDAEngine {
 
     /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
     func fieldSolve(layer: Int, width: Double, gap: Double = 0, roughness: Double = 1) -> FieldSolveInfo? {
-        Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap, roughness)) })
+        Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap, roughness, 0)) })
     }
 
     /// The production panel's layout (the settings and where boards, rails, tabs and holes go).

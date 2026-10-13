@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ଲୁଚାନ୍ତୁ";
 "Show Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ଦେଖାନ୍ତୁ";
 "Remove Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ହଟାନ୍ତୁ";
+"Copper thieving" = "କପର ଥିଭିଂ";
+"Import Logo…" = "ଲୋଗୋ ଆମଦାନି କରନ୍ତୁ…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "ବୋର୍ଡର ଖାଲି ଅଂଶରେ ବର୍ଗାକାର କପର ବିନ୍ଦୁ ପ୍ଲେଟିଂ ଓ ସ୍ତରର କପରକୁ ସମାନ କରେ (ବଙ୍କା ଓ ମୋଡ଼)";
+"Make Plain Keep-out" = "ସାଧାରଣ କିପ-ଆଉଟ କରନ୍ତୁ";
+"Make Isolation Barrier" = "ଆଇସୋଲେସନ ବ୍ୟାରିୟର କରନ୍ତୁ";
+"Delete Graphic" = "ଗ୍ରାଫିକ ବିଲୋପ କରନ୍ତୁ";
+"Pitch" = "ପିଚ୍";

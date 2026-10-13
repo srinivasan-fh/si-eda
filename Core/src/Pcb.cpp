@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/Panel.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Dfm.hpp"
 #include "sieda/CustomParts.hpp"
@@ -5710,8 +5711,22 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
 
     // Below the fabrication minimum → error; between it and the design rule → warning; below the IPC-2221 voltage
     // spacing for the nets' potential difference → error.
+    // Net ties (NETTIE footprints) join their two nets on purpose: copper of those nets may meet near the tie.
+    std::vector<std::tuple<int, int, Rect>> ties;
+    for (const auto& c : sch.components())
+        if (const FootprintDef* fp = c.hasFootprint() && c.pcb.placed ? Library::instance().footprint(c.footprintName()) : nullptr;
+            fp && fp->label.rfind("NETTIE", 0) == 0) {
+            const int a = sch.netOf({c.id, 0}), b = sch.netOf({c.id, 1});
+            ties.emplace_back(std::min(a, b), std::max(a, b), courtyard(c).inflated(1.0));
+        }
+    auto tied = [&](int a, int b, Vec2 at) {
+        for (const auto& [x, y, r] : ties)
+            if (std::min(a, b) == x && std::max(a, b) == y && r.contains(at)) return true;
+        return false;
+    };
     auto clearanceCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps = {}, int netA = -1,
                               int netB = -1) {
+        if (tied(netA, netB, loc)) return;
         auto [dv, hvNeed] = voltageNeed(netA, netB);
         if (d > 0 && hvNeed > clr + eps && d < hvNeed - eps) {
             char hv[160];
@@ -5807,6 +5822,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     constexpr double kMinEtchGap = 0.1;  // absolute etching limit, whatever the preset
     std::set<int> finePitchNoted;
     auto footprintCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps, int netA, int netB) {
+        if (tied(netA, netB, loc)) return;
         auto [dv, hvNeed] = voltageNeed(netA, netB);  // voltage spacing still applies inside a footprint
         if (d > 0 && hvNeed > fabClr + eps && d < hvNeed - eps) {
             char hv[160];
@@ -6259,6 +6275,32 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     if (!settings.lengthRules.empty() || !settings.matchGroups.empty())
         for (auto& v : lengthRuleViolations(*this, sch)) out.push_back(std::move(v));
 
+    // Copper artwork (logos) is netless: it keeps the clearance from every other copper on its layer.
+    for (const BoardGraphic& g : settings.graphics) {
+        if (g.layer.rfind("copper-", 0) != 0) continue;
+        const int L = std::atoi(g.layer.c_str() + 7);
+        std::vector<Rect> shapes = g.rects;
+        for (const auto& [a, b] : g.lines) shapes.push_back(segmentBox(a, b, g.width / 2));
+        Rect box = shapes.empty() ? Rect() : shapes[0];
+        for (const Rect& r : shapes) box = Rect(std::min(box.x0, r.x0), std::min(box.y0, r.y0), std::max(box.x1, r.x1), std::max(box.y1, r.y1));
+        auto near = [&](auto&& dist) {
+            for (const Rect& r : shapes)
+                if (dist(r) < clr - eps) return true;
+            return false;
+        };
+        bool hit = false;
+        for (const Pad& p : pads(sch))
+            if (!hit && p.onLayer(L) && p.bounds().intersects(box.inflated(clr)))
+                hit = near([&](const Rect& r) { return rectRectDistance(p.bounds(), r); });
+        for (const Track& t : tracks)
+            if (!hit && t.layer == L) hit = near([&](const Rect& r) { return trackRectDistance(t, r) - t.width / 2; });
+        for (const Via& v : vias)
+            if (!hit && v.spans(L)) hit = near([&](const Rect& r) { return pointRectDistance(v.position, r) - v.diameter / 2; });
+        if (hit)
+            add(Severity::Error, "DRC_GRAPHIC_COPPER", "Copper artwork " + (g.name.empty() ? std::string("(unnamed)") : g.name) +
+                " on " + copperLayerName(L, settings.layerCount) + " comes within the clearance of other copper.", box.center());
+    }
+
     // Routing keep-outs: no track (on the keep-out's layer) or via inside one.
     for (const RouteKeepout& k : settings.keepouts) {
         const std::string what = k.name.empty() ? std::string("a keep-out") : "keep-out " + k.name;
@@ -6274,6 +6316,19 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     add(Severity::Error, "DRC_KEEPOUT", "A via of " + netName(v.net) + " stands inside " + what + ".", v.position);
                     break;
                 }
+        if (!k.barrier) continue;
+        if (std::min(k.area.width(), k.area.height()) < settings.isolationGap - eps)
+            add(Severity::Error, "DRC_BARRIER_WIDTH",
+                "Isolation barrier " + (k.name.empty() ? std::string("(unnamed)") : k.name) + " is " +
+                    fmt(std::min(k.area.width(), k.area.height())) + " across, less than the " + fmt(settings.isolationGap) +
+                    " isolation gap.",
+                {(k.area.x0 + k.area.x1) / 2, (k.area.y0 + k.area.y1) / 2});
+        for (const Pad& p : pads(sch))
+            if (p.bounds().intersects(k.area)) {
+                add(Severity::Error, "DRC_BARRIER_PAD", "A pad of " + netName(p.net) + " stands inside isolation barrier " +
+                    (k.name.empty() ? std::string("(unnamed)") : k.name) + ".", p.position);
+                break;
+            }
     }
 
     // Connectivity.
@@ -6284,6 +6339,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     }
     for (auto& v : mechanicalChecks(sch, *this)) out.push_back(std::move(v));  // 3D clearance (Mechanical.cpp)
     for (auto& v : dfmChecks(sch, *this)) out.push_back(std::move(v));        // manufacturer pack (Dfm.cpp)
+    for (auto& v : panelChecks(sch, *this)) out.push_back(std::move(v));      // production panel (Panel.cpp)
     if (out.empty()) {
         RuleViolation v;
         v.severity = Severity::Info;

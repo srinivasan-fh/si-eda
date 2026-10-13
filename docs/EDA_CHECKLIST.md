@@ -53,7 +53,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Place, rotate, mirror, align | ✅ | |
 | P0 | Wire draw / drag / reroute keeping connections | ✅ | straight-wire drag, wire-end moves, touching pins |
 | P0 | Junctions, buses, labels, power symbols, net names | ✅ | |
-| P0 | ➕ No-connect flags, off-page connectors, net ties | 🟡 | no-connects and global / hierarchical labels ✅; a net-tie symbol ⏳ |
+| P0 | ➕ No-connect flags, off-page connectors, net ties | ✅ | no-connects, global / hierarchical labels, `NetTie-2` (the DRC accepts its own short) |
 | P0 | ➕ Title blocks, revision tables, sheet numbers, text / graphics | ✅ | sheet templates, notes, drawings; revision table on the schematic PDF and the fabrication drawing |
 | P0 | Annotation and renumbering | ✅ | `Sheets.cpp` |
 | P0 | Multi-sheet, hierarchical and flat | ✅ | |
@@ -111,15 +111,15 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Ratsnest, layer visibility, track / via / pad / zone editing | ✅ | |
 | P0 | Pours (solid, priority, healing), thermal reliefs | ✅ | refill on demand |
 | P0 | Stack-up, measurement, interactive DRC, highlight, undo, filters | ✅ | |
-| P0 | ➕ Mechanical, documentation, user layers | 🟡 | fab / courtyard / silk ✅; free user layers ⏳ |
-| P0 | ➕ Logo / image import to silk or copper | ⏳ | |
-| P0 | ➕ Test-point objects and net-tie footprints | 🟡 | test-point parts in the catalog ✅; a board test-point object ⏳ |
+| P0 | ➕ Mechanical, documentation, user layers | ✅ | fab / courtyard / silk; `BoardSettings::graphics` on user-1 … user-4 (own Gerbers) |
+| P0 | ➕ Logo / image import to silk or copper | ✅ | File → Import Logo… (raster → merged rectangles), MCP `pcb_graphics`; copper art DRC-checked |
+| P0 | ➕ Test-point objects and net-tie footprints | ✅ | `TestPoint` (1.5 mm probe pad) and `NetTie-2` parts (`TESTPOINT` / `NETTIE` packages) |
 | P1 | Stack-up materials, blind / buried / micro vias, back-drill | ✅ | |
 | P1 | Diff pairs, rooms, channel replication, teardrops, cleanup | ✅ | |
 | P1 | Silk collision and board-edge rules | ✅ | |
 | P1 | Panelisation with rails, fiducials, mouse bites, V-score | ✅ | `Panel.cpp` |
 | P1 | ➕ Castellated edges | ✅ | |
-| P1 | ➕ Copper balance / thieving, heavy copper | 🟡 | balance check and heavy copper ✅; thieving generation ⏳ |
+| P1 | ➕ Copper balance / thieving, heavy copper | ✅ | `copperThieving` dots (Board Setup, MCP `pcb_copper_thieving`) in Gerbers, IPC-2581 / ODB++, 3D and coverage |
 | P1 | ➕ Assembly-house height / side / orientation limits | ✅ | DFA packs |
 | P2 | AI placement, decoupling suggestions, rigid-flex, HDI, multi-board, optimisation | ✅ | `placeDecoupling`, `improvePlacement` |
 | P3 | Placement templates, approved layout reuse, multi-engineer partitioning | ⏳ | |
@@ -136,7 +136,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Pin-swap-aware routing | ✅ | |
 | P2 | Constraint-aware autorouter, return paths, HS constraints, phase tuning, escape | ✅ | |
 | P2 | AI routing recommendations with before / after | 🟡 | routing report; an AI "compare" view ⏳ |
-| P2 | ➕ Coplanar waveguide geometries | ⏳ | field solver has microstrip / stripline / coupled |
+| P2 | ➕ Coplanar waveguide geometries | ✅ | field solver `FieldGeometry::cpw` (grounded CPW, coplanar stripline), MCP `si_field_solver` `cpwGap` |
 | P3 | Routing policies, batch routing over variants | ⏳ | |
 
 ## 6. Electrical and physical verification
@@ -153,7 +153,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Rule queries, incremental DRC, explanations, waivers | ✅ | |
 | P1 | ➕ Creepage / clearance (IPC-2221, IEC 62368 / 60664) | ✅ | industry profiles |
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
-| P1 | ➕ DRC on the panel | ⏳ | |
+| P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
 | P2 | SI / return path / PI / thermal / assembly checks, rule scripting | 🟡 | all but rule scripting ✅ |
 | P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report ✅; approvals ⏳ |
 
@@ -244,9 +244,9 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 |---|---|---|---|
 | P1 | HV classes with creepage / slots, heavy copper, thermal vias | ✅ | |
 | P2 | RF impedance, stitching, antenna keep-outs, matching templates | ✅ | |
-| P2 | Flex / rigid-flex stack-ups, bend radius, coverlay | 🟡 | construction types ✅; bend-radius rule ⏳ |
+| P2 | Flex / rigid-flex stack-ups, bend radius, coverlay | ✅ | flex regions (IPC-2223 bend radius, no vias / parts / sharp corners in the bend) |
 | P2 | Metal-core / ceramic | ✅ | |
-| P2 | Isolation barriers as checkable objects | 🟡 | isolation gap rules ✅; a barrier object ⏳ |
+| P2 | Isolation barriers as checkable objects | ✅ | barrier keep-outs (DRC_BARRIER_WIDTH / _PAD, no copper on any layer) |
 | P3 | Certification evidence packs | ⏳ | |
 
 ## 14. AI-assisted engineering
@@ -387,15 +387,15 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 3. KiCad project import: ~~schematic~~ ✅ + board (§17 P1), then EasyEDA / Eagle projects; ~~LTspice schematics~~ ✅
 4. ~~Netlist import (§17 P0)~~ ✅
 5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅
-6. ~~Schematic revision table~~ ✅ and net-tie symbol / footprint (§2 P0)
-7. Board test-point object and logo / image import to silk or copper (§4 P0)
-8. User-defined documentation layers (§4 P0)
-9. Panel DRC (§6 P1)
+6. ~~Schematic revision table and net-tie symbol / footprint (§2 P0)~~ ✅
+7. ~~Board test-point object and logo / image import to silk or copper (§4 P0)~~ ✅
+8. ~~User-defined documentation layers (§4 P0)~~ ✅
+9. ~~Panel DRC (§6 P1)~~ ✅
 10. Python API over the C API, event hooks (§18 P1)
 11. Settings export / import, user project templates (§1 P1)
 12. High-contrast / colour-blind layer palette; beginner / pro modes (§16)
 13. MCU / FPGA pin planner with CubeMX / XDC / QSF import and firmware header export (§12)
-14. Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)
+14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
 15. Library update notices, library versions, tags / favourites, CSV pin-table wizard, IPC zero-orientation check (§3)
 16. Consolidated multi-board BOM, custom BOM columns / templates, price alerts (§11)
 17. In-app Git, browser viewer, file locking, approvals (§15)

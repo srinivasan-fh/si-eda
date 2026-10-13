@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Sembunyikan Lapisan Rujukan %@";
 "Show Reference Layer %@" = "Tunjukkan Lapisan Rujukan %@";
 "Remove Reference Layer %@" = "Buang Lapisan Rujukan %@";
+"Copper thieving" = "Pencurian kuprum";
+"Import Logo…" = "Import Logo…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Titik kuprum segi empat di kawasan kosong papan meratakan penyaduran dan kuprum lapisan (lenturan dan pintalan)";
+"Make Plain Keep-out" = "Jadikan Kawasan Larangan Biasa";
+"Make Isolation Barrier" = "Jadikan Penghadang Pengasingan";
+"Delete Graphic" = "Padam Grafik";
+"Pitch" = "Pic";

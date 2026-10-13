@@ -6746,6 +6746,37 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue((store.engine.export(.netLengths) ?? "").hasPrefix("Net,Length (mm)"))
     }
 
+    func testCopperThievingAndIsolationBarrierFromTheStore() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        store.setThieving(ThievingInfo(pitch: 2, size: 1, clearance: 1))
+        XCTAssertEqual(store.snapshot.board.thieving?.pitch, 2)
+        XCTAssertTrue(store.snapshot.zoneFills.contains { $0.zone == -1 && !$0.rects.isEmpty })  // the dots, drawn as fills
+        store.setThieving(nil)
+        XCTAssertNil(store.snapshot.board.thieving)
+        store.addKeepout(CGRect(x: 2, y: 2, width: 3, height: 20), layer: 0)
+        let ko = try XCTUnwrap(store.snapshot.board.keepouts.first)
+        store.setKeepoutBarrier(ko, true)
+        let barrier = try XCTUnwrap(store.snapshot.board.keepouts.first)
+        XCTAssertEqual(barrier.barrier, true)
+        XCTAssertEqual(barrier.layer, -1)
+        XCTAssertEqual(barrier.pours, true)
+        // A logo: a black square on white, thresholded and placed on the top silkscreen.
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 32,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1)); ctx.fill(CGRect(x: 2, y: 2, width: 4, height: 4))
+        let rows = DesignStore.logoRows(try XCTUnwrap(ctx.makeImage()))
+        XCTAssertEqual(rows.count, 8)
+        XCTAssertEqual(rows.joined().filter { $0 == "1" }.count, 16)
+        store.addLogo(name: "logo", rows: rows, width: 8)
+        XCTAssertEqual(store.snapshot.board.graphics.first?.layer, "silk-top")
+        XCTAssertEqual(store.snapshot.board.graphics.first?.rects.count, 4)  // one merged 4 × 4 mm square
+        store.removeGraphic(at: 0)
+        XCTAssertTrue(store.snapshot.board.graphics.isEmpty)
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

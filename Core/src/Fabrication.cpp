@@ -446,6 +446,9 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     if (f.partsBottom)
         add(g + "-B_Silkscreen.gbr", exportGerber(sch, pcb, GerberLayer::BottomSilk), "Silkscreen bottom");
     add(g + "-Edge_Cuts.gbr", exportGerber(sch, pcb, GerberLayer::EdgeCuts), "Board outline (profile)");
+    for (int u = 1; u <= 4; ++u)
+        if (std::string user = exportUserLayerGerber(pcb, u); !user.empty())
+            add(g + "-User_" + std::to_string(u) + ".gbr", user, "User drawing layer " + std::to_string(u));
     if (f.pth || f.vias) add(g + "-PTH.drl", exportExcellonDrill(sch, pcb, true), "Drill, plated (pads and vias)");
     for (int layer = 1; layer + 1 < layers; ++layer)
         if (std::string g2 = exportEmbeddedResistorGerber(sch, pcb, layer); !g2.empty())

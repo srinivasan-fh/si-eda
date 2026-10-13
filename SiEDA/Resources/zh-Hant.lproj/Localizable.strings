@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "隱藏參考層 %@";
 "Show Reference Layer %@" = "顯示參考層 %@";
 "Remove Reference Layer %@" = "移除參考層 %@";
+"Copper thieving" = "銅箔平衡填充";
+"Import Logo…" = "匯入標誌…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "在板上空白區域加入方形銅點，使電鍍與各層銅量均勻（減少彎曲與扭曲）";
+"Make Plain Keep-out" = "改為一般禁止區";
+"Make Isolation Barrier" = "改為隔離屏障";
+"Delete Graphic" = "刪除圖形";
+"Pitch" = "間距";

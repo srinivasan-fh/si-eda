@@ -645,6 +645,14 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Timing", "Crystal_32.768kHz_Cylinder", "Generic",
                          "32.768 kHz RTC crystal, 2 × 6 mm cylinder (through-hole), 12.5 pF load", "XTALCYL", 2, "Y",
                          {{"1", T::Passive}, {"2", T::Passive}}));
+    // Board objects as parts: a probe pad and a net tie (generic lands, no datasheet).
+    parts.push_back(part("Connectors", "TestPoint", "Generic",
+                         "Test point: 1.5 mm round SMD probe pad for bed-of-nails / flying-probe test", "TESTPOINT", 1, "TP",
+                         {{"TP", T::Passive}}));
+    parts.push_back(part("Connectors", "NetTie-2", "Generic",
+                         "Net tie: joins two nets at one point (AGND to GND under an ADC, a current-sense Kelvin tap); the "
+                         "DRC accepts its own short", "NETTIE", 2, "NT", {{"1", T::Passive}, {"2", T::Passive}}));
+    for (size_t k = parts.size() - 2; k < parts.size(); ++k) parts[k].spec.datasheet = "Generic land (no datasheet)";
     // Catalog parts the KiCad library does not carry, from their datasheets.
     parts.push_back(part("Motor Control", "L293DD", "STMicroelectronics",
                          "Quad half-H driver with clamp diodes, 600 mA per channel, SOIC-20 (GND pins 4-7 / 14-17 sink heat)",

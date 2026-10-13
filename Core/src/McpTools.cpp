@@ -4620,15 +4620,19 @@ void teamTools(Table& t) {
           });
     t.add("pcb", "pcb_mechanical_limits", "Enclosure limits", Kind::Edit, true,
           "3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones "
-          "(rectangles with their own maximum height). Without arguments returns the current limits.",
+          "(rectangles with their own maximum height), and rigid-flex bend areas checked against IPC-2223 (bend radius ≥ "
+          "6 / 12 / 24 × the flex thickness for 1 / 2 / more copper layers, 100 × when dynamic; no vias, parts or sharp track "
+          "corners in the bend). Without arguments returns the current limits.",
           Schema().num("maxHeightTop", "Tallest part on the top side (mm, 0 = no limit)")
               .num("maxHeightBottom", "Tallest part on the bottom side (mm, 0 = no limit)")
-              .any("zones", "[{name, x0, y0, x1, y1, bottom, maxHeight}] (mm, board coordinates)"),
+              .any("zones", "[{name, x0, y0, x1, y1, bottom, maxHeight}] (mm, board coordinates)")
+              .any("flex", "Rigid-flex bend areas [{name, x0, y0, x1, y1, bendRadius, thickness (mm, default 0.11), layers "
+                           "(copper, default 2), dynamic}]"),
           [](McpServer& s, const Json& a) {
-              if (a.has("maxHeightTop") || a.has("maxHeightBottom") || a.has("zones")) {
+              if (a.has("maxHeightTop") || a.has("maxHeightBottom") || a.has("zones") || a.has("flex")) {
                   Json cur = takeJson(sieda_pcb_mechanical_limits(P(s)));
                   if (!cur.isObject()) cur = obj();
-                  for (const char* k : {"maxHeightTop", "maxHeightBottom", "zones"})
+                  for (const char* k : {"maxHeightTop", "maxHeightBottom", "zones", "flex"})
                       if (a.has(k)) cur[k] = a.get(k);
                   check(sieda_pcb_set_mechanical_limits(P(s), cur.dump().c_str()) == 1, "Invalid limits");
               }
@@ -4655,19 +4659,62 @@ void teamTools(Table& t) {
           "2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the "
           "dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance "
           "and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect "
-          "with copper roughness, laminate loss tangent). Within ~1 % of exact stripline results.",
+          "with copper roughness, laminate loss tangent). Within ~1 % of exact stripline results. cpwGap adds coplanar "
+          "ground copper beside the track (grounded coplanar waveguide).",
           Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)")
+              .num("cpwGap", "Coplanar waveguide: gap from the track edges to ground copper on the same layer, mm (0 = none)")
               .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)")
               .num("targetOhms", "Goal seek: solve the width for this Z0 (with gap: Zdiff) instead of taking width"),
           [](McpServer& s, const Json& a) {
               double width = argNum(a, "width", 0.2);
               if (a.has("targetOhms")) {
-                  width = sieda_field_solve_width(P(s), argInt(a, "layer", 0), argNum(a, "targetOhms", 50), argNum(a, "gap", 0));
+                  width = sieda_field_solve_width(P(s), argInt(a, "layer", 0), argNum(a, "targetOhms", 50), argNum(a, "gap", 0),
+                                                  argNum(a, "cpwGap", 0));
                   check(width > 0, "No width from 0.02 to 10 mm reaches that impedance");
               }
-              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), width, argNum(a, "gap", 0), argNum(a, "roughness", 1.0));
+              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), width, argNum(a, "gap", 0), argNum(a, "roughness", 1.0),
+                                          argNum(a, "cpwGap", 0));
               check(r != nullptr, "Bad layer, width or gap");
               return out(takeJson(r));
+          });
+    t.add("pcb", "pcb_copper_thieving", "Copper thieving", Kind::Edit, true,
+          "Copper thieving: a staggered grid of square dots in the free area of every copper layer, clear of other "
+          "copper, the edge, holes, keep-outs and outer-layer part courtyards; it evens out plating and the mirror "
+          "layers' copper (DFM_COPPER_BALANCE). The dots go into the copper Gerbers, IPC-2581 / ODB++ and the 3D view. "
+          "Without arguments returns the settings and the dots and copper coverage per layer; pitch 0 turns it off.",
+          Schema().num("pitch", "Dot pitch, mm (0 = off; typical 1.5–2.5)").num("size", "Dot size, mm (default 1)")
+              .num("clearance", "Clearance to other copper, holes and the courtyards, mm (default 1)"),
+          [](McpServer& s, const Json& a) {
+              Json set = obj();
+              for (const char* k : {"pitch", "size", "clearance"})
+                  if (a.has(k)) set[k] = a.get(k);
+              char* r = sieda_pcb_thieving(P(s), set.size() == 0 ? nullptr : set.dump().c_str());
+              check(r != nullptr, "Invalid thieving settings (pitch 0 or ≥ size + 0.1 mm, size 0.1–10, clearance 0–10)");
+              return out(takeJson(r));
+          });
+    t.add("pcb", "pcb_graphics", "Board artwork and user layers", Kind::Edit, false,
+          "Logos and free drawings on the board: filled rectangles and lines on silk-top / silk-bottom, copper-<n> "
+          "(netless copper; the DRC keeps it clear of other copper) or user-1 … user-4 (their own Gerbers in the "
+          "fabrication package). add: {name, layer, width, rects: [x0,y0,x1,y1,…], lines: [ax,ay,bx,by,…]} or a logo "
+          "{name, layer, raster: {rows: [\"0110…\", …] top row first, '1' = ink, x, y (top-left, mm), width (mm)}}; "
+          "remove: index. Returns the graphics.",
+          Schema().any("add", "Graphic to add").integer("remove", "Index of the graphic to remove"),
+          [](McpServer& s, const Json& a) {
+              Json cur = takeJson(sieda_pcb_graphics(P(s), nullptr));
+              if (a.has("add") || a.has("remove")) {
+                  Json next = Json::array();
+                  const int drop = a.has("remove") ? argInt(a, "remove", -1) : -1;
+                  check(drop < static_cast<int>(cur.size()), "No graphic with that index");
+                  for (size_t i = 0; i < cur.size(); ++i)
+                      if (static_cast<int>(i) != drop) next.push(cur.items()[i]);
+                  if (a.has("add")) next.push(a.get("add"));
+                  char* r = sieda_pcb_graphics(P(s), next.dump().c_str());
+                  check(r != nullptr, "The graphic needs rects, lines or a raster on silk-top, silk-bottom, copper-<n> or user-1 … user-4");
+                  cur = takeJson(r);
+              }
+              Json o = obj();
+              o["graphics"] = cur;
+              return out(o);
           });
     t.add("pcb", "pcb_panel", "Production panel", Kind::Edit, true,
           "Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, "

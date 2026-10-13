@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Referentielaag %@ verbergen";
 "Show Reference Layer %@" = "Referentielaag %@ tonen";
 "Remove Reference Layer %@" = "Referentielaag %@ verwijderen";
+"Copper thieving" = "Koperthieving";
+"Import Logo…" = "Logo importeren…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Vierkante koperstippen in het vrije bordoppervlak egaliseren de galvanisatie en het koper per laag (kromtrekken en torsie)";
+"Make Plain Keep-out" = "Gewone keep-out maken";
+"Make Isolation Barrier" = "Isolatiebarrière maken";
+"Delete Graphic" = "Afbeelding verwijderen";
+"Pitch" = "Steek";

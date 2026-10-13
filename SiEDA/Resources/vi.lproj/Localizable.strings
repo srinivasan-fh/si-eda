@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Ẩn lớp tham chiếu %@";
 "Show Reference Layer %@" = "Hiện lớp tham chiếu %@";
 "Remove Reference Layer %@" = "Xóa lớp tham chiếu %@";
+"Copper thieving" = "Đồng cân bằng (thieving)";
+"Import Logo…" = "Nhập logo…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Các chấm đồng vuông ở vùng trống của bo mạch giúp mạ đều và cân bằng đồng giữa các lớp (cong và xoắn)";
+"Make Plain Keep-out" = "Chuyển thành vùng cấm thường";
+"Make Isolation Barrier" = "Chuyển thành rào cách ly";
+"Delete Graphic" = "Xóa hình";
+"Pitch" = "Bước";

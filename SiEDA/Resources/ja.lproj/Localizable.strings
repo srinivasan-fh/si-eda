@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "参照レイヤー %@ を隠す";
 "Show Reference Layer %@" = "参照レイヤー %@ を表示";
 "Remove Reference Layer %@" = "参照レイヤー %@ を削除";
+"Copper thieving" = "銅バランスパターン";
+"Import Logo…" = "ロゴを読み込む…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "基板の空き領域に四角い銅ドットを置き、めっきと各層の銅量を均一にします（反りとねじれの抑制）";
+"Make Plain Keep-out" = "通常の禁止領域にする";
+"Make Isolation Barrier" = "絶縁バリアにする";
+"Delete Graphic" = "図形を削除";
+"Pitch" = "ピッチ";

@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "સંદર્ભ સ્તર %@ છુપાવો";
 "Show Reference Layer %@" = "સંદર્ભ સ્તર %@ બતાવો";
 "Remove Reference Layer %@" = "સંદર્ભ સ્તર %@ દૂર કરો";
+"Copper thieving" = "કોપર થીવિંગ";
+"Import Logo…" = "લોગો આયાત કરો…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "બોર્ડના ખાલી ભાગમાં ચોરસ કોપર બિંદુઓ પ્લેટિંગ અને સ્તરોના કોપરને સમાન કરે છે (વળાંક અને વળ)";
+"Make Plain Keep-out" = "સામાન્ય કીપ-આઉટ બનાવો";
+"Make Isolation Barrier" = "આઇસોલેશન બેરિયર બનાવો";
+"Delete Graphic" = "ગ્રાફિક કાઢી નાખો";
+"Pitch" = "પિચ";

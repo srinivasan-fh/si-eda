@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "संदर्भ स्तर %@ लपवा";
 "Show Reference Layer %@" = "संदर्भ स्तर %@ दाखवा";
 "Remove Reference Layer %@" = "संदर्भ स्तर %@ काढा";
+"Copper thieving" = "कॉपर थीव्हिंग";
+"Import Logo…" = "लोगो आयात करा…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "बोर्डच्या मोकळ्या भागातील चौकोनी कॉपर बिंदू प्लेटिंग आणि थरांचे कॉपर समान करतात (वाकणे आणि पीळ)";
+"Make Plain Keep-out" = "साधा कीप-आउट करा";
+"Make Isolation Barrier" = "आयसोलेशन बॅरियर करा";
+"Delete Graphic" = "ग्राफिक हटवा";
+"Pitch" = "पिच";

@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ దాచండి";
 "Show Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ చూపించండి";
 "Remove Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ తొలగించండి";
+"Copper thieving" = "కాపర్ థీవింగ్";
+"Import Logo…" = "లోగోను దిగుమతి చేయండి…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "బోర్డు ఖాళీ ప్రాంతంలో చతురస్ర కాపర్ చుక్కలు ప్లేటింగ్‌ను, పొరల కాపర్‌ను సమం చేస్తాయి (వంగడం, మెలితిరగడం)";
+"Make Plain Keep-out" = "సాధారణ కీప్-అవుట్‌గా చేయండి";
+"Make Isolation Barrier" = "ఐసోలేషన్ బారియర్‌గా చేయండి";
+"Delete Graphic" = "గ్రాఫిక్‌ను తొలగించండి";
+"Pitch" = "పిచ్";

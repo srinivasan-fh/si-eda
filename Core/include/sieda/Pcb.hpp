@@ -148,6 +148,9 @@ struct RouteKeepout {
     int layer = -1;
     bool tracks = true, vias = true;
     bool pours = false;  // no copper pour inside either (an antenna's area); JSON "pours", written only when on
+    /// Isolation barrier (a slot or copper-free band between galvanic domains): no copper of any kind on any layer, and
+    /// the DRC wants it at least the board's isolation gap across (DRC_BARRIER_PAD / _WIDTH). JSON "barrier", when on.
+    bool barrier = false;
 };
 
 /// Mechanical height zone (enclosure rib, display, battery): parts on `bottom` / top inside `area` may be at most
@@ -157,6 +160,16 @@ struct HeightZone {
     Rect area;
     bool bottom = false;
     double maxHeight = 0;
+};
+
+/// Flexible section of a rigid-flex board (IPC-2223): `area` bends with inner radius `bendRadius` mm (0 = not given);
+/// the flex is `thickness` mm thick with `layers` copper layers; `dynamic` = it flexes in service.
+struct FlexRegion {
+    std::string name;
+    Rect area;
+    double bendRadius = 0, thickness = 0.11;
+    int layers = 2;
+    bool dynamic = false;
 };
 
 struct AutoroutePreset {
@@ -190,6 +203,27 @@ struct BoardDimension {
 
 /// Production panel (Panel.hpp): nx × ny copies of the board between two rails with fiducials and tooling holes,
 /// separated by V-score lines or by routed gaps with breakaway tabs and mouse bites. 1 × 1 = no panel (not saved).
+/// Copper thieving: a staggered grid of `size` mm squares `pitch` mm apart in the free area of every copper layer,
+/// `clearance` mm from other copper, the edge, holes, keep-outs and (outer layers) part courtyards; it evens out the
+/// copper for plating and against bow and twist. Generated, never stored as copper; off while pitch is 0.
+struct CopperThieving {
+    double pitch = 0, size = 1.0, clearance = 1.0;
+};
+
+/// Free board artwork (logos, notes, user drawing layers): filled rectangles and stroked lines (board mm) on `layer`
+/// "silk-top", "silk-bottom", "copper-<n>" (0 = top, netless copper kept clear of other copper by the DRC) or
+/// "user-1" … "user-4" (their own Gerbers in the fabrication package).
+struct BoardGraphic {
+    std::string name, layer = "silk-top";
+    double width = 0.15;  // line width, mm
+    std::vector<Rect> rects;
+    std::vector<std::pair<Vec2, Vec2>> lines;
+};
+/// JSON [{name, layer, width, rects: [x0,y0,x1,y1,…], lines: [ax,ay,bx,by,…]}]; on reading, an item may instead carry
+/// "raster": {"rows": ["0110…", …] (top row first, '1' = ink), "x", "y" (top-left), "width" (mm)}, merged into rects.
+Json boardGraphicsToJson(const std::vector<BoardGraphic>& g);
+std::vector<BoardGraphic> boardGraphicsFromJson(const Json& j);
+
 struct PanelSettings {
     int nx = 1, ny = 1;
     double gap = 2.0;     // mm routed between boards and to the rails (tab panels; V-score panels butt the boards)
@@ -273,6 +307,8 @@ struct BoardSettings {
     /// height zones. Saved only when set.
     double maxHeightTop = 0, maxHeightBottom = 0;
     std::vector<HeightZone> heightZones;
+    /// Rigid-flex bend areas (JSON "mechanical" "flex", written only when present); checked by mechanicalChecks.
+    std::vector<FlexRegion> flexRegions;
     /// Enclosure model (Model3DRegistry id; mm in the MCAD frame of Mechanical.hpp) the parts must clear.
     std::string enclosure;
     /// Production panel for the fabrication package (saved only when it has more than one board).
@@ -303,6 +339,10 @@ struct BoardSettings {
     std::vector<std::vector<Vec2>> cutouts;
     /// Dimensions drawn on the fabrication drawing, the DXF and the board view. JSON "dimensions", written only when present.
     std::vector<BoardDimension> dimensions;
+    /// JSON "thieving", written only when on.
+    CopperThieving thieving;
+    /// Logos and user-layer drawings. JSON "graphics", written only when present.
+    std::vector<BoardGraphic> graphics;
     /// Calls `edge(a, b)` for every edge of the outline polygon and of the cutouts.
     template <class F>
     void forEachEdge(F&& edge) const {
@@ -723,6 +763,11 @@ private:
     mutable std::vector<char> boardMask_;
     mutable std::string boardMaskKey_;
 };
+
+/// The copper-thieving dots (BoardSettings::thieving) as one fill per copper layer (zone and net -1, `rects` only).
+std::vector<ZoneFill> copperThieving(const Schematic& sch, const PcbLayout& pcb);
+/// Every poured copper area to draw or manufacture: the zone fills followed by the thieving dots.
+std::vector<ZoneFill> copperFills(const Schematic& sch, const PcbLayout& pcb);
 
 }  // namespace sieda
 

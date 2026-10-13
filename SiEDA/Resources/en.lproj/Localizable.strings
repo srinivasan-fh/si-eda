@@ -1702,3 +1702,10 @@
 "Hide Reference Layer %@" = "Hide Reference Layer %@";
 "Show Reference Layer %@" = "Show Reference Layer %@";
 "Remove Reference Layer %@" = "Remove Reference Layer %@";
+"Copper thieving" = "Copper thieving";
+"Import Logo…" = "Import Logo…";
+"Square copper dots in the free board area even out plating and the layers' copper (bow and twist)" = "Square copper dots in the free board area even out plating and the layers' copper (bow and twist)";
+"Make Plain Keep-out" = "Make Plain Keep-out";
+"Make Isolation Barrier" = "Make Isolation Barrier";
+"Delete Graphic" = "Delete Graphic";
+"Pitch" = "Pitch";

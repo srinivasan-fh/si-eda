@@ -178,6 +178,7 @@ Json keepoutsToJson(const std::vector<RouteKeepout>& ks) {
         j["tracks"] = k.tracks;
         j["vias"] = k.vias;
         if (k.pours) j["pours"] = true;
+        if (k.barrier) j["barrier"] = true;
         a.push(j);
     }
     return a;
@@ -197,6 +198,7 @@ std::vector<RouteKeepout> keepoutsFromJson(const Json& j) {
         k.tracks = e.get("tracks").asBool(true);
         k.vias = e.get("vias").asBool(true);
         k.pours = e.get("pours").asBool(false);
+        if ((k.barrier = e.get("barrier").asBool(false))) k.tracks = k.vias = k.pours = true, k.layer = -1;
         if (k.tracks || k.vias || k.pours) out.push_back(k);
     }
     return out;

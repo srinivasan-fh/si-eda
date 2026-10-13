@@ -273,6 +273,99 @@ std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer
     return exportGerberImpl(sch, pcb, layer, -1);
 }
 
+Json boardGraphicsToJson(const std::vector<BoardGraphic>& gs) {
+    Json out = Json::array();
+    for (const auto& g : gs) {
+        Json j = Json::object(), rects = Json::array(), lines = Json::array();
+        j["name"] = g.name, j["layer"] = g.layer, j["width"] = g.width;
+        for (const Rect& r : g.rects) rects.push(r.x0), rects.push(r.y0), rects.push(r.x1), rects.push(r.y1);
+        for (const auto& [a, b] : g.lines) lines.push(a.x), lines.push(a.y), lines.push(b.x), lines.push(b.y);
+        j["rects"] = rects, j["lines"] = lines;
+        out.push(j);
+    }
+    return out;
+}
+
+std::vector<BoardGraphic> boardGraphicsFromJson(const Json& j) {
+    std::vector<BoardGraphic> out;
+    for (const Json& e : j.items()) {
+        BoardGraphic g;
+        g.name = e.get("name").asString("");
+        g.layer = e.get("layer").asString("silk-top");
+        const bool known = g.layer == "silk-top" || g.layer == "silk-bottom" ||
+                           (g.layer.size() == 6 && g.layer.rfind("user-", 0) == 0 && g.layer[5] >= '1' && g.layer[5] <= '4') ||
+                           (g.layer.rfind("copper-", 0) == 0 && g.layer.size() > 7 && g.layer.size() < 10 &&
+                            std::all_of(g.layer.begin() + 7, g.layer.end(), ::isdigit));
+        g.width = std::clamp(e.get("width").asNumber(0.15), 0.01, 10.0);
+        std::vector<double> v;
+        for (const Json& x : e.get("rects").items()) v.push_back(x.asNumber(NAN));
+        for (size_t i = 0; i + 3 < v.size(); i += 4)
+            if (std::isfinite(v[i] + v[i + 1] + v[i + 2] + v[i + 3]))
+                g.rects.push_back(Rect(std::min(v[i], v[i + 2]), std::min(v[i + 1], v[i + 3]), std::max(v[i], v[i + 2]), std::max(v[i + 1], v[i + 3])));
+        v.clear();
+        for (const Json& x : e.get("lines").items()) v.push_back(x.asNumber(NAN));
+        for (size_t i = 0; i + 3 < v.size(); i += 4)
+            if (std::isfinite(v[i] + v[i + 1] + v[i + 2] + v[i + 3])) g.lines.push_back({{v[i], v[i + 1]}, {v[i + 2], v[i + 3]}});
+        if (const Json& r = e.get("raster"); r.isObject()) {  // an image: ink runs, merged down while they repeat
+            std::vector<std::string> rows;
+            for (const Json& row : r.get("rows").items()) rows.push_back(row.asString(""));
+            size_t cols = 0;
+            for (const auto& row : rows) cols = std::max(cols, row.size());
+            const double px = cols && rows.size() <= 2048 && cols <= 2048 ? std::clamp(r.get("width").asNumber(10), 0.1, 500.0) / double(cols) : 0;
+            const Vec2 o{r.get("x").asNumber(0), r.get("y").asNumber(0)};
+            std::map<std::pair<size_t, size_t>, size_t> open;  // run (from, to) → rect, continued from the row above
+            for (size_t y = 0; px > 0 && y < rows.size(); ++y) {
+                std::map<std::pair<size_t, size_t>, size_t> next;
+                for (size_t x = 0; x < rows[y].size();) {
+                    if (rows[y][x] != '1') {
+                        ++x;
+                        continue;
+                    }
+                    const size_t x0 = x;
+                    while (x < rows[y].size() && rows[y][x] == '1') ++x;
+                    if (auto it = open.find({x0, x}); it != open.end()) {
+                        g.rects[it->second].y1 = o.y + double(y + 1) * px;
+                        next[{x0, x}] = it->second;
+                    } else {
+                        g.rects.push_back(Rect(o.x + double(x0) * px, o.y + double(y) * px, o.x + double(x) * px, o.y + double(y + 1) * px));
+                        next[{x0, x}] = g.rects.size() - 1;
+                    }
+                }
+                open = std::move(next);
+            }
+        }
+        if (known && (!g.rects.empty() || !g.lines.empty()) && g.rects.size() + g.lines.size() <= 200000 && out.size() < 1000)
+            out.push_back(std::move(g));
+    }
+    return out;
+}
+
+std::string exportUserLayerGerber(const PcbLayout& pcb, int user) {
+    const std::string layer = "user-" + std::to_string(user);
+    std::ostringstream o;
+    o << "G04 SiEDA Gerber RS-274X*\n%TF.GenerationSoftware,SiEDA,SiEDA,1.0*%\n%TF.FileFunction,Other,User" << user
+      << "*%\n%TF.FilePolarity,Positive*%\n%TF.SameCoordinates,Original*%\n%FSLAX46Y46*%\n%MOMM*%\n%LPD*%\n";
+    auto coord = [&](Vec2 p) {
+        return "X" + std::to_string(std::llround(p.x * 1e6)) + "Y" + std::to_string(std::llround((pcb.settings.height - p.y) * 1e6));
+    };
+    int code = 10;
+    bool any = false;
+    for (const auto& g : pcb.settings.graphics) {
+        if (g.layer != layer) continue;
+        any = true;
+        for (const Rect& r : g.rects)
+            o << "G36*\n" << coord({r.x0, r.y0}) << "D02*\n" << coord({r.x1, r.y0}) << "D01*\n" << coord({r.x1, r.y1}) << "D01*\n"
+              << coord({r.x0, r.y1}) << "D01*\n" << coord({r.x0, r.y0}) << "D01*\nG37*\n";
+        if (g.lines.empty()) continue;
+        o << "%ADD" << code << "C," << mm(g.width) << "*%\nD" << code << "*\n";
+        ++code;
+        for (const auto& [a, b] : g.lines) o << coord(a) << "D02*\n" << coord(b) << "D01*\n";
+    }
+    if (!any) return "";
+    o << "M02*\n";
+    return o.str();
+}
+
 std::string exportCopperGerber(const Schematic& sch, const PcbLayout& pcb, int copperLayer) {
     return exportGerberImpl(sch, pcb, GerberLayer::TopCopper, copperLayer);
 }
@@ -365,13 +458,20 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         }
         if (isCopper) {
             // Poured copper as G36/G37 regions (one per merged rectangle).
-            for (const auto& f : pcb.zoneFills(sch)) {
+            for (const auto& f : copperFills(sch, pcb)) {
                 if (f.layer != cl) continue;
                 for (const auto& r : f.rects)
                     regions.push_back("G36*\n" + coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" +
                                       coord({r.x1, r.y1}) + "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" +
                                       coord({r.x0, r.y0}) + "D01*\nG37*");
             }
+            for (const auto& g : s.graphics)  // netless copper artwork (a logo)
+                if (g.layer == "copper-" + std::to_string(cl)) {
+                    for (const Rect& r : g.rects)
+                        regions.push_back("G36*\n" + coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" +
+                                          coord({r.x1, r.y1}) + "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*\nG37*");
+                    for (const auto& [a, b] : g.lines) ops.push_back({aperture(circle(g.width)), coord(a) + "D02*\n" + coord(b) + "D01*"});
+                }
             for (const auto& t : pcb.tracks) {
                 if (t.layer != cl) continue;
                 int ap = aperture(circle(t.width));
@@ -415,6 +515,13 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         }
     } else if (layer == GerberLayer::TopSilk || layer == GerberLayer::BottomSilk) {
         const bool bottomSide = layer == GerberLayer::BottomSilk;
+        for (const auto& g : s.graphics)  // logos and drawn silkscreen
+            if (g.layer == (bottomSide ? "silk-bottom" : "silk-top")) {
+                for (const Rect& r : g.rects)
+                    regions.push_back("G36*\n" + coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" +
+                                      coord({r.x1, r.y1}) + "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*\nG37*");
+                for (const auto& [a, b] : g.lines) ops.push_back({aperture(circle(g.width)), coord(a) + "D02*\n" + coord(b) + "D01*"});
+            }
         int ap = aperture(circle(0.15));
         for (const auto& c : sch.components()) {
             if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide || c.pcb.embedded()) continue;

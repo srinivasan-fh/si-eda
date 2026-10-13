@@ -588,7 +588,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (41)
+### pcb (43)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -627,9 +627,11 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_remove_copper` | edit (destructive) | Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias). |
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
-| `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height). |
+| `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height), and rigid-flex bend areas checked against IPC-2223 (bend radius ≥ 6 / 12 / 24 × the flex thickness for 1 / 2 / more copper layers, 100 × when dynamic; no vias, parts or sharp track corners in the bend). |
 | `pcb_dfm_pack` | edit | Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). |
 | `si_field_solver` | read | 2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect with copper roughness, laminate loss tangent). |
+| `pcb_copper_thieving` | edit | Copper thieving: a staggered grid of square dots in the free area of every copper layer, clear of other copper, the edge, holes, keep-outs and outer-layer part courtyards; it evens out plating and the mirror layers' copper (DFM_COPPER_BALANCE). |
+| `pcb_graphics` | edit | Logos and free drawings on the board: filled rectangles and lines on silk-top / silk-bottom, copper-<n> (netless copper; the DRC keeps it clear of other copper) or user-1 … user-4 (their own Gerbers in the fabrication package). |
 | `pcb_panel` | edit | Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, separated by V-score lines or routed gaps with breakaway tabs and mouse bites. |
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
