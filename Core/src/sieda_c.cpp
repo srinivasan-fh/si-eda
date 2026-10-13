@@ -1724,6 +1724,44 @@ int32_t sieda_pcb_set_dimensions(SiedaProject* project, const char* json) {
     }
 }
 
+char* sieda_gerber_parse(const char* text) {
+    if (!text) return nullptr;
+    try {
+        return dup(gerberImageJson(parseGerber(text)));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_pcb_add_reference_layer(SiedaProject* project, const char* name, const char* text) {
+    if (!project || !name || !text) return -1;
+    try {
+        auto& refs = project->project.referenceLayers;
+        if (refs.size() >= 32 || !parseGerber(text).error.empty()) return -1;
+        refs.push_back({std::string(name).substr(0, 256), text, true});
+        return static_cast<int32_t>(refs.size()) - 1;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_pcb_set_reference_layer(SiedaProject* project, int32_t index, int32_t visible, int32_t remove) {
+    if (!project || index < 0 || index >= static_cast<int32_t>(project->project.referenceLayers.size())) return 0;
+    auto& refs = project->project.referenceLayers;
+    if (remove) refs.erase(refs.begin() + index);
+    else refs[static_cast<size_t>(index)].visible = visible != 0;
+    return 1;
+}
+
+char* sieda_pcb_reference_layer_json(const SiedaProject* project, int32_t index) {
+    if (!project || index < 0 || index >= static_cast<int32_t>(project->project.referenceLayers.size())) return nullptr;
+    try {
+        return dup(gerberImageJson(parseGerber(project->project.referenceLayers[static_cast<size_t>(index)].text)));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
 }

@@ -528,7 +528,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
-### schematic (35)
+### schematic (36)
 
 Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC, variants.
 
@@ -551,6 +551,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_erc` | read | Runs the ERC: unconnected pins, driver conflicts, missing ground, power pins without a source, hierarchy, bus and directive errors. |
 | `schematic_validate` | read | Checks values and ratings (E-series values, decoupling, part ratings from the DC operating point) and reviews the design: an LED with no series resistor, a reset / enable input left floating. |
 | `schematic_build` | edit | Builds a circuit in one call: places the parts, joins each named net (net labels on its pins; GND gets ground symbols; a 2 – 3 pin signal net is drawn as wires with one label; a net may also name one pin of a wired chain), wires the wires chains (straight pin-to-pin lines: wired parts are placed in line), flags the noConnect pins, then runs the ERC and the design review. |
+| `schematic_import_netlist` | edit | Builds the schematic from another tool's schematic or netlist: a KiCad sheet (.kicad_sch: symbols, wires, labels, power symbols; sub-sheets listed in warnings), an LTspice schematic (.asc: R, C, L, sources, diodes, LEDs), a KiCad netlist (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV (Net, Designator, Pin). |
 | `schematic_set_erc_severity` | edit | Reports an ERC rule as error, warning, info or off ("default" restores it). |
 | `schematic_annotate` | edit | Re-numbers designators in reading order (rows or columns), optionally keeping existing ones or numbering by sheet (R101, R201…). |
 | `schematic_find` | read | Finds text in designators, values, net labels, net names (and pins) across every sheet. |
@@ -587,7 +588,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (40)
+### pcb (41)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -633,6 +634,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
 | `pcb_import_dxf` | edit | Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) and circles, on outline-like layers when the file names them (OUTLINE, Edge.Cuts, BOARD …); millimetres, or inches by $INSUNITS. |
+| `pcb_reference_layer` | edit | Keeps a Gerber or Excellon drill file over the board as a reference layer (origin at the board's lower-left corner, never fabricated): path adds one; index with visible shows / hides it, with remove deletes it. |
 
 ### sim (14)
 

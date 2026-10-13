@@ -25,6 +25,16 @@ closed loops of lines, arcs, polylines with bulges and circles — only from out
 BOARD, PROFILE, CUT…) when the file names them; millimetres, or inches by `$INSUNITS`. The largest loop becomes the
 outline and the loops inside it cutouts; one undo step.
 
+## Gerber viewer and reference layers
+
+**File → Gerber Viewer…** opens Gerber (RS-274X / X2) and Excellon drill files, from SiEDA or any other tool, and
+shows them as coloured layers over each other (apertures C / R / O / P, arcs, regions, clear polarity; macro
+apertures as circles). **Add to Board** — or **File → Import Gerber as Reference Layer…**, MCP `pcb_reference_layer` —
+keeps a file over the board as a reference layer: another board's artwork, a mechanical drawing, a previous revision.
+Its origin sits at the board's lower-left corner (as our own Gerbers); it is saved with the project, never
+fabricated, and shown, hidden or removed from the board's right-click menu. Core `parseGerber` in `Documents.cpp`
+(fuzzed in the `idf` target), C `sieda_gerber_parse`, `sieda_pcb_add_reference_layer`.
+
 ## 3D clearance (DRC)
 
 The design rule check also checks the parts in 3D (Errors):

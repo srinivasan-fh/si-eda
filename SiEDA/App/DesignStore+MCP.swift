@@ -579,3 +579,19 @@ final class MCPLiveServer: ObservableObject {
         Bundle.main.url(forAuxiliaryExecutable: "sieda-mcp")?.path ?? "/path/to/si-eda/build/sieda-mcp"
     }
 }
+
+extension DesignStore {
+    /// Runs one of the core's MCP tools on this design (a tool that changes it is one undo step): the tool's text
+    /// result and whether it failed.
+    @MainActor
+    func runTool(_ name: String, arguments: [String: Any]) -> (text: String, isError: Bool) {
+        let request: [String: Any] = ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                      "params": ["name": name, "arguments": arguments]]
+        guard let data = try? JSONSerialization.data(withJSONObject: request),
+              let outcome = MCPStoreBridge().handle(String(decoding: data, as: UTF8.self), store: self).first,
+              let reply = try? JSONSerialization.jsonObject(with: Data(outcome.response.utf8)) as? [String: Any],
+              let result = reply["result"] as? [String: Any] else { return ("The core did not answer", true) }
+        let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+        return (text, result["isError"] as? Bool ?? false)
+    }
+}

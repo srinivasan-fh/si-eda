@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "Add a drawing dimension: drag from one point to the other";
 "Delete Dimension" = "Delete Dimension";
 "Dimension — drag from one point to the other · Esc ends" = "Dimension — drag from one point to the other · Esc ends";
+"Import Netlist…" = "Import Netlist…";
+"Add to Board" = "Add to Board";
+"Gerber Viewer" = "Gerber Viewer";
+"Gerber Viewer…" = "Gerber Viewer…";
+"Import Gerber as Reference Layer…" = "Import Gerber as Reference Layer…";
+"Keep this file over the board as a reference layer" = "Keep this file over the board as a reference layer";
+"Open Files…" = "Open Files…";
+"Open Gerber and drill files to view them." = "Open Gerber and drill files to view them.";
+"Not Gerber or drill files: %@" = "Not Gerber or drill files: %@";
+"Hide Reference Layer %@" = "Hide Reference Layer %@";
+"Show Reference Layer %@" = "Show Reference Layer %@";
+"Remove Reference Layer %@" = "Remove Reference Layer %@";

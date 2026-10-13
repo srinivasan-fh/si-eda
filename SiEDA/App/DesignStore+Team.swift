@@ -52,6 +52,60 @@ extension DesignStore {
         statusMessage = parts.isEmpty ? "\(url.lastPathComponent): no change" : "\(url.lastPathComponent): " + parts.joined(separator: ", ")
     }
 
+    /// Builds the schematic from another tool's schematic or netlist (KiCad .kicad_sch / .net, LTspice .asc,
+    /// Protel / Tango, CSV) through the core's
+    /// schematic_import_netlist tool, one undo step.
+    func importNetlist() {
+        guard let picked = chooseText("Choose a schematic or netlist: KiCad (.kicad_sch, .net), LTspice (.asc), Protel / Tango "
+                                      + "(Altium, OrCAD, EasyEDA, PADS) or CSV.",
+                                      extensions: ["kicad_sch", "asc", "net", "netlist", "csv", "txt"]) else { return }
+        let (url, text) = picked
+        let r = runTool("schematic_import_netlist", arguments: ["text": text])
+        guard !r.isError, let data = r.text.data(using: .utf8),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let imported = j["imported"] as? [String: Any] else {
+            statusMessage = "\(url.lastPathComponent): \(r.text)"
+            return
+        }
+        let errors = ((j["checks"] as? [String: Any])?["erc"] as? [String: Any])?["errors"] as? Int ?? 0
+        statusMessage = "\(url.lastPathComponent): \(imported["parts"] as? Int ?? 0) parts, \(imported["nets"] as? Int ?? 0) nets, "
+            + "\((imported["created"] as? [Any])?.count ?? 0) new library parts; ERC \(errors) error(s)"
+        requestView(.fit)
+    }
+
+    /// Keeps a Gerber or drill file over the board as a reference layer (never fabricated), one undo step.
+    func importReferenceLayer() {
+        guard let picked = chooseText("Choose a Gerber or drill file to show over the board.",
+                                      extensions: ["gbr", "gtl", "gbl", "gto", "gbo", "gko", "gm1", "drl", "xln", "txt"]) else { return }
+        addReferenceLayer(name: picked.0.lastPathComponent, text: picked.1)
+    }
+
+    func addReferenceLayer(name: String, text: String) {
+        let ok = performExternalEdit("Reference layer \(name)") { $0.addReferenceLayer(name: name, text: text) }
+        statusMessage = ok ? "\(name) shown over the board as a reference layer" : "\(name): not a Gerber or drill file with a drawing"
+    }
+
+    func setReferenceLayer(_ index: Int, visible: Bool) {
+        performChecked(visible ? "Show reference layer" : "Hide reference layer", invalidatesAnalysis: false) {
+            $0.setReferenceLayer(index, visible: visible)
+        }
+    }
+
+    func removeReferenceLayer(_ index: Int) {
+        performChecked("Remove reference layer", invalidatesAnalysis: false) { $0.setReferenceLayer(index, visible: false, remove: true) }
+    }
+
+    /// A reference layer's shapes (read once, then cached).
+    func referenceArtwork(_ index: Int) -> GerberArtwork? {
+        guard snapshot.referenceLayers.indices.contains(index) else { return nil }
+        let layer = snapshot.referenceLayers[index]
+        let key = "\(index):\(layer.name):\(layer.bytes)"
+        if let cached = referenceArtworkCache[key] { return cached }
+        guard let art = engine.referenceLayer(index) else { return nil }
+        referenceArtworkCache[key] = art
+        return art
+    }
+
     /// Board outline and cutouts from a DXF drawing (MCAD), one undo step.
     func importDXFOutline() {
         guard let picked = chooseText("Choose the board outline drawing (.dxf) from mechanical CAD.", extensions: ["dxf"]) else { return }

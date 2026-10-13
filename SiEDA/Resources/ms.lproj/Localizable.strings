@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "Tambah dimensi lukisan: seret dari satu titik ke titik lain";
 "Delete Dimension" = "Padam Dimensi";
 "Dimension — drag from one point to the other · Esc ends" = "Dimensi — seret dari satu titik ke titik lain · Esc tamat";
+"Import Netlist…" = "Import Senarai Rangkaian…";
+"Add to Board" = "Tambah ke Papan";
+"Gerber Viewer" = "Pemapar Gerber";
+"Gerber Viewer…" = "Pemapar Gerber…";
+"Import Gerber as Reference Layer…" = "Import Gerber sebagai Lapisan Rujukan…";
+"Keep this file over the board as a reference layer" = "Simpan fail ini di atas papan sebagai lapisan rujukan";
+"Open Files…" = "Buka Fail…";
+"Open Gerber and drill files to view them." = "Buka fail Gerber dan gerudi untuk melihatnya.";
+"Not Gerber or drill files: %@" = "Bukan fail Gerber atau gerudi: %@";
+"Hide Reference Layer %@" = "Sembunyikan Lapisan Rujukan %@";
+"Show Reference Layer %@" = "Tunjukkan Lapisan Rujukan %@";
+"Remove Reference Layer %@" = "Buang Lapisan Rujukan %@";

@@ -32,7 +32,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         static const char* names[] = {"f.kicad_mod", "f.kicad_sym", "f.lbr", "f.SchLib", "f.PcbLib", "f.IntLib",
                                       "f.wrl", "f.stl", "f.obj", "f.step"};
         if (size == 0) return 0;
-        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 10], text.substr(1)}})).dump();
+        if (data[0] % 11 == 10) {  // netlists from other tools (KiCad, Protel / Tango, CSV)
+            (void)parseNetlist(text.substr(1));
+            return 0;
+        }
+        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 11], text.substr(1)}})).dump();
 #elif defined(SIEDA_FUZZ_IDF)
         Schematic sch;
         sch.addComponent(ComponentKind::Resistor, "10k", {0, 0});
@@ -42,6 +46,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)importIdx(sch, board, text);  // IDX (EDMD XML) from the same MCAD side
         (void)idxResponse(text, true);
         (void)importDxfOutline(text);  // DXF board outlines from the same MCAD side
+        (void)gerberImageJson(parseGerber(text));  // Gerber / Excellon reference layers
 #else
 #error "Define one SIEDA_FUZZ_<TARGET>"
 #endif

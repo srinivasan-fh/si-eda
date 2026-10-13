@@ -581,4 +581,288 @@ std::string exportNetLengthReport(const Schematic& sch, const PcbLayout& pcb) {
     return o.str();
 }
 
+// ===================================================================== Gerber / Excellon viewing
+
+namespace {
+
+/// Points along an arc from a to b around c (counter-clockwise when ccw), b included; a full circle when a == b.
+std::vector<Vec2> gerberArc(Vec2 a, Vec2 b, Vec2 c, bool ccw) {
+    const double r = (a - c).length();
+    double t0 = std::atan2(a.y - c.y, a.x - c.x), t1 = std::atan2(b.y - c.y, b.x - c.x);
+    if (ccw && t1 <= t0 + 1e-12) t1 += 2 * M_PI;
+    if (!ccw && t1 >= t0 - 1e-12) t1 -= 2 * M_PI;
+    const int steps = std::clamp(static_cast<int>(std::fabs(t1 - t0) * std::max(r, 0.05) / 0.1), 4, 360);
+    std::vector<Vec2> pts;
+    for (int i = 1; i <= steps; ++i) {
+        const double t = t0 + (t1 - t0) * i / steps;
+        pts.push_back(i == steps ? b : Vec2{c.x + r * std::cos(t), c.y + r * std::sin(t)});
+    }
+    return pts;
+}
+
+void excellon(const std::string& text, GerberImage& img) {
+    img.kind = "drill";
+    double scale = 1;  // mm per unit
+    bool metric = true;
+    std::map<int, double> tools;
+    double dia = 0;
+    std::istringstream in(text);
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty() || line[0] == ';') continue;
+        if (line.rfind("INCH", 0) == 0 || line.rfind("M72", 0) == 0) metric = false, scale = 25.4;
+        if (line.rfind("METRIC", 0) == 0 || line.rfind("M71", 0) == 0) metric = true, scale = 1;
+        if (line[0] == 'T' && line.size() > 1 && std::isdigit(static_cast<unsigned char>(line[1]))) {
+            const int t = std::atoi(line.c_str() + 1);
+            const size_t c = line.find('C');
+            if (c != std::string::npos) tools[t] = std::atof(line.c_str() + c + 1) * scale;
+            dia = tools.count(t) ? tools[t] : 0;
+            continue;
+        }
+        if (line[0] != 'X' && line[0] != 'Y') continue;
+        static Vec2 last;
+        auto coord = [&](char axis, double prev) {
+            const size_t at = line.find(axis);
+            if (at == std::string::npos) return prev;
+            size_t end = at + 1;
+            while (end < line.size() && (std::isdigit(static_cast<unsigned char>(line[end])) || line[end] == '.' || line[end] == '-' || line[end] == '+')) ++end;
+            const std::string v = line.substr(at + 1, end - at - 1);
+            if (v.empty()) return prev;
+            const double n = std::atof(v.c_str());
+            return (v.find('.') != std::string::npos ? n : n / (metric ? 1000.0 : 10000.0)) * scale;
+        };
+        last = {coord('X', last.x), coord('Y', last.y)};
+        if (std::isfinite(last.x) && std::isfinite(last.y) && img.shapes.size() < 2000000) {
+            GerberShape h;
+            h.kind = GerberShape::Flash, h.a = last, h.width = h.height = dia > 0 ? dia : 0.3;
+            img.shapes.push_back(h);
+        }
+    }
+}
+
+}  // namespace
+
+GerberImage parseGerber(const std::string& text) {
+    GerberImage img;
+    img.kind = "gerber";
+    if (text.find("M48") != std::string::npos && text.find("%FS") == std::string::npos) {
+        excellon(text, img);
+    } else {
+        struct Aperture { char shape = 'C'; double w = 0.1, h = 0.1; };
+        std::map<int, Aperture> apertures;
+        int xDec = 6, yDec = 6, xInt = 3, yInt = 3, current = -1, interp = 1, dcode = 2;
+        bool trailing = false, region = false, clear = false, multi = true, macroWarned = false;
+        double scale = 1;
+        Vec2 pos;
+        std::vector<Vec2> contour;
+        auto flushContour = [&] {
+            if (contour.size() >= 3 && img.shapes.size() < 2000000) {
+                GerberShape r;
+                r.kind = GerberShape::Region, r.points = contour, r.clear = clear;
+                img.shapes.push_back(std::move(r));
+            }
+            contour.clear();
+        };
+        auto number = [&](const std::string& v, int ints, int decs) {
+            if (v.find('.') != std::string::npos) return std::atof(v.c_str()) * scale;
+            std::string digits = v;
+            const bool neg = !digits.empty() && digits[0] == '-';
+            if (!digits.empty() && (digits[0] == '-' || digits[0] == '+')) digits.erase(0, 1);
+            if (trailing) digits.resize(static_cast<size_t>(std::max<int>(static_cast<int>(digits.size()), ints + decs)), '0');
+            const double n = std::atof(digits.c_str()) / std::pow(10.0, decs);
+            return (neg ? -n : n) * scale;
+        };
+        auto statement = [&](const std::string& st) {
+            if (st.empty()) return;
+            if (st.rfind("FS", 0) == 0) {
+                trailing = st.size() > 2 && st[2] == 'T';
+                const size_t x = st.find('X'), y = st.find('Y');
+                if (x != std::string::npos && x + 2 < st.size()) xInt = st[x + 1] - '0', xDec = st[x + 2] - '0';
+                if (y != std::string::npos && y + 2 < st.size()) yInt = st[y + 1] - '0', yDec = st[y + 2] - '0';
+                xDec = std::clamp(xDec, 0, 9), yDec = std::clamp(yDec, 0, 9);
+            } else if (st == "MOMM") {
+                scale = 1;
+            } else if (st == "MOIN") {
+                scale = 25.4;
+            } else if (st == "LPD" || st == "LPC") {
+                clear = st == "LPC";
+            } else if (st.rfind("ADD", 0) == 0) {
+                size_t i = 3;
+                while (i < st.size() && std::isdigit(static_cast<unsigned char>(st[i]))) ++i;
+                const int code = std::atoi(st.substr(3, i - 3).c_str());
+                const size_t comma = st.find(',', i);
+                const std::string shape = st.substr(i, comma == std::string::npos ? std::string::npos : comma - i);
+                std::vector<double> params;
+                if (comma != std::string::npos) {
+                    std::string rest = st.substr(comma + 1);
+                    size_t k = 0;
+                    while (k <= rest.size()) {
+                        const size_t xs = rest.find('X', k);
+                        params.push_back(std::atof(rest.substr(k, xs == std::string::npos ? std::string::npos : xs - k).c_str()) * scale);
+                        if (xs == std::string::npos) break;
+                        k = xs + 1;
+                    }
+                }
+                Aperture ap;
+                const double first = params.empty() || !std::isfinite(params[0]) ? 0.1 : std::fabs(params[0]);
+                ap.w = ap.h = first;
+                if (shape == "C" || shape == "P") ap.shape = shape[0];
+                else if (shape == "R" || shape == "O") ap.shape = shape[0], ap.h = params.size() > 1 && std::isfinite(params[1]) ? std::fabs(params[1]) : first;
+                else if (!macroWarned) img.warnings.push_back("macro apertures drawn as circles"), macroWarned = true;
+                apertures[code] = ap;
+            } else if (st[0] == 'G' || st[0] == 'D' || st[0] == 'X' || st[0] == 'Y' || st[0] == 'I' || st[0] == 'J' || st[0] == 'M') {
+                if (st.rfind("G04", 0) == 0) return;  // comment
+                double x = pos.x, y = pos.y, ci = 0, cj = 0;
+                size_t i = 0;
+                while (i < st.size()) {
+                    const char c = st[i++];
+                    size_t end = i;
+                    while (end < st.size() && (std::isdigit(static_cast<unsigned char>(st[end])) || st[end] == '-' || st[end] == '+' || st[end] == '.')) ++end;
+                    const std::string v = st.substr(i, end - i);
+                    i = end;
+                    const int n = std::atoi(v.c_str());
+                    switch (c) {
+                        case 'G':
+                            if (n == 1 || n == 2 || n == 3) interp = n;
+                            else if (n == 36) region = true, contour.clear();
+                            else if (n == 37) flushContour(), region = false;
+                            else if (n == 74) multi = false;
+                            else if (n == 75) multi = true;
+                            else if (n == 70) scale = 25.4;
+                            else if (n == 71) scale = 1;
+                            break;
+                        case 'X': x = number(v, xInt, xDec); break;
+                        case 'Y': y = number(v, yInt, yDec); break;
+                        case 'I': ci = number(v, xInt, xDec); break;
+                        case 'J': cj = number(v, yInt, yDec); break;
+                        case 'D':
+                            if (n >= 10) current = n;
+                            else dcode = n;
+                            break;
+                        default: break;
+                    }
+                }
+                const bool moved = st.find_first_of("XY") != std::string::npos;
+                if (!moved && st.find('D') == std::string::npos) return;
+                if (!moved && !(st.find("D03") != std::string::npos)) return;
+                const Vec2 to{x, y};
+                if (!std::isfinite(to.x) || !std::isfinite(to.y)) return;
+                const Aperture ap = apertures.count(current) ? apertures[current] : Aperture{};
+                if (dcode == 1) {
+                    std::vector<Vec2> path;
+                    if (interp == 1 || std::hypot(ci, cj) < 1e-9) {  // a line (or an arc with no radius)
+                        path.push_back(to);
+                    } else {  // arc; single-quadrant mode picks the centre on the side of the shorter arc
+                        Vec2 c = pos + Vec2{ci, cj};
+                        if (!multi) {
+                            const Vec2 options[] = {pos + Vec2{ci, cj}, pos + Vec2{-ci, cj}, pos + Vec2{ci, -cj}, pos + Vec2{-ci, -cj}};
+                            double best = 1e300;
+                            for (const Vec2& o : options) {
+                                const double err = std::fabs((o - pos).length() - (o - to).length());
+                                if (err < best) best = err, c = o;
+                            }
+                        }
+                        path = gerberArc(pos, to, c, interp == 3);
+                    }
+                    if (region) {
+                        if (contour.empty()) contour.push_back(pos);
+                        contour.insert(contour.end(), path.begin(), path.end());
+                    } else {
+                        Vec2 from = pos;
+                        for (const Vec2& p : path) {
+                            if (img.shapes.size() >= 2000000) break;
+                            GerberShape sg;
+                            sg.kind = GerberShape::Stroke, sg.a = from, sg.b = p, sg.width = ap.w, sg.clear = clear;
+                            img.shapes.push_back(sg);
+                            from = p;
+                        }
+                    }
+                } else if (dcode == 2) {
+                    if (region) flushContour();
+                } else if (dcode == 3 && img.shapes.size() < 2000000) {
+                    GerberShape f;
+                    f.kind = GerberShape::Flash, f.a = to, f.width = ap.w, f.height = ap.h, f.aperture = ap.shape, f.clear = clear;
+                    img.shapes.push_back(f);
+                }
+                pos = to;
+            }
+        };
+        size_t i = 0;
+        while (i < text.size()) {
+            if (text[i] == '%') {  // extended command: statements up to the closing '%'
+                const size_t end = text.find('%', i + 1);
+                const std::string block = text.substr(i + 1, end == std::string::npos ? std::string::npos : end - i - 1);
+                if (block.rfind("AM", 0) != 0) {  // macro bodies are skipped
+                    size_t k = 0;
+                    while (k < block.size()) {
+                        const size_t star = block.find('*', k);
+                        std::string st = block.substr(k, star == std::string::npos ? std::string::npos : star - k);
+                        st.erase(std::remove_if(st.begin(), st.end(), [](char c) { return std::isspace(static_cast<unsigned char>(c)); }), st.end());
+                        statement(st);
+                        if (star == std::string::npos) break;
+                        k = star + 1;
+                    }
+                }
+                i = end == std::string::npos ? text.size() : end + 1;
+            } else {
+                const size_t star = text.find('*', i);
+                std::string st = text.substr(i, star == std::string::npos ? std::string::npos : star - i);
+                st.erase(std::remove_if(st.begin(), st.end(), [](char c) { return std::isspace(static_cast<unsigned char>(c)); }), st.end());
+                statement(st);
+                i = star == std::string::npos ? text.size() : star + 1;
+            }
+        }
+        flushContour();
+    }
+    bool any = false;
+    auto grow = [&](Vec2 p, double r) {
+        if (!any) img.x0 = img.x1 = p.x, img.y0 = img.y1 = p.y, any = true;
+        img.x0 = std::min(img.x0, p.x - r), img.x1 = std::max(img.x1, p.x + r);
+        img.y0 = std::min(img.y0, p.y - r), img.y1 = std::max(img.y1, p.y + r);
+    };
+    for (const auto& sh : img.shapes) {
+        if (sh.kind == GerberShape::Region) for (const Vec2& p : sh.points) grow(p, 0);
+        else grow(sh.a, std::max(sh.width, sh.height) / 2);
+        if (sh.kind == GerberShape::Stroke) grow(sh.b, sh.width / 2);
+    }
+    if (!any) img.error = "no drawing in the file (not a Gerber or Excellon file?)";
+    return img;
+}
+
+std::string gerberImageJson(const GerberImage& img) {
+    std::ostringstream o;
+    o << "{\"kind\":\"" << img.kind << "\",\"bounds\":[" << num(img.x0) << "," << num(img.y0) << "," << num(img.x1) << "," << num(img.y1)
+      << "],\"strokes\":[";
+    std::string sep;
+    std::vector<size_t> clears;
+    for (size_t i = 0; i < img.shapes.size(); ++i) {
+        const auto& sh = img.shapes[i];
+        if (sh.kind != GerberShape::Stroke) continue;
+        o << sep << "[" << num(sh.a.x) << "," << num(sh.a.y) << "," << num(sh.b.x) << "," << num(sh.b.y) << "," << num(sh.width) << "," << (sh.clear ? 1 : 0) << "]";
+        sep = ",";
+    }
+    o << "],\"flashes\":[";
+    sep.clear();
+    for (const auto& sh : img.shapes) {
+        if (sh.kind != GerberShape::Flash) continue;
+        o << sep << "[" << num(sh.a.x) << "," << num(sh.a.y) << "," << num(sh.width) << "," << num(sh.height) << ",\"" << sh.aperture << "\"," << (sh.clear ? 1 : 0) << "]";
+        sep = ",";
+    }
+    o << "],\"regions\":[";
+    sep.clear();
+    for (const auto& sh : img.shapes) {
+        if (sh.kind != GerberShape::Region) continue;
+        o << sep << "[" << (sh.clear ? 1 : 0);
+        for (const Vec2& p : sh.points) o << "," << num(p.x) << "," << num(p.y);
+        o << "]";
+        sep = ",";
+    }
+    o << "],\"warnings\":[";
+    sep.clear();
+    for (const auto& w : img.warnings) o << sep << "\"" << w << "\"", sep = ",";
+    o << "],\"error\":\"" << img.error << "\"}";
+    return o.str();
+}
+
 }  // namespace sieda

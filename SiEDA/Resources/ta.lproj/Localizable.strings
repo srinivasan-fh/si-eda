@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "வரைபட அளவு சேர்: ஒரு புள்ளியிலிருந்து மற்றொன்றுக்கு இழு";
 "Delete Dimension" = "அளவை நீக்கு";
 "Dimension — drag from one point to the other · Esc ends" = "அளவு — ஒரு புள்ளியிலிருந்து மற்றொன்றுக்கு இழு · Esc முடிக்கும்";
+"Import Netlist…" = "நெட்லிஸ்ட்டை இறக்குமதி செய்…";
+"Add to Board" = "பலகையில் சேர்";
+"Gerber Viewer" = "கெர்பர் பார்வையாளர்";
+"Gerber Viewer…" = "கெர்பர் பார்வையாளர்…";
+"Import Gerber as Reference Layer…" = "கெர்பரை குறிப்பு அடுக்காக இறக்குமதி செய்…";
+"Keep this file over the board as a reference layer" = "இந்தக் கோப்பை பலகையின் மேல் குறிப்பு அடுக்காக வை";
+"Open Files…" = "கோப்புகளைத் திற…";
+"Open Gerber and drill files to view them." = "பார்க்க கெர்பர் மற்றும் துளையிடல் கோப்புகளைத் திற.";
+"Not Gerber or drill files: %@" = "கெர்பர் அல்லது துளையிடல் கோப்புகள் அல்ல: %@";
+"Hide Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ மறை";
+"Show Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ காட்டு";
+"Remove Reference Layer %@" = "குறிப்பு அடுக்கு %@ ஐ நீக்கு";

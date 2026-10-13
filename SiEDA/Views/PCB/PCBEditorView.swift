@@ -1344,6 +1344,13 @@ struct PCBCanvas: View {
         if store.pcbCompare != nil {
             shapes.append(CanvasMenuItem(title: String(localized: "Clear Comparison")) { store.pcbCompare = nil })
         }
+        for (index, layer) in store.snapshot.referenceLayers.enumerated() {
+            let format = layer.visible ? String(localized: "Hide Reference Layer %@") : String(localized: "Show Reference Layer %@")
+            shapes.append(CanvasMenuItem(title: String(format: format, layer.name)) { store.setReferenceLayer(index, visible: !layer.visible) })
+            shapes.append(CanvasMenuItem(title: String(format: String(localized: "Remove Reference Layer %@"), layer.name)) {
+                store.removeReferenceLayer(index)
+            })
+        }
         if store.pcbShapeTool == .slot {
             shapes += [0.6, 0.8, 1.0, 1.5, 2.0, 3.0].map { w in
                 CanvasMenuItem(title: String(format: String(localized: "Slot Width %.1f mm"), w) + (store.slotWidth == w ? " ✓" : "")) { store.slotWidth = w }
@@ -1431,6 +1438,17 @@ struct PCBCanvas: View {
             }
         }
         drawGrid(&ctx, board: boardRect, view: view)
+        // Reference layers (Gerber / drill files): their origin at the board's lower-left corner, Y up.
+        let flip = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: snap.board.height).concatenating(screen)
+        for (index, layer) in snap.referenceLayers.enumerated() where layer.visible {
+            guard let art = store.referenceArtwork(index) else { continue }
+            let colour = Theme.referenceColour(index)
+            ctx.fill(Path(art.fills).applying(flip), with: .color(colour.opacity(0.45)))
+            for (width, path) in art.strokes {
+                ctx.stroke(Path(path).applying(flip), with: .color(colour.opacity(0.6)),
+                           style: StrokeStyle(lineWidth: max(1, width * flip.a), lineCap: .round))
+            }
+        }
         if visible.contains(.boardOutline) {
             for ko in snap.board.keepouts where ko.rect.intersects(view) {
                 let r = Path(ko.rect).applying(screen)

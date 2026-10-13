@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "ഡ്രോയിംഗ് അളവ് ചേർക്കുക: ഒരു ബിന്ദുവിൽ നിന്ന് മറ്റൊന്നിലേക്ക് വലിക്കുക";
 "Delete Dimension" = "അളവ് ഇല്ലാതാക്കുക";
 "Dimension — drag from one point to the other · Esc ends" = "അളവ് — ഒരു ബിന്ദുവിൽ നിന്ന് മറ്റൊന്നിലേക്ക് വലിക്കുക · Esc അവസാനിപ്പിക്കും";
+"Import Netlist…" = "നെറ്റ്‌ലിസ്റ്റ് ഇമ്പോർട്ട് ചെയ്യുക…";
+"Add to Board" = "ബോർഡിലേക്ക് ചേർക്കുക";
+"Gerber Viewer" = "ഗർബർ വ്യൂവർ";
+"Gerber Viewer…" = "ഗർബർ വ്യൂവർ…";
+"Import Gerber as Reference Layer…" = "ഗർബർ റഫറൻസ് ലെയറായി ഇമ്പോർട്ട് ചെയ്യുക…";
+"Keep this file over the board as a reference layer" = "ഈ ഫയൽ ബോർഡിന് മുകളിൽ റഫറൻസ് ലെയറായി സൂക്ഷിക്കുക";
+"Open Files…" = "ഫയലുകൾ തുറക്കുക…";
+"Open Gerber and drill files to view them." = "കാണാൻ ഗർബർ, ഡ്രിൽ ഫയലുകൾ തുറക്കുക.";
+"Not Gerber or drill files: %@" = "ഗർബർ അല്ലെങ്കിൽ ഡ്രിൽ ഫയലുകളല്ല: %@";
+"Hide Reference Layer %@" = "റഫറൻസ് ലെയർ %@ മറയ്ക്കുക";
+"Show Reference Layer %@" = "റഫറൻസ് ലെയർ %@ കാണിക്കുക";
+"Remove Reference Layer %@" = "റഫറൻസ് ലെയർ %@ നീക്കുക";

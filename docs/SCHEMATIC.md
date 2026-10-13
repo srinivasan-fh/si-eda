@@ -527,6 +527,33 @@ Code: `SiEDA/Views/Schematic/SchematicPalette.swift` (palettes, schemes, grid st
 value the canvas draws with), `SchematicCustomTheme.swift` (named colours, roles, custom theme) and
 `SchematicAppearanceViews.swift` (menus, swatches, the Customise sheet).
 
+## Importing a netlist
+
+**File → Import Netlist…** (MCP `schematic_import_netlist`, core `parseNetlist` in `LibraryImport.cpp`) builds the
+schematic from another tool's schematic or netlist:
+
+- a **KiCad sheet** (`.kicad_sch`, KiCad 6 – 10, `parseKicadSchematic`): each symbol's pins placed by its position,
+  rotation and mirror (checked against KiCad's demo sheets: every wire end meets a pin, wire, label or flag), joined
+  by wires, junctions, labels (by name) and power symbols (by value; PWR_FLAG only marks); multi-unit parts become one
+  part; sub-sheets are listed in `warnings` (import each on its own); wire ends or pins that meet nothing are counted
+  there too;
+- an **LTspice schematic** (`.asc`, `parseLtspiceSchematic`): resistors, capacitors, inductors, voltage and current
+  sources, diodes and LEDs on the built-in symbols, any rotation or mirror, wires and flags (`0` = GND); plain values
+  are kept (`{param}` and `SINE(…)` fall back to the default); other symbols are listed in `warnings`;
+- a **netlist**: KiCad (`.net`, KiCad 5 – 8), Protel / Tango (`[ part ]` and `( net )` blocks, written by Altium,
+  OrCAD, EasyEDA and PADS) or a CSV with Net, Designator and Pin columns.
+
+Each part becomes:
+
+- a built-in resistor, capacitor, inductor, diode or LED when its designator is R / C / L / D and it has two pins (the
+  package from a size in its footprint name: `R_0603_1608Metric` → 0603);
+- the catalog part when the netlist's library part name or value names one (`ATmega328P-AU`);
+- otherwise a library part with the netlist's pins (KiCad's pin names when given), its package from the footprint
+  name (`SOIC-8`, `TQFP-32`, `PinHeader_1x02`), else a header.
+
+Then the nets are drawn as `schematic_build` draws them: unnamed two-pin nets (`Net-(D1-A)`) as plain wires, KiCad's
+`unconnected-(…)` pins flagged no-connect, the rest with labels, and the ERC runs. One undo step.
+
 ## Files and compatibility
 
 New project fields (all optional when reading):

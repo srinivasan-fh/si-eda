@@ -2,6 +2,7 @@
 // Handlers drive the C API (sieda_c.h) on the server's project, so the stdio server and the app's live endpoint run
 // exactly what the app runs. Data-driven: mcpTools() is this table (docs/MCP.md lists it).
 #include <algorithm>
+#include <regex>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -15,6 +16,8 @@
 #include "McpInternal.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
+#include "sieda/LibraryImport.hpp"
+#include "sieda/Documents.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -2003,6 +2006,153 @@ void schematicTools(Table& t) {
               checks["review"] = run("schematic_validate", obj(), "review");
               j["checks"] = checks;
               if (failed.size()) j["failed"] = failed;
+              return out(j);
+          });
+    t.add("schematic", "schematic_import_netlist", "Import a netlist", Kind::Edit, false,
+          "Builds the schematic from another tool's schematic or netlist: a KiCad sheet (.kicad_sch: symbols, wires, "
+          "labels, power symbols; sub-sheets listed in warnings), an LTspice schematic (.asc: R, C, L, sources, diodes, "
+          "LEDs), a KiCad netlist (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV (Net, Designator, Pin). Two-pin R / C / L / D parts become built-in parts (package from the footprint's "
+          "size), parts the catalog knows by part name or value come from it, the rest become library parts with the "
+          "netlist's pins (package from the footprint name, else a header). Then works as schematic_build; imported "
+          "lists what each designator became.",
+          Schema().str("text", "The netlist text").str("path", "Or the netlist file inside the root"),
+          [](McpServer& s, const Json& a) {
+              const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
+              ParsedNetlist nl;
+              try {
+                  nl = parseNetlist(text);
+              } catch (const std::exception& e) {
+                  throw ToolError(std::string("Netlist not read: ") + e.what());
+              }
+              auto upper = [](std::string v) {
+                  for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                  return v;
+              };
+              std::map<std::string, std::vector<std::string>> pinsOf;  // designator → its pin numbers, in netlist order
+              for (const auto& [net, members] : nl.nets)
+                  for (const auto& [ref, pin] : members)
+                      if (std::find(pinsOf[ref].begin(), pinsOf[ref].end(), pin) == pinsOf[ref].end()) pinsOf[ref].push_back(pin);
+              auto tool = [&](const char* name, const Json& args) {
+                  for (const auto& t : mcpTools())
+                      if (t.name == name) return t.handler(s, args).data;
+                  throw ToolError(std::string("missing tool ") + name);
+              };
+              Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
+              std::set<std::string> made;
+              for (const auto& np : nl.parts) {
+                  const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
+                  const auto& pins = pinsOf[ref];
+                  const std::string fp = np.footprint.substr(np.footprint.find(':') == std::string::npos ? 0 : np.footprint.find(':') + 1);
+                  Json part = obj();
+                  part["ref"] = ref;
+                  std::string size;
+                  for (const char* sz : {"0201", "0402", "0603", "0805", "1206", "1210", "1812", "2010", "2512"})
+                      if (size.empty() && fp.find(sz) != std::string::npos) size = sz;
+                  const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
+                  const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
+                                   : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
+                  if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+                      part["kind"] = np.part.substr(5);
+                      static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
+                      if (std::regex_match(np.value, plain)) part["value"] = np.value;
+                  } else if (kind) {
+                      part["kind"] = kind;
+                      if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
+                      if (!size.empty()) part["package"] = size;
+                  } else if (const StandardPart* sp = findStandardPart(np.part) ? findStandardPart(np.part) : findStandardPart(np.value)) {
+                      part["part"] = sp->spec.name;
+                  } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
+                      skipped.push(ref);
+                      continue;
+                  } else {  // a library part with the netlist's pins
+                      std::string name = !np.part.empty() && np.part != "~" ? np.part : !np.value.empty() ? np.value : prefix + "_PART";
+                      int named = 0;  // the package and pin count the footprint names, its pitch and body sizes left out
+                      static const std::regex sizes(R"(_P\d+(\.\d+)?mm|_?\d+(\.\d+)?x\d+(\.\d+)?(x\d+(\.\d+)?)?mm)");
+                      std::string pkg = packageTypeFromName(std::regex_replace(fp, sizes, ""), named);
+                      bool numeric = !pins.empty();
+                      int top = 0;
+                      for (const auto& pin : pins) {
+                          numeric = numeric && pin.size() <= 3 && std::all_of(pin.begin(), pin.end(), ::isdigit);
+                          if (numeric) top = std::max(top, std::stoi(pin));
+                      }
+                      std::vector<std::string> numbers = pins;
+                      if (named < top || named > 4 * top + 8 || top <= 1) named = 0;  // not a pin count ("M3_DIN965", "45-Degree")
+                      const int count = numeric ? std::max(top, named) : static_cast<int>(pins.size());
+                      if (numeric) {
+                          numbers.clear();
+                          for (int i = 1; i <= count; ++i) numbers.push_back(std::to_string(i));
+                      }
+                      if (pkg.empty() || (named && named != count)) pkg = "HEADER";
+                      name += "-" + std::to_string(count);
+                      if (!made.count(name)) {
+                          Json spec = obj(), package = obj(), pinList = Json::array();
+                          package["type"] = pkg, package["pinCount"] = count;
+                          for (const auto& n : numbers) {
+                              Json pin = obj();
+                              pin["number"] = n;
+                              const auto it = np.pinNames.find(n);
+                              pin["name"] = it == np.pinNames.end() ? n : it->second;
+                              pin["type"] = "passive";
+                              pinList.push(pin);
+                          }
+                          spec["name"] = name, spec["package"] = package, spec["pins"] = pinList;
+                          spec["refPrefix"] = prefix.empty() ? "U" : prefix;
+                          if (!np.value.empty()) spec["defaultValue"] = np.value;
+                          if (!np.footprint.empty()) spec["description"] = "Imported from a netlist: " + np.footprint;
+                          try {
+                              tool("library_create_part", spec);
+                          } catch (const std::exception&) {  // a package that will not draw: a header of the pins used
+                              Json header = obj();
+                              header["type"] = "HEADER", header["pinCount"] = static_cast<int>(pinList.size());
+                              spec["package"] = header;
+                              tool("library_create_part", spec);
+                          }
+                          made.insert(name);
+                          created.push(name);
+                      }
+                      part["part"] = name;
+                      if (!np.value.empty()) part["value"] = np.value;
+                  }
+                  mapped[ref] = part.has("part") ? part.get("part") : part.get("kind");
+                  parts.push(part);
+              }
+              Json nets = obj(), open = Json::array(), wires = Json::array();
+              int unnamed = 0;
+              for (const auto& [name, members] : nl.nets) {
+                  if (members.size() == 1 && name.rfind("unconnected-", 0) == 0)  // KiCad's pins left open on purpose
+                      open.push(members[0].first + "." + members[0].second);
+                  if (members.size() < 2) continue;  // one pin: nothing to join
+                  if (members.size() == 2 && (name.empty() || name.rfind("Net-(", 0) == 0)) {  // unnamed: a plain wire
+                      Json chain = Json::array();
+                      for (const auto& [ref, pin] : members) chain.push(ref + "." + pin);
+                      wires.push(chain);
+                      continue;
+                  }
+                  std::string n = name.size() > 1 && name[0] == '/' ? name.substr(1) : name;
+                  if (n.rfind("Net-(", 0) == 0 && n.back() == ')') n = n.substr(5, n.size() - 6);  // KiCad's unnamed nets
+                  if (n.empty()) n = "N$" + std::to_string(++unnamed);
+                  Json list = Json::array();
+                  for (const auto& [ref, pin] : members) list.push(ref + "." + pin);
+                  nets[n] = list;
+              }
+              Json build = obj();
+              build["parts"] = parts, build["nets"] = nets, build["pins"] = false;
+              if (open.size()) build["noConnect"] = open;
+              if (wires.size()) build["wires"] = wires;
+              Json j = tool("schematic_build", build);
+              Json info = obj();
+              info["format"] = nl.format;
+              info["parts"] = static_cast<int>(nl.parts.size());
+              info["nets"] = static_cast<int>(nets.fields().size());
+              info["as"] = mapped;
+              info["created"] = created;
+              if (skipped.size()) info["skipped"] = skipped;
+              if (!nl.warnings.empty()) {
+                  Json w = Json::array();
+                  for (const auto& x : nl.warnings) w.push(x);
+                  info["warnings"] = w;
+              }
+              j["imported"] = info;
               return out(j);
           });
     t.add("schematic", "schematic_set_erc_severity", "ERC severity", Kind::Edit, true,
@@ -4570,6 +4720,38 @@ void teamTools(Table& t) {
               const std::string dxf = readFileArg(s, requireStr(a, "path")).asString();
               Json j = takeJson(sieda_pcb_import_dxf(P(s), dxf.c_str()));
               if (!j.get("ok").asBool(false)) throw ToolError("DXF not imported: " + j.get("error").asString("unreadable"));
+              return out(j);
+          });
+    t.add("pcb", "pcb_reference_layer", "Reference layer (Gerber)", Kind::Edit, false,
+          "Keeps a Gerber or Excellon drill file over the board as a reference layer (origin at the board's lower-left "
+          "corner, never fabricated): path adds one; index with visible shows / hides it, with remove deletes it. "
+          "Returns the layers with each one's shape counts and bounds (mm).",
+          Schema().str("path", "Gerber / drill file inside the root to add").str("name", "Layer name (default: the file name)")
+              .integer("index", "Layer to change").boolean("visible", "Show or hide it").boolean("remove", "Delete it"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              if (a.has("path")) {
+                  const std::string path = requireStr(a, "path");
+                  const std::string text = readFileArg(s, path).asString();
+                  const std::string name = a.has("name") ? argStr(a, "name") : path.substr(path.find_last_of('/') + 1);
+                  check(sieda_pcb_add_reference_layer(p, name.c_str(), text.c_str()) >= 0,
+                        "Not a Gerber or drill file with a drawing (or 32 reference layers already)");
+              }
+              if (a.has("index"))
+                  check(sieda_pcb_set_reference_layer(p, a.get("index").asInt(-1), argBool(a, "visible", true) ? 1 : 0,
+                                                      argBool(a, "remove", false) ? 1 : 0) == 1, "No reference layer with that index");
+              Json layers = Json::array();
+              for (const auto& r : p->project.referenceLayers) {
+                  const GerberImage img = parseGerber(r.text);
+                  Json j = obj();
+                  j["name"] = r.name, j["visible"] = r.visible, j["kind"] = img.kind, j["shapes"] = static_cast<int>(img.shapes.size());
+                  Json b = Json::array();
+                  for (double v : {img.x0, img.y0, img.x1, img.y1}) b.push(v);
+                  j["bounds"] = b;
+                  layers.push(j);
+              }
+              Json j = obj();
+              j["referenceLayers"] = layers;
               return out(j);
           });
     t.add("output", "output_idx_response", "IDX response for MCAD", Kind::Files, false,

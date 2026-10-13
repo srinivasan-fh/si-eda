@@ -456,6 +456,16 @@ int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index);
 /* The board's drawing dimensions, replaced: [{"a":{x,y},"b":{x,y},"offset":mm}] (board mm; offset along (−dy, dx),
  * default 3); [] removes them. Drawn on the fabrication drawing, the DXF and the board view. 0 on bad input. */
 int32_t sieda_pcb_set_dimensions(SiedaProject* project, const char* json);
+/* Gerber viewer: a Gerber (RS-274X / X2) or Excellon file read into shapes (mm, Y up as in the file):
+ * {"kind":"gerber"|"drill","bounds":[x0,y0,x1,y1],"strokes":[[x0,y0,x1,y1,w,clear]],"flashes":[[x,y,w,h,"C|R|O|P",clear]],
+ * "regions":[[clear,x,y,x,y,…]],"warnings":[…],"error":""}. Caller frees. */
+char* sieda_gerber_parse(const char* text);
+/* Reference layers: a Gerber or drill file kept over the board (origin at its lower-left corner, never fabricated;
+ * saved in the project, at most 32). add returns the index or -1 when the file has no drawing; set shows / hides
+ * (visible) or removes (remove != 0) one; the json is that layer's shapes as sieda_gerber_parse. */
+int32_t sieda_pcb_add_reference_layer(SiedaProject* project, const char* name, const char* text);
+int32_t sieda_pcb_set_reference_layer(SiedaProject* project, int32_t index, int32_t visible, int32_t remove);
+char* sieda_pcb_reference_layer_json(const SiedaProject* project, int32_t index);
 void sieda_pcb_clear_zones(SiedaProject* project);
 /** Active tamper mesh (PCI PTS): serpentines of net_a (horizontal stripes, inner layer_a) and net_b (vertical
  * stripes, inner layer_b) laid over component `ref` plus margin_mm by the autorouter; each net joins exactly two pins

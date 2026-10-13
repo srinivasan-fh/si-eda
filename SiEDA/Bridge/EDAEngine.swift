@@ -1494,6 +1494,25 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeCutout(at index: Int) -> Bool { withHandle { sieda_pcb_remove_cutout($0, Int32(index)) } == 1 }
 
+    /// A Gerber or drill file read for the viewer (nil when the core cannot read it at all).
+    static func gerberArtwork(_ text: String) -> GerberArtwork? {
+        guard let json = take(sieda_gerber_parse(text)) else { return nil }
+        return GerberArtwork(json: json)
+    }
+
+    @discardableResult
+    func addReferenceLayer(name: String, text: String) -> Bool { withHandle { sieda_pcb_add_reference_layer($0, name, text) } >= 0 }
+
+    @discardableResult
+    func setReferenceLayer(_ index: Int, visible: Bool, remove: Bool = false) -> Bool {
+        withHandle { sieda_pcb_set_reference_layer($0, Int32(index), visible ? 1 : 0, remove ? 1 : 0) } == 1
+    }
+
+    func referenceLayer(_ index: Int) -> GerberArtwork? {
+        guard let json = withHandle({ Self.take(sieda_pcb_reference_layer_json($0, Int32(index))) }) else { return nil }
+        return GerberArtwork(json: json)
+    }
+
     /// Replaces the board's drawing dimensions.
     func setDimensions(_ dims: [BoardDimensionInfo]) -> Bool {
         guard let data = try? JSONEncoder().encode(dims) else { return false }

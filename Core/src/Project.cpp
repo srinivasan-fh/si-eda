@@ -759,6 +759,16 @@ Json Project::toJson() const {
         }
         root["revisions"] = revs;
     }
+    if (!referenceLayers.empty()) {
+        Json refs = Json::array();
+        for (const auto& r : referenceLayers) {
+            Json j = Json::object();
+            j["name"] = r.name, j["text"] = r.text;
+            if (!r.visible) j["visible"] = false;
+            refs.push(j);
+        }
+        root["referenceLayers"] = refs;
+    }
     if (!(pcbSync == currentSync())) {  // the board's baseline, only while an Update PCB is pending
         Json sync = Json::object();
         Json parts = Json::array();
@@ -1201,6 +1211,9 @@ Project Project::fromJson(const Json& root) {
             if (p.revisions.size() < 200) p.revisions.push_back({text("rev"), text("date"), text("description"), text("by")});
         }
     }
+    for (const auto& r : root.get("referenceLayers").items())
+        if (r.get("text").isString() && p.referenceLayers.size() < 32)
+            p.referenceLayers.push_back({r.get("name").asString("").substr(0, 256), r.get("text").asString(), r.get("visible").asBool(true)});
     if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
     if (const Json& b = root.get("boards"); b.isObject()) {
         for (const auto& n : b.get("names").items())
@@ -1465,6 +1478,15 @@ Json Project::snapshot() const {
             tb["revisions"] = revs;
         }
         root["titleBlock"] = tb;
+        {  // names only: the app reads each layer's shapes once (sieda_pcb_reference_layer_json)
+            Json refs = Json::array();
+            for (const auto& r : referenceLayers) {
+                Json j = Json::object();
+                j["name"] = r.name, j["visible"] = r.visible, j["bytes"] = static_cast<double>(r.text.size());
+                refs.push(j);
+            }
+            root["referenceLayers"] = refs;
+        }
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
         root["variants"] = vs;

@@ -23010,6 +23010,174 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(!s.dragWireSegment(9999, {0, 10}));
 }
 
+TEST(schematic_import_kicad_sch_and_ltspice) {
+    // A KiCad sheet: R2 turned 90°, wires, a label on the joint, a global label and a power symbol; the pins land
+    // where KiCad draws them (counter-clockwise turns, Y down), so the nets are R1.2 + R2.1, VIN, GND.
+    const std::string kicad = R"SCH((kicad_sch (version 20231120) (generator "eeschema")
+  (lib_symbols
+    (symbol "Device:R" (property "Reference" "R")
+      (symbol "R_1_1" (pin passive line (at 0 3.81 270) (length 1.27) (name "~") (number "1"))
+                      (pin passive line (at 0 -3.81 90) (length 1.27) (name "~") (number "2"))))
+    (symbol "power:GND" (power) (symbol "GND_0_1" (pin power_in line (at 0 0 270) (length 0) (name "GND") (number "1"))))
+    (symbol "power:PWR_FLAG" (power) (symbol "PWR_FLAG_0_0" (pin power_out line (at 0 0 90) (length 0) (name "pwr") (number "1")))))
+  (symbol (lib_id "Device:R") (at 100 50 0) (unit 1) (property "Reference" "R1") (property "Value" "10k")
+    (property "Footprint" "Resistor_SMD:R_0603_1608Metric"))
+  (symbol (lib_id "Device:R") (at 110 60 90) (unit 1) (property "Reference" "R2") (property "Value" "4k7"))
+  (wire (pts (xy 100 53.81) (xy 100 60)))
+  (wire (pts (xy 100 60) (xy 106.19 60)))
+  (label "MID" (at 100 60 0))
+  (global_label "VIN" (shape input) (at 100 46.19 0))
+  (symbol (lib_id "power:GND") (at 113.81 60 0) (unit 1) (property "Reference" "#PWR01") (property "Value" "GND"))
+  (symbol (lib_id "power:PWR_FLAG") (at 100 46.19 0) (unit 1) (property "Reference" "#FLG01") (property "Value" "PWR_FLAG"))
+  (symbol (lib_id "power:PWR_FLAG") (at 113.81 60 0) (unit 1) (property "Reference" "#FLG02") (property "Value" "PWR_FLAG")))
+)SCH";
+    const ParsedNetlist k = parseNetlist(kicad);
+    CHECK(k.format == "kicad_sch" && k.parts.size() == 2 && k.parts[0].footprint == "Resistor_SMD:R_0603_1608Metric");
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> nets(k.nets.begin(), k.nets.end());
+    CHECK(nets["MID"] == (std::vector<std::pair<std::string, std::string>>{{"R1", "2"}, {"R2", "1"}}));
+    CHECK(nets["VIN"] == (std::vector<std::pair<std::string, std::string>>{{"R1", "1"}}));
+    CHECK(nets["GND"] == (std::vector<std::pair<std::string, std::string>>{{"R2", "2"}}));  // the PWR_FLAGs name nothing
+    CHECK(k.warnings.empty());
+    // LTspice: V1 and R1 upright, R2 turned 90° (clockwise), D1 mirrored; flags name OUT and ground.
+    const std::string asc = "Version 4\nSHEET 1 880 680\nWIRE 32 96 112 96\nFLAG 32 176 0\nFLAG 112 176 0\nFLAG 192 96 OUT\n"
+                            "FLAG 240 80 OUT\nFLAG 240 144 0\nSYMBOL voltage 32 80 R0\nSYMATTR InstName V1\nSYMATTR Value 5\n"
+                            "SYMBOL res 96 80 R0\nSYMATTR InstName R1\nSYMATTR Value 1k\nSYMBOL res 208 80 R90\nSYMATTR InstName R2\n"
+                            "SYMATTR Value 2k2\nSYMBOL diode 256 80 M0\nSYMATTR InstName D1\nSYMBOL Opamps\\\\opamp 400 80 R0\nSYMATTR InstName U1\n";
+    const ParsedNetlist l = parseNetlist(asc);
+    CHECK(l.format == "ltspice" && l.parts.size() == 4 && l.parts[0].part == "kind:voltage_source");
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> ln(l.nets.begin(), l.nets.end());
+    CHECK(ln["OUT"] == (std::vector<std::pair<std::string, std::string>>{{"R2", "1"}, {"D1", "A"}}));
+    CHECK(ln["GND"] == (std::vector<std::pair<std::string, std::string>>{{"V1", "-"}, {"R1", "2"}, {"D1", "K"}}));
+    CHECK(ln["Net-(V1-+)"] == (std::vector<std::pair<std::string, std::string>>{{"V1", "+"}, {"R1", "1"}, {"R2", "2"}}));
+    CHECK(l.warnings.size() == 1 && l.warnings[0].find("U1") != std::string::npos);
+    // Both through the MCP import: a clean ERC, the LTspice values kept.
+    for (const std::string& text : {kicad, asc}) {
+        mcp::McpServer m;
+        CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+        Json args = Json::object();
+        args["text"] = text;
+        const Json r = mcpData(mcpTool(m, "schematic_import_netlist", args));
+        CHECK(r.get("checks").get("erc").get("errors").asInt(-1) == 0);
+    }
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = asc;
+    CHECK(mcpData(mcpTool(m, "schematic_import_netlist", args)).get("imported").get("as").get("D1").asString("") == "diode");
+    CHECK(m.project()->project.schematic.findByRef("R2")->value == "2k2");
+}
+
+TEST(netlist_import_kicad_protel_csv) {
+    // KiCad, Protel / Tango and CSV netlists read into parts and nets; the MCP import makes built-in passives,
+    // catalog parts and library parts, wires unnamed two-pin nets, flags KiCad's unconnected pins and joins the nets.
+    const std::string kicad = R"NET((export (version "E")
+  (components
+    (comp (ref "U1") (value "ATmega328P-AU") (footprint "Package_QFP:TQFP-32_7x7mm_P0.8mm") (libsource (lib "MCU") (part "ATmega328P-A")))
+    (comp (ref "C1") (value "100n") (footprint "Capacitor_SMD:C_0603_1608Metric") (libsource (lib "Device") (part "C")))
+    (comp (ref "D1") (value "Red") (footprint "LED_SMD:LED_0805_2012Metric") (libsource (lib "Device") (part "LED")))
+    (comp (ref "R1") (value "330") (footprint "Resistor_SMD:R_0603_1608Metric") (libsource (lib "Device") (part "R")))
+    (comp (ref "J1") (value "PWR") (footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical") (libsource (lib "Conn") (part "Conn_01x02"))))
+  (nets
+    (net (code "1") (name "GND") (node (ref "U1") (pin "3") (pinfunction "GND")) (node (ref "U1") (pin "5")) (node (ref "U1") (pin "21"))
+      (node (ref "C1") (pin "2")) (node (ref "D1") (pin "1")) (node (ref "J1") (pin "2") (pinfunction "Pin_2")))
+    (net (code "2") (name "+5V") (node (ref "U1") (pin "4")) (node (ref "U1") (pin "6")) (node (ref "U1") (pin "18"))
+      (node (ref "C1") (pin "1")) (node (ref "J1") (pin "1") (pinfunction "Pin_1")))
+    (net (code "3") (name "/LED") (node (ref "U1") (pin "17")) (node (ref "R1") (pin "1")))
+    (net (code "4") (name "Net-(D1-A)") (node (ref "D1") (pin "2")) (node (ref "R1") (pin "2")))
+    (net (code "5") (name "unconnected-(U1-PD0)") (node (ref "U1") (pin "30")))))
+)NET";
+    const ParsedNetlist k = parseNetlist(kicad);
+    CHECK(k.format == "kicad" && k.parts.size() == 5 && k.nets.size() == 5);
+    CHECK(k.parts[0].part == "ATmega328P-A" && k.parts[4].pinNames.at("1") == "Pin_1");
+    const ParsedNetlist p = parseNetlist("[\nR1\n0603\n10k\n]\n[\nC1\n0603\n1u\n]\n(\nVCC\nR1-1\nC1-1\n)\n(\nGND\nR1-2\nC1-2\n)\n");
+    CHECK(p.format == "protel" && p.parts.size() == 2 && p.parts[0].value == "10k" && p.nets.size() == 2 && p.nets[0].second[1].first == "C1");
+    const ParsedNetlist c = parseNetlist("Net,Designator,Pin\nVCC,R1,1\nVCC,U9,8\nGND,R1,2\n");
+    CHECK(c.format == "csv" && c.parts.size() == 2 && c.nets.size() == 2);  // U9 added from the nets
+    for (const char* bad : {"", "hello", "(export (nets (net (name \"A\") (node (ref \"R1\")", "(\nA\nnodash\n)\n", "Net,Value\nA,1\n"}) {
+        bool threw = false;
+        try {
+            (void)parseNetlist(bad);
+        } catch (const ImportError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = kicad;
+    const Json r = mcpData(mcpTool(m, "schematic_import_netlist", args));
+    const Json& as = r.get("imported").get("as");
+    CHECK(as.get("C1").asString("") == "capacitor" && as.get("D1").asString("") == "led" && as.get("R1").asString("") == "resistor");
+    CHECK(as.get("U1").asString("") == "ATMEGA328P-AU" && as.get("J1").asString("") == "Conn_01x02-2");
+    CHECK(r.get("checks").get("erc").get("errors").asInt(-1) == 0);
+    const Schematic& sch = m.project()->project.schematic;
+    const Component* d1 = sch.findByRef("D1");
+    const Component* r1 = sch.findByRef("R1");
+    CHECK(d1 && r1 && sch.netOf({d1->id, 1}) == sch.netOf({r1->id, 1}) && sch.netOf({d1->id, 1}) >= 0);
+    const Component* u1 = sch.findByRef("U1");
+    CHECK(u1 && sch.findByRef("C1") && sch.netOf({u1->id, 2}) == sch.netOf({sch.findByRef("C1")->id, 1}));  // GND
+    CHECK(mcpFailed(mcpTool(m, "schematic_import_netlist", Json::parse(R"({"text": "not a netlist"})"))));
+}
+
+TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
+    // Our own Gerbers and drill file read back: the outline spans the board, every hole is a drill flash, copper has
+    // strokes / flashes / pour regions. A hand-written file with arcs, a region, a macro aperture and clear polarity
+    // reads too; a reference layer saves, loads and comes back as shapes.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"A": ["J1.1", "R1.1"], "GND": ["J1.2", "R1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_add_pour", Json::parse(R"({"net": "GND", "layer": 1})"))));
+    Project& p = m.project()->project;
+    const BoardSettings& b = p.pcb.settings;
+    const GerberImage edge = parseGerber(exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts));
+    CHECK(edge.error.empty() && edge.kind == "gerber");
+    CHECK(std::fabs((edge.x1 - edge.x0) - b.width) < 0.5 && std::fabs((edge.y1 - edge.y0) - b.height) < 0.5);
+    const GerberImage drill = parseGerber(exportExcellonDrill(p.schematic, p.pcb, true));
+    size_t holes = p.pcb.vias.size();
+    for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0 && !pad.npth;
+    CHECK(drill.kind == "drill" && drill.shapes.size() == holes && holes >= 2);
+    const GerberImage bottom = parseGerber(exportCopperGerber(p.schematic, p.pcb, 1));
+    int strokes = 0, flashes = 0, regions = 0;
+    for (const auto& sh : bottom.shapes) {
+        strokes += sh.kind == GerberShape::Stroke, flashes += sh.kind == GerberShape::Flash, regions += sh.kind == GerberShape::Region;
+        CHECK(sh.a.x >= -1 && sh.a.x <= b.width + 1 && sh.a.y >= -1 && sh.a.y <= b.height + 1);
+    }
+    CHECK(flashes >= 2 && strokes + regions > 0);
+    const std::string hand = "%FSLAX26Y26*%%MOIN*%%AMBOX*21,1,$1,$2,0,0,0*%%ADD10C,0.010*%%ADD11BOX,0.1X0.05*%"
+                             "%ADD12R,0.1X0.05*%D10*G75*X0Y0D02*G01X1000000Y0D01*G03X0Y1000000I-1000000J0D01*"
+                             "D11*X500000Y500000D03*D12*X600000Y600000D03*G36*X0Y0D02*X100000Y0D01*X100000Y100000D01*X0Y0D01*G37*"
+                             "%LPC*%D10*X0Y0D02*X50000Y0D01*M02*";
+    const GerberImage h = parseGerber(hand);
+    CHECK(h.error.empty() && h.warnings.size() == 1);  // the macro aperture
+    int arcSegments = 0, regionCount = 0, clearCount = 0;
+    for (const auto& sh : h.shapes) arcSegments += sh.kind == GerberShape::Stroke, regionCount += sh.kind == GerberShape::Region, clearCount += sh.clear;
+    CHECK(arcSegments > 5 && regionCount == 1 && clearCount == 1);
+    CHECK(std::fabs(h.x1 - 25.4 - 0.127) < 0.01);  // inches to mm, plus the 0.010" pen
+    CHECK(!parseGerber("hello").error.empty() && !parseGerber("").error.empty());
+    const std::string json = gerberImageJson(h);
+    CHECK(json.find("\"regions\":[[0,") != std::string::npos && json.find("\"kind\":\"gerber\"") != std::string::npos);
+    // Reference layers.
+    CHECK(sieda_pcb_add_reference_layer(m.project(), "other board", exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts).c_str()) == 0);
+    CHECK(sieda_pcb_add_reference_layer(m.project(), "junk", "hello") == -1);
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.referenceLayers.size() == 1 && q.referenceLayers[0].name == "other board");
+    CHECK(p.snapshot().get("referenceLayers")[0].get("name").asString("") == "other board");
+    char* layer = sieda_pcb_reference_layer_json(m.project(), 0);
+    CHECK(layer && std::string(layer).find("\"strokes\":[[") != std::string::npos);
+    sieda_string_free(layer);
+    CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 0, 0) == 1 && !p.referenceLayers[0].visible);
+    CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 1, 1) == 1 && p.referenceLayers.empty());
+    CHECK(Project().toJson().dump().find("referenceLayers") == std::string::npos);
+}
+
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,
     // the stack-up and the revision table; dimensions and revisions save, load and reach the DXF; net lengths per net.

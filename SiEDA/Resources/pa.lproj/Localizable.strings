@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "ਡਰਾਇੰਗ ਮਾਪ ਜੋੜੋ: ਇੱਕ ਬਿੰਦੂ ਤੋਂ ਦੂਜੇ ਤੱਕ ਖਿੱਚੋ";
 "Delete Dimension" = "ਮਾਪ ਮਿਟਾਓ";
 "Dimension — drag from one point to the other · Esc ends" = "ਮਾਪ — ਇੱਕ ਬਿੰਦੂ ਤੋਂ ਦੂਜੇ ਤੱਕ ਖਿੱਚੋ · Esc ਖ਼ਤਮ";
+"Import Netlist…" = "ਨੈੱਟਲਿਸਟ ਆਯਾਤ ਕਰੋ…";
+"Add to Board" = "ਬੋਰਡ ਵਿੱਚ ਜੋੜੋ";
+"Gerber Viewer" = "ਗਰਬਰ ਵਿਊਅਰ";
+"Gerber Viewer…" = "ਗਰਬਰ ਵਿਊਅਰ…";
+"Import Gerber as Reference Layer…" = "ਗਰਬਰ ਨੂੰ ਹਵਾਲਾ ਪਰਤ ਵਜੋਂ ਆਯਾਤ ਕਰੋ…";
+"Keep this file over the board as a reference layer" = "ਇਸ ਫ਼ਾਈਲ ਨੂੰ ਬੋਰਡ ਉੱਤੇ ਹਵਾਲਾ ਪਰਤ ਵਜੋਂ ਰੱਖੋ";
+"Open Files…" = "ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹੋ…";
+"Open Gerber and drill files to view them." = "ਵੇਖਣ ਲਈ ਗਰਬਰ ਅਤੇ ਡ੍ਰਿਲ ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹੋ।";
+"Not Gerber or drill files: %@" = "ਗਰਬਰ ਜਾਂ ਡ੍ਰਿਲ ਫ਼ਾਈਲਾਂ ਨਹੀਂ: %@";
+"Hide Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਲੁਕਾਓ";
+"Show Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਵਿਖਾਓ";
+"Remove Reference Layer %@" = "ਹਵਾਲਾ ਪਰਤ %@ ਹਟਾਓ";

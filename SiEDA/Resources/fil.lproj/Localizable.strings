@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "Magdagdag ng sukat sa drawing: i-drag mula sa isang punto papunta sa isa pa";
 "Delete Dimension" = "Burahin ang Sukat";
 "Dimension — drag from one point to the other · Esc ends" = "Sukat — i-drag mula sa isang punto papunta sa isa pa · Esc para tapusin";
+"Import Netlist…" = "Mag-import ng Netlist…";
+"Add to Board" = "Idagdag sa Board";
+"Gerber Viewer" = "Gerber Viewer";
+"Gerber Viewer…" = "Gerber Viewer…";
+"Import Gerber as Reference Layer…" = "Mag-import ng Gerber bilang Reference Layer…";
+"Keep this file over the board as a reference layer" = "Panatilihin ang file na ito sa ibabaw ng board bilang reference layer";
+"Open Files…" = "Buksan ang mga File…";
+"Open Gerber and drill files to view them." = "Buksan ang mga Gerber at drill file para makita ang mga ito.";
+"Not Gerber or drill files: %@" = "Hindi Gerber o drill file: %@";
+"Hide Reference Layer %@" = "Itago ang Reference Layer %@";
+"Show Reference Layer %@" = "Ipakita ang Reference Layer %@";
+"Remove Reference Layer %@" = "Alisin ang Reference Layer %@";

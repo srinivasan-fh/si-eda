@@ -17,6 +17,13 @@
 namespace sieda {
 
 /// Title block printed on every schematic sheet (the sheet name and "n of N" are added per sheet).
+/// A Gerber or drill file kept as a reference layer over the board (another board's artwork, a mechanical
+/// drawing): drawn in the PCB view with its origin at the board's lower-left corner, never fabricated.
+struct ReferenceLayer {
+    std::string name, text;
+    bool visible = true;
+};
+
 /// One line of the revision table (title blocks of the schematic PDF and of the board drawing).
 struct Revision {
     std::string rev, date, description, by;
@@ -193,6 +200,8 @@ public:
     TitleBlock titleBlock;
     /// Revision history, oldest first. JSON "revisions", written only when present.
     std::vector<Revision> revisions;
+    /// Reference layers (Gerber / Excellon). JSON "referenceLayers", written only when present.
+    std::vector<ReferenceLayer> referenceLayers;
 
     const DesignVariant* findVariant(const std::string& name) const;
     /// Adds a variant (name trimmed, unique, non-empty), optionally a copy of `copyFrom`'s settings.

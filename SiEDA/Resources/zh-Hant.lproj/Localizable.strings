@@ -1690,3 +1690,15 @@
 "Add a drawing dimension: drag from one point to the other" = "加入圖面尺寸：從一點拖曳到另一點";
 "Delete Dimension" = "刪除尺寸";
 "Dimension — drag from one point to the other · Esc ends" = "尺寸 — 從一點拖曳到另一點 · Esc 結束";
+"Import Netlist…" = "匯入網表…";
+"Add to Board" = "加入電路板";
+"Gerber Viewer" = "Gerber 檢視器";
+"Gerber Viewer…" = "Gerber 檢視器…";
+"Import Gerber as Reference Layer…" = "將 Gerber 匯入為參考層…";
+"Keep this file over the board as a reference layer" = "將此檔案作為參考層保留在電路板上";
+"Open Files…" = "開啟檔案…";
+"Open Gerber and drill files to view them." = "開啟 Gerber 與鑽孔檔案以檢視。";
+"Not Gerber or drill files: %@" = "不是 Gerber 或鑽孔檔案：%@";
+"Hide Reference Layer %@" = "隱藏參考層 %@";
+"Show Reference Layer %@" = "顯示參考層 %@";
+"Remove Reference Layer %@" = "移除參考層 %@";
