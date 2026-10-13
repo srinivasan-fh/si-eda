@@ -21054,10 +21054,11 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
     Json parts = Json::array();
     for (int i = 1; i <= 6; ++i) parts.push(Json::parse(R"({"kind": "resistor", "ref": "R)" + std::to_string(i) + R"("})"));
+    parts.push(Json::parse(R"({"ref": "J1", "part": "PinHeader_1x02_P2.54mm"})"));  // through-hole: the bottom pour's anchor
     Json build = Json::object();
     build["parts"] = parts;
     build["nets"] = Json::parse(R"({"USB_DP": ["R1.1", "R2.1", "R3.1"], "USB_DM": ["R4.1", "R5.1", "R6.1"],
-        "GND": ["R1.2", "R2.2", "R3.2", "R4.2", "R5.2", "R6.2"]})");
+        "GND": ["R1.2", "R2.2", "R3.2", "R4.2", "R5.2", "R6.2", "J1.1", "J1.2"]})");
     build["pins"] = false;
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
     CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 40, "height": 30})"))));

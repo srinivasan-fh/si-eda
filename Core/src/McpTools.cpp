@@ -510,17 +510,24 @@ bool hasAntenna(const Component& c) {
 /// Auto Place's edge pass (before the others are placed): a part with an antenna goes to the top edge with its
 /// antenna end outwards and a keep-out (tracks, vias, pours) over that end; a USB / connector part (J…, P…, CN…,
 /// USB…) with an open end (its mouth) goes to the bottom edge facing out, one without (a pin header) to the left and
-/// right edges in turn (the other one when it has no room), its long side along the edge, filling the edge from the
-/// top. The others slide along their edge to the first free spot from the middle. Returns what moved and the ids
-/// placed (held while the rest is placed).
+/// right edges in turn (the other one when it has no room; filled from the top when neither has room from the middle),
+/// its long side along the edge. Each slides along its edge to the first free spot from the middle. Returns what moved
+/// and the ids placed (held while the rest is placed).
 Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
     Json moved = Json::array();
     Project& pr = p->project;
     const BoardSettings& st = pr.pcb.settings;
     if (st.hasCustomOutline()) return moved;  // a rectangle only
     int headers = 0;
-    for (const auto& c : pr.schematic.components()) {
-        if (!c.hasFootprint() || c.pcb.locked || isNetSymbolKind(c.kind) || !pr.pcb.onBoard(c)) continue;
+    std::vector<std::pair<double, int>> order;  // the largest first: a long header takes an edge's middle, short ones fit beside
+    for (const auto& c : pr.schematic.components())
+        if (c.hasFootprint() && !c.pcb.locked && !isNetSymbolKind(c.kind) && pr.pcb.onBoard(c)) {
+            const Rect cy = pr.checkPlacement(c.id, {st.width / 2, st.height / 2}, 0, c.pcb.bottom, 0).courtyard;
+            order.push_back({-std::max(cy.width(), cy.height()), c.id});
+        }
+    std::stable_sort(order.begin(), order.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+    for (const auto& [size, id] : order) {
+        const Component& c = *pr.schematic.find(id);
         const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
         const bool antenna = hasAntenna(c);
         if (!antenna && prefix != "J" && prefix != "P" && prefix != "CN" && prefix != "USB") continue;
@@ -549,12 +556,14 @@ Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
         // The antenna end at the edge; a connector 1 mm in, so copper can still pass in front of its pads.
         const double y0 = edge == 0 ? st.edgeClearance + cy.height() / 2 : st.height - st.edgeClearance - cy.height() / 2 - 1;
         bool done = false;
-        for (int attempt = 0; attempt < (side ? 2 : 1) && !done; ++attempt)  // a header with no room: the other side
+        // A header with no room from the middle out: the other side, then each side filled from the top.
+        for (int attempt = 0; attempt < (side ? 4 : 1) && !done; ++attempt)
         for (int k = 0; k < 4 * static_cast<int>(std::max(st.width, st.height)); ++k) {
             if (attempt && !k) right = !right;
             const double x0 = right ? st.width - st.edgeClearance - cy.width() / 2 - 1 : st.edgeClearance + cy.width() / 2 + 1;
             const double step = (k % 2 ? 1 : -1) * 0.5 * ((k + 1) / 2);
-            const double x = side ? x0 : st.width / 2 + step, y = side ? st.edgeClearance + cy.height() / 2 + 1 + 0.5 * k : y0;
+            const double x = side ? x0 : st.width / 2 + step,
+                         y = !side ? y0 : attempt < 2 ? st.height / 2 + step : st.edgeClearance + cy.height() / 2 + 1 + 0.5 * k;
             if (!takeJson(sieda_pcb_place_footprint(p, c.id, x, y, rotation, c.pcb.bottom ? 1 : 0, 0.25, 0)).get("committed").asBool(false))
                 continue;
             held->push_back(c.id);
@@ -671,7 +680,9 @@ Json placeDecoupling(SiedaProject* p) {
     auto stepAside = [&](Vec2 at, double radius, const std::function<bool()>& place) {  // small parts by `at` make room
         std::vector<std::pair<int, Vec2>> aside;
         for (const auto& o : sch.components())
-            if (!settled.count(o.id) && !o.pcb.locked && o.pcb.placed && o.def().pins.size() == 2 && (o.pcb.position - at).length() < radius)
+            if (!settled.count(o.id) && !o.pcb.locked && o.pcb.placed && o.def().pins.size() == 2 && (o.pcb.position - at).length() < radius &&
+                (o.kind == ComponentKind::Resistor || o.kind == ComponentKind::Capacitor || o.kind == ComponentKind::Inductor ||
+                 o.kind == ComponentKind::Diode || o.kind == ComponentKind::LED))  // passives only: connectors stay at their edge
                 aside.push_back({o.id, o.pcb.position});
         for (const auto& [id, was] : aside) p->project.schematic.find(id)->pcb.placed = false;
         const bool ok = place();

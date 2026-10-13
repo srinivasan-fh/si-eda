@@ -370,6 +370,12 @@ What the agent gets back, so it can wire correctly without guessing:
   `pcb_set_board` with an unknown `rulePreset` changes nothing and lists the presets; `pcb_add_pour` returns the
   area, islands, pads joined and islands without pads; the ERC's "no simulation model" notes are one line; the BOM
   names a catalog part's maker and KiCad footprint.
+- Auto Place puts the edge parts largest first (a long header takes an edge's middle; a header with no room there tries
+  the other side, then each side filled from the top); small passives step aside so a supply capacitor lands within
+  3.5 mm of its pin. `pcb_autoroute` lays a re-routed net's stitching vias again (`stitchingRestored`) and names
+  differential pairs it routed as two single nets (`pairsNotCoupled`, e.g. a USB-C's doubled D+ / D- pads);
+  `USB_DP` / `USB_DM` pair up; `pcb_set_stackup` warns when the impedance targets need tracks over 1 mm wide.
+  `render_schematic` staggers top / bottom pin names that would touch and keeps the ref and value clear of the pins.
 - `schematic_move_component` puts a tag naming a wire back at the wire's middle and lists `overlaps`; the ERC's
   `unconnectedPins` leaves out pins typed no-connect; `library_search` ranks parts whose name has the words first;
   each `pcb_drc` `unrouted` entry has both ends' coordinates (`at`).
