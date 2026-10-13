@@ -79,4 +79,19 @@ std::string gerberImageJson(const GerberImage& image);
 /// length rule, the target, tolerance and whether it is met.
 std::string exportNetLengthReport(const Schematic& sch, const PcbLayout& pcb);
 
+/// A part's pin map for firmware and FPGA tools, from the schematic: "header" (C #defines naming each signal net's pin;
+/// STM32-style PA5 pins also get CubeMX's NAME_Pin / NAME_GPIO_Port), "xdc" (Vivado PACKAGE_PIN), "qsf" (Quartus
+/// set_location_assignment) or "csv" (pin, name, net). Power, ground and unnamed nets are left out. Empty when `ref`
+/// is not on the schematic or the format is unknown.
+std::string exportPinMap(const Schematic& sch, const std::string& ref, const std::string& format);
+/// Pin → net assignments from an STM32CubeMX project (.ioc: PA5.GPIO_Label / .Signal), a Vivado .xdc, a Quartus .qsf or
+/// a two-column CSV (pin, net); pins as the file names them (a pin name such as PA5, or a package pin such as E3).
+std::vector<std::pair<std::string, std::string>> parsePinAssignments(const std::string& text);
+
+/// BOM as CSV with the columns asked for, in that order: item, designators, quantity, value, type, footprint,
+/// description, rating, manufacturer, mpn, supplier_part, unit_price, line_cost, dnp, notes, boards (unknown names are
+/// skipped; none = the standard set). `board` >= 0 keeps the parts on that board of a multi-board project; -1 = one
+/// consolidated BOM across every board (the boards column names where each line's parts go).
+std::string exportBomColumns(const Project& project, const std::vector<std::string>& columns, int board = -1);
+
 }  // namespace sieda

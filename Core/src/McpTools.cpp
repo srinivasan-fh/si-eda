@@ -1452,6 +1452,50 @@ void schematicTools(Table& t) {
               if (tags) j["tagsRemoved"] = tags;
               return out(j);
           });
+    t.add("schematic", "schematic_pin_map", "MCU / FPGA pin map", Kind::Edit, false,
+          "A part's pin map for firmware and FPGA tools. format: header (C #defines of each signal net's pin, with "
+          "CubeMX-style NAME_Pin / NAME_GPIO_Port for STM32 pins), xdc (Vivado), qsf (Quartus) or csv. assign (text) "
+          "or path: an STM32CubeMX .ioc, .xdc, .qsf or two-column CSV (pin, net) whose nets are put on the part's "
+          "pins with net labels (pins by name or number).",
+          Schema().str("ref", "The MCU / FPGA designator", true)
+              .str("format", "Export: header, xdc, qsf or csv", false, {"header", "xdc", "qsf", "csv"})
+              .str("assign", "Pin assignments to apply (file text)").str("path", "Pin assignment file in the root folder"),
+          [](McpServer& s, const Json& a) {
+              const std::string ref = requireStr(a, "ref");
+              const Component* c = proj(s).schematic.findByRef(ref);
+              check(c != nullptr, "No part " + ref);
+              Json j = obj();
+              if (a.has("assign") || a.has("path")) {
+                  const std::string text = a.has("assign") ? argStr(a, "assign") : readFileArg(s, argStr(a, "path")).asString();
+                  Json unknown = Json::array();
+                  int assigned = 0;
+                  const auto pinsOf = c->def().pins;
+                  for (const auto& [pin, net] : parsePinAssignments(text)) {
+                      std::string number;
+                      auto up = [](std::string v) {
+                          for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                          return v;
+                      };
+                      for (const auto& pd : pinsOf)
+                          if (up(pd.number) == up(pin) || (number.empty() && up(pd.name) == up(pin))) number = pd.number;
+                      if (number.empty()) {
+                          unknown.push(pin);
+                          continue;
+                      }
+                      Json args = obj(), list = Json::array();
+                      list.push(ref + "." + number);
+                      args["net"] = net, args["pins"] = list;
+                      for (const auto& t : mcpTools())
+                          if (t.name == "schematic_net_label") t.handler(s, args);
+                      ++assigned;
+                  }
+                  j["assigned"] = assigned;
+                  if (unknown.size()) j["unknownPins"] = unknown;
+              }
+              if (a.has("format")) j["text"] = exportPinMap(proj(s).schematic, ref, argStr(a, "format"));
+              check(a.has("format") || a.has("assign") || a.has("path"), "Give format to export, or assign / path to import");
+              return out(j);
+          });
     t.add("schematic", "schematic_net_label", "Net label", Kind::Edit, false,
           "Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins "
           "net \"net\" (also across sheets for scope global). Without pins the label is placed at x, y.",
@@ -4533,9 +4577,19 @@ void outputTools(Table& t) {
               return out(j);
           });
     t.add("output", "output_bom", "Bill of materials", Kind::Files, false,
-          "The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path.",
-          Schema().str("format", "json (default) or csv", false, {"json", "csv"}).str("path", "File to write"),
+          "The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. columns "
+          "or board give a CSV with the columns you choose, in order: item, designators, quantity, value, type, "
+          "footprint, description, rating, manufacturer, mpn, supplier_part, unit_price, line_cost, dnp, notes, "
+          "boards; board picks one board (index) of a multi-board project, else one consolidated BOM.",
+          Schema().str("format", "json (default) or csv", false, {"json", "csv"}).str("path", "File to write")
+              .array("columns", "CSV column names in order", "string")
+              .integer("board", "Board index (multi-board projects; omit for the consolidated BOM)"),
           [](McpServer& s, const Json& a) {
+              if (a.has("columns") || a.has("board")) {
+                  std::vector<std::string> cols;
+                  for (const auto& c : a.get("columns").items()) cols.push_back(c.asString(""));
+                  return out(writeOrInline(s, a, exportBomColumns(proj(s), cols, a.has("board") ? argInt(a, "board", -1) : -1), "BOM"));
+              }
               if (argStr(a, "format", "json") == "csv") return out(writeOrInline(s, a, takeText(sieda_export(P(s), "bom")), "BOM"));
               Json bom = takeJson(sieda_bom_json(P(s)));
               if (a.has("path")) {

@@ -22,6 +22,17 @@ typedef struct SiedaProject SiedaProject;
 typedef struct SiedaMesh SiedaMesh;
 typedef struct SiedaLiveSim SiedaLiveSim;
 
+/* ---- versions --------------------------------------------------------------------------- */
+/* The C API follows semantic versioning: MAJOR changes when a function is removed or its signature or meaning
+ * changes incompatibly (callers rebuild), MINOR when functions or JSON fields are added (old callers keep working),
+ * PATCH for fixes. JSON results only gain fields within a major version. Check SIEDA_API_VERSION_MAJOR at build time
+ * and sieda_api_version() at run time when the library is loaded dynamically. */
+#define SIEDA_API_VERSION_MAJOR 1
+#define SIEDA_API_VERSION_MINOR 1
+#define SIEDA_API_VERSION_PATCH 0
+/* MAJOR * 10000 + MINOR * 100 + PATCH of the library itself (10100 = 1.1.0). */
+int32_t sieda_api_version(void);
+
 /* ---- lifecycle & persistence ------------------------------------------------------------ */
 const char* sieda_version(void);
 SiedaProject* sieda_project_new(const char* name);
@@ -400,6 +411,9 @@ char* sieda_parse_pin_table(const char* text);
  * {"updates":[{"name","oldId","newId","instances","changes":[…]}],"updated":n}; `apply_json` ["NAME",…] or ["*"]
  * swaps those parts' instances to the catalog's current part first (pins kept by number), NULL lists only. */
 char* sieda_library_updates(SiedaProject* project, const char* apply_json);
+/* What loading the open project's file noticed (Project::loadNotes): a newer file format, settings this version would
+ * drop on save. JSON array of strings ([] for a clean load). Caller frees. */
+char* sieda_project_load_notes(const SiedaProject* project);
 void sieda_pcb_clear_routing(SiedaProject* project);
 /* Interactive via minimisation: the named nets (JSON array of names) are routed again with via minimisation; the
  * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.

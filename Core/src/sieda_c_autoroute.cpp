@@ -198,6 +198,13 @@ char* sieda_parse_pin_table(const char* text) {
     return dupText(out.dump());
 }
 
+char* sieda_project_load_notes(const SiedaProject* project) {
+    Json out = Json::array();
+    if (project)
+        for (const auto& n : project->project.loadNotes) out.push(n);
+    return dupText(out.dump());
+}
+
 char* sieda_library_updates(SiedaProject* project, const char* apply_json) {
     if (!project) return nullptr;
     try {

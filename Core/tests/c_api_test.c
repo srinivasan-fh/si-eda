@@ -5,6 +5,7 @@
 #include "sieda/sieda_c.h"
 
 int sieda_c_api_smoke_test(void) {
+    if (sieda_api_version() / 10000 != SIEDA_API_VERSION_MAJOR) return 90;  /* header and library agree */
     SiedaProject* p = sieda_project_new("C API smoke test");
     if (!p) return 1;
     int32_t v = sieda_add_component(p, 5 /* VoltageSource */, "9", 0, 0, 0, NULL);

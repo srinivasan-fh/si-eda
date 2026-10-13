@@ -158,6 +158,11 @@ extension EDAEngine {
         return Self.take(sieda_diff_projects(before, after, 1)) ?? ""
     }
 
+    /// What loading the open file noticed: a newer file format, settings this version would drop on save.
+    func loadNotes() -> [String] {
+        Self.decode([String].self, from: withHandle { Self.take(sieda_project_load_notes($0)) }) ?? []
+    }
+
     /// Pins from a CSV / TSV pin table (a header names the columns; CubeMX pin lists work as they are).
     static func parsePinTable(_ text: String) -> [CustomPartSpec.Pin] {
         decode([CustomPartSpec.Pin].self, from: take(sieda_parse_pin_table(text))) ?? []

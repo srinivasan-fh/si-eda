@@ -865,4 +865,149 @@ std::string gerberImageJson(const GerberImage& img) {
     return o.str();
 }
 
+std::string exportPinMap(const Schematic& sch, const std::string& ref, const std::string& format) {
+    const Component* c = sch.findByRef(ref);
+    if (!c || (format != "header" && format != "xdc" && format != "qsf" && format != "csv")) return "";
+    std::ostringstream o;
+    if (format == "header")
+        o << "/* " << ref << " pin map from the SiEDA schematic (generated: edit the schematic, not this file). */\n"
+          << "#pragma once\n\n";
+    if (format == "csv") o << "Pin,Name,Net\n";
+    if (format == "xdc" || format == "qsf") o << "# " << ref << " pin assignments from the SiEDA schematic\n";
+    const auto& pins = c->def().pins;
+    for (size_t i = 0; i < pins.size(); ++i) {
+        const int n = sch.netOf({c->id, static_cast<int>(i)});
+        if (n < 0) continue;
+        const std::string& net = sch.nets()[static_cast<size_t>(n)].name;
+        if (format == "csv") {
+            o << pins[i].number << "," << pins[i].name << "," << net << "\n";
+            continue;
+        }
+        if (net.empty() || net.rfind("N$", 0) == 0 || net.rfind("Net-", 0) == 0 || sch.netRole(n) != NetRole::Signal) continue;
+        std::string macro;
+        for (char ch : net) macro += std::isalnum(static_cast<unsigned char>(ch)) ? static_cast<char>(std::toupper(static_cast<unsigned char>(ch))) : '_';
+        if (format == "xdc") o << "set_property PACKAGE_PIN " << pins[i].number << " [get_ports {" << net << "}]\n";
+        else if (format == "qsf") o << "set_location_assignment PIN_" << pins[i].number << " -to " << net << "\n";
+        else {
+            const std::string& pn = pins[i].name;
+            o << "#define " << macro << "_PIN \"" << pn << "\"  /* pin " << pins[i].number << " */\n";
+            if (pn.size() >= 3 && pn.size() <= 4 && pn[0] == 'P' && std::isupper(static_cast<unsigned char>(pn[1])) &&
+                std::all_of(pn.begin() + 2, pn.end(), ::isdigit))
+                o << "#define " << macro << "_Pin GPIO_PIN_" << pn.substr(2) << "\n#define " << macro << "_GPIO_Port GPIO" << pn[1] << "\n";
+        }
+    }
+    return o.str();
+}
+
+std::vector<std::pair<std::string, std::string>> parsePinAssignments(const std::string& text) {
+    std::vector<std::pair<std::string, std::string>> out;
+    std::map<std::string, std::string> label, signal;  // CubeMX: pin → user label / peripheral signal
+    std::istringstream in(text);
+    auto trim = [](std::string v) {
+        const size_t a = v.find_first_not_of(" \t\r\"{}"), b = v.find_last_not_of(" \t\r\"{}");
+        return a == std::string::npos ? std::string() : v.substr(a, b - a + 1);
+    };
+    for (std::string line; std::getline(in, line) && out.size() < 10000;) {
+        line = trim(line);
+        if (line.empty() || line[0] == '#') continue;
+        if (const size_t p = line.find("PACKAGE_PIN"); p != std::string::npos && line.find("get_ports") != std::string::npos) {
+            std::istringstream w(line.substr(p + 11));
+            std::string pin;
+            w >> pin;
+            const size_t g = line.find("get_ports"), e = line.rfind(']');
+            const std::string port = trim(line.substr(g + 9, e == std::string::npos ? std::string::npos : e - g - 9));
+            if (!pin.empty() && !port.empty()) out.push_back({trim(pin), port});
+        } else if (line.rfind("set_location_assignment", 0) == 0) {
+            std::istringstream w(line);
+            std::string word, pin, net;
+            while (w >> word)
+                if (word.rfind("PIN_", 0) == 0) pin = word.substr(4);
+                else if (word == "-to") w >> net;
+            if (!pin.empty() && !net.empty()) out.push_back({pin, trim(net)});
+        } else if (const size_t dot = line.find('.'), eq = line.find('='); dot != std::string::npos && eq != std::string::npos && dot < eq &&
+                   (line.compare(dot, 12, ".GPIO_Label=") == 0 || line.compare(dot, 8, ".Signal=") == 0)) {
+            const std::string pin = line.substr(0, dot), value = trim(line.substr(eq + 1));
+            if (pin.size() >= 3 && pin[0] == 'P' && !value.empty()) (line[dot + 1] == 'G' ? label : signal)[pin] = value;
+        } else if (const size_t comma = line.find(','); comma != std::string::npos && line.find('=') == std::string::npos) {
+            const std::string pin = trim(line.substr(0, comma));
+            std::string net = trim(line.substr(comma + 1));
+            net = net.substr(0, net.find(','));
+            std::string lower = pin;
+            for (auto& ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (!pin.empty() && !net.empty() && lower != "pin" && lower != "number") out.push_back({pin, trim(net)});
+        }
+    }
+    for (const auto& [pin, sig] : signal)  // CubeMX: the user's label names the net, else the peripheral signal
+        if (sig.rfind("GPIO_", 0) != 0 || label.count(pin)) out.push_back({pin, label.count(pin) ? label[pin] : sig});
+    for (const auto& [pin, l] : label)
+        if (!signal.count(pin)) out.push_back({pin, l});
+    return out;
+}
+
+std::string exportBomColumns(const Project& project, const std::vector<std::string>& wanted, int board) {
+    static const std::vector<std::pair<std::string, std::string>> known = {
+        {"item", "Item"}, {"designators", "Designators"}, {"quantity", "Quantity"}, {"value", "Value"}, {"type", "Type"},
+        {"footprint", "Footprint"}, {"description", "Description"}, {"rating", "Rating"}, {"manufacturer", "Manufacturer"},
+        {"mpn", "Manufacturer Part #"}, {"supplier_part", "Supplier Part #"}, {"unit_price", "Unit Price"},
+        {"line_cost", "Line Cost"}, {"dnp", "DNP"}, {"notes", "Notes"}, {"boards", "Boards"}};
+    std::vector<std::pair<std::string, std::string>> cols;
+    for (const auto& w : wanted)
+        for (const auto& k : known)
+            if (k.first == w) cols.push_back(k);
+    if (cols.empty())
+        for (const char* d : {"item", "designators", "quantity", "value", "footprint", "manufacturer", "mpn", "dnp"})
+            for (const auto& k : known)
+                if (k.first == d) cols.push_back(k);
+    auto csv = [](std::string v) {
+        if (v.find_first_of(",\"\n") == std::string::npos) return v;
+        std::string o = "\"";
+        for (char c : v) o += c == '"' ? std::string("\"\"") : std::string(1, c);
+        return o + "\"";
+    };
+    auto boardName = [&](int b) {
+        return b >= 0 && b < static_cast<int>(project.boardNames.size()) ? project.boardNames[static_cast<size_t>(b)] : "Board " + std::to_string(b + 1);
+    };
+    std::ostringstream o;
+    for (size_t i = 0; i < cols.size(); ++i) o << (i ? "," : "") << cols[i].second;
+    o << "\n";
+    int item = 0;
+    for (auto line : buildBom(project.schematic)) {
+        std::set<int> boards;
+        std::vector<std::string> refs;
+        for (size_t k = 0; k < line.componentIds.size(); ++k) {
+            const Component* c = project.schematic.find(line.componentIds[k]);
+            if (!c || (board >= 0 && c->pcb.board != board)) continue;
+            boards.insert(c->pcb.board);
+            refs.push_back(line.refs[k]);
+        }
+        if (refs.empty()) continue;
+        line.refs = refs;
+        std::string where;
+        for (int b : boards) where += (where.empty() ? "" : "; ") + boardName(b);
+        char price[32], cost[32];
+        std::snprintf(price, sizeof price, "%.4f", line.sourcing.unitPrice);
+        std::snprintf(cost, sizeof cost, "%.2f", line.lineCost());
+        std::string joinedRefs, joinedNotes;
+        for (const auto& r : line.refs) joinedRefs += (joinedRefs.empty() ? "" : ",") + r;
+        for (const auto& n : line.notes) joinedNotes += (joinedNotes.empty() ? "" : "; ") + n;
+        ++item;
+        for (size_t i = 0; i < cols.size(); ++i) {
+            const std::string& k = cols[i].first;
+            const std::string v = k == "item" ? std::to_string(item) : k == "designators" ? joinedRefs
+                                : k == "quantity" ? std::to_string(line.quantity()) : k == "value" ? line.value
+                                : k == "type" ? line.type : k == "footprint" ? line.footprint
+                                : k == "description" ? line.description : k == "rating" ? line.rating
+                                : k == "manufacturer" ? (line.sourcing.manufacturer.empty() ? line.suggestedManufacturer : line.sourcing.manufacturer)
+                                : k == "mpn" ? (line.sourcing.mpn.empty() ? line.suggestedMpn : line.sourcing.mpn)
+                                : k == "supplier_part" ? line.sourcing.supplierPart
+                                : k == "unit_price" ? (line.sourcing.unitPrice > 0 ? std::string(price) : std::string())
+                                : k == "line_cost" ? (line.sourcing.unitPrice > 0 ? std::string(cost) : std::string())
+                                : k == "dnp" ? (line.sourcing.dnp ? "DNP" : "") : k == "notes" ? joinedNotes : where;
+            o << (i ? "," : "") << csv(v);
+        }
+        o << "\n";
+    }
+    return o.str();
+}
+
 }  // namespace sieda

@@ -435,7 +435,27 @@ What the agent gets back, so it can wire correctly without guessing:
 Built-in examples (`project_list_examples`): `led_indicator`, `transistor_switch`, `rc_lowpass`,
 `opamp_noninverting`, `ne555_blinker`.
 
+## Python
+
+`python/sieda.py` (standard library only) starts `sieda-mcp` and turns every tool into a method:
+
+```python
+from sieda import Sieda
+with Sieda("build/sieda-mcp", root="designs") as s:
+    s.project_load_example(id="led_indicator")
+    s.pcb_update_from_schematic()
+    s.pcb_autoroute()
+    print(s.pcb_drc())
+    s.output_fabrication_package(dir="fab")
+```
+
+A tool that fails raises `SiedaError` with the tool's message. `tools()` lists the tools with their schemas. CTest
+`sieda_python_api` runs it end to end.
+
 ## Embedding the engine (C API)
+
+The C API is versioned semantically: `SIEDA_API_VERSION_MAJOR` / `_MINOR` / `_PATCH` in `sieda_c.h`, and
+`sieda_api_version()` at run time. MAJOR changes break callers, MINOR adds functions or JSON fields, PATCH fixes.
 
 The app's live endpoint reuses this engine through the C API in `sieda_c.h`:
 
@@ -528,7 +548,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
-### schematic (36)
+### schematic (37)
 
 Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC, variants.
 
@@ -542,6 +562,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
 | `schematic_connect` | edit | Draws wires between pins. |
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
+| `schematic_pin_map` | edit | A part's pin map for firmware and FPGA tools. |
 | `schematic_net_label` | edit | Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins net "net" (also across sheets for scope global). |
 | `schematic_connect_to_ground` | edit | Wires each pin to its own ground symbol (net GND, the simulation reference). |
 | `schematic_set_no_connect` | edit | Marks pins as deliberately unconnected (ERC stops reporting them), or clears the mark. |

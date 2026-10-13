@@ -2814,6 +2814,56 @@ final class DesignStore: ObservableObject {
         workspace = .schematic
     }
 
+    // MARK: - Project templates
+
+    /// The user's project templates (Application Support/SiEDA/Templates/*.siedaproj), by name.
+    static var templatesFolder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SiEDA/Templates", isDirectory: true)
+    }
+
+    func templateURLs() -> [URL] {
+        ((try? FileManager.default.contentsOfDirectory(at: Self.templatesFolder, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "siedaproj" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    /// Saves the open design (rules, stack-up, board, title block, parts) as a template for new projects.
+    func saveAsTemplate() {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Save as Template")
+        let field = NSTextField(string: documentURL?.deletingPathExtension().lastPathComponent ?? "My Template")
+        field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: String(localized: "Save"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "/", with: "-")
+        if !name.isEmpty { saveTemplate(named: name) }
+    }
+
+    @discardableResult
+    func saveTemplate(named name: String) -> URL? {
+        do {
+            try FileManager.default.createDirectory(at: Self.templatesFolder, withIntermediateDirectories: true)
+            let url = Self.templatesFolder.appendingPathComponent(name).appendingPathExtension("siedaproj")
+            try engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+            statusMessage = "Saved template \(name)"
+            return url
+        } catch {
+            present(error, title: "Could not save the template")
+            return nil
+        }
+    }
+
+    /// A new, untitled project started from a template.
+    func newFromTemplate(_ url: URL) {
+        guard confirmDiscardChanges() else { return }
+        open(url: url)
+        documentURL = nil
+        isDirty = false
+        statusMessage = "New project from template \(url.deletingPathExtension().lastPathComponent)"
+    }
+
     func openProject() {
         guard confirmDiscardChanges() else { return }
         let panel = NSOpenPanel()
@@ -2849,6 +2899,13 @@ final class DesignStore: ObservableObject {
             workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
             statusMessage = "Opened \(url.lastPathComponent)"
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            let notes = engine.loadNotes()
+            if !notes.isEmpty {  // a file from a newer SiEDA: say what would be lost before anyone saves over it
+                let alert = NSAlert()
+                alert.messageText = String(localized: "This file has settings this version cannot keep")
+                alert.informativeText = notes.joined(separator: "\n\n")
+                alert.runModal()
+            }
         } catch {
             present(error, title: "Could not open project")
         }

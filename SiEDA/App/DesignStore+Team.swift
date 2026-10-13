@@ -135,6 +135,29 @@ extension DesignStore {
         if alert.runModal() == .alertFirstButtonReturn { _ = runTool("library_updates", arguments: ["apply": ["*"]]) }
     }
 
+    /// A part's pin map as a firmware header (.h), Vivado (.xdc), Quartus (.qsf) or CSV file, by the extension chosen.
+    func exportPinMap(ref: String) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(ref)_pins.h"
+        panel.message = "Pin map of \(ref): .h (firmware #defines), .xdc (Vivado), .qsf (Quartus) or .csv"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let format = ["h": "header", "xdc": "xdc", "qsf": "qsf", "csv": "csv"][url.pathExtension.lowercased()] ?? "header"
+        let r = runTool("schematic_pin_map", arguments: ["ref": ref, "format": format])
+        let text = (try? JSONSerialization.jsonObject(with: Data(r.text.utf8)) as? [String: Any])?["text"] as? String ?? ""
+        do { try text.write(to: url, atomically: true, encoding: .utf8) } catch { present(error, title: "Could not write the pin map") }
+    }
+
+    /// Net labels on a part's pins from an STM32CubeMX .ioc, Vivado .xdc, Quartus .qsf or CSV (pin, net) file.
+    func assignPins(ref: String) {
+        guard let picked = chooseText("Choose pin assignments for \(ref): CubeMX .ioc, .xdc, .qsf or CSV (pin, net).",
+                                      extensions: ["ioc", "xdc", "qsf", "csv", "txt"]) else { return }
+        let r = runTool("schematic_pin_map", arguments: ["ref": ref, "assign": picked.1])
+        let result = (try? JSONSerialization.jsonObject(with: Data(r.text.utf8)) as? [String: Any]) ?? [:]
+        let unknown = (result["unknownPins"] as? [String]) ?? []
+        statusMessage = r.isError ? r.text : "\(result["assigned"] as? Int ?? 0) pins of \(ref) labelled"
+            + (unknown.isEmpty ? "" : "; not on the part: " + unknown.prefix(8).joined(separator: ", "))
+    }
+
     func removeGraphic(at index: Int) {
         _ = runTool("pcb_graphics", arguments: ["remove": index])
     }

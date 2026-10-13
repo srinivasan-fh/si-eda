@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     var body: some View {
@@ -285,6 +286,8 @@ private struct AppearanceSettings: View {
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
     @AppStorage(DesignStore.autosaveKey) private var autosave = false
+    @AppStorage(Theme.layerPaletteKey) private var layerPalette = ""
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"
     @State private var customisingSchematic = false
 
     var body: some View {
@@ -302,6 +305,23 @@ private struct AppearanceSettings: View {
             Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
+            Picker("Board Units", selection: $displayUnit) {
+                Text(verbatim: "mm").tag("mm")
+                Text(verbatim: "mil").tag("mil")
+                Text(verbatim: "inch").tag("in")
+            }
+            .pickerStyle(.segmented)
+            .help("Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)")
+            Picker("Layer Colours", selection: $layerPalette) {
+                Text("Standard").tag("")
+                Text("Colour-blind safe (Okabe–Ito)").tag("colourblind")
+            }
+            .help("Copper layer colours told apart without red / green: orange top, sky-blue bottom, yellow, bluish-green, vermillion and purple inner layers")
+            HStack {
+                Button("Export Settings…") { SettingsTransfer.exportWithPanel() }
+                Button("Import Settings…") { SettingsTransfer.importWithPanel() }
+            }
+            .help("Shortcuts, themes, colours, library favourites and tags, and other preferences as one file (keys and passwords stay in the Keychain)")
             Toggle("Save projects automatically", isOn: $autosave)
             Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                 .font(.caption)
@@ -415,6 +435,9 @@ final class ShortcutStore: ObservableObject {
 
     init() { overrides = UserDefaults.standard.dictionary(forKey: Self.key) as? [String: String] ?? [:] }
 
+    /// Picks up shortcuts written to user defaults from elsewhere (Import Settings…).
+    func reload() { overrides = UserDefaults.standard.dictionary(forKey: Self.key) as? [String: String] ?? [:] }
+
     /// The text of a command's shortcut ("cmd+shift+k"), or "" for none.
     func text(_ id: String) -> String { overrides[id] ?? (Self.commands + Self.toolKeys).first { $0.id == id }?.standard ?? "" }
 
@@ -427,10 +450,13 @@ final class ShortcutStore: ObservableObject {
     func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
 
     /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
-    static let toolPresetNames = ["SiEDA", "KiCad"]
+    /// Altium: the second key of its Place-menu sequences (P, W wire · P, N net label · P, O power port · P, T track),
+    /// L flips a part to the other side; two-key sequences themselves are not supported.
+    static let toolPresetNames = ["SiEDA", "KiCad", "Altium"]
     static let toolPresets: [String: [String: String]] = [
         "SiEDA": [:],
         "KiCad": ["sch.place": "a", "sch.ground": "p", "sch.select": "", "sch.pan": "", "pcb.tune": "7", "pcb.pan": ""],
+        "Altium": ["sch.label": "n", "sch.ground": "o", "sch.pan": "", "pcb.route": "t", "pcb.tune": "", "pcb.flip": "l", "pcb.pan": ""],
     ]
 
     func applyToolPreset(_ keys: [String: String]) {
@@ -514,5 +540,40 @@ struct ShortcutSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Settings export / import: this app's preferences (user defaults) as a property list, without the system's own
+/// window and panel state. Secrets never live in user defaults (API keys are in the Keychain).
+enum SettingsTransfer {
+    static func exportable() -> [String: Any] {
+        let all = UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "") ?? [:]
+        return all.filter { key, _ in !key.hasPrefix("NS") && !key.hasPrefix("Apple") && !key.hasPrefix("com.apple") }
+    }
+
+    static func data() -> Data? {
+        try? PropertyListSerialization.data(fromPropertyList: exportable(), format: .xml, options: 0)
+    }
+
+    /// Applies an exported file; false when it is not one.
+    @discardableResult
+    static func apply(_ data: Data) -> Bool {
+        guard let dict = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any] else { return false }
+        for (key, value) in dict where !key.hasPrefix("NS") && !key.hasPrefix("Apple") { UserDefaults.standard.set(value, forKey: key) }
+        return true
+    }
+
+    static func exportWithPanel() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "SiEDA Settings.plist"
+        guard panel.runModal() == .OK, let url = panel.url, let data = data() else { return }
+        try? data.write(to: url)
+    }
+
+    static func importWithPanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.propertyList]
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        if apply(data) { ShortcutStore.shared.reload() }
     }
 }

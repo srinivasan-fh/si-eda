@@ -6736,6 +6736,44 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.runTool("library_updates", arguments: [:]).text.contains("\"updates\":[]"))
     }
 
+    func testSettingsTransferTemplatesAndPresets() throws {
+        // Settings round trip through the exported property list.
+        let key = "test.settingsTransfer"
+        UserDefaults.standard.set("x", forKey: key)
+        let data = try XCTUnwrap(SettingsTransfer.data())
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertTrue(SettingsTransfer.apply(data))
+        XCTAssertEqual(UserDefaults.standard.string(forKey: key), "x")
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertFalse(SettingsTransfer.apply(Data("not a plist".utf8)))
+        // A template saved from one design starts another.
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        let url = try XCTUnwrap(store.saveTemplate(named: "test-template-\(UUID().uuidString)"))
+        defer { try? FileManager.default.removeItem(at: url) }
+        XCTAssertTrue(store.templateURLs().contains(url))
+        let other = DesignStore()
+        other.newFromTemplate(url)
+        XCTAssertNil(other.documentURL)
+        XCTAssertEqual(other.snapshot.components.count, store.snapshot.components.count)
+        XCTAssertEqual(ShortcutStore.toolPresets["Altium"]?["pcb.flip"], "l")
+        let unit = UserDefaults.standard.string(forKey: Theme.displayUnitKey)
+        defer { UserDefaults.standard.set(unit, forKey: Theme.displayUnitKey) }
+        UserDefaults.standard.set("in", forKey: Theme.displayUnitKey)
+        XCTAssertEqual(Theme.length(25.4), "1.0000 in")
+        UserDefaults.standard.set("mil", forKey: Theme.displayUnitKey)
+        XCTAssertEqual(Theme.length(2.54), "100.0 mil")
+    }
+
+    func testPinMapThroughTheCoreTool() {
+        let store = DesignStore()
+        XCTAssertFalse(store.runTool("schematic_build", arguments: ["parts": [["ref": "U1", "part": "STM32F103C8T6"]], "pins": false]).isError)
+        let r = store.runTool("schematic_pin_map", arguments: ["ref": "U1", "assign": "PA5.GPIO_Label=LED\n", "format": "header"])
+        XCTAssertFalse(r.isError)
+        XCTAssertTrue(r.text.contains("LED_Pin GPIO_PIN_5"), r.text)
+    }
+
     func testPinTableImport() {
         let pins = EDAEngine.parsePinTable("Position,Name,Type,Signal\n1,VBAT,Power,\n30,PA9,I/O,USART1_TX\n")
         XCTAssertEqual(pins.map(\.number), ["1", "30"])

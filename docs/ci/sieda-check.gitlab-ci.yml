@@ -1,0 +1,25 @@
+# GitLab CI template for a hardware repository: every push and merge request checks the design headlessly (ERC, DRC,
+# reliability, design verification) and keeps the fabrication package as a job artifact.
+# Copy to .gitlab-ci.yml in the design's repository (or include it) and set DESIGN to the project file.
+variables:
+  DESIGN: board.siedaproj
+  SIEDA_REF: main   # pin a SiEDA commit or tag for reproducible checks
+
+sieda-check:
+  image: ubuntu:24.04
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git ca-certificates cmake g++ make libharfbuzz-dev
+    - git clone --depth 1 --branch "$SIEDA_REF" https://github.com/srinivasan-fh/si-eda.git .sieda
+    - cmake -S .sieda -B .sieda/build -DCMAKE_BUILD_TYPE=Release
+    - cmake --build .sieda/build -j --target sieda-cli
+  script:
+    # Exit code 1 when design verification fails (ERC / DRC errors, unrouted nets, missing outputs).
+    - .sieda/build/sieda-cli "$DESIGN" out/
+  artifacts:
+    when: always
+    name: fabrication-package
+    paths:
+      - out/
