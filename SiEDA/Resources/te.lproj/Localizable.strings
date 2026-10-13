@@ -1466,3 +1466,13 @@
 "Wires" = "వైర్లు";
 "Zoom to Sheet Frame" = "షీట్ ఫ్రేమ్‌కు జూమ్";
 "View Options" = "వీక్షణ ఎంపికలు";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG చిత్రం…";
+"SVG Image…" = "SVG చిత్రం…";
+"Print…" = "ముద్రించు…";
+"Save projects automatically" = "ప్రాజెక్ట్‌లను స్వయంచాలకంగా సేవ్ చేయి";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "ఫైల్ ఉన్న ప్రాజెక్ట్ ప్రతి మార్పు తర్వాత కొన్ని సెకన్లలో దానిలో సేవ్ అవుతుంది (రికవరీ కాపీ ఎప్పుడూ ఉంటుంది).";
+"Previous message" = "మునుపటి సందేశం";
+"Next message" = "తదుపరి సందేశం";
+"Align the selected parts (schematic)" = "ఎంచుకున్న భాగాలను సమలేఖనం చేయి (స్కీమాటిక్)";
+"Note tool, up to the parent sheet (schematic)" = "గమనిక సాధనం, మాతృ షీట్‌కు (స్కీమాటిక్)";

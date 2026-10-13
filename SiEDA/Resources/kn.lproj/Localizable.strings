@@ -1466,3 +1466,13 @@
 "Wires" = "ತಂತಿಗಳು";
 "Zoom to Sheet Frame" = "ಶೀಟ್ ಚೌಕಟ್ಟಿಗೆ ಜೂಮ್";
 "View Options" = "ವೀಕ್ಷಣೆ ಆಯ್ಕೆಗಳು";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG ಚಿತ್ರ…";
+"SVG Image…" = "SVG ಚಿತ್ರ…";
+"Print…" = "ಮುದ್ರಿಸಿ…";
+"Save projects automatically" = "ಯೋಜನೆಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಉಳಿಸಿ";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "ಫೈಲ್ ಇರುವ ಯೋಜನೆ ಪ್ರತಿ ಬದಲಾವಣೆಯ ಕೆಲವು ಸೆಕೆಂಡುಗಳ ನಂತರ ಅದರಲ್ಲೇ ಉಳಿಯುತ್ತದೆ (ಮರುಪಡೆಯುವ ಪ್ರತಿ ಯಾವಾಗಲೂ ಇರುತ್ತದೆ).";
+"Previous message" = "ಹಿಂದಿನ ಸಂದೇಶ";
+"Next message" = "ಮುಂದಿನ ಸಂದೇಶ";
+"Align the selected parts (schematic)" = "ಆಯ್ಕೆ ಮಾಡಿದ ಭಾಗಗಳನ್ನು ಜೋಡಿಸಿ (ಸ್ಕೀಮ್ಯಾಟಿಕ್)";
+"Note tool, up to the parent sheet (schematic)" = "ಟಿಪ್ಪಣಿ ಉಪಕರಣ, ಮೂಲ ಶೀಟ್‌ಗೆ (ಸ್ಕೀಮ್ಯಾಟಿಕ್)";

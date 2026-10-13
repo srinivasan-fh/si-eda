@@ -174,6 +174,7 @@ enum ViewCommand: Equatable {
     case zoomArea            // arm zoom-to-rectangle; the next drag defines the area
     case setLevel(CGFloat)   // absolute zoom, 1.0 = 100 %
     case pan(dx: CGFloat, dy: CGFloat)  // fractions of the visible width/height
+    case focus(CGPoint)      // centre this world point (a check's location), zoomed in if far out
 }
 
 /// A `ViewCommand` with identity, so repeating the same command is still observed by `onChange`.
@@ -194,7 +195,7 @@ extension Viewport {
         case .zoomOut: zoom(by: 0.8, anchor: anchor ?? centre, limits: limits)
         case .setLevel(let level): setScale(level * baseScale, anchor: centre, limits: limits)
         case .pan(let dx, let dy): pan(by: CGSize(width: -dx * size.width, height: -dy * size.height))
-        case .fit, .fitSelection, .zoomArea: return false
+        case .fit, .fitSelection, .zoomArea, .focus: return false
         }
         return true
     }

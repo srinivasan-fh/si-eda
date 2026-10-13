@@ -1466,3 +1466,13 @@
 "Wires" = "വയറുകൾ";
 "Zoom to Sheet Frame" = "ഷീറ്റ് ഫ്രെയിമിലേക്ക് സൂം";
 "View Options" = "കാഴ്ച ഓപ്ഷനുകൾ";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG ചിത്രം…";
+"SVG Image…" = "SVG ചിത്രം…";
+"Print…" = "പ്രിന്റ് ചെയ്യുക…";
+"Save projects automatically" = "പ്രോജക്ടുകൾ സ്വയം സേവ് ചെയ്യുക";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "ഫയലുള്ള പ്രോജക്ട് ഓരോ മാറ്റത്തിനും ഏതാനും സെക്കൻഡ് കഴിഞ്ഞ് അതിൽ സേവ് ആകും (വീണ്ടെടുക്കൽ പകർപ്പ് എപ്പോഴും സൂക്ഷിക്കും).";
+"Previous message" = "മുൻ സന്ദേശം";
+"Next message" = "അടുത്ത സന്ദേശം";
+"Align the selected parts (schematic)" = "തിരഞ്ഞെടുത്ത ഭാഗങ്ങൾ വിന്യസിക്കുക (സ്കീമാറ്റിക്)";
+"Note tool, up to the parent sheet (schematic)" = "കുറിപ്പ് ഉപകരണം, മാതൃ ഷീറ്റിലേക്ക് (സ്കീമാറ്റിക്)";

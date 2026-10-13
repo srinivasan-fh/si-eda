@@ -203,6 +203,13 @@ struct SchematicCanvas: View {
                     DispatchQueue.main.async { store.paste(clip: text) }
                 }
             }
+            .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow], phases: .down) { press in
+                // ⌥⌘ arrows align the selection's edges (by their outlines) left / right / top / bottom.
+                guard press.modifiers == [.command, .option], store.selection.count >= 2 else { return .ignored }
+                let mode = press.key == .leftArrow ? "left" : press.key == .rightArrow ? "right" : press.key == .upArrow ? "top" : "bottom"
+                store.align(mode, byOutline: true)
+                return .handled
+            }
             .onKeyPress(keys: [.upArrow], phases: .down) { press in
                 // ⌘↑: up to the parent sheet (the one whose sheet symbol this sheet is).
                 guard press.modifiers == .command, let parent = store.snapshot.sheet(store.snapshot.activeSheet)?.parent,
@@ -346,6 +353,9 @@ struct SchematicCanvas: View {
         case .fit: fitToContent(size: size)
         case .fitSelection: fitSelection(size: size)
         case .zoomArea: zoomArmed = true
+        case .focus(let p):
+            if viewport.scale < Viewport.schematicBaseScale { viewport.setScale(Viewport.schematicBaseScale * 1.5, anchor: CGPoint(x: size.width / 2, y: size.height / 2), limits: scaleLimits) }
+            viewport.center(on: p, in: size)
         default:
             viewport.apply(command, size: size, anchor: hover, baseScale: Viewport.schematicBaseScale, limits: scaleLimits)
         }
@@ -1271,6 +1281,21 @@ struct SchematicCanvas: View {
                 let s = hit.point.applying(screen)
                 ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(pal.preview.color))
                 ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(pal.preview.color), lineWidth: 1.2)
+            }
+        }
+
+        // Check markers: every ERC error / warning on this sheet at its spot; the one opened from Messages is ringed.
+        for v in store.ercResults where v.hasLocation && v.severity != .info && (v.sheet ?? snap.activeSheet) == snap.activeSheet {
+            let s = CGPoint(x: v.x, y: v.y).applying(screen)
+            let colour = v.severity == .error ? pal.error.color : Color.orange
+            var tri = Path()
+            tri.move(to: CGPoint(x: s.x, y: s.y - 9))
+            tri.addLine(to: CGPoint(x: s.x + 6, y: s.y + 2))
+            tri.addLine(to: CGPoint(x: s.x - 6, y: s.y + 2))
+            tri.closeSubpath()
+            ctx.fill(tri, with: .color(colour.opacity(0.85)))
+            if store.focusedViolation == v.id {
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 16, y: s.y - 16, width: 32, height: 32)), with: .color(colour), lineWidth: 2.5)
             }
         }
 

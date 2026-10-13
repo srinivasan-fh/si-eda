@@ -64,6 +64,7 @@ struct KeyboardShortcutsView: View {
         ("V  H  W", "Select, pan and wire tools (schematic)"), ("P", "Place a part"),
         ("R  X  Y", "Rotate and mirror (the selection, or the part under the pointer)"),
         ("⌘D  ⌥-drag  /", "Duplicate, move without the wires, turn a wire's corner the other way"),
+        ("⌥⌘ ← → ↑ ↓", "Align the selected parts (schematic)"), ("T  ⌘↑", "Note tool, up to the parent sheet (schematic)"),
     ]
 
     var body: some View {

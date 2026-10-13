@@ -1466,3 +1466,13 @@
 "Wires" = "கம்பிகள்";
 "Zoom to Sheet Frame" = "தாள் சட்டத்துக்குப் பெரிதாக்கு";
 "View Options" = "காட்சி விருப்பங்கள்";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG படம்…";
+"SVG Image…" = "SVG படம்…";
+"Print…" = "அச்சிடு…";
+"Save projects automatically" = "திட்டங்களைத் தானாகச் சேமி";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "கோப்புள்ள திட்டம் ஒவ்வொரு மாற்றத்துக்கும் சில வினாடிகளில் அதிலேயே சேமிக்கப்படும் (மீட்பு நகல் எப்போதும் இருக்கும்).";
+"Previous message" = "முந்தைய செய்தி";
+"Next message" = "அடுத்த செய்தி";
+"Align the selected parts (schematic)" = "தேர்ந்த பாகங்களை ஒழுங்குபடுத்து (சுற்றுவரைபடம்)";
+"Note tool, up to the parent sheet (schematic)" = "குறிப்புக் கருவி, மேல் தாளுக்கு (சுற்றுவரைபடம்)";

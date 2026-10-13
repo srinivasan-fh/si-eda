@@ -1466,3 +1466,13 @@
 "Wires" = "Wayar";
 "Zoom to Sheet Frame" = "Zum ke Bingkai Helaian";
 "View Options" = "Pilihan Paparan";
+"PDF…" = "PDF…";
+"PNG Image…" = "Imej PNG…";
+"SVG Image…" = "Imej SVG…";
+"Print…" = "Cetak…";
+"Save projects automatically" = "Simpan projek secara automatik";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "Projek yang mempunyai fail disimpan ke dalamnya beberapa saat selepas setiap perubahan (salinan pemulihan sentiasa disimpan).";
+"Previous message" = "Mesej sebelumnya";
+"Next message" = "Mesej seterusnya";
+"Align the selected parts (schematic)" = "Jajarkan komponen terpilih (skematik)";
+"Note tool, up to the parent sheet (schematic)" = "Alat nota, naik ke helaian induk (skematik)";

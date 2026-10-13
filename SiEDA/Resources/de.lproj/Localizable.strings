@@ -1466,3 +1466,13 @@
 "Wires" = "Leitungen";
 "Zoom to Sheet Frame" = "Auf Blattrahmen zoomen";
 "View Options" = "Ansichtsoptionen";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG-Bild…";
+"SVG Image…" = "SVG-Bild…";
+"Print…" = "Drucken…";
+"Save projects automatically" = "Projekte automatisch sichern";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "Ein Projekt mit Datei wird einige Sekunden nach jeder Änderung darin gesichert (eine Wiederherstellungskopie bleibt immer erhalten).";
+"Previous message" = "Vorherige Meldung";
+"Next message" = "Nächste Meldung";
+"Align the selected parts (schematic)" = "Ausgewählte Bauteile ausrichten (Schaltplan)";
+"Note tool, up to the parent sheet (schematic)" = "Notizwerkzeug, zum übergeordneten Blatt (Schaltplan)";

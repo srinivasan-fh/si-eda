@@ -1466,3 +1466,13 @@
 "Wires" = "배선";
 "Zoom to Sheet Frame" = "시트 프레임에 맞춤";
 "View Options" = "보기 옵션";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG 이미지…";
+"SVG Image…" = "SVG 이미지…";
+"Print…" = "인쇄…";
+"Save projects automatically" = "프로젝트 자동 저장";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "파일이 있는 프로젝트는 변경 후 몇 초 뒤 그 파일에 저장됩니다(복구 사본은 항상 유지).";
+"Previous message" = "이전 메시지";
+"Next message" = "다음 메시지";
+"Align the selected parts (schematic)" = "선택한 부품 정렬(회로도)";
+"Note tool, up to the parent sheet (schematic)" = "메모 도구, 상위 시트로(회로도)";

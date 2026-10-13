@@ -1466,3 +1466,13 @@
 "Wires" = "Mga Wire";
 "Zoom to Sheet Frame" = "I-zoom sa Frame ng Sheet";
 "View Options" = "Mga Opsyon sa View";
+"PDF…" = "PDF…";
+"PNG Image…" = "Larawang PNG…";
+"SVG Image…" = "Larawang SVG…";
+"Print…" = "I-print…";
+"Save projects automatically" = "Awtomatikong i-save ang mga proyekto";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "Ang proyektong may file ay sine-save dito ilang segundo pagkatapos ng bawat pagbabago (laging may kopyang pang-recover).";
+"Previous message" = "Nakaraang mensahe";
+"Next message" = "Susunod na mensahe";
+"Align the selected parts (schematic)" = "I-align ang mga napiling piyesa (schematic)";
+"Note tool, up to the parent sheet (schematic)" = "Tool ng tala, pataas sa parent sheet (schematic)";

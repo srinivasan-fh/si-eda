@@ -360,6 +360,11 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   labels and power symbols, notes and drawings). Per user, not saved with the design. Right-click the sheet:
   **Zoom to Sheet Frame**. **Double-click a sheet symbol** to open its sheet; **⌘↑** goes up to the parent.
 - **Find & Replace** also renames designators (to a free designator of the same shape).
+- **Messages**: ▲ / ▼ step through the findings; opening one goes to its sheet, selects every part it names, centres
+  its spot (wire- and net-only findings too) and rings it. Every error / warning shows a marker on the canvas.
+- **PDF menu**: PDF of every sheet, the shown sheet as a **PNG** or **SVG** image (`sieda_render_schematic`), and
+  **Print…** (the PDF, one sheet per page). Settings ▸ **Save projects automatically** writes a saved project to its
+  file a few seconds after each change (the crash-recovery copy is kept either way). ⌥⌘ arrows align the selection.
 - **Lock** (`Component::locked`, `sieda_set_component_locked`): a locked part is not dragged or moved. A selected
   wire highlights its whole net. **Select All** (⌘A), **Select Same Value**, **Select Connected Parts**; the
   inspector sets one value or one package for every selected part (one undo step).

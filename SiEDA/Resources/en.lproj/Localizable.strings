@@ -1466,3 +1466,13 @@
 "Wires" = "Wires";
 "Zoom to Sheet Frame" = "Zoom to Sheet Frame";
 "View Options" = "View Options";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG Image…";
+"SVG Image…" = "SVG Image…";
+"Print…" = "Print…";
+"Save projects automatically" = "Save projects automatically";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).";
+"Previous message" = "Previous message";
+"Next message" = "Next message";
+"Align the selected parts (schematic)" = "Align the selected parts (schematic)";
+"Note tool, up to the parent sheet (schematic)" = "Note tool, up to the parent sheet (schematic)";

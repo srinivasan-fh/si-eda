@@ -1766,6 +1766,12 @@ extension EDAEngine {
     }
 
     /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
+    /// One schematic sheet as an SVG ("svg") or PNG ("png") image `width` pixels wide.
+    func schematicImage(sheet: Int, width: Int, format: String) -> Data? {
+        guard let text = Self.take(withHandle { sieda_render_schematic($0, Int32(sheet), Int32(width), format) }) else { return nil }
+        return format == "png" ? Data(base64Encoded: text) : Data(text.utf8)
+    }
+
     func schematicPDF(fontPath: String? = EDAEngine.unicodeFontPath) -> Data? {
         Self.take(withHandle { sieda_export_schematic_pdf_with_font($0, fontPath) }).map { Data($0.utf8) }
     }

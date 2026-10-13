@@ -1466,3 +1466,13 @@
 "Wires" = "ତାର";
 "Zoom to Sheet Frame" = "ଶିଟ୍ ଫ୍ରେମକୁ ଜୁମ୍";
 "View Options" = "ଦୃଶ୍ୟ ବିକଳ୍ପ";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG ଛବି…";
+"SVG Image…" = "SVG ଛବି…";
+"Print…" = "ପ୍ରିଣ୍ଟ କରନ୍ତୁ…";
+"Save projects automatically" = "ପ୍ରକଳ୍ପ ସ୍ୱୟଂଚାଳିତ ସେଭ୍ କରନ୍ତୁ";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "ଫାଇଲ ଥିବା ପ୍ରକଳ୍ପ ପ୍ରତି ପରିବର୍ତ୍ତନର କିଛି ସେକେଣ୍ଡ ପରେ ସେଥିରେ ସେଭ୍ ହୁଏ (ପୁନରୁଦ୍ଧାର ନକଲ ସର୍ବଦା ରହେ)।";
+"Previous message" = "ପୂର୍ବ ବାର୍ତ୍ତା";
+"Next message" = "ପରବର୍ତ୍ତୀ ବାର୍ତ୍ତା";
+"Align the selected parts (schematic)" = "ବଛା ଅଂଶ ସଜାନ୍ତୁ (ସ୍କିମାଟିକ୍)";
+"Note tool, up to the parent sheet (schematic)" = "ଟିପ୍ପଣୀ ଉପକରଣ, ମୂଳ ଶିଟ୍‌କୁ (ସ୍କିମାଟିକ୍)";

@@ -77,6 +77,9 @@ int32_t sieda_add_sheet_graphic(SiedaProject* project, const char* request_json)
 int32_t sieda_remove_sheet_graphic(SiedaProject* project, int32_t id);
 int32_t sieda_move_sheet_graphic(SiedaProject* project, int32_t id, double dx, double dy);
 int32_t sieda_set_sheet_graphic_text(SiedaProject* project, int32_t id, const char* text);
+/* One schematic sheet as an image `width` pixels wide: format "svg" → the SVG text, "png" → the PNG as base64.
+ * Caller frees. */
+char* sieda_render_schematic(const SiedaProject* project, int32_t sheet, int32_t width, const char* format);
 int32_t sieda_set_component_value(SiedaProject* project, int32_t component_id, const char* value);
 /* Package variant of a passive / diode ("R_0603", "CP_Tant_B", "D_DO41_THT"…; "" = default). 1 on success. */
 int32_t sieda_set_component_package(SiedaProject* project, int32_t component_id, const char* package);

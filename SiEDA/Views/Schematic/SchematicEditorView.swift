@@ -201,8 +201,17 @@ struct SchematicEditorView: View {
                     .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
                     Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
                         .help("Every ERC message of every sheet; click one to go there")
-                    Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
-                        .help("PDF of every sheet with bookmarks, frames and title blocks")
+                    Menu {
+                        Button("PDF…") { store.exportSchematicPDF() }
+                        Button("PNG Image…") { store.exportSchematicImage(format: "png") }
+                        Button("SVG Image…") { store.exportSchematicImage(format: "svg") }
+                        Divider()
+                        Button("Print…") { store.printSchematic() }
+                    } label: {
+                        Label("PDF", systemImage: "doc.richtext")
+                    }
+                    .fixedSize()
+                    .help("PDF of every sheet with bookmarks, frames and title blocks")
                     appearanceMenu
                     Menu {
                         SchematicViewOptionsMenu()

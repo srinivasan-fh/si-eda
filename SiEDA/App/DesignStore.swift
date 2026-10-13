@@ -90,6 +90,8 @@ final class DesignStore: ObservableObject {
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []
+    /// The check finding opened from the messages / rule check list: its spot is ringed on the canvas.
+    @Published var focusedViolation: String?
     @Published var drcResults: [RuleViolation] = []
     @Published var validationResults: [RuleViolation] = []
     @Published private(set) var verificationReport: VerificationReport?
@@ -254,7 +256,11 @@ final class DesignStore: ObservableObject {
         recoveryWork = nil
         guard let recovery, isDirty else { return }
         recovery.save(json: engine.saveJSON(), documentURL: documentURL)
+        // Settings ▸ "Save projects automatically": a saved project is written to its own file after each pause too.
+        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL { _ = write(to: url) }
     }
+
+    static let autosaveKey = "autosaveProject"
 
     /// Reopens work recovered after a crash: the design comes back unsaved, pointing at its original file if any.
     func restoreRecovered(_ pending: CrashRecovery.Pending) {

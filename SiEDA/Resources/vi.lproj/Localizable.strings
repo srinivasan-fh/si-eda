@@ -1466,3 +1466,13 @@
 "Wires" = "Dây";
 "Zoom to Sheet Frame" = "Thu phóng đến khung bản vẽ";
 "View Options" = "Tùy chọn hiển thị";
+"PDF…" = "PDF…";
+"PNG Image…" = "Ảnh PNG…";
+"SVG Image…" = "Ảnh SVG…";
+"Print…" = "In…";
+"Save projects automatically" = "Tự động lưu dự án";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "Dự án đã có tệp được lưu vào tệp đó vài giây sau mỗi thay đổi (luôn giữ một bản khôi phục).";
+"Previous message" = "Thông báo trước";
+"Next message" = "Thông báo sau";
+"Align the selected parts (schematic)" = "Căn chỉnh linh kiện đã chọn (sơ đồ)";
+"Note tool, up to the parent sheet (schematic)" = "Công cụ ghi chú, lên trang cha (sơ đồ)";

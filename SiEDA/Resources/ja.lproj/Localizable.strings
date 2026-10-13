@@ -1466,3 +1466,13 @@
 "Wires" = "配線";
 "Zoom to Sheet Frame" = "シート枠にズーム";
 "View Options" = "表示オプション";
+"PDF…" = "PDF…";
+"PNG Image…" = "PNG 画像…";
+"SVG Image…" = "SVG 画像…";
+"Print…" = "プリント…";
+"Save projects automatically" = "プロジェクトを自動保存";
+"A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept)." = "ファイルのあるプロジェクトは、変更の数秒後にそのファイルへ保存されます（復旧用コピーは常に保持）。";
+"Previous message" = "前のメッセージ";
+"Next message" = "次のメッセージ";
+"Align the selected parts (schematic)" = "選択した部品を整列（回路図）";
+"Note tool, up to the parent sheet (schematic)" = "メモツール、親シートへ（回路図）";

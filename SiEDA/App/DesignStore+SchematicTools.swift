@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PDFKit
 import UniformTypeIdentifiers
 
 /// Schematic productivity: align / distribute, copy and paste (smart paste: a paste array with designators numbered
@@ -360,6 +361,36 @@ extension DesignStore {
         } catch {
             present(error, title: "Export failed")
         }
+    }
+
+    /// The shown sheet as a PNG or SVG image.
+    func exportSchematicImage(format: String) {
+        guard let data = engine.schematicImage(sheet: snapshot.activeSheet, width: 2400, format: format) else {
+            statusMessage = "Image export failed"
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [format == "png" ? .png : .svg]
+        let sheetName = snapshot.sheet(snapshot.activeSheet)?.name ?? "sheet"
+        panel.nameFieldStringValue = "\(snapshot.name.replacingOccurrences(of: "/", with: "-"))-\(sheetName).\(format)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            statusMessage = "Exported \(url.lastPathComponent)"
+        } catch {
+            present(error, title: "Export failed")
+        }
+    }
+
+    /// Prints every sheet (the schematic PDF, one page per sheet, scaled to the paper).
+    func printSchematic() {
+        guard let data = engine.schematicPDF(), let document = PDFDocument(data: data),
+              let operation = document.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true) else {
+            statusMessage = "Nothing to print"
+            return
+        }
+        operation.showsPrintPanel = true
+        operation.run()
     }
 
     // MARK: - ERC error reporting

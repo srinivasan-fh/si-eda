@@ -282,6 +282,7 @@ private struct AppearanceSettings: View {
     /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
+    @AppStorage(DesignStore.autosaveKey) private var autosave = false
     @State private var customisingSchematic = false
 
     var body: some View {
@@ -297,6 +298,10 @@ private struct AppearanceSettings: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+            Toggle("Save projects automatically", isOn: $autosave)
+            Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Toggle("Show splash screen at launch", isOn: $showSplashScreen)
