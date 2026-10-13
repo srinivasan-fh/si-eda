@@ -362,8 +362,14 @@ What the agent gets back, so it can wire correctly without guessing:
   vias, pours) over it, and a USB / connector part with an open end (its mouth) at the bottom edge facing out
   (`edgesPlaced`; `edges: false` skips it); `decoupling` is on by default with `all`.
 - `project_undo` never steps back past `project_open` / `project_new` / `project_load_example`.
-- `pcb_autoplace` `all` also puts connectors without an open end (pin headers) at the left edge, and a capacitor
-  from ground to a single IC pin (AREF, EN) beside that pin.
+- `pcb_autoplace` `all` also puts connectors without an open end (pin headers) at the left and right edges in turn,
+  long side along the edge, and a capacitor from ground to a single IC pin (AREF, EN) beside that pin. A crystal is
+  placed before the supply capacitors; where small parts fill its spot they step aside to the nearest free one.
+- A batch `pcb_place_footprint` part refused and left at its old pose under a part of the batch gets `overlaps` and a
+  free spot in its `note`; `schematic_remove_component` lists the pins it left unwired (`disconnected`);
+  `pcb_set_board` with an unknown `rulePreset` changes nothing and lists the presets; `pcb_add_pour` returns the
+  area, islands, pads joined and islands without pads; the ERC's "no simulation model" notes are one line; the BOM
+  names a catalog part's maker and KiCad footprint.
 - `schematic_move_component` puts a tag naming a wire back at the wire's middle and lists `overlaps`; the ERC's
   `unconnectedPins` leaves out pins typed no-connect; `library_search` ranks parts whose name has the words first;
   each `pcb_drc` `unrouted` entry has both ends' coordinates (`at`).

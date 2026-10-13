@@ -448,8 +448,14 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
             return s == "error" ? 0 : s == "warning" ? 1 : 2;
         };
         std::stable_sort(sorted.begin(), sorted.end(), [&](const Json* a, const Json* b) { return rank(a) < rank(b); });
+        Json unsimulated = Json::array();  // ERC_NOT_SIMULATED: one line naming every such part, not one per part
         for (const Json* v : sorted) {
             const std::string sev = v->get("severity").asString("");
+            if (v->get("code").asString("") == "ERC_NOT_SIMULATED") {
+                for (const auto& id : v->get("components").items())
+                    if (const Component* c = p.project.schematic.find(id.asInt())) unsimulated.push(c->ref);
+                continue;
+            }
             if (sev == "error") ++errors;
             else if (sev == "warning") ++warnings;
             else ++infos;
@@ -467,6 +473,16 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
                 j["x"] = v->get("x");
                 j["y"] = v->get("y");
             }
+            list.push(j);
+        }
+        if (unsimulated.size()) {
+            ++infos;
+            Json j = Json::object();
+            j["severity"] = "info";
+            j["code"] = "ERC_NOT_SIMULATED";
+            j["message"] = std::to_string(unsimulated.size()) + " parts have no simulation model (only matters for simulation; nothing "
+                           "to fix for a board).";
+            j["refs"] = unsimulated;
             list.push(j);
         }
     }
