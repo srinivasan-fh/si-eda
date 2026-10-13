@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "레이블을 전원 기호(줄기 위의 막대)로 그립니다. 네트 연결은 동일합니다";
 "Show as Label" = "레이블로 표시";
 "Show as Power Symbol" = "전원 기호로 표시";
+"Note" = "메모";
+"Edit Note" = "메모 편집";
+"Edit Text…" = "텍스트 편집…";
+"Labels and Power Symbols" = "레이블 및 전원 기호";
+"Notes and Drawings" = "메모 및 그림";
+"Pin Names" = "핀 이름";
+"Pin Numbers" = "핀 번호";
+"Selectable" = "선택 가능";
+"Snap Step" = "스냅 간격";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "스냅 그리드, 캔버스 표시 항목(핀 번호, 이름, 참조 번호, 값) 및 선택 가능한 항목";
+"Snap to Grid" = "그리드에 스냅";
+"Wires" = "배선";
+"Zoom to Sheet Frame" = "시트 프레임에 맞춤";
+"View Options" = "보기 옵션";

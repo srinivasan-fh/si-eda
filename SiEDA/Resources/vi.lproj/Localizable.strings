@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Vẽ nhãn thành ký hiệu nguồn (thanh trên cuống); nối vào mạng như cũ";
 "Show as Label" = "Hiện dạng nhãn";
 "Show as Power Symbol" = "Hiện dạng ký hiệu nguồn";
+"Note" = "Ghi chú";
+"Edit Note" = "Sửa ghi chú";
+"Edit Text…" = "Sửa văn bản…";
+"Labels and Power Symbols" = "Nhãn và ký hiệu nguồn";
+"Notes and Drawings" = "Ghi chú và hình vẽ";
+"Pin Names" = "Tên chân";
+"Pin Numbers" = "Số chân";
+"Selectable" = "Có thể chọn";
+"Snap Step" = "Bước bắt lưới";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Lưới bắt, những gì canvas hiển thị (số chân, tên, ký hiệu, giá trị) và những gì có thể chọn";
+"Snap to Grid" = "Bắt vào lưới";
+"Wires" = "Dây";
+"Zoom to Sheet Frame" = "Thu phóng đến khung bản vẽ";
+"View Options" = "Tùy chọn hiển thị";

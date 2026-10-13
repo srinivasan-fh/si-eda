@@ -541,6 +541,26 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
 
+    /// A note / line / arrow / rectangle on the active sheet; its id.
+    func addSheetGraphic(kind: String, points: [CGPoint], text: String = "") -> Int? {
+        let request: [String: Any] = ["kind": kind, "text": text,
+                                      "points": points.map { ["x": Double($0.x), "y": Double($0.y)] }]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return nil }
+        let id = withHandle { sieda_add_sheet_graphic($0, String(decoding: data, as: UTF8.self)) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func removeSheetGraphic(_ id: Int) -> Bool { withHandle { sieda_remove_sheet_graphic($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func moveSheetGraphic(_ id: Int, by d: CGSize) -> Bool {
+        withHandle { sieda_move_sheet_graphic($0, Int32(id), Double(d.width), Double(d.height)) } == 1
+    }
+
+    @discardableResult
+    func setSheetGraphicText(_ id: Int, _ text: String) -> Bool { withHandle { sieda_set_sheet_graphic_text($0, Int32(id), text) } == 1 }
+
     /// Makes a net label an entry of a bus on its sheet (0: an ordinary label again).
     @discardableResult
     func setLabelBus(_ label: Int, bus: Int) -> Bool { withHandle { sieda_set_label_bus($0, Int32(label), Int32(bus)) } == 1 }

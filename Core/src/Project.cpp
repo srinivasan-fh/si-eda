@@ -291,6 +291,28 @@ Json harnessTypesJson(const Schematic& sch) {
     return arr;
 }
 
+/// Notes and drawings on sheets: {id, sheet, kind, points [{x, y}], text?}.
+Json graphicsJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& g : sch.graphics()) {
+        Json j = Json::object();
+        j["id"] = g.id;
+        j["sheet"] = g.sheet;
+        j["kind"] = g.kind;
+        Json pts = Json::array();
+        for (const Vec2 p : g.points) {
+            Json q = Json::object();
+            q["x"] = p.x;
+            q["y"] = p.y;
+            pts.push(q);
+        }
+        j["points"] = pts;
+        if (!g.text.empty()) j["text"] = g.text;
+        arr.push(j);
+    }
+    return arr;
+}
+
 Json busesJson(const Schematic& sch, bool withMembers) {
     Json arr = Json::array();
     for (const auto& b : sch.buses()) {
@@ -647,6 +669,7 @@ Json Project::toJson() const {
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
     if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
+    if (!schematic.graphics().empty()) root["sheetGraphics"] = graphicsJson(schematic);
     if (!schematic.harnessTypes().empty()) root["harnessTypes"] = harnessTypesJson(schematic);
     if (!schematic.netClassDefs().empty()) root["netClassDefs"] = netClassDefsJson(schematic);
     if (!schematic.directives().empty()) root["directives"] = directivesJson(schematic, false);
@@ -1011,6 +1034,15 @@ Project Project::fromJson(const Json& root) {
         w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
     }
+    for (const auto& j : root.get("sheetGraphics").items()) {
+        SheetGraphic g;
+        g.id = j.get("id").asInt(-1);
+        g.sheet = j.get("sheet").asInt(1);
+        g.kind = j.get("kind").asString("");
+        g.text = j.get("text").asString("");
+        for (const auto& pt : j.get("points").items()) g.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        p.schematic.restoreGraphic(g);
+    }
     for (const auto& j : root.get("buses").items()) {
         Bus b;
         b.id = j.get("id").asInt(-1);
@@ -1321,6 +1353,7 @@ Json Project::snapshot() const {
             root["boards"] = boards;
         }
         root["buses"] = busesJson(schematic, true);
+        root["sheetGraphics"] = graphicsJson(schematic);
         root["harnessTypes"] = harnessTypesJson(schematic);
         root["netClassDefs"] = netClassDefsJson(schematic);
         root["directives"] = directivesJson(schematic, true);

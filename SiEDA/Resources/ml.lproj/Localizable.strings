@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "ലേബൽ പവർ ചിഹ്നമായി (തണ്ടിലെ ബാർ) വരയ്ക്കുക; അത് അതിന്റെ നെറ്റിൽ അതേപടി ചേരുന്നു";
 "Show as Label" = "ലേബലായി കാണിക്കുക";
 "Show as Power Symbol" = "പവർ ചിഹ്നമായി കാണിക്കുക";
+"Note" = "കുറിപ്പ്";
+"Edit Note" = "കുറിപ്പ് എഡിറ്റ് ചെയ്യുക";
+"Edit Text…" = "വാചകം എഡിറ്റ് ചെയ്യുക…";
+"Labels and Power Symbols" = "ലേബലുകളും പവർ ചിഹ്നങ്ങളും";
+"Notes and Drawings" = "കുറിപ്പുകളും ചിത്രങ്ങളും";
+"Pin Names" = "പിൻ പേരുകൾ";
+"Pin Numbers" = "പിൻ നമ്പറുകൾ";
+"Selectable" = "തിരഞ്ഞെടുക്കാവുന്നവ";
+"Snap Step" = "സ്നാപ്പ് ഘട്ടം";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "സ്നാപ്പ് ഗ്രിഡ്, ക്യാൻവാസ് കാണിക്കുന്നത് (പിൻ നമ്പർ, പേര്, ഡിസൈനേറ്റർ, മൂല്യം), തിരഞ്ഞെടുക്കാവുന്നവ";
+"Snap to Grid" = "ഗ്രിഡിലേക്ക് സ്നാപ്പ്";
+"Wires" = "വയറുകൾ";
+"Zoom to Sheet Frame" = "ഷീറ്റ് ഫ്രെയിമിലേക്ക് സൂം";
+"View Options" = "കാഴ്ച ഓപ്ഷനുകൾ";

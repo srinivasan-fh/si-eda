@@ -26,6 +26,8 @@ struct SchematicCanvas: View {
         case bend(Int)         // drag a wire to bend it through a new junction
         case moveBus(Int)      // drag a bus (and its entries)
         case livePress(Int)    // a switch held while the live simulation runs
+        case drawGraphic(CGPoint)  // drag out a line / arrow / section rectangle from this point
+        case moveGraphic(Int)      // drag a note or drawing
     }
 
     @State private var dragMode: DragMode?
@@ -43,6 +45,15 @@ struct SchematicCanvas: View {
     @State private var namingBus: [CGPoint]?     // a finished bus waiting for its name
     @State private var busName = "D[0..7]"
     @State private var flipCorner = false     // '/': the wire being drawn turns vertical-first
+    @State private var notePoint: CGPoint?    // a note being typed (where it goes)
+    @State private var editingNote: Int?      // a note whose text is being edited
+    @State private var noteText = ""
+    // Display settings (View options menu): what the canvas draws.
+    @AppStorage(SchematicGrid.pinNumbersKey) private var showPinNumbers = true
+    @AppStorage(SchematicGrid.pinNamesKey) private var showPinNames = true
+    @AppStorage(SchematicGrid.valuesKey) private var showValues = true
+    @AppStorage(SchematicGrid.refsKey) private var showRefs = true
+    @AppStorage(SchematicGrid.stepKey) private var gridStep = 10.0
     @State private var moveAlone = false      // ⌥-drag: the parts move without their wires
     @FocusState private var focused: Bool
 
@@ -70,6 +81,20 @@ struct SchematicCanvas: View {
                 Button("Cancel", role: .cancel) { namingBus = nil }
             } message: {
                 Text("Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD.")
+            }
+            .alert(editingNote == nil ? LocalizedStringKey("Note") : LocalizedStringKey("Edit Note"),
+                   isPresented: Binding(get: { notePoint != nil || editingNote != nil },
+                                        set: { if !$0 { notePoint = nil; editingNote = nil } })) {
+                TextField("Text", text: $noteText)
+                Button("OK") {
+                    if let id = editingNote { store.setSheetGraphicText(id, noteText) }
+                    else if let at = notePoint, !noteText.trimmingCharacters(in: .whitespaces).isEmpty {
+                        store.addSheetGraphic(kind: "text", points: [at], text: noteText)
+                    }
+                    notePoint = nil
+                    editingNote = nil
+                }
+                Button("Cancel", role: .cancel) { notePoint = nil; editingNote = nil }
             }
             .onAppear {
                 canvasSize = geo.size
@@ -178,6 +203,13 @@ struct SchematicCanvas: View {
                     DispatchQueue.main.async { store.paste(clip: text) }
                 }
             }
+            .onKeyPress(keys: [.upArrow], phases: .down) { press in
+                // ⌘↑: up to the parent sheet (the one whose sheet symbol this sheet is).
+                guard press.modifiers == .command, let parent = store.snapshot.sheet(store.snapshot.activeSheet)?.parent,
+                      parent > 0 else { return .ignored }
+                store.selectSheet(parent)
+                return .handled
+            }
             .onKeyPress(.delete) { deleteTargets(); return .handled }
             .onKeyPress(.deleteForward) { deleteTargets(); return .handled }
             // ⌘D duplicates the selection beside it with new designators.
@@ -187,13 +219,14 @@ struct SchematicCanvas: View {
                 return .handled
             }
             // Single-letter tool keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
-            .onKeyPress(keys: ["r", "w", "q", "v", "h", "g", "l", "p", "b", "x", "y", "/"], phases: .down) { press in
+            .onKeyPress(keys: ["r", "w", "q", "v", "h", "g", "l", "p", "b", "x", "y", "/", "t"], phases: .down) { press in
                 guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
                 switch press.key {
                 case KeyEquivalent("r"): rotate()
                 case KeyEquivalent("x"): store.mirror(store.targets(hovered: hoveredComponent), vertical: false)
                 case KeyEquivalent("y"): store.mirror(store.targets(hovered: hoveredComponent), vertical: true)
                 case KeyEquivalent("/"): flipCorner.toggle()  // the wire being drawn turns the other way
+                case KeyEquivalent("t"): tool = .graphic("text")
                 case KeyEquivalent("w"): tool = .wire
                 case KeyEquivalent("b"): tool = .bus
                 case KeyEquivalent("q"): tool = .noConnect
@@ -273,6 +306,19 @@ struct SchematicCanvas: View {
                 CanvasMenuItem(title: String(localized: "Delete")) { store.delete(ids) },
             ]
         }
+        if let g = graphicHit(at: world), let info = store.sheetSnapshot.sheetGraphics.first(where: { $0.id == g }) {
+            store.select(component: nil)
+            store.selectedGraphic = g
+            var items: [CanvasMenuItem] = []
+            if info.kind == "text" {
+                items.append(CanvasMenuItem(title: String(localized: "Edit Text…")) {
+                    noteText = info.text ?? ""
+                    editingNote = g
+                })
+            }
+            items.append(CanvasMenuItem(title: String(localized: "Delete")) { store.deleteSelection() })
+            return items
+        }
         if let w = wire(at: world) {
             store.select(component: nil)
             store.selectedWire = w
@@ -289,6 +335,9 @@ struct SchematicCanvas: View {
             CanvasMenuItem(title: String(localized: "Clean Up Wires")) { store.cleanupWires() },
             .separator,
             CanvasMenuItem(title: String(localized: "Zoom to Fit")) { store.requestView(.fit) },
+            CanvasMenuItem(title: String(localized: "Zoom to Sheet Frame"), enabled: sheetFrame() != nil) {
+                if let frame = sheetFrame() { viewport.fit(frame.insetBy(dx: -20, dy: -20), in: canvasSize, limits: scaleLimits) }
+            },
         ]
     }
 
@@ -335,7 +384,11 @@ struct SchematicCanvas: View {
     }
 
     private func component(at world: CGPoint) -> Int? {
+        // Selection filters (View options): parts, and labels / power / ground symbols, separately.
+        let parts = SchematicGrid.flag(SchematicGrid.pickPartsKey), labels = SchematicGrid.flag(SchematicGrid.pickLabelsKey)
         for c in store.sheetSnapshot.components.reversed() {
+            let isLabel = c.componentKind == .netLabel || c.componentKind == .ground
+            if isLabel ? !labels : !parts { continue }
             let t = SchematicSymbols.transform(position: c.position, rotation: c.rotation, mirror: c.isMirrored).inverted()
             if SchematicSymbols.bounds(c.componentKind, value: c.value, custom: store.sheetSnapshot.customPart(for: c)).contains(world.applying(t)) {
                 return c.id
@@ -351,6 +404,8 @@ struct SchematicCanvas: View {
 
     /// The wire under `world` and the point on it (on the grid) where a T-junction would go.
     private func wireHit(at world: CGPoint) -> (id: Int, point: CGPoint)? {
+        // Wires stay pickable while one is being drawn (T-junctions); the filter only stops selecting them.
+        if !SchematicGrid.flag(SchematicGrid.pickWiresKey), pendingWire == nil, tool == .select { return nil }
         var best: (id: Int, point: CGPoint, distance: CGFloat)?
         for w in store.sheetSnapshot.wires {
             let hit = WireGeometry.nearestPoint(on: w, to: world)
@@ -374,7 +429,7 @@ struct SchematicCanvas: View {
         case .pin(let address): return pinPosition(address)
         case .wire(let id, let near):
             return store.sheetSnapshot.wires.first { $0.id == id }.map { WireGeometry.nearestPoint(on: $0, to: near).point }
-        case .point(let p): return SchematicAutoLayout.snap(p)
+        case .point(let p): return SchematicGrid.snap(p)
         }
     }
 
@@ -423,9 +478,11 @@ struct SchematicCanvas: View {
             .onChanged { value in
                 if dragMode == nil { beginDrag(at: value.startLocation) }
                 switch dragMode {
-                case .move, .moveBus:
+                case .move, .moveBus, .moveGraphic:
                     dragDelta = CGSize(width: value.translation.width / viewport.scale,
                                        height: value.translation.height / viewport.scale)
+                case .drawGraphic:
+                    hover = value.location
                 case .pan(let start):
                     viewport.offset = CGSize(width: start.width + value.translation.width,
                                              height: start.height + value.translation.height)
@@ -461,8 +518,7 @@ struct SchematicCanvas: View {
                 } else {
                     switch dragMode {
                     case .move(let ids):
-                        let snapped = CGSize(width: (dragDelta.width / 10).rounded() * 10,
-                                             height: (dragDelta.height / 10).rounded() * 10)
+                        let snapped = SchematicGrid.snap(dragDelta)
                         store.moveComponents(ids, by: snapped, detach: moveAlone)
                         store.selection.formUnion(ids)
                     case .wire(let start):
@@ -472,8 +528,13 @@ struct SchematicCanvas: View {
                     case .bend(let id):
                         store.bendWire(id, at: viewport.toWorld(value.location))
                     case .moveBus(let id):
-                        store.moveBus(id, by: CGSize(width: (dragDelta.width / 10).rounded() * 10,
-                                                     height: (dragDelta.height / 10).rounded() * 10))
+                        store.moveBus(id, by: SchematicGrid.snap(dragDelta))
+                    case .moveGraphic(let id):
+                        store.moveSheetGraphic(id, by: SchematicGrid.snap(dragDelta))
+                    case .drawGraphic(let start):
+                        if case .graphic(let kind) = tool {
+                            store.addSheetGraphic(kind: kind, points: [start, viewport.toWorld(value.location)])
+                        }
                     case .marquee:
                         if let rect = marquee {
                             let a = viewport.toWorld(rect.origin)
@@ -526,6 +587,10 @@ struct SchematicCanvas: View {
                 moveAlone = NSEvent.modifierFlags.contains(.option)  // ⌥-drag: move without the wires
                 let moving = shift ? store.selection.union([id]) : store.selection
                 dragMode = moving.isDisjoint(with: store.lockedParts) ? .move(moving) : .pan(viewport.offset)
+            } else if !shift, tool == .select, pendingWire == nil, let g = graphicHit(at: world) {
+                store.select(component: nil)
+                store.selectedGraphic = g
+                dragMode = .moveGraphic(g)  // a note or drawing moves as one
             } else if !shift, pendingWire == nil, let hit = wireHit(at: world) {
                 dragMode = .bend(hit.id)  // pull a wire into shape
             } else if !shift, tool == .select, let bus = busHit(at: world) {
@@ -537,6 +602,8 @@ struct SchematicCanvas: View {
             } else {
                 dragMode = .pan(viewport.offset)
             }
+        case .graphic(let kind) where kind != "text":
+            dragMode = .drawGraphic(SchematicGrid.snap(world))
         default:
             dragMode = .pan(viewport.offset)
         }
@@ -552,7 +619,7 @@ struct SchematicCanvas: View {
         case .pan:
             break
         case .bus:
-            let p = SchematicAutoLayout.snap(world)
+            let p = SchematicGrid.snap(world)
             if let last = busPoints.last, hypot(last.x - p.x, last.y - p.y) < 1 {
                 if busPoints.count >= 2 { finishBus() }
             } else {
@@ -560,7 +627,18 @@ struct SchematicCanvas: View {
             }
         case .noConnect:
             if let address = pin(at: world)?.0 { store.toggleNoConnect(address) }
+        case .graphic(let kind):
+            if kind == "text" {
+                noteText = ""
+                notePoint = SchematicGrid.snap(world)
+            }
         case .select, .wire:
+            // Double-click inside a sheet symbol opens that sheet (⌘↑ goes back up to its parent).
+            if tool == .select, pendingWire == nil, (NSApp.currentEvent?.clickCount ?? 1) >= 2,
+               let child = sheetSymbol(at: world) {
+                store.selectSheet(child)
+                return
+            }
             if let address = pin(at: world, includeJunctions: wiringJunctions)?.0 {
                 if let start = pendingWire {
                     finishWire(from: start, to: .pin(address))
@@ -595,6 +673,14 @@ struct SchematicCanvas: View {
                     if abs(local.x) <= 16 && abs(local.y) <= 14 { store.toggleSwitch(id) }
                 }
                 store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
+            } else if let g = graphicHit(at: world) {
+                store.select(component: nil)
+                store.selectedGraphic = g
+                if (NSApp.currentEvent?.clickCount ?? 1) >= 2,
+                   let note = store.sheetSnapshot.sheetGraphics.first(where: { $0.id == g && $0.kind == "text" }) {
+                    noteText = note.text ?? ""
+                    editingNote = g
+                }
             } else if let w = wire(at: world) {
                 store.selection = []
                 store.selectedBus = nil
@@ -614,6 +700,48 @@ struct SchematicCanvas: View {
         for bus in store.sheetSnapshot.buses {
             let d = bus.nearest(to: world).distance
             if d <= pickTolerance * 1.5, d < (best?.distance ?? .greatestFiniteMagnitude) { best = (bus.id, d) }
+        }
+        return best?.id
+    }
+
+    /// The child sheet whose sheet symbol (the box round its entries) contains `world`.
+    private func sheetSymbol(at world: CGPoint) -> Int? {
+        let snap = store.sheetSnapshot
+        for child in snap.sheets where child.parent == snap.activeSheet {
+            let entries = snap.components.filter { $0.labelScope == "entry" && $0.targetSheet == child.id }
+            guard !entries.isEmpty else { continue }
+            var box = CGRect.null
+            for e in entries {
+                box = box.union(SchematicSymbols.bounds(.netLabel, value: e.value, custom: nil)
+                    .applying(SchematicSymbols.transform(position: e.position, rotation: e.rotation)))
+            }
+            let left = entries.map { CGFloat($0.x) }.min() ?? box.minX
+            let frame = CGRect(x: left, y: box.minY - 16, width: max(80, box.maxX + 16 - left, CGFloat(child.symbolWidth ?? 0)),
+                               height: max(box.height + 26, CGFloat(child.symbolHeight ?? 0)))
+            if frame.contains(world) { return child.id }
+        }
+        return nil
+    }
+
+    /// The drawing template's frame of the shown sheet (nil without a template).
+    private func sheetFrame() -> CGRect? {
+        let snap = store.sheetSnapshot
+        guard let shown = snap.sheet(snap.activeSheet), let size = shown.size, !size.isEmpty,
+              let template = Self.templates.first(where: { $0.name == size }) else { return nil }
+        let w = template.width / 0.254, h = template.height / 0.254
+        if let fx = shown.frameX, let fy = shown.frameY { return CGRect(x: fx, y: fy, width: w, height: h) }
+        let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
+        let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
+        return CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
+    }
+
+    /// The note or drawing under `world`.
+    private func graphicHit(at world: CGPoint) -> Int? {
+        guard SchematicGrid.flag(SchematicGrid.pickDrawingsKey) else { return nil }
+        var best: (id: Int, distance: CGFloat)?
+        for g in store.sheetSnapshot.sheetGraphics {
+            let d = g.distance(to: world)
+            if d <= pickTolerance, d < (best?.distance ?? .greatestFiniteMagnitude) { best = (g.id, d) }
         }
         return best?.id
     }
@@ -672,7 +800,7 @@ struct SchematicCanvas: View {
         }
         let bending: (id: Int, point: CGPoint)? = {
             guard case .bend(let id) = dragMode, let h = hover else { return nil }
-            return (id, SchematicAutoLayout.snap(viewport.toWorld(h)))
+            return (id, SchematicGrid.snap(viewport.toWorld(h)))
         }()
         var endpointCount: [String: (CGPoint, Int)] = [:]
         let highlighted = store.highlightedNets  // a selected wire lights its whole net
@@ -743,6 +871,50 @@ struct SchematicCanvas: View {
                          at: CGPoint(x: pts[0].x + 4, y: pts[0].y - 6).applying(screen), anchor: .bottomLeading)
             }
         }
+        // Notes and drawings (not part of the circuit): text, lines, arrows and section rectangles.
+        let movingGraphic: Int? = { if case .moveGraphic(let id) = dragMode { return id } else { return nil } }()
+        for g in snap.sheetGraphics {
+            let off = movingGraphic == g.id ? delta : .zero
+            let pts = g.path.map { CGPoint(x: $0.x + off.width, y: $0.y + off.height) }
+            guard let first = pts.first else { continue }
+            let picked = store.selectedGraphic == g.id
+            let colour = picked ? pal.selection.color : pal.symbol.color
+            if g.kind == "text" {
+                guard showLabels else { continue }
+                var y = first.y
+                for line in (g.text ?? "").split(separator: "\n", omittingEmptySubsequences: false) {
+                    ctx.draw(Text(verbatim: String(line)).font(.system(size: max(7, 10 * viewport.scale / 1.6)))
+                                .foregroundColor(colour), at: CGPoint(x: first.x, y: y).applying(screen), anchor: .topLeading)
+                    y += 12
+                }
+                if picked { ctx.stroke(Path(g.bounds.offsetBy(dx: off.width, dy: off.height).applying(screen)), with: .color(colour), lineWidth: 0.8) }
+                continue
+            }
+            guard pts.count == 2 else { continue }
+            var path = Path()
+            if g.kind == "rect" {
+                path.addRect(CGRect(origin: pts[0], size: .zero).union(CGRect(origin: pts[1], size: .zero)))
+            } else {
+                path.move(to: pts[0])
+                path.addLine(to: pts[1])
+                if g.kind == "arrow" {
+                    let dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y, len = max(1e-6, hypot(dx, dy))
+                    let ux = dx / len, uy = dy / len
+                    path.move(to: CGPoint(x: pts[1].x - ux * 8 - uy * 3.5, y: pts[1].y - uy * 8 + ux * 3.5))
+                    path.addLine(to: pts[1])
+                    path.addLine(to: CGPoint(x: pts[1].x - ux * 8 + uy * 3.5, y: pts[1].y - uy * 8 - ux * 3.5))
+                }
+            }
+            ctx.stroke(path.applying(screen), with: .color(colour),
+                       style: StrokeStyle(lineWidth: picked ? 2 : 1.2, dash: g.kind == "rect" ? [6, 4] : []))
+        }
+        if case .drawGraphic(let start) = dragMode, case .graphic(let kind) = tool, let h = hover {
+            let end = SchematicGrid.snap(viewport.toWorld(h))
+            var path = Path()
+            if kind == "rect" { path.addRect(CGRect(origin: start, size: .zero).union(CGRect(origin: end, size: .zero))) }
+            else { path.move(to: start); path.addLine(to: end) }
+            ctx.stroke(path.applying(screen), with: .color(pal.preview.color), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+        }
         for c in snap.components where c.bus != nil {
             guard let busId = c.bus, let bus = snap.bus(busId) else { continue }
             let offset = movingBus == busId ? delta : (movingIds.contains(c.id) ? delta : .zero)
@@ -783,7 +955,7 @@ struct SchematicCanvas: View {
         // The bus being drawn.
         if tool == .bus, !busPoints.isEmpty {
             var path = Path()
-            path.addLines(busPoints + (hover.map { [SchematicAutoLayout.snap(viewport.toWorld($0))] } ?? []))
+            path.addLines(busPoints + (hover.map { [SchematicGrid.snap(viewport.toWorld($0))] } ?? []))
             ctx.stroke(path.applying(screen), with: .color(pal.preview.color), style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
         }
 
@@ -909,19 +1081,19 @@ struct SchematicCanvas: View {
                 } else if !c.componentKind.isVirtual || c.componentKind == .netLabel {
                     ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(pal.unconnectedPin.color), lineWidth: 1.2)
                 }
-                if c.componentKind == .ic8, viewport.scale > 1.2 {
+                if c.componentKind == .ic8, viewport.scale > 1.2, showPinNumbers {
                     let inward = CGPoint(x: (c.position.x - pp.x) * 0.18 + pp.x, y: pp.y).applying(screen)
                     ctx.draw(Text("\(i + 1)").font(.system(size: 8, design: .monospaced)).foregroundColor(pal.pinNumber.color),
                              at: inward)
                 }
             }
 
-            if let custom, showPins, viewport.scale > 0.9 {
+            if let custom, showPins, viewport.scale > 0.9, showPinNames || showPinNumbers {
                 // Pin names inside the body, pin numbers on the leads (readable at any rotation).
                 SchematicSymbols.drawPinLabels(ctx, part: custom, transform: t, fontSize: max(7, min(11, 7 * viewport.scale / 1.6)),
                                                textColor: pal.symbol.color,
                                                nameColor: { $0.type == PinElectricalType.powerIn.rawValue ? pal.powerLabel.color : pal.pinName.color },
-                                               numberColor: pal.pinNumber.color)
+                                               numberColor: pal.pinNumber.color, showNames: showPinNames, showNumbers: showPinNumbers)
             }
 
             // Labels (kept upright)
@@ -961,11 +1133,15 @@ struct SchematicCanvas: View {
                     anchor = .leading
                 }
                 // A part the active variant leaves off is marked DNP; a variant value replaces the design value.
-                ctx.draw(Text(c.isFitted ? c.displayRef : c.displayRef + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                            .foregroundColor(selected ? pal.selection.color : (c.isFitted ? pal.designator.color : pal.error.color)),
-                         at: refPoint, anchor: anchor)
-                ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
-                            .foregroundColor(c.variantValue == nil ? pal.value.color : pal.variantValue.color), at: valPoint, anchor: anchor)
+                if showRefs {
+                    ctx.draw(Text(c.isFitted ? c.displayRef : c.displayRef + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
+                                .foregroundColor(selected ? pal.selection.color : (c.isFitted ? pal.designator.color : pal.error.color)),
+                             at: refPoint, anchor: anchor)
+                }
+                if showValues {
+                    ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
+                                .foregroundColor(c.variantValue == nil ? pal.value.color : pal.variantValue.color), at: valPoint, anchor: anchor)
+                }
             }
         }
 
@@ -1079,7 +1255,7 @@ struct SchematicCanvas: View {
         if case .place(let kind) = tool { ghost = SchematicSymbols.shapes(for: kind, value: kind.defaultValue) }
         if case .placeCustom(let partId) = tool, let part = snap.customPart(partId) { ghost = SchematicSymbols.customShapes(part) }
         if let shapes = ghost, let h = hover {
-            let world = SchematicAutoLayout.snap(viewport.toWorld(h))
+            let world = SchematicGrid.snap(viewport.toWorld(h))
             let t = SchematicSymbols.transform(position: world, rotation: placementRotation).concatenating(screen)
             ctx.stroke(shapes.stroke.applying(t), with: .color(pal.preview.color.opacity(0.6)),
                        style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
@@ -1141,7 +1317,7 @@ struct SchematicCanvas: View {
 
     private func drawGrid(_ ctx: inout GraphicsContext, size: CGSize) {
         // Pitch adapts to the zoom (10, 50, 100, 500 … units) so dots and lines never get denser than 8 points.
-        let minor = viewport.gridPitch(base: 10, minimumPoints: 8)
+        let minor = viewport.gridPitch(base: SchematicGrid.step, minimumPoints: 8)
         switch style.grid {
         case .none: return
         case .lines: drawGridLines(&ctx, size: size, minor: minor, major: minor * CGFloat(style.majorEvery))

@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Iguhit ang label bilang simbolo ng power (bar sa tangkay); pareho ang pagkonekta nito sa net";
 "Show as Label" = "Ipakita bilang Label";
 "Show as Power Symbol" = "Ipakita bilang Simbolo ng Power";
+"Note" = "Tala";
+"Edit Note" = "I-edit ang Tala";
+"Edit Text…" = "I-edit ang Teksto…";
+"Labels and Power Symbols" = "Mga Label at Simbolo ng Power";
+"Notes and Drawings" = "Mga Tala at Guhit";
+"Pin Names" = "Mga Pangalan ng Pin";
+"Pin Numbers" = "Mga Numero ng Pin";
+"Selectable" = "Mapipili";
+"Snap Step" = "Hakbang ng Snap";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Snap grid, ang ipinapakita ng canvas (numero at pangalan ng pin, designator, value) at ang mapipili";
+"Snap to Grid" = "I-snap sa Grid";
+"Wires" = "Mga Wire";
+"Zoom to Sheet Frame" = "I-zoom sa Frame ng Sheet";
+"View Options" = "Mga Opsyon sa View";

@@ -258,6 +258,17 @@ struct Wire {
     int instanceOf = 0;
 };
 
+/// A drawing on a sheet that is not part of the circuit: a note (text), a line, an arrow or a rectangle (a section
+/// boundary). Points in schematic units: a note's anchor (its text's top left); a line's / arrow's two ends (the
+/// arrow head at the second); a rectangle's two corners.
+struct SheetGraphic {
+    int id = -1;
+    int sheet = 1;
+    std::string kind;  // "text", "line", "arrow", "rect"
+    std::vector<Vec2> points;
+    std::string text;
+};
+
 struct Net {
     int index = -1;
     std::string name;
@@ -600,6 +611,17 @@ public:
     /// Differential pairs marked by directives: (positive, negative) nets.
     std::vector<std::pair<int, int>> directiveDiffPairs() const;
 
+    // ---- notes and drawings on sheets ----
+    const std::vector<SheetGraphic>& graphics() const { return graphics_; }
+    /// Adds a note / line / arrow / rectangle on `g.sheet` (the active sheet when 0); its id, or -1 for an unknown
+    /// kind, the wrong number of points (text 1, others 2) or text over 2000 characters.
+    int addGraphic(SheetGraphic g);
+    bool removeGraphic(int id);
+    bool moveGraphic(int id, Vec2 by);
+    bool setGraphicText(int id, const std::string& text);
+    /// Restores a graphic as saved (file loading).
+    void restoreGraphic(const SheetGraphic& g);
+
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
     const Bus* findBus(int id) const;
@@ -693,6 +715,8 @@ private:
     std::vector<Wire> wires_;
     std::vector<Bus> buses_;
     int nextBusId_ = 1;
+    std::vector<SheetGraphic> graphics_;
+    int nextGraphicId_ = 1;
     bool omitUnfitted_ = false;
     std::vector<Sheet> sheets_{Sheet{1, "Main", 0}};
     int activeSheet_ = 1;

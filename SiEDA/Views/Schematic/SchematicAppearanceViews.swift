@@ -60,6 +60,71 @@ struct SchematicSchemeLabel: View {
     }
 }
 
+/// Snap grid of the schematic editor (placing, moving, wire corners, drawings) and what the canvas shows and lets you
+/// pick: per-user settings, not saved with the design.
+enum SchematicGrid {
+    static let stepKey = "schematicGridStep", snapKey = "schematicSnap"
+    static let pinNumbersKey = "schematicShowPinNumbers", pinNamesKey = "schematicShowPinNames"
+    static let valuesKey = "schematicShowValues", refsKey = "schematicShowRefs"
+    static let pickPartsKey = "schematicPickParts", pickWiresKey = "schematicPickWires"
+    static let pickLabelsKey = "schematicPickLabels", pickDrawingsKey = "schematicPickDrawings"
+    /// Snap steps in schematic units (10 = one grid, 2.54 mm on the PDF).
+    static let steps: [Double] = [5, 10, 20, 25, 50]
+
+    static var step: CGFloat {
+        let v = UserDefaults.standard.double(forKey: stepKey)
+        return v > 0 ? CGFloat(v) : 10
+    }
+    static var snapping: Bool { UserDefaults.standard.object(forKey: snapKey) as? Bool ?? true }
+
+    static func snap(_ p: CGPoint) -> CGPoint {
+        guard snapping else { return CGPoint(x: p.x.rounded(), y: p.y.rounded()) }
+        let s = step
+        return CGPoint(x: (p.x / s).rounded() * s, y: (p.y / s).rounded() * s)
+    }
+
+    static func snap(_ d: CGSize) -> CGSize {
+        let p = snap(CGPoint(x: d.width, y: d.height))
+        return CGSize(width: p.x, height: p.y)
+    }
+
+    static func flag(_ key: String) -> Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
+}
+
+/// Snap grid, display and selection-filter choices (options-bar menu).
+struct SchematicViewOptionsMenu: View {
+    @AppStorage(SchematicGrid.stepKey) private var step = 10.0
+    @AppStorage(SchematicGrid.snapKey) private var snapping = true
+    @AppStorage(SchematicGrid.pinNumbersKey) private var pinNumbers = true
+    @AppStorage(SchematicGrid.pinNamesKey) private var pinNames = true
+    @AppStorage(SchematicGrid.valuesKey) private var values = true
+    @AppStorage(SchematicGrid.refsKey) private var refs = true
+    @AppStorage(SchematicGrid.pickPartsKey) private var pickParts = true
+    @AppStorage(SchematicGrid.pickWiresKey) private var pickWires = true
+    @AppStorage(SchematicGrid.pickLabelsKey) private var pickLabels = true
+    @AppStorage(SchematicGrid.pickDrawingsKey) private var pickDrawings = true
+
+    var body: some View {
+        Toggle("Snap to Grid", isOn: $snapping)
+        Picker("Snap Step", selection: $step) {
+            ForEach(SchematicGrid.steps, id: \.self) { Text(verbatim: String(format: "%g", $0)).tag($0) }
+        }
+        .disabled(!snapping)
+        Divider()
+        Toggle("Pin Numbers", isOn: $pinNumbers)
+        Toggle("Pin Names", isOn: $pinNames)
+        Toggle("Designators", isOn: $refs)
+        Toggle("Values", isOn: $values)
+        Divider()
+        Section("Selectable") {
+            Toggle("Parts", isOn: $pickParts)
+            Toggle("Wires", isOn: $pickWires)
+            Toggle("Labels and Power Symbols", isOn: $pickLabels)
+            Toggle("Notes and Drawings", isOn: $pickDrawings)
+        }
+    }
+}
+
 /// Colour scheme and grid choices of the schematic canvas: the options-bar menu, the View menu and Settings.
 struct SchematicAppearanceMenu: View {
     /// Opens the custom theme editor; nil hides "Customise…".

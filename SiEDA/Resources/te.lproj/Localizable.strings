@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "లేబుల్‌ను పవర్ సంకేతంగా (కాడపై పట్టీ) గీయి; ఇది తన నెట్‌కు అదే విధంగా కలుస్తుంది";
 "Show as Label" = "లేబుల్‌గా చూపు";
 "Show as Power Symbol" = "పవర్ సంకేతంగా చూపు";
+"Note" = "గమనిక";
+"Edit Note" = "గమనికను సవరించు";
+"Edit Text…" = "వచనాన్ని సవరించు…";
+"Labels and Power Symbols" = "లేబుల్‌లు, పవర్ సంకేతాలు";
+"Notes and Drawings" = "గమనికలు, చిత్రాలు";
+"Pin Names" = "పిన్ పేర్లు";
+"Pin Numbers" = "పిన్ సంఖ్యలు";
+"Selectable" = "ఎంచుకోదగినవి";
+"Snap Step" = "స్నాప్ దశ";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "స్నాప్ గ్రిడ్, కాన్వాస్‌లో ఏమి కనిపిస్తుంది (పిన్ సంఖ్యలు, పేర్లు, డిజిగ్నేటర్లు, విలువలు), ఏవి ఎంచుకోవచ్చు";
+"Snap to Grid" = "గ్రిడ్‌కు స్నాప్";
+"Wires" = "వైర్లు";
+"Zoom to Sheet Frame" = "షీట్ ఫ్రేమ్‌కు జూమ్";
+"View Options" = "వీక్షణ ఎంపికలు";

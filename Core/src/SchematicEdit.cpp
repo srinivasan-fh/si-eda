@@ -143,6 +143,54 @@ int Schematic::cleanupWires(int sheet) {
     return removed;
 }
 
+int Schematic::addGraphic(SheetGraphic g) {
+    const bool text = g.kind == "text";
+    if ((!text && g.kind != "line" && g.kind != "arrow" && g.kind != "rect") || g.points.size() != (text ? 1u : 2u) ||
+        g.text.size() > 2000 || (text && g.text.empty()) || graphics_.size() >= 10000)
+        return -1;
+    for (const Vec2 p : g.points)
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || std::fabs(p.x) > 1e7 || std::fabs(p.y) > 1e7) return -1;
+    if (g.sheet <= 0) g.sheet = activeSheet_;
+    g.id = nextGraphicId_++;
+    graphics_.push_back(std::move(g));
+    edited();
+    return graphics_.back().id;
+}
+
+void Schematic::restoreGraphic(const SheetGraphic& g) {
+    if (g.id <= 0 || addGraphic(g) < 0) return;
+    graphics_.back().id = g.id;
+    nextGraphicId_ = std::max(nextGraphicId_, g.id + 1);
+}
+
+bool Schematic::removeGraphic(int id) {
+    const auto it = std::find_if(graphics_.begin(), graphics_.end(), [&](const SheetGraphic& g) { return g.id == id; });
+    if (it == graphics_.end()) return false;
+    graphics_.erase(it);
+    edited();
+    return true;
+}
+
+bool Schematic::moveGraphic(int id, Vec2 by) {
+    for (auto& g : graphics_)
+        if (g.id == id) {
+            for (auto& p : g.points) p = p + by;
+            edited();
+            return true;
+        }
+    return false;
+}
+
+bool Schematic::setGraphicText(int id, const std::string& text) {
+    for (auto& g : graphics_)
+        if (g.id == id && g.kind == "text" && !text.empty() && text.size() <= 2000) {
+            g.text = text;
+            edited();
+            return true;
+        }
+    return false;
+}
+
 std::array<double, 4> Schematic::symbolOutline(const Component& c) const {
     // Local boxes as the canvas draws them (SchematicSymbols.bounds), before rotation.
     double x0 = -40, y0 = -40, x1 = 40, y1 = 40;

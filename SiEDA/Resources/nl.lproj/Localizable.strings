@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Teken het label als voedingssymbool (een balk op een steel); het verbindt zijn net op dezelfde manier";
 "Show as Label" = "Als label tonen";
 "Show as Power Symbol" = "Als voedingssymbool tonen";
+"Note" = "Notitie";
+"Edit Note" = "Notitie bewerken";
+"Edit Text…" = "Tekst bewerken…";
+"Labels and Power Symbols" = "Labels en voedingssymbolen";
+"Notes and Drawings" = "Notities en tekeningen";
+"Pin Names" = "Pinnamen";
+"Pin Numbers" = "Pinnummers";
+"Selectable" = "Selecteerbaar";
+"Snap Step" = "Uitlijnstap";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Uitlijnraster, wat het canvas toont (pinnummers, namen, referenties, waarden) en wat selecteerbaar is";
+"Snap to Grid" = "Uitlijnen op raster";
+"Wires" = "Draden";
+"Zoom to Sheet Frame" = "Zoomen op bladkader";
+"View Options" = "Weergaveopties";

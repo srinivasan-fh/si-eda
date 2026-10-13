@@ -468,6 +468,24 @@ Scene schematicScene(const Project& project, int sheet) {
         grow(b, any, a);
         grow(b, any, c);
     }
+    for (const auto& g : sch.graphics()) {  // notes and drawings
+        if (g.sheet != sheet || g.points.empty()) continue;
+        for (const auto& p : g.points) grow(b, any, p);
+        if (g.kind == "text") {
+            s.text(g.points[0] + Vec2{0, 9}, g.text.substr(0, g.text.find('\n')), 9, textC, false);
+            grow(b, any, g.points[0] + Vec2{textWidth(g.text, 9), 12});
+        } else if (g.kind == "rect") {
+            const Vec2 a = g.points[0], c = g.points[1];
+            s.polyline({a, {c.x, a.y}, c, {a.x, c.y}, a}, 1, textC);
+        } else {
+            s.polyline({g.points[0], g.points[1]}, 1, textC);
+            if (g.kind == "arrow") {
+                const Vec2 d = g.points[1] - g.points[0];
+                const Vec2 u1 = d * (1 / std::max(1e-9, d.length())), n{-u1.y, u1.x};
+                s.polyline({g.points[1] - u1 * 8 + n * 3.5, g.points[1], g.points[1] - u1 * 8 - n * 3.5}, 1, textC);
+            }
+        }
+    }
     for (const auto& bus : sch.buses()) {
         if (bus.sheet != sheet) continue;
         s.polyline(bus.points, 4, "#2a5caa");

@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Draw the label as a power symbol (a bar on a stem); it joins its net the same way";
 "Show as Label" = "Show as Label";
 "Show as Power Symbol" = "Show as Power Symbol";
+"Note" = "Note";
+"Edit Note" = "Edit Note";
+"Edit Text…" = "Edit Text…";
+"Labels and Power Symbols" = "Labels and Power Symbols";
+"Notes and Drawings" = "Notes and Drawings";
+"Pin Names" = "Pin Names";
+"Pin Numbers" = "Pin Numbers";
+"Selectable" = "Selectable";
+"Snap Step" = "Snap Step";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected";
+"Snap to Grid" = "Snap to Grid";
+"Wires" = "Wires";
+"Zoom to Sheet Frame" = "Zoom to Sheet Frame";
+"View Options" = "View Options";

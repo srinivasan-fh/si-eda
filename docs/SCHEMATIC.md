@@ -351,6 +351,15 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 - **Right-click menu** on a part (edit, rotate, mirror, duplicate, copy, select same value / connected parts, lock,
   delete), a wire (select connected parts, clean up, delete) or the sheet (paste here, select all, clean up, fit).
   A right-drag still pans. **Double-click** a part to edit its designator and value (a label's name) in place.
+- **Notes and drawings**: the tool strip's Note (T), Arrow, Section Rectangle and Line tools put text and lines on the
+  sheet that are not part of the circuit (`Schematic::graphics`, `SheetGraphic`; saved as `sheetGraphics` only when
+  present; in the PDF and the MCP render; C API `sieda_add_sheet_graphic` / `_remove_` / `_move_` / `_set_..._text`).
+  Drag one to move it, double-click a note to edit it, Delete removes it.
+- **View options** (slider button): snap on / off and the snap step (5 – 50 units; placing, moving, wire corners,
+  drawings), pin numbers / names, designators and values shown or hidden, and selection filters (parts, wires,
+  labels and power symbols, notes and drawings). Per user, not saved with the design. Right-click the sheet:
+  **Zoom to Sheet Frame**. **Double-click a sheet symbol** to open its sheet; **⌘↑** goes up to the parent.
+- **Find & Replace** also renames designators (to a free designator of the same shape).
 - **Lock** (`Component::locked`, `sieda_set_component_locked`): a locked part is not dragged or moved. A selected
   wire highlights its whole net. **Select All** (⌘A), **Select Same Value**, **Select Connected Parts**; the
   inspector sets one value or one package for every selected part (one undo step).

@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "लेबल को पावर प्रतीक (डंडी पर पट्टी) के रूप में बनाएँ; यह अपने नेट से वैसे ही जुड़ता है";
 "Show as Label" = "लेबल के रूप में दिखाएँ";
 "Show as Power Symbol" = "पावर प्रतीक के रूप में दिखाएँ";
+"Note" = "टिप्पणी";
+"Edit Note" = "टिप्पणी संपादित करें";
+"Edit Text…" = "पाठ संपादित करें…";
+"Labels and Power Symbols" = "लेबल और पावर प्रतीक";
+"Notes and Drawings" = "टिप्पणियाँ और चित्र";
+"Pin Names" = "पिन नाम";
+"Pin Numbers" = "पिन संख्याएँ";
+"Selectable" = "चयन योग्य";
+"Snap Step" = "स्नैप चरण";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "स्नैप ग्रिड, कैनवास पर क्या दिखे (पिन संख्या, नाम, डिज़ाइनेटर, मान) और क्या चुना जा सके";
+"Snap to Grid" = "ग्रिड पर स्नैप करें";
+"Wires" = "तार";
+"Zoom to Sheet Frame" = "शीट फ़्रेम तक ज़ूम करें";
+"View Options" = "दृश्य विकल्प";

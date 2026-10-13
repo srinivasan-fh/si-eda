@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "ラベルを電源シンボル（軸の上のバー）として描きます。ネットへの接続は同じです";
 "Show as Label" = "ラベルとして表示";
 "Show as Power Symbol" = "電源シンボルとして表示";
+"Note" = "メモ";
+"Edit Note" = "メモを編集";
+"Edit Text…" = "テキストを編集…";
+"Labels and Power Symbols" = "ラベルと電源シンボル";
+"Notes and Drawings" = "メモと図形";
+"Pin Names" = "ピン名";
+"Pin Numbers" = "ピン番号";
+"Selectable" = "選択可能";
+"Snap Step" = "スナップ間隔";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "スナップグリッド、キャンバスの表示内容（ピン番号、名前、リファレンス、値）と選択できる対象";
+"Snap to Grid" = "グリッドにスナップ";
+"Wires" = "配線";
+"Zoom to Sheet Frame" = "シート枠にズーム";
+"View Options" = "表示オプション";

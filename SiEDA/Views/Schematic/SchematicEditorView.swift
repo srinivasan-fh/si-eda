@@ -9,6 +9,7 @@ enum SchematicTool: Equatable {
     case pan
     case place(ComponentKind)
     case placeCustom(String)  // custom part id from the component library
+    case graphic(String)      // a note ("text"), "line", "arrow" or section "rect" drawn on the sheet
 
     var title: String {
         switch self {
@@ -19,6 +20,13 @@ enum SchematicTool: Equatable {
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
         case .placeCustom: return "Place Custom Part"
+        case .graphic(let kind):
+            switch kind {
+            case "text": return "Note"
+            case "arrow": return "Arrow"
+            case "rect": return "Section Rectangle"
+            default: return "Line"
+            }
         }
     }
 }
@@ -83,6 +91,15 @@ struct SchematicEditorView: View {
                 ToolStripButton(systemImage: "bolt.circle", help: "Place voltage source", isActive: tool == .place(.voltageSource)) {
                     tool = .place(.voltageSource)
                 }
+                ToolStripDivider()
+                ToolStripButton(systemImage: "textformat", help: "Note (T) — click to place text on the sheet",
+                                isActive: tool == .graphic("text")) { tool = .graphic("text") }
+                ToolStripButton(systemImage: "line.diagonal.arrow", help: "Arrow — drag from tail to head",
+                                isActive: tool == .graphic("arrow")) { tool = .graphic("arrow") }
+                ToolStripButton(systemImage: "rectangle.dashed", help: "Section rectangle — drag a corner to the other",
+                                isActive: tool == .graphic("rect")) { tool = .graphic("rect") }
+                ToolStripButton(systemImage: "minus", help: "Line — drag from one end to the other",
+                                isActive: tool == .graphic("line")) { tool = .graphic("line") }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
                 ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
@@ -187,6 +204,14 @@ struct SchematicEditorView: View {
                     Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
                         .help("PDF of every sheet with bookmarks, frames and title blocks")
                     appearanceMenu
+                    Menu {
+                        SchematicViewOptionsMenu()
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+                    .fixedSize()
+                    .help("Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected")
+                    .accessibilityLabel("View Options")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -324,6 +349,9 @@ struct SchematicEditorView: View {
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
         case .bus: return "Click the bus corners · click the last point again or press Return to name it (D[0..7]) · Esc cancels"
+        case .graphic(let kind):
+            return kind == "text" ? "Click where the note goes, then type it · double-click a note to edit it · Esc returns to Select"
+                : "Drag from one end to the other · drawings are not part of the circuit · Esc returns to Select"
         }
     }
 

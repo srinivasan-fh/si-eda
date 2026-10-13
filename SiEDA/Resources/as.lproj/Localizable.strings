@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "লেবেলটো পাৱাৰ চিহ্ন (ডাঠৰ ওপৰত দণ্ড) হিচাপে আঁকক; ই নিজৰ নেটৰ সৈতে একেদৰে সংযোগ হয়";
 "Show as Label" = "লেবেল হিচাপে দেখুৱাওক";
 "Show as Power Symbol" = "পাৱাৰ চিহ্ন হিচাপে দেখুৱাওক";
+"Note" = "টোকা";
+"Edit Note" = "টোকা সম্পাদনা কৰক";
+"Edit Text…" = "পাঠ সম্পাদনা কৰক…";
+"Labels and Power Symbols" = "লেবেল আৰু পাৱাৰ চিহ্ন";
+"Notes and Drawings" = "টোকা আৰু অংকন";
+"Pin Names" = "পিনৰ নাম";
+"Pin Numbers" = "পিনৰ নম্বৰ";
+"Selectable" = "বাছিব পৰা";
+"Snap Step" = "স্নেপ পদক্ষেপ";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "স্নেপ গ্ৰিড, কেনভাছত কি দেখুৱায় (পিন নম্বৰ, নাম, ডিজাইনেটৰ, মান) আৰু কি বাছিব পাৰি";
+"Snap to Grid" = "গ্ৰিডত স্নেপ";
+"Wires" = "তাঁৰ";
+"Zoom to Sheet Frame" = "শ্বীট ফ্ৰেমলৈ জুম";
+"View Options" = "দৰ্শন বিকল্প";

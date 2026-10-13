@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Lukis label sebagai simbol kuasa (bar pada batang); ia menyambung ke netnya dengan cara yang sama";
 "Show as Label" = "Papar sebagai Label";
 "Show as Power Symbol" = "Papar sebagai Simbol Kuasa";
+"Note" = "Nota";
+"Edit Note" = "Edit Nota";
+"Edit Text…" = "Edit Teks…";
+"Labels and Power Symbols" = "Label dan Simbol Kuasa";
+"Notes and Drawings" = "Nota dan Lukisan";
+"Pin Names" = "Nama Pin";
+"Pin Numbers" = "Nombor Pin";
+"Selectable" = "Boleh dipilih";
+"Snap Step" = "Langkah Lekap";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Grid lekap, apa yang dipaparkan kanvas (nombor pin, nama, penunjuk, nilai) dan apa yang boleh dipilih";
+"Snap to Grid" = "Lekap ke Grid";
+"Wires" = "Wayar";
+"Zoom to Sheet Frame" = "Zum ke Bingkai Helaian";
+"View Options" = "Pilihan Paparan";

@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "Das Label als Versorgungssymbol zeichnen (Balken auf einem Stiel); es verbindet sein Netz genauso";
 "Show as Label" = "Als Label zeigen";
 "Show as Power Symbol" = "Als Versorgungssymbol zeigen";
+"Note" = "Notiz";
+"Edit Note" = "Notiz bearbeiten";
+"Edit Text…" = "Text bearbeiten…";
+"Labels and Power Symbols" = "Labels und Versorgungssymbole";
+"Notes and Drawings" = "Notizen und Zeichnungen";
+"Pin Names" = "Pinnamen";
+"Pin Numbers" = "Pinnummern";
+"Selectable" = "Auswählbar";
+"Snap Step" = "Fangraster-Schritt";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "Fangraster, was die Zeichenfläche zeigt (Pinnummern, Namen, Referenzen, Werte) und was auswählbar ist";
+"Snap to Grid" = "Am Raster fangen";
+"Wires" = "Leitungen";
+"Zoom to Sheet Frame" = "Auf Blattrahmen zoomen";
+"View Options" = "Ansichtsoptionen";

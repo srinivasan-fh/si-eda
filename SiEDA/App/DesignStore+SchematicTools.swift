@@ -74,7 +74,7 @@ extension DesignStore {
               let parts = json["components"] as? [[String: Any]], !parts.isEmpty else { return }
         let xs = parts.compactMap { ($0["x"] as? NSNumber)?.doubleValue }, ys = parts.compactMap { ($0["y"] as? NSNumber)?.doubleValue }
         guard let x0 = xs.min(), let y0 = ys.min() else { return }
-        let target = SchematicAutoLayout.snap(world)
+        let target = SchematicGrid.snap(world)
         var pasted: [Int] = []
         performChecked("Paste", failureMessage: "Nothing to paste here") {
             pasted = $0.pasteComponents(clip, offset: CGSize(width: target.x - x0, height: target.y - y0), count: 1, step: .zero,
@@ -126,6 +126,32 @@ extension DesignStore {
         performChecked("Package \(package) for \(ids.count) part(s)", failureMessage: "No package changed") { engine in
             ids.reduce(false) { engine.setPackage($1, package) || $0 }
         }
+    }
+
+    // MARK: - Notes and drawings on sheets
+
+    /// Adds a note ("text", one point) or a line / arrow / section rectangle (two points) on the shown sheet.
+    func addSheetGraphic(kind: String, points: [CGPoint], text: String = "") {
+        var id: Int?
+        performChecked(kind == "text" ? "Added note" : "Added \(kind)", invalidatesAnalysis: false, failureMessage: "Nothing to draw") {
+            id = $0.addSheetGraphic(kind: kind, points: points.map { SchematicGrid.snap($0) }, text: text)
+            return id != nil
+        }
+        if let id {
+            select(component: nil)
+            selectedGraphic = id
+        }
+    }
+
+    func moveSheetGraphic(_ id: Int, by delta: CGSize) {
+        guard delta != .zero else { return }
+        perform("Moved drawing", invalidatesAnalysis: false) { $0.moveSheetGraphic(id, by: delta) }
+    }
+
+    func setSheetGraphicText(_ id: Int, _ text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        performChecked("Edited note", invalidatesAnalysis: false) { $0.setSheetGraphicText(id, t) }
     }
 
     /// Every part on the shown sheet.

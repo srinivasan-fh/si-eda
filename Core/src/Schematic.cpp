@@ -386,6 +386,8 @@ void Schematic::clear() {
     wires_.clear();
     buses_.clear();
     nextBusId_ = 1;
+    graphics_.clear();
+    nextGraphicId_ = 1;
     sheets_ = {Sheet{1, "Main", 0}};
     activeSheet_ = 1;
     nextSheetId_ = 2;

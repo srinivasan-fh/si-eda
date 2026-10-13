@@ -334,6 +334,33 @@ int32_t sieda_set_label_power(SiedaProject* project, int32_t id, int32_t power) 
     return 1;
 }
 
+int32_t sieda_add_sheet_graphic(SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return -1;
+    try {
+        const Json j = Json::parse(request_json);
+        SheetGraphic g;
+        g.kind = j.get("kind").asString("");
+        g.sheet = j.get("sheet").asInt(0);
+        g.text = j.get("text").asString("");
+        for (const auto& pt : j.get("points").items()) g.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        return project->project.schematic.addGraphic(g);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_remove_sheet_graphic(SiedaProject* project, int32_t id) {
+    return project && project->project.schematic.removeGraphic(id) ? 1 : 0;
+}
+
+int32_t sieda_move_sheet_graphic(SiedaProject* project, int32_t id, double dx, double dy) {
+    return project && std::isfinite(dx) && std::isfinite(dy) && project->project.schematic.moveGraphic(id, {dx, dy}) ? 1 : 0;
+}
+
+int32_t sieda_set_sheet_graphic_text(SiedaProject* project, int32_t id, const char* text) {
+    return project && text && project->project.schematic.setGraphicText(id, text) ? 1 : 0;
+}
+
 int32_t sieda_set_component_value(SiedaProject* project, int32_t id, const char* value) {
     if (!project) return 0;
     return guarded([&] {

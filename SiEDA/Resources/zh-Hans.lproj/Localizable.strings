@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "将标签绘制为电源符号（柄上的横杠）；连接网络的方式不变";
 "Show as Label" = "显示为标签";
 "Show as Power Symbol" = "显示为电源符号";
+"Note" = "附注";
+"Edit Note" = "编辑附注";
+"Edit Text…" = "编辑文字…";
+"Labels and Power Symbols" = "标签与电源符号";
+"Notes and Drawings" = "附注与绘图";
+"Pin Names" = "引脚名称";
+"Pin Numbers" = "引脚编号";
+"Selectable" = "可选择";
+"Snap Step" = "吸附间距";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "吸附栅格、画布显示的内容（引脚编号、名称、位号、值）及可选择的对象";
+"Snap to Grid" = "吸附到栅格";
+"Wires" = "导线";
+"Zoom to Sheet Frame" = "缩放到图框";
+"View Options" = "视图选项";

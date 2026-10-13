@@ -64,6 +64,9 @@ Box sheetExtent(const Schematic& s, int sheet) {
     for (const auto& bus : s.buses())
         if (bus.sheet == sheet)
             for (const auto& p : bus.points) b.add(p);
+    for (const auto& g : s.graphics())
+        if (g.sheet == sheet)
+            for (const auto& p : g.points) b.add(p);
     return b;
 }
 
@@ -645,6 +648,39 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
         if (!b.points.empty()) {
             const Vec2 a = m(b.points[0]);
             cv.text(a.x + 1, a.y - 1, text, b.name, 0, true);
+        }
+    }
+    // Notes and drawings: text, lines, arrows and section rectangles.
+    cv.width(std::max(0.15, 1.2 * u));
+    for (const auto& g : s.graphics()) {
+        if (g.sheet != sheet.id || g.points.empty()) continue;
+        const Vec2 a = m(g.points[0]);
+        if (g.kind == "text") {
+            double y = a.y + text;
+            size_t start = 0;
+            for (size_t nl = 0; nl != std::string::npos; start = nl + 1) {  // one line per '\n'
+                nl = g.text.find('\n', start);
+                cv.text(a.x, y, text, g.text.substr(start, nl == std::string::npos ? std::string::npos : nl - start), 0);
+                y += text * 1.3;
+            }
+            continue;
+        }
+        const Vec2 b = m(g.points.back());
+        if (g.kind == "rect") {
+            cv.line(a.x, a.y, b.x, a.y);
+            cv.line(b.x, a.y, b.x, b.y);
+            cv.line(b.x, b.y, a.x, b.y);
+            cv.line(a.x, b.y, a.x, a.y);
+            continue;
+        }
+        cv.line(a.x, a.y, b.x, b.y);
+        if (g.kind == "arrow") {
+            const Vec2 d = b - a;
+            const double len = std::max(1e-9, d.length()), h = std::max(1.0, 8 * u);
+            const Vec2 u1 = d * (1 / len), n{-u1.y, u1.x};
+            const Vec2 l = b - u1 * h + n * (h * 0.45), r = b - u1 * h - n * (h * 0.45);
+            cv.line(b.x, b.y, l.x, l.y);
+            cv.line(b.x, b.y, r.x, r.y);
         }
     }
     // Sheet symbols: a box around each child's entries with the child's name.

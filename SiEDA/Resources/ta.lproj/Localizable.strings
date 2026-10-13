@@ -1452,3 +1452,17 @@
 "Draw the label as a power symbol (a bar on a stem); it joins its net the same way" = "லேபிளை மின் குறியீடாக (தண்டின் மேல் பட்டை) வரை; அது தன் நெட்டுடன் அதே வழியில் இணையும்";
 "Show as Label" = "லேபிளாகக் காட்டு";
 "Show as Power Symbol" = "மின் குறியீடாகக் காட்டு";
+"Note" = "குறிப்பு";
+"Edit Note" = "குறிப்பைத் திருத்து";
+"Edit Text…" = "உரையைத் திருத்து…";
+"Labels and Power Symbols" = "லேபிள்களும் மின் குறியீடுகளும்";
+"Notes and Drawings" = "குறிப்புகளும் வரைபடங்களும்";
+"Pin Names" = "பின் பெயர்கள்";
+"Pin Numbers" = "பின் எண்கள்";
+"Selectable" = "தேர்ந்தெடுக்கக்கூடியவை";
+"Snap Step" = "ஸ்னாப் படி";
+"Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected" = "ஸ்னாப் கட்டம், கேன்வாஸ் காட்டுவது (பின் எண்கள், பெயர்கள், குறியீடுகள், மதிப்புகள்) மற்றும் தேர்ந்தெடுக்கக்கூடியவை";
+"Snap to Grid" = "கட்டத்துடன் ஸ்னாப்";
+"Wires" = "கம்பிகள்";
+"Zoom to Sheet Frame" = "தாள் சட்டத்துக்குப் பெரிதாக்கு";
+"View Options" = "காட்சி விருப்பங்கள்";

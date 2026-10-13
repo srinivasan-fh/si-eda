@@ -73,6 +73,8 @@ final class DesignStore: ObservableObject {
     @Published var selectedWire: Int?
     /// The part whose designator and value are being edited in place (double-click on the schematic).
     @Published var quickEdit: Int?
+    /// The note / line / arrow / rectangle selected on the schematic.
+    @Published var selectedGraphic: Int?
     /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
     @Published var selectedBus: Int?
     /// The schematic's Find & Replace panel.
@@ -310,6 +312,7 @@ final class DesignStore: ObservableObject {
         selection = selection.filter { snapshot.component($0) != nil }  // O(1) per part (large designs)
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
+        if let g = selectedGraphic, !sheetSnapshot.sheetGraphics.contains(where: { $0.id == g }) { selectedGraphic = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
@@ -455,7 +458,7 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func addComponent(_ kind: ComponentKind, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
-        let snapped = SchematicAutoLayout.snap(point)
+        let snapped = SchematicGrid.snap(point)
         perform("Placed \(kind.displayName)") {
             id = $0.addComponent(kind, at: snapped, rotation: rotation)
             if id >= 0 { $0.connectTouching(id) }  // a pin dropped on a wire or another pin is wired to it
@@ -477,7 +480,7 @@ final class DesignStore: ObservableObject {
         perform(detach ? "Moved \(moves.count) part(s) alone" : "Moved \(moves.count) part(s)", invalidatesAnalysis: detach) { engine in
             cut.forEach { engine.removeWire($0) }
             for c in moves {
-                engine.moveComponent(c.id, to: SchematicAutoLayout.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
+                engine.moveComponent(c.id, to: SchematicGrid.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
             }
             for c in moves { engine.connectTouching(c.id) }
         }
@@ -490,6 +493,11 @@ final class DesignStore: ObservableObject {
     }
 
     func deleteSelection() {
+        if let graphic = selectedGraphic {
+            perform("Deleted drawing", invalidatesAnalysis: false) { $0.removeSheetGraphic(graphic) }
+            selectedGraphic = nil
+            return
+        }
         if let bus = selectedBus {
             perform("Deleted bus") { $0.removeBus(bus) }
             selectedBus = nil
@@ -637,7 +645,7 @@ final class DesignStore: ObservableObject {
                 if p == w.end { return .pin(w.b) }
                 return .split(id, p)
             case .point(let p):
-                return .junction(SchematicAutoLayout.snap(p))
+                return .junction(SchematicGrid.snap(p))
             }
         }
         guard let from = resolve(start), let to = resolve(end) else { return nil }
@@ -667,7 +675,7 @@ final class DesignStore: ObservableObject {
 
     /// Bends a wire through `point`: a junction there splits it, and can be dragged further later.
     func bendWire(_ id: Int, at point: CGPoint) {
-        let p = SchematicAutoLayout.snap(point)
+        let p = SchematicGrid.snap(point)
         var junction: Int?
         performChecked("Bent wire", invalidatesAnalysis: false) { engine in
             junction = engine.splitWire(id, at: p)
@@ -747,6 +755,7 @@ final class DesignStore: ObservableObject {
     func select(component id: Int?, extend: Bool = false) {
         selectedWire = nil
         selectedBus = nil
+        selectedGraphic = nil
         guard let id else {
             if !extend { selection = [] }
             return
@@ -796,7 +805,7 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func addCustomComponent(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
-        let snapped = SchematicAutoLayout.snap(point)
+        let snapped = SchematicGrid.snap(point)
         let part = snapshot.customPart(partId)
         let name = part?.name ?? "part"
         if part?.isMultiUnit == true {

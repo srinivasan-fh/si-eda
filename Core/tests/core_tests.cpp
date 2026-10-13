@@ -9203,7 +9203,24 @@ TEST(schematic_mirror_touching_and_wire_cleanup) {
     p.schematic.find(r3)->locked = true;
     const int vcc = p.schematic.addComponent(ComponentKind::NetLabel, "VCC", {0, -100});
     p.schematic.find(vcc)->power = true;
+    // Notes and drawings on a sheet: saved, moved, edited, refused when malformed.
+    SheetGraphic note;
+    note.kind = "text";
+    note.points = {{0, -200}};
+    note.text = "POWER INPUT";
+    const int noteId = p.schematic.addGraphic(note);
+    SheetGraphic box;
+    box.kind = "rect";
+    box.points = {{-50, -220}, {400, 260}};
+    CHECK(noteId > 0 && p.schematic.addGraphic(box) > 0);
+    SheetGraphic bad;
+    bad.kind = "rect";
+    bad.points = {{0, 0}};
+    CHECK(p.schematic.addGraphic(bad) == -1);
+    CHECK(p.schematic.moveGraphic(noteId, {10, 0}) && p.schematic.setGraphicText(noteId, "POWER IN"));
     Project back = Project::fromJson(p.toJson());
+    CHECK(back.schematic.graphics().size() == 2 && back.schematic.graphics()[0].text == "POWER IN" &&
+          back.schematic.graphics()[0].points[0].x == 10);
     CHECK(back.schematic.find(r3)->mirror && back.schematic.find(r3)->locked && back.schematic.find(vcc)->power);
     SearchOptions o;
     o.wholeWord = true;

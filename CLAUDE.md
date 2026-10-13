@@ -29,7 +29,9 @@
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
   directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste, mirror (`Component::mirror`, `orient`), touching pins joined
   (`connectTouching`, ERC_TOUCHING_UNCONNECTED) and `cleanupWires` in `SchematicEdit.cpp` (app: right-click menu
-  `CanvasMenuItem`, double-click `QuickEditSheet`, X / Y / ⌘D / ⌥-drag / '/' keys, schematic `locked`); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
+  `CanvasMenuItem`, double-click `QuickEditSheet`, X / Y / ⌘D / ⌥-drag / '/' keys, schematic `locked`, net-label `power` look,
+  sheet notes / drawings `SheetGraphic` (`sheetGraphics`), view options `SchematicGrid` (snap step, display, selection
+  filters)); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
   (gate) checks `checkUnits` in `CustomParts.cpp`, app `SiEDA/Models/UnitDraft.swift` + `UnitEditorView.swift`. AI
   plans keep this structure (`DesignPlanCompiler.plan(from:)` / `apply` / `preservingStructure`); new project fields
   are written only when used so older files load and save identically.
