@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: Punan Muli ang mga Pour";
 "Canvas Key Preset" = "Preset ng mga Key sa Canvas";
 "Import Board Outline (DXF)…" = "I-import ang Balangkas ng Board (DXF)…";
+"Revisions" = "Mga Rebisyon";
+"Rev" = "Rev";
+"By" = "Ni";
+"Remove this revision" = "Alisin ang rebisyong ito";
+"Add Revision" = "Magdagdag ng Rebisyon";
+"Add a drawing dimension: drag from one point to the other" = "Magdagdag ng sukat sa drawing: i-drag mula sa isang punto papunta sa isa pa";
+"Delete Dimension" = "Burahin ang Sukat";
+"Dimension — drag from one point to the other · Esc ends" = "Sukat — i-drag mula sa isang punto papunta sa isa pa · Esc para tapusin";

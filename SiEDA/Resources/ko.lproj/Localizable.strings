@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: 동박 다시 채우기";
 "Canvas Key Preset" = "캔버스 키 프리셋";
 "Import Board Outline (DXF)…" = "보드 외곽선 가져오기(DXF)…";
+"Revisions" = "개정 이력";
+"Rev" = "개정";
+"By" = "작성자";
+"Remove this revision" = "이 개정 삭제";
+"Add Revision" = "개정 추가";
+"Add a drawing dimension: drag from one point to the other" = "도면 치수 추가: 한 점에서 다른 점으로 드래그";
+"Delete Dimension" = "치수 삭제";
+"Dimension — drag from one point to the other · Esc ends" = "치수 — 한 점에서 다른 점으로 드래그 · Esc 종료";

@@ -1092,7 +1092,8 @@ void projectTools(Table& t) {
               .str("company", "Title block: company")
               .str("revision", "Title block: revision")
               .str("date", "Title block: date")
-              .str("drawnBy", "Title block: drawn by"),
+              .str("drawnBy", "Title block: drawn by")
+              .array("revisions", "Revision table, oldest first (replaces it; [] clears): [{rev, date, description, by}]", "object"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               if (a.has("name")) sieda_project_set_name(p, argStr(a, "name").c_str());
@@ -1102,6 +1103,7 @@ void projectTools(Table& t) {
               Json tb = obj();
               for (const char* k : {"title", "company", "revision", "date", "drawnBy"})
                   if (a.has(k)) tb[k] = argStr(a, k);
+              if (a.get("revisions").isArray()) tb["revisions"] = a.get("revisions");
               if (tb.fields().size()) sieda_set_title_block(p, tb.dump().c_str());
               return out(projectSummary(s));
           });
@@ -2836,9 +2838,15 @@ void pcbTools(Table& t) {
               .num("width", "Preset width / diameter / span (mm)")
               .num("height", "Preset height (mm)")
               .num("param", "Corner radius / arm width (mm)")
-              .any("cutouts", "Board cutouts: [[{x, y}, …], …] (closed shapes inside the board); [] removes them"),
+              .any("cutouts", "Board cutouts: [[{x, y}, …], …] (closed shapes inside the board); [] removes them")
+              .array("dimensions", "Drawing dimensions [{a:{x,y}, b:{x,y}, offset}] (mm; offset along (−dy, dx), default 3) for "
+                     "the fabrication drawing and DXF; replaces them, [] removes", "object"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
+              if (a.get("dimensions").isArray()) {
+                  check(sieda_pcb_set_dimensions(p, a.get("dimensions").dump().c_str()) == 1, "A dimension needs two distinct points a and b");
+                  if (!a.has("preset") && !a.has("points") && !a.has("cutouts")) return out(pcbSummary(s).get("outline"));
+              }
               if (a.get("cutouts").isArray()) {
                   p->project.pcb.settings.cutouts.clear();
                   for (const auto& c : a.get("cutouts").items())
@@ -4344,7 +4352,8 @@ void outputTools(Table& t) {
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
           "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), "
           "testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
-          "checklist, Markdown). variant: an assembly variant for the assembly outputs.",
+          "checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, "
+          "revisions), net_lengths (routed length per net, CSV). variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
           [](McpServer& s, const Json& a) {
               const std::string f = requireStr(a, "format");

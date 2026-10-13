@@ -13,6 +13,7 @@
 #include "sieda/Pcb.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Schematic.hpp"
+#include "sieda/TrackGeometry.hpp"
 
 namespace sieda {
 
@@ -111,6 +112,13 @@ std::string exportDxf(const Schematic& sch, const PcbLayout& pcb) {
         for (int i = 0; i < 4; ++i) line("COURTYARD", k[i], k[(i + 1) % 4]);
         for (const FootprintLine& l : pcb.footprintLines(c))
             line(l.fab ? "FAB" : c.pcb.bottom ? "SILK_BOTTOM" : "SILK_TOP", l.a, l.b);
+    }
+    for (const auto& d : s.dimensions) {  // the dimension line, its two extension lines and the value
+        const Vec2 v = d.b - d.a;
+        if (v.length() < 1e-9) continue;
+        const Vec2 n = Vec2{-v.y, v.x} * (d.offset / v.length()), a = d.a + n, b = d.b + n, mid = flip((a + b) * 0.5);
+        line("DIMENSIONS", d.a, a), line("DIMENSIONS", d.b, b), line("DIMENSIONS", a, b);
+        o << "0\nTEXT\n8\nDIMENSIONS\n10\n" << num(mid.x) << "\n20\n" << num(mid.y) << "\n40\n1.5\n1\n" << num(v.length()) << "\n";
     }
     o << "0\nENDSEC\n0\nEOF\n";
     return o.str();
@@ -542,6 +550,34 @@ std::string bringUpChecklist(const Project& project) {
     }
     if (!any) o << "No programming or bus nets found by name.\n";
     o << "\n## 6. Sign-off\n\n- [ ] Record the board's serial number, revision and every measured value above.\n";
+    return o.str();
+}
+
+// ===================================================================== Net lengths
+
+std::string exportNetLengthReport(const Schematic& sch, const PcbLayout& pcb) {
+    struct Row { double length = 0; int segments = 0, vias = 0; };
+    std::map<int, Row> rows;
+    for (const auto& t : pcb.tracks)
+        if (t.net >= 0 && !t.teardrop) rows[t.net].length += trackLength(t), ++rows[t.net].segments;
+    for (const auto& v : pcb.vias)
+        if (v.net >= 0) ++rows[v.net].vias;
+    std::ostringstream o;
+    o << "Net,Length (mm),Segments,Vias,Target (mm),Tolerance (mm),Status\n";
+    const auto& nets = sch.nets();
+    for (const auto& [net, r] : rows) {
+        if (net >= static_cast<int>(nets.size())) continue;
+        const std::string& name = nets[static_cast<size_t>(net)].name;
+        o << csv(name) << "," << num(r.length) << "," << r.segments << "," << r.vias;
+        const auto rule = std::find_if(pcb.settings.lengthRules.begin(), pcb.settings.lengthRules.end(),
+                                       [&](const LengthRule& l) { return l.net == name; });
+        if (rule != pcb.settings.lengthRules.end())
+            o << "," << num(rule->target) << "," << num(rule->tolerance) << ","
+              << (std::fabs(r.length - rule->target) <= rule->tolerance + 1e-9 ? "met" : r.length < rule->target ? "short" : "long");
+        else
+            o << ",,,";
+        o << "\n";
+    }
     return o.str();
 }
 

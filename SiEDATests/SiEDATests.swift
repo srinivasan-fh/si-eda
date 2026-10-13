@@ -6699,6 +6699,24 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
     }
 
+    func testDrawingDimensionsRevisionsAndFabDrawing() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        store.addDimension(from: CGPoint(x: 0, y: 0), to: CGPoint(x: 10, y: 0))
+        XCTAssertEqual(store.snapshot.board.dimensions.count, 1)
+        XCTAssertEqual(store.snapshot.board.dimensions.first?.length ?? 0, 10, accuracy: 1e-9)
+        store.removeDimension(at: 0)
+        XCTAssertTrue(store.snapshot.board.dimensions.isEmpty)
+        var block = store.snapshot.titleBlock
+        block.revisions = [RevisionInfo(rev: "A", date: "2026-10-13", description: "First release", by: "SN")]
+        store.setTitleBlock(block)
+        XCTAssertEqual(store.snapshot.titleBlock.revisions?.first?.description, "First release")
+        let pdf = try XCTUnwrap(store.engine.export(.fabDrawing))
+        XCTAssertTrue(pdf.hasPrefix("%PDF-1.4") && pdf.contains("(First release)") && pdf.contains("(DRILL TABLE)"))
+        XCTAssertTrue((store.engine.export(.netLengths) ?? "").hasPrefix("Net,Length (mm)"))
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

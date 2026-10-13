@@ -151,6 +151,9 @@
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
   reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
+- Fabrication drawing PDF `exportBoardDrawingPdf` (declared in `Documents.hpp`, written in `SchematicPdf.cpp` with its
+  `Canvas`: dimensions `BoardSettings::dimensions`, drill map + table, stack-up legend, notes) and the revision table
+  `Project::revisions` (both saved only when present; title blocks of both PDFs); net-length CSV `exportNetLengthReport`.
 - Documents in `Core/src/Documents.cpp`: DXF export / outline import (`exportDxf`, `importDxfOutline`,
   `applyDxfOutline`, MCP `pcb_import_dxf`, fuzzed in the `idf` target), test-point report, interactive HTML BOM and the
   bring-up checklist; all four are in the fabrication package and `sieda_export` ("dxf", "testpoints", "html_bom",

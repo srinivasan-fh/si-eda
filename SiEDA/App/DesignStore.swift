@@ -2288,7 +2288,7 @@ final class DesignStore: ObservableObject {
 
     /// PCB drawing tools: a pour, the board outline or a cutout (click corners, double-click or Enter closes) and a
     /// routing keep-out (drag a rectangle).
-    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout, slot }
+    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout, slot, dimension }
     /// Closes a drawn shape (≥ 3 corners) as `tool`; a pour takes `pourNet` (empty = the ground net) on `layer`.
     func finishShape(_ tool: PCBShapeTool, points: [CGPoint], layer: Int) {
         guard points.count >= 3 else {
@@ -2314,7 +2314,7 @@ final class DesignStore: ObservableObject {
         case .cutout:
             performChecked("Added board cutout", invalidatesAnalysis: false,
                            failureMessage: "Cutout: draw it inside the board") { $0.addCutout(points) }
-        case .keepout, .slot:
+        case .keepout, .slot, .dimension:
             break
         }
     }
@@ -2355,6 +2355,22 @@ final class DesignStore: ObservableObject {
     func removeKeepout(_ keepout: RouteKeepout) {
         let rest = snapshot.board.keepouts.filter { $0 != keepout }
         perform("Removed keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(rest) }
+    }
+
+    /// A drawing dimension from `a` to `b` (board mm), its line 3 mm to the side.
+    func addDimension(from a: CGPoint, to b: CGPoint) {
+        guard hypot(b.x - a.x, b.y - a.y) > 0.05 else { return }
+        let dims = snapshot.board.dimensions + [BoardDimensionInfo(a: BoardPoint(x: a.x, y: a.y), b: BoardPoint(x: b.x, y: b.y))]
+        performChecked(String(format: "Added %.2f mm dimension", hypot(b.x - a.x, b.y - a.y)), invalidatesAnalysis: false) {
+            $0.setDimensions(dims)
+        }
+    }
+
+    func removeDimension(at index: Int) {
+        var dims = snapshot.board.dimensions
+        guard dims.indices.contains(index) else { return }
+        dims.remove(at: index)
+        performChecked("Removed dimension", invalidatesAnalysis: false) { $0.setDimensions(dims) }
     }
 
     func removeCutout(at index: Int) {

@@ -17,6 +17,11 @@
 namespace sieda {
 
 /// Title block printed on every schematic sheet (the sheet name and "n of N" are added per sheet).
+/// One line of the revision table (title blocks of the schematic PDF and of the board drawing).
+struct Revision {
+    std::string rev, date, description, by;
+};
+
 struct TitleBlock {
     std::string title, company, revision, date, drawnBy;
     bool empty() const { return title.empty() && company.empty() && revision.empty() && date.empty() && drawnBy.empty(); }
@@ -186,6 +191,8 @@ public:
     std::vector<Waiver> waivers;
     /// Schematic title block (empty = the title is the project name).
     TitleBlock titleBlock;
+    /// Revision history, oldest first. JSON "revisions", written only when present.
+    std::vector<Revision> revisions;
 
     const DesignVariant* findVariant(const std::string& name) const;
     /// Adds a variant (name trimmed, unique, non-empty), optionally a copy of `copyFrom`'s settings.

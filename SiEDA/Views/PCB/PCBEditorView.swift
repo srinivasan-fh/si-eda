@@ -175,6 +175,8 @@ struct PCBEditorView: View {
                                 isActive: store.pcbShapeTool == .keepout) { pickShape(.keepout) }
                 ToolStripButton(systemImage: "capsule", help: "Cut a slot: drag from one end to the other (right-click for its width)",
                                 isActive: store.pcbShapeTool == .slot) { pickShape(.slot) }
+                ToolStripButton(systemImage: "ruler", help: "Add a drawing dimension: drag from one point to the other",
+                                isActive: store.pcbShapeTool == .dimension) { pickShape(.dimension) }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
@@ -1142,7 +1144,7 @@ struct PCBCanvas: View {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
                     } else if let tool = store.pcbShapeTool {
-                        dragMode = tool == .keepout || tool == .slot ? .keepoutBox : .pan(viewport.offset)  // a click adds a corner
+                        dragMode = tool == .keepout || tool == .slot || tool == .dimension ? .keepoutBox : .pan(viewport.offset)  // a click adds a corner
                     } else if store.placementSession != nil {
                         dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
@@ -1199,6 +1201,8 @@ struct PCBCanvas: View {
                 } else if case .keepoutBox = dragMode {
                     if moved, store.pcbShapeTool == .slot {
                         store.addSlot(from: viewport.toWorld(value.startLocation), to: viewport.toWorld(value.location))
+                    } else if moved, store.pcbShapeTool == .dimension {
+                        store.addDimension(from: viewport.toWorld(value.startLocation), to: viewport.toWorld(value.location))
                     } else if moved, let rect = zoomRect { store.addKeepout(worldRect(rect), layer: -1) }
                 } else if !moved, !spaceHeld, let tool = store.pcbShapeTool {
                     shapeClick(viewport.toWorld(value.location), tool: tool)
@@ -1317,6 +1321,13 @@ struct PCBCanvas: View {
         var shapes: [CanvasMenuItem] = board.keepouts.filter { $0.rect.contains(world) }.map { ko in
             CanvasMenuItem(title: String(localized: "Delete Keep-out")) { store.removeKeepout(ko) }
         }
+        for (index, dim) in board.dimensions.enumerated() {
+            let n = CGPoint(x: -(dim.b.y - dim.a.y) / max(dim.length, 1e-9), y: (dim.b.x - dim.a.x) / max(dim.length, 1e-9))
+            let mid = CGPoint(x: (dim.a.x + dim.b.x) / 2 + n.x * dim.offset, y: (dim.a.y + dim.b.y) / 2 + n.y * dim.offset)
+            if hypot(world.x - mid.x, world.y - mid.y) < max(1.5, dim.length / 2) {
+                shapes.append(CanvasMenuItem(title: String(localized: "Delete Dimension")) { store.removeDimension(at: index) })
+            }
+        }
         for (index, cut) in board.cutouts.enumerated() where cut.count >= 3 {
             let path = Path { $0.addLines(cut.map(\.point)); $0.closeSubpath() }
             if path.contains(world) {
@@ -1427,6 +1438,16 @@ struct PCBCanvas: View {
                 ctx.stroke(r, with: .color(Theme.error.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [6, 3]))
                 ctx.draw(Text(ko.name).font(.caption2).foregroundColor(Theme.error),
                          at: CGPoint(x: ko.rect.minX, y: ko.rect.minY).applying(screen), anchor: .bottomLeading)
+            }
+            for dim in snap.board.dimensions where dim.length > 1e-6 {  // drawing dimensions: extension lines, line, value
+                let n = CGPoint(x: -(dim.b.y - dim.a.y) / dim.length * dim.offset, y: (dim.b.x - dim.a.x) / dim.length * dim.offset)
+                let a = dim.a.point, b = dim.b.point
+                let pa = CGPoint(x: a.x + n.x, y: a.y + n.y), pb = CGPoint(x: b.x + n.x, y: b.y + n.y)
+                var path = Path()
+                path.addLines([a, pa, pb, b])
+                ctx.stroke(path.applying(screen), with: .color(Theme.boardEdge.opacity(0.8)), lineWidth: 1)
+                ctx.draw(Text(String(format: "%.2f", dim.length)).font(.caption2).foregroundColor(Theme.boardEdge),
+                         at: CGPoint(x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2).applying(screen), anchor: .bottom)
             }
         }
         for zone in snap.zones where zone.layer < max(1, snap.board.layerCount) && visible.contains(.copper(zone.layer)) {
@@ -1755,6 +1776,7 @@ struct PCBCanvas: View {
         } else if let tool = store.pcbShapeTool {
             CanvasOverlays.banner(tool == .keepout ? String(localized: "Keep-out — drag a rectangle · Esc ends")
                                   : tool == .slot ? String(format: String(localized: "Slot %.2f mm — drag from one end to the other · Esc ends"), store.slotWidth)
+                                  : tool == .dimension ? String(localized: "Dimension — drag from one point to the other · Esc ends")
                                   : String(localized: "Click the corners; double-click or Enter closes the shape · Esc cancels"),
                                   in: &ctx, size: size)
         } else if let route {

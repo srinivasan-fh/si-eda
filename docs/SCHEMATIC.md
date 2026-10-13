@@ -330,7 +330,10 @@ another value. The base design is what the schematic says (with each part's own 
   the port), a port's has **Go to Sheet Entry**. Picking a part on the PCB, in the BOM or in a check opens its sheet.
 - **Title block**: with nothing selected, the inspector's *Title Block* group sets title, company, revision, date and
   drawn-by. Each sheet shows it at the bottom right of its drawing with the sheet name and "Sheet n of N". It is saved
-  with the project (only when set) and the title defaults to the project name.
+  with the project (only when set) and the title defaults to the project name. **Revisions** in the same group keeps
+  the revision table (rev, date, description, by; **Add Revision** fills the next letter and today's date): the
+  schematic PDF and the board's fabrication drawing print it above the title block, newest first (MCP
+  `project_set_info` `revisions`, C `sieda_set_title_block`).
 
 ## Editing, back-annotation, messages, templates and PDF
 

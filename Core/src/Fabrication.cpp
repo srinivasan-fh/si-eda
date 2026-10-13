@@ -481,6 +481,8 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(a + "-test_points.csv", exportTestPointReport(asmSch, pcb), "Test points per net for the bed-of-nails / flying-probe fixture");
     add(a + "-interactive_bom.html", exportHtmlBom(project), "Interactive BOM and board viewer for hand assembly" + variantNote);
     add(base + "-bring_up_checklist.md", bringUpChecklist(project), "Bring-up checklist: shorts, rails, clocks, resets, interfaces");
+    add(base + "-fab_drawing.pdf", exportBoardDrawingPdf(project), "Fabrication drawing: outline, dimensions, drill map and table, stack-up, notes");
+    add(base + "-net_lengths.csv", exportNetLengthReport(sch, pcb), "Routed length, segments and vias per net, against its length rule");
     add("mechanical/" + base + ".dxf", exportDxf(sch, pcb), "Board outline, holes, silk and courtyards for MCAD (DXF)");
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
     add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");

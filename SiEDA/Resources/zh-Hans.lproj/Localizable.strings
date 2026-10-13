@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: 重新敷铜";
 "Canvas Key Preset" = "画布按键预设";
 "Import Board Outline (DXF)…" = "导入电路板外框 (DXF)…";
+"Revisions" = "修订";
+"Rev" = "版次";
+"By" = "作者";
+"Remove this revision" = "移除此修订";
+"Add Revision" = "添加修订";
+"Add a drawing dimension: drag from one point to the other" = "添加图纸尺寸：从一点拖动到另一点";
+"Delete Dimension" = "删除尺寸";
+"Dimension — drag from one point to the other · Esc ends" = "尺寸 — 从一点拖动到另一点 · Esc 结束";

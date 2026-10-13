@@ -23010,6 +23010,52 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(!s.dragWireSegment(9999, {0, 10}));
 }
 
+TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
+    // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,
+    // the stack-up and the revision table; dimensions and revisions save, load and reach the DXF; net lengths per net.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"A": ["J1.1", "R1.1"], "B": ["J1.2", "R1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "project_set_info", Json::parse(R"({"revisions": [{"rev": "A", "date": "2026-10-01",
+        "description": "First release", "by": "SN"}, {"rev": "B", "date": "2026-10-13", "description": "Drill map", "by": "SN"}]})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_set_outline", Json::parse(R"({"dimensions": [{"a": {"x": 0, "y": 0}, "b": {"x": 20, "y": 0}, "offset": -4}]})"))));
+    CHECK(mcpFailed(mcpTool(m, "pcb_set_outline", Json::parse(R"({"dimensions": [{"a": {"x": 1, "y": 1}, "b": {"x": 1, "y": 1}}]})"))));
+    Project& p = m.project()->project;
+    p.pcb.settings.holes.push_back({{3, 3}});
+    CHECK(p.revisions.size() == 2 && p.pcb.settings.dimensions.size() == 1);
+    // Saved only when present, and back.
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.revisions.size() == 2 && q.revisions[1].description == "Drill map");
+    CHECK(q.pcb.settings.dimensions.size() == 1 && q.pcb.settings.dimensions[0].offset == -4);
+    CHECK(Project().toJson().dump().find("revisions") == std::string::npos);
+    CHECK(Project().toJson().dump().find("dimensions") == std::string::npos);
+    const std::string pdf = exportBoardDrawingPdf(p);
+    CHECK(pdf.rfind("%PDF-1.4", 0) == 0 && pdf.find("%%EOF") != std::string::npos);
+    for (const char* text : {"(DRILL TABLE)", "(STACK-UP / LAYER LEGEND)", "(NOTES)", "(20.00)", "(First release)", "(Drill map)",
+                             "(Fabrication drawing)", "(3.20)", "(1.00)"})
+        CHECK(pdf.find(text) != std::string::npos);
+    char width[32];
+    std::snprintf(width, sizeof width, "(%.2f)", p.pcb.settings.width);
+    CHECK(pdf.find(width) != std::string::npos);
+    // The schematic PDF carries the revision table too.
+    CHECK(exportSchematicPdf(p).find("(Drill map)") != std::string::npos);
+    CHECK(exportDxf(p.schematic, p.pcb).find("DIMENSIONS\n10\n") != std::string::npos);
+    const std::string lengths = exportNetLengthReport(p.schematic, p.pcb);
+    CHECK(lengths.rfind("Net,Length (mm),Segments,Vias", 0) == 0 && lengths.find("\nA,") != std::string::npos);
+    p.pcb.settings.lengthRules.push_back({"A", 1000, 1});
+    CHECK(exportNetLengthReport(p.schematic, p.pcb).find(",short\n") != std::string::npos);
+    bool inPackage = false;
+    for (const auto& f : fabricationPackage(p, "board")) inPackage = inPackage || f.path == "board-fab_drawing.pdf";
+    CHECK(inPackage);
+}
+
 TEST(documents_dxf_test_points_html_bom_and_bring_up) {
     mcp::McpServer m;
     CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));

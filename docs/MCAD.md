@@ -19,7 +19,8 @@ Coordinates are in MCAD's frame:
 
 **Export → DXF** (and `mechanical/<name>.dxf` in the fabrication package) writes an AutoCAD R12 drawing in millimetres,
 Y up, origin at the board's lower-left: layers OUTLINE (outline and cutouts), HOLES, DRILLS, SILK_TOP / SILK_BOTTOM,
-FAB and COURTYARD. **File → Import Board Outline (DXF)…** (MCP `pcb_import_dxf`, C `sieda_pcb_import_dxf`) reads
+FAB, COURTYARD and DIMENSIONS (the board's drawing dimensions: extension lines, dimension line and value; drawn with
+the PCB editor's ruler tool, MCP `pcb_set_outline` `dimensions`). **File → Import Board Outline (DXF)…** (MCP `pcb_import_dxf`, C `sieda_pcb_import_dxf`) reads
 closed loops of lines, arcs, polylines with bulges and circles — only from outline-like layers (OUTLINE, Edge.Cuts,
 BOARD, PROFILE, CUT…) when the file names them; millimetres, or inches by `$INSUNITS`. The largest loop becomes the
 outline and the loops inside it cutouts; one undo step.

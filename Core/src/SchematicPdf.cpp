@@ -17,6 +17,8 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/PdfFont.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/Stackup.hpp"
+#include "sieda/Documents.hpp"
 
 namespace sieda {
 
@@ -572,7 +574,30 @@ void drawFrame(Canvas& cv, const SheetTemplate& t) {
     }
 }
 
-void drawTitleBlock(Canvas& cv, const SheetTemplate& t, const Project& p, const Sheet& sheet, int index, int total) {
+/// The revision table, newest at the top, standing on the title block (bottom edge at `y1`, right edge at `x1`).
+void drawRevisions(Canvas& cv, const std::vector<Revision>& revs, double x1, double y1) {
+    if (revs.empty()) return;
+    const double row = 5, x0 = x1 - kTitleW;
+    const size_t shown = std::min<size_t>(revs.size(), 8);
+    const double top = y1 - row * static_cast<double>(shown + 1);
+    cv.gray(0);
+    cv.width(0.25);
+    cv.rect(x0, top, kTitleW, y1 - top);
+    for (size_t i = 0; i <= shown; ++i) cv.line(x0, top + row * static_cast<double>(i + 1), x1, top + row * static_cast<double>(i + 1));
+    for (double dx : {14.0, 38.0, 108.0}) cv.line(x0 + dx, top, x0 + dx, y1);
+    const char* heads[] = {"Rev", "Date", "Description", "By"};
+    const double cols[] = {0, 14, 38, 108};
+    for (int k = 0; k < 4; ++k) cv.text(x0 + cols[k] + 1.2, top + row - 1.4, 2.2, heads[k], 0, true);
+    for (size_t i = 0; i < shown; ++i) {
+        const Revision& r = revs[revs.size() - 1 - i];
+        const double y = top + row * static_cast<double>(i + 2) - 1.4;
+        const std::string desc = r.description.size() > 44 ? r.description.substr(0, 43) + "…" : r.description;
+        const std::string fields[] = {r.rev, r.date, desc, r.by};
+        for (int k = 0; k < 4; ++k) cv.text(x0 + cols[k] + 1.2, y, 2.2, fields[k]);
+    }
+}
+
+void drawTitleBlock(Canvas& cv, const SheetTemplate& t, const Project& p, const std::string& sheetName, int index, int total) {
     const double x1 = t.widthMm - kMargin - kZone, y1 = t.heightMm - kMargin - kZone;
     const double x0 = x1 - kTitleW, y0 = y1 - kTitleH;
     cv.gray(0);
@@ -586,7 +611,7 @@ void drawTitleBlock(Canvas& cv, const SheetTemplate& t, const Project& p, const 
     cv.text(x0 + 2, y0 + 5, 2, "Title");
     cv.text(x0 + 2, y0 + 10, 4, tb.title.empty() ? p.name : tb.title, 0, true);
     cv.text(x0 + 2, y0 + 15.5, 2, "Sheet");
-    cv.text(x0 + 2, y0 + 20, 3, sheet.name, 0, true);
+    cv.text(x0 + 2, y0 + 20, 3, sheetName, 0, true);
     cv.text(x0 + 87, y0 + 15.5, 2, "Size");
     cv.text(x0 + 87, y0 + 20, 3, t.name);
     cv.text(x0 + 2, y0 + 25.5, 2, "Company");
@@ -597,6 +622,7 @@ void drawTitleBlock(Canvas& cv, const SheetTemplate& t, const Project& p, const 
         if (!part.empty()) rev += (rev.empty() ? "" : " ") + part;
     cv.text(x0 + 87, y0 + 30, 2.4, rev);
     cv.text(x1 - 2, y0 + 5, 2.4, "Sheet " + std::to_string(index) + " of " + std::to_string(total), 2);
+    drawRevisions(cv, p.revisions, x1, y0);
 }
 
 void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemplate& t) {
@@ -604,7 +630,8 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
     const Box extent = sheetExtent(s, sheet.id);
     // The drawing area: inside the frame, above the title block's height on its right.
     const double ax0 = kMargin + kZone + 4, ay0 = kMargin + kZone + 4;
-    const double ax1 = t.widthMm - kMargin - kZone - 4, ay1 = t.heightMm - kMargin - kZone - kTitleH - 4;
+    const double revH = p.revisions.empty() ? 0 : 5.0 * static_cast<double>(std::min<size_t>(p.revisions.size(), 8) + 1);
+    const double ax1 = t.widthMm - kMargin - kZone - 4, ay1 = t.heightMm - kMargin - kZone - kTitleH - revH - 4;
     Mapping m;
     // A fixed frame prints at full scale with the frame on the page, while the drawing fits inside the frame.
     const bool fixed = sheet.frameFixed && !extent.empty() &&
@@ -881,7 +908,7 @@ std::string exportSchematicPdf(const Project& project, const SchematicPdfOptions
         cv.useFonts(&fonts);
         drawFrame(cv, t);
         drawSheet(cv, project, sh, t);
-        drawTitleBlock(cv, t, project, sh, i + 1, total);
+        drawTitleBlock(cv, t, project, sh.name, i + 1, total);
         const std::string content = cv.str();
         char mediabox[96];
         std::snprintf(mediabox, sizeof mediabox, "[0 0 %.2f %.2f]", t.widthMm * kPt, t.heightMm * kPt);
@@ -1013,6 +1040,184 @@ std::string exportSchematicPdf(const Project& project, const SchematicPdfOptions
     std::string title = project.titleBlock.title.empty() ? project.name : project.titleBlock.title;
     pdf += "trailer\n<< /Size " + std::to_string(objects.size() + 1) + " /Root 1 0 R >>\nstartxref\n" + std::to_string(xref) + "\n%%EOF\n";
     (void)title;
+    return pdf;
+}
+
+namespace {
+
+std::vector<Vec2> circlePoints(Vec2 c, double r) {
+    std::vector<Vec2> pts;
+    for (int i = 0; i < 24; ++i) pts.push_back({c.x + r * std::cos(i * M_PI / 12), c.y + r * std::sin(i * M_PI / 12)});
+    return pts;
+}
+
+/// A drill-map symbol (IPC-2615 style: one shape per finished hole size) of `size` mm at page point c.
+void drillSymbol(Canvas& cv, int kind, Vec2 c, double size) {
+    const double r = size / 2;
+    switch (kind % 8) {
+        case 0: cv.path(circlePoints(c, r), true, false), cv.line(c.x - r, c.y, c.x + r, c.y), cv.line(c.x, c.y - r, c.x, c.y + r); break;
+        case 1: cv.rect(c.x - r, c.y - r, size, size); break;
+        case 2: cv.polygon({{c.x, c.y - r}, {c.x + r, c.y + r}, {c.x - r, c.y + r}}, false); break;
+        case 3: cv.polygon({{c.x, c.y - r}, {c.x + r, c.y}, {c.x, c.y + r}, {c.x - r, c.y}}, false); break;
+        case 4: cv.line(c.x - r, c.y - r, c.x + r, c.y + r), cv.line(c.x - r, c.y + r, c.x + r, c.y - r); break;
+        case 5: cv.path(circlePoints(c, r), true, false); break;
+        case 6: cv.line(c.x - r, c.y, c.x + r, c.y), cv.line(c.x, c.y - r, c.x, c.y + r); break;
+        default: cv.rect(c.x - r, c.y - r, size, size), cv.line(c.x - r, c.y - r, c.x + r, c.y + r), cv.line(c.x - r, c.y + r, c.x + r, c.y - r);
+    }
+    if (kind >= 8) cv.text(c.x + r + 0.3, c.y + r, 1.6, std::to_string(kind / 8 + 1));  // a ninth size on: the shape again, numbered
+}
+
+/// A linear dimension between page points a and b, its line `off` mm along the normal (−dy, dx), showing `value`.
+void dimension(Canvas& cv, Vec2 a, Vec2 b, double off, const std::string& value) {
+    const Vec2 d = b - a;
+    const double len = d.length();
+    if (len < 1e-6) return;
+    const Vec2 u = d * (1 / len), n{-u.y, u.x}, pa = a + n * off, pb = b + n * off;
+    const double side = off < 0 ? -1 : 1;
+    cv.width(0.15);
+    cv.line(a.x + n.x * side, a.y + n.y * side, pa.x + n.x * side * 1.5, pa.y + n.y * side * 1.5);
+    cv.line(b.x + n.x * side, b.y + n.y * side, pb.x + n.x * side * 1.5, pb.y + n.y * side * 1.5);
+    cv.line(pa.x, pa.y, pb.x, pb.y);
+    for (const auto& [tip, dir] : {std::pair{pa, u}, std::pair{pb, u * -1}}) {  // filled arrowheads pointing outwards
+        const Vec2 back = tip + dir * 2.0;
+        cv.polygon({tip, back + n * 0.6, back - n * 0.6}, true);
+    }
+    const Vec2 mid = (pa + pb) * 0.5 + n * (side * 1.2);
+    const bool vertical = std::fabs(u.y) > std::fabs(u.x);
+    cv.text(mid.x + (vertical ? side * n.x * 0.5 : 0), mid.y + (vertical ? 0.8 : side * n.y > 0 ? 2.2 : 0), 2.5, value,
+            vertical ? (n.x * side < 0 ? 2 : 0) : 1);
+}
+
+std::string fmtMm(double v) {
+    char b[32];
+    std::snprintf(b, sizeof b, "%.2f", v);
+    return b;
+}
+
+}  // namespace
+
+std::string exportBoardDrawingPdf(const Project& project) {
+    const SheetTemplate& t = *findSheetTemplate("A3");
+    const BoardSettings& s = project.pcb.settings;
+    Canvas cv(t.heightMm);
+    drawFrame(cv, t);
+    drawTitleBlock(cv, t, project, "Fabrication drawing", 1, 1);
+    // The board, top view, scaled into the left 58 % of the frame with room for its dimensions.
+    const double ax0 = kMargin + kZone + 22, ay0 = kMargin + kZone + 14, ax1 = t.widthMm * 0.58, ay1 = t.heightMm - kMargin - kZone - 26;
+    const double bw = std::max(1.0, s.width), bh = std::max(1.0, s.height);
+    const double sc = std::min((ax1 - ax0) / bw, (ay1 - ay0) / bh);
+    const double ox = ax0 + ((ax1 - ax0) - bw * sc) / 2, oy = ay0 + ((ay1 - ay0) - bh * sc) / 2;
+    auto P = [&](Vec2 v) { return Vec2{ox + v.x * sc, oy + v.y * sc}; };
+    auto page = [&](const std::vector<Vec2>& pts) {
+        std::vector<Vec2> out;
+        for (const auto& v : pts) out.push_back(P(v));
+        return out;
+    };
+    cv.gray(0);
+    cv.width(0.5);
+    cv.polygon(page(s.hasCustomOutline() ? s.outline : std::vector<Vec2>{{0, 0}, {bw, 0}, {bw, bh}, {0, bh}}), false);
+    cv.width(0.35);
+    for (const auto& c : s.cutouts) cv.polygon(page(c), false);
+    // Drill map: every hole by its finished size and plating, one symbol per size.
+    std::map<std::pair<long, bool>, std::vector<Vec2>> holes;  // (µm, plated) → positions
+    for (const auto& pad : project.pcb.pads(project.schematic))
+        if (pad.throughHole && pad.drill > 0) holes[{std::lround(pad.drill * 1000), !pad.npth}].push_back(pad.position);
+    for (const auto& v : project.pcb.vias) holes[{std::lround(v.drill * 1000), true}].push_back(v.position);
+    for (const auto& h : s.holes) holes[{std::lround(h.drill * 1000), false}].push_back(h.position);
+    cv.width(0.12);
+    int kind = 0;
+    for (const auto& [key, pts] : holes) {
+        for (const auto& v : pts) drillSymbol(cv, kind, P(v), 1.4);
+        ++kind;
+    }
+    // Overall size (below and left), then the board's own dimensions.
+    cv.width(0.15);
+    dimension(cv, P({0, bh}), P({bw, bh}), 8, fmtMm(s.width));
+    dimension(cv, P({0, 0}), P({0, bh}), 8, fmtMm(s.height));
+    for (const auto& d : s.dimensions) dimension(cv, P(d.a), P(d.b), d.offset * sc, fmtMm((d.b - d.a).length()));
+    // Right column: drill table, stack-up (layer legend), notes.
+    const double tx = t.widthMm * 0.62, tw = t.widthMm - kMargin - kZone - 4 - tx;
+    double y = kMargin + kZone + 8;
+    auto table = [&](const std::string& title, const std::vector<double>& cols, const std::vector<std::vector<std::string>>& rows,
+                     const std::vector<int>& symbols) {
+        cv.gray(0);
+        cv.text(tx, y, 3.2, title, 0, true);
+        y += 2;
+        const double row = 5;
+        cv.width(0.25);
+        cv.rect(tx, y, tw, row * static_cast<double>(rows.size()));
+        cv.width(0.12);
+        for (size_t i = 1; i < rows.size(); ++i) cv.line(tx, y + row * static_cast<double>(i), tx + tw, y + row * static_cast<double>(i));
+        for (double c : cols) if (c > 0) cv.line(tx + c * tw, y, tx + c * tw, y + row * static_cast<double>(rows.size()));
+        for (size_t i = 0; i < rows.size(); ++i)
+            for (size_t k = 0; k < rows[i].size() && k < cols.size(); ++k) {
+                if (i > 0 && k == 0 && i - 1 < symbols.size()) {
+                    drillSymbol(cv, symbols[i - 1], {tx + cols[1] * tw / 2, y + row * (static_cast<double>(i) + 0.5)}, 2.4);
+                    continue;
+                }
+                cv.text(tx + cols[k] * tw + 1.2, y + row * static_cast<double>(i + 1) - 1.5, 2.3, rows[i][k], 0, i == 0);
+            }
+        y += row * static_cast<double>(rows.size()) + 8;
+    };
+    std::vector<std::vector<std::string>> drills{{"Symbol", "Finished size (mm)", "Plated", "Count"}};
+    std::vector<int> symbols;
+    kind = 0;
+    for (const auto& [key, pts] : holes) {
+        drills.push_back({"", fmtMm(key.first / 1000.0), key.second ? "yes" : "no", std::to_string(pts.size())});
+        symbols.push_back(kind++);
+    }
+    if (holes.empty()) drills.push_back({"", "no holes", "", ""});
+    table("DRILL TABLE", {0, 0.18, 0.62, 0.8}, drills, symbols);
+    std::vector<std::vector<std::string>> stack{{"Layer", "Type", "Thickness (mm)"}};
+    const Json stackup = stackupJson(s);
+    for (const auto& l : stackup.get("layers").items()) {
+        char th[32];
+        std::snprintf(th, sizeof th, "%.3f", l.get("thickness").asNumber(0));
+        stack.push_back({l.get("name").asString(""), l.get("type").asString(""), th});
+    }
+    table("STACK-UP / LAYER LEGEND", {0, 0.5, 0.75}, stack, {});
+    const LaminateMaterial& m = boardLaminate(s);
+    const std::vector<std::string> notes = {
+        "1. Material: " + m.name + ", finished thickness " + fmtMm(s.thickness) + " mm, " + std::to_string(s.layerCount) + " copper layers.",
+        "2. Copper: " + fmtMm(s.copperWeightOz) + " oz finished on outer layers.",
+        "3. Solder mask: " + s.solderMask + ", both sides. Silkscreen: legend layers.",
+        "4. Hole sizes are finished sizes; plated +/-0.08 mm, non-plated +/-0.05 mm.",
+        "5. Dimensions in millimetres; origin at the board's lower-left corner (as the Gerbers).",
+        "6. Drawing scale " + fmtMm(sc) + " : 1. Fabricate to IPC-6012 Class 2 unless stated.",
+    };
+    cv.text(tx, y, 3.2, "NOTES", 0, true);
+    y += 5;
+    for (const auto& n : notes) {
+        cv.text(tx, y, 2.3, n);
+        y += 4.2;
+    }
+    const std::string content = cv.str();
+    char mediabox[96];
+    std::snprintf(mediabox, sizeof mediabox, "[0 0 %.2f %.2f]", t.widthMm * kPt, t.heightMm * kPt);
+    const std::vector<std::string> objects = {
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [5 0 R] /Count 1 >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox " + std::string(mediabox) +
+            " /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 7 0 R >> >> /Contents 6 0 R >>",
+        "<< /Length " + std::to_string(content.size()) + " >>\nstream\n" + content + "endstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>",
+    };
+    std::string pdf = "%PDF-1.4\n%SiEDA board drawing\n";
+    std::vector<size_t> offsets;
+    for (size_t i = 0; i < objects.size(); ++i) {
+        offsets.push_back(pdf.size());
+        pdf += std::to_string(i + 1) + " 0 obj\n" + objects[i] + "\nendobj\n";
+    }
+    const size_t xref = pdf.size();
+    pdf += "xref\n0 " + std::to_string(objects.size() + 1) + "\n0000000000 65535 f \n";
+    for (size_t off : offsets) {
+        char line[24];
+        std::snprintf(line, sizeof line, "%010zu 00000 n \n", off);
+        pdf += line;
+    }
+    pdf += "trailer\n<< /Size " + std::to_string(objects.size() + 1) + " /Root 1 0 R >>\nstartxref\n" + std::to_string(xref) + "\n%%EOF\n";
     return pdf;
 }
 

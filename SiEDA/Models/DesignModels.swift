@@ -553,6 +553,16 @@ struct TitleBlockInfo: Codable, Equatable {
     var revision = ""
     var date = ""
     var drawnBy = ""
+    /// Revision table, oldest first (nil when the project has none; sent whole when set).
+    var revisions: [RevisionInfo]?
+}
+
+/// One line of the revision table (core `Revision`).
+struct RevisionInfo: Codable, Equatable {
+    var rev = ""
+    var date = ""
+    var description = ""
+    var by = ""
 }
 
 /// A find result (`sieda_schematic_find`): a designator, value, label, pin or net that matches.
@@ -837,6 +847,8 @@ struct BoardInfo: Decodable, Equatable {
     var outline: [BoardPoint] = []
     /// Board cutouts (inner holes of any shape, routed out) and routing keep-outs.
     var cutouts: [[BoardPoint]] = []
+    /// Drawing dimensions (core `BoardSettings::dimensions`): fabrication drawing, DXF and the board view.
+    var dimensions: [BoardDimensionInfo] = []
     var keepouts: [RouteKeepout] = []
     var pairRules: [PairRuleInfo] = []
     var holes: [MountingHoleInfo] = []
@@ -889,6 +901,7 @@ struct BoardInfo: Decodable, Equatable {
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
         cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
+        dimensions = try c.decodeIfPresent([BoardDimensionInfo].self, forKey: .dimensions) ?? []
         keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
         pairRules = try c.decodeIfPresent([PairRuleInfo].self, forKey: .pairRules) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
@@ -901,7 +914,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
-        case cutouts, keepouts, pairRules
+        case cutouts, dimensions, keepouts, pairRules
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -937,6 +950,14 @@ struct BoardInfo: Decodable, Equatable {
         if layer == bottomLayer { return "Bottom" }
         return "Inner \(layer)"
     }
+}
+
+/// A linear drawing dimension a → b (mm), its line `offset` mm along (−dy, dx).
+struct BoardDimensionInfo: Codable, Equatable {
+    var a: BoardPoint
+    var b: BoardPoint
+    var offset = 3.0
+    var length: Double { hypot(b.x - a.x, b.y - a.y) }
 }
 
 struct BoardPoint: Codable, Equatable, Hashable {

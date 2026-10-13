@@ -46,4 +46,14 @@ std::string exportHtmlBom(const Project& project);
 /// voltage and source, clocks, reset / enable / boot nets, programming and bus interfaces, each with what to measure.
 std::string bringUpChecklist(const Project& project);
 
+/// Fabrication drawing (one A3 PDF page, written in SchematicPdf.cpp beside the schematic PDF): the board outline and
+/// cutouts with overall and user dimensions (BoardSettings::dimensions), a drill map with one symbol per finished
+/// hole size and plating, the drill table, the stack-up as the layer legend, fabrication notes, the title block and
+/// the revision table (Project::revisions).
+std::string exportBoardDrawingPdf(const Project& project);
+
+/// Net-length report (CSV): per routed net its track length (arcs measured as arcs), segments, vias and, with a
+/// length rule, the target, tolerance and whether it is met.
+std::string exportNetLengthReport(const Schematic& sch, const PcbLayout& pcb);
+
 }  // namespace sieda

@@ -136,6 +136,25 @@ struct TitleBlockEditor: View {
                 TextField("Date", text: $block.date).textFieldStyle(.blue).onSubmit(commit)
             }
             TextField("Drawn by", text: $block.drawnBy).textFieldStyle(.blue).onSubmit(commit)
+            Text("Revisions").font(.caption.weight(.semibold)).foregroundStyle(Theme.textSecondary)
+            ForEach(Array((block.revisions ?? []).indices), id: \.self) { i in
+                HStack(spacing: 4) {
+                    TextField("Rev", text: revision(i, \.rev)).textFieldStyle(.blue).frame(width: 36)
+                    TextField("Date", text: revision(i, \.date)).textFieldStyle(.blue).frame(width: 78)
+                    TextField("Description", text: revision(i, \.description)).textFieldStyle(.blue)
+                    TextField("By", text: revision(i, \.by)).textFieldStyle(.blue).frame(width: 36)
+                    Button { block.revisions?.remove(at: i) } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.plain)
+                        .help("Remove this revision")
+                }
+            }
+            Button("Add Revision") {
+                let next = (block.revisions ?? []).count
+                block.revisions = (block.revisions ?? []) + [RevisionInfo(rev: String(UnicodeScalar(UInt8(65 + next % 26))),
+                                                                          date: ISO8601DateFormatter.dateOnly.string(from: Date()))]
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
             Button("Apply", action: commit)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -146,4 +165,18 @@ struct TitleBlockEditor: View {
     }
 
     private func commit() { store.setTitleBlock(block) }
+
+    private func revision(_ i: Int, _ key: WritableKeyPath<RevisionInfo, String>) -> Binding<String> {
+        Binding(get: { block.revisions?.indices.contains(i) == true ? block.revisions![i][keyPath: key] : "" },
+                set: { if block.revisions?.indices.contains(i) == true { block.revisions![i][keyPath: key] = $0 } })
+    }
+}
+
+extension ISO8601DateFormatter {
+    /// yyyy-MM-dd, for revision dates.
+    static let dateOnly: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]
+        return f
+    }()
 }

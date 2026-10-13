@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: ベタを再充填";
 "Canvas Key Preset" = "キャンバスキーのプリセット";
 "Import Board Outline (DXF)…" = "基板外形を読み込む (DXF)…";
+"Revisions" = "改訂履歴";
+"Rev" = "版";
+"By" = "担当";
+"Remove this revision" = "この改訂を削除";
+"Add Revision" = "改訂を追加";
+"Add a drawing dimension: drag from one point to the other" = "図面寸法を追加：一方の点からもう一方へドラッグ";
+"Delete Dimension" = "寸法を削除";
+"Dimension — drag from one point to the other · Esc ends" = "寸法 — 一方の点からもう一方へドラッグ · Esc で終了";

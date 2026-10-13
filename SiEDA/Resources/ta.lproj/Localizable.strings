@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: ஊற்றுகளை மீண்டும் நிரப்பு";
 "Canvas Key Preset" = "கேன்வாஸ் விசை முன்னமைவு";
 "Import Board Outline (DXF)…" = "பலகை வெளிக்கோட்டை இறக்கு (DXF)…";
+"Revisions" = "திருத்தங்கள்";
+"Rev" = "திரு.";
+"By" = "மூலம்";
+"Remove this revision" = "இந்தத் திருத்தத்தை நீக்கு";
+"Add Revision" = "திருத்தம் சேர்";
+"Add a drawing dimension: drag from one point to the other" = "வரைபட அளவு சேர்: ஒரு புள்ளியிலிருந்து மற்றொன்றுக்கு இழு";
+"Delete Dimension" = "அளவை நீக்கு";
+"Dimension — drag from one point to the other · Esc ends" = "அளவு — ஒரு புள்ளியிலிருந்து மற்றொன்றுக்கு இழு · Esc முடிக்கும்";
