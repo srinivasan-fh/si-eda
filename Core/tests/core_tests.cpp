@@ -21050,7 +21050,7 @@ TEST(mcp_headers_crystal_and_clear_reports) {
 }
 
 TEST(mcp_pairs_stackup_and_stitching_kept) {
-    // USB_DP / USB_DM pair up; a pair the coupled router cannot take is named in pcb_autoroute's result; a whole-board
+    // A pair the coupled router cannot take is named in pcb_autoroute's result; a whole-board
     // route lays the GND stitching again; an impedance target needing impractical widths is flagged.
     const auto root = mcpRoot("pairs");
     mcp::McpServer s(mcpOptions(root));
@@ -21063,7 +21063,7 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     parts.push(Json::parse(R"({"ref": "J1", "part": "PinHeader_1x02_P2.54mm"})"));  // through-hole: the bottom pour's anchor
     Json build = Json::object();
     build["parts"] = parts;
-    build["nets"] = Json::parse(R"({"USB_DP": ["R1.1", "R2.1", "R3.1"], "USB_DM": ["R4.1", "R5.1", "R6.1"],
+    build["nets"] = Json::parse(R"({"USB_D_P": ["R1.1", "R2.1", "R3.1"], "USB_D_N": ["R4.1", "R5.1", "R6.1"],
         "GND": ["R1.2", "R2.2", "R3.2", "R4.2", "R5.2", "R6.2", "J1.1", "J1.2"]})");
     build["pins"] = false;
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
@@ -21104,7 +21104,7 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"({"preset": "quality"})")));
     CHECK(routed.get("stitchingRestored").asInt(0) > 0);
     CHECK(routed.get("pairsNotCoupled").size() == 1 &&
-          routed.get("pairsNotCoupled")[0].asString("").find("USB_DP / USB_DM") != std::string::npos);
+          routed.get("pairsNotCoupled")[0].asString("").find("USB_D_P / USB_D_N") != std::string::npos);
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {

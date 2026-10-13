@@ -374,7 +374,7 @@ What the agent gets back, so it can wire correctly without guessing:
   the other side, then each side filled from the top); small passives step aside so a supply capacitor lands within
   3.5 mm of its pin. `pcb_autoroute` lays a re-routed net's stitching vias again (`stitchingRestored`) and names
   differential pairs it routed as two single nets (`pairsNotCoupled`, e.g. a USB-C's doubled D+ / D- pads);
-  `USB_DP` / `USB_DM` pair up; `pcb_set_stackup` warns when the impedance targets need tracks over 1 mm wide.
+  a schematic diff-pair directive pairs `USB_DP` / `USB_DM`; `pcb_set_stackup` warns when the impedance targets need tracks over 1 mm wide.
   `render_schematic` staggers top / bottom pin names that would touch and keeps the ref and value clear of the pins.
 - Assembly spacing standard, courtyard to courtyard on top of the IPC-7351B courtyards (land pattern + 0.25 mm):
 

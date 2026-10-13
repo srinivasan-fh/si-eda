@@ -63,7 +63,7 @@ std::vector<std::pair<int, int>> differentialPairs(const Schematic& sch) {
         // Field buses are differential too: CANH / CANL and RS-485 / RS-422 A / B.
         const bool rs485 = name.find("485") != std::string::npos || name.find("422") != std::string::npos;
         for (auto [pos, neg] : std::initializer_list<std::pair<const char*, const char*>>{
-                 {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {"_DP", "_DM"}, {"P", "N"}, {"CANH", "CANL"}, {"CAN_H", "CAN_L"}, {"_A", "_B"}}) {
+                 {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {"P", "N"}, {"CANH", "CANL"}, {"CAN_H", "CAN_L"}, {"_A", "_B"}}) {
             if (std::string(pos) == "_A" && !rs485) continue;
             int other = partner(pos, neg);
             if (other >= 0 && sch.netRole(idx) == NetRole::Signal && sch.netRole(other) == NetRole::Signal) {
