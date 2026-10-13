@@ -7,8 +7,10 @@
 #include <map>
 #include <tuple>
 
+#include "sieda/CustomParts.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 
 namespace sieda {
@@ -16,6 +18,8 @@ namespace sieda {
 namespace {
 std::string footprintLabel(const Component& c) {
     if (c.pcb.embedded()) return "Embedded, layer " + std::to_string(c.pcb.embeddedLayer + 1);
+    if (const StandardPart* sp = c.kind == ComponentKind::Custom ? findStandardPart(c.def().name) : nullptr; sp && !sp->footprint.empty())
+        return sp->footprint;  // a catalog part: the KiCad footprint its pads follow
     const FootprintDef* fp = Library::instance().footprint(c.footprintName());
     if (!fp) return c.footprintName();
     return fp->label.empty() ? fp->name : fp->label;
@@ -123,7 +127,10 @@ std::pair<std::string, std::string> suggestedPart(const Component& c) {
         case ComponentKind::OpAmp:
         case ComponentKind::IC8:
         case ComponentKind::Custom:
-            if (looksLikePartNumber(c.value)) return {"", upper(c.value)};
+            if (looksLikePartNumber(c.value)) {  // a catalog part names its maker
+                const CustomPart* part = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+                return {part ? part->spec.manufacturer : "", upper(c.value)};
+            }
             break;
         default: break;
     }

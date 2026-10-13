@@ -20956,6 +20956,92 @@ TEST(mcp_edges_stitching_and_tags) {
     CHECK(mcpData(mcpTool(s, "library_search", q)).get("parts")[0].get("name").asString("") == "USB-C-RECEPTACLE-USB2");
 }
 
+TEST(mcp_headers_crystal_and_clear_reports) {
+    // Pin headers go to the left and right edges along them; the crystal comes beside its MCU pins; the board routes.
+    // A refused batch pose under another part says so; a removed label names the pins it unwired; an unknown preset
+    // lists the names; a pour says what it joined; the ERC's "no simulation model" notes are one line.
+    const auto root = mcpRoot("headers");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ATMEGA328P-AU"}, {"ref": "J1", "part": "PinHeader_1x02_P2.54mm"},
+                  {"ref": "J2", "part": "PinHeader_1x06_P2.54mm"}, {"ref": "J3", "part": "PinHeader_2x03_P2.54mm"},
+                  {"ref": "Y1", "part": "Crystal_16MHz"}, {"ref": "C1", "kind": "capacitor", "value": "100n"},
+                  {"ref": "C2", "kind": "capacitor", "value": "22p"}, {"ref": "C3", "kind": "capacitor", "value": "22p"},
+                  {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"+5V": ["J1.1", "U1.4", "C1.1", "R1.1", "J2.3", "J3.2"], "GND": ["J1.2", "U1.3", "C1.2", "C2.2", "C3.2", "J2.1", "J3.6"],
+                 "XTAL1": ["U1.7", "Y1.1", "C2.1"], "XTAL2": ["U1.8", "Y1.2", "C3.1"], "RESET": ["U1.29", "R1.2", "J3.5"],
+                 "RXD": ["U1.PD0", "J2.4"], "TXD": ["U1.PD1", "J2.5"], "MOSI": ["U1.PB3", "J3.4"], "MISO": ["U1.PB4", "J3.1"],
+                 "SCK": ["U1.PB5", "J3.3"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 50, "height": 40})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    const Json placed = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})")));
+    std::string edges;
+    for (const auto& e : placed.get("edgesPlaced").items()) edges += e.asString("") + ";";
+    CHECK(edges.find("left edge") != std::string::npos && edges.find("right edge") != std::string::npos);
+    const Json pads = mcpData(mcpTool(s, "pcb_summary", Json::parse(R"({"pads": ["U1", "Y1"]})")));
+    std::map<std::string, Vec2> at;
+    for (const char* ref : {"U1", "Y1"})
+        for (const auto& pad : pads.get("pads").get(ref).items())
+            at[pad.get("pin").asString("")] = {pad.get("x").asNumber(), pad.get("y").asNumber()};
+    CHECK(at.count("Y1.1") && at.count("U1.XTAL1/PB6") &&
+          ((at["Y1.1"] + at["Y1.2"]) * 0.5 - (at["U1.XTAL1/PB6"] + at["U1.XTAL2/PB7"]) * 0.5).length() < 9);
+    double x0 = 1e9, x1 = -1e9;  // the 1x6 header stands along its edge: its pads in one column
+    const Json j2 = mcpData(mcpTool(s, "pcb_summary", Json::parse(R"({"pads": ["J2"]})")));
+    for (const auto& pad : j2.get("pads").get("J2").items())
+        x0 = std::min(x0, pad.get("x").asNumber()), x1 = std::max(x1, pad.get("x").asNumber());
+    CHECK(x1 - x0 < 0.1);
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    // A batch: R1 onto C1's spot, C1 off the board (refused): C1 stays, under R1, and is told so.
+    Vec2 c1;
+    int c1Rotation = 0;
+    const Json summary = mcpData(mcpTool(s, "pcb_summary", Json::object()));
+    for (const auto& f : summary.get("footprints").items())
+        if (f.get("ref").asString("") == "C1") c1 = {f.get("x").asNumber(), f.get("y").asNumber()}, c1Rotation = f.get("rotation").asInt(0);
+    Json batch = Json::parse(R"({"placements": [{"ref": "R1"}, {"ref": "C1", "x": -20, "y": 5}]})");
+    Json r1 = Json::object();
+    r1["ref"] = "R1";
+    r1["x"] = c1.x;
+    r1["y"] = c1.y;
+    r1["rotation"] = c1Rotation;
+    Json list = Json::array();
+    list.push(r1);
+    list.push(batch.get("placements")[1]);
+    batch["placements"] = list;
+    const Json res = mcpData(mcpTool(s, "pcb_place_footprint", batch)).get("results");
+    CHECK(res[0].get("committed").asBool(false) && res[1].get("overlaps").size() == 1);
+    // An unknown preset lists the names and changes nothing.
+    const Json bad = mcpTool(s, "pcb_set_board", Json::parse(R"({"rulePreset": "No Such Fab", "width": 30})"));
+    CHECK(mcpFailed(bad) && mcpData(bad).asString("").find("IPC-2221 Class 2") != std::string::npos);
+    CHECK(mcpData(mcpTool(s, "pcb_summary", Json::object())).get("board").get("width").asNumber() == 50);
+    // A pour reports the pads it joins.
+    const Json pour = mcpData(mcpTool(s, "pcb_add_pour", Json::parse(R"({"net": "GND", "layer": 1})")));
+    CHECK(pour.get("areaMm2").asNumber() > 100 && pour.get("padsJoined").asString("").find(" of ") != std::string::npos);
+    // The parts without a simulation model: one ERC line.
+    int unsimulated = 0;
+    const Json erc = mcpData(mcpTool(s, "schematic_erc", Json::object()));
+    for (const auto& v : erc.get("violations").items())
+        if (v.get("code").asString("") == "ERC_NOT_SIMULATED") {
+            ++unsimulated;
+            CHECK(v.get("refs").size() > 1);
+        }
+    CHECK(unsimulated == 1);
+    // A label that was a pin's only link: removing it says which pin it unwired.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R7", "kind": "resistor"},
+        {"ref": "R8", "kind": "resistor"}, {"ref": "R9", "kind": "resistor"}], "nets": {"SIG": ["R7.1", "R8.1", "R9.1"]}, "pins": false})J"))));
+    bool reported = false;
+    for (int n = 1; n < 40 && !reported; ++n) {
+        Json rm = Json::object();
+        rm["ref"] = "#NL" + std::to_string(n);
+        const Json r = mcpTool(s, "schematic_remove_component", rm);
+        if (!mcpFailed(r)) reported = mcpData(r).get("disconnected").size() > 0;
+    }
+    CHECK(reported);
+}
+
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
     // A USB-C input with its CC pull-downs routes completely in one call (the repair turns the blocking resistor);
     // a partial preset applies to its call only.
