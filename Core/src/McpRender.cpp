@@ -482,12 +482,12 @@ Scene schematicScene(const Project& project, int sheet) {
         const auto& pins = c.def().pins;
         switch (c.kind) {
             case ComponentKind::Junction: s.disc(c.position, 3, wireC); break;
-            case ComponentKind::Ground: {
-                const Vec2 p = c.position;
-                s.line(p, p + Vec2{0, 10}, 1.5, body);
-                s.line(p + Vec2{-10, 10}, p + Vec2{10, 10}, 1.5, body);
-                s.line(p + Vec2{-6, 14}, p + Vec2{6, 14}, 1.5, body);
-                s.line(p + Vec2{-2, 18}, p + Vec2{2, 18}, 1.5, body);
+            case ComponentKind::Ground: {  // the bars below its pin, turned with it (as its outline)
+                auto at = [&](double x, double y) { return c.position + rotate90({x, y}, c.rotation); };
+                s.line(at(0, 0), at(0, 10), 1.5, body);
+                s.line(at(-10, 10), at(10, 10), 1.5, body);
+                s.line(at(-6, 14), at(6, 14), 1.5, body);
+                s.line(at(-2, 18), at(2, 18), 1.5, body);
                 break;
             }
             case ComponentKind::NetLabel: {

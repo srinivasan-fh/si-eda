@@ -73,6 +73,83 @@ const std::map<char, const char*>& strokeFont() {
 }
 
 constexpr double kGlyphAdvance = 6.0;  // grid units per character (4 wide + 2 gap)
+
+/// The look a part's body is drawn with, from its footprint, part name, package and description: a generic box with
+/// leads unless it is a kind of part people recognise by its shape.
+enum class Look { Generic, Header, UsbC, UsbMicro, UsbA, Tactile, CrystalCan, CrystalSmd, Module, Diode, Led, Jst };
+
+Look lookOf(const Component& c, const FootprintDef& fp) {
+    std::string key = fp.name + " " + c.value;
+    if (c.kind == ComponentKind::Custom)
+        if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart))
+            key += " " + part->spec.name + " " + part->spec.package.type + " " + part->spec.description;
+    for (auto& ch : key) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    auto has = [&](const char* w) { return key.find(w) != std::string::npos; };
+    const bool smd = !fp.pads.empty() && !fp.pads[0].throughHole;
+    if (c.kind == ComponentKind::LED) return smd && !fp.body.cylinder ? Look::Led : Look::Generic;
+    if (has("USB")) {
+        if (has("MICRO")) return Look::UsbMicro;
+        if (has("TYPE-C") || has("USB-C") || has("USB_C") || has("TYPE C")) return Look::UsbC;
+        if (has("USB-A") || has("USB_A") || has("TYPE-A") || has("TYPE A")) return Look::UsbA;
+    }
+    if (has("TACTILE") || has("SW_PUSH") || has("PUSH-BUTTON") || has("PUSH BUTTON") || has("PUSHBUTTON")) return Look::Tactile;
+    if ((has("MODULE") || has("WROOM") || has("WROVER")) &&
+        (has("WI-FI") || has("WIFI") || has("BLUETOOTH") || has("BLE") || has("LORA") || has("ZIGBEE") || has("GNSS") ||
+         has("GPS") || has("LTE") || has("RF_MODULE") || has("WROOM") || has("WROVER")))
+        return Look::Module;
+    if (has("HC49") || has("HC-49")) return Look::CrystalCan;
+    if ((c.ref.size() > 1 && c.ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(c.ref[1]))) || has("CRYSTAL"))
+        return smd ? Look::CrystalSmd : Look::CrystalCan;
+    if (has("JST") || has("_XH") || has(" XH") || has("_PH_")) return Look::Jst;
+    if (has("HEADER") || has("PINHEADER")) return Look::Header;
+    const bool diodeRef = c.ref.size() > 1 && c.ref[0] == 'D' && std::isdigit(static_cast<unsigned char>(c.ref[1]));
+    if (smd && fp.pads.size() == 2 && (c.kind == ComponentKind::Diode || diodeRef)) return Look::Diode;
+    return Look::Generic;
+}
+
+/// A part's own frame: footprint coordinates (mm, y down, as its pads) and height above the board face it sits on
+/// (the far side for a bottom part), mapped onto the board.
+struct PartFrame {
+    Mesh& m;
+    const PcbPlacement& pl;
+    double base, out;  // board face (Y) the part sits on, and +1 / −1: away from the board
+    Vec2 at(double x, double y) const { return pl.position + rotate90({pl.bottom ? -x : x, y}, pl.rotation); }
+    double h(double above) const { return base + out * above; }
+    void box(double x0, double y0, double x1, double y1, double h0, double h1, Rgba c) const {
+        const Vec2 a = at(x0, y0), b = at(x1, y1);
+        m.addBox({std::min(a.x, b.x), std::min(h(h0), h(h1)), std::min(a.y, b.y)},
+                 {std::max(a.x, b.x), std::max(h(h0), h(h1)), std::max(a.y, b.y)}, c);
+    }
+    void post(double x, double y, double r, double h0, double h1, Rgba c, int segments = 20) const {
+        const Vec2 p = at(x, y);
+        m.addCylinder({p.x, std::min(h(h0), h(h1)), p.y}, r, std::fabs(h(h1) - h(h0)), c, segments);
+    }
+    /// A cross-section (across, height) of a part whose axis runs along local y (alongY) or x, from `from` to `to`.
+    void extrude(const std::vector<Vec2>& profile, bool alongY, double from, double to, Rgba c) const {
+        const Vec2 o = alongY ? at(0, from) : at(from, 0), across = alongY ? at(1, from) - o : at(from, 1) - o;
+        const Vec2 end = alongY ? at(0, to) : at(to, 0);
+        m.addExtrusion(profile, {o.x, base, o.y}, {across.x, 0, across.y}, {0, out, 0}, {end.x - o.x, 0, end.y - o.y}, c);
+    }
+    /// Text lying on a face `above` the board.
+    void text(const std::string& s, double x, double y, double height, double above, Rgba c) const {
+        m.addText(s, at(x, y), height, std::min(h(above), h(above + 0.006)), std::max(h(above), h(above + 0.006)), c, pl.bottom);
+    }
+};
+
+/// A rounded slot (stadium) `w` wide and `h` tall standing on the board, for connector shells, as a convex profile.
+std::vector<Vec2> stadium(double w, double h, double inset = 0) {
+    std::vector<Vec2> pts;
+    const double r = std::max(0.05, h / 2 - inset), hw = std::max(r, w / 2 - inset), cy = h / 2;
+    for (int i = 0; i <= 8; ++i) {  // right end, bottom to top
+        const double a = -kPi / 2 + kPi * i / 8;
+        pts.push_back({hw - r + r * std::cos(a), cy + r * std::sin(a)});
+    }
+    for (int i = 0; i <= 8; ++i) {  // left end, top to bottom
+        const double a = kPi / 2 + kPi * i / 8;
+        pts.push_back({-hw + r + r * std::cos(a), cy + r * std::sin(a)});
+    }
+    return pts;
+}
 }  // namespace
 
 double Mesh::textWidth(const std::string& text, double height) {
@@ -123,6 +200,29 @@ void Mesh::addPrism(const std::vector<Vec2>& poly, double y0, double y1, Rgba c)
     for (size_t i = 0; i < poly.size(); ++i) {
         Vec2 s = poly[i], e = poly[(i + 1) % poly.size()];
         addQuad(board3(s, y0), board3(s, y1), board3(e, y1), board3(e, y0), c);
+    }
+}
+
+void Mesh::addExtrusion(const std::vector<Vec2>& profile, Vec3 origin, Vec3 u, Vec3 v, Vec3 along, Rgba c) {
+    const size_t n = profile.size();
+    if (n < 3) return;
+    auto at = [&](size_t i, bool far) { return origin + u * profile[i].x + v * profile[i].y + (far ? along : Vec3{0, 0, 0}); };
+    // Faces wound so their normals point out whichever way u × v faces `along`.
+    const Vec3 nu = u.cross(v);
+    const bool flip = nu.x * along.x + nu.y * along.y + nu.z * along.z < 0;
+    for (size_t i = 1; i + 1 < n; ++i) {
+        if (flip) {
+            addQuad(at(0, false), at(i, false), at(i + 1, false), at(0, false), c);
+            addQuad(at(0, true), at(i + 1, true), at(i, true), at(0, true), c);
+        } else {
+            addQuad(at(0, false), at(i + 1, false), at(i, false), at(0, false), c);
+            addQuad(at(0, true), at(i, true), at(i + 1, true), at(0, true), c);
+        }
+    }
+    for (size_t i = 0; i < n; ++i) {
+        const size_t j = (i + 1) % n;
+        if (flip) addQuad(at(i, false), at(i, true), at(j, true), at(j, false), c);
+        else addQuad(at(i, false), at(j, false), at(j, true), at(i, true), c);
     }
 }
 
@@ -239,6 +339,212 @@ const SolderMaskStyle* findSolderMask(const std::string& name) {
     return nullptr;
 }
 
+namespace {
+/// Draws a part with a recognisable shape (connectors, switches, crystals, modules, diodes, LEDs) in its own frame;
+/// false for a generic part (box and leads below). Through-hole leads poke `t` + copper through the board.
+bool drawLook(Look look, const PartFrame& f, const Component& c, const FootprintDef& fp, double t, double cu, Rgba lens) {
+    if (look == Look::Generic) return false;
+    Mesh& m = f.m;
+    const Rgba tin{0.78f, 0.78f, 0.80f, 1}, steel{0.82f, 0.83f, 0.85f, 1}, gold{0.86f, 0.70f, 0.30f, 1};
+    const Rgba black{0.07f, 0.07f, 0.08f, 1}, dark{0.02f, 0.02f, 0.03f, 1}, cream{0.93f, 0.91f, 0.84f, 1};
+    const Rgba etch{0.62f, 0.63f, 0.65f, 1}, white{0.94f, 0.94f, 0.91f, 1};
+    // Body size (the footprint's, else the pads' extent) and the pads' centroid (connectors open away from it).
+    double px0 = 1e9, py0 = 1e9, px1 = -1e9, py1 = -1e9, cx = 0, cy = 0;
+    for (const auto& pd : fp.pads) {
+        px0 = std::min(px0, pd.offset.x - pd.size.x / 2), px1 = std::max(px1, pd.offset.x + pd.size.x / 2);
+        py0 = std::min(py0, pd.offset.y - pd.size.y / 2), py1 = std::max(py1, pd.offset.y + pd.size.y / 2);
+        cx += pd.offset.x / static_cast<double>(fp.pads.size()), cy += pd.offset.y / static_cast<double>(fp.pads.size());
+    }
+    if (fp.pads.empty()) return false;
+    const double w = fp.body.width > 0 ? fp.body.width : px1 - px0 + 1, d = fp.body.depth > 0 ? fp.body.depth : py1 - py0 + 1;
+    // Heights the generic package data lacks: a module's shield can (3.2 mm), a 6 mm tact switch with its plunger
+    // (4.3 mm), an HC-49/S can (3.5 mm).
+    const double floorHeight = look == Look::Module ? 3.2 : look == Look::Tactile ? 4.3 : look == Look::CrystalCan ? 3.5 : 0.0;
+    const double H = std::max(fp.body.height > 0 ? fp.body.height : 1.5, floorHeight);
+    auto tails = [&](double len, bool goldPins) {
+        m.surface = goldPins ? Surface::Gold : Surface::Tin;
+        for (const auto& pd : fp.pads)
+            if (pd.throughHole) {
+                const double r = goldPins ? 0.32 : std::clamp(pd.drill * 0.35, 0.2, 0.3);
+                f.box(pd.offset.x - r, pd.offset.y - r, pd.offset.x + r, pd.offset.y + r, -(t + 2 * cu + len), 0.0, goldPins ? gold : tin);
+            }
+    };
+    // Axis helpers: a part whose axis runs along local y (alongY) or x; `a` along it, `x` across it.
+    auto abox = [&](bool alongY, double a0, double a1, double x0, double x1, double h0, double h1, Rgba col) {
+        if (alongY) f.box(x0, a0, x1, a1, h0, h1, col);
+        else f.box(a0, x0, a1, x1, h0, h1, col);
+    };
+    const bool padsAlongY = std::fabs(cy) >= std::fabs(cx);
+    switch (look) {
+        case Look::Header: {
+            double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+            for (const auto& pd : fp.pads)
+                if (pd.throughHole)
+                    x0 = std::min(x0, pd.offset.x), x1 = std::max(x1, pd.offset.x), y0 = std::min(y0, pd.offset.y), y1 = std::max(y1, pd.offset.y);
+            if (x0 > x1) return false;
+            m.surface = Surface::Plastic;  // the moulded strip, one 2.54 mm cell per pin
+            f.box(x0 - 1.27, y0 - 1.27, x1 + 1.27, y1 + 1.27, 0, 2.5, black);
+            m.surface = Surface::Gold;
+            for (const auto& pd : fp.pads)
+                if (pd.throughHole) f.box(pd.offset.x - 0.32, pd.offset.y - 0.32, pd.offset.x + 0.32, pd.offset.y + 0.32, 2.5, 8.5, gold);
+            tails(3.0, true);
+            return true;
+        }
+        case Look::Tactile: {
+            const double hb = std::min(3.1, H * 0.62);
+            m.surface = Surface::Plastic;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0, hb, black);
+            m.surface = Surface::Tin;  // the steel cover with its folded legs
+            f.box(-w / 2 - 0.05, -d / 2 - 0.05, w / 2 + 0.05, d / 2 + 0.05, hb, hb + 0.3, steel);
+            for (const auto& pd : fp.pads) {
+                const bool alongX = std::fabs(pd.offset.x) - w / 2 > std::fabs(pd.offset.y) - d / 2;
+                const double edge = alongX ? w / 2 : d / 2, reach = alongX ? std::fabs(pd.offset.x) : std::fabs(pd.offset.y);
+                const double sgn = (alongX ? pd.offset.x : pd.offset.y) < 0 ? -1 : 1, across = alongX ? pd.offset.y : pd.offset.x;
+                const double tip = reach > edge ? reach : edge + 0.3;
+                abox(!alongX, sgn * edge, sgn * tip, across - 0.35, across + 0.35, 0, 0.25, steel);
+                abox(!alongX, sgn * edge, sgn * (edge + 0.15), across - 0.35, across + 0.35, 0, hb, steel);
+            }
+            m.surface = Surface::Plastic;  // the round plunger
+            f.post(0, 0, std::min(w, d) * 0.29, hb + 0.3, std::max(H, hb + 0.8), black, 28);
+            tails(1.0, false);
+            return true;
+        }
+        case Look::UsbC: case Look::UsbMicro: case Look::UsbA: {
+            // The shell opens on the side away from its pads (the signal pins sit at the back).
+            const bool alongY = std::hypot(cx, cy) < 0.05 ? true : padsAlongY;
+            const double sgn = std::hypot(cx, cy) < 0.05 ? 1.0 : ((alongY ? cy : cx) > 0 ? -1.0 : 1.0);
+            const double across = alongY ? w : d, length = alongY ? d : w;
+            // Shell heights of the standard receptacles (USB-C 3.26 mm, micro-B 2.6 mm, USB-A up to 7 mm).
+            const double sh = look == Look::UsbC ? 3.26 : look == Look::UsbMicro ? 2.6 : std::clamp(H, 5.0, 7.0);
+            std::vector<Vec2> shell, hole;
+            if (look == Look::UsbC) shell = stadium(across, sh), hole = stadium(across, sh, 0.35);
+            else if (look == Look::UsbMicro)
+                shell = {{-across * 0.41, 0}, {across * 0.41, 0}, {across / 2, sh}, {-across / 2, sh}},
+                hole = {{-across * 0.37, 0.35}, {across * 0.37, 0.35}, {across / 2 - 0.35, sh - 0.35}, {-across / 2 + 0.35, sh - 0.35}};
+            else shell = {{-across / 2, 0}, {across / 2, 0}, {across / 2, sh}, {-across / 2, sh}},
+                 hole = {{-across / 2 + 0.4, 0.4}, {across / 2 - 0.4, 0.4}, {across / 2 - 0.4, sh - 0.4}, {-across / 2 + 0.4, sh - 0.4}};
+            m.surface = Surface::Tin;
+            f.extrude(shell, alongY, -length / 2, length / 2, steel);
+            const double mouth = sgn * length / 2;
+            m.surface = Surface::Hole;  // the dark opening on the mouth face
+            f.extrude(hole, alongY, mouth, mouth + sgn * 0.015, dark);
+            m.surface = Surface::Plastic;  // the contact tongue in the middle of the opening
+            const double tw = look == Look::UsbA ? across * 0.75 : across * 0.6, tc = look == Look::UsbA ? sh * 0.62 : sh / 2;
+            abox(alongY, std::min(mouth, mouth + sgn * 0.03), std::max(mouth, mouth + sgn * 0.03), -tw / 2, tw / 2, tc - 0.3, tc + 0.3,
+                 look == Look::UsbA ? white : black);
+            tails(0.8, false);
+            return true;
+        }
+        case Look::Module: {
+            // Module PCB with a shield can; the antenna end (no pads) shows its printed antenna.
+            const bool alongY = padsAlongY;
+            const double sgn = (alongY ? cy : cx) > 0 ? -1.0 : 1.0;  // towards the antenna
+            const double across = alongY ? w : d, length = alongY ? d : w, ant = std::clamp(length * 0.28, 3.0, 7.0);
+            const double pcbTop = 0.8;
+            m.surface = Surface::Mask;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0, pcbTop, Rgba{0.05f, 0.09f, 0.16f, 1});
+            const double c0 = sgn > 0 ? -length / 2 + 0.5 : -length / 2 + ant, c1 = sgn > 0 ? length / 2 - ant : length / 2 - 0.5;
+            m.surface = Surface::Tin;
+            abox(alongY, c0, c1, -across / 2 + 0.5, across / 2 - 0.5, pcbTop, H, steel);
+            m.surface = Surface::Finish;  // meander antenna on the module's own board
+            const double a0 = sgn > 0 ? length / 2 - ant + 0.6 : -length / 2 + 0.6, a1 = a0 + ant - 1.2;
+            const int runs = 7;
+            std::vector<Vec2> path;
+            for (int i = 0; i <= runs; ++i) {
+                const double a = a0 + (a1 - a0) * i / runs, x = (i % 2 ? 1 : -1) * (across / 2 - 1.2);
+                path.push_back(alongY ? f.at(-x, a) : f.at(a, -x));
+                path.push_back(alongY ? f.at(x, a) : f.at(a, x));
+            }
+            for (size_t i = 0; i + 1 < path.size(); ++i)
+                m.addSegmentBox(path[i], path[i + 1], 0.35, std::min(f.h(pcbTop), f.h(pcbTop + 0.02)), std::max(f.h(pcbTop), f.h(pcbTop + 0.02)), gold);
+            m.surface = Surface::Marking;
+            std::string mark = c.value.empty() ? c.ref : c.value;
+            if (mark.size() > 18) mark.resize(18);
+            const double mx = (c0 + c1) / 2, mh = std::min(1.2, (across - 2) / std::max(1.0, Mesh::textWidth(mark, 1.0)));
+            if (mh >= 0.4) f.text(mark, alongY ? 0 : mx, alongY ? mx : 0, mh, H, etch);
+            return true;
+        }
+        case Look::CrystalCan: {
+            const bool alongX = w >= d;
+            const double L = std::max(w, d), W = std::min(w, d);
+            m.surface = Surface::Tin;  // the flange and the rounded can
+            abox(!alongX, -L / 2 - 0.2 + W / 2, L / 2 + 0.2 - W / 2, -W / 2 - 0.2, W / 2 + 0.2, 0, 0.3, steel);
+            for (double e : {-1.0, 1.0}) f.post(alongX ? e * (L / 2 - W / 2) : 0, alongX ? 0 : e * (L / 2 - W / 2), W / 2 + 0.2, 0, 0.3, steel, 24);
+            abox(!alongX, -L / 2 + W / 2, L / 2 - W / 2, -W / 2, W / 2, 0.3, H, steel);
+            for (double e : {-1.0, 1.0}) f.post(alongX ? e * (L / 2 - W / 2) : 0, alongX ? 0 : e * (L / 2 - W / 2), W / 2, 0.3, H, steel, 24);
+            m.surface = Surface::Marking;
+            std::string mark;  // the frequency, as cans are marked ("16.000")
+            for (char ch : c.value)
+                if (std::isdigit(static_cast<unsigned char>(ch)) || ch == '.') mark += ch;
+            const double mh = std::min(W * 0.32, 1.0);
+            if (!mark.empty() && Mesh::textWidth(mark, mh) < L - W / 2) f.text(mark, 0, 0, mh, H, etch);
+            tails(1.0, false);
+            return true;
+        }
+        case Look::CrystalSmd: {
+            m.surface = Surface::Ceramic;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0, std::min(0.3, H / 2), Rgba{0.86f, 0.80f, 0.66f, 1});
+            m.surface = Surface::Tin;  // the seam-welded lid
+            f.box(-w / 2 + 0.2, -d / 2 + 0.2, w / 2 - 0.2, d / 2 - 0.2, std::min(0.3, H / 2), H, steel);
+            return true;
+        }
+        case Look::Diode: case Look::Led: {
+            const Vec2 a = fp.pads[0].offset, b = fp.pads[1].offset;
+            const bool alongX = std::fabs(b.x - a.x) >= std::fabs(b.y - a.y);
+            const double L = alongX ? w : d, X = alongX ? d : w;
+            if (look == Look::Led) {
+                m.surface = Surface::Ceramic;  // white reflector body, coloured lens on top, tinned ends
+                f.box(-w / 2, -d / 2, w / 2, d / 2, 0, H * 0.55, white);
+                m.surface = Surface::Glass;
+                f.box(-w / 2 + 0.06, -d / 2 + 0.06, w / 2 - 0.06, d / 2 - 0.06, H * 0.55, H, lens);
+                m.surface = Surface::Tin;
+                const double cap = std::min(0.3, L * 0.2);
+                for (double e : {-1.0, 1.0})
+                    abox(!alongX, std::min(e * (L / 2 - cap), e * (L / 2 + 0.01)), std::max(e * (L / 2 - cap), e * (L / 2 + 0.01)),
+                         -X / 2 - 0.01, X / 2 + 0.01, -0.005, H * 0.55 + 0.01, tin);
+                return true;
+            }
+            // Moulded body, J-bend leads folded under each end, a band on the cathode end.
+            m.surface = Surface::Plastic;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0.05, H, black);
+            int cathode = 0;
+            for (int i = 0; i < 2; ++i) {
+                const int pin = fp.pads[static_cast<size_t>(i)].pinIndex;
+                if (pin < 0 || pin >= static_cast<int>(c.def().pins.size())) continue;
+                std::string n = c.def().pins[static_cast<size_t>(pin)].name;
+                for (auto& ch : n) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                if (n == "K" || n.rfind("CATH", 0) == 0) cathode = i;
+            }
+            const Vec2 kp = fp.pads[static_cast<size_t>(cathode)].offset;
+            const double ks = (alongX ? kp.x : kp.y) < 0 ? -1 : 1;
+            m.surface = Surface::Marking;
+            abox(!alongX, ks > 0 ? L / 2 - L * 0.26 : -L / 2 + L * 0.1, ks > 0 ? L / 2 - L * 0.1 : -L / 2 + L * 0.26, -X / 2, X / 2, H,
+                 H + 0.008, Rgba{0.78f, 0.78f, 0.80f, 1});
+            m.surface = Surface::Tin;
+            for (const auto& pd : fp.pads) {
+                const double e = (alongX ? pd.offset.x : pd.offset.y) < 0 ? -1 : 1, at = alongX ? pd.offset.x : pd.offset.y;
+                const double lw = std::min(X * 0.32, (alongX ? pd.size.y : pd.size.x) / 2);
+                abox(!alongX, std::min(e * (L / 2 - 0.4), at), std::max(e * (L / 2 - 0.4), at), -lw, lw, 0, 0.15, tin);
+                abox(!alongX, std::min(e * L / 2, e * (L / 2 + 0.12)), std::max(e * L / 2, e * (L / 2 + 0.12)), -lw, lw, 0, H * 0.45, tin);
+            }
+            return true;
+        }
+        case Look::Jst: {
+            m.surface = Surface::Plastic;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0, H, cream);
+            f.box(-w / 2 + 0.6, -d / 2 + 0.6, w / 2 - 0.6, d / 2 - 0.9, H, H + 0.005, Rgba{0.55f, 0.53f, 0.48f, 1});  // the opening
+            m.surface = Surface::Gold;
+            for (const auto& pd : fp.pads)
+                if (pd.throughHole) f.box(pd.offset.x - 0.32, pd.offset.y - 0.32, pd.offset.x + 0.32, pd.offset.y + 0.32, H, H + 0.01, gold);
+            tails(1.2, false);
+            return true;
+        }
+        case Look::Generic: break;
+    }
+    return false;
+}
+}  // namespace
+
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& opt) {
     Mesh m;
     const BoardSettings& s = pcb.settings;
@@ -278,13 +584,15 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     double underside = layers > 1 ? -t + skin : -t;
     slab(underside, y, fr4Edge);
     if (layers > 1) slab(-t, underside, mask);
-    // Mounting holes: dark bore through the board with a bare-FR-4 ring for the screw head.
+    // Mounting holes: dark bore through the board with a plated ring (twice the drill) for the screw head, both sides.
     const Rgba bore{0.02f, 0.03f, 0.05f, 1.0f};
     for (const auto& h : s.holes) {
         m.surface = Surface::Hole;
         m.addCylinder({h.position.x, -t - 0.02, h.position.y}, h.drill / 2, t + 0.04, bore, 24);
-        m.surface = Surface::Laminate;
-        m.addCylinder({h.position.x, 0.0, h.position.y}, h.keepout / 2, 0.005, fr4Edge, 32);
+        m.surface = Surface::Finish;
+        const double ring = std::max(h.drill / 2 + 0.3, std::min(h.keepout / 2, h.drill));
+        m.addCylinder({h.position.x, 0.0, h.position.y}, ring, cu, gold, 32);
+        if (layers > 1) m.addCylinder({h.position.x, -t - cu, h.position.y}, ring, cu, gold, 32);
     }
 
     auto ps = pcb.pads(sch);
@@ -446,6 +754,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
             const double topFace = bottomSide ? y0 : y1;  // the face that points away from the board
             const double out = bottomSide ? -1.0 : 1.0;   // away from the board
             const Vec2 pc = c.pcb.position;
+            if (drawLook(lookOf(c, *fp), PartFrame{m, c.pcb, base, out}, c, *fp, t, cu, col)) continue;
             m.surface = led ? Surface::Glass : chip ? Surface::Ceramic : Surface::Plastic;
             if (b.cylinder) {
                 m.addCylinder({pc.x, y0, pc.y}, std::min(w, d) / 2, b.height, col, 28);
@@ -488,7 +797,17 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
                     Vec2 rel = p.position - pc;
                     const bool alongX = std::fabs(rel.x) - w / 2 > std::fabs(rel.y) - d / 2;
                     const double edge = alongX ? w / 2 : d / 2, reach = alongX ? std::fabs(rel.x) : std::fabs(rel.y);
-                    if (reach <= edge) continue;  // under the body
+                    if (reach <= edge) {
+                        // A no-lead package (QFN / DFN): its terminal shows as a tinned flank on the body's side.
+                        const double across = std::min(p.size.x, p.size.y) * 0.8;
+                        if (reach + std::max(p.size.x, p.size.y) / 2 >= edge - 0.05 && edge - reach < 1.0) {
+                            const double sgn = (alongX ? rel.x : rel.y) < 0 ? -1.0 : 1.0, e0 = sgn * edge - sgn * 0.02, e1 = sgn * edge + sgn * 0.02;
+                            const Vec2 a = alongX ? Vec2{pc.x + std::min(e0, e1), p.position.y - across / 2} : Vec2{p.position.x - across / 2, pc.y + std::min(e0, e1)};
+                            const Vec2 b = alongX ? Vec2{pc.x + std::max(e0, e1), p.position.y + across / 2} : Vec2{p.position.x + across / 2, pc.y + std::max(e0, e1)};
+                            m.addBox({a.x, std::min(base, base + out * 0.2), a.y}, {b.x, std::max(base, base + out * 0.2), b.y}, tin);
+                        }
+                        continue;  // under the body
+                    }
                     const double sign = (alongX ? rel.x : rel.y) < 0 ? -1.0 : 1.0;
                     const double lw = std::clamp(std::min(p.size.x, p.size.y) * 0.6, 0.15, 0.5), th = 0.12;
                     const double armY = base + out * std::min(b.height * 0.45, 0.6);

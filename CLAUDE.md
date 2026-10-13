@@ -74,7 +74,10 @@
   `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
   mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. Tests:
   `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),
-  `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target.
+  `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target. Generated bodies in
+  `Core/src/Mesh.cpp` take the shape people know (`lookOf` / `drawLook`: USB-C / micro / A shells with a mouth, tact switch,
+  HC-49 / SMD crystal, RF module shield + printed antenna, pin header posts, diode band, LED lens, JST; QFN flanks; plated
+  mounting holes); test `assembly_mesh_draws_parts_by_their_shape`.
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
@@ -122,7 +125,7 @@
   `placeDecoupling` also places crystals (Y…) and regulator bulk caps; `removeStranded` rips a moved part's old
   copper. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
   `placeAtEdges` (pcb_autoplace all: antenna parts top + keep-out, open-ended connectors bottom, by `openEnd`);
-  undo is cleared by project_open / new / load_example; headers without an open end go to the left / right edges in turn, long side along it; crystals are placed before supply caps (small passives step aside, `stepAside`); edge parts largest first; `pcb_autoroute` re-lays stitching vias (`stitchingRestored`) and lists `pairsNotCoupled`; assembly spacing standard `standardGap` (passive 0.25 / passive-IC 0.5 / IC-IC and THT-SMD 1.0 / BGA 2.0 mm) kept by the MCP placement helpers and flagged as DRC_PART_SPACING; `placeGrouped` (pcb_autoplace grouped: rows of like passives); power-only connectors to the left edge; the main IC is centred before Auto Place; opt-in `AutorouteOptions::viasOffPads` (pour fan-out vias clear SMD pads; on for MCP `pcb_autoroute`); `schematic_build` expands a shared pin name to every unstacked pin. Catalog rows may name `PCM_Espressif` footprints, and
+  undo is cleared by project_open / new / load_example; headers without an open end go to the left / right edges in turn, long side along it; crystals are placed before supply caps (small passives step aside, `stepAside`); edge parts largest first; `pcb_autoroute` re-lays stitching vias (`stitchingRestored`) and lists `pairsNotCoupled`; assembly spacing standard `standardGap` (passive 0.25 / passive-IC 0.5 / IC-IC and THT-SMD 1.0 / BGA 2.0 mm) kept by the MCP placement helpers and flagged as DRC_PART_SPACING; `placeGrouped` (pcb_autoplace grouped: rows of like passives); power-only connectors to the left edge; the main IC is centred before Auto Place; opt-in `AutorouteOptions::viasOffPads` (pour fan-out vias clear SMD pads; on for MCP `pcb_autoroute`); `schematic_build` expands a shared pin name to every unstacked pin; a package may be a bare size (`setPackage`: "0603" = R_0603); `noteBoardGrown` on Update PCB too; crystals within 6 mm of their pins first (stepAside); a regulator pin takes a small cap after the loads. Catalog rows may name `PCM_Espressif` footprints, and
   `ALL_PADS` in `tools/fetch_catalog_parts.py` keeps every pad of a footprint. Tool failures are `isError` results, never crashes; file
   access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP

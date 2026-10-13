@@ -68,6 +68,9 @@ struct Mesh {
     void addCylinder(Vec3 baseCentre, double radius, double height, Rgba color, int segments = 20);
     /// Polygon (board XY) extruded between heights y0 and y1.
     void addPrism(const std::vector<Vec2>& polygon, double y0, double y1, Rgba color);
+    /// Convex profile (points (u, v) counter-clockwise in the plane of axes `u`, `v` through `origin`) extruded by
+    /// `along` — horizontal cylinders, rounded connector shells.
+    void addExtrusion(const std::vector<Vec2>& profile, Vec3 origin, Vec3 u, Vec3 v, Vec3 along, Rgba color);
     /// Stroke-font text lying flat at heights y0…y1, centred on `centre` (board XY), reading along +X with its top
     /// towards board −Y (the top of the PCB view). `mirrored` reads correctly from below (bottom-side legend).
     /// Returns the text's width.

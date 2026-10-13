@@ -21072,6 +21072,71 @@ TEST(mcp_headers_crystal_and_clear_reports) {
     CHECK(reported);
 }
 
+TEST(assembly_mesh_draws_parts_by_their_shape) {
+    // Connectors, switches, crystals, modules, headers, diodes and LEDs are drawn as they look: a USB-C shell with a
+    // dark mouth, a switch's steel cover and plunger, a crystal can, a module's shield can and printed antenna, gold
+    // header posts standing 8.5 mm, a diode's cathode band.
+    const auto root = mcpRoot("mesh3d");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    Json build = Json::object();
+    build["parts"] = Json::parse(R"([{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"},
+        {"ref": "Y1", "part": "Crystal_16MHz"}, {"ref": "U1", "part": "ESP32-C3-WROOM-02"}, {"ref": "J2", "part": "PinHeader_1x04_P2.54mm"},
+        {"ref": "D1", "part": "SS14"}, {"ref": "D2", "kind": "led", "value": "red"}])");
+    build["nets"] = Json::parse(R"({"GND": ["J1.GND", "SW1.2", "J2.1", "D1.A", "D2.2"]})");
+    build["pins"] = false;
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"width": 70, "height": 50})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    SiedaMesh* mesh = sieda_mesh_build(s.project(), 1);
+    CHECK(mesh != nullptr);
+    const int n = sieda_mesh_vertex_count(mesh);
+    const float* pos = sieda_mesh_positions(mesh);
+    const uint8_t* surf = sieda_mesh_surfaces(mesh);
+    auto highest = [&](Surface want) {
+        double top = -1e9;
+        for (int i = 0; i < n; ++i)
+            if (surf[i] == static_cast<uint8_t>(want)) top = std::max(top, static_cast<double>(pos[3 * i + 1]));
+        return top;
+    };
+    auto count = [&](Surface want, double y0, double y1) {
+        int k = 0;
+        for (int i = 0; i < n; ++i) k += surf[i] == static_cast<uint8_t>(want) && pos[3 * i + 1] > y0 && pos[3 * i + 1] < y1;
+        return k;
+    };
+    CHECK(highest(Surface::Gold) > 8.4);                // header posts above their 2.5 mm strip
+    CHECK(count(Surface::Hole, 0.2, 3.2) > 0);          // the USB-C mouth above the board
+    CHECK(count(Surface::Tin, 2.5, 4.0) > 0);           // switch cover, crystal can, shield can
+    CHECK(count(Surface::Finish, 0.5, 1.0) > 0);        // the module's printed antenna on its own board
+    CHECK(count(Surface::Marking, 0.0, 3.0) > 0);       // the diode's cathode band
+    CHECK(count(Surface::Glass, 0.2, 1.5) > 0);         // the LED's lens on its white body
+    sieda_mesh_free(mesh);
+}
+
+TEST(mcp_package_sizes_grown_board_and_pad_refs) {
+    // A bare size picks the part's package ("0603" = R_0603); Update PCB says when Auto Place grew the board;
+    // snapshot pads carry their part's designator.
+    const auto root = mcpRoot("pkgsize");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json r1 = mcpData(mcpTool(s, "schematic_add_component", Json::parse(R"({"kind": "resistor", "package": "0603"})")));
+    CHECK(r1.get("footprint").asString("") == "R_0603");
+    CHECK(mcpFailed(mcpTool(s, "schematic_set_package", Json::parse(R"({"ref": "R1", "package": "0201"})"))));
+    for (int i = 0; i < 5; ++i) CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", Json::parse(R"({"kind": "resistor"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"width": 10, "height": 10})"))));
+    const Json eco = mcpData(mcpTool(s, "pcb_update_from_schematic", Json::object()));
+    CHECK(eco.get("boardGrown").asString("").find("from 10 x 10 mm") != std::string::npos);
+    const Json pads = mcpData(mcpTool(s, "project_snapshot", Json::parse(R"({"sections": ["pads"]})"))).get("pads");
+    CHECK(pads.size() == 12);
+    for (const auto& pad : pads.items()) CHECK(pad.get("ref").asString("").rfind("R", 0) == 0);
+}
+
 TEST(mcp_pairs_stackup_and_stitching_kept) {
     // A pair the coupled router cannot take is named in pcb_autoroute's result; a whole-board
     // route lays the GND stitching again; an impedance target needing impractical widths is flagged.

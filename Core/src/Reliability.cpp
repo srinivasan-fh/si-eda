@@ -627,7 +627,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         const bool currentCarrying = sch.netRole(wideNet) != NetRole::Signal;  // a deliberate power / ground width
         if (hi >= 0.6 && hi > 3 * std::max(lo, 0.05))
             add(currentCarrying ? Severity::Info : Severity::Warning, "REL_TOMBSTONE",
-                c.ref + ": one pad joins much more copper (" + fmt("%.2f mm", hi) + " of track) than the other (" +
+                c.ref + ": one pad joins much more copper (" + fmt("%.2f mm", hi) + " of track and pour-spoke width) than the other (" +
                     fmt("%.2f mm", lo) + "), so its solder melts later and surface tension stands the part on end "
                     "(tombstoning). Neck the wide track down at the pad or use similar widths on both pads.",
                 {c.id}, c.pcb.position, true);
