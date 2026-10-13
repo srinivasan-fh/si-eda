@@ -121,9 +121,22 @@ Json boardJson(const BoardSettings& s) {
             j["net"] = r.net;
             j["target"] = r.target;
             j["tolerance"] = r.tolerance;
+            if (r.delayPs > 0) j["delayPs"] = r.delayPs;
             rules.push(j);
         }
         b["lengthRules"] = rules;
+    }
+    if (!s.pairRules.empty()) {
+        Json rules = Json::array();
+        for (const auto& r : s.pairRules) {
+            Json j = Json::object();
+            j["pair"] = r.pair;
+            for (auto [k, v] : {std::pair{"impedance", r.impedance}, {"width", r.width}, {"gap", r.gap}, {"skew", r.skew}})
+                if (v > 0) j[k] = v;
+            if (!r.preset.empty()) j["preset"] = r.preset;
+            rules.push(j);
+        }
+        b["pairRules"] = rules;
     }
     if (!s.matchGroups.empty()) {
         Json groups = Json::array();
@@ -823,7 +836,19 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
         r.net = j.get("net").asString("");
         r.target = j.get("target").asNumber(0);
         r.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        r.delayPs = std::clamp(j.get("delayPs").asNumber(0), 0.0, 1e6);
         if (!r.net.empty() && r.target > 0 && std::isfinite(r.target)) s.lengthRules.push_back(r);
+    }
+    for (const auto& j : b.get("pairRules").items()) {
+        PairRule r;
+        r.pair = j.get("pair").asString("");
+        auto num = [&](const char* k, double hi) { const double v = j.get(k).asNumber(0); return std::isfinite(v) ? std::clamp(v, 0.0, hi) : 0.0; };
+        r.impedance = num("impedance", 500);
+        r.width = num("width", 10);
+        r.gap = num("gap", 10);
+        r.skew = num("skew", 100);
+        r.preset = j.get("preset").asString("");
+        if (!r.pair.empty()) s.pairRules.push_back(r);
     }
     for (const auto& j : b.get("matchGroups").items()) {
         MatchGroup g;

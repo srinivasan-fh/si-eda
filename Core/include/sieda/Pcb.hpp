@@ -22,7 +22,28 @@ struct LengthRule {
     std::string net;
     double target = 0;
     double tolerance = 0.1;
+    /// Set as a delay (ps): target and tolerance are that delay on the outer layer at the net's width
+    /// (propagationDelayPerMm). JSON "delayPs", written only when set.
+    double delayPs = 0;
 };
+
+/// A differential pair's own rule (Pair Rules, or an interface preset): impedance target (Ω, 0 = the board's), track
+/// width and gap (mm, 0 = from the impedance on the stack-up) and P/N skew tolerance (mm, 0 = the board's).
+struct PairRule {
+    std::string pair;    // the pair's stem: "USB_D" for USB_D_P / USB_D_N (pairStem)
+    double impedance = 0, width = 0, gap = 0, skew = 0;
+    std::string preset;  // the interface preset it came from ("usb2", …); informative
+};
+
+/// Interface presets: typical design-guide differential impedance and intra-pair skew; the device's own layout guide
+/// wins where it differs.
+struct InterfacePreset {
+    const char* id;
+    const char* name;
+    double impedance;  // Ω differential
+    double skew;       // mm
+};
+const std::vector<InterfacePreset>& interfacePresets();
 
 /// A match group (as xSignal classes in other tools): the routed lengths of these nets' xSignals should match the
 /// longest of them within `tolerance` mm.
@@ -229,6 +250,13 @@ struct BoardSettings {
     /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
     std::vector<LengthRule> lengthRules;
     std::vector<MatchGroup> matchGroups;
+    /// Per-pair rules (saved only when present); pairRule = the rule of a pair's stem, or nullptr.
+    std::vector<PairRule> pairRules;
+    const PairRule* pairRule(const std::string& stem) const {
+        for (const auto& r : pairRules)
+            if (r.pair == stem) return &r;
+        return nullptr;
+    }
     /// Autorouter strategy (saved with the board only when it differs from the defaults).
     AutorouteOptions autorouter;
     /// Routing keep-outs (saved only when there are any).

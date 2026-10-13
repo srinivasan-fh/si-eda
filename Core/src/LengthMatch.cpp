@@ -83,23 +83,25 @@ std::vector<std::pair<int, int>> differentialPairs(const Schematic& sch) {
     return out;
 }
 
+std::string pairStem(const std::string& a, const std::string& b) {
+    size_t k = 0;
+    while (k < a.size() && k < b.size() && a[k] == b[k]) ++k;
+    std::string stem = a.substr(0, k);
+    while (!stem.empty() && (stem.back() == '_' || stem.back() == '.')) stem.pop_back();
+    return stem.empty() ? a : stem;
+}
+
 std::vector<LengthGroup> lengthGroups(const Schematic& sch, const BoardSettings& s) {
     std::vector<LengthGroup> out;
     const auto& nets = sch.nets();
     auto nameOf = [&](int idx) { return idx >= 0 && idx < static_cast<int>(nets.size()) ? nets[idx].name : ""; };
     for (auto [p, n] : differentialPairs(sch)) {
         LengthGroup g;
-        std::string a = nameOf(p);
-        // Common stem: the positive name without its polarity suffix.
-        size_t k = 0;
-        std::string b = nameOf(n);
-        while (k < a.size() && k < b.size() && a[k] == b[k]) ++k;
-        g.name = a.substr(0, k);
-        while (!g.name.empty() && (g.name.back() == '_' || g.name.back() == '.')) g.name.pop_back();
-        if (g.name.empty()) g.name = a;
+        g.name = pairStem(nameOf(p), nameOf(n));  // the positive name without its polarity suffix
         g.kind = "pair";
         g.nets = {p, n};
-        g.tolerance = s.pairSkewTolerance;
+        const PairRule* rule = s.pairRule(g.name);
+        g.tolerance = rule && rule->skew > 0 ? rule->skew : s.pairSkewTolerance;
         out.push_back(g);
     }
     std::map<std::string, std::vector<std::pair<int, int>>> buses;

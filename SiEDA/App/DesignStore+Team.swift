@@ -109,6 +109,8 @@ extension DesignStore {
                                       extensions: ["siedaproj"]) else { return }
         let (url, text) = picked
         designDiff = DesignDiff(title: url.lastPathComponent, text: engine.diffText(from: text))
+        let earlier = EDAEngine(name: url.lastPathComponent)
+        pcbCompare = (try? earlier.load(json: text)) != nil ? earlier.snapshot() : nil
     }
 }
 

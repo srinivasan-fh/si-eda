@@ -3749,11 +3749,18 @@ struct InteractiveRouter::Impl {
         }
         layer = l;
         width = std::max(netWidth(pNet), netWidth(nNet));
+        const PairRule* rule = base->s.pairRule(pairStem(base->netName(pNet), base->netName(nNet)));
+        if (rule && rule->width > 0 && opt.width <= 0) width = std::max(base->s.minTrackWidth, rule->width);
         if (opt.pairGap > 0) {
             gap = opt.pairGap;
+        } else if (rule && rule->gap > 0) {
+            gap = rule->gap;
         } else {
-            const auto geom = differentialPairGeometry(base->s, l, base->s.differentialImpedance);
+            const double ohms = rule && rule->impedance > 0 ? rule->impedance : base->s.differentialImpedance;
+            const auto geom = differentialPairGeometry(base->s, l, ohms);
             gap = std::max(geom.second, base->s.clearance);
+            if (rule && rule->impedance > 0 && rule->width <= 0 && opt.width <= 0 && geom.first > 0 && geom.first <= 1.0)
+                width = std::max(base->s.minTrackWidth, std::ceil(geom.first * 100) / 100);
         }
         gap = std::max(gap, base->clearance(pNet, nNet));
         spacing = width + gap;

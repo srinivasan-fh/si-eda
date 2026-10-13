@@ -6495,6 +6495,22 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.snapshot.board.keepouts.isEmpty)
     }
 
+    func testPairRulePresetAndDelayRule() throws {
+        let store = DesignStore()
+        XCTAssertTrue(EDAEngine.interfacePresets().contains { $0.id == "usb2" && $0.impedance == 90 })
+        store.setPairRule(PairRuleInfo(pair: "USB_D", preset: "pcie"))
+        XCTAssertEqual(store.snapshot.board.pairRules.first?.impedance, 85)
+        store.setPairRule(PairRuleInfo(pair: "USB_D"))  // no values: removed
+        XCTAssertTrue(store.snapshot.board.pairRules.isEmpty)
+        twoResistors(store.engine)
+        store.refresh()
+        let net = try XCTUnwrap(store.snapshot.nets.first { $0.pinCount >= 2 }?.name)
+        store.setDelayRule(net: net, delayPs: 100, tolerancePs: 5)
+        let rule = try XCTUnwrap(store.engine.lengthTargets().rules.first)
+        XCTAssertEqual(rule.delayPs, 100)
+        XCTAssertGreaterThan(rule.target, 10)
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

@@ -236,6 +236,15 @@ bool insidePolygon(const std::vector<Vec2>& poly, Vec2 p) {
 }
 }  // namespace
 
+const std::vector<InterfacePreset>& interfacePresets() {
+    static const std::vector<InterfacePreset> presets = {
+        {"usb2", "USB 2.0", 90, 1.27},       {"usb3", "USB 3.x", 90, 0.127},  {"pcie", "PCI Express", 85, 0.127},
+        {"ethernet", "Ethernet (MDI)", 100, 1.27}, {"hdmi", "HDMI / DisplayPort", 100, 0.127},
+        {"lvds", "LVDS / MIPI", 100, 0.254}, {"ddr", "DDR clock / strobe", 80, 0.127}, {"can", "CAN / RS-485", 120, 2.54},
+    };
+    return presets;
+}
+
 bool BoardSettings::contains(Vec2 p) const {
     const bool in = hasCustomOutline() ? insidePolygon(outline, p) : p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height;
     if (!in) return false;
@@ -3542,15 +3551,23 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
             pl.width = std::max(settings.widthFor(rep.positive), settings.widthFor(rep.negative));
             const double pairClearance = std::max(settings.clearanceFor(rep.positive), settings.clearanceFor(rep.negative));
-            double gap = ropt.pairGap;
+            // The pair's own rule (impedance, width, gap) over the board's.
+            const PairRule* rule = settings.pairRule(pairStem(rep.positive, rep.negative));
+            const double ohms = rule && rule->impedance > 0 ? rule->impedance : settings.differentialImpedance;
+            if (rule && rule->width > 0) pl.width = std::max(settings.minTrackWidth, rule->width);
+            else if (rule && rule->impedance > 0) {
+                const double dw = differentialPairGeometry(settings, kTopLayer, ohms).first;
+                if (dw > 0 && dw <= 1.0) pl.width = std::max(settings.minTrackWidth, std::ceil(dw * 100) / 100);
+            }
+            double gap = ropt.pairGap > 0 ? ropt.pairGap : rule && rule->gap > 0 ? rule->gap : 0;
             if (gap <= 0) {
-                const double geo = differentialPairGeometry(settings, kTopLayer, settings.differentialImpedance).second;
+                const double geo = differentialPairGeometry(settings, kTopLayer, ohms).second;
                 gap = geo > 0 && geo <= 1.0 ? geo : settings.clearance;
             }
             pl.minGap = pairClearance;
             pl.gap = std::max(gap, pairClearance);
             // A pair at the stack-up's outer width and gap takes each layer's own (inner striplines differ).
-            if (ropt.pairGap <= 0 && !stackupPair.empty() && std::fabs(pl.width - stackupPair[kTopLayer].first) < 1e-9 &&
+            if (ropt.pairGap <= 0 && !rule && !stackupPair.empty() && std::fabs(pl.width - stackupPair[kTopLayer].first) < 1e-9 &&
                 std::fabs(gap - stackupPair[kTopLayer].second) < 1e-12)
                 for (const auto& [lw, lg] : stackupPair) {
                     pl.layerWidth.push_back(lw > 0 ? lw : pl.width);

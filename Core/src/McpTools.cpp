@@ -17,6 +17,7 @@
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/InteractiveRouter.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Validation.hpp"
 
 namespace fs = std::filesystem;
@@ -3545,7 +3546,7 @@ void pcbTools(Table& t) {
               .boolean("enabled", "Tune lengths after Auto Route")
               .num("pairSkew", "Intra-pair skew tolerance (mm)")
               .num("busTolerance", "Bus length tolerance (mm)")
-              .array("rules", "[{net, target, tolerance}]", "object")
+              .array("rules", "[{net, target, tolerance}] mm, or [{net, delayPs, tolerancePs}] as a delay", "object")
               .array("groups", "[{name, nets, tolerance}]", "object")
               .boolean("tune", "Add serpentines now"),
           [](McpServer& s, const Json& a) {
@@ -3556,13 +3557,40 @@ void pcbTools(Table& t) {
                                                 argNum(a, "busTolerance", st.busLengthTolerance));
               if (a.get("rules").isArray())
                   for (const auto& r : a.get("rules").items())
-                      check(sieda_pcb_set_length_rule(p, requireStr(r, "net").c_str(), argNum(r, "target", 0), argNum(r, "tolerance", 0.5)) == 1,
+                      check(r.has("delayPs") ? sieda_pcb_set_delay_rule(p, requireStr(r, "net").c_str(), argNum(r, "delayPs", 0),
+                                                                         argNum(r, "tolerancePs", 5)) == 1
+                                             : sieda_pcb_set_length_rule(p, requireStr(r, "net").c_str(), argNum(r, "target", 0),
+                                                                         argNum(r, "tolerance", 0.5)) == 1,
                             "Invalid length rule");
               if (a.get("groups").isArray())
                   for (const auto& g : a.get("groups").items()) check(sieda_pcb_set_match_group(p, g.dump().c_str()) == 1, "Invalid match group");
               Json j = obj();
               if (argBool(a, "tune", false)) j["netsTuned"] = sieda_pcb_tune_lengths(p);
               j["targets"] = takeJson(sieda_length_targets_json(p));
+              return out(j);
+          });
+    t.add("pcb", "pcb_pair_rules", "Pair rules", Kind::Edit, false,
+          "Differential pair rules by the pair's stem (USB_D for USB_D_P / USB_D_N): an interface preset (usb2, usb3, "
+          "pcie, ethernet, hdmi, lvds, ddr, can: typical impedance and skew) and / or impedance (Ω), width, gap (mm) "
+          "and skew tolerance (mm); a rule with no values removes it. The routers use the pair's impedance, width and "
+          "gap; length tuning and DRC its skew. Returns the board's pairs, their rules and the presets.",
+          Schema().array("rules", "[{pair, preset, impedance, width, gap, skew}]", "object"), [](McpServer& s, const Json& a) {
+              for (const auto& r : a.get("rules").items()) check(sieda_pcb_set_pair_rule(P(s), r.dump().c_str()) == 1, "Invalid pair rule");
+              const Project& pr = proj(s);
+              Json j = obj(), pairs = Json::array();
+              for (auto [pn, nn] : differentialPairs(pr.schematic)) {
+                  const auto& nets = pr.schematic.nets();
+                  Json e = obj();
+                  e["pair"] = pairStem(nets[static_cast<size_t>(pn)].name, nets[static_cast<size_t>(nn)].name);
+                  if (const PairRule* rule = pr.pcb.settings.pairRule(e.get("pair").asString(""))) {
+                      for (auto [k, v] : {std::pair{"impedance", rule->impedance}, {"width", rule->width}, {"gap", rule->gap}, {"skew", rule->skew}})
+                          if (v > 0) e[k] = v;
+                      if (!rule->preset.empty()) e["preset"] = rule->preset;
+                  }
+                  pairs.push(e);
+              }
+              j["pairs"] = pairs;
+              j["presets"] = takeJson(sieda_interface_presets_json());
               return out(j);
           });
     t.add("pcb", "pcb_set_hdi", "HDI", Kind::Edit, true,

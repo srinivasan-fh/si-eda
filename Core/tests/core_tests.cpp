@@ -34,6 +34,7 @@
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "../src/SiedaProjectInternal.hpp"
 #include "sieda/Channel.hpp"
 #include "sieda/Eye.hpp"
 #include "sieda/LossyLine.hpp"
@@ -22564,4 +22565,37 @@ TEST(pcb_cutouts_and_drawn_pours) {
     for (const auto& r : fills[0].rects) CHECK(r.x0 >= x0 - 1e-9 && r.x1 <= x1 + 1e-9 && !r.contains(c));
     const Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.cutouts.size() == 1 && back.pcb.zones.size() == 1 && back.pcb.zones[0].polygon.size() == 4);
+}
+
+TEST(pcb_pair_rules_presets_and_delay_rules) {
+    CHECK(pairStem("USB_D_P", "USB_D_N") == "USB_D" && pairStem("D+", "D-") == "D");
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "22", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "22", {0, 100});
+    const int lp = s.addComponent(ComponentKind::NetLabel, "USB_D_P", {-100, 0});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "USB_D_N", {-100, 100});
+    CHECK(s.connect({r1, 0}, {lp, pin(s, lp, "N")}) >= 0 && s.connect({r2, 0}, {ln, pin(s, ln, "N")}) >= 0);
+    p.schematicChanged();
+    SiedaProject* c = sieda_project_new("pairs");
+    c->project = p;
+    // A preset fills the pair's impedance and skew; length tuning and DRC take the pair's skew.
+    CHECK(sieda_pcb_set_pair_rule(c, R"({"pair":"USB_D","preset":"usb2"})") == 1);
+    const PairRule* rule = c->project.pcb.settings.pairRule("USB_D");
+    CHECK(rule && rule->impedance == 90 && rule->skew == 1.27 && rule->preset == "usb2");
+    bool found = false;
+    for (const auto& g : lengthGroups(c->project.schematic, c->project.pcb.settings))
+        if (g.kind == "pair") found = g.name == "USB_D" && g.tolerance == 1.27;
+    CHECK(found);
+    // A delay rule becomes a length on the outer layer and keeps its ps; both survive a save.
+    CHECK(sieda_pcb_set_delay_rule(c, "USB_D_P", 100, 5) == 1);
+    const auto& lr = c->project.pcb.settings.lengthRules.back();
+    const double perMm = propagationDelayPerMm(c->project.pcb.settings, kTopLayer, c->project.pcb.settings.widthFor("USB_D_P")) * 1e12;
+    CHECK_NEAR(lr.target, 100 / perMm, 1e-9);
+    CHECK(lr.delayPs == 100 && lr.target > 10 && lr.target < 25);  // ~6–7 ps/mm on FR-4 microstrip
+    const Project back = Project::fromJson(c->project.toJson());
+    CHECK(back.pcb.settings.pairRules.size() == 1 && back.pcb.settings.lengthRules.back().delayPs == 100);
+    // No values removes the rule.
+    CHECK(sieda_pcb_set_pair_rule(c, R"({"pair":"USB_D"})") == 1 && c->project.pcb.settings.pairRules.empty());
+    sieda_project_free(c);
 }

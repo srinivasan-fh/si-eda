@@ -49,6 +49,25 @@ enum MeanderCornerChoice: String, CaseIterable, Identifiable {
 }
 
 /// Length rules, match groups and their members' current lengths (`sieda_length_targets_json`).
+/// A differential pair's own rule (core `PairRule`, board JSON "pairRules"); 0 / nil = the board's.
+struct PairRuleInfo: Codable, Equatable, Identifiable {
+    var pair: String
+    var impedance: Double?
+    var width: Double?
+    var gap: Double?
+    var skew: Double?
+    var preset: String?
+    var id: String { pair }
+}
+
+/// A typical interface preset (core `interfacePresets()`).
+struct InterfacePresetInfo: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var impedance: Double
+    var skew: Double
+}
+
 struct LengthTargets: Decodable, Equatable {
     struct Rule: Decodable, Equatable, Identifiable {
         var net: String
@@ -57,6 +76,8 @@ struct LengthTargets: Decodable, Equatable {
         var length: Double
         var ok: Bool
         var routed: Bool
+        /// Set as a delay (ps); target / tolerance are its length.
+        var delayPs: Double?
         var id: String { net }
     }
     struct Member: Decodable, Equatable, Identifiable {
@@ -181,6 +202,23 @@ extension EDAEngine {
     @discardableResult
     func setLengthRule(net: String, target: Double, tolerance: Double) -> Bool {
         withHandle { sieda_pcb_set_length_rule($0, net, target, tolerance) } == 1
+    }
+
+    /// A length rule given as a delay (ps ± ps), converted on the outer layer at the net's width.
+    @discardableResult
+    func setDelayRule(net: String, delayPs: Double, tolerancePs: Double) -> Bool {
+        withHandle { sieda_pcb_set_delay_rule($0, net, delayPs, tolerancePs) } == 1
+    }
+
+    /// A differential pair's rule by its stem: an interface preset id and / or values; none removes it.
+    @discardableResult
+    func setPairRule(_ rule: PairRuleInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(rule), let json = String(data: data, encoding: .utf8) else { return false }
+        return withHandle { sieda_pcb_set_pair_rule($0, json) } == 1
+    }
+
+    static func interfacePresets() -> [InterfacePresetInfo] {
+        decode([InterfacePresetInfo].self, from: take(sieda_interface_presets_json())) ?? []
     }
 
     /// Match group: these nets' xSignal lengths match the longest within `tolerance`; fewer than two nets removes it.

@@ -968,6 +968,13 @@ char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, c
 /* Length rule of a net (its xSignal length, pad to pad through series parts): target ± tolerance mm; target <= 0
  * removes it. 1 on success. */
 int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm);
+/* A length rule given as a delay (ps ± ps): converted to mm on the outer layer at the net's width. Returns 1. */
+int32_t sieda_pcb_set_delay_rule(SiedaProject* project, const char* net_name, double delay_ps, double tolerance_ps);
+/* A differential pair's rule: rule_json {pair (stem, e.g. "USB_D"), impedance, width, gap, skew, preset}; "preset"
+ * alone fills impedance and skew from sieda_interface_presets_json; no values removes the rule. Returns 1. */
+int32_t sieda_pcb_set_pair_rule(SiedaProject* project, const char* rule_json);
+/* [{id, name, impedance, skew}] typical interface presets. Caller frees. */
+char* sieda_interface_presets_json(void);
 /* Match group {"name","nets":[names],"tolerance"}: replaces the group of that name; fewer than two nets removes it. */
 int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json);
 /* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":

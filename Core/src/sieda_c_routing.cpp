@@ -12,6 +12,7 @@
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/LengthRules.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/sieda_c.h"
 
 using namespace sieda;
@@ -111,6 +112,56 @@ char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, 
     } catch (const std::exception& e) {
         return errorString(e);
     }
+}
+
+int32_t sieda_pcb_set_delay_rule(SiedaProject* project, const char* net_name, double delay_ps, double tolerance_ps) {
+    if (!project || !net_name || !*net_name) return 0;
+    const auto& s = project->project.pcb.settings;
+    const double perMm = propagationDelayPerMm(s, kTopLayer, s.widthFor(net_name)) * 1e12;  // ps / mm
+    if (!(perMm > 0) || !std::isfinite(delay_ps)) return 0;
+    if (sieda_pcb_set_length_rule(project, net_name, delay_ps > 0 ? delay_ps / perMm : 0, tolerance_ps / perMm) != 1) return 0;
+    if (delay_ps > 0) project->project.pcb.settings.lengthRules.back().delayPs = delay_ps;
+    return 1;
+}
+
+int32_t sieda_pcb_set_pair_rule(SiedaProject* project, const char* rule_json) {
+    if (!project || !rule_json) return 0;
+    try {
+        const Json j = Json::parse(rule_json);
+        PairRule r;
+        r.pair = j.get("pair").asString("");
+        if (r.pair.empty()) return 0;
+        r.preset = j.get("preset").asString("");
+        for (const auto& p : interfacePresets())
+            if (r.preset == p.id) r.impedance = p.impedance, r.skew = p.skew;
+        auto num = [&](const char* k, double def, double hi) {
+            const double v = j.get(k).asNumber(def);
+            return std::isfinite(v) ? std::clamp(v, 0.0, hi) : def;
+        };
+        r.impedance = num("impedance", r.impedance, 500);
+        r.width = num("width", 0, 10);
+        r.gap = num("gap", 0, 10);
+        r.skew = num("skew", r.skew, 100);
+        auto& rules = project->project.pcb.settings.pairRules;
+        rules.erase(std::remove_if(rules.begin(), rules.end(), [&](const PairRule& x) { return x.pair == r.pair; }), rules.end());
+        if (r.impedance > 0 || r.width > 0 || r.gap > 0 || r.skew > 0) rules.push_back(r);
+        return 1;
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+char* sieda_interface_presets_json(void) {
+    Json a = Json::array();
+    for (const auto& p : interfacePresets()) {
+        Json j = Json::object();
+        j["id"] = p.id;
+        j["name"] = p.name;
+        j["impedance"] = p.impedance;
+        j["skew"] = p.skew;
+        a.push(j);
+    }
+    return dupString(a.dump());
 }
 
 int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm) {

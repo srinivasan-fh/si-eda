@@ -57,6 +57,19 @@ extension DesignStore {
         }
     }
 
+    /// Goes to the next (`delta` 1) or previous (-1) located design rule error: rings it and zooms the board to it.
+    func stepDRC(_ delta: Int) {
+        let located = drcResults.filter { $0.severity == .error && $0.hasLocation }
+        guard !located.isEmpty else { return }
+        let at = located.firstIndex { $0.id == focusedViolation }.map { ($0 + delta + located.count) % located.count }
+            ?? (delta > 0 ? 0 : located.count - 1)
+        let v = located[at]
+        focusedViolation = v.id
+        if v.components.count == 1 { selection = Set(v.components) }
+        requestView(.focus(CGPoint(x: v.x, y: v.y)))
+        statusMessage = "\(at + 1) of \(located.count): \(v.message)"
+    }
+
     /// Selects every track of the selected tracks' nets (the whole route), so a command covers it.
     func selectTrackNets() {
         let nets = Set(snapshot.tracks.filter { selectedTracks.contains($0.id) }.map(\.net))
@@ -76,6 +89,20 @@ extension DesignStore {
             _ = $0.setLengthRule(net: net, target: max(0, target), tolerance: max(0, tolerance))
         }
         if tuneSession != nil { setTuneTarget(tuneSession?.target ?? 0) }
+    }
+
+    /// A length rule as a delay: delayPs ± tolerancePs, converted to mm on the outer layer (0 removes it). Undoable.
+    func setDelayRule(net: String, delayPs: Double, tolerancePs: Double) {
+        guard !net.isEmpty, delayPs.isFinite, tolerancePs.isFinite else { return }
+        perform(delayPs > 0 ? "Set delay rule" : "Removed length rule", invalidatesAnalysis: false) {
+            _ = $0.setDelayRule(net: net, delayPs: max(0, delayPs), tolerancePs: max(0, tolerancePs))
+        }
+    }
+
+    /// Sets a differential pair's rule (an interface preset and / or impedance); no values removes it. Undoable.
+    func setPairRule(_ rule: PairRuleInfo) {
+        perform("Pair rule for \(rule.pair)", invalidatesAnalysis: false) { _ = $0.setPairRule(rule) }
+        if !drcResults.isEmpty { runDRC() }
     }
 
     /// Sets or (fewer than two nets) removes a match group. Undoable.

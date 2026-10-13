@@ -12,6 +12,9 @@ struct LengthRulesPanel: View {
     @State private var groupName = ""
     @State private var groupNets: Set<String> = []
     @State private var groupTolerance = "0.1"
+    @State private var ruleInPs = false
+    @State private var pairs: [String] = []
+    private let presets = EDAEngine.interfacePresets()
 
     private var signalNets: [String] {
         store.snapshot.nets.filter { $0.netRole == .signal && $0.pinCount >= 2 }.map(\.name).sorted()
@@ -26,7 +29,8 @@ struct LengthRulesPanel: View {
                         HStack(spacing: 8) {
                             Text(verbatim: rule.net).foregroundStyle(Theme.textPrimary).frame(width: 110, alignment: .leading)
                             LengthGaugeBar(length: rule.length, target: rule.target, tolerance: rule.tolerance, routed: rule.routed)
-                            Text(verbatim: String(format: "%.2f / %.2f ± %.2f mm", rule.length, rule.target, rule.tolerance))
+                            Text(verbatim: String(format: "%.2f / %.2f ± %.2f mm", rule.length, rule.target, rule.tolerance)
+                                 + (rule.delayPs.map { String(format: " (%.0f ps)", $0) } ?? ""))
                                 .monospacedDigit().font(.caption).foregroundStyle(Theme.textSecondary)
                             Button { store.setLengthRule(net: rule.net, target: 0, tolerance: 0); reload() } label: {
                                 Image(systemName: "trash")
@@ -45,9 +49,20 @@ struct LengthRulesPanel: View {
                         TextField("Target", text: $ruleTarget).textFieldStyle(.blue).frame(width: 56)
                         Text(verbatim: "±").foregroundStyle(Theme.textMuted)
                         TextField("Tolerance", text: $ruleTolerance).textFieldStyle(.blue).frame(width: 48)
-                        Text(verbatim: "mm").font(.caption).foregroundStyle(Theme.textMuted)
+                        Picker("Unit", selection: $ruleInPs) {
+                            Text(verbatim: "mm").tag(false)
+                            Text(verbatim: "ps").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Give the target as a length (mm) or a delay (ps, converted on the outer layer)")
                         Button("Set") {
-                            store.setLengthRule(net: ruleNet, target: number(ruleTarget), tolerance: number(ruleTolerance))
+                            if ruleInPs {
+                                store.setDelayRule(net: ruleNet, delayPs: number(ruleTarget), tolerancePs: number(ruleTolerance))
+                            } else {
+                                store.setLengthRule(net: ruleNet, target: number(ruleTarget), tolerance: number(ruleTolerance))
+                            }
                             reload()
                         }
                         .disabled(!signalNets.contains(ruleNet) || number(ruleTarget) <= 0)
@@ -56,6 +71,18 @@ struct LengthRulesPanel: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .bluePanel()
+
+                if !pairs.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Pair Rules", systemImage: "arrow.left.arrow.right").font(.headline).foregroundStyle(Theme.textPrimary)
+                        ForEach(pairs, id: \.self) { pair in pairRow(pair) }
+                        Text("Interface presets are typical design-guide values; the device's own layout guide wins.")
+                            .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .bluePanel()
+                }
 
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Match Groups", systemImage: "equal.square").font(.headline).foregroundStyle(Theme.textPrimary)
@@ -123,7 +150,30 @@ struct LengthRulesPanel: View {
         .onChange(of: store.revision) { _, _ in reload() }
     }
 
-    private func reload() { targets = store.engine.lengthTargets() }
+    private func reload() {
+        targets = store.engine.lengthTargets()
+        pairs = store.engine.lengthReport().groups.filter(\.isPair).map(\.name)
+    }
+
+    /// One pair: its interface preset and impedance (Ω, empty = the board's).
+    private func pairRow(_ pair: String) -> some View {
+        let rule = store.snapshot.board.pairRules.first { $0.pair == pair }
+        return HStack(spacing: 8) {
+            Text(verbatim: pair).foregroundStyle(Theme.textPrimary).frame(width: 110, alignment: .leading)
+            Picker("Interface", selection: Binding(get: { rule?.preset ?? "" }, set: { id in
+                store.setPairRule(PairRuleInfo(pair: pair, preset: id.isEmpty ? nil : id))
+            })) {
+                Text("Board rules").tag("")
+                ForEach(presets) { Text(verbatim: $0.name).tag($0.id) }
+            }
+            .frame(width: 190)
+            if let rule {
+                Text(verbatim: [rule.impedance.map { String(format: "%.0f Ω", $0) }, rule.skew.map { String(format: "skew %.2f mm", $0) }]
+                    .compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
 
     private func number(_ text: String) -> Double {
         Double(text.replacingOccurrences(of: ",", with: ".")) ?? 0

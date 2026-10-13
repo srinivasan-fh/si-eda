@@ -324,6 +324,30 @@ Core: `InteractiveRouter::beginMultiDrag(trackIds, grab)` (C: `sieda_router_begi
 Core: `PcbLayout::splitTrack`, `mergeTracks`, `moveFootprintWithTracks` (C: `sieda_pcb_split_track`,
 `sieda_pcb_merge_tracks`, `sieda_pcb_move_footprint_with_tracks`, with `sieda_pcb_remove_track` / `_via`).
 
+## Finding things on the board
+
+- **DRC navigation**: the ◀ ▶ buttons next to the DRC badge step through the located errors, ring the current one and
+  zoom to it; a click on a Design Checks row (with or without parts) does the same.
+- **Highlight Net** (right-click a pad or track) keeps a net highlighted until Esc or Clear Net Highlight.
+- **Selectable** (layers panel): whether clicks and drags pick parts, tracks and vias.
+- **Compare with File** (Team) also draws the board's changes from that version: added tracks green, removed ones
+  dashed red, moved parts' earlier courtyards dashed amber; right-click → Clear Comparison.
+
+## Pair rules, delay targets and interface presets
+
+Length Rules → **Pair Rules** lists the board's differential pairs by stem (`USB_D` for `USB_D_P` / `USB_D_N`). An
+**interface preset** gives a pair its typical differential impedance and intra-pair skew: USB 2.0 (90 Ω, 1.27 mm),
+USB 3.x (90 Ω, 0.127 mm), PCI Express (85 Ω, 0.127 mm), Ethernet MDI (100 Ω, 1.27 mm), HDMI / DisplayPort
+(100 Ω, 0.127 mm), LVDS / MIPI (100 Ω, 0.254 mm), DDR clock / strobe (80 Ω, 0.127 mm), CAN / RS-485 (120 Ω, 2.54 mm).
+These are common design-guide values; the device's own layout guide wins. A `PairRule` (board JSON `pairRules`,
+written only when present) can also give the pair's width and gap. The interactive router and the autorouter take the
+pair's width and gap (else the stack-up geometry for its impedance), length tuning and the DRC its skew; pairs
+without a rule keep the board's rules and copper.
+
+A length rule can be given in **ps**: it is converted to mm on the outer layer at the net's width
+(`propagationDelayPerMm`) and keeps its delay (`LengthRule::delayPs`). C: `sieda_pcb_set_pair_rule`,
+`sieda_interface_presets_json`, `sieda_pcb_set_delay_rule`; MCP `pcb_pair_rules`, `pcb_length_rules` `delayPs`.
+
 ## Drawing pours, outline, cutouts and keep-outs
 
 The tool strip has four drawing tools (Esc leaves them; a second click on the button too):

@@ -1861,6 +1861,10 @@ final class DesignStore: ObservableObject {
 
     /// The PCB drawing tool in use (nil = none) and the net a drawn pour takes ("" = the ground net).
     @Published var pcbShapeTool: PCBShapeTool?
+    /// Net highlighted on the board until cleared (right-click a pad or track → Highlight Net; Esc clears it).
+    @Published var pcbHighlightNet: Int?
+    /// The earlier version picked with Compare with File: the board draws what changed from it until cleared.
+    @Published var pcbCompare: DesignSnapshot?
     @Published var pourNet = ""
 
     /// Route tool track width and differential pair gap in mm (0 = the board's net-class rules).

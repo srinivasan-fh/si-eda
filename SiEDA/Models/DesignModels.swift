@@ -838,6 +838,7 @@ struct BoardInfo: Decodable, Equatable {
     /// Board cutouts (inner holes of any shape, routed out) and routing keep-outs.
     var cutouts: [[BoardPoint]] = []
     var keepouts: [RouteKeepout] = []
+    var pairRules: [PairRuleInfo] = []
     var holes: [MountingHoleInfo] = []
     /// Production panel (core `PanelSettings`); nil = a single board.
     var panel: PanelInfo?
@@ -889,6 +890,7 @@ struct BoardInfo: Decodable, Equatable {
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
         cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
         keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
+        pairRules = try c.decodeIfPresent([PairRuleInfo].self, forKey: .pairRules) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
         dfmPack = try c.decodeIfPresent(String.self, forKey: .dfmPack) ?? ""
     }
@@ -899,7 +901,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
-        case cutouts, keepouts
+        case cutouts, keepouts, pairRules
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }

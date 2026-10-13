@@ -172,6 +172,7 @@ Json lengthTargetsJson(const PcbLayout& pcb, const Schematic& sch) {
         j["net"] = r.net;
         j["target"] = r.target;
         j["tolerance"] = r.tolerance;
+        if (r.delayPs > 0) j["delayPs"] = r.delayPs;
         const int n = netIndexOf(sch, r.net);
         const double len = n >= 0 ? xSignalLength(pcb, pads, xSignalOf(sch, pads, n)) : -1;
         j["length"] = std::max(0.0, len);

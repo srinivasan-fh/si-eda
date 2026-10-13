@@ -406,6 +406,14 @@ struct PCBEditorView: View {
                     let drcErrors = store.drcResults.filter { $0.severity == .error }.count
                     if store.drcIsCurrent {
                         Badge(text: drcErrors == 0 ? "DRC clean" : "DRC \(drcErrors)", systemImage: "checkmark.seal")
+                        if drcErrors > 0 {
+                            Button { store.stepDRC(-1) } label: { Image(systemName: "chevron.left") }
+                                .buttonStyle(.borderless)
+                                .help("Previous design rule error: zoom to it")
+                            Button { store.stepDRC(1) } label: { Image(systemName: "chevron.right") }
+                                .buttonStyle(.borderless)
+                                .help("Next design rule error: zoom to it")
+                        }
                     }
                     ZoomControls(level: viewport.scale / Viewport.pcbBaseScale,
                                  zoomIn: { store.requestView(.zoomIn) }, zoomOut: { store.requestView(.zoomOut) },
@@ -620,6 +628,8 @@ struct LayersPanel: View {
     @Binding var visible: Set<PCBLayer>
     @Binding var active: PCBLayer
     @AppStorage("pcb.colourByNet") private var colourByNet = true
+    @AppStorage("pcb.pick.parts") private var pickParts = true
+    @AppStorage("pcb.pick.copper") private var pickCopper = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -641,6 +651,15 @@ struct LayersPanel: View {
                     legendRow(Theme.signalColor(layer, layerCount: board.layerCount), "Signal · \(board.layerName(layer))")
                 }
             }
+            Divider().padding(.vertical, 4)
+            Text("SELECTABLE").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            HStack {
+                Toggle("Parts", isOn: $pickParts)
+                Toggle("Tracks & Vias", isOn: $pickCopper)
+            }
+            .toggleStyle(.checkbox)
+            .controlSize(.small)
+            .help("What a click or drag on the board can select")
             Divider().padding(.vertical, 4)
             HStack {
                 Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
@@ -760,6 +779,9 @@ struct PCBCanvas: View {
     var activeLayer: PCBLayer
     /// Copper coloured by what it carries (power red, ground blue, …) or by layer (top red, bottom blue, …).
     @AppStorage("pcb.colourByNet") private var colourByNet = true
+    /// Selection filters: what a click or drag can pick (layers panel).
+    @AppStorage("pcb.pick.parts") private var pickParts = true
+    @AppStorage("pcb.pick.copper") private var pickCopper = true
 
     private enum DragMode {
         case move(Set<Int>)
@@ -906,6 +928,8 @@ struct PCBCanvas: View {
                         zoomArmed = false
                     } else if routeTool {
                         routeTool = false
+                    } else if store.pcbHighlightNet != nil {
+                        store.pcbHighlightNet = nil
                     } else {
                         store.select(component: nil)
                     }
@@ -959,6 +983,11 @@ struct PCBCanvas: View {
                 .reduce(CGRect.null) { $0.union($1.rect) }
             if rect.isNull { fit(size) } else { viewport.fit(rect.insetBy(dx: -2, dy: -2), in: size, limits: limits) }
         case .zoomArea: zoomArmed = true
+        case .focus(let p):
+            if viewport.scale < Viewport.pcbBaseScale * 2 {
+                viewport.setScale(Viewport.pcbBaseScale * 3, anchor: CGPoint(x: size.width / 2, y: size.height / 2), limits: limits)
+            }
+            viewport.center(on: p, in: size)
         default:
             viewport.apply(command, size: size, anchor: hover, baseScale: Viewport.pcbBaseScale, limits: limits)
         }
@@ -1071,9 +1100,9 @@ struct PCBCanvas: View {
                         dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
                         dragMode = .tuneDrag(hit.id, world)
-                    } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
+                    } else if !panMode, !routeTool, !tuneTool, pickCopper, pad(at: world) == nil, let hit = copperHit(at: world) {
                         dragMode = hit.isVia ? .dragVia(hit.id, world) : .dragTrack(hit.id, world)
-                    } else if !panMode, !routeTool, !tuneTool, let id = footprint(at: world) {
+                    } else if !panMode, !routeTool, !tuneTool, pickParts, let id = footprint(at: world) {
                         // ⇧ adds on release (select toggles); selecting here as well would toggle it straight back off.
                         let shift = NSEvent.modifierFlags.contains(.shift)
                         if !store.selection.contains(id) && !shift { store.select(component: id) }
@@ -1144,7 +1173,7 @@ struct PCBCanvas: View {
                             store.selectTrack(id, extend: shift)  // a click on a track selects it for the track commands
                         } else {
                             store.selectTrack(nil, extend: shift)
-                            store.select(component: footprint(at: world), extend: shift)
+                            store.select(component: pickParts ? footprint(at: world) : nil, extend: shift)
                         }
                     }
                 } else if case .move(let ids) = dragMode {
@@ -1192,6 +1221,18 @@ struct PCBCanvas: View {
 
     /// Right-click: track (split, merge, delete), via (delete), footprint (align, rotate, flip) or empty board.
     private func contextMenu(at world: CGPoint) -> [CanvasMenuItem] {
+        let net = pad(at: world).map(\.net) ?? copperHit(at: world, vias: false).flatMap { hit in
+            store.snapshot.tracks.first { $0.id == hit.id }?.net
+        }
+        let highlight: [CanvasMenuItem] = net.flatMap { $0 >= 0 ? $0 : nil }.map { n in
+            [CanvasMenuItem(title: store.pcbHighlightNet == n ? String(localized: "Clear Net Highlight") : String(localized: "Highlight Net")) {
+                store.pcbHighlightNet = store.pcbHighlightNet == n ? nil : n
+            }, .separator]
+        } ?? []
+        return highlight + baseMenu(at: world)
+    }
+
+    private func baseMenu(at world: CGPoint) -> [CanvasMenuItem] {
         if pad(at: world) == nil, let hit = copperHit(at: world) {
             if hit.isVia {
                 return [CanvasMenuItem(title: String(localized: "Delete Via")) { store.deleteSelectedCopper(vias: [hit.id]) }]
@@ -1239,10 +1280,39 @@ struct PCBCanvas: View {
                 shapes.append(CanvasMenuItem(title: String(localized: "Delete Pour")) { store.removeZone(at: index) })
             }
         }
+        if store.pcbCompare != nil {
+            shapes.append(CanvasMenuItem(title: String(localized: "Clear Comparison")) { store.pcbCompare = nil })
+        }
         return shapes + [
             CanvasMenuItem(title: String(localized: "Merge Tracks"), enabled: !store.snapshot.tracks.isEmpty) { store.mergeTracks() },
             CanvasMenuItem(title: String(localized: "Zoom to Fit")) { store.requestView(.fit) },
         ]
+    }
+
+    /// Board diff against an earlier version: tracks only in it dashed red (removed), only now green (added), and the
+    /// earlier courtyards of moved parts dashed amber.
+    private func drawComparison(_ ctx: inout GraphicsContext, old: DesignSnapshot, screen: CGAffineTransform) {
+        func key(_ t: SnapTrack) -> String {
+            let a = "\(Int((t.ax * 1000).rounded())),\(Int((t.ay * 1000).rounded()))"
+            let b = "\(Int((t.bx * 1000).rounded())),\(Int((t.by * 1000).rounded()))"
+            return "\(t.layer)|" + (a < b ? a + "|" + b : b + "|" + a)
+        }
+        let now = Set(store.snapshot.tracks.map(key)), before = Set(old.tracks.map(key))
+        var removed = Path(), added = Path()
+        for t in old.tracks where !now.contains(key(t)) {
+            removed.move(to: CGPoint(x: t.ax, y: t.ay))
+            removed.addLine(to: CGPoint(x: t.bx, y: t.by))
+        }
+        for t in store.snapshot.tracks where !before.contains(key(t)) {
+            added.move(to: CGPoint(x: t.ax, y: t.ay))
+            added.addLine(to: CGPoint(x: t.bx, y: t.by))
+        }
+        ctx.stroke(removed.applying(screen), with: .color(Theme.error), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 3]))
+        ctx.stroke(added.applying(screen), with: .color(.green), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        let current = Dictionary(store.snapshot.courtyards.map { ($0.component, $0.rect) }, uniquingKeysWith: { a, _ in a })
+        for cy in old.courtyards where current[cy.component].map({ $0 != cy.rect }) ?? true {
+            ctx.stroke(Path(cy.rect).applying(screen), with: .color(Theme.warning), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+        }
     }
 
     // MARK: - Drawing
@@ -1257,7 +1327,8 @@ struct PCBCanvas: View {
         func shifted(_ component: Int, _ p: CGPoint) -> CGPoint {
             moving.contains(component) ? CGPoint(x: p.x + d.width, y: p.y + d.height) : p
         }
-        let hoveredNet: Int? = hover.flatMap { pad(at: viewport.toWorld($0)) }.flatMap { $0.net >= 0 ? $0.net : nil }
+        let hoveredNet: Int? = store.pcbHighlightNet
+            ?? hover.flatMap { pad(at: viewport.toWorld($0)) }.flatMap { $0.net >= 0 ? $0.net : nil }
         // Only what is on screen is drawn (large boards); designators fade out when zoomed far out.
         let view = viewport.visibleWorldRect(in: size).insetBy(dx: -2, dy: -2)
         func onScreen(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double, pad: Double = 0) -> Bool {
@@ -1596,7 +1667,12 @@ struct PCBCanvas: View {
             let s = CGPoint(x: v.x, y: v.y).applying(screen)
             ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.error), lineWidth: 2)
         }
+        if let id = store.focusedViolation, let v = store.drcResults.first(where: { $0.id == id && $0.hasLocation }) {
+            let s = CGPoint(x: v.x, y: v.y).applying(screen)
+            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 14, y: s.y - 14, width: 28, height: 28)), with: .color(Theme.warning), lineWidth: 2.5)
+        }
 
+        if let old = store.pcbCompare { drawComparison(&ctx, old: old, screen: screen) }
         if !shapePoints.isEmpty {
             let path = Path { $0.addLines(shapePoints + (hover.map { [viewport.toWorld($0)] } ?? [])) }
             ctx.stroke(path.applying(screen), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
@@ -1645,6 +1721,9 @@ struct PCBCanvas: View {
             }
         } else if routeTool {
             CanvasOverlays.banner("Route — click a pad, via or track to start · \(store.routerBus ? "bus of \(store.routerBusWidth)" : routePair ? "differential pair" : "single track")",
+                                  in: &ctx, size: size)
+        } else if let old = store.pcbCompare {
+            CanvasOverlays.banner(String(localized: "Compared with \(old.name): green added, red removed, amber moved · right-click to clear"),
                                   in: &ctx, size: size)
         }
 
