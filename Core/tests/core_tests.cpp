@@ -21037,6 +21037,53 @@ TEST(mcp_edges_stitching_and_tags) {
     CHECK(mcpData(mcpTool(s, "library_search", q)).get("parts")[0].get("name").asString("") == "USB-C-RECEPTACLE-USB2");
 }
 
+TEST(mcp_build_tags_and_grounds_stay_clear_of_labels) {
+    // A wire between two labelled neighbouring pins is named by a tag lying along it; a ground on a side pin with a
+    // labelled pin below points outward; building the same nets again adds no labels; net symbols keep unique refs.
+    const auto root = mcpRoot("tags");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json build = Json::parse(R"J({
+        "parts": [{"ref": "U1", "part": "ESP32-C3-MINI-1"}, {"ref": "U2", "part": "AP2112K-3.3"},
+                  {"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"},
+                  {"ref": "R1", "kind": "resistor", "value": "5k1"}, {"ref": "R4", "kind": "resistor", "value": "10k"},
+                  {"ref": "R8", "kind": "resistor", "value": "10k"}, {"ref": "R5", "kind": "resistor", "value": "1k"}],
+        "nets": {"VBUS": ["J1.VBUS", "U2.VIN", "U2.EN"], "GND": ["J1.GND", "U2.GND", "R1.2", "SW1.2", "U1.GND"],
+                 "+3V3": ["U2.VOUT", "U1.3V3", "R4.1", "R8.1"], "BOOT": ["U1.GPIO9", "SW1.1", "R4.2"],
+                 "STRAP8": ["U1.GPIO8", "R8.2"], "LED": ["U1.GPIO10", "R5.1"], "CC1": ["J1.CC1", "R1.1"]}, "pins": false})J");
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
+    const Schematic& sch = s.project()->project.schematic;
+    auto box = [&](const Component& c) {  // as schematic_build measures a label: an upright one's name reads across
+        auto o = sch.symbolOutline(c);
+        if (c.kind == ComponentKind::NetLabel && c.rotation % 180 != 0) o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
+        return o;
+    };
+    int labels = 0, sideways = 0;
+    std::set<std::string> refs;
+    const Component* u2 = sch.findByRef("U2");  // its GND pin: the middle left one, between VIN and EN
+    for (const auto& a : sch.components()) {
+        if (!isNetSymbolKind(a.kind)) continue;
+        ++labels;
+        CHECK(refs.insert(a.ref).second);
+        if (a.kind == ComponentKind::Ground && a.position.x < u2->position.x && std::fabs(a.position.y - u2->position.y) < 15)
+            sideways += a.rotation == 90;
+        for (const auto& b : sch.components()) {
+            if (b.id == a.id || a.kind != ComponentKind::NetLabel || b.kind != ComponentKind::NetLabel) continue;
+            const auto o = box(a), q = box(b);
+            CHECK(!(o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3]));
+        }
+    }
+    CHECK(sideways == 1);
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [], "nets": {"STRAP8": ["U1.GPIO8", "R8.2"]}})"))));
+    int again = 0;
+    for (const auto& c : sch.components()) again += isNetSymbolKind(c.kind);
+    CHECK(again == labels);
+    CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("errors").asInt(-1) == 0);
+}
+
 TEST(mcp_headers_crystal_and_clear_reports) {
     // Pin headers go to the left and right edges along them; the crystal comes beside its MCU pins; the board routes.
     // A refused batch pose under another part says so; a removed label names the pins it unwired; an unknown preset

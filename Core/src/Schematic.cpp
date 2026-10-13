@@ -54,16 +54,15 @@ std::string Schematic::nextRef(const std::string& prefix) const {
 
 std::string Schematic::nextRef(ComponentKind kind) const {
     const ComponentDef& def = Library::instance().component(kind);
-    if (isNetSymbolKind(kind)) {
-        int n = 1;
-        for (const auto& c : components_)
-            if (c.kind == kind) ++n;
-        return "#" + def.refPrefix + std::to_string(n);
-    }
+    const bool symbol = isNetSymbolKind(kind);
     std::set<std::string> used;
-    for (const auto& c : components_) used.insert(c.ref);
-    for (int n = 1;; ++n) {
-        std::string candidate = def.refPrefix + std::to_string(n);
+    int n = 1;  // net symbols: their count + 1, past any ref still in use after a removal
+    for (const auto& c : components_) {
+        used.insert(c.ref);
+        if (symbol && c.kind == kind) ++n;
+    }
+    for (n = symbol ? n : 1;; ++n) {
+        std::string candidate = (symbol ? "#" : "") + def.refPrefix + std::to_string(n);
         if (!used.count(candidate)) return candidate;
     }
 }

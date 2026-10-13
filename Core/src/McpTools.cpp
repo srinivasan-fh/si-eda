@@ -1507,8 +1507,17 @@ void schematicTools(Table& t) {
                       // Clear of the part: out from a side pin, below a bottom pin, above (upside down) a top pin.
                       const Vec2 d = pinOutward(p->project, pa);
                       const Vec2 at = outsidePin(p->project, pa, 30);
+                      // A side pin with a connected pin right below it: the symbol points outward, off that pin's label.
+                      const Schematic& sch = p->project.schematic;
+                      const Vec2 pos = sch.pinPosition({pa.component, pa.pin});
+                      bool below = false;
+                      for (int i = 0; std::fabs(d.x) > 0.5 && i < static_cast<int>(sch.find(pa.component)->def().pins.size()); ++i) {
+                          const Vec2 q = sch.pinPosition({pa.component, i});
+                          below = below || (i != pa.pin && std::fabs(q.x - pos.x) < 0.1 && q.y > pos.y && q.y - pos.y < 25 &&
+                                            sch.isPinConnected({pa.component, i}));
+                      }
                       const int g = sieda_add_component(p, static_cast<int>(ComponentKind::Ground), nullptr, at.x, at.y,
-                                                        d.y < -0.5 ? 180 : 0, nullptr);
+                                                        below ? (d.x < 0 ? 90 : 270) : d.y < -0.5 ? 180 : 0, nullptr);
                       check(g >= 0, "Could not add a ground symbol");
                       check(sieda_connect(p, pa.component, pa.pin, g, 0) >= 0, "Could not wire " + pinLabel(*p, pa) + " to ground");
                       return g;
@@ -1817,7 +1826,14 @@ void schematicTools(Table& t) {
                       }
                   return ok;
               };
-              for (const auto& [net, pins] : nets.fields()) {
+              auto isGround = [](std::string n) {
+                  for (auto& ch : n) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                  return n == "GND" || n == "0";
+              };
+              // Grounds last: a ground symbol turns off the labels already on the pins next to its own.
+              auto ordered = nets.fields();
+              std::stable_partition(ordered.begin(), ordered.end(), [&](const auto& f) { return !isGround(f.first); });
+              for (const auto& [net, pins] : ordered) {
                   // Neighbouring pins of one part on one side (an IC's VDD pins) share one label: a short wire
                   // joins their ends, so their labels do not stack on top of each other.
                   Json args = obj(), labelled = Json::array();
@@ -1864,13 +1880,14 @@ void schematicTools(Table& t) {
                           }
                       const bool wired = wiredPins.count(net + "|" + pin.dump()) > 0;  // joined by its wire
                       seen.push_back({pin, pa, pos, d});
-                      if (!joined && !wired) labelled.push(pin);
+                      const int on = proj(s).schematic.netOf({pa.component, pa.pin});  // labelled by an earlier build
+                      const bool already = on >= 0 && proj(s).schematic.nets()[static_cast<size_t>(on)].name == net &&
+                                           proj(s).schematic.isPinConnected({pa.component, pa.pin});
+                      if (!joined && !wired && !already) labelled.push(pin);
                   }
                   args["pins"] = labelled;
                   if (!args.get("pins").size()) continue;
-                  std::string up = net;
-                  for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-                  if (up == "GND" || up == "0") {
+                  if (isGround(net)) {
                       run("schematic_connect_to_ground", args, net);
                   } else {
                       args["net"] = net;
@@ -1889,38 +1906,64 @@ void schematicTools(Table& t) {
               }
               // Each wired group's name: a tag on its wire, at the first spot along it (middle first, either side)
               // clear of every part and label.
-              for (const auto& [net, l] : tags) {
+              auto textBox = [&](const Component& c) {  // an upright label's name reads across it
+                  auto o = proj(s).schematic.symbolOutline(c);
+                  if (c.kind == ComponentKind::NetLabel && c.rotation % 180 != 0)
+                      o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
+                  return o;
+              };
+              auto hitsOf = [&](int id) {  // symbols and labels a placed tag overlaps
+                  const Schematic& sch = proj(s).schematic;
+                  const auto o = textBox(*sch.find(id));
+                  int hits = 0;
+                  for (const auto& c : sch.components()) {
+                      if (c.id == id || c.kind == ComponentKind::Junction) continue;
+                      const auto q = textBox(c);
+                      hits += o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
+                  }
+                  return hits;
+              };
+              // The clearest spot for a net's tag on wire l: {pose index, overlaps}, poses filled in.
+              auto clearest = [&](const std::string& net, const Link* l, std::vector<std::pair<Vec2, int>>& poses) {
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l->a.component, l->a.pin}), p1 = sch.pinPosition({l->b.component, l->b.pin});
                   const bool across = std::fabs(p1.y - p0.y) < 0.5;  // a horizontal wire: the tag stands up or down
-                  auto textBox = [&](const Component& c) {  // an upright label's name reads across it
-                      auto o = sch.symbolOutline(c);
-                      if (c.kind == ComponentKind::NetLabel && c.rotation % 180 != 0)
-                          o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
-                      return o;
-                  };
-                  // Candidates in order; the first clear one wins, else the one overlapping the fewest symbols.
-                  std::vector<std::pair<Vec2, int>> poses;
+                  poses.clear();
                   for (double f : {0.5, 0.35, 0.65, 0.25, 0.75})
                       for (const Vec2 side : across ? std::array<Vec2, 2>{Vec2{0, -1}, Vec2{0, 1}} : std::array<Vec2, 2>{Vec2{-1, 0}, Vec2{1, 0}}) {
                           const Vec2 at{std::round((p0.x + (p1.x - p0.x) * f) / 10) * 10, std::round((p0.y + (p1.y - p0.y) * f) / 10) * 10};
                           poses.push_back({{across ? at.x : p0.x, across ? p0.y : at.y}, outwardRotation(side)});
                       }
-                  int tag = -1, best = -1, fewest = 1 << 30;
+                  // Between labels on the neighbouring pins: the tag lies along its wire, centred on it.
+                  const Vec2 dir = (p1 - p0) * (1 / std::max(1e-9, (p1 - p0).length()));
+                  const Vec2 mid = (p0 + p1) * 0.5 - dir * ((std::max(60.0, 7.0 * net.size() + 16) + 9) / 2);
+                  poses.push_back({{std::round(mid.x / 10) * 10, std::round(mid.y / 10) * 10}, outwardRotation(dir)});
+                  int best = -1, fewest = 1 << 30;
                   for (size_t k = 0; k < poses.size() && fewest; ++k) {
                       const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(),
                                                          poses[k].first.x, poses[k].first.y, poses[k].second, nullptr);
                       if (id < 0) continue;
-                      const auto o = textBox(*sch.find(id));
-                      int hits = 0;
-                      for (const auto& c : sch.components()) {
-                          if (c.id == id || c.kind == ComponentKind::Junction) continue;
-                          const auto q = textBox(c);
-                          hits += o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
-                      }
+                      const int hits = hitsOf(id);
                       sieda_remove_component(P(s), id);
                       if (hits < fewest) fewest = hits, best = static_cast<int>(k);
                   }
+                  return std::make_pair(best, fewest);
+              };
+              auto placeTag = [&](const std::string& net, const Link* l, const std::vector<std::pair<Vec2, int>>& poses, int best) {
+                  const int tag = best < 0 ? -1
+                                           : sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(),
+                                                                 poses[best].first.x, poses[best].first.y, poses[best].second, nullptr);
+                  if (tag < 0 || sieda_connect(P(s), l->a.component, l->a.pin, tag, 0) < 0 ||
+                      sieda_connect(P(s), tag, 0, l->b.component, l->b.pin) < 0)
+                      failed.push(net + ": could not name the wire");
+                  return tag;
+              };
+              std::vector<std::tuple<int, std::string, const Link*>> placedTags;
+              for (const auto& [net, l] : tags) {
+                  std::vector<std::pair<Vec2, int>> poses;
+                  const auto [best, fewest] = clearest(net, l, poses);
+                  const Schematic& sch = proj(s).schematic;
+                  const Vec2 p0 = sch.pinPosition({l->a.component, l->a.pin}), p1 = sch.pinPosition({l->b.component, l->b.pin});
                   // No clear spot on its only wire, and room on it for two labels: a label at each end instead.
                   if (fewest && drawn[net].size() == 1 && (p1 - p0).length() >= 2 * (15.0 * net.size() + 30)) {
                       Json args = obj(), ends = Json::array();
@@ -1931,12 +1974,15 @@ void schematicTools(Table& t) {
                       run("schematic_net_label", args, net);
                       continue;
                   }
-                  if (best >= 0)
-                      tag = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(), poses[best].first.x,
-                                                poses[best].first.y, poses[best].second, nullptr);
-                  if (tag < 0 || sieda_connect(P(s), l->a.component, l->a.pin, tag, 0) < 0 ||
-                      sieda_connect(P(s), tag, 0, l->b.component, l->b.pin) < 0)
-                      failed.push(net + ": could not name the wire");
+                  placedTags.push_back({placeTag(net, l, poses, best), net, l});
+              }
+              // Labels placed after a tag (another net's end labels) may sit on it: such a tag moves to its clearest
+              // spot now that every label is down.
+              for (auto& [tag, net, l] : placedTags) {
+                  if (tag < 0 || !hitsOf(tag)) continue;
+                  sieda_remove_component(P(s), tag);  // its two wires go with it
+                  std::vector<std::pair<Vec2, int>> poses;
+                  tag = placeTag(net, l, poses, clearest(net, l, poses).first);
               }
               Json j = obj();
               for (int id : ids) {  // with the nets they joined; pins: false keeps the reply short
