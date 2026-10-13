@@ -416,7 +416,7 @@ final class ShortcutStore: ObservableObject {
     init() { overrides = UserDefaults.standard.dictionary(forKey: Self.key) as? [String: String] ?? [:] }
 
     /// The text of a command's shortcut ("cmd+shift+k"), or "" for none.
-    func text(_ id: String) -> String { overrides[id] ?? Self.commands.first { $0.id == id }?.standard ?? "" }
+    func text(_ id: String) -> String { overrides[id] ?? (Self.commands + Self.toolKeys).first { $0.id == id }?.standard ?? "" }
 
     /// nil = back to the standard one.
     func set(_ id: String, _ text: String?) {
