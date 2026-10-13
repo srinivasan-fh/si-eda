@@ -560,6 +560,28 @@ Scene schematicScene(const Project& project, int sheet) {
                 }
                 s.box(Rect(x0, y0, x1, y1), true, 0, "#fff7e6");
                 s.box(Rect(x0, y0, x1, y1), false, 1.5, body);
+                // Top / bottom pin names that would touch the one before go one row further in; a name already
+                // written at that spot (stacked pins) is written once. Ref and value clear the pin ends.
+                std::map<size_t, double> row;
+                std::set<std::pair<long, std::string>> written;
+                double top = y0, bottom = y1;
+                for (int edge : {0, 1}) {
+                    std::vector<std::pair<double, size_t>> along;
+                    for (size_t i = 0; i < pins.size(); ++i) {
+                        const Vec2 p = sch.pinPosition({c.id, static_cast<int>(i)});
+                        top = std::min(top, p.y), bottom = std::max(bottom, p.y);
+                        const double dl = std::fabs(p.x - x0), dr = std::fabs(p.x - x1), dt = std::fabs(p.y - y0), db = std::fabs(p.y - y1);
+                        if ((edge ? db : dt) <= std::min({dl, dr, edge ? dt : db})) along.push_back({p.x, i});
+                    }
+                    std::sort(along.begin(), along.end());
+                    double ends[2] = {-1e9, -1e9};
+                    for (const auto& [x, i] : along) {
+                        const double half = 3.0 * static_cast<double>(pins[i].name.size()) + 1.5;  // with room between names
+                        const int r = x - half >= ends[0] ? 0 : 1;
+                        if (x - half >= ends[r] || r == 0) ends[r] = std::max(ends[r], x + half);
+                        row[i] = r * 7.0;
+                    }
+                }
                 for (size_t i = 0; i < pins.size(); ++i) {
                     const Vec2 p = sch.pinPosition({c.id, static_cast<int>(i)});
                     // Lead from the pin to the nearest body edge.
@@ -581,14 +603,15 @@ Scene schematicScene(const Project& project, int sheet) {
                         const bool left = m == dl, right = m == dr;
                         if (left) s.text(q + Vec2{2, 2.5}, label, 6, pinC, false);
                         else if (right) s.text(q + Vec2{-2 - 4.8 * static_cast<double>(label.size()), 2.5}, label, 6, pinC, false);
-                        else s.text(q + Vec2{0, m == dt ? 8.0 : -3.0}, label, 6, pinC, true);
+                        else if (written.insert({std::lround(q.x * 10) * (m == dt ? 1 : -1), label}).second)
+                            s.text(q + Vec2{0, m == dt ? 8.0 + row[i] : -3.0 - row[i]}, label, 6, pinC, true);
                     }
                 }
                 const std::string ref = sch.displayRef(c);
-                s.text({(x0 + x1) / 2, y0 - 4}, ref, 8, textC, true);
-                if (!c.value.empty()) s.text({(x0 + x1) / 2, y1 + 10}, c.value, 7, textC, true);
-                grow(b, any, {(x0 + x1) / 2, y0 - 14});
-                grow(b, any, {(x0 + x1) / 2, y1 + 12});
+                s.text({(x0 + x1) / 2, top - 4}, ref, 8, textC, true);
+                if (!c.value.empty()) s.text({(x0 + x1) / 2, bottom + 10}, c.value, 7, textC, true);
+                grow(b, any, {(x0 + x1) / 2, top - 14});
+                grow(b, any, {(x0 + x1) / 2, bottom + 12});
                 break;
             }
         }

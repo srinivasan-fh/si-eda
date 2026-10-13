@@ -20976,9 +20976,10 @@ TEST(mcp_headers_crystal_and_clear_reports) {
                  "XTAL1": ["U1.7", "Y1.1", "C2.1"], "XTAL2": ["U1.8", "Y1.2", "C3.1"], "RESET": ["U1.29", "R1.2", "J3.5"],
                  "RXD": ["U1.PD0", "J2.4"], "TXD": ["U1.PD1", "J2.5"], "MOSI": ["U1.PB3", "J3.4"], "MISO": ["U1.PB4", "J3.1"],
                  "SCK": ["U1.PB5", "J3.3"]}, "pins": false})J"))));
-    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 50, "height": 40})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 45, "height": 35})"))));
     CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
     const Json placed = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})")));
+    CHECK(placed.get("edgesPlaced").size() == 3);  // the 1x6 fits beside the 1x2 on a 35 mm edge
     std::string edges;
     for (const auto& e : placed.get("edgesPlaced").items()) edges += e.asString("") + ";";
     CHECK(edges.find("left edge") != std::string::npos && edges.find("right edge") != std::string::npos);
@@ -21016,7 +21017,7 @@ TEST(mcp_headers_crystal_and_clear_reports) {
     // An unknown preset lists the names and changes nothing.
     const Json bad = mcpTool(s, "pcb_set_board", Json::parse(R"({"rulePreset": "No Such Fab", "width": 30})"));
     CHECK(mcpFailed(bad) && mcpData(bad).asString("").find("IPC-2221 Class 2") != std::string::npos);
-    CHECK(mcpData(mcpTool(s, "pcb_summary", Json::object())).get("board").get("width").asNumber() == 50);
+    CHECK(mcpData(mcpTool(s, "pcb_summary", Json::object())).get("board").get("width").asNumber() == 45);
     // A pour reports the pads it joins.
     const Json pour = mcpData(mcpTool(s, "pcb_add_pour", Json::parse(R"({"net": "GND", "layer": 1})")));
     CHECK(pour.get("areaMm2").asNumber() > 100 && pour.get("padsJoined").asString("").find(" of ") != std::string::npos);
@@ -21040,6 +21041,42 @@ TEST(mcp_headers_crystal_and_clear_reports) {
         if (!mcpFailed(r)) reported = mcpData(r).get("disconnected").size() > 0;
     }
     CHECK(reported);
+}
+
+TEST(mcp_pairs_stackup_and_stitching_kept) {
+    // USB_DP / USB_DM pair up; a pair the coupled router cannot take is named in pcb_autoroute's result; a whole-board
+    // route lays the GND stitching again; an impedance target needing impractical widths is flagged.
+    const auto root = mcpRoot("pairs");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    Json parts = Json::array();
+    for (int i = 1; i <= 6; ++i) parts.push(Json::parse(R"({"kind": "resistor", "ref": "R)" + std::to_string(i) + R"("})"));
+    Json build = Json::object();
+    build["parts"] = parts;
+    build["nets"] = Json::parse(R"({"USB_DP": ["R1.1", "R2.1", "R3.1"], "USB_DM": ["R4.1", "R5.1", "R6.1"],
+        "GND": ["R1.2", "R2.2", "R3.2", "R4.2", "R5.2", "R6.2"]})");
+    build["pins"] = false;
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 40, "height": 30})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    const Json stack = mcpData(mcpTool(s, "pcb_set_stackup", Json::parse(R"({"differentialOhms": 90})")));
+    CHECK(stack.get("warning").asString("").find("4 layers") != std::string::npos);
+    for (int layer : {0, 1}) {
+        Json pour = Json::object();
+        pour["net"] = "GND";
+        pour["layer"] = layer;
+        CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", pour)));
+    }
+    const Json stitched = mcpData(mcpTool(s, "pcb_stitch_vias", Json::object()));
+    CHECK(stitched.get("added").asInt(0) > 0);
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"({"preset": "quality"})")));
+    CHECK(routed.get("stitchingRestored").asInt(0) > 0);
+    CHECK(routed.get("pairsNotCoupled").size() == 1 &&
+          routed.get("pairsNotCoupled")[0].asString("").find("USB_DP / USB_DM") != std::string::npos);
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
