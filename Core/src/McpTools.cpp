@@ -1197,8 +1197,7 @@ void schematicTools(Table& t) {
                       if (bits == 3) tags += sieda_remove_component(p, id) == 1;  // its wires go with it
               }
               if (ids.empty() && !tags) throw ToolError("No such wire");
-              int removed = 0;
-              for (int id : ids) removed += sieda_remove_wire(p, id) == 1;
+              for (int id : ids) sieda_remove_wire(p, id);
               Json j = obj();
               j["wiresRemoved"] = static_cast<int>(wiresBefore - p->project.schematic.wires().size());  // with a tag's wires
               if (tags) j["tagsRemoved"] = tags;
