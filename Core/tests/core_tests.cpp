@@ -20980,6 +20980,8 @@ TEST(mcp_headers_crystal_and_clear_reports) {
     CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
     const Json placed = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})")));
     CHECK(placed.get("edgesPlaced").size() == 3);  // the 1x6 fits beside the 1x2 on a 35 mm edge
+    for (const auto& e : placed.get("edgesPlaced").items())  // J1 carries power only: the input side
+        if (e.asString("").rfind("J1 ", 0) == 0) CHECK(e.asString("") == "J1 → left edge");
     std::string edges;
     for (const auto& e : placed.get("edgesPlaced").items()) edges += e.asString("") + ";";
     CHECK(edges.find("left edge") != std::string::npos && edges.find("right edge") != std::string::npos);
@@ -20996,6 +20998,10 @@ TEST(mcp_headers_crystal_and_clear_reports) {
         x0 = std::min(x0, pad.get("x").asNumber()), x1 = std::max(x1, pad.get("x").asNumber());
     CHECK(x1 - x0 < 0.1);
     CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    {  // Auto Place keeps the assembly spacing standard; a part moved against the IC is flagged by the DRC and the move.
+        const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+        for (const auto& v : drc.get("violations").items()) CHECK(v.get("code").asString("") != "DRC_PART_SPACING");
+    }
     // A batch: R1 onto C1's spot, C1 off the board (refused): C1 stays, under R1, and is told so.
     Vec2 c1;
     int c1Rotation = 0;
@@ -21063,7 +21069,28 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", build)));
     CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"layers": 2, "width": 40, "height": 30})"))));
     CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
-    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    // grouped: the six resistors in one aligned row, R1 … R6.
+    const Json grouped = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true, "grouped": true})")));
+    CHECK(grouped.get("groupedRows").size() == 1 && grouped.get("groupedRows")[0].asString("") == "R1 R2 R3 R4 R5 R6");
+    std::set<double> rowY;
+    for (const auto& f : grouped.get("footprints").items())
+        if (f.get("ref").asString("").rfind("R", 0) == 0) rowY.insert(f.get("y").asNumber());
+    CHECK(rowY.size() == 1);
+    // R2 put just clear of R1 (closer than the 0.25 mm passive spacing): the move and the DRC both say so.
+    CHECK(mcpData(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"ref": "R1", "x": 30, "y": 26, "rotation": 0, "force": true})")))
+              .get("committed").asBool(false));
+    Json near;
+    for (double x = 31; x < 36 && !near.isObject(); x += 0.1) {
+        Json mv = Json::parse(R"({"ref": "R2", "y": 26, "rotation": 0})");
+        mv["x"] = x;
+        const Json r = mcpData(mcpTool(s, "pcb_place_footprint", mv));
+        if (r.get("committed").asBool(false)) near = r;
+    }
+    CHECK(near.get("tooClose").size() == 1);
+    bool flagged = false;
+    const Json spacingDrc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    for (const auto& v : spacingDrc.get("violations").items()) flagged = flagged || v.get("code").asString("") == "DRC_PART_SPACING";
+    CHECK(flagged);
     const Json stack = mcpData(mcpTool(s, "pcb_set_stackup", Json::parse(R"({"differentialOhms": 90})")));
     CHECK(stack.get("warning").asString("").find("4 layers") != std::string::npos);
     for (int layer : {0, 1}) {

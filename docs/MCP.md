@@ -376,6 +376,21 @@ What the agent gets back, so it can wire correctly without guessing:
   differential pairs it routed as two single nets (`pairsNotCoupled`, e.g. a USB-C's doubled D+ / D- pads);
   `USB_DP` / `USB_DM` pair up; `pcb_set_stackup` warns when the impedance targets need tracks over 1 mm wide.
   `render_schematic` staggers top / bottom pin names that would touch and keeps the ref and value clear of the pins.
+- Assembly spacing standard, courtyard to courtyard on top of the IPC-7351B courtyards (land pattern + 0.25 mm):
+
+  | Neighbours | Gap |
+  |---|---|
+  | passive – passive (chip R / C / L, SOD, SOT-23) | 0.25 mm |
+  | passive – IC (SOIC, QFP, QFN, modules) | 0.5 mm |
+  | IC – IC, through-hole – SMD | 1.0 mm |
+  | through-hole – through-hole | 0.5 mm |
+  | BGA – anything (rework nozzle) | 2.0 mm |
+
+  Auto Place's edge, decoupling and crystal moves keep it; `pcb_drc` flags a pair closer than it (`DRC_PART_SPACING`,
+  touching courtyards included) and `pcb_place_footprint` lists such neighbours in `tooClose`.
+- `pcb_autoplace` `grouped` lines up the other passives of one kind in rows in designator order (C1 C2 C3, R1 R2 R3,
+  D1 D2 D3), 1 mm between courtyards, near their connections (`groupedRows`); parts placed by their IC pins stay. A
+  connector carrying power only goes to the left edge (the input side), signal connectors to the right.
 - `schematic_move_component` puts a tag naming a wire back at the wire's middle and lists `overlaps`; the ERC's
   `unconnectedPins` leaves out pins typed no-connect; `library_search` ranks parts whose name has the words first;
   each `pcb_drc` `unrouted` entry has both ends' coordinates (`at`).
@@ -593,7 +608,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_remove_pour` | edit (destructive) | Removes one copper pour by index (pcb_summary zones) or all of them. |
 | `pcb_add_mounting_hole` | edit | Adds a non-plated mounting hole with a keep-out (default M3: 3.2 mm drill). |
 | `pcb_set_keepouts` | edit | Replaces the routing keep-outs: [{name, x0, y0, x1, y1, layer (-1 = all), tracks, vias, pours}] (mm). |
-| `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks, and flags a part whose courtyard leaves the board or overlaps another part (DRC_PLACE_*, a forced pose). |
+| `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks, and flags a part whose courtyard leaves the board or overlaps another part (DRC_PLACE_*, a forced pose) or stands closer to one than the assembly spacing standard (DRC_PART_SPACING: courtyard gaps of 0.25 mm passive-passive, 0.5 passive-IC, 1.0 IC-IC and through-hole-SMD, 0.5 between through-hole parts, 2.0 round a BGA). |
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
 | `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 5 mm pitch), optionally inside an area; none under a part's courtyard. |
 | `pcb_length_rules` | edit | Length / phase matching: enable serpentine tuning and tolerances, set per-net length rules [{net, target, tolerance}] (target 0 removes), match groups [{name, nets:[…], tolerance}], and tune now. |
