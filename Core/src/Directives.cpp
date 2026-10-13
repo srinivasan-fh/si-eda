@@ -33,7 +33,7 @@ std::string upperName(std::string s) {
 
 /// Differential suffixes, positive then negative.
 const std::pair<const char*, const char*> kPairSuffixes[] = {
-    {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {".DP", ".DN"}, {"CANH", "CANL"}, {"_H", "_L"}, {"P", "N"}};
+    {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {"_DP", "_DM"}, {".DP", ".DN"}, {"CANH", "CANL"}, {"_H", "_L"}, {"P", "N"}};
 }  // namespace
 
 const NetClassDef* Schematic::findNetClassDef(const std::string& name) const {
