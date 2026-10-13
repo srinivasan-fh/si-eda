@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "தோற்றத்தை அமை; தேர்ந்த பேடுகளைச் சீரமை அல்லது பகிர்";
 "Rows: %lld" = "வரிசைகள்: %lld";
 "Pins: %lld" = "பின்கள்: %lld";
+"Filter by number or pin" = "எண் அல்லது பின் மூலம் வடிகட்டு";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "திருத்தியின் அருகில் பாகத்தின் தரவுத்தாளை (பரிந்துரைத்த நில அமைப்பு) திற";
+"Since opening: pads added, removed, moved, resized or reshaped" = "திறந்ததிலிருந்து: சேர்த்த, நீக்கிய, நகர்த்திய, அளவு அல்லது வடிவம் மாறிய பேடுகள்";

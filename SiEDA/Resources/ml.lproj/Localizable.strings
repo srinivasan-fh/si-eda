@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "ഉത്ഭവം സജ്ജമാക്കുക; തിരഞ്ഞെടുത്ത പാഡുകൾ വിന്യസിക്കുക അല്ലെങ്കിൽ വിതരണം ചെയ്യുക";
 "Rows: %lld" = "വരികൾ: %lld";
 "Pins: %lld" = "പിന്നുകൾ: %lld";
+"Filter by number or pin" = "നമ്പർ അല്ലെങ്കിൽ പിൻ ഉപയോഗിച്ച് ഫിൽട്ടർ";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "എഡിറ്ററിനരികിൽ ഭാഗത്തിന്റെ ഡാറ്റാഷീറ്റ് (ശുപാർശ ചെയ്ത ലാൻഡ് പാറ്റേൺ) തുറക്കുക";
+"Since opening: pads added, removed, moved, resized or reshaped" = "തുറന്നതുമുതൽ: ചേർത്ത, നീക്കിയ, മാറ്റിയ, വലുപ്പമോ രൂപമോ മാറിയ പാഡുകൾ";

@@ -12,6 +12,9 @@ struct FootprintEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: FootprintDraft
+    /// The footprint as opened (the change summary compares with it).
+    private let original: FootprintDraft
+    @State private var padFilter = ""
     @State private var history = FootprintHistory()
     @State private var selection: Set<FootprintDraft.Pad.ID> = []
     @State private var grid: Double = 0.05
@@ -53,7 +56,9 @@ struct FootprintEditorView: View {
     init(spec: CustomPartSpec, onApply: @escaping (CustomPartSpec) -> Void) {
         self.spec = spec
         self.onApply = onApply
-        _draft = State(initialValue: FootprintDraft(spec: spec))
+        let opened = FootprintDraft(spec: spec)
+        _draft = State(initialValue: opened)
+        original = opened
     }
 
     var body: some View {
@@ -139,11 +144,17 @@ struct FootprintEditorView: View {
             .labelsHidden()
             .fixedSize()
             Divider().frame(height: 18)
+            if let url = URL(string: spec.datasheet), url.scheme?.hasPrefix("http") == true {
+                Button { NSWorkspace.shared.open(url) } label: { Label("Datasheet", systemImage: "doc.text") }
+                    .help("Open the part's datasheet (its recommended land pattern) beside the editor")
+            }
             Button { _ = history.undo(&draft) } label: { Image(systemName: "arrow.uturn.backward") }
+                .keyboardShortcut("z", modifiers: .command)
                 .disabled(!history.canUndo)
                 .help("Undo the last footprint edit")
                 .accessibilityLabel("Undo footprint edit")
             Button { _ = history.redo(&draft) } label: { Image(systemName: "arrow.uturn.forward") }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
                 .disabled(!history.canRedo)
                 .help("Redo")
                 .accessibilityLabel("Redo footprint edit")
@@ -326,6 +337,7 @@ struct FootprintEditorView: View {
             } else if selection.count > 1 {
                 Text("\(selection.count) pads selected — drag, duplicate, mirror or delete them together.")
                     .font(.caption).foregroundStyle(Theme.textSecondary)
+                multiEdit
             } else {
                 Text("Select a pad to edit its position, size, shape, drill and pin.")
                     .font(.caption).foregroundStyle(Theme.textMuted)
@@ -458,6 +470,31 @@ struct FootprintEditorView: View {
                 .help("Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin")
             }
         }
+    }
+
+    /// Several pads at once: one width / height / drill for all of them.
+    private var multiEdit: some View {
+        let first = draft.pads.first { selection.contains($0.id) }?.land
+        func all(_ key: WritableKeyPath<CustomPartSpec.Land, Double>, _ lower: Double, _ upper: Double) -> Binding<Double> {
+            Binding(get: { first?[keyPath: key] ?? 0 }, set: { value in
+                guard value.isFinite else { return }
+                let ids = selection, v = Swift.min(Swift.max(value, lower), upper)
+                edit { for i in $0.pads.indices where ids.contains($0.pads[i].id) { $0.pads[i].land[keyPath: key] = v } }
+            })
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            number("Width", all(\.w, 0.06, 30), step: grid)
+            number("Height", all(\.h, 0.06, 30), step: grid)
+            number("Drill", all(\.drill, 0, 29), step: 0.05)
+        }
+    }
+
+    /// Pads added, removed, moved and resized since the editor opened.
+    private var changeSummary: some View {
+        let c = draft.changes(from: original)
+        return Text(verbatim: c.added + c.removed + c.moved + c.resized == 0 ? "—" : "+\(c.added)  −\(c.removed)  ↔\(c.moved)  ⤢\(c.resized)")
+            .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+            .help("Since opening: pads added, removed, moved, resized or reshaped")
     }
 
     private var arrayTool: some View {
@@ -599,8 +636,13 @@ struct FootprintEditorView: View {
 
     private var padTable: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("PADS (\(draft.pads.count))").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
-            ForEach(Array(draft.pads.enumerated()), id: \.element.id) { index, pad in
+            HStack {
+                Text("PADS (\(draft.pads.count))").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                Spacer()
+                changeSummary
+            }
+            TextField("Filter by number or pin", text: $padFilter).textFieldStyle(.blue).controlSize(.small)
+            ForEach(Array(draft.pads.enumerated()).filter { padMatches($0.offset) }, id: \.element.id) { index, pad in
                 let pin = draft.pinNumber(of: index)
                 Button {
                     selection = [pad.id]
@@ -621,6 +663,14 @@ struct FootprintEditorView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func padMatches(_ index: Int) -> Bool {
+        let q = padFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return true }
+        let pin = draft.pinNumber(of: index) ?? "-"
+        let name = spec.pins.first { $0.number == pin }?.name ?? ""
+        return String(index + 1) == q || pin.lowercased() == q || name.lowercased().contains(q)
     }
 
     // MARK: - Footer

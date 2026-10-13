@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "Tetapkan asalan; jajar atau agihkan pad terpilih";
 "Rows: %lld" = "Baris: %lld";
 "Pins: %lld" = "Pin: %lld";
+"Filter by number or pin" = "Tapis mengikut nombor atau pin";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "Buka lembaran data komponen (corak tanah yang disyorkan) di sebelah editor";
+"Since opening: pads added, removed, moved, resized or reshaped" = "Sejak dibuka: pad ditambah, dibuang, dialih, diubah saiz atau bentuk";

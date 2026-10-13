@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "మూలాన్ని సెట్ చేయి; ఎంచుకున్న ప్యాడ్‌లను సమలేఖనం లేదా పంపిణీ చేయి";
 "Rows: %lld" = "వరుసలు: %lld";
 "Pins: %lld" = "పిన్‌లు: %lld";
+"Filter by number or pin" = "సంఖ్య లేదా పిన్ ద్వారా ఫిల్టర్";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "ఎడిటర్ పక్కన భాగం డేటాషీట్ (సిఫార్సు చేసిన ల్యాండ్ ప్యాటర్న్) తెరవండి";
+"Since opening: pads added, removed, moved, resized or reshaped" = "తెరిచినప్పటి నుండి: జోడించిన, తొలగించిన, కదిలించిన, పరిమాణం లేదా ఆకారం మారిన ప్యాడ్‌లు";

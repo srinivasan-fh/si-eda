@@ -274,6 +274,20 @@ struct FootprintDraft: Equatable {
         return CGRect(x: minX - m, y: minY - m, width: maxX - minX + 2 * m, height: maxY - minY + 2 * m)
     }
 
+    /// What changed from `original`: pads added, removed, moved and resized (matched by pad identity).
+    func changes(from original: FootprintDraft) -> (added: Int, removed: Int, moved: Int, resized: Int) {
+        let before = Dictionary(original.pads.map { ($0.id, $0.land) }, uniquingKeysWith: { a, _ in a })
+        let now = Set(pads.map(\.id))
+        var moved = 0, resized = 0
+        for p in pads {
+            guard let old = before[p.id] else { continue }
+            if old.x != p.land.x || old.y != p.land.y { moved += 1 }
+            if old.w != p.land.w || old.h != p.land.h || old.drill != p.land.drill || old.round != p.land.round
+                || old.options != p.land.options { resized += 1 }
+        }
+        return (pads.filter { before[$0.id] == nil }.count, before.keys.filter { !now.contains($0) }.count, moved, resized)
+    }
+
     /// Topmost pad under a point (mm), if any.
     func pad(at point: CGPoint) -> Pad.ID? {
         pads.last { p in

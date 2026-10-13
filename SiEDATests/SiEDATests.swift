@@ -3400,6 +3400,14 @@ final class FootprintEditorTests: XCTestCase {
         // The courtyard margin is kept with the part.
         ep.courtyardMargin = 0.5
         XCTAssertEqual(ep.applied(to: twoPin([])).package.courtyard, 0.5)
+        // Change summary against the footprint as opened.
+        let opened = FootprintDraft(spec: twoPin([Land(x: 0, y: 0, w: 1, h: 1), Land(x: 2, y: 0, w: 1, h: 1)]))
+        var edited = opened
+        edited.pads[0].land.x = 0.5
+        edited.pads[1].land.w = 2
+        edited.addPad(at: CGPoint(x: 4, y: 0), grid: 0.05)
+        let c = edited.changes(from: opened)
+        XCTAssertEqual([c.added, c.removed, c.moved, c.resized], [1, 0, 1, 1])
     }
 
     func testSnapRoundsToTheGrid() {

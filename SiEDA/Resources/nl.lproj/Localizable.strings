@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "Oorsprong instellen; geselecteerde pads uitlijnen of verdelen";
 "Rows: %lld" = "Rijen: %lld";
 "Pins: %lld" = "Pinnen: %lld";
+"Filter by number or pin" = "Filteren op nummer of pin";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "Het datasheet van het onderdeel (het aanbevolen landpatroon) naast de editor openen";
+"Since opening: pads added, removed, moved, resized or reshaped" = "Sinds openen: pads toegevoegd, verwijderd, verplaatst, vergroot of hervormd";

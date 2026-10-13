@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "ମୂଳ ବିନ୍ଦୁ ସେଟ୍ କରନ୍ତୁ; ବଛା ପ୍ୟାଡ୍ ସଜାନ୍ତୁ ବା ବଣ୍ଟନ କରନ୍ତୁ";
 "Rows: %lld" = "ଧାଡ଼ି: %lld";
 "Pins: %lld" = "ପିନ୍: %lld";
+"Filter by number or pin" = "ସଂଖ୍ୟା ବା ପିନ୍ ଦ୍ୱାରା ଫିଲ୍ଟର୍";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "ଏଡିଟର୍ ପାଖରେ ଅଂଶର ଡାଟାସିଟ୍ (ସୁପାରିଶ ଲ୍ୟାଣ୍ଡ ପାଟର୍ନ) ଖୋଲନ୍ତୁ";
+"Since opening: pads added, removed, moved, resized or reshaped" = "ଖୋଲିବା ପରଠାରୁ: ଯୋଡ଼ା, ହଟା, ଘୁଞ୍ଚା, ଆକାର ବା ରୂପ ବଦଳା ପ୍ୟାଡ୍";

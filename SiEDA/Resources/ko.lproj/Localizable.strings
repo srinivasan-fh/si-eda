@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "원점 설정, 선택한 패드 정렬 또는 분배";
 "Rows: %lld" = "행: %lld";
 "Pins: %lld" = "핀: %lld";
+"Filter by number or pin" = "번호 또는 핀으로 필터";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "편집기 옆에 부품 데이터시트(권장 랜드 패턴) 열기";
+"Since opening: pads added, removed, moved, resized or reshaped" = "연 이후: 추가, 제거, 이동, 크기 또는 모양이 바뀐 패드";

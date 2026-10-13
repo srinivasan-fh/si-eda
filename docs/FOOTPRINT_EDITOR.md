@@ -99,6 +99,13 @@ The pad panel also sets, per pad:
   G = Smax − 2·heel − RMS, X = Wmin + 2·side + RMS; the pad is (Z − G) / 2 × X with rows (Z + G) / 2 apart.
   Apply to Selected Pads sizes and places them.
 
+## Reviewing
+
+- ⌘Z / ⇧⌘Z undo and redo footprint edits; **Datasheet** opens the part's datasheet link.
+- Several selected pads share one width / height / drill field.
+- The pad list filters by pad number, pin number or pin name, and its header counts the pads added (+), removed (−),
+  moved (↔) and resized or reshaped (⤢) since the editor opened.
+
 ## How pads map to pins
 
 Pads are numbered 1…N in order. A pad connects to:

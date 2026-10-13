@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "Itakda ang origin; i-align o ipamahagi ang mga napiling pad";
 "Rows: %lld" = "Mga Hilera: %lld";
 "Pins: %lld" = "Mga Pin: %lld";
+"Filter by number or pin" = "I-filter ayon sa numero o pin";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "Buksan ang datasheet ng piyesa (ang inirerekomendang land pattern) sa tabi ng editor";
+"Since opening: pads added, removed, moved, resized or reshaped" = "Mula nang buksan: mga pad na idinagdag, inalis, inilipat, binago ang laki o hugis";

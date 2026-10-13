@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "Ursprung setzen; ausgewählte Pads ausrichten oder verteilen";
 "Rows: %lld" = "Zeilen: %lld";
 "Pins: %lld" = "Pins: %lld";
+"Filter by number or pin" = "Nach Nummer oder Pin filtern";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "Datenblatt des Bauteils (empfohlenes Landmuster) neben dem Editor öffnen";
+"Since opening: pads added, removed, moved, resized or reshaped" = "Seit dem Öffnen: Pads hinzugefügt, entfernt, verschoben, in Größe oder Form geändert";

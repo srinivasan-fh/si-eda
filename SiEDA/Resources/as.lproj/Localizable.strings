@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "মূলবিন্দু ছেট কৰক; বাছনি কৰা পেডসমূহ সংৰেখন বা বিতৰণ কৰক";
 "Rows: %lld" = "শাৰী: %lld";
 "Pins: %lld" = "পিন: %lld";
+"Filter by number or pin" = "নম্বৰ বা পিনেৰে ফিল্টাৰ";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "সম্পাদকৰ কাষত অংশটোৰ ডেটাশ্বীট (পৰামৰ্শিত লেণ্ড পেটাৰ্ন) খোলক";
+"Since opening: pads added, removed, moved, resized or reshaped" = "খোলাৰ পিছৰ পৰা: যোগ, আঁতৰোৱা, স্থানান্তৰিত, আকাৰ বা ৰূপ সলনি হোৱা পেড";

@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "Đặt gốc tọa độ; căn chỉnh hoặc phân bố các pad đã chọn";
 "Rows: %lld" = "Hàng: %lld";
 "Pins: %lld" = "Chân: %lld";
+"Filter by number or pin" = "Lọc theo số hoặc chân";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "Mở datasheet của linh kiện (mẫu pad khuyến nghị) bên cạnh trình soạn";
+"Since opening: pads added, removed, moved, resized or reshaped" = "Từ khi mở: pad được thêm, xóa, di chuyển, đổi kích thước hoặc hình dạng";

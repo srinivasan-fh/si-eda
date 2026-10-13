@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "मूळबिंदू सेट करा; निवडलेले पॅड संरेखित किंवा वितरित करा";
 "Rows: %lld" = "ओळी: %lld";
 "Pins: %lld" = "पिन: %lld";
+"Filter by number or pin" = "क्रमांक किंवा पिनने फिल्टर";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "संपादकाशेजारी भागाची डेटाशीट (शिफारस केलेला लँड पॅटर्न) उघडा";
+"Since opening: pads added, removed, moved, resized or reshaped" = "उघडल्यापासून: जोडलेले, काढलेले, हलवलेले, आकार किंवा रूप बदललेले पॅड";

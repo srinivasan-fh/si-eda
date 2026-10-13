@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "ಮೂಲ ಬಿಂದು ಹೊಂದಿಸಿ; ಆಯ್ದ ಪ್ಯಾಡ್‌ಗಳನ್ನು ಜೋಡಿಸಿ ಅಥವಾ ಹಂಚಿ";
 "Rows: %lld" = "ಸಾಲುಗಳು: %lld";
 "Pins: %lld" = "ಪಿನ್‌ಗಳು: %lld";
+"Filter by number or pin" = "ಸಂಖ್ಯೆ ಅಥವಾ ಪಿನ್ ಮೂಲಕ ಫಿಲ್ಟರ್";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "ಎಡಿಟರ್ ಪಕ್ಕದಲ್ಲಿ ಭಾಗದ ಡೇಟಾಶೀಟ್ (ಶಿಫಾರಸು ಲ್ಯಾಂಡ್ ಪ್ಯಾಟರ್ನ್) ತೆರೆಯಿರಿ";
+"Since opening: pads added, removed, moved, resized or reshaped" = "ತೆರೆದಾಗಿನಿಂದ: ಸೇರಿಸಿದ, ತೆಗೆದ, ಸರಿಸಿದ, ಗಾತ್ರ ಅಥವಾ ಆಕಾರ ಬದಲಾದ ಪ್ಯಾಡ್‌ಗಳು";

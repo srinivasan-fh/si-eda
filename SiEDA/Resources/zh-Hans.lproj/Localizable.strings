@@ -1547,3 +1547,6 @@
 "Set the origin; align or distribute the selected pads" = "设置原点；对齐或分布所选焊盘";
 "Rows: %lld" = "行数：%lld";
 "Pins: %lld" = "引脚：%lld";
+"Filter by number or pin" = "按编号或引脚筛选";
+"Open the part's datasheet (its recommended land pattern) beside the editor" = "在编辑器旁打开器件数据手册（其推荐焊盘图案）";
+"Since opening: pads added, removed, moved, resized or reshaped" = "打开后：新增、删除、移动、改变尺寸或形状的焊盘";
