@@ -74,7 +74,10 @@
   `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
   mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. Tests:
   `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),
-  `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target.
+  `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target. Generated bodies in
+  `Core/src/Mesh.cpp` take the shape people know (`lookOf` / `drawLook`: USB-C / micro / A shells with a mouth, tact switch,
+  HC-49 / SMD crystal, RF module shield + printed antenna, pin header posts, diode band, LED lens, JST; QFN flanks; plated
+  mounting holes); test `assembly_mesh_draws_parts_by_their_shape`.
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
