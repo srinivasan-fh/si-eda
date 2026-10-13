@@ -2691,7 +2691,8 @@ void libraryTools(Table& t) {
           "Creates a part from a datasheet pin list: symbol and footprint are generated from the package. pins: "
           "[{number, name, type}] with type power_in, input, output, bidirectional, passive, power_out, "
           "open_collector or no_connect. package: {type: SOIC|TSSOP|DIP|QFN|LQFP|SOT23|HEADER|TO220|…, pinCount, "
-          "pitch?, bodySize?}. place: true also puts it on the schematic.",
+          "pitch?, bodySize?}. place: true also puts it on the schematic. pinTable: the pins as CSV / TSV text instead "
+          "(a header names the columns, e.g. an STM32CubeMX pin list; else number, name, type, description).",
           Schema()
               .str("name", "Part name / number", true)
               .str("manufacturer", "Manufacturer")
@@ -2700,7 +2701,8 @@ void libraryTools(Table& t) {
               .str("defaultValue", "Default value")
               .str("datasheet", "Datasheet URL or file name")
               .object("package", "Package {type, pinCount, pitch, bodySize}", true)
-              .array("pins", "Pins [{number, name, type, description}]", "object", true)
+              .array("pins", "Pins [{number, name, type, description}]", "object")
+              .str("pinTable", "Pins as a CSV / TSV pin table, instead of pins")
               .array("units", "Optional gates [{name, pins:[numbers]}]", "object")
               .boolean("place", "Also place it on the schematic")
               .str("ref", "Designator when placing")
@@ -2708,7 +2710,12 @@ void libraryTools(Table& t) {
               .num("y", "y when placing"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
-              const std::string spec = optionsFrom(a, {"place", "ref", "x", "y"});
+              Json args = a;
+              if (a.has("pinTable")) {
+                  args["pins"] = takeJson(sieda_parse_pin_table(argStr(a, "pinTable").c_str()));
+                  check(args.get("pins").size() > 0, "The pin table has no rows with a pin number");
+              }
+              const std::string spec = optionsFrom(args, {"place", "ref", "x", "y", "pinTable"});
               char* err = nullptr;
               char* res = sieda_custom_part_register(p, spec.c_str(), &err);
               if (!res) throw ToolError("Invalid part: " + takeText(err));
@@ -2753,6 +2760,17 @@ void libraryTools(Table& t) {
                                                         argInt(a, "rotation", 0), ref.empty() ? nullptr : ref.c_str());
               check(id >= 0, "Unknown part id");
               return out(componentJson(*p, id));
+          });
+    t.add("library", "library_updates", "Library update notices", Kind::Edit, false,
+          "Project parts whose catalog part has changed since they were added (pins, package, footprint), with how "
+          "many placed instances use each. apply: names to update (\"*\" = all) — their instances switch to the "
+          "catalog's current part, pins kept by number.",
+          Schema().array("apply", "Part names to update, or [\"*\"]", "string"),
+          [](McpServer& s, const Json& a) {
+              const std::string apply = a.has("apply") ? a.get("apply").dump() : std::string();
+              char* r = sieda_library_updates(P(s), apply.empty() ? nullptr : apply.c_str());
+              check(r != nullptr, "apply must be a list of part names");
+              return out(takeJson(r));
           });
     t.add("library", "library_project_parts", "Project parts", Kind::Read, true,
           "The custom and catalog parts in the project's library (ids, names, pin counts).", Schema(),

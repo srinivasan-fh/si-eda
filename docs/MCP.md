@@ -571,7 +571,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_variant_matrix` | read | Variants side by side: every part a variant changes with its fitting and value in each variant, and per-variant totals (fitted, not fitted, value changes). |
 | `schematic_variant_edit` | edit | Variant commands: add (name, copyFrom), remove (name), rename (name, newName), describe (name, description), activate (name; "" = base design), set_part (name, ref, fitted true/false/null, value). |
 
-### library (10)
+### library (11)
 
 Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library import.
 
@@ -583,6 +583,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_add_part` | edit | Places a standard catalog part (an IC, regulator, connector …) on the schematic. |
 | `library_create_part` | edit | Creates a part from a datasheet pin list: symbol and footprint are generated from the package. |
 | `library_place_custom_part` | edit | Places another instance of a part already in the project library (library_project_parts lists ids). |
+| `library_updates` | edit | Project parts whose catalog part has changed since they were added (pins, package, footprint), with how many placed instances use each. |
 | `library_project_parts` | read | The custom and catalog parts in the project's library (ids, names, pin counts). |
 | `library_check_part` | read | Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks. |
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |

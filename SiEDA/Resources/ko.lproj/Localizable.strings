@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "절연 장벽으로 만들기";
 "Delete Graphic" = "그래픽 삭제";
 "Pitch" = "피치";
+"Check Library Updates…" = "라이브러리 업데이트 확인…";
+"Edit Tags…" = "태그 편집…";
+"Favourite (search fav:)" = "즐겨찾기 (검색 fav:)";
+"Import Pin Table…" = "핀 표 가져오기…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "CSV / TSV 핀 표(번호, 이름, 유형, 설명) 또는 STM32CubeMX 핀 목록에서 핀 가져오기";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "단어 또는 필터: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@의 태그";
+"Comma-separated words; search them with tag:word." = "쉼표로 구분한 단어. tag:단어 로 검색합니다.";
+"Library Updates" = "라이브러리 업데이트";
+"Every library part is up to date." = "모든 라이브러리 부품이 최신입니다.";
+"Update All" = "모두 업데이트";
+"Remove from favourites" = "즐겨찾기에서 제거";
+"Add to favourites" = "즐겨찾기에 추가";

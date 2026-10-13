@@ -83,17 +83,17 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Per-pad mask / paste overrides, via-in-pad, thermal pads | ✅ | |
 | P0 | Courtyard, silk, fab, assembly layers | ✅ | |
 | P0 | Symbol ↔ footprint mapping, verified starter library | ✅ | 1,700+ catalog parts from KiCad / vendor libraries |
-| P0 | ➕ Pin-1 and IPC-7351 zero orientation | 🟡 | pin-1 check and mark ✅; zero-orientation check ⏳ |
-| P0 | Library search, filters, tags, favourites | 🟡 | search and filters ✅; tags / favourites ⏳ |
+| P0 | ➕ Pin-1 and IPC-7351 zero orientation | ✅ | pin-1 check and mark; LAND_ZERO_ORIENTATION (pad 1 on the right = mirrored / turned pattern) |
+| P0 | Library search, filters, tags, favourites | ✅ | parametric search; favourites (star, `fav:`) and tags (`tag:x`) per user |
 | P0 | Standard library import / export | ✅ | KiCad, Eagle, Altium libraries |
 | P0 | Footprint and symbol validation | ✅ | `checkLandPattern`, `checkSymbol` |
-| P0 | ➕ Wizards for high-pin-count parts from CSV pin tables | 🟡 | generators (BGA, QFP, …) ✅; CSV pin-table import ⏳ |
+| P0 | ➕ Wizards for high-pin-count parts from CSV pin tables | ✅ | generators; Import Pin Table… / `library_create_part` `pinTable` (CSV / TSV, CubeMX pin lists) |
 | P1 | Datasheet links, datasheet-driven footprints, pin-to-pad checks | ✅ | |
 | P1 | 3D model attach / align / offset | ✅ | |
 | P1 | Lifecycle, MPN, supplier links | ✅ | `Suppliers.cpp` |
 | P1 | IPC-7352-aware land patterns | ✅ | IPC-7351 calculator |
 | P1 | Library versioning / history, alternative footprints | 🟡 | user footprint folder ✅; version history ⏳ |
-| P1 | ➕ Library update notices with "update instances" preview | ⏳ | |
+| P1 | ➕ Library update notices with "update instances" preview | ✅ | File → Check Library Updates…, MCP `library_updates` (changes and placed count, then apply) |
 | P1 | ➕ Parametric search across the library | ✅ | |
 | P1 | ➕ Shared 3D model library | 🟡 | `Model3DRegistry` per project; a shared folder ⏳ |
 | P2 | AI datasheet extraction, footprint-vs-datasheet comparison | 🟡 | pin tables from datasheets ✅; dimension comparison ⏳ |
@@ -396,7 +396,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 12. High-contrast / colour-blind layer palette; beginner / pro modes (§16)
 13. MCU / FPGA pin planner with CubeMX / XDC / QSF import and firmware header export (§12)
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
-15. Library update notices, library versions, tags / favourites, CSV pin-table wizard, IPC zero-orientation check (§3)
+15. ~~Library update notices~~, library versions, ~~tags / favourites, CSV pin-table wizard, IPC zero-orientation check~~ (§3)
 16. Consolidated multi-board BOM, custom BOM columns / templates, price alerts (§11)
 17. In-app Git, browser viewer, file locking, approvals (§15)
 18. Fixed-point (nm) geometry database, inch units, file-format reference and migrator (§1)

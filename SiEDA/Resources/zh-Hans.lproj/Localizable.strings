@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "改为隔离屏障";
 "Delete Graphic" = "删除图形";
 "Pitch" = "间距";
+"Check Library Updates…" = "检查元件库更新…";
+"Edit Tags…" = "编辑标签…";
+"Favourite (search fav:)" = "收藏（搜索 fav:）";
+"Import Pin Table…" = "导入引脚表…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "从 CSV / TSV 引脚表（编号、名称、类型、说明）或 STM32CubeMX 引脚列表导入引脚";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "文字，或筛选：cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@ 的标签";
+"Comma-separated words; search them with tag:word." = "以逗号分隔的文字；用 tag:文字 搜索。";
+"Library Updates" = "元件库更新";
+"Every library part is up to date." = "所有元件库零件都是最新的。";
+"Update All" = "全部更新";
+"Remove from favourites" = "从收藏中移除";
+"Add to favourites" = "加入收藏";

@@ -342,6 +342,7 @@ struct SiEDACommands: Commands {
             Button("Import Netlist…") { store.importNetlist() }
             Button("Import Gerber as Reference Layer…") { store.importReferenceLayer() }
             Button("Import Logo…") { store.importLogo() }
+            Button("Check Library Updates…") { store.checkLibraryUpdates() }
             Button("Gerber Viewer…") { store.showGerberViewer = true }
             Toggle("Live Collaboration", isOn: $store.liveCollaboration)
                 .help("Save each edit to the shared project file and merge teammates' saves automatically")

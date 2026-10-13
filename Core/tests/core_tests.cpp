@@ -23617,3 +23617,72 @@ TEST(board_graphics_logo_user_layers_and_copper_art) {
     CHECK(Project().toJson().dump().find("\"graphics\"") == std::string::npos);
     CHECK(!mcpFailed(mcpTool(m, "pcb_graphics", Json::parse(R"({"remove": 0})"))) && p.pcb.settings.graphics.size() == 2);
 }
+
+TEST(pin_table_csv_tsv_and_cubemx) {
+    // A header names the columns in any order; no header = number, name, type, description; quoted cells keep commas;
+    // CubeMX's Position / Name / Type / Signal columns map to number / name / type / description.
+    auto a = parsePinTable("Name,Pin,Type,Description\nVCC,1,power,\"Supply, 3.3 V\"\nPA0,2,I/O,ADC in\n,3,,\n");
+    CHECK(a.size() == 3 && a[0].number == "1" && a[0].name == "VCC" && a[0].type == PinType::PowerIn);
+    CHECK(a[0].description == "Supply, 3.3 V" && a[1].type == PinType::Bidirectional && a[2].name == "3");
+    auto b = parsePinTable("1\tGND\tpower_in\n2\tOUT\toutput\n\n3\tNC\tno_connect\n");
+    CHECK(b.size() == 3 && b[1].name == "OUT" && b[1].type == PinType::Output && b[2].type == PinType::NoConnect);
+    auto c = parsePinTable("\"Position\",\"Name\",\"Type\",\"Signal\",\"Label\"\n\"1\",\"VBAT\",\"Power\",\"\",\"\"\n"
+                           "\"7\",\"NRST\",\"Reset\",\"\",\"\"\n\"30\",\"PA9\",\"I/O\",\"USART1_TX\",\"\"\n");
+    CHECK(c.size() == 3 && c[1].type == PinType::Input && c[2].name == "PA9" && c[2].description == "USART1_TX");
+    CHECK(parsePinTable("A1;VDD;power\nB2;SDA;io").size() == 2);
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object(), pkg = Json::object();
+    pkg["type"] = "SOIC", pkg["pinCount"] = 8;
+    args["name"] = "PT8", args["package"] = pkg;
+    args["pinTable"] = "pin,name,type\n1,A,input\n2,B,input\n3,C,output\n4,GND,power\n5,D,io\n6,E,io\n7,F,io\n8,VCC,power\n";
+    CHECK(!mcpFailed(mcpTool(m, "library_create_part", args)));
+    args["name"] = "PT0", args["pinTable"] = "nothing here";
+    CHECK(mcpFailed(mcpTool(m, "library_create_part", args)));
+}
+
+TEST(land_zero_orientation_flags_mirrored_patterns) {
+    // Pad 1 on the left is IPC-7351 zero orientation (the catalog's generated lands all are); a pattern drawn from the
+    // bottom view (pad 1 on the right) is flagged.
+    CustomPartSpec spec;
+    spec.name = "ZO";
+    spec.pins = {{"1", "A"}, {"2", "B"}, {"3", "C"}, {"4", "D"}};
+    spec.package.type = "CUSTOM";
+    using L = PackageSpec::Land;
+    auto has = [&] {
+        for (const auto& i : checkLandPattern(spec))
+            if (i.code == "LAND_ZERO_ORIENTATION") return true;
+        return false;
+    };
+    spec.package.lands = {L(-1.5, -0.65, 1, 0.4), L(-1.5, 0.65, 1, 0.4), L(1.5, 0.65, 1, 0.4), L(1.5, -0.65, 1, 0.4)};
+    CHECK(!has());
+    for (auto& l : spec.package.lands) l.x = -l.x;  // mirrored
+    CHECK(has());
+    for (const auto& sp : standardParts())
+        if (sp.spec.package.type == "SOT23" || sp.spec.package.type == "QFN") {
+            const CustomPartSpec e = landPatternFromFootprint(sp.spec);
+            for (const auto& i : checkLandPattern(e)) CHECK(i.code != "LAND_ZERO_ORIENTATION");
+        }
+}
+
+TEST(library_update_notices_and_apply) {
+    // A project holding an older copy of a catalog part (here: one pin renamed) is told, with the placed count, and the
+    // update swaps the instance to the catalog's current part.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    SiedaProject* sp = m.project();
+    const StandardPart* cat = findStandardPart("NE555");
+    CHECK(cat != nullptr);
+    CustomPartSpec older = cat->spec;
+    older.pins[2].name = "OUTPUT";
+    const auto part = CustomPartRegistry::instance().registerPart(older);
+    sp->project.customLibrary.push_back(part->id);
+    CHECK(sieda_add_custom_component(sp, part->id.c_str(), "NE555", 50, 50, 0, "U1") >= 0);
+    Json r = mcpTool(m, "library_updates", Json::object());
+    CHECK(!mcpFailed(r));
+    const std::string text = r.dump();
+    CHECK(text.find("NE555") != std::string::npos && text.find("renamed") != std::string::npos);
+    CHECK(!mcpFailed(mcpTool(m, "library_updates", Json::parse(R"({"apply": ["*"]})"))));
+    CHECK(sp->project.schematic.findByRef("U1")->customPart == CustomPartRegistry::instance().registerPart(cat->spec)->id);
+    CHECK(mcpTool(m, "library_updates", Json::object()).dump().find("NE555") == std::string::npos);
+}

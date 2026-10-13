@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "આઇસોલેશન બેરિયર બનાવો";
 "Delete Graphic" = "ગ્રાફિક કાઢી નાખો";
 "Pitch" = "પિચ";
+"Check Library Updates…" = "લાઇબ્રેરી અપડેટ તપાસો…";
+"Edit Tags…" = "ટૅગ સંપાદિત કરો…";
+"Favourite (search fav:)" = "મનપસંદ (શોધો fav:)";
+"Import Pin Table…" = "પિન કોષ્ટક આયાત કરો…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "CSV / TSV પિન કોષ્ટક (નંબર, નામ, પ્રકાર, વર્ણન) અથવા STM32CubeMX પિન સૂચિમાંથી પિન";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "શબ્દો, અથવા ફિલ્ટર: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@ માટે ટૅગ";
+"Comma-separated words; search them with tag:word." = "અલ્પવિરામથી અલગ શબ્દો; tag:શબ્દ વડે શોધો.";
+"Library Updates" = "લાઇબ્રેરી અપડેટ";
+"Every library part is up to date." = "લાઇબ્રેરીનો દરેક ભાગ અદ્યતન છે.";
+"Update All" = "બધું અપડેટ કરો";
+"Remove from favourites" = "મનપસંદમાંથી દૂર કરો";
+"Add to favourites" = "મનપસંદમાં ઉમેરો";

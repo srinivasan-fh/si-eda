@@ -6717,6 +6717,33 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.snapshot.referenceLayers.isEmpty)
     }
 
+    func testLibraryFavouritesTagsAndUpdates() {
+        let saved = (LibraryMarks.favourites, LibraryMarks.tags)
+        defer { (LibraryMarks.favourites, LibraryMarks.tags) = saved }
+        LibraryMarks.favourites = []
+        LibraryMarks.tags = [:]
+        let parts = StandardLibrary.parts
+        let name = parts[0].spec.name
+        LibraryMarks.toggleFavourite(name)
+        LibraryMarks.setTags(name, "robot, arm ")
+        XCTAssertEqual(ComponentLibraryView.filterStandard(parts, search: "fav:", kit: nil).map(\.spec.name), [name])
+        XCTAssertEqual(ComponentLibraryView.filterStandard(parts, search: "tag:arm", kit: nil).map(\.spec.name), [name])
+        XCTAssertEqual(LibraryMarks.tags[name], ["robot", "arm"])
+        LibraryMarks.toggleFavourite(name)
+        XCTAssertTrue(ComponentLibraryView.filterStandard(parts, search: "fav:", kit: nil).isEmpty)
+        // No catalog part in a fresh design is out of date.
+        let store = DesignStore()
+        XCTAssertTrue(store.runTool("library_updates", arguments: [:]).text.contains("\"updates\":[]"))
+    }
+
+    func testPinTableImport() {
+        let pins = EDAEngine.parsePinTable("Position,Name,Type,Signal\n1,VBAT,Power,\n30,PA9,I/O,USART1_TX\n")
+        XCTAssertEqual(pins.map(\.number), ["1", "30"])
+        XCTAssertEqual(pins.first?.type, .powerIn)
+        XCTAssertEqual(pins.last?.type, .bidirectional)
+        XCTAssertEqual(pins.last?.description, "USART1_TX")
+    }
+
     func testNetlistImportThroughTheCoreTool() throws {
         let store = DesignStore()
         let csv = "Net,Designator,Pin\nVCC,R1,1\nVCC,C1,1\nGND,R1,2\nGND,C1,2\n"

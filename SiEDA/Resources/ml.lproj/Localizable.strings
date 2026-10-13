@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "ഐസൊലേഷൻ ബാരിയർ ആക്കുക";
 "Delete Graphic" = "ഗ്രാഫിക് ഇല്ലാതാക്കുക";
 "Pitch" = "പിച്ച്";
+"Check Library Updates…" = "ലൈബ്രറി അപ്‌ഡേറ്റുകൾ പരിശോധിക്കുക…";
+"Edit Tags…" = "ടാഗുകൾ എഡിറ്റ് ചെയ്യുക…";
+"Favourite (search fav:)" = "പ്രിയപ്പെട്ടത് (തിരയുക fav:)";
+"Import Pin Table…" = "പിൻ പട്ടിക ഇറക്കുമതി ചെയ്യുക…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "CSV / TSV പിൻ പട്ടിക (നമ്പർ, പേര്, തരം, വിവരണം) അല്ലെങ്കിൽ STM32CubeMX പിൻ ലിസ്റ്റിൽ നിന്നുള്ള പിന്നുകൾ";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "വാക്കുകൾ, അല്ലെങ്കിൽ ഫിൽട്ടറുകൾ: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@ എന്നതിനുള്ള ടാഗുകൾ";
+"Comma-separated words; search them with tag:word." = "കോമ കൊണ്ട് വേർതിരിച്ച വാക്കുകൾ; tag:വാക്ക് ഉപയോഗിച്ച് തിരയുക.";
+"Library Updates" = "ലൈബ്രറി അപ്‌ഡേറ്റുകൾ";
+"Every library part is up to date." = "എല്ലാ ലൈബ്രറി ഭാഗങ്ങളും പുതുക്കിയതാണ്.";
+"Update All" = "എല്ലാം അപ്‌ഡേറ്റ് ചെയ്യുക";
+"Remove from favourites" = "പ്രിയപ്പെട്ടവയിൽ നിന്ന് നീക്കുക";
+"Add to favourites" = "പ്രിയപ്പെട്ടവയിൽ ചേർക്കുക";

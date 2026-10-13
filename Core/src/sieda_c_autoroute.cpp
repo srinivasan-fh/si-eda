@@ -1,8 +1,10 @@
 // SiEDA Core — C ABI: autorouter strategy options, presets, the routing report and routing keep-outs. Every entry
 // point is exception-safe. See docs/ROUTING.md (Strategies).
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <string>
 
 #include "SiedaProjectInternal.hpp"
@@ -13,6 +15,8 @@
 #include "sieda/Panel.hpp"
 #include "sieda/Dfm.hpp"
 #include "sieda/FieldSolver.hpp"
+#include "sieda/CustomParts.hpp"
+#include "sieda/StandardParts.hpp"
 
 using namespace sieda;
 
@@ -179,6 +183,72 @@ char* sieda_pcb_graphics(SiedaProject* project, const char* graphics_json) {
             gs = std::move(next);
         }
         return dupText(boardGraphicsToJson(gs).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_parse_pin_table(const char* text) {
+    Json out = Json::array();
+    for (const auto& p : parsePinTable(text ? text : "")) {
+        Json j = Json::object();
+        j["number"] = p.number, j["name"] = p.name, j["type"] = pinTypeName(p.type), j["description"] = p.description;
+        out.push(j);
+    }
+    return dupText(out.dump());
+}
+
+char* sieda_library_updates(SiedaProject* project, const char* apply_json) {
+    if (!project) return nullptr;
+    try {
+        std::set<std::string> apply;
+        if (apply_json) {
+            const Json names = Json::parse(apply_json);
+            for (const Json& n : names.items()) apply.insert(n.asString(""));
+        }
+        auto& pr = project->project;
+        auto& reg = CustomPartRegistry::instance();
+        Json updates = Json::array();
+        int updated = 0;
+        const std::vector<std::string> ids = pr.customLibrary;  // updated in place below
+        for (const std::string& id : ids) {
+            const auto old = reg.find(id);
+            const StandardPart* sp = old ? findStandardPart(old->spec.name) : nullptr;
+            if (!sp || sp->spec.name != old->spec.name) continue;
+            const auto now = reg.registerPart(sp->spec);
+            if (now->id == id) continue;
+            const CustomPartSpec &a = old->spec, &b = now->spec;
+            Json changes = Json::array();
+            if (a.pins.size() != b.pins.size())
+                changes.push("pins " + std::to_string(a.pins.size()) + " → " + std::to_string(b.pins.size()));
+            int renamed = 0;
+            for (size_t i = 0; i < std::min(a.pins.size(), b.pins.size()); ++i)
+                renamed += a.pins[i].name != b.pins[i].name || a.pins[i].number != b.pins[i].number || a.pins[i].type != b.pins[i].type;
+            if (renamed) changes.push(std::to_string(renamed) + " pin(s) renamed, renumbered or retyped");
+            if (a.package.type != b.package.type || a.package.pinCount != b.package.pinCount)
+                changes.push("package " + a.package.type + "-" + std::to_string(a.package.pinCount) + " → " + b.package.type + "-" +
+                             std::to_string(b.package.pinCount));
+            if (old->footprint.pads.size() != now->footprint.pads.size() || std::fabs(a.package.pitch - b.package.pitch) > 1e-9 ||
+                std::fabs(a.package.bodySize - b.package.bodySize) > 1e-9)
+                changes.push("footprint " + std::to_string(old->footprint.pads.size()) + " → " +
+                             std::to_string(now->footprint.pads.size()) + " pads");
+            if (!changes.size()) changes.push("description, values or model");
+            int instances = 0;
+            for (const auto& c : pr.schematic.components()) instances += c.customPart == id;
+            if (apply.count("*") || apply.count(a.name)) {
+                pr.schematic.replaceCustomPart(id, now->id);
+                std::replace(pr.customLibrary.begin(), pr.customLibrary.end(), id, now->id);
+                pr.schematicChanged();
+                ++updated;
+                continue;
+            }
+            Json u = Json::object();
+            u["name"] = a.name, u["oldId"] = id, u["newId"] = now->id, u["instances"] = instances, u["changes"] = changes;
+            updates.push(u);
+        }
+        Json out = Json::object();
+        out["updates"] = updates, out["updated"] = updated;
+        return dupText(out.dump());
     } catch (...) {
         return nullptr;
     }

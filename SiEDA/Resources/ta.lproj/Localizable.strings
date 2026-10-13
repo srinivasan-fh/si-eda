@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "தனிமைப்படுத்தல் தடையாக்கு";
 "Delete Graphic" = "வரைகலையை நீக்கு";
 "Pitch" = "இடைவெளி";
+"Check Library Updates…" = "நூலக புதுப்பிப்புகளைச் சரிபார்…";
+"Edit Tags…" = "குறிச்சொற்களைத் திருத்து…";
+"Favourite (search fav:)" = "விருப்பம் (தேடல் fav:)";
+"Import Pin Table…" = "பின் அட்டவணையை இறக்குமதி செய்…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "CSV / TSV பின் அட்டவணை (எண், பெயர், வகை, விளக்கம்) அல்லது STM32CubeMX பின் பட்டியலிலிருந்து பின்கள்";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "சொற்கள், அல்லது வடிப்பான்கள்: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@ க்கான குறிச்சொற்கள்";
+"Comma-separated words; search them with tag:word." = "காற்புள்ளியால் பிரித்த சொற்கள்; tag:சொல் என்று தேடு.";
+"Library Updates" = "நூலகப் புதுப்பிப்புகள்";
+"Every library part is up to date." = "ஒவ்வொரு நூலகப் பாகமும் புதுப்பித்த நிலையில் உள்ளது.";
+"Update All" = "அனைத்தையும் புதுப்பி";
+"Remove from favourites" = "விருப்பங்களிலிருந்து நீக்கு";
+"Add to favourites" = "விருப்பங்களில் சேர்";

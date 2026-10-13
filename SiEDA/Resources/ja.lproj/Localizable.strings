@@ -1709,3 +1709,16 @@
 "Make Isolation Barrier" = "絶縁バリアにする";
 "Delete Graphic" = "図形を削除";
 "Pitch" = "ピッチ";
+"Check Library Updates…" = "ライブラリの更新を確認…";
+"Edit Tags…" = "タグを編集…";
+"Favourite (search fav:)" = "お気に入り（検索 fav:）";
+"Import Pin Table…" = "ピン表を読み込む…";
+"Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list" = "CSV / TSV のピン表（番号、名前、種類、説明）または STM32CubeMX のピン一覧からピンを取り込む";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot" = "単語、またはフィルター：cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot";
+"Tags for %@" = "%@ のタグ";
+"Comma-separated words; search them with tag:word." = "カンマ区切りの単語。tag:単語 で検索できます。";
+"Library Updates" = "ライブラリの更新";
+"Every library part is up to date." = "すべてのライブラリ部品は最新です。";
+"Update All" = "すべて更新";
+"Remove from favourites" = "お気に入りから外す";
+"Add to favourites" = "お気に入りに追加";

@@ -394,6 +394,12 @@ char* sieda_pcb_thieving(SiedaProject* project, const char* settings_json);
  * (see boardGraphicsToJson / boardGraphicsFromJson; an item may be a "raster" image), NULL keeps them. Returns the
  * graphics as JSON, or NULL on bad input. Caller frees. */
 char* sieda_pcb_graphics(SiedaProject* project, const char* graphics_json);
+/* Pins from a CSV / TSV pin table (sieda::parsePinTable): [{"number","name","type","description"}]. Caller frees. */
+char* sieda_parse_pin_table(const char* text);
+/* Library update notices: project parts whose catalog part (same name) has changed since it was added.
+ * {"updates":[{"name","oldId","newId","instances","changes":[…]}],"updated":n}; `apply_json` ["NAME",…] or ["*"]
+ * swaps those parts' instances to the catalog's current part first (pins kept by number), NULL lists only. */
+char* sieda_library_updates(SiedaProject* project, const char* apply_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 /* Interactive via minimisation: the named nets (JSON array of names) are routed again with via minimisation; the
  * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.

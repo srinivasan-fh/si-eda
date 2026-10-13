@@ -187,6 +187,10 @@
   MCP `pcb_graphics` / `pcb_copper_thieving`; `TESTPOINT` / `NETTIE` packages (net-tie DRC exemption `tied` in
   `runDRC`); flex regions (`FlexRegion`, FLEX_* in `mechanicalChecks`); barrier keep-outs (`RouteKeepout::barrier`);
   panel DRC `panelChecks`; grounded CPW `FieldGeometry::cpw`.
+- Library extras: CSV / TSV / CubeMX pin tables `parsePinTable` (`CustomParts.cpp`, MCP `library_create_part`
+  `pinTable`, library fuzz target), LAND_ZERO_ORIENTATION (pad 1 on the right; quiet on every catalog part), library
+  update notices `sieda_library_updates` (MCP `library_updates`), favourites / tags `LibraryMarks` (Standards.swift,
+  search `fav:` / `tag:`).
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards
   within a fab panel size, default the DFM pack's; panel Gerbers are the
   board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /

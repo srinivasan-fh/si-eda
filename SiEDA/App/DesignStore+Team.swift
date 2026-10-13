@@ -115,6 +115,26 @@ extension DesignStore {
         statusMessage = r.isError ? "\(name): no dark pixels to print" : "\(name) placed on the top silkscreen"
     }
 
+    /// Library update notices: project parts whose catalog part changed since they were added; Update All swaps the
+    /// placed parts to the current catalog part (one undo step).
+    func checkLibraryUpdates() {
+        let r = runTool("library_updates", arguments: [:])
+        let updates = (try? JSONSerialization.jsonObject(with: Data(r.text.utf8)) as? [String: Any])?["updates"] as? [[String: Any]] ?? []
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Library Updates")
+        guard !updates.isEmpty else {
+            alert.informativeText = String(localized: "Every library part is up to date.")
+            alert.runModal()
+            return
+        }
+        alert.informativeText = updates.map { u in
+            "\(u["name"] as? String ?? "") (\(u["instances"] as? Int ?? 0)): " + ((u["changes"] as? [String]) ?? []).joined(separator: ", ")
+        }.joined(separator: "\n")
+        alert.addButton(withTitle: String(localized: "Update All"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        if alert.runModal() == .alertFirstButtonReturn { _ = runTool("library_updates", arguments: ["apply": ["*"]]) }
+    }
+
     func removeGraphic(at index: Int) {
         _ = runTool("pcb_graphics", arguments: ["remove": index])
     }
