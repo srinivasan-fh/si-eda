@@ -1012,6 +1012,8 @@ bool Schematic::syncInstancesOnce() {
                 if (!(c.channelOverrides & kOverrideValue)) c.value = m.value;
                 c.position = m.position;
                 c.rotation = m.rotation;
+                c.mirror = m.mirror;
+                c.power = m.power;
                 c.noConnect = m.noConnect;
                 if (!(c.channelOverrides & kOverridePackage)) c.package = m.package;
                 if (!(c.channelOverrides & kOverrideSpice)) c.spice = m.spice;

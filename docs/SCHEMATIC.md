@@ -337,7 +337,23 @@ another value. The base design is what the schematic says (with each part's own 
 Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.cpp`; app
 `SiEDA/App/DesignStore+SchematicTools.swift`, `SiEDA/Views/Schematic/SchematicToolsViews.swift`.
 
-- **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did).
+- **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did). **⌥-drag**
+  moves the parts alone: their wires to other parts are removed. Arrow keys nudge the selection a grid step (⇧: five).
+- **Mirror** (X left-right, Y top-bottom; `Component::mirror`, saved only when set, C API `sieda_mirror_component`,
+  MCP `schematic_move_component` `mirror`), **Rotate** (R / Space) — on the selection, or on the part under the
+  pointer when nothing is selected (Delete too). **⌘D** duplicates the selection with new designators; right-click
+  **Paste Here** pastes at the pointer.
+- **Touching pins connect**: a part placed or moved so a pin lands on another pin or on a wire's route is wired to it
+  (a T-junction on the wire; `Schematic::connectTouching`, `sieda_connect_touching`); ERC warns
+  `ERC_TOUCHING_UNCONNECTED` for a pin that touches a wire or pin without a connection (older drawings).
+- **Clean Up Wires** (Arrange menu, right-click) removes bends lying on straight runs (`cleanupWires`,
+  `sieda_cleanup_wires`). While drawing a wire, **/** turns its corner the other way (vertical first).
+- **Right-click menu** on a part (edit, rotate, mirror, duplicate, copy, select same value / connected parts, lock,
+  delete), a wire (select connected parts, clean up, delete) or the sheet (paste here, select all, clean up, fit).
+  A right-drag still pans. **Double-click** a part to edit its designator and value (a label's name) in place.
+- **Lock** (`Component::locked`, `sieda_set_component_locked`): a locked part is not dragged or moved. A selected
+  wire highlights its whole net. **Select All** (⌘A), **Select Same Value**, **Select Connected Parts**; the
+  inspector sets one value or one package for every selected part (one undo step).
 - **Arrange** menu (options bar): **Align** left / right / top / bottom / centres and **Distribute** horizontally /
   vertically (three or more parts) — by the symbols' outlines with **Align by Symbol Outline** on (the default:
   left edges line up, distributing leaves equal gaps between outlines; positions stay on the grid), or by the parts'

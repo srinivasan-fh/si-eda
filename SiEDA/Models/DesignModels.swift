@@ -251,6 +251,15 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var x: Double
     var y: Double
     var rotation: Int
+    /// Mirrored left-right in its own frame (before the rotation); nil = not mirrored.
+    var mirror: Bool?
+    var isMirrored: Bool { mirror ?? false }
+    /// Locked on the schematic (the editor leaves it where it is); nil = free.
+    var locked: Bool?
+    var isLocked: Bool { locked ?? false }
+    /// Net labels drawn as a power symbol (bar on a stem); nil = a flag.
+    var power: Bool?
+    var isPower: Bool { power ?? false }
     var footprint: String
     var pins: [SnapPin]
     var pcb: PcbPlacement

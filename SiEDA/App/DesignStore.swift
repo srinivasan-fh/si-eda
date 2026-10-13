@@ -71,6 +71,8 @@ final class DesignStore: ObservableObject {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
     @Published var selectedWire: Int?
+    /// The part whose designator and value are being edited in place (double-click on the schematic).
+    @Published var quickEdit: Int?
     /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
     @Published var selectedBus: Int?
     /// The schematic's Find & Replace panel.
@@ -454,18 +456,30 @@ final class DesignStore: ObservableObject {
     func addComponent(_ kind: ComponentKind, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
         let snapped = SchematicAutoLayout.snap(point)
-        perform("Placed \(kind.displayName)") { id = $0.addComponent(kind, at: snapped, rotation: rotation) }
+        perform("Placed \(kind.displayName)") {
+            id = $0.addComponent(kind, at: snapped, rotation: rotation)
+            if id >= 0 { $0.connectTouching(id) }  // a pin dropped on a wire or another pin is wired to it
+        }
         if id >= 0 { selection = [id] }
         return id
     }
 
-    func moveComponents(_ ids: Set<Int>, by delta: CGSize) {
+    /// Moves parts with their wires following (drag); `detach` moves them alone, leaving the wires to other parts
+    /// behind (⌥-drag). Pins that land on a wire or another pin are wired to it.
+    func moveComponents(_ ids: Set<Int>, by delta: CGSize, detach: Bool = false) {
         guard !ids.isEmpty, delta != .zero else { return }
+        if ids.contains(where: { lockedParts.contains($0) }) {
+            statusMessage = "Locked parts stay where they are (unlock them first)"
+            return
+        }
         let moves = snapshot.components.filter { ids.contains($0.id) }
-        perform("Moved \(moves.count) part(s)", invalidatesAnalysis: false) { engine in
+        let cut = detach ? snapshot.wires.filter { ids.contains($0.a.component) != ids.contains($0.b.component) }.map(\.id) : []
+        perform(detach ? "Moved \(moves.count) part(s) alone" : "Moved \(moves.count) part(s)", invalidatesAnalysis: detach) { engine in
+            cut.forEach { engine.removeWire($0) }
             for c in moves {
                 engine.moveComponent(c.id, to: SchematicAutoLayout.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
             }
+            for c in moves { engine.connectTouching(c.id) }
         }
     }
 
@@ -789,7 +803,10 @@ final class DesignStore: ObservableObject {
             // A multi-unit part is placed gate by gate: unit A now, the others with Place Next Unit.
             perform("Placed \(name) unit A") { id = $0.addCustomUnits(partId: partId, at: snapped, rotation: rotation) }
         } else {
-            perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+            perform("Placed \(name)") {
+                id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation)
+                if id >= 0 { $0.connectTouching(id) }
+            }
         }
         if id >= 0 { selection = [id] }
         return id

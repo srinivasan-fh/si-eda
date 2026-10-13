@@ -604,6 +604,9 @@ Json Project::toJson() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.mirror) j["mirror"] = true;
+        if (c.locked) j["locked"] = true;
+        if (c.power) j["power"] = true;
         if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (!c.firmware.empty()) {
             j["firmware"] = c.firmware;
@@ -918,6 +921,9 @@ Project Project::fromJson(const Json& root) {
         c.value = j.get("value").asString(c.def().defaultValue);
         c.position = {j.get("x").asNumber(), j.get("y").asNumber()};
         c.rotation = j.get("rotation").asInt(0);
+        c.mirror = j.get("mirror").asBool(false);
+        c.locked = j.get("locked").asBool(false);
+        c.power = c.kind == ComponentKind::NetLabel && j.get("power").asBool(false);
         if (c.kind == ComponentKind::Custom) {
             std::string id = j.get("customPart").asString("");
             auto it = idMap.find(id);
@@ -1147,6 +1153,9 @@ Json Project::snapshot() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.mirror) j["mirror"] = true;
+        if (c.locked) j["locked"] = true;
+        if (c.power) j["power"] = true;
         j["footprint"] = c.footprintName();
         if (!c.package.empty()) j["package"] = c.package;
         j["sheet"] = c.sheet;

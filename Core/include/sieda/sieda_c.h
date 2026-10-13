@@ -60,6 +60,17 @@ int32_t sieda_add_component(SiedaProject* project, int32_t kind, const char* val
 int32_t sieda_remove_component(SiedaProject* project, int32_t component_id);
 int32_t sieda_move_component(SiedaProject* project, int32_t component_id, double x, double y);
 int32_t sieda_rotate_component(SiedaProject* project, int32_t component_id, int32_t delta_degrees);
+/* Mirrors a part left-right (vertical != 0: top-bottom, i.e. also turned 180°). 1 on success. */
+int32_t sieda_mirror_component(SiedaProject* project, int32_t component_id, int32_t vertical);
+/* Wires the part's pins to whatever they touch unconnected (a pin on the same spot, a wire's route: T-junction).
+ * Returns the number of joins. */
+int32_t sieda_connect_touching(SiedaProject* project, int32_t component_id);
+/* Removes wire bends lying on a straight run of `sheet` (the drawing stays the same). Returns the number removed. */
+int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet);
+/* Locks (1) or unlocks (0) a part on the schematic: the editor leaves a locked part where it is. */
+int32_t sieda_set_component_locked(SiedaProject* project, int32_t component_id, int32_t locked);
+/* Draws a net label as a power symbol (1) or as a flag (0); connectivity is unchanged. */
+int32_t sieda_set_label_power(SiedaProject* project, int32_t component_id, int32_t power);
 int32_t sieda_set_component_value(SiedaProject* project, int32_t component_id, const char* value);
 /* Package variant of a passive / diode ("R_0603", "CP_Tant_B", "D_DO41_THT"…; "" = default). 1 on success. */
 int32_t sieda_set_component_package(SiedaProject* project, int32_t component_id, const char* package);

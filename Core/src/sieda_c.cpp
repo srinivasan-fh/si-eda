@@ -303,6 +303,37 @@ int32_t sieda_rotate_component(SiedaProject* project, int32_t id, int32_t delta)
     return project->project.schematic.rotateComponent(id, delta) ? 1 : 0;
 }
 
+int32_t sieda_mirror_component(SiedaProject* project, int32_t id, int32_t vertical) {
+    if (!project) return 0;
+    return project->project.schematic.mirrorComponent(id, vertical != 0) ? 1 : 0;
+}
+
+int32_t sieda_connect_touching(SiedaProject* project, int32_t id) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.connectTouching(id); });
+}
+
+int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.cleanupWires(sheet); });
+}
+
+int32_t sieda_set_component_locked(SiedaProject* project, int32_t id, int32_t locked) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || c->locked == (locked != 0)) return 0;
+    c->locked = locked != 0;
+    return 1;
+}
+
+int32_t sieda_set_label_power(SiedaProject* project, int32_t id, int32_t power) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || c->kind != ComponentKind::NetLabel || c->power == (power != 0)) return 0;
+    c->power = power != 0;
+    return 1;
+}
+
 int32_t sieda_set_component_value(SiedaProject* project, int32_t id, const char* value) {
     if (!project) return 0;
     return guarded([&] {

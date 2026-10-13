@@ -188,6 +188,28 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_rotate_component($0, Int32(id), Int32(degrees)) } == 1
     }
 
+    /// Mirrors a part left-right (vertical: top-bottom); its wires follow its pins.
+    @discardableResult
+    func mirrorComponent(_ id: Int, vertical: Bool = false) -> Bool {
+        withHandle { sieda_mirror_component($0, Int32(id), vertical ? 1 : 0) } == 1
+    }
+
+    /// Wires the part's pins to what they touch unconnected (a pin on the same spot, a wire running through).
+    @discardableResult
+    func connectTouching(_ id: Int) -> Int { Int(withHandle { sieda_connect_touching($0, Int32(id)) }) }
+
+    /// Locks or unlocks a part on the schematic.
+    @discardableResult
+    func setLocked(_ id: Int, _ locked: Bool) -> Bool { withHandle { sieda_set_component_locked($0, Int32(id), locked ? 1 : 0) } == 1 }
+
+    /// Draws a net label as a power symbol or as a flag.
+    @discardableResult
+    func setLabelPower(_ id: Int, _ power: Bool) -> Bool { withHandle { sieda_set_label_power($0, Int32(id), power ? 1 : 0) } == 1 }
+
+    /// Removes wire bends on straight runs of a sheet; returns how many.
+    @discardableResult
+    func cleanupWires(sheet: Int) -> Int { Int(withHandle { sieda_cleanup_wires($0, Int32(sheet)) }) }
+
     @discardableResult
     func setValue(_ id: Int, _ value: String) -> Bool {
         withHandle { sieda_set_component_value($0, Int32(id), value) } == 1

@@ -387,9 +387,11 @@ enum SchematicSymbols {
     }
 
     /// Transform from symbol space to world space (rotation is clockwise on screen).
-    static func transform(position: CGPoint, rotation: Int) -> CGAffineTransform {
+    /// Symbol frame → sheet: mirrored left-right first (when `mirror`), then turned, then placed.
+    static func transform(position: CGPoint, rotation: Int, mirror: Bool = false) -> CGAffineTransform {
         CGAffineTransform(translationX: position.x, y: position.y)
             .rotated(by: CGFloat(rotation) * .pi / 180)
+            .scaledBy(x: mirror ? -1 : 1, y: 1)
     }
 }
 

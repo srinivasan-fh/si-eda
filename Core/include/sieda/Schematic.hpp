@@ -118,6 +118,15 @@ struct Component {
     std::string value;
     Vec2 position;  // schematic units
     int rotation = 0;
+    /// Mirrored left-right in its own frame before the rotation (a vertical mirror is this plus 180°).
+    bool mirror = false;
+    /// Locked on the schematic: the editor does not move it (the board lock is `pcb.locked`).
+    bool locked = false;
+    /// Net labels: drawn as a power symbol (a bar on a stem, the rail's name beyond it) instead of a flag; it joins
+    /// its net exactly as the label would.
+    bool power = false;
+    /// A point of the symbol's own frame (pin offsets, outline corners) turned into the sheet's orientation.
+    Vec2 orient(Vec2 local) const { return rotate90(mirror ? Vec2{-local.x, local.y} : local, rotation); }
     PcbPlacement pcb;
     std::string customPart;  // CustomPartRegistry id when kind == ComponentKind::Custom
     std::vector<int> noConnect;  // pin indices deliberately left open (no-connect flag): ERC does not flag them
@@ -309,6 +318,8 @@ public:
     bool removeComponent(int id);
     bool moveComponent(int id, Vec2 position);
     bool rotateComponent(int id, int deltaDeg = 90);
+    /// Mirrors a part left-right (vertical = also turned 180°); its wires follow its pins.
+    bool mirrorComponent(int id, bool vertical = false);
     bool setValue(int id, const std::string& value);
     /// Fits the part in another package variant ("" = default); false if the kind has no such variant.
     bool setPackage(int id, const std::string& package);
@@ -325,6 +336,15 @@ public:
     /// Splits a wire at `position` with a new junction (T-junction or bend point) and returns the junction's id:
     /// the two halves keep the connection and further wires can end on the junction. -1 for an unknown wire.
     int splitWire(int wireId, Vec2 position);
+    /// Pins of part `id` that touch something without being wired to it — another part's pin on the same spot, or the
+    /// route of a wire running through — get wired to it (a T-junction on the wire). Returns the joins made.
+    int connectTouching(int id);
+    /// What touches `pin` on the sheet without a wire to it: other parts' pins on the same spot and wires whose route
+    /// runs through it (not ending there).
+    void touching(PinRef pin, std::vector<PinRef>* pins, std::vector<int>* wires) const;
+    /// Removes the bends (junctions joining exactly two wires) that lie on a straight run on `sheet`: the wire is
+    /// drawn the same without them. Returns the number removed.
+    int cleanupWires(int sheet);
     /// Removes a chain of dangling junctions starting at `junctionId` (a wire abandoned half-way). Returns count.
     int removeDanglingJunctions(int junctionId);
     /// Number of wire ends on the component's pins.

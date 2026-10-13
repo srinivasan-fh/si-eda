@@ -29,6 +29,139 @@ extension DesignStore {
         }
     }
 
+    // MARK: - Mirror, duplicate, lock, wire clean-up, smart selection
+
+    /// Parts locked on the schematic.
+    var lockedParts: Set<Int> { Set(snapshot.components.filter(\.isLocked).map(\.id)) }
+
+    /// The selection, else the part under the pointer (hover + shortcut acts on it without selecting first).
+    func targets(hovered: Int?) -> Set<Int> {
+        if !selection.isEmpty { return selection }
+        if let hovered { return [hovered] }
+        return []
+    }
+
+    /// Mirrors the parts left-right (vertical: top-bottom).
+    func mirror(_ ids: Set<Int>, vertical: Bool) {
+        guard !ids.isEmpty else { return }
+        perform(vertical ? "Mirrored vertically" : "Mirrored horizontally", invalidatesAnalysis: false) { engine in
+            ids.forEach { engine.mirrorComponent($0, vertical: vertical) }
+        }
+    }
+
+    func rotate(_ ids: Set<Int>) {
+        guard !ids.isEmpty else { return }
+        perform("Rotated", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateComponent($0) } }
+    }
+
+    func delete(_ ids: Set<Int>) {
+        guard !ids.isEmpty else { return }
+        perform("Deleted \(ids.count) part(s)") { engine in ids.forEach { engine.removeComponent($0) } }
+        selection.subtract(ids)
+    }
+
+    /// ⌘D: a copy of the selection (with the wires between its parts) beside it, with new designators.
+    func duplicateSelection() {
+        guard let clip = selectionClip() else { return }
+        paste(clip: clip)
+    }
+
+    /// Pastes the clipboard with its top-left part at `world` (the pointer).
+    func paste(at world: CGPoint) {
+        guard let clip = NSPasteboard.general.string(forType: .string), Self.isSchematicClip(clip),
+              let data = clip.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let parts = json["components"] as? [[String: Any]], !parts.isEmpty else { return }
+        let xs = parts.compactMap { ($0["x"] as? NSNumber)?.doubleValue }, ys = parts.compactMap { ($0["y"] as? NSNumber)?.doubleValue }
+        guard let x0 = xs.min(), let y0 = ys.min() else { return }
+        let target = SchematicAutoLayout.snap(world)
+        var pasted: [Int] = []
+        performChecked("Paste", failureMessage: "Nothing to paste here") {
+            pasted = $0.pasteComponents(clip, offset: CGSize(width: target.x - x0, height: target.y - y0), count: 1, step: .zero,
+                                        labelIncrement: 0)
+            return !pasted.isEmpty
+        }
+        if !pasted.isEmpty { selection = Set(pasted) }
+    }
+
+    func setLocked(_ ids: Set<Int>, _ locked: Bool) {
+        guard !ids.isEmpty else { return }
+        performChecked(locked ? "Locked \(ids.count) part(s)" : "Unlocked \(ids.count) part(s)", invalidatesAnalysis: false) { engine in
+            ids.reduce(false) { engine.setLocked($1, locked) || $0 }
+        }
+    }
+
+    /// Net labels drawn as power symbols (a bar on a stem) or as flags.
+    func setPowerStyle(_ ids: Set<Int>, _ power: Bool) {
+        let labels = ids.filter { snapshot.component($0)?.componentKind == .netLabel }
+        guard !labels.isEmpty else { return }
+        performChecked(power ? "Power symbol" : "Net label flag", invalidatesAnalysis: false) { engine in
+            labels.reduce(false) { engine.setLabelPower($1, power) || $0 }
+        }
+    }
+
+    /// Removes wire bends lying on straight runs of the shown sheet.
+    func cleanupWires() {
+        let sheet = snapshot.activeSheet
+        var removed = 0
+        performChecked("Cleaned up wires", invalidatesAnalysis: false, failureMessage: "No wire bends to clean up") {
+            removed = $0.cleanupWires(sheet: sheet)
+            return removed > 0
+        }
+        if removed > 0 { statusMessage = "Removed \(removed) needless wire bend(s)" }
+    }
+
+    /// One value for several parts at once (one undo step).
+    func setValue(of ids: Set<Int>, to value: String) {
+        let v = value.trimmingCharacters(in: .whitespaces)
+        guard !v.isEmpty, !ids.isEmpty else { return }
+        performChecked("Value \(v) for \(ids.count) part(s)", failureMessage: "No value changed") { engine in
+            ids.reduce(false) { engine.setValue($1, v) || $0 }
+        }
+    }
+
+    /// One package for several parts of a kind at once (one undo step).
+    func setPackage(of ids: Set<Int>, to package: String) {
+        guard !ids.isEmpty else { return }
+        performChecked("Package \(package) for \(ids.count) part(s)", failureMessage: "No package changed") { engine in
+            ids.reduce(false) { engine.setPackage($1, package) || $0 }
+        }
+    }
+
+    /// Every part on the shown sheet.
+    func selectAllOnSheet() {
+        selectedWire = nil
+        selectedBus = nil
+        selection = Set(sheetSnapshot.components.filter { !$0.componentKind.isVirtual || $0.componentKind == .netLabel }.map(\.id))
+    }
+
+    /// Parts with the same value (and kind) as the selected ones.
+    func selectSameValue() {
+        let picked = sheetSnapshot.components.filter { selection.contains($0.id) }
+        let keys = Set(picked.map { "\($0.kind)|\($0.value)" })
+        guard !keys.isEmpty else { return }
+        selection = Set(sheetSnapshot.components.filter { keys.contains("\($0.kind)|\($0.value)") }.map(\.id))
+    }
+
+    /// The net of the selected wire, else of the selected parts' pins.
+    var highlightedNets: Set<Int> {
+        if let id = selectedWire, let w = snapshot.wires.first(where: { $0.id == id }), w.net >= 0 { return [w.net] }
+        return []
+    }
+
+    /// Every part on the selected wire's net (or on the nets of the selected parts' pins).
+    func selectConnected() {
+        var nets = highlightedNets
+        if nets.isEmpty {
+            for c in sheetSnapshot.components where selection.contains(c.id) {
+                for p in c.pins where p.net >= 0 { nets.insert(p.net) }
+            }
+        }
+        guard !nets.isEmpty else { return }
+        selectedWire = nil
+        selection = Set(sheetSnapshot.components.filter { c in c.pins.contains { nets.contains($0.net) } }.map(\.id))
+    }
+
     // MARK: - Copy and paste
 
     var canPaste: Bool { NSPasteboard.general.string(forType: .string).map(Self.isSchematicClip) ?? false }

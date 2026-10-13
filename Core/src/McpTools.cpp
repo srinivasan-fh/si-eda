@@ -1272,10 +1272,16 @@ void schematicTools(Table& t) {
               .num("x", "New x")
               .num("y", "New y")
               .integer("rotation", "Absolute rotation (0, 90, 180, 270)")
-              .integer("rotate", "Relative rotation in degrees (multiples of 90)"),
+              .integer("rotate", "Relative rotation in degrees (multiples of 90)")
+              .str("mirror", "\"x\" mirrors left-right, \"y\" top-bottom (toggles)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const int id = componentId(*p, a.get("ref"));
+              if (a.has("mirror")) {
+                  const std::string axis = argStr(a, "mirror");
+                  check(axis == "x" || axis == "y", "mirror is \"x\" or \"y\"");
+                  sieda_mirror_component(p, id, axis == "y" ? 1 : 0);
+              }
               const Component* c = p->project.schematic.find(id);
               if (a.has("x") || a.has("y")) {
                   const Vec2 from = c->position;

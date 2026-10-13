@@ -62,6 +62,8 @@ struct KeyboardShortcutsView: View {
         ("← ↑ → ↓", "Pan (⇧ for half a screen)"), ("+  −", "Zoom In"), ("Home  0", "Zoom to Fit"),
         ("⇧Z", "Zoom to Selection"), ("Z", "Zoom to Area"), ("N", "Show Navigator"), ("F11", "Focus mode"),
         ("V  H  W", "Select, pan and wire tools (schematic)"), ("P", "Place a part"),
+        ("R  X  Y", "Rotate and mirror (the selection, or the part under the pointer)"),
+        ("⌘D  ⌥-drag  /", "Duplicate, move without the wires, turn a wire's corner the other way"),
     ]
 
     var body: some View {

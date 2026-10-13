@@ -136,6 +136,18 @@ struct SchematicEditorView: View {
                         Button("Cut") { store.cutSelection() }.disabled(store.selection.isEmpty)
                         Button("Paste") { store.paste() }.disabled(!store.canPaste)
                         Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
+                        Button("Duplicate") { store.duplicateSelection() }.disabled(store.selection.isEmpty)
+                        Divider()
+                        Button("Mirror Horizontally") { store.mirror(store.selection, vertical: false) }.disabled(store.selection.isEmpty)
+                        Button("Mirror Vertically") { store.mirror(store.selection, vertical: true) }.disabled(store.selection.isEmpty)
+                        Button("Lock") { store.setLocked(store.selection, true) }.disabled(store.selection.isEmpty)
+                        Button("Unlock") { store.setLocked(store.selection, false) }.disabled(store.selection.isEmpty)
+                        Divider()
+                        Button("Select All") { store.selectAllOnSheet() }
+                        Button("Select Same Value") { store.selectSameValue() }.disabled(store.selection.isEmpty)
+                        Button("Select Connected Parts") { store.selectConnected() }
+                            .disabled(store.selection.isEmpty && store.selectedWire == nil)
+                        Button("Clean Up Wires") { store.cleanupWires() }
                         Divider()
                         Button("Align Left") { store.align("left", byOutline: alignByOutline) }
                         Button("Align Right") { store.align("right", byOutline: alignByOutline) }
@@ -273,6 +285,9 @@ struct SchematicEditorView: View {
             Text("Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).")
         }
         .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
+        .sheet(isPresented: Binding(get: { store.quickEdit != nil }, set: { if !$0 { store.quickEdit = nil } })) {
+            if let id = store.quickEdit { QuickEditSheet(id: id).environmentObject(store) }
+        }
         .sheet(isPresented: $store.showSchematicColours) { SchematicThemeEditor() }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
@@ -859,5 +874,47 @@ struct SimulationTransport: View {
         } message: {
             Text(live.error ?? "")
         }
+    }
+}
+
+/// Double-click on a part: its designator and value (a net label's name) edited in place, one undo step each.
+struct QuickEditSheet: View {
+    @EnvironmentObject private var store: DesignStore
+    @Environment(\.dismiss) private var dismiss
+    let id: Int
+    @State private var ref = ""
+    @State private var value = ""
+
+    var body: some View {
+        let part = store.snapshot.component(id)
+        let isLabel = part?.componentKind == .netLabel
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isLabel ? "Net Label" : "Edit Properties").font(.headline)
+            if !isLabel, part?.componentKind.isVirtual == false {
+                TextField("Designator", text: $ref)
+            }
+            TextField(isLabel ? "Net name" : "Value", text: $value)
+                .onSubmit(apply)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("OK", action: apply).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
+        .onAppear {
+            ref = part?.ref ?? ""
+            value = part?.value ?? ""
+        }
+    }
+
+    private func apply() {
+        if let part = store.snapshot.component(id) {
+            let r = ref.trimmingCharacters(in: .whitespaces), v = value.trimmingCharacters(in: .whitespaces)
+            if !r.isEmpty, r != part.ref, !part.componentKind.isVirtual { store.setRef(id, r) }
+            if !v.isEmpty, v != part.value { store.setValue(id, v) }
+        }
+        dismiss()
     }
 }

@@ -259,6 +259,9 @@ private struct ComponentProperties: View {
                         Text("Local (this sheet)").tag("local")
                         Text("Port (to parent sheet)").tag("port")
                     }
+                    Toggle("Power symbol", isOn: Binding(get: { component.isPower },
+                                                         set: { store.setPowerStyle([component.id], $0) }))
+                        .help("Draw the label as a power symbol (a bar on a stem); it joins its net the same way")
                 }
                 if kind == .netLabel && component.harnessOf == nil
                     && (!store.snapshot.harnessTypes.isEmpty || component.harnessType != nil) {
@@ -572,6 +575,7 @@ private struct SpiceModelProperties: View {
 private struct MultiSelectionProperties: View {
     @EnvironmentObject private var store: DesignStore
     var count: Int
+    @State private var bulkValue = ""
 
     var body: some View {
         PropertyGroup(title: "\(count) components selected") {
@@ -580,6 +584,21 @@ private struct MultiSelectionProperties: View {
                 Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete", systemImage: "trash") }
             }
             .buttonStyle(.bordered)
+            // Bulk edit: one value, or one package, for every selected part (one undo step).
+            let parts = store.selectedComponents.filter { !$0.componentKind.isVirtual }
+            LabeledContent("Value") {
+                TextField("Set for all", text: $bulkValue)
+                    .textFieldStyle(.blue)
+                    .onSubmit { store.setValue(of: Set(parts.map(\.id)), to: bulkValue) }
+            }
+            if let options = parts.first?.packageOptions, parts.allSatisfy({ $0.kind == parts.first?.kind }) {
+                Menu("Package for All") {
+                    ForEach(options) { option in
+                        Button(option.label) { store.setPackage(of: Set(parts.map(\.id)), to: option.id) }
+                    }
+                }
+                .fixedSize()
+            }
             let units = store.selectedComponents.filter { $0.unit != nil && $0.unitOf != nil }
             if units.count == 2 && units[0].customPart == units[1].customPart {
                 Button { store.swapGates(units[0].id, units[1].id) } label: {

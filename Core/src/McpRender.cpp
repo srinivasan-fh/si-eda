@@ -483,7 +483,7 @@ Scene schematicScene(const Project& project, int sheet) {
         switch (c.kind) {
             case ComponentKind::Junction: s.disc(c.position, 3, wireC); break;
             case ComponentKind::Ground: {  // the bars below its pin, turned with it (as its outline)
-                auto at = [&](double x, double y) { return c.position + rotate90({x, y}, c.rotation); };
+                auto at = [&](double x, double y) { return c.position + c.orient({x, y}); };
                 s.line(at(0, 0), at(0, 10), 1.5, body);
                 s.line(at(-10, 10), at(10, 10), 1.5, body);
                 s.line(at(-6, 14), at(6, 14), 1.5, body);
@@ -499,6 +499,17 @@ Scene schematicScene(const Project& project, int sheet) {
                     return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
                 };
                 const double w = textWidth(name, 9) + 16, hh = 7;
+                if (c.power) {  // a power symbol: a stem from the pin to a bar, the rail's name beyond it
+                    s.line(turn({0, 0}), turn({12, 0}), 1.5, body);
+                    s.line(turn({12, -9}), turn({12, 9}), 2, body);
+                    const Vec2 at = turn({12 + 4 + (r == 90 || r == 270 ? 6 : textWidth(name, 9) / 2), 0});
+                    s.text(at + Vec2{0, 3.5}, name, 9, labelC, true);
+                    grow(b, any, turn({12, -9}));
+                    grow(b, any, turn({12, 9}));
+                    grow(b, any, at + Vec2{textWidth(name, 9) / 2, 0});
+                    grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
+                    break;
+                }
                 s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
                 const Vec2 mid = turn({(w + hh) / 2, 0});
                 s.text(mid + Vec2{0, 3.5}, name, 9, labelC, true);

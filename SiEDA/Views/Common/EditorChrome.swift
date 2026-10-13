@@ -206,11 +206,17 @@ extension Viewport {
 struct CanvasNavigationKeys: ViewModifier {
     var perform: (ViewCommand) -> Void
     var toggleNavigator: () -> Void
+    /// Arrow keys move the selection instead when this returns true (dx, dy in grid steps; ⇧ = 5 steps).
+    var nudge: ((Int, Int) -> Bool)?
 
     func body(content: Content) -> some View {
         content
             .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow]) { press in
                 guard !press.modifiers.contains(.command) else { return .ignored }
+                let steps = press.modifiers.contains(.shift) ? 5 : 1
+                let dir: (Int, Int) = press.key == .upArrow ? (0, -1) : press.key == .downArrow ? (0, 1)
+                    : press.key == .leftArrow ? (-1, 0) : (1, 0)
+                if let nudge, nudge(dir.0 * steps, dir.1 * steps) { return .handled }
                 let step: CGFloat = press.modifiers.contains(.shift) ? 0.5 : 0.125
                 switch press.key {
                 case .upArrow: perform(.pan(dx: 0, dy: -step))
@@ -241,9 +247,9 @@ struct CanvasNavigationKeys: ViewModifier {
 }
 
 extension View {
-    func canvasNavigationKeys(toggleNavigator: @escaping () -> Void,
+    func canvasNavigationKeys(toggleNavigator: @escaping () -> Void, nudge: ((Int, Int) -> Bool)? = nil,
                               perform: @escaping (ViewCommand) -> Void) -> some View {
-        modifier(CanvasNavigationKeys(perform: perform, toggleNavigator: toggleNavigator))
+        modifier(CanvasNavigationKeys(perform: perform, toggleNavigator: toggleNavigator, nudge: nudge))
     }
 }
 
@@ -452,6 +458,26 @@ struct DeleteKeyMonitor: NSViewRepresentable {
     }
 }
 
+/// One entry of a canvas context menu (an empty title is a separator). `key` shows the shortcut that does the same.
+struct CanvasMenuItem {
+    var title: String
+    var key = ""
+    var enabled = true
+    var action: () -> Void = {}
+
+    static let separator = CanvasMenuItem(title: "")
+}
+
+/// Runs a context-menu item's closure (NSMenuItem needs an Objective-C target).
+final class CanvasMenuTarget: NSObject {
+    static let shared = CanvasMenuTarget()
+    final class Box: NSObject {
+        let action: () -> Void
+        init(_ action: @escaping () -> Void) { self.action = action }
+    }
+    @objc func run(_ sender: NSMenuItem) { (sender.representedObject as? Box)?.action() }
+}
+
 extension View {
     /// Marks an overlay above a canvas: scroll-wheel and trackpad events over it don't zoom or pan the canvas.
     func canvasScrollShield() -> some View { modifier(CanvasScrollShield()) }
@@ -462,24 +488,31 @@ extension View {
 struct CanvasInputMonitor: NSViewRepresentable {
     var onScroll: (NSEvent, CGPoint) -> Void
     var onPan: (CGSize) -> Void
+    /// A right click without a drag: the context menu for what is under the pointer (empty: no menu).
+    var onRightClick: ((CGPoint) -> [CanvasMenuItem])?
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
         view.onScroll = onScroll
         view.onPan = onPan
+        view.onRightClick = onRightClick
         return view
     }
 
     func updateNSView(_ view: MonitorView, context: Context) {
         view.onScroll = onScroll
         view.onPan = onPan
+        view.onRightClick = onRightClick
     }
 
     final class MonitorView: NSView {
         var onScroll: ((NSEvent, CGPoint) -> Void)?
         var onPan: ((CGSize) -> Void)?
+        var onRightClick: ((CGPoint) -> [CanvasMenuItem])?
         private var monitors: [Any] = []
         private var panning = false
+        private var panDistance: CGFloat = 0
+        private var rightDownAt: CGPoint?
 
         override var isFlipped: Bool { true }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }  // never intercept mouse clicks
@@ -513,23 +546,52 @@ struct CanvasInputMonitor: NSViewRepresentable {
                 guard let self else { return event }
                 switch event.type {
                 case .otherMouseDown, .rightMouseDown:
-                    guard self.contains(event) != nil else { return event }
+                    guard let point = self.contains(event) else { return event }
                     self.panning = true
+                    self.panDistance = 0
+                    self.rightDownAt = event.type == .rightMouseDown ? point : nil
                     NSCursor.closedHand.push()
                     return event.type == .otherMouseDown ? nil : event
                 case .otherMouseDragged, .rightMouseDragged:
                     guard self.panning else { return event }
+                    self.panDistance += abs(event.deltaX) + abs(event.deltaY)
                     self.onPan?(CGSize(width: event.deltaX, height: event.deltaY))
                     return nil
                 case .otherMouseUp, .rightMouseUp:
                     guard self.panning else { return event }
                     self.panning = false
                     NSCursor.pop()
+                    // A right click that did not pan opens the context menu of what is under the pointer.
+                    if event.type == .rightMouseUp, let at = self.rightDownAt, self.panDistance < 4,
+                       let items = self.onRightClick?(at), !items.isEmpty {
+                        self.rightDownAt = nil
+                        self.popUp(items, at: at)
+                        return nil
+                    }
+                    self.rightDownAt = nil
                     return event.type == .otherMouseUp ? nil : event
                 default:
                     return event
                 }
             }) { monitors.append(m) }
+        }
+
+        private func popUp(_ items: [CanvasMenuItem], at point: CGPoint) {
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+            for item in items {
+                if item.title.isEmpty {
+                    menu.addItem(.separator())
+                    continue
+                }
+                let entry = NSMenuItem(title: item.title, action: #selector(CanvasMenuTarget.run(_:)), keyEquivalent: item.key)
+                entry.keyEquivalentModifierMask = []
+                entry.target = CanvasMenuTarget.shared
+                entry.representedObject = CanvasMenuTarget.Box(item.action)
+                entry.isEnabled = item.enabled
+                menu.addItem(entry)
+            }
+            menu.popUp(positioning: nil, at: point, in: self)
         }
 
         private func removeMonitors() {
@@ -550,8 +612,9 @@ struct CanvasInputMonitor: NSViewRepresentable {
 extension View {
     /// Scroll / pinch-free mouse navigation: scroll events (location in the view's top-left coordinates) and
     /// middle- or right-button drags (screen-point deltas).
-    func canvasMouseInput(onScroll: @escaping (NSEvent, CGPoint) -> Void, onPan: @escaping (CGSize) -> Void) -> some View {
-        background(CanvasInputMonitor(onScroll: onScroll, onPan: onPan))
+    func canvasMouseInput(onScroll: @escaping (NSEvent, CGPoint) -> Void, onPan: @escaping (CGSize) -> Void,
+                          onRightClick: ((CGPoint) -> [CanvasMenuItem])? = nil) -> some View {
+        background(CanvasInputMonitor(onScroll: onScroll, onPan: onPan, onRightClick: onRightClick))
     }
 }
 

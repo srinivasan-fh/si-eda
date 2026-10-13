@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <tuple>
 #include <set>
 
 #include "sieda/CustomParts.hpp"
@@ -261,6 +262,15 @@ bool Schematic::rotateComponent(int id, int deltaDeg) {
     return true;
 }
 
+bool Schematic::mirrorComponent(int id, bool vertical) {
+    Component* c = find(masterOf(id));
+    if (!c) return false;
+    c->mirror = !c->mirror;
+    if (vertical) c->rotation = (c->rotation + 180) % 360;
+    edited();
+    return true;
+}
+
 bool Schematic::setValue(int id, const std::string& value) {
     if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's value is its package's
     Component* c = find(masterOf(id));
@@ -466,7 +476,7 @@ Vec2 Schematic::pinPosition(PinRef pin) const {
     if (pin.pin < 0 || pin.pin >= static_cast<int>(pins.size())) return c->position;
     // Schematic y axis points down; rotation is clockwise degrees as seen on screen, which is exactly
     // rotate90() applied in y-down coordinates.
-    return c->position + rotate90(pins[static_cast<size_t>(pin.pin)].offset, c->rotation);
+    return c->position + c->orient(pins[static_cast<size_t>(pin.pin)].offset);
 }
 
 // ---------------------------------------------------------------- connectivity
@@ -825,6 +835,62 @@ std::vector<RuleViolation> Schematic::runERC() const {
         add(Severity::Error, "ERC_NO_GROUND", "Circuit has sources but no ground reference. Add a Ground symbol.", {},
             components_.front().position);
 
+    {
+        // Pins that touch a wire's route or another pin without being connected (they look joined, but are not).
+        // Pins are bucketed by sheet and grid line, so each wire segment looks only at the pins on its line.
+        std::map<std::tuple<int, long, int>, std::vector<std::pair<PinRef, Vec2>>> line;  // (sheet, coord, axis)
+        std::map<std::pair<int, std::pair<long, long>>, std::vector<PinRef>> spot;
+        for (const auto& c : components_) {
+            if (c.packageOnly) continue;
+            for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) {
+                const Vec2 p = pinPosition({c.id, i});
+                const long x = std::lround(p.x), y = std::lround(p.y);
+                line[{c.sheet, x, 0}].push_back({{c.id, i}, p});
+                line[{c.sheet, y, 1}].push_back({{c.id, i}, p});
+                spot[{c.sheet, {x, y}}].push_back({c.id, i});
+            }
+        }
+        std::set<PinRef> reported;
+        auto report = [&](PinRef pin, const std::string& what) {
+            if (!reported.insert(pin).second) return;
+            const Component* c = find(pin.component);
+            const std::string name = c->kind == ComponentKind::Junction ? "A wire corner" : displayRef(*c) + "." + c->def().pins[static_cast<size_t>(pin.pin)].name;
+            add(Severity::Warning, "ERC_TOUCHING_UNCONNECTED", name + " touches " + what + " but is not connected to it: wire it, or move it clear.",
+                {pin.component}, pinPosition(pin));
+        };
+        for (const auto& [key, list] : spot) {
+            if (list.size() < 2) continue;
+            for (size_t i = 0; i < list.size(); ++i)
+                for (size_t k = i + 1; k < list.size(); ++k) {
+                    if (list[i].component == list[k].component) continue;  // a part's own stacked pins
+                    const int n1 = netOf(list[i]), n2 = netOf(list[k]);
+                    if (n1 >= 0 && n1 == n2) continue;
+                    const Component* other = find(list[k].component);
+                    report(list[i], other->kind == ComponentKind::Junction ? "a wire corner" : displayRef(*other) + "." + other->def().pins[static_cast<size_t>(list[k].pin)].name);
+                }
+        }
+        for (const auto& w : wires_) {
+            const Component* end = find(w.a.component);
+            if (!end) continue;
+            const Vec2 a = pinPosition(w.a), b = pinPosition(w.b);
+            const int net = netOf(w.a);
+            std::vector<std::pair<Vec2, Vec2>> segs;
+            if (a.x == b.x || a.y == b.y) segs = {{a, b}};
+            else segs = {{a, {b.x, a.y}}, {{b.x, a.y}, b}};
+            for (const auto& [p, q] : segs) {
+                const bool vertical = p.x == q.x;
+                auto it = line.find({end->sheet, std::lround(vertical ? p.x : p.y), vertical ? 0 : 1});
+                if (it == line.end()) continue;
+                const double lo = vertical ? std::min(p.y, q.y) : std::min(p.x, q.x), hi = vertical ? std::max(p.y, q.y) : std::max(p.x, q.x);
+                for (const auto& [pin, at] : it->second) {
+                    const double t = vertical ? at.y : at.x;
+                    if (t <= lo + 0.5 || t >= hi - 0.5) continue;  // the ends are pins of the wire itself or a stacked spot
+                    if (pin == w.a || pin == w.b || (net >= 0 && netOf(pin) == net)) continue;
+                    report(pin, "a wire");
+                }
+            }
+        }
+    }
     for (const auto& c : components_) {
         if (c.kind == ComponentKind::Junction) {
             if (wireCount(c.id) < 2)
