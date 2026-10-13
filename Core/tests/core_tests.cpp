@@ -21072,6 +21072,27 @@ TEST(mcp_headers_crystal_and_clear_reports) {
     CHECK(reported);
 }
 
+TEST(mcp_package_sizes_grown_board_and_pad_refs) {
+    // A bare size picks the part's package ("0603" = R_0603); Update PCB says when Auto Place grew the board;
+    // snapshot pads carry their part's designator.
+    const auto root = mcpRoot("pkgsize");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json r1 = mcpData(mcpTool(s, "schematic_add_component", Json::parse(R"({"kind": "resistor", "package": "0603"})")));
+    CHECK(r1.get("footprint").asString("") == "R_0603");
+    CHECK(mcpFailed(mcpTool(s, "schematic_set_package", Json::parse(R"({"ref": "R1", "package": "0201"})"))));
+    for (int i = 0; i < 5; ++i) CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", Json::parse(R"({"kind": "resistor"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"width": 10, "height": 10})"))));
+    const Json eco = mcpData(mcpTool(s, "pcb_update_from_schematic", Json::object()));
+    CHECK(eco.get("boardGrown").asString("").find("from 10 x 10 mm") != std::string::npos);
+    const Json pads = mcpData(mcpTool(s, "project_snapshot", Json::parse(R"({"sections": ["pads"]})"))).get("pads");
+    CHECK(pads.size() == 12);
+    for (const auto& pad : pads.items()) CHECK(pad.get("ref").asString("").rfind("R", 0) == 0);
+}
+
 TEST(mcp_pairs_stackup_and_stitching_kept) {
     // A pair the coupled router cannot take is named in pcb_autoroute's result; a whole-board
     // route lays the GND stitching again; an impedance target needing impractical widths is flagged.

@@ -470,6 +470,17 @@ Json finishRouting(SiedaProject* p, Json* stats) {
 }
 
 /// "Packages: R_0402, R_0603 …" for an error that names a package the part does not come in.
+/// Sets a part's package variant; a bare size ("0603") picks the one variant ending in it (R_0603 for a resistor).
+bool setPackage(SiedaProject* p, int id, const std::string& name) {
+    if (sieda_set_component_package(p, id, name.c_str()) == 1) return true;
+    std::string only;
+    for (const auto& v : Library::packageVariants(p->project.schematic.find(id)->kind))
+        if (!name.empty() && v.size() > name.size() && v[v.size() - name.size() - 1] == '_' &&
+            compact(v.substr(v.size() - name.size())) == compact(name))
+            only = only.empty() ? v : "~";
+    return !only.empty() && only != "~" && sieda_set_component_package(p, id, only.c_str()) == 1;
+}
+
 std::string packageChoices(ComponentKind kind) {
     std::string list;
     for (const auto& v : Library::packageVariants(kind)) list += (list.empty() ? "" : ", ") + v;
@@ -764,7 +775,9 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
         const Vec2 pins = sum * (1.0 / count);
         const bool close = (y.pcb.position - pins).length() <= 4;
         settled.insert(y.id);
-        const bool near = close || nearest(y.id, pins, 2.5, 9) || stepAside(pins, 10, [&] { return nearest(y.id, pins, 2.5, 9); });
+        // Close by the pins, if need be with the small parts there stepping aside; else the nearest free spot.
+        const bool near = close || nearest(y.id, pins, 2.5, 6) || stepAside(pins, 10, [&] { return nearest(y.id, pins, 2.5, 6); }) ||
+                          nearest(y.id, pins, 6.5, 9);
         if (near && !close)
             moved.push(y.ref + " → " + sch.find(icId)->ref + " " + std::to_string(count) + " pins");
         for (const auto& c : sch.components()) {
@@ -782,13 +795,15 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
                 }
         }
     }
-    struct Pair { double d; const Pad* pad; int cap; };
+    struct Pair { double d; const Pad* pad; int cap; bool spare; };
     std::vector<Pair> pairs;
     for (const Pad* pad : supply)
         for (const auto& c : caps)
             if (c.net == pad->net && (!c.bulk || regulator(pad->componentId)))
-                pairs.push_back({(sch.find(c.id)->pcb.position - pad->position).length(), pad, c.id});
-    std::stable_sort(pairs.begin(), pairs.end(), [](const Pair& l, const Pair& r) { return l.d < r.d; });
+                pairs.push_back({(sch.find(c.id)->pcb.position - pad->position).length(), pad, c.id,
+                                 !c.bulk && regulator(pad->componentId)});
+    // A regulator pin takes a small capacitor only after the loads' pins have theirs (it has its bulk ones).
+    std::stable_sort(pairs.begin(), pairs.end(), [](const Pair& l, const Pair& r) { return l.spare != r.spare ? r.spare : l.d < r.d; });
     std::set<const Pad*> served;
     std::set<int> used;
     for (const Pair& pr : pairs) {
@@ -1118,7 +1133,7 @@ void projectTools(Table& t) {
     t.add("project", "project_snapshot", "Project snapshot", Kind::Read, true,
           "Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, "
           "board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, "
-          "wires, nets, board.",
+          "wires, nets, board. (One part's pads by pin: pcb_summary pads.)",
           Schema().array("sections", "Top-level sections to return", "string"),
           [](McpServer& s, const Json& a) {
               Json snap = takeJson(sieda_project_snapshot(P(s)));
@@ -1131,6 +1146,14 @@ void projectTools(Table& t) {
                       available.push(k);
                       if (want.count(k)) j[k] = v;
                   }
+              if (j.has("pads")) {  // each pad names its part by designator too (component is the internal id)
+                  Json pads = Json::array();
+                  for (Json pad : j.get("pads").items()) {
+                      if (const Component* c = proj(s).schematic.find(pad.get("component").asInt(-1))) pad["ref"] = c->ref;
+                      pads.push(pad);
+                  }
+                  j["pads"] = pads;
+              }
               j["availableSections"] = available;
               return out(j);
           });
@@ -1174,7 +1197,7 @@ void schematicTools(Table& t) {
                                                  argInt(a, "rotation", 0), ref.empty() ? nullptr : ref.c_str());
               check(id >= 0, "Could not add the component");
               if (a.has("package"))
-                  check(sieda_set_component_package(p, id, argStr(a, "package").c_str()) == 1,
+                  check(setPackage(p, id, argStr(a, "package")),
                         "Unknown package \"" + argStr(a, "package") + "\" for this part (the part was added). " +
                             packageChoices(static_cast<ComponentKind>(kind)));
               return out(componentJson(*p, id));
@@ -1226,7 +1249,7 @@ void schematicTools(Table& t) {
           Schema().str("ref", "Designator", true).str("package", "Package variant (\"\" = default)"),
           [](McpServer& s, const Json& a) {
               const int id = componentId(*P(s), a.get("ref"));
-              check(sieda_set_component_package(P(s), id, argStr(a, "package").c_str()) == 1,
+              check(setPackage(P(s), id, argStr(a, "package")),
                     "This part has no package \"" + argStr(a, "package") + "\". " +
                         packageChoices(proj(s).schematic.find(id)->kind));
               return out(componentJson(*P(s), id, false));
@@ -2690,6 +2713,18 @@ Json pcbSummary(McpServer& s) {
     return j;
 }
 
+/// Auto Place grows the board when the parts do not fit: say so (boardGrown), so the size set is not lost unseen.
+void noteBoardGrown(McpServer& s, double w0, double h0, Json& j) {
+    const auto& st = proj(s).pcb.settings;
+    if (st.width == w0 && st.height == h0) return;
+    char note[400];
+    std::snprintf(note, sizeof note,
+                  "The parts did not fit: the board grew from %g x %g mm to %g x %g mm. Keep-outs, pours and holes kept "
+                  "their coordinates. pcb_set_board sets the size back (pcb_drc then flags parts left outside).",
+                  w0, h0, st.width, st.height);
+    j["boardGrown"] = std::string(note);
+}
+
 void pcbTools(Table& t) {
     t.add("pcb", "pcb_summary", "Board summary", Kind::Read, true,
           "The board: size, outline, layers, rules, every footprint with position / rotation / side, routing "
@@ -2846,6 +2881,7 @@ void pcbTools(Table& t) {
           "improve placement with pcb_place_footprint or pcb_autoplace.",
           Schema().array("keys", "Change keys to apply (default all)", "string"), [](McpServer& s, const Json& a) {
               const std::string keys = a.get("keys").isArray() ? a.get("keys").dump() : std::string();
+              const double w0 = proj(s).pcb.settings.width, h0 = proj(s).pcb.settings.height;
               Json r = takeJson(sieda_apply_pcb_eco(P(s), keys.empty() ? nullptr : keys.c_str()));
               if (r.isObject() && r.get("report").isArray()) {  // a net of one pin (a no-connect pin) connects nothing
                   Json kept = Json::array();
@@ -2860,7 +2896,7 @@ void pcbTools(Table& t) {
                   if (single) kept.push(std::to_string(single) + " single-pin nets (unconnected or no-connect pins) not listed");
                   r["report"] = kept;
               }
-              if (r.isObject()) r["board"] = projectSummary(s).get("board");
+              if (r.isObject()) r["board"] = projectSummary(s).get("board"), noteBoardGrown(s, w0, h0, r);
               return out(r);
           });
     t.add("pcb", "pcb_autoplace", "Auto place", Kind::Edit, false,
@@ -2917,14 +2953,7 @@ void pcbTools(Table& t) {
               if (moved.size()) j["decouplingPlaced"] = moved;
               if (rows.size()) j["groupedRows"] = rows;
               if (edges.size()) j["edgesPlaced"] = edges;
-              if (const auto& st = proj(s).pcb.settings; st.width != w0 || st.height != h0) {
-                  char note[400];
-                  std::snprintf(note, sizeof note,
-                                "The parts did not fit: the board grew from %g x %g mm to %g x %g mm. Keep-outs, pours "
-                                "and holes kept their coordinates. pcb_set_board sets the size back (pcb_drc then flags "
-                                "parts left outside).", w0, h0, st.width, st.height);
-                  j["boardGrown"] = std::string(note);
-              }
+              noteBoardGrown(s, w0, h0, j);
               return out(j);
           });
     t.add("pcb", "pcb_place_footprint", "Place footprint", Kind::Edit, true,

@@ -354,8 +354,11 @@ What the agent gets back, so it can wire correctly without guessing:
   pin it serves and draws a wire where the run is straight and clear, named by a tag halfway along it; the rest
   keeps labels. Parts keep room for their labels.
 - `pcb_autoplace` `decoupling` gives each IC supply pin its own small capacitor (≤ 1 µF; a regulator's input and
-  output also take bulk ones), puts a crystal (`Y…`) by the pins it drives with its load capacitors beside it, and
-  reports `boardGrown` when the parts did not fit. A batch `pcb_place_footprint` lifts its own parts first; moving
+  output also take bulk ones, and a small one only after the loads' pins have theirs), puts a crystal (`Y…`) within
+  6 mm of the pins it drives (small parts there step aside) with its load capacitors beside it, and reports
+  `boardGrown` when the parts did not fit (`pcb_update_from_schematic` too). A package may be named by its size
+  alone ("0603" = `R_0603` on a resistor); `project_snapshot` pads carry their part's `ref`. A batch
+  `pcb_place_footprint` lifts its own parts first; moving
   a part removes the tracks left on its old pads and the stubs they leave (`copperRemoved`).
 - A via that joins pours only (stitching the GND pours of two layers) is kept through edits and save / open.
 - `pcb_autoplace` with `all` first puts an antenna part at the top edge, antenna end out, with a keep-out (tracks,
