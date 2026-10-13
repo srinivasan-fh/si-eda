@@ -1208,7 +1208,7 @@ final class DesignStore: ObservableObject {
             count = $0.replace(trimmed, with: replacement, matchCase: matchCase, wholeWord: wholeWord)
             return count > 0
         }
-        if done { statusMessage = "Replaced \(count) value(s) and label(s)" }
+        if done { statusMessage = "Replaced \(count) value(s), label(s) and designator(s)" }
         return count
     }
 

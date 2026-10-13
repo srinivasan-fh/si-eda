@@ -245,8 +245,15 @@ struct SchematicCanvas: View {
         if let id = component(at: world), let c = store.sheetSnapshot.component(id) {
             if !store.selection.contains(id) { store.select(component: id) }
             let ids = store.selection
+            let editSymbol: [CanvasMenuItem] = c.customPart.map { part in
+                [CanvasMenuItem(title: String(localized: "Edit Symbol…")) {  // its pins and drawing, in the library
+                    store.libraryFocusPartId = part
+                    store.workspace = .library
+                }]
+            } ?? []
             return [
                 CanvasMenuItem(title: String(localized: "Edit Properties…")) { store.quickEdit = id },
+            ] + editSymbol + [
                 .separator,
                 CanvasMenuItem(title: String(localized: "Rotate"), key: "r") { store.rotate(ids) },
                 CanvasMenuItem(title: String(localized: "Mirror Horizontally"), key: "x") { store.mirror(ids, vertical: false) },

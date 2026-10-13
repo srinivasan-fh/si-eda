@@ -583,7 +583,7 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func replace(_ text: String, with replacement: String, matchCase: Bool = false, wholeWord: Bool = false) -> Int {
         let request: [String: Any] = ["text": text, "replacement": replacement, "matchCase": matchCase, "wholeWord": wholeWord,
-                                      "fields": ["value", "label"]]
+                                      "fields": ["value", "label", "ref"]]
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return 0 }
         let json = String(decoding: data, as: UTF8.self)
         return Int(withHandle { sieda_schematic_replace($0, json) })

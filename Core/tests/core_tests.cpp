@@ -241,49 +241,6 @@ TEST(schematic_connectivity) {
     CHECK(s.wires().size() == 1);
 }
 
-TEST(schematic_mirror_touching_and_wire_cleanup) {
-    Schematic s;
-    // Mirror: pin 1 (−30, 0) goes to +30; a vertical mirror also turns the part 180°. Saved and copied with the part.
-    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
-    CHECK(s.mirrorComponent(r1));
-    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
-    CHECK(s.mirrorComponent(r1, true));
-    CHECK(!s.find(r1)->mirror && s.find(r1)->rotation == 180);
-    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
-    s.mirrorComponent(r1);
-    // Touching: R2's pin 1 dropped on R1's pin 2 spot, and a wire's route running through R3's pin 1.
-    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-60, 0});  // its pin 2 on R1's pin 1 spot (−30, 0)
-    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
-    int r4 = s.addComponent(ComponentKind::Resistor, "1k", {100, 200});
-    int r5 = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
-    s.connect({r4, 1}, {r5, 0});  // (130, 200) → (270, 200): straight, through nothing yet
-    s.rotateComponent(r3, 90);
-    s.moveComponent(r3, {140, 230});  // R3 pin 1 at (140, 200): on that wire; pin 2 below it
-    std::vector<PinRef> pins;
-    std::vector<int> wires;
-    s.touching({r3, 0}, &pins, &wires);
-    CHECK(wires.size() == 1 && pins.empty());
-    bool flagged = false;
-    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
-    CHECK(flagged);
-    CHECK(s.connectTouching(r3) == 1);  // a T-junction on the wire
-    CHECK(s.netOf({r3, 0}) == s.netOf({r4, 1}));
-    flagged = false;
-    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
-    CHECK(!flagged);
-    // R2's pin 2 lands on R1's pin (both at (−30, 0) once R1 is plain again).
-    CHECK_NEAR(s.pinPosition({r2, 1}).x, s.pinPosition({r1, 0}).x, 1e-9);
-    CHECK(s.connectTouching(r2) == 1 && s.netOf({r2, 1}) == s.netOf({r1, 0}));
-    // Cleanup: a bend on a straight run goes; the connection stays.
-    int a = s.addComponent(ComponentKind::Resistor, "1k", {0, 400});
-    int b = s.addComponent(ComponentKind::Resistor, "1k", {200, 400});
-    s.connect({a, 1}, {b, 0});
-    const int bend = s.splitWire(s.wires().back().id, {100, 400});
-    CHECK(bend > 0 && s.wireCount(bend) == 2);
-    CHECK(s.cleanupWires(1) >= 1);
-    CHECK(!s.find(bend) && s.netOf({a, 1}) == s.netOf({b, 0}));
-}
-
 TEST(erc_rules) {
     Schematic s;
     int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
@@ -9197,6 +9154,64 @@ TEST(variants_drive_simulation_values_and_unfitted_parts) {
 }
 
 #include "sieda/SchematicSearch.hpp"
+
+TEST(schematic_mirror_touching_and_wire_cleanup) {
+    Schematic s;
+    // Mirror: pin 1 (−30, 0) goes to +30; a vertical mirror also turns the part 180°. Saved and copied with the part.
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.mirrorComponent(r1));
+    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
+    CHECK(s.mirrorComponent(r1, true));
+    CHECK(!s.find(r1)->mirror && s.find(r1)->rotation == 180);
+    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
+    s.mirrorComponent(r1);
+    // Touching: R2's pin 1 dropped on R1's pin 2 spot, and a wire's route running through R3's pin 1.
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-60, 0});  // its pin 2 on R1's pin 1 spot (−30, 0)
+    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
+    int r4 = s.addComponent(ComponentKind::Resistor, "1k", {100, 200});
+    int r5 = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    s.connect({r4, 1}, {r5, 0});  // (130, 200) → (270, 200): straight, through nothing yet
+    s.rotateComponent(r3, 90);
+    s.moveComponent(r3, {140, 230});  // R3 pin 1 at (140, 200): on that wire; pin 2 below it
+    std::vector<PinRef> pins;
+    std::vector<int> wires;
+    s.touching({r3, 0}, &pins, &wires);
+    CHECK(wires.size() == 1 && pins.empty());
+    bool flagged = false;
+    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
+    CHECK(flagged);
+    CHECK(s.connectTouching(r3) == 1);  // a T-junction on the wire
+    CHECK(s.netOf({r3, 0}) == s.netOf({r4, 1}));
+    flagged = false;
+    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
+    CHECK(!flagged);
+    // R2's pin 2 lands on R1's pin (both at (−30, 0) once R1 is plain again).
+    CHECK_NEAR(s.pinPosition({r2, 1}).x, s.pinPosition({r1, 0}).x, 1e-9);
+    CHECK(s.connectTouching(r2) == 1 && s.netOf({r2, 1}) == s.netOf({r1, 0}));
+    // Cleanup: a bend on a straight run goes; the connection stays.
+    int a = s.addComponent(ComponentKind::Resistor, "1k", {0, 400});
+    int b = s.addComponent(ComponentKind::Resistor, "1k", {200, 400});
+    s.connect({a, 1}, {b, 0});
+    const int bend = s.splitWire(s.wires().back().id, {100, 400});
+    CHECK(bend > 0 && s.wireCount(bend) == 2);
+    CHECK(s.cleanupWires(1) >= 1);
+    CHECK(!s.find(bend) && s.netOf({a, 1}) == s.netOf({b, 0}));
+    // Mirror, lock and the power-symbol look are saved with the part; replace renames designators too.
+    Project p;
+    p.schematic = s;
+    p.schematic.find(r3)->mirror = true;
+    p.schematic.find(r3)->locked = true;
+    const int vcc = p.schematic.addComponent(ComponentKind::NetLabel, "VCC", {0, -100});
+    p.schematic.find(vcc)->power = true;
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.schematic.find(r3)->mirror && back.schematic.find(r3)->locked && back.schematic.find(vcc)->power);
+    SearchOptions o;
+    o.wholeWord = true;
+    o.values = o.labels = false;
+    CHECK(replaceInSchematic(back.schematic, "R3", "R30", o) == 1 && back.schematic.find(r3)->ref == "R30");
+    CHECK(replaceInSchematic(back.schematic, "R30", "R1", o) == 0);  // R1 is taken
+}
+
 
 // ======================================================================= find / replace, net navigator, title block
 
