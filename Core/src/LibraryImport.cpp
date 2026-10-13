@@ -2171,6 +2171,8 @@ ParsedNetlist parseNetlist(const std::string& text) {
     };
     size_t start = text.find_first_not_of(" \t\r\n\xEF\xBB\xBF");
     if (start == std::string::npos) throw ImportError("the netlist is empty");
+    if (text.compare(start, 10, "(kicad_sch") == 0) return parseKicadSchematic(text);
+    if (text.compare(start, 7, "Version") == 0 || text.compare(start, 5, "SHEET") == 0) return parseLtspiceSchematic(text);
     if (text.compare(start, 7, "(export") == 0) {  // KiCad
         out.format = "kicad";
         const SNode root = SexprParser(text).parse();
@@ -2294,6 +2296,334 @@ ParsedNetlist parseNetlist(const std::string& text) {
                 out.parts.push_back({ref, "", "", "", {}});
             }
     if (out.parts.empty()) throw ImportError("the netlist names no parts");
+    return out;
+}
+
+
+// ------------------------------------------------------------------ KiCad schematics (.kicad_sch)
+
+ParsedNetlist parseKicadSchematic(const std::string& text) {
+    const SNode root = SexprParser(text).parse();
+    if (root.head() != "kicad_sch") throw ImportError("not a KiCad schematic");
+    ParsedNetlist out;
+    out.format = "kicad_sch";
+    auto num = [](const std::string& v) { return std::atof(v.c_str()); };
+    struct LibPin { int unit, style; std::string number, name; double x, y; };
+    struct LibSym { std::vector<LibPin> pins; bool power = false; std::string extends; };
+    std::map<std::string, LibSym> lib;
+    if (const SNode* syms = root.child("lib_symbols"))
+        for (const auto& sym : syms->kids) {
+            if (sym.head() != "symbol") continue;
+            LibSym& ls = lib[sym.atom(1)];
+            ls.power = sym.child("power") != nullptr;
+            if (const SNode* ext = sym.child("extends")) ls.extends = ext->atom(1);
+            const std::string base = sym.atom(1).substr(sym.atom(1).find(':') == std::string::npos ? 0 : sym.atom(1).find(':') + 1);
+            for (const auto& unit : sym.kids) {
+                if (unit.head() != "symbol") continue;
+                // "<name>_<unit>_<body style>": unit 0 and style 0 belong to every unit / style.
+                const std::string un = unit.atom(1);
+                const size_t b = un.rfind('_'), a = b == std::string::npos ? std::string::npos : un.rfind('_', b - 1);
+                const int u = a == std::string::npos ? 0 : std::atoi(un.substr(a + 1, b - a - 1).c_str());
+                const int st = b == std::string::npos ? 0 : std::atoi(un.substr(b + 1).c_str());
+                for (const auto& pin : unit.kids) {
+                    if (pin.head() != "pin") continue;
+                    const SNode* at = pin.child("at");
+                    const SNode *nm = pin.child("name"), *nb = pin.child("number");
+                    if (!at || !nb) continue;
+                    ls.pins.push_back({u, st, nb->atom(1), nm ? nm->atom(1) : "", num(at->atom(1)), num(at->atom(2))});
+                }
+            }
+            (void)base;
+        }
+    // Every connection point on the sheet, keyed in 1 µm steps.
+    auto key = [](double x, double y) { return std::make_pair(std::llround(x * 1000), std::llround(y * 1000)); };
+    using Key = std::pair<long long, long long>;
+    std::vector<int> parent;
+    auto node = [&]() { parent.push_back(static_cast<int>(parent.size())); return static_cast<int>(parent.size()) - 1; };
+    std::function<int(int)> find = [&](int i) { return parent[static_cast<size_t>(i)] == i ? i : parent[static_cast<size_t>(i)] = find(parent[static_cast<size_t>(i)]); };
+    auto join = [&](int a, int b) { parent[static_cast<size_t>(find(a))] = find(b); };
+    std::map<Key, int> at;  // a point → the node everything touching it joins
+    auto point = [&](double x, double y) {
+        const Key k = key(x, y);
+        auto it = at.find(k);
+        if (it != at.end()) return it->second;
+        const int n = node();
+        at[k] = n;
+        return n;
+    };
+    std::vector<int> endpoints;  // junctions, no-connect flags and bus entry ends: a wire may end there
+    struct Wire { double x0, y0, x1, y1; int node; };
+    std::vector<Wire> wires;
+    struct PinAt { std::string ref, number; int node; };
+    std::vector<PinAt> pins;
+    std::map<std::string, std::vector<int>> named;  // net name → label / power nodes
+    std::map<std::string, NetlistPart> parts;
+    std::vector<std::string> order;
+    for (const auto& item : root.kids) {
+        const std::string h = item.head();
+        if (h == "wire") {
+            const SNode* pts = item.child("pts");
+            std::vector<std::pair<double, double>> xy;
+            if (pts)
+                for (const auto& k : pts->kids)
+                    if (k.head() == "xy") xy.push_back({num(k.atom(1)), num(k.atom(2))});
+            for (size_t i = 0; i + 1 < xy.size(); ++i) {
+                const int n = node();
+                join(n, point(xy[i].first, xy[i].second));
+                join(n, point(xy[i + 1].first, xy[i + 1].second));
+                wires.push_back({xy[i].first, xy[i].second, xy[i + 1].first, xy[i + 1].second, n});
+            }
+        } else if (h == "junction" || h == "no_connect") {
+            if (const SNode* a = item.child("at")) endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
+        } else if (h == "bus_entry") {  // bus members join by their labels' names; the entry only ends a wire
+            const SNode *a = item.child("at"), *size = item.child("size");
+            if (a && size) {
+                endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
+                endpoints.push_back(point(num(a->atom(1)) + num(size->atom(1)), num(a->atom(2)) + num(size->atom(2))));
+            }
+        } else if (h == "label" || h == "global_label" || h == "hierarchical_label") {
+            std::string name = item.atom(1);  // KiCad escapes a few characters in names: {slash} …
+            for (const auto& [code, ch] : std::initializer_list<std::pair<const char*, const char*>>{
+                     {"{slash}", "/"}, {"{backslash}", "\\"}, {"{colon}", ":"}, {"{dblquote}", "\""}, {"{lt}", "<"}, {"{gt}", ">"}, {"{space}", " "}})
+                for (size_t at = name.find(code); at != std::string::npos; at = name.find(code, at + 1)) name.replace(at, std::strlen(code), ch);
+            if (const SNode* a = item.child("at")) named[name].push_back(point(num(a->atom(1)), num(a->atom(2))));
+        } else if (h == "sheet") {
+            const SNode* file = nullptr;
+            for (const auto& k : item.kids)
+                if (k.head() == "property" && (k.atom(1) == "Sheetfile" || k.atom(1) == "Sheet file")) file = &k;
+            out.warnings.push_back("sub-sheet " + (file ? file->atom(2) : std::string("?")) + " not imported (open it on its own)");
+        } else if (h == "symbol") {
+            const SNode *id = item.child("lib_id"), *a = item.child("at");
+            if (!id || !a) continue;
+            std::string ref, value, footprint;
+            for (const auto& k : item.kids)
+                if (k.head() == "property") {
+                    if (k.atom(1) == "Reference") ref = k.atom(2);
+                    else if (k.atom(1) == "Value") value = k.atom(2);
+                    else if (k.atom(1) == "Footprint") footprint = k.atom(2);
+                }
+            const SNode* unitNode = item.child("unit");
+            const SNode* styleNode = item.child("body_style") ? item.child("body_style") : item.child("convert");
+            const int unit = unitNode ? std::atoi(unitNode->atom(1).c_str()) : 1, style = styleNode ? std::atoi(styleNode->atom(1).c_str()) : 1;
+            const SNode* mirror = item.child("mirror");
+            const std::string mir = mirror ? mirror->atom(1) : "";
+            const double X = num(a->atom(1)), Y = num(a->atom(2));
+            const int rot = ((static_cast<int>(std::lround(num(a->atom(3)))) % 360) + 360) % 360;
+            const LibSym* ls = lib.count(id->atom(1)) ? &lib[id->atom(1)] : nullptr;
+            if (ls && ls->pins.empty() && !ls->extends.empty())
+                for (const auto& [name, other] : lib)
+                    if (name.size() >= ls->extends.size() && name.compare(name.size() - ls->extends.size(), std::string::npos, ls->extends) == 0)
+                        ls = &other;
+            if (!ls) {
+                out.warnings.push_back(ref + ": symbol " + id->atom(1) + " missing from the file's library");
+                continue;
+            }
+            const bool power = ls->power || (!ref.empty() && ref[0] == '#');
+            for (const auto& pin : ls->pins) {
+                if ((pin.unit != 0 && pin.unit != unit) || (pin.style != 0 && pin.style != style)) continue;
+                // Symbol space has Y up; the sheet Y down. Rotate by the symbol's angle, then mirror.
+                // (Checked against KiCad's demo sheets: every wire end and pin meets something.)
+                const double x = pin.x, y = -pin.y, r = rot * M_PI / 180.0, c = std::round(std::cos(r)), sn = std::round(std::sin(r));
+                double rx = x * c + y * sn, ry = -x * sn + y * c;  // counter-clockwise on screen
+                if (mir == "x") ry = -ry;
+                if (mir == "y") rx = -rx;
+                const int n = point(X + rx, Y + ry);
+                if (power) {  // a power symbol names its net; a PWR_FLAG only marks a driven net for the ERC
+                    if (!value.empty() && value != "PWR_FLAG") named[value].push_back(n);
+                } else {
+                    pins.push_back({ref, pin.number, n});
+                }
+            }
+            if (power || ref.empty()) continue;
+            if (!parts.count(ref)) {
+                order.push_back(ref);
+                NetlistPart np{ref, value, footprint, id->atom(1).substr(id->atom(1).find(':') == std::string::npos ? 0 : id->atom(1).find(':') + 1), {}};
+                for (const auto& pin : ls->pins)
+                    if (!pin.name.empty() && pin.name != "~") np.pinNames[pin.number] = pin.name;
+                parts[ref] = std::move(np);
+            }
+        }
+    }
+    // A point on a wire's span (not only its ends) joins it.
+    for (const auto& [k, n] : at) {
+        const double x = k.first / 1000.0, y = k.second / 1000.0;
+        for (const auto& w : wires) {
+            const double dx = w.x1 - w.x0, dy = w.y1 - w.y0, len2 = dx * dx + dy * dy;
+            if (len2 < 1e-12) continue;
+            const double t = ((x - w.x0) * dx + (y - w.y0) * dy) / len2;
+            if (t <= 0 || t >= 1) continue;
+            const double px = w.x0 + t * dx - x, py = w.y0 + t * dy - y;
+            if (px * px + py * py < 1e-6) join(n, w.node);
+        }
+    }
+    for (auto& [name, nodes] : named)
+        for (size_t i = 1; i < nodes.size(); ++i) join(nodes[0], nodes[i]);
+    // Wire ends that touch nothing but their own wire: a sign the symbols were placed wrong (or the sheet is unfinished).
+    std::map<int, int> touches;  // point node → how many things meet there
+    for (const auto& w : wires) {
+        ++touches[at[key(w.x0, w.y0)]];
+        ++touches[at[key(w.x1, w.y1)]];
+    }
+    for (const auto& p : pins) touches[p.node] += 2;
+    for (int n : endpoints) touches[n] += 2;
+    std::map<int, std::string> nameOf;
+    for (const auto& [name, nodes] : named)
+        for (int n : nodes) {
+            touches[n] += 2;
+            const int r = find(n);
+            if (!nameOf.count(r) || name.size() < nameOf[r].size()) nameOf[r] = name;
+        }
+    int dangling = 0;
+    for (const auto& [k, n] : at) {
+        // A wire end on another wire's span is no dangling end either.
+        bool onWire = false;
+        for (const auto& w : wires) onWire = onWire || (find(w.node) == find(n) && at[key(w.x0, w.y0)] != n && at[key(w.x1, w.y1)] != n);
+        dangling += touches.count(n) && touches[n] == 1 && !onWire;
+    }
+    if (dangling) out.warnings.push_back(std::to_string(dangling) + " wire ends connect to nothing");
+    std::map<int, int> pinsAt;
+    for (const auto& p : pins) ++pinsAt[p.node];
+    int lonely = 0;  // pins with nothing on them (no wire, label, flag or other pin)
+    for (const auto& p : pins) {
+        bool onWire = false;
+        for (const auto& w : wires) onWire = onWire || find(w.node) == find(p.node);
+        lonely += !onWire && pinsAt[p.node] == 1 && touches[p.node] == 2;
+    }
+    if (lonely) out.warnings.push_back(std::to_string(lonely) + " pins connect to nothing");
+    std::map<int, std::vector<std::pair<std::string, std::string>>> nets;
+    for (const auto& p : pins) nets[find(p.node)].push_back({p.ref, p.number});
+    for (auto& [root, members] : nets) {
+        std::sort(members.begin(), members.end());
+        members.erase(std::unique(members.begin(), members.end()), members.end());
+        std::string name = nameOf.count(root) ? nameOf[root] : std::string();
+        if (name.empty()) {  // KiCad's own way: "Net-(<ref>-<pin name or number>)"
+            const auto& [ref, number] = members.front();
+            const auto& names = parts.count(ref) ? parts[ref].pinNames : std::map<std::string, std::string>{};
+            name = "Net-(" + ref + "-" + (names.count(number) ? names.at(number) : "Pad" + number) + ")";
+        }
+        out.nets.push_back({name, members});
+    }
+    for (const auto& r : order) out.parts.push_back(parts[r]);
+    if (out.parts.empty()) throw ImportError("the schematic has no parts");
+    return out;
+}
+
+
+// ------------------------------------------------------------------ LTspice schematics (.asc)
+
+ParsedNetlist parseLtspiceSchematic(const std::string& text) {
+    ParsedNetlist out;
+    out.format = "ltspice";
+    struct SymPin { const char* name; int x, y; };
+    struct Sym { const char* kind; std::vector<SymPin> pins; };
+    // The built-in symbols' pins (LTspice's lib/sym/*.asy), in their own coordinates.
+    static const std::map<std::string, Sym> symbols = {
+        {"res", {"resistor", {{"1", 16, 16}, {"2", 16, 96}}}},          {"res2", {"resistor", {{"1", 16, 16}, {"2", 16, 96}}}},
+        {"cap", {"capacitor", {{"1", 16, 0}, {"2", 16, 64}}}},          {"polcap", {"capacitor", {{"1", 16, 0}, {"2", 16, 64}}}},
+        {"ind", {"inductor", {{"1", 16, 16}, {"2", 16, 96}}}},          {"ind2", {"inductor", {{"1", 16, 16}, {"2", 16, 96}}}},
+        {"voltage", {"voltage_source", {{"+", 0, 16}, {"-", 0, 96}}}}, {"current", {"current_source", {{"+", 0, 0}, {"-", 0, 80}}}},
+        {"diode", {"diode", {{"A", 16, 0}, {"K", 16, 64}}}},            {"schottky", {"diode", {{"A", 16, 0}, {"K", 16, 64}}}},
+        {"zener", {"diode", {{"A", 16, 0}, {"K", 16, 64}}}},            {"led", {"led", {{"A", 16, 0}, {"K", 16, 64}}}},
+    };
+    std::vector<int> parent;
+    std::function<int(int)> find = [&](int i) { return parent[static_cast<size_t>(i)] == i ? i : parent[static_cast<size_t>(i)] = find(parent[static_cast<size_t>(i)]); };
+    auto join = [&](int a, int b) { parent[static_cast<size_t>(find(a))] = find(b); };
+    std::map<std::pair<long, long>, int> at;
+    auto point = [&](long x, long y) {
+        auto it = at.find({x, y});
+        if (it != at.end()) return it->second;
+        parent.push_back(static_cast<int>(parent.size()));
+        return at[{x, y}] = static_cast<int>(parent.size()) - 1;
+    };
+    struct Wire { long x0, y0, x1, y1; };
+    std::vector<Wire> wires;
+    struct PinAt { std::string ref, name; int node; };
+    std::vector<PinAt> pins;
+    std::map<std::string, std::vector<int>> named;
+    std::istringstream in(text);
+    std::string line;
+    int lineNo = 0;
+    bool sawHeader = false;
+    struct Pending { const Sym* sym; std::string symName; long x, y; std::string orient; NetlistPart part; };
+    std::vector<Pending> placed;
+    while (std::getline(in, line)) {
+        ++lineNo;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::istringstream ls(line);
+        std::string word;
+        ls >> word;
+        if (word == "Version" || word == "SHEET") sawHeader = true;
+        if (word == "WIRE") {
+            Wire w{};
+            if (!(ls >> w.x0 >> w.y0 >> w.x1 >> w.y1)) throw ImportError("line " + std::to_string(lineNo) + ": WIRE needs four numbers");
+            join(point(w.x0, w.y0), point(w.x1, w.y1));
+            wires.push_back(w);
+        } else if (word == "FLAG") {
+            long x = 0, y = 0;
+            std::string name;
+            if (!(ls >> x >> y >> name)) throw ImportError("line " + std::to_string(lineNo) + ": FLAG needs x, y and a name");
+            named[name == "0" ? "GND" : name].push_back(point(x, y));
+        } else if (word == "SYMBOL") {
+            std::string name, orient;
+            long x = 0, y = 0;
+            if (!(ls >> name >> x >> y >> orient)) throw ImportError("line " + std::to_string(lineNo) + ": SYMBOL needs a name, x, y and orientation");
+            std::string base = name.substr(name.find_last_of("\\/") == std::string::npos ? 0 : name.find_last_of("\\/") + 1);
+            for (auto& ch : base) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            const auto it = symbols.find(base);
+            placed.push_back({it == symbols.end() ? nullptr : &it->second, name, x, y, orient, {}});
+        } else if (word == "SYMATTR" && !placed.empty()) {
+            std::string key, value;
+            ls >> key;
+            std::getline(ls, value);
+            value = value.empty() ? value : value.substr(value.find_first_not_of(' ') == std::string::npos ? 0 : value.find_first_not_of(' '));
+            if (key == "InstName") placed.back().part.ref = value;
+            else if (key == "Value") placed.back().part.value = value;
+        }
+    }
+    if (!sawHeader) throw ImportError("not an LTspice schematic (no Version / SHEET line)");
+    for (auto& p : placed) {
+        if (!p.sym) {
+            out.warnings.push_back((p.part.ref.empty() ? p.symName : p.part.ref) + ": symbol " + p.symName + " not imported");
+            continue;
+        }
+        if (p.part.ref.empty()) continue;
+        const bool mirror = !p.orient.empty() && p.orient[0] == 'M';
+        const int rot = (std::atoi(p.orient.c_str() + 1) % 360 + 360) % 360;
+        for (const auto& pin : p.sym->pins) {
+            long x = mirror ? -pin.x : pin.x, y = pin.y;  // mirrored, then turned clockwise on screen
+            for (int r = 0; r < rot / 90; ++r) {
+                const long t = x;
+                x = -y, y = t;
+            }
+            pins.push_back({p.part.ref, pin.name, point(p.x + x, p.y + y)});
+        }
+        p.part.part = std::string("kind:") + p.sym->kind;
+        out.parts.push_back(p.part);
+    }
+    for (const auto& [k, n] : at)
+        for (const auto& w : wires) {
+            const long dx = w.x1 - w.x0, dy = w.y1 - w.y0, px = k.first - w.x0, py = k.second - w.y0;
+            if (px * dy != py * dx) continue;  // not on the line
+            const long dot = px * dx + py * dy, len2 = dx * dx + dy * dy;
+            if (dot > 0 && dot < len2) join(n, point(w.x0, w.y0));
+        }
+    for (auto& [name, nodes] : named)
+        for (size_t i = 1; i < nodes.size(); ++i) join(nodes[0], nodes[i]);
+    std::map<int, std::string> nameOf;
+    for (const auto& [name, nodes] : named)
+        if (!nodes.empty()) nameOf[find(nodes[0])] = name;
+    std::map<int, std::vector<std::pair<std::string, std::string>>> nets;
+    for (const auto& p : pins) nets[find(p.node)].push_back({p.ref, p.name});
+    int lonely = 0;
+    for (const auto& [root, members] : nets) {
+        bool wired = nameOf.count(root);
+        for (const auto& w : wires) wired = wired || find(point(w.x0, w.y0)) == root;
+        lonely += !wired && members.size() == 1;
+        const auto& [ref, pin] = members.front();
+        out.nets.push_back({nameOf.count(root) ? nameOf[root] : "Net-(" + ref + "-" + pin + ")", members});
+    }
+    if (lonely) out.warnings.push_back(std::to_string(lonely) + " pins connect to nothing");
+    if (out.parts.empty()) throw ImportError("the schematic has no parts SiEDA can import");
     return out;
 }
 

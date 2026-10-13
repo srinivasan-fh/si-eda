@@ -530,8 +530,20 @@ value the canvas draws with), `SchematicCustomTheme.swift` (named colours, roles
 ## Importing a netlist
 
 **File → Import Netlist…** (MCP `schematic_import_netlist`, core `parseNetlist` in `LibraryImport.cpp`) builds the
-schematic from another tool's netlist: KiCad (`.net`, KiCad 5 – 8), Protel / Tango (`[ part ]` and `( net )` blocks,
-written by Altium, OrCAD, EasyEDA and PADS) or a CSV with Net, Designator and Pin columns. Each part becomes:
+schematic from another tool's schematic or netlist:
+
+- a **KiCad sheet** (`.kicad_sch`, KiCad 6 – 10, `parseKicadSchematic`): each symbol's pins placed by its position,
+  rotation and mirror (checked against KiCad's demo sheets: every wire end meets a pin, wire, label or flag), joined
+  by wires, junctions, labels (by name) and power symbols (by value; PWR_FLAG only marks); multi-unit parts become one
+  part; sub-sheets are listed in `warnings` (import each on its own); wire ends or pins that meet nothing are counted
+  there too;
+- an **LTspice schematic** (`.asc`, `parseLtspiceSchematic`): resistors, capacitors, inductors, voltage and current
+  sources, diodes and LEDs on the built-in symbols, any rotation or mirror, wires and flags (`0` = GND); plain values
+  are kept (`{param}` and `SINE(…)` fall back to the default); other symbols are listed in `warnings`;
+- a **netlist**: KiCad (`.net`, KiCad 5 – 8), Protel / Tango (`[ part ]` and `( net )` blocks, written by Altium,
+  OrCAD, EasyEDA and PADS) or a CSV with Net, Designator and Pin columns.
+
+Each part becomes:
 
 - a built-in resistor, capacitor, inductor, diode or LED when its designator is R / C / L / D and it has two pins (the
   package from a size in its footprint name: `R_0603_1608Metric` → 0603);

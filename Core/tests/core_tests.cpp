@@ -23010,6 +23010,63 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(!s.dragWireSegment(9999, {0, 10}));
 }
 
+TEST(schematic_import_kicad_sch_and_ltspice) {
+    // A KiCad sheet: R2 turned 90°, wires, a label on the joint, a global label and a power symbol; the pins land
+    // where KiCad draws them (counter-clockwise turns, Y down), so the nets are R1.2 + R2.1, VIN, GND.
+    const std::string kicad = R"SCH((kicad_sch (version 20231120) (generator "eeschema")
+  (lib_symbols
+    (symbol "Device:R" (property "Reference" "R")
+      (symbol "R_1_1" (pin passive line (at 0 3.81 270) (length 1.27) (name "~") (number "1"))
+                      (pin passive line (at 0 -3.81 90) (length 1.27) (name "~") (number "2"))))
+    (symbol "power:GND" (power) (symbol "GND_0_1" (pin power_in line (at 0 0 270) (length 0) (name "GND") (number "1"))))
+    (symbol "power:PWR_FLAG" (power) (symbol "PWR_FLAG_0_0" (pin power_out line (at 0 0 90) (length 0) (name "pwr") (number "1")))))
+  (symbol (lib_id "Device:R") (at 100 50 0) (unit 1) (property "Reference" "R1") (property "Value" "10k")
+    (property "Footprint" "Resistor_SMD:R_0603_1608Metric"))
+  (symbol (lib_id "Device:R") (at 110 60 90) (unit 1) (property "Reference" "R2") (property "Value" "4k7"))
+  (wire (pts (xy 100 53.81) (xy 100 60)))
+  (wire (pts (xy 100 60) (xy 106.19 60)))
+  (label "MID" (at 100 60 0))
+  (global_label "VIN" (shape input) (at 100 46.19 0))
+  (symbol (lib_id "power:GND") (at 113.81 60 0) (unit 1) (property "Reference" "#PWR01") (property "Value" "GND"))
+  (symbol (lib_id "power:PWR_FLAG") (at 100 46.19 0) (unit 1) (property "Reference" "#FLG01") (property "Value" "PWR_FLAG"))
+  (symbol (lib_id "power:PWR_FLAG") (at 113.81 60 0) (unit 1) (property "Reference" "#FLG02") (property "Value" "PWR_FLAG")))
+)SCH";
+    const ParsedNetlist k = parseNetlist(kicad);
+    CHECK(k.format == "kicad_sch" && k.parts.size() == 2 && k.parts[0].footprint == "Resistor_SMD:R_0603_1608Metric");
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> nets(k.nets.begin(), k.nets.end());
+    CHECK(nets["MID"] == (std::vector<std::pair<std::string, std::string>>{{"R1", "2"}, {"R2", "1"}}));
+    CHECK(nets["VIN"] == (std::vector<std::pair<std::string, std::string>>{{"R1", "1"}}));
+    CHECK(nets["GND"] == (std::vector<std::pair<std::string, std::string>>{{"R2", "2"}}));  // the PWR_FLAGs name nothing
+    CHECK(k.warnings.empty());
+    // LTspice: V1 and R1 upright, R2 turned 90° (clockwise), D1 mirrored; flags name OUT and ground.
+    const std::string asc = "Version 4\nSHEET 1 880 680\nWIRE 32 96 112 96\nFLAG 32 176 0\nFLAG 112 176 0\nFLAG 192 96 OUT\n"
+                            "FLAG 240 80 OUT\nFLAG 240 144 0\nSYMBOL voltage 32 80 R0\nSYMATTR InstName V1\nSYMATTR Value 5\n"
+                            "SYMBOL res 96 80 R0\nSYMATTR InstName R1\nSYMATTR Value 1k\nSYMBOL res 208 80 R90\nSYMATTR InstName R2\n"
+                            "SYMATTR Value 2k2\nSYMBOL diode 256 80 M0\nSYMATTR InstName D1\nSYMBOL Opamps\\\\opamp 400 80 R0\nSYMATTR InstName U1\n";
+    const ParsedNetlist l = parseNetlist(asc);
+    CHECK(l.format == "ltspice" && l.parts.size() == 4 && l.parts[0].part == "kind:voltage_source");
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> ln(l.nets.begin(), l.nets.end());
+    CHECK(ln["OUT"] == (std::vector<std::pair<std::string, std::string>>{{"R2", "1"}, {"D1", "A"}}));
+    CHECK(ln["GND"] == (std::vector<std::pair<std::string, std::string>>{{"V1", "-"}, {"R1", "2"}, {"D1", "K"}}));
+    CHECK(ln["Net-(V1-+)"] == (std::vector<std::pair<std::string, std::string>>{{"V1", "+"}, {"R1", "1"}, {"R2", "2"}}));
+    CHECK(l.warnings.size() == 1 && l.warnings[0].find("U1") != std::string::npos);
+    // Both through the MCP import: a clean ERC, the LTspice values kept.
+    for (const std::string& text : {kicad, asc}) {
+        mcp::McpServer m;
+        CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+        Json args = Json::object();
+        args["text"] = text;
+        const Json r = mcpData(mcpTool(m, "schematic_import_netlist", args));
+        CHECK(r.get("checks").get("erc").get("errors").asInt(-1) == 0);
+    }
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = asc;
+    CHECK(mcpData(mcpTool(m, "schematic_import_netlist", args)).get("imported").get("as").get("D1").asString("") == "diode");
+    CHECK(m.project()->project.schematic.findByRef("R2")->value == "2k2");
+}
+
 TEST(netlist_import_kicad_protel_csv) {
     // KiCad, Protel / Tango and CSV netlists read into parts and nets; the MCP import makes built-in passives,
     // catalog parts and library parts, wires unnamed two-pin nets, flags KiCad's unconnected pins and joins the nets.

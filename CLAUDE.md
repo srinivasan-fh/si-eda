@@ -83,8 +83,9 @@
   Excellon; `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
   C `sieda_gerber_parse` / `sieda_pcb_*reference_layer*`, MCP `pcb_reference_layer`, app `GerberViewerView.swift` and
   the PCB canvas overlay (`DesignStore.referenceArtwork`).
-- Netlist import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV; in the `library` fuzz
-  target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
+- Netlist / schematic import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV, and through it
+  `parseKicadSchematic` (.kicad_sch: counter-clockwise turns, mirror after the turn, PWR_FLAG names nothing) and
+  `parseLtspiceSchematic` (.asc, built-in symbols' pin offsets); in the `library` fuzz target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
   then `schematic_build`), app File → Import Netlist… through `DesignStore.runTool`.
 - Altium libraries: `Core/src/AltiumLibrary.cpp` (MS-CFB `CompoundFile`, SchLib / PcbLib records), converted in
   `LibraryImport.cpp` (`importAltium`); fixtures written by `tools/make_altium_fixtures.py` (don't edit the binaries).

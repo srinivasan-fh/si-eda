@@ -294,10 +294,10 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | PDF / SVG / PNG documentation | ✅ | |
 | P0 | DXF import of outlines, ➕ DXF export | ✅ | `Documents.cpp`; File → Import Board Outline (DXF)…, Export → DXF |
 | P0 | STEP in / out, BOM and fab files | ✅ | |
-| P1 | KiCad project import (schematic + board) | ⏳ | KiCad libraries ✅ |
+| P1 | KiCad project import (schematic + board) | 🟡 | KiCad libraries and schematic sheets (.kicad_sch) ✅; board (.kicad_pcb) ⏳ |
 | P1 | EasyEDA / Eagle projects | 🟡 | Eagle libraries ✅ |
 | P1 | Import-fidelity report, library mapping | 🟡 | library import notes ✅ |
-| P1 | ➕ LTspice / SPICE netlist import | 🟡 | SPICE models ✅; schematic import ⏳ |
+| P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
 | P1 | ➕ Gerber / ODB++ import as a reference layer | 🟡 | Gerber and drill reference layers ✅ (saved with the project); ODB++ ⏳ |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
 | P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ⏳ | |
@@ -384,7 +384,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 
 1. ~~Drawn drill map with drill symbols on the fabrication drawing (§10 P0)~~ ✅
 2. ~~Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)~~ ✅
-3. KiCad project import: schematic + board (§17 P1), then EasyEDA / Eagle projects, LTspice schematics
+3. KiCad project import: ~~schematic~~ ✅ + board (§17 P1), then EasyEDA / Eagle projects; ~~LTspice schematics~~ ✅
 4. ~~Netlist import (§17 P0)~~ ✅
 5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅
 6. ~~Schematic revision table~~ ✅ and net-tie symbol / footprint (§2 P0)

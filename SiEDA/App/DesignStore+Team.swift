@@ -52,11 +52,13 @@ extension DesignStore {
         statusMessage = parts.isEmpty ? "\(url.lastPathComponent): no change" : "\(url.lastPathComponent): " + parts.joined(separator: ", ")
     }
 
-    /// Builds the schematic from another tool's netlist (KiCad .net, Protel / Tango, CSV) through the core's
+    /// Builds the schematic from another tool's schematic or netlist (KiCad .kicad_sch / .net, LTspice .asc,
+    /// Protel / Tango, CSV) through the core's
     /// schematic_import_netlist tool, one undo step.
     func importNetlist() {
-        guard let picked = chooseText("Choose a netlist: KiCad (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV.",
-                                      extensions: ["net", "netlist", "csv", "txt"]) else { return }
+        guard let picked = chooseText("Choose a schematic or netlist: KiCad (.kicad_sch, .net), LTspice (.asc), Protel / Tango "
+                                      + "(Altium, OrCAD, EasyEDA, PADS) or CSV.",
+                                      extensions: ["kicad_sch", "asc", "net", "netlist", "csv", "txt"]) else { return }
         let (url, text) = picked
         let r = runTool("schematic_import_netlist", arguments: ["text": text])
         guard !r.isError, let data = r.text.data(using: .utf8),

@@ -2009,8 +2009,9 @@ void schematicTools(Table& t) {
               return out(j);
           });
     t.add("schematic", "schematic_import_netlist", "Import a netlist", Kind::Edit, false,
-          "Builds the schematic from another tool's netlist: KiCad (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) "
-          "or CSV (Net, Designator, Pin). Two-pin R / C / L / D parts become built-in parts (package from the footprint's "
+          "Builds the schematic from another tool's schematic or netlist: a KiCad sheet (.kicad_sch: symbols, wires, "
+          "labels, power symbols; sub-sheets listed in warnings), an LTspice schematic (.asc: R, C, L, sources, diodes, "
+          "LEDs), a KiCad netlist (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV (Net, Designator, Pin). Two-pin R / C / L / D parts become built-in parts (package from the footprint's "
           "size), parts the catalog knows by part name or value come from it, the rest become library parts with the "
           "netlist's pins (package from the footprint name, else a header). Then works as schematic_build; imported "
           "lists what each designator became.",
@@ -2036,7 +2037,7 @@ void schematicTools(Table& t) {
                       if (t.name == name) return t.handler(s, args).data;
                   throw ToolError(std::string("missing tool ") + name);
               };
-              Json parts = Json::array(), mapped = obj(), created = Json::array();
+              Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
               std::set<std::string> made;
               for (const auto& np : nl.parts) {
                   const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
@@ -2050,12 +2051,19 @@ void schematicTools(Table& t) {
                   const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
                   const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
                                    : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
-                  if (kind) {
+                  if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+                      part["kind"] = np.part.substr(5);
+                      static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
+                      if (std::regex_match(np.value, plain)) part["value"] = np.value;
+                  } else if (kind) {
                       part["kind"] = kind;
                       if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
                       if (!size.empty()) part["package"] = size;
                   } else if (const StandardPart* sp = findStandardPart(np.part) ? findStandardPart(np.part) : findStandardPart(np.value)) {
                       part["part"] = sp->spec.name;
+                  } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
+                      skipped.push(ref);
+                      continue;
                   } else {  // a library part with the netlist's pins
                       std::string name = !np.part.empty() && np.part != "~" ? np.part : !np.value.empty() ? np.value : prefix + "_PART";
                       int named = 0;  // the package and pin count the footprint names, its pitch and body sizes left out
@@ -2068,6 +2076,7 @@ void schematicTools(Table& t) {
                           if (numeric) top = std::max(top, std::stoi(pin));
                       }
                       std::vector<std::string> numbers = pins;
+                      if (named < top || named > 4 * top + 8 || top <= 1) named = 0;  // not a pin count ("M3_DIN965", "45-Degree")
                       const int count = numeric ? std::max(top, named) : static_cast<int>(pins.size());
                       if (numeric) {
                           numbers.clear();
@@ -2090,7 +2099,14 @@ void schematicTools(Table& t) {
                           spec["refPrefix"] = prefix.empty() ? "U" : prefix;
                           if (!np.value.empty()) spec["defaultValue"] = np.value;
                           if (!np.footprint.empty()) spec["description"] = "Imported from a netlist: " + np.footprint;
-                          tool("library_create_part", spec);
+                          try {
+                              tool("library_create_part", spec);
+                          } catch (const std::exception&) {  // a package that will not draw: a header of the pins used
+                              Json header = obj();
+                              header["type"] = "HEADER", header["pinCount"] = static_cast<int>(pinList.size());
+                              spec["package"] = header;
+                              tool("library_create_part", spec);
+                          }
                           made.insert(name);
                           created.push(name);
                       }
@@ -2113,6 +2129,7 @@ void schematicTools(Table& t) {
                       continue;
                   }
                   std::string n = name.size() > 1 && name[0] == '/' ? name.substr(1) : name;
+                  if (n.rfind("Net-(", 0) == 0 && n.back() == ')') n = n.substr(5, n.size() - 6);  // KiCad's unnamed nets
                   if (n.empty()) n = "N$" + std::to_string(++unnamed);
                   Json list = Json::array();
                   for (const auto& [ref, pin] : members) list.push(ref + "." + pin);
@@ -2129,6 +2146,12 @@ void schematicTools(Table& t) {
               info["nets"] = static_cast<int>(nets.fields().size());
               info["as"] = mapped;
               info["created"] = created;
+              if (skipped.size()) info["skipped"] = skipped;
+              if (!nl.warnings.empty()) {
+                  Json w = Json::array();
+                  for (const auto& x : nl.warnings) w.push(x);
+                  info["warnings"] = w;
+              }
               j["imported"] = info;
               return out(j);
           });
