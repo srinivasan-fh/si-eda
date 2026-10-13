@@ -39,5 +39,9 @@ std::vector<std::vector<Vec2>> silkscreenText(const std::string& text, Vec2 orig
 double silkscreenTextWidth(const std::string& text, double height);
 std::string exportStl(const Mesh& mesh, const std::string& name);
 std::string exportObj(const Mesh& mesh, const std::string& name);
+/// glTF 2.0 binary (.glb): positions, normals and vertex colours, in metres. Empty for an empty mesh.
+std::string exportGltf(const Mesh& mesh, const std::string& name);
+/// VRML 2.0 (.wrl) with vertex colours, in metres.
+std::string exportVrml(const Mesh& mesh, const std::string& name);
 
 }  // namespace sieda

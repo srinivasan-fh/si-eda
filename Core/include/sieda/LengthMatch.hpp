@@ -14,6 +14,8 @@ namespace sieda {
 
 /// Differential pairs by name (signal nets only): X_P / X_N, X+ / X-, X_DP / X_DN, XP / XN. (positive, negative).
 std::vector<std::pair<int, int>> differentialPairs(const Schematic& sch);
+/// A pair's stem: the members' common start without its trailing '_' / '.' ("USB_D" for USB_D_P / USB_D_N).
+std::string pairStem(const std::string& positive, const std::string& negative);
 
 struct LengthGroup {
     std::string name;  // "USB_D" (pair) or "DQ" (bus)

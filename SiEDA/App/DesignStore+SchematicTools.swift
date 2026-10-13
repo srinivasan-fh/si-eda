@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PDFKit
 import UniformTypeIdentifiers
 
 /// Schematic productivity: align / distribute, copy and paste (smart paste: a paste array with designators numbered
@@ -27,6 +28,165 @@ extension DesignStore {
         performChecked("\(sheet.name): frame centred on the drawing", invalidatesAnalysis: false) {
             $0.setSheetFrame(id, fixed: false) && $0.setSheetSize(id, size: size)
         }
+    }
+
+    // MARK: - Mirror, duplicate, lock, wire clean-up, smart selection
+
+    /// Parts locked on the schematic.
+    var lockedParts: Set<Int> { Set(snapshot.components.filter(\.isLocked).map(\.id)) }
+
+    /// The selection, else the part under the pointer (hover + shortcut acts on it without selecting first).
+    func targets(hovered: Int?) -> Set<Int> {
+        if !selection.isEmpty { return selection }
+        if let hovered { return [hovered] }
+        return []
+    }
+
+    /// Mirrors the parts left-right (vertical: top-bottom).
+    func mirror(_ ids: Set<Int>, vertical: Bool) {
+        guard !ids.isEmpty else { return }
+        perform(vertical ? "Mirrored vertically" : "Mirrored horizontally", invalidatesAnalysis: false) { engine in
+            ids.forEach { engine.mirrorComponent($0, vertical: vertical) }
+        }
+    }
+
+    func rotate(_ ids: Set<Int>) {
+        guard !ids.isEmpty else { return }
+        perform("Rotated", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateComponent($0) } }
+    }
+
+    func delete(_ ids: Set<Int>) {
+        guard !ids.isEmpty else { return }
+        perform("Deleted \(ids.count) part(s)") { engine in ids.forEach { engine.removeComponent($0) } }
+        selection.subtract(ids)
+    }
+
+    /// ⌘D: a copy of the selection (with the wires between its parts) beside it, with new designators.
+    func duplicateSelection() {
+        guard let clip = selectionClip() else { return }
+        paste(clip: clip)
+    }
+
+    /// Pastes the clipboard with its top-left part at `world` (the pointer).
+    func paste(at world: CGPoint) {
+        guard let clip = NSPasteboard.general.string(forType: .string), Self.isSchematicClip(clip),
+              let data = clip.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let parts = json["components"] as? [[String: Any]], !parts.isEmpty else { return }
+        let xs = parts.compactMap { ($0["x"] as? NSNumber)?.doubleValue }, ys = parts.compactMap { ($0["y"] as? NSNumber)?.doubleValue }
+        guard let x0 = xs.min(), let y0 = ys.min() else { return }
+        let target = SchematicGrid.snap(world)
+        var pasted: [Int] = []
+        performChecked("Paste", failureMessage: "Nothing to paste here") {
+            pasted = $0.pasteComponents(clip, offset: CGSize(width: target.x - x0, height: target.y - y0), count: 1, step: .zero,
+                                        labelIncrement: 0)
+            return !pasted.isEmpty
+        }
+        if !pasted.isEmpty { selection = Set(pasted) }
+    }
+
+    func setLocked(_ ids: Set<Int>, _ locked: Bool) {
+        guard !ids.isEmpty else { return }
+        performChecked(locked ? "Locked \(ids.count) part(s)" : "Unlocked \(ids.count) part(s)", invalidatesAnalysis: false) { engine in
+            ids.reduce(false) { engine.setLocked($1, locked) || $0 }
+        }
+    }
+
+    /// Net labels drawn as power symbols (a bar on a stem) or as flags.
+    func setPowerStyle(_ ids: Set<Int>, _ power: Bool) {
+        let labels = ids.filter { snapshot.component($0)?.componentKind == .netLabel }
+        guard !labels.isEmpty else { return }
+        performChecked(power ? "Power symbol" : "Net label flag", invalidatesAnalysis: false) { engine in
+            labels.reduce(false) { engine.setLabelPower($1, power) || $0 }
+        }
+    }
+
+    /// Removes wire bends lying on straight runs of the shown sheet.
+    func cleanupWires() {
+        let sheet = snapshot.activeSheet
+        var removed = 0
+        performChecked("Cleaned up wires", invalidatesAnalysis: false, failureMessage: "No wire bends to clean up") {
+            removed = $0.cleanupWires(sheet: sheet)
+            return removed > 0
+        }
+        if removed > 0 { statusMessage = "Removed \(removed) needless wire bend(s)" }
+    }
+
+    /// One value for several parts at once (one undo step).
+    func setValue(of ids: Set<Int>, to value: String) {
+        let v = value.trimmingCharacters(in: .whitespaces)
+        guard !v.isEmpty, !ids.isEmpty else { return }
+        performChecked("Value \(v) for \(ids.count) part(s)", failureMessage: "No value changed") { engine in
+            ids.reduce(false) { engine.setValue($1, v) || $0 }
+        }
+    }
+
+    /// One package for several parts of a kind at once (one undo step).
+    func setPackage(of ids: Set<Int>, to package: String) {
+        guard !ids.isEmpty else { return }
+        performChecked("Package \(package) for \(ids.count) part(s)", failureMessage: "No package changed") { engine in
+            ids.reduce(false) { engine.setPackage($1, package) || $0 }
+        }
+    }
+
+    // MARK: - Notes and drawings on sheets
+
+    /// Adds a note ("text", one point) or a line / arrow / section rectangle (two points) on the shown sheet.
+    func addSheetGraphic(kind: String, points: [CGPoint], text: String = "") {
+        var id: Int?
+        performChecked(kind == "text" ? "Added note" : "Added \(kind)", invalidatesAnalysis: false, failureMessage: "Nothing to draw") {
+            id = $0.addSheetGraphic(kind: kind, points: points.map { SchematicGrid.snap($0) }, text: text)
+            return id != nil
+        }
+        if let id {
+            select(component: nil)
+            selectedGraphic = id
+        }
+    }
+
+    func moveSheetGraphic(_ id: Int, by delta: CGSize) {
+        guard delta != .zero else { return }
+        perform("Moved drawing", invalidatesAnalysis: false) { $0.moveSheetGraphic(id, by: delta) }
+    }
+
+    func setSheetGraphicText(_ id: Int, _ text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        performChecked("Edited note", invalidatesAnalysis: false) { $0.setSheetGraphicText(id, t) }
+    }
+
+    /// Every part on the shown sheet.
+    func selectAllOnSheet() {
+        selectedWire = nil
+        selectedBus = nil
+        selection = Set(sheetSnapshot.components.filter { !$0.componentKind.isVirtual || $0.componentKind == .netLabel }.map(\.id))
+    }
+
+    /// Parts with the same value (and kind) as the selected ones.
+    func selectSameValue() {
+        let picked = sheetSnapshot.components.filter { selection.contains($0.id) }
+        let keys = Set(picked.map { "\($0.kind)|\($0.value)" })
+        guard !keys.isEmpty else { return }
+        selection = Set(sheetSnapshot.components.filter { keys.contains("\($0.kind)|\($0.value)") }.map(\.id))
+    }
+
+    /// The net of the selected wire, else of the selected parts' pins.
+    var highlightedNets: Set<Int> {
+        if let id = selectedWire, let w = snapshot.wires.first(where: { $0.id == id }), w.net >= 0 { return [w.net] }
+        return []
+    }
+
+    /// Every part on the selected wire's net (or on the nets of the selected parts' pins).
+    func selectConnected() {
+        var nets = highlightedNets
+        if nets.isEmpty {
+            for c in sheetSnapshot.components where selection.contains(c.id) {
+                for p in c.pins where p.net >= 0 { nets.insert(p.net) }
+            }
+        }
+        guard !nets.isEmpty else { return }
+        selectedWire = nil
+        selection = Set(sheetSnapshot.components.filter { c in c.pins.contains { nets.contains($0.net) } }.map(\.id))
     }
 
     // MARK: - Copy and paste
@@ -201,6 +361,36 @@ extension DesignStore {
         } catch {
             present(error, title: "Export failed")
         }
+    }
+
+    /// The shown sheet as a PNG or SVG image.
+    func exportSchematicImage(format: String) {
+        guard let data = engine.schematicImage(sheet: snapshot.activeSheet, width: 2400, format: format) else {
+            statusMessage = "Image export failed"
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [format == "png" ? .png : .svg]
+        let sheetName = snapshot.sheet(snapshot.activeSheet)?.name ?? "sheet"
+        panel.nameFieldStringValue = "\(snapshot.name.replacingOccurrences(of: "/", with: "-"))-\(sheetName).\(format)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            statusMessage = "Exported \(url.lastPathComponent)"
+        } catch {
+            present(error, title: "Export failed")
+        }
+    }
+
+    /// Prints every sheet (the schematic PDF, one page per sheet, scaled to the paper).
+    func printSchematic() {
+        guard let data = engine.schematicPDF(), let document = PDFDocument(data: data),
+              let operation = document.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true) else {
+            statusMessage = "Nothing to print"
+            return
+        }
+        operation.showsPrintPanel = true
+        operation.run()
     }
 
     // MARK: - ERC error reporting

@@ -337,7 +337,43 @@ another value. The base design is what the schematic says (with each part's own 
 Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.cpp`; app
 `SiEDA/App/DesignStore+SchematicTools.swift`, `SiEDA/Views/Schematic/SchematicToolsViews.swift`.
 
-- **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did).
+- **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did). **⌥-drag**
+  moves the parts alone: their wires to other parts are removed. Arrow keys nudge the selection a grid step (⇧: five).
+- **Mirror** (X left-right, Y top-bottom; `Component::mirror`, saved only when set, C API `sieda_mirror_component`,
+  MCP `schematic_move_component` `mirror`), **Rotate** (R / Space) — on the selection, or on the part under the
+  pointer when nothing is selected (Delete too). **⌘D** duplicates the selection with new designators; right-click
+  **Paste Here** pastes at the pointer.
+- **Touching pins connect**: a part placed or moved so a pin lands on another part's pin is wired to it
+  (`Schematic::connectTouching`, `sieda_connect_touching`; with `wires` also onto a wire's route through a T-junction,
+  which the app does not do on its own); the ERC notes `ERC_TOUCHING_UNCONNECTED` (info) for a pin that touches a wire
+  or pin without a connection.
+- **Clean Up Wires** (Arrange menu, right-click) removes bends lying on straight runs (`cleanupWires`,
+  `sieda_cleanup_wires`). While drawing a wire, **/** turns its corner the other way (vertical first).
+- **Dragging a straight wire** moves it sideways and keeps it straight: a bend at either end moves with it, any other
+  end gets a junction and a short link from where it was (`Schematic::dragWireSegment`, `sieda_drag_wire_segment`).
+  **⌥-drag** (or a wire with a corner) bends it through a new junction instead.
+- **Dragging a wire's end**: select the wire, then drag one of its ends off its pin — onto another pin, or into empty
+  space where it ends on a loose junction to wire on from (`Schematic::moveWireEnd`, `sieda_move_wire_end`).
+- **Right-click menu** on a part (edit, rotate, mirror, duplicate, copy, select same value / connected parts, lock,
+  delete), a wire (select connected parts, clean up, delete) or the sheet (paste here, select all, clean up, fit).
+  A right-drag still pans. **Double-click** a part to edit its designator and value (a label's name) in place.
+- **Notes and drawings**: the tool strip's Note (T), Arrow, Section Rectangle and Line tools put text and lines on the
+  sheet that are not part of the circuit (`Schematic::graphics`, `SheetGraphic`; saved as `sheetGraphics` only when
+  present; in the PDF and the MCP render; C API `sieda_add_sheet_graphic` / `_remove_` / `_move_` / `_set_..._text`).
+  Drag one to move it, double-click a note to edit it, Delete removes it.
+- **View options** (slider button): snap on / off and the snap step (5 – 50 units; placing, moving, wire corners,
+  drawings), pin numbers / names, designators and values shown or hidden, and selection filters (parts, wires,
+  labels and power symbols, notes and drawings). Per user, not saved with the design. Right-click the sheet:
+  **Zoom to Sheet Frame**. **Double-click a sheet symbol** to open its sheet; **⌘↑** goes up to the parent.
+- **Find & Replace** also renames designators (to a free designator of the same shape).
+- **Messages**: ▲ / ▼ step through the findings; opening one goes to its sheet, selects every part it names, centres
+  its spot (wire- and net-only findings too) and rings it. Every error / warning shows a marker on the canvas.
+- **PDF menu**: PDF of every sheet, the shown sheet as a **PNG** or **SVG** image (`sieda_render_schematic`), and
+  **Print…** (the PDF, one sheet per page). Settings ▸ **Save projects automatically** writes a saved project to its
+  file a few seconds after each change (the crash-recovery copy is kept either way). ⌥⌘ arrows align the selection.
+- **Lock** (`Component::locked`, `sieda_set_component_locked`): a locked part is not dragged or moved. A selected
+  wire highlights its whole net. **Select All** (⌘A), **Select Same Value**, **Select Connected Parts**; the
+  inspector sets one value or one package for every selected part (one undo step).
 - **Arrange** menu (options bar): **Align** left / right / top / bottom / centres and **Distribute** horizontally /
   vertically (three or more parts) — by the symbols' outlines with **Align by Symbol Outline** on (the default:
   left edges line up, distributing leaves equal gaps between outlines; positions stay on the grid), or by the parts'

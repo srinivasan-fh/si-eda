@@ -12,6 +12,9 @@ struct FootprintEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: FootprintDraft
+    /// The footprint as opened (the change summary compares with it).
+    private let original: FootprintDraft
+    @State private var padFilter = ""
     @State private var history = FootprintHistory()
     @State private var selection: Set<FootprintDraft.Pad.ID> = []
     @State private var grid: Double = 0.05
@@ -22,14 +25,44 @@ struct FootprintEditorView: View {
     @State private var arrayCount = 4
     @State private var arrayPitch = 1.27
     @State private var arrayHorizontal = false
+    @State private var arrayRows = 1
+    @State private var arrayRowPitch = 1.27
     @State private var checkTask: Task<Void, Never>?
+    @State private var hoverPoint: CGPoint?
+    /// Lengths shown in mils (1 mil = 0.0254 mm) instead of mm.
+    @AppStorage("footprint.units.mil") private var mil = false
+    // Generator and IPC-7351 calculator inputs.
+    @State private var genType = "SOIC"
+    @State private var genPins = 8
+    @State private var genPitch = 1.27
+    @State private var genBody = 3.9
+    @State private var ipc = IPCInput()
+    @State private var showLibrary = false
+    @State private var libraryQuery = ""
+    @State private var show3D = false
+    @State private var preview3D: MeshData?
+
+    struct IPCInput {
+        var lMin = 5.8, lMax = 6.2, sMin = 3.8, sMax = 4.2, wMin = 0.31, wMax = 0.51
+        var density = 1  // 0 most, 1 nominal, 2 least
+    }
+
+    private static let alignments: [(title: String, how: FootprintDraft.Alignment)] = [
+        ("Align Left", .left), ("Align Right", .right), ("Align Top", .top), ("Align Bottom", .bottom),
+        ("Align Horizontal Centres", .centreY), ("Align Vertical Centres", .centreX),
+        ("Distribute Horizontally", .distributeX), ("Distribute Vertically", .distributeY),
+    ]
+
+    private static let generatorTypes = ["SOIC", "TSSOP", "SON", "QFN", "LQFP", "BGA", "SOT23", "SOT223", "DIP", "HEADER", "HEADER2", "TO220"]
 
     static let grids: [Double] = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.635, 1.0, 1.27, 2.54]
 
     init(spec: CustomPartSpec, onApply: @escaping (CustomPartSpec) -> Void) {
         self.spec = spec
         self.onApply = onApply
-        _draft = State(initialValue: FootprintDraft(spec: spec))
+        let opened = FootprintDraft(spec: spec)
+        _draft = State(initialValue: opened)
+        original = opened
     }
 
     var body: some View {
@@ -40,9 +73,15 @@ struct FootprintEditorView: View {
                 canvas
                     .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
-                ScrollView { sidePanel.padding(12) }
-                    .frame(width: 300)
-                    .background(Theme.deepBlue.opacity(0.45))
+                VStack(spacing: 0) {
+                    if show3D {
+                        Model3DPreview(mesh: preview3D).frame(height: 220)
+                        Divider()
+                    }
+                    ScrollView { sidePanel.padding(12) }
+                }
+                .frame(width: 300)
+                .background(Theme.deepBlue.opacity(0.45))
             }
             Divider()
             footer
@@ -51,6 +90,13 @@ struct FootprintEditorView: View {
         .background(Theme.navy)
         .onAppear { runChecks() }
         .onChange(of: draft) { _, _ in scheduleChecks() }
+        .task(id: show3D ? draft : nil) {  // the 3D preview follows the edits
+            guard show3D else { return }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
+            let part = draft.applied(to: spec)
+            preview3D = await Task.detached(priority: .userInitiated) { EDAEngine.model3DPreviewMesh(part) }.value
+        }
         .onDeleteCommand {
             let ids = selection
             edit { $0.delete(ids) }
@@ -59,6 +105,34 @@ struct FootprintEditorView: View {
     }
 
     // MARK: - Toolbar
+
+    /// Library footprints to start from (search by name or package).
+    private var libraryBrowser: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Search footprints", text: $libraryQuery).textFieldStyle(.roundedBorder)
+            List(EDAEngine.footprintLibrary(libraryQuery)) { fp in
+                Button {
+                    guard let found = EDAEngine.footprintLands(fp.name) else { return }
+                    selection = []
+                    edit {
+                        $0.pads = found.lands.map { FootprintDraft.Pad(land: $0) }
+                        if found.bodyW > 0.5 { $0.bodyW = found.bodyW }
+                        if found.bodyD > 0.5 { $0.bodyD = found.bodyD }
+                    }
+                    showLibrary = false
+                } label: {
+                    HStack {
+                        Text(verbatim: fp.label)
+                        Spacer()
+                        Text("\(fp.pads) pads").foregroundStyle(Theme.textMuted).font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(width: 340, height: 360)
+        }
+        .padding(12)
+    }
 
     private var toolbar: some View {
         HStack(spacing: 8) {
@@ -84,14 +158,54 @@ struct FootprintEditorView: View {
             } label: { Label("Mirror", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right") }
                 .disabled(selection.isEmpty)
                 .help("Mirror the selected pads left ↔ right")
+            Button {
+                let ids = selection
+                edit { $0.rotate(ids) }
+            } label: { Label("Rotate", systemImage: "rotate.right") }
+                .disabled(selection.isEmpty)
+                .help("Turn the selected pads 90° about their centre")
             Button { edit { $0.centre() } } label: { Label("Centre", systemImage: "scope") }
                 .help("Move the footprint origin to the centre of the pads")
+            Menu {
+                Button("Origin at Pad 1") {
+                    if let p = draft.pads.first?.land { edit { $0.setOrigin(CGPoint(x: p.x, y: p.y)) } }
+                }
+                Button("Origin at Selected Pad") {
+                    if let i = selectedIndex { let p = draft.pads[i].land; edit { $0.setOrigin(CGPoint(x: p.x, y: p.y)) } }
+                }
+                .disabled(selectedIndex == nil)
+                Divider()
+                ForEach(Self.alignments, id: \.title) { item in
+                    Button(LocalizedStringKey(item.title)) { let ids = selection; edit { $0.align(ids, item.how) } }
+                        .disabled(selection.count < 2)
+                }
+            } label: { Label("Arrange", systemImage: "align.horizontal.left") }
+                .help("Set the origin; align or distribute the selected pads")
+            Button { showLibrary = true } label: { Label("Library", systemImage: "books.vertical") }
+                .help("Start from a library footprint: its pads replace these (undoable)")
+                .popover(isPresented: $showLibrary) { libraryBrowser }
+            Toggle(isOn: $show3D) { Label("3D", systemImage: "cube") }
+                .toggleStyle(.button)
+                .help("Show the part in 3D above the side panel")
+            Picker("Units", selection: $mil) {
+                Text(verbatim: "mm").tag(false)
+                Text(verbatim: "mil").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
             Divider().frame(height: 18)
+            if let url = URL(string: spec.datasheet), url.scheme?.hasPrefix("http") == true {
+                Button { NSWorkspace.shared.open(url) } label: { Label("Datasheet", systemImage: "doc.text") }
+                    .help("Open the part's datasheet (its recommended land pattern) beside the editor")
+            }
             Button { _ = history.undo(&draft) } label: { Image(systemName: "arrow.uturn.backward") }
+                .keyboardShortcut("z", modifiers: .command)
                 .disabled(!history.canUndo)
                 .help("Undo the last footprint edit")
                 .accessibilityLabel("Undo footprint edit")
             Button { _ = history.redo(&draft) } label: { Image(systemName: "arrow.uturn.forward") }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
                 .disabled(!history.canRedo)
                 .help("Redo")
                 .accessibilityLabel("Redo footprint edit")
@@ -160,6 +274,12 @@ struct FootprintEditorView: View {
                 ctx.stroke(Path(body).applying(t), with: .color(Theme.silkscreen.opacity(0.8)), lineWidth: 1)
                 ctx.stroke(Path(draft.courtyard).applying(t), with: .color(Theme.lightBlue.opacity(0.4)),
                            style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                for g in draft.graphics {  // drawn silk (white) and fab (amber) lines
+                    var line = Path()
+                    line.move(to: CGPoint(x: g.x0, y: g.y0))
+                    line.addLine(to: CGPoint(x: g.x1, y: g.y1))
+                    ctx.stroke(line.applying(t), with: .color(g.fab ? Theme.warning : Theme.silkscreen), lineWidth: max(1, g.width * s))
+                }
                 // Pads (selected ones follow the drag preview).
                 let flagged = issuePads
                 let preview = CGSize(width: dragMoved.width / s, height: dragMoved.height / s)
@@ -171,9 +291,13 @@ struct FootprintEditorView: View {
                         l.y = FootprintDraft.snap(l.y + preview.height, grid)
                     }
                     let r = CGRect(x: l.x - l.w / 2, y: l.y - l.h / 2, width: l.w, height: l.h)
-                    let shape = l.round ? Path(ellipseIn: r) : Path(roundedRect: r, cornerRadius: min(l.w, l.h) * 0.12)
+                    let shape = l.path(in: r)
                     let mechanical = l.pin == "-"
-                    ctx.fill(shape.applying(t), with: .color(mechanical ? Theme.via.opacity(0.6) : Theme.pad))
+                    if l.options.npth == true {  // a plain hole: outline only
+                        ctx.stroke(shape.applying(t), with: .color(Theme.via), lineWidth: 1)
+                    } else {
+                        ctx.fill(shape.applying(t), with: .color(mechanical ? Theme.via.opacity(0.6) : Theme.pad))
+                    }
                     if l.drill > 0 {
                         let d = l.drill
                         ctx.fill(Path(ellipseIn: CGRect(x: l.x - d / 2, y: l.y - d / 2, width: d, height: d)).applying(t),
@@ -240,6 +364,15 @@ struct FootprintEditorView: View {
                 Text("Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes")
                     .font(.caption2).foregroundStyle(Theme.textMuted).padding(8)
             }
+            .overlay(alignment: .topLeading) {
+                if let p = hoverPoint {
+                    Text(verbatim: "X \(length(p.x))  Y \(length(p.y))")
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.skyBlue).padding(8)
+                }
+            }
+            .onContinuousHover { phase in
+                if case .active(let at) = phase { hoverPoint = toModel(at, size) } else { hoverPoint = nil }
+            }
             .accessibilityElement()
             .accessibilityLabel("Footprint canvas")
             .accessibilityValue("\(draft.pads.count) pads, \(selection.count) selected")
@@ -261,6 +394,7 @@ struct FootprintEditorView: View {
             } else if selection.count > 1 {
                 Text("\(selection.count) pads selected — drag, duplicate, mirror or delete them together.")
                     .font(.caption).foregroundStyle(Theme.textSecondary)
+                multiEdit
             } else {
                 Text("Select a pad to edit its position, size, shape, drill and pin.")
                     .font(.caption).foregroundStyle(Theme.textMuted)
@@ -270,21 +404,32 @@ struct FootprintEditorView: View {
             Divider()
             bodyFields
             Divider()
+            generator
+            Divider()
+            ipcCalculator
+            Divider()
             issueList
             Divider()
             padTable
         }
     }
 
+    /// A length field in the chosen units (the value is kept in mm).
     private func number(_ title: String, _ value: Binding<Double>, step: Double) -> some View {
-        HStack {
+        let f = mil ? 0.0254 : 1.0
+        let shown = Binding(get: { value.wrappedValue / f }, set: { value.wrappedValue = $0 * f })
+        return HStack {
             Text(title).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
-            TextField(title, value: value, format: .number.precision(.fractionLength(0...4)))
+            TextField(title, value: shown, format: .number.precision(.fractionLength(0...4)))
                 .textFieldStyle(.blue)
                 .frame(width: 90)
             Stepper("", value: value, step: step).labelsHidden()
-            Text("mm").font(.caption2).foregroundStyle(Theme.textMuted)
+            Text(verbatim: mil ? "mil" : "mm").font(.caption2).foregroundStyle(Theme.textMuted)
         }
+    }
+
+    private func length(_ mm: Double) -> String {
+        mil ? String(format: "%.1f mil", mm / 0.0254) : String(format: "%.3f mm", mm)
     }
 
     /// A binding to one land field that records undo once per edit.
@@ -309,11 +454,26 @@ struct FootprintEditorView: View {
             number("Width", landBinding(index, \.w, min: 0.06, max: 30), step: grid)
             number("Height", landBinding(index, \.h, min: 0.06, max: 30), step: grid)
             number("Drill", landBinding(index, \.drill, min: 0, max: 29), step: 0.05)
-            Picker("Shape", selection: Binding(get: { pad.land.round }, set: { round in edit { $0.pads[index].land.round = round } })) {
-                Text("Rectangle").tag(false)
-                Text(pad.land.w == pad.land.h ? "Circle" : "Oval").tag(true)
+            Picker("Shape", selection: Binding(get: {
+                let o = pad.land.options
+                return pad.land.round ? 2 : o.outline != nil ? 4 : (o.chamfer ?? 0) > 0 ? 3 : (o.corner ?? 0) > 0 ? 1 : 0
+            }, set: { shape in
+                edit {
+                    let l = $0.pads[index].land
+                    $0.pads[index].land.round = shape == 2
+                    $0.pads[index].land.options.corner = shape == 1 ? 0.25 : nil
+                    $0.pads[index].land.options.chamfer = shape == 3 ? 0.25 : nil
+                    $0.pads[index].land.options.outline = shape == 4 ? FootprintDraft.trapezoid(l) : nil
+                }
+            })) {
+                Text("Rectangle").tag(0)
+                Text("Rounded").tag(1)
+                Text(pad.land.w == pad.land.h ? "Circle" : "Oval").tag(2)
+                Text("Chamfered").tag(3)
+                Text("Custom Outline").tag(4)
             }
-            .pickerStyle(.segmented)
+            .help("Custom Outline starts as a trapezoid; type its corners below")
+            padOptions(index)
             Picker("Pin", selection: Binding(get: { pad.land.pin }, set: { pin in edit { $0.pads[index].land.pin = pin } })) {
                 Text("Pin \(index + 1) (its number)").tag("")
                 ForEach(spec.pins.filter { $0.number != String(index + 1) }, id: \.number) { pin in
@@ -330,6 +490,100 @@ struct FootprintEditorView: View {
             .font(.caption)
             .help("Move the pad in the numbering; pads between shift by one")
         }
+    }
+
+    /// Pad options: corner radius, non-plated hole, solder mask margin, paste and thermal vias.
+    private func padOptions(_ index: Int) -> some View {
+        let land = draft.pads[index].land
+        func set(_ change: @escaping (inout CustomPartSpec.Land.Options) -> Void) {
+            edit { change(&$0.pads[index].land.options) }
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            if (land.options.corner ?? 0) > 0 {
+                HStack {
+                    Text("Corner").font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
+                    Slider(value: Binding(get: { land.options.corner ?? 0.25 }, set: { v in set { $0.corner = v } }), in: 0.05...0.5)
+                    Text(verbatim: String(format: "%.0f %%", (land.options.corner ?? 0) * 100)).font(.caption2).monospacedDigit()
+                }
+                .help("Corner radius as a share of the pad's short side")
+            }
+            if (land.options.chamfer ?? 0) > 0 {
+                HStack {
+                    Text("Chamfer").font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
+                    Slider(value: Binding(get: { land.options.chamfer ?? 0.25 }, set: { v in set { $0.chamfer = v } }), in: 0.05...0.5)
+                    Text(verbatim: String(format: "%.0f %%", (land.options.chamfer ?? 0) * 100)).font(.caption2).monospacedDigit()
+                }
+                .help("45° corner cut as a share of the pad's short side")
+            }
+            if let outline = land.options.outline {
+                TextField("Corners", text: Binding(get: {
+                    outline.map { String(format: "%.3g, %.3g", $0[0], $0[1]) }.joined(separator: "; ")
+                }, set: { text in
+                    let points = text.split(separator: ";").compactMap { pair -> [Double]? in
+                        let v = pair.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+                        return v.count == 2 ? v : nil
+                    }
+                    if points.count >= 3 { set { $0.outline = points } }
+                }))
+                .font(.caption.monospacedDigit())
+                .help("Outline corners round the pad centre in mm: x, y; x, y; … (y down)")
+            }
+            if land.drill > 0 {
+                number("Inner Ø", Binding(get: { land.options.inner ?? 0 }, set: { v in set { $0.inner = v > 0 && v.isFinite ? Swift.min(v, 30) : nil } }),
+                       step: 0.05)
+                    .help("Pad stack: the pad's diameter on the inner copper layers (0 = its own size)")
+                Toggle("Non-plated hole (no copper)", isOn: Binding(get: { land.options.npth == true }, set: { on in set { $0.npth = on ? true : nil } }))
+                    .toggleStyle(.checkbox).font(.caption)
+            }
+            number("Mask", Binding(get: { land.options.mask ?? 0.05 }, set: { v in set { $0.mask = v.isFinite ? Swift.min(Swift.max(v, 0), 2) : nil } }),
+                   step: 0.01)
+                .help("Solder mask opening margin around the pad (board default 0.05 mm)")
+            if land.drill == 0 {
+                Picker("Paste", selection: Binding(get: { land.options.paste ?? -1 }, set: { v in set { $0.paste = v < 0 ? nil : v } })) {
+                    Text("Automatic").tag(-1.0)
+                    Text("None").tag(0.0)
+                    ForEach([0.5, 0.6, 0.7, 0.8, 0.9, 1.0], id: \.self) { Text(verbatim: String(format: "%.0f %%", $0 * 100)).tag($0) }
+                }
+                .font(.caption)
+                .help("Stencil opening as a share of the pad's size")
+                Stepper("Paste windows \(land.options.pasteGrid ?? 1)×\(land.options.pasteGrid ?? 1)",
+                        value: Binding(get: { land.options.pasteGrid ?? 1 }, set: { n in set { $0.pasteGrid = n > 1 ? n : nil } }), in: 1...4)
+                    .font(.caption)
+                    .help("Split a large thermal pad's paste into a grid of windows")
+                Button("Add Thermal Vias") {
+                    let id = draft.pads[index].id
+                    selection = editMaking { $0.addThermalVias(to: id) }.union([id])
+                }
+                .controlSize(.small)
+                .disabled(land.w < 0.6 || land.h < 0.6)
+                .help("Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin")
+            }
+        }
+    }
+
+    /// Several pads at once: one width / height / drill for all of them.
+    private var multiEdit: some View {
+        let first = draft.pads.first { selection.contains($0.id) }?.land
+        func all(_ key: WritableKeyPath<CustomPartSpec.Land, Double>, _ lower: Double, _ upper: Double) -> Binding<Double> {
+            Binding(get: { first?[keyPath: key] ?? 0 }, set: { value in
+                guard value.isFinite else { return }
+                let ids = selection, v = Swift.min(Swift.max(value, lower), upper)
+                edit { for i in $0.pads.indices where ids.contains($0.pads[i].id) { $0.pads[i].land[keyPath: key] = v } }
+            })
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            number("Width", all(\.w, 0.06, 30), step: grid)
+            number("Height", all(\.h, 0.06, 30), step: grid)
+            number("Drill", all(\.drill, 0, 29), step: 0.05)
+        }
+    }
+
+    /// Pads added, removed, moved and resized since the editor opened.
+    private var changeSummary: some View {
+        let c = draft.changes(from: original)
+        return Text(verbatim: c.added + c.removed + c.moved + c.resized == 0 ? "—" : "+\(c.added)  −\(c.removed)  ↔\(c.moved)  ⤢\(c.resized)")
+            .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+            .help("Since opening: pads added, removed, moved, resized or reshaped")
     }
 
     private var arrayTool: some View {
@@ -350,6 +604,16 @@ struct FootprintEditorView: View {
             }
             .disabled(selectedIndex == nil)
             .controlSize(.small)
+            Stepper("Rows: \(arrayRows)", value: $arrayRows, in: 1...64).font(.caption)
+            number("Row pitch", $arrayRowPitch, step: 0.05)
+            Button("Add Grid from Pad") {
+                guard let id = selection.first else { return }
+                let cols = arrayCount + 1, rows = arrayRows, px = arrayPitch, py = arrayRowPitch, byColumn = !arrayHorizontal
+                selection = editMaking { $0.grid(from: id, columns: cols, rows: rows, pitchX: px, pitchY: py, byColumn: byColumn) }
+            }
+            .disabled(selectedIndex == nil || arrayRows < 2)
+            .controlSize(.small)
+            .help("A grid of copies (columns = copies + 1, the pad top-left), numbered along the direction picked above")
         }
     }
 
@@ -358,6 +622,108 @@ struct FootprintEditorView: View {
             Text("BODY").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
             number("Width", Binding(get: { draft.bodyW }, set: { v in edit { $0.bodyW = Swift.min(Swift.max(v, 0.5), 60) } }), step: 0.1)
             number("Length", Binding(get: { draft.bodyD }, set: { v in edit { $0.bodyD = Swift.min(Swift.max(v, 0.5), 60) } }), step: 0.1)
+            number("Courtyard", Binding(get: { draft.courtyardMargin },
+                                        set: { v in edit { $0.courtyardMargin = Swift.min(Swift.max(v, 0.05), 5) } }), step: 0.05)
+                .help("Courtyard margin around the pads and body (IPC-7351: 0.25 mm nominal)")
+            Text("GRAPHICS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            HStack {
+                Button("Body on Silk") { edit { $0.outlineBody(fab: false) } }
+                Button("Body on Fab") { edit { $0.outlineBody(fab: true) } }
+            }
+            .controlSize(.small)
+            .help("Outline the body with four lines on the silkscreen or the fabrication drawing")
+            Button("Add Line") { edit { $0.graphics.append(.init(x0: -1, y0: 0, x1: 1, y1: 0)) } }
+                .controlSize(.small)
+            ForEach(draft.graphics.indices, id: \.self) { i in
+                HStack(spacing: 4) {
+                    ForEach([\CustomPartSpec.Graphic.x0, \.y0, \.x1, \.y1], id: \.self) { key in
+                        TextField("", value: Binding(get: { draft.graphics[i][keyPath: key] }, set: { v in
+                            edit { $0.graphics[i][keyPath: key] = Swift.min(Swift.max(v, -60), 60) }
+                        }), format: .number.precision(.fractionLength(0...3)))
+                        .font(.caption.monospacedDigit()).frame(width: 44)
+                    }
+                    Toggle("Fab", isOn: Binding(get: { draft.graphics[i].fab }, set: { on in edit { $0.graphics[i].fab = on } }))
+                        .toggleStyle(.checkbox).font(.caption2)
+                    Button { edit { $0.graphics.remove(at: i) } } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove Line")
+                }
+                .help("Line from (x0, y0) to (x1, y1) in mm; Fab = the fabrication (assembly) drawing, else the silkscreen")
+            }
+        }
+    }
+
+    /// Generator: a standard package's pads (replaces the pads; undoable).
+    private var generator: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("GENERATE").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            Picker("Package", selection: $genType) {
+                ForEach(Self.generatorTypes, id: \.self) { Text(verbatim: $0).tag($0) }
+            }
+            .font(.caption)
+            Stepper("Pins: \(genPins)", value: $genPins, in: 1...1024).font(.caption)
+            number("Pitch", $genPitch, step: 0.05)
+            number("Body", $genBody, step: 0.1)
+            Button("Generate Pads") {
+                var part = spec
+                part.package = CustomPartSpec.Package(type: genType, pinCount: genPins, pitch: genPitch, bodySize: genBody)
+                if case .success(let made) = EDAEngine.landPattern(part) {
+                    let generated = FootprintDraft(spec: made)
+                    edit {
+                        $0.pads = generated.pads
+                        $0.bodyW = generated.bodyW
+                        $0.bodyD = generated.bodyD
+                    }
+                    selection = []
+                }
+            }
+            .controlSize(.small)
+            .help("Replace the pads with the package's standard land pattern (undo brings them back)")
+        }
+    }
+
+    /// IPC-7351B pad calculator for two-sided gull-wing / chip parts.
+    private var ipcCalculator: some View {
+        let goals = [(0.55, 0.45, 0.05), (0.35, 0.35, 0.03), (0.15, 0.25, 0.01)][ipc.density]
+        let result = FootprintDraft.ipc7351(lMin: ipc.lMin, lMax: ipc.lMax, sMin: ipc.sMin, sMax: ipc.sMax,
+                                            wMin: ipc.wMin, wMax: ipc.wMax, toe: goals.0, heel: goals.1, side: goals.2)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("IPC-7351 CALCULATOR").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            Picker("Density", selection: $ipc.density) {
+                Text("Most").tag(0)
+                Text("Nominal").tag(1)
+                Text("Least").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            number("L min", $ipc.lMin, step: 0.05)
+            number("L max", $ipc.lMax, step: 0.05)
+            number("S min", $ipc.sMin, step: 0.05)
+            number("S max", $ipc.sMax, step: 0.05)
+            number("W min", $ipc.wMin, step: 0.01)
+            number("W max", $ipc.wMax, step: 0.01)
+            if let r = result {
+                Text(verbatim: "\(length(r.length)) × \(length(r.width)) · rows \(length(r.centres)) apart")
+                    .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+                Button("Apply to Selected Pads") {
+                    let ids = selection
+                    edit {
+                        for i in $0.pads.indices where ids.contains($0.pads[i].id) {
+                            let across = abs($0.pads[i].land.x) >= abs($0.pads[i].land.y)
+                            $0.pads[i].land.w = across ? r.length : r.width
+                            $0.pads[i].land.h = across ? r.width : r.length
+                            if across { $0.pads[i].land.x = ($0.pads[i].land.x < 0 ? -1 : 1) * r.centres / 2 }
+                            else { $0.pads[i].land.y = ($0.pads[i].land.y < 0 ? -1 : 1) * r.centres / 2 }
+                        }
+                    }
+                }
+                .controlSize(.small)
+                .disabled(selection.isEmpty)
+            } else {
+                Text("L must exceed S, and every max its min").font(.caption2).foregroundStyle(Theme.warning)
+            }
+            Text("Gull-wing leads. L: toe-to-toe span, S: heel-to-heel span, W: lead width (datasheet). F 0.05 / P 0.025 mm.")
+                .font(.caption2).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -384,8 +750,13 @@ struct FootprintEditorView: View {
 
     private var padTable: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("PADS (\(draft.pads.count))").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
-            ForEach(Array(draft.pads.enumerated()), id: \.element.id) { index, pad in
+            HStack {
+                Text("PADS (\(draft.pads.count))").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                Spacer()
+                changeSummary
+            }
+            TextField("Filter by number or pin", text: $padFilter).textFieldStyle(.blue).controlSize(.small)
+            ForEach(Array(draft.pads.enumerated()).filter { padMatches($0.offset) }, id: \.element.id) { index, pad in
                 let pin = draft.pinNumber(of: index)
                 Button {
                     selection = [pad.id]
@@ -406,6 +777,14 @@ struct FootprintEditorView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func padMatches(_ index: Int) -> Bool {
+        let q = padFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return true }
+        let pin = draft.pinNumber(of: index) ?? "-"
+        let name = spec.pins.first { $0.number == pin }?.name ?? ""
+        return String(index + 1) == q || pin.lowercased() == q || name.lowercased().contains(q)
     }
 
     // MARK: - Footer
@@ -466,5 +845,25 @@ struct FootprintEditorView: View {
 
     private func runChecks() {
         issues = EDAEngine.checkLandPattern(draft.applied(to: spec))
+    }
+}
+
+extension CustomPartSpec.Land {
+    /// The pad's shape in `r` (its rectangle): circle / oval, drawn outline, chamfered or rounded rectangle.
+    func path(in r: CGRect) -> Path {
+        if round { return Path(ellipseIn: r) }
+        if let outline = options.outline, outline.count >= 3 {
+            return Path { $0.addLines(outline.map { CGPoint(x: r.midX + $0[0], y: r.midY + $0[1]) }); $0.closeSubpath() }
+        }
+        if let c = options.chamfer, c > 0 {
+            let k = c * min(r.width, r.height)
+            return Path { p in
+                p.addLines([CGPoint(x: r.minX + k, y: r.minY), CGPoint(x: r.maxX - k, y: r.minY), CGPoint(x: r.maxX, y: r.minY + k),
+                            CGPoint(x: r.maxX, y: r.maxY - k), CGPoint(x: r.maxX - k, y: r.maxY), CGPoint(x: r.minX + k, y: r.maxY),
+                            CGPoint(x: r.minX, y: r.maxY - k), CGPoint(x: r.minX, y: r.minY + k)])
+                p.closeSubpath()
+            }
+        }
+        return Path(roundedRect: r, cornerRadius: min(r.width, r.height) * (options.corner ?? 0.12))
     }
 }

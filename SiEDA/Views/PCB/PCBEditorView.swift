@@ -8,6 +8,12 @@ enum PCBLayer: Hashable, Identifiable {
     case ratsnest
     case courtyard
     case boardOutline
+    case bottomSilk
+    /// Solder mask openings (pads + 0.05 mm, as in the Gerbers), paste stencil (SMD pads) and the fabrication drawing
+    /// (part bodies, pin 1, designators): off by default.
+    case solderMask
+    case paste
+    case fab
 
     var id: String {
         switch self {
@@ -16,15 +22,37 @@ enum PCBLayer: Hashable, Identifiable {
         case .ratsnest: return "rats"
         case .courtyard: return "court"
         case .boardOutline: return "outline"
+        case .bottomSilk: return "bsilk"
+        case .solderMask: return "mask"
+        case .paste: return "paste"
+        case .fab: return "fab"
         }
     }
 
-    static let overlays: [PCBLayer] = [.silkscreen, .ratsnest, .courtyard, .boardOutline]
+    static let overlays: [PCBLayer] = [.silkscreen, .bottomSilk, .ratsnest, .courtyard, .boardOutline]
+    static let documentation: [PCBLayer] = [.solderMask, .paste, .fab]
     /// Everything visible by default (covers the largest supported stack-up).
     static let defaultVisible: Set<PCBLayer> = Set((0..<6).map { PCBLayer.copper($0) } + overlays)
 
     static func all(for board: BoardInfo) -> [PCBLayer] {
-        (0..<max(1, board.layerCount)).map { PCBLayer.copper($0) } + overlays
+        (0..<max(1, board.layerCount)).map { PCBLayer.copper($0) } + overlays + documentation
+    }
+
+    /// Layer presets of the layers panel.
+    enum Preset: String, CaseIterable, Identifiable {
+        case all = "All Layers", top = "Top Side", bottom = "Bottom Side", copperOnly = "Copper Only", assembly = "Assembly"
+        var id: String { rawValue }
+
+        func layers(_ board: BoardInfo) -> Set<PCBLayer> {
+            let copper = (0..<max(1, board.layerCount)).map { PCBLayer.copper($0) }
+            switch self {
+            case .all: return Set(PCBLayer.all(for: board))
+            case .top: return [.copper(0), .silkscreen, .solderMask, .paste, .courtyard, .boardOutline, .ratsnest]
+            case .bottom: return [.copper(max(0, board.layerCount - 1)), .bottomSilk, .courtyard, .boardOutline, .ratsnest]
+            case .copperOnly: return Set(copper + [.boardOutline])
+            case .assembly: return [.fab, .silkscreen, .bottomSilk, .boardOutline]
+            }
+        }
     }
 
     func name(_ board: BoardInfo) -> String {
@@ -34,6 +62,10 @@ enum PCBLayer: Hashable, Identifiable {
         case .ratsnest: return "Ratsnest"
         case .courtyard: return "Courtyard"
         case .boardOutline: return "Keep-Out / Outline"
+        case .bottomSilk: return "Bottom Overlay"
+        case .solderMask: return "Solder Mask"
+        case .paste: return "Paste"
+        case .fab: return "Fabrication"
         }
     }
 
@@ -44,6 +76,10 @@ enum PCBLayer: Hashable, Identifiable {
         case .ratsnest: return Theme.ratsnest
         case .courtyard: return Theme.lightBlue
         case .boardOutline: return Theme.boardEdge
+        case .bottomSilk: return Theme.silkscreen.opacity(0.5)
+        case .solderMask: return Color(red: board.mask.swatch.red, green: board.mask.swatch.green, blue: board.mask.swatch.blue)
+        case .paste: return Color(white: 0.75)
+        case .fab: return Theme.warning
         }
     }
 
@@ -60,6 +96,7 @@ struct PCBEditorView: View {
     @State private var canvasSize: CGSize = .zero
     @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
     @State private var activeLayer: PCBLayer = .copper(0)
+    @AppStorage("pcb.threeDBeside") private var show3DBeside = false
     @State private var panMode = false
     /// Route tool (X): interactive routing with walkaround / push-and-shove.
     @State private var routeTool = false
@@ -90,14 +127,22 @@ struct PCBEditorView: View {
         .help("Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)")
     }
 
+    private func pickShape(_ tool: DesignStore.PCBShapeTool) {
+        panMode = false
+        routeTool = false
+        tuneTool = false
+        store.pcbShapeTool = store.pcbShapeTool == tool ? nil : tool
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             ToolStrip {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move footprints; drag a track or via to shove it (V)",
-                                isActive: !panMode && !routeTool && !tuneTool) {
+                                isActive: !panMode && !routeTool && !tuneTool && store.pcbShapeTool == nil) {
                     panMode = false
                     routeTool = false
                     tuneTool = false
+                    store.pcbShapeTool = nil
                 }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: panMode) {
                     panMode = true
@@ -118,6 +163,16 @@ struct PCBEditorView: View {
                     routeTool = false
                     tuneTool = true
                 }
+                ToolStripDivider()
+                ToolStripButton(systemImage: "square.dashed.inset.filled",
+                                help: "Draw a copper pour on the active layer: click its corners, double-click closes",
+                                isActive: store.pcbShapeTool == .pour) { pickShape(.pour) }
+                ToolStripButton(systemImage: "pentagon", help: "Draw the board outline: click its corners, double-click closes",
+                                isActive: store.pcbShapeTool == .outline) { pickShape(.outline) }
+                ToolStripButton(systemImage: "scissors", help: "Draw a board cutout inside the board: click its corners, double-click closes",
+                                isActive: store.pcbShapeTool == .cutout) { pickShape(.cutout) }
+                ToolStripButton(systemImage: "nosign", help: "Draw a routing keep-out: drag a rectangle (no tracks or vias inside)",
+                                isActive: store.pcbShapeTool == .keepout) { pickShape(.keepout) }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
@@ -183,6 +238,16 @@ struct PCBEditorView: View {
                     BoardMenu()
                     autoRouteButton
                     RoutingStrategyMenu()
+                    if store.pcbShapeTool == .pour {
+                        Divider().frame(height: 18)
+                        Picker("Pour net", selection: $store.pourNet) {
+                            Text("Ground").tag("")
+                            ForEach(store.snapshot.nets.filter { !$0.name.isEmpty }) { Text(verbatim: $0.name).tag($0.name) }
+                        }
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .help("Net of the pour you draw (on the active layer)")
+                    }
                     if tuneTool {
                         Divider().frame(height: 18)
                         tuneControls
@@ -265,6 +330,26 @@ struct PCBEditorView: View {
                         .pickerStyle(.menu)
                         .fixedSize()
                         .help("Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way")
+                        Picker("Track width", selection: $store.routerWidth) {
+                            Text("Rule width").tag(0.0)
+                            ForEach([0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5], id: \.self) {
+                                Text(verbatim: String(format: "%g mm", $0)).tag($0)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .help("Width of the tracks the Route tool lays: the net class rule, or a fixed width")
+                        if routePair {
+                            Picker("Pair gap", selection: $store.routerPairGap) {
+                                Text("Rule gap").tag(0.0)
+                                ForEach([0.1, 0.127, 0.15, 0.2, 0.25, 0.3], id: \.self) {
+                                    Text(verbatim: String(format: "%g mm", $0)).tag($0)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .fixedSize()
+                            .help("Gap between the two tracks of a differential pair: the pair rule, or a fixed gap")
+                        }
                     }
                     Divider().frame(height: 18)
                     Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
@@ -322,81 +407,102 @@ struct PCBEditorView: View {
                     let drcErrors = store.drcResults.filter { $0.severity == .error }.count
                     if store.drcIsCurrent {
                         Badge(text: drcErrors == 0 ? "DRC clean" : "DRC \(drcErrors)", systemImage: "checkmark.seal")
+                        if drcErrors > 0 {
+                            Button { store.stepDRC(-1) } label: { Image(systemName: "chevron.left") }
+                                .buttonStyle(.borderless)
+                                .help("Previous design rule error: zoom to it")
+                            Button { store.stepDRC(1) } label: { Image(systemName: "chevron.right") }
+                                .buttonStyle(.borderless)
+                                .help("Next design rule error: zoom to it")
+                        }
                     }
+                    Toggle(isOn: $show3DBeside) { Image(systemName: "cube") }
+                        .toggleStyle(.button)
+                        .help("Show the board in 3D beside the layout")
+                        .accessibilityLabel("3D Beside the Layout")
                     ZoomControls(level: viewport.scale / Viewport.pcbBaseScale,
                                  zoomIn: { store.requestView(.zoomIn) }, zoomOut: { store.requestView(.zoomOut) },
                                  fit: { store.requestView(.fit) }, fitSelection: { store.requestView(.fitSelection) },
                                  setLevel: { store.requestView(.setLevel($0)) })
                 }
 
-                ZStack(alignment: .topTrailing) {
-                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
-                              tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
-                        .disabled(store.isBusy)  // the engine is busy autorouting
-                    if let ghost = store.placementSession?.ghost {
-                        PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
-                    }
-                    if store.showNavigator, !store.snapshot.pads.isEmpty {
-                        navigator
-                            .canvasScrollShield()
-                            .padding(10)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    }
-                    if showLayersPanel {
-                        LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
-                                    visible: $visible, active: $activeLayer)
-                            .canvasScrollShield()
-                            .padding(10)
-                    }
-                    if !store.snapshot.pads.isEmpty, unplacedCount == 0, !store.isBusy, !store.snapshot.ratsnest.isEmpty {
-                        // Like "Place Now" for footprints: one click routes what is still a ratsnest line.
-                        let openCount = store.snapshot.ratsnest.count
-                        HStack(spacing: 8) {
-                            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(Theme.skyBlue)
-                            Text("\(openCount) connection\(openCount == 1 ? " is" : "s are") not routed yet")
-                                .foregroundStyle(Theme.textPrimary)
-                            Button("Auto Route") { Task { await store.autoRouteBoard() } }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                HStack(spacing: 0) {
+                    ZStack(alignment: .topTrailing) {
+                        PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
+                                  tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
+                            .disabled(store.isBusy)  // the engine is busy autorouting
+                            .onChange(of: panMode || routeTool || tuneTool) { _, on in if on { store.pcbShapeTool = nil } }
+                        if let ghost = store.placementSession?.ghost {
+                            PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
                         }
-                        .font(.callout)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
-                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
-                        .padding(10)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    }
-                    if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
-                        // Viewing the board never edits it; new parts are placed only on request.
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
-                            Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
-                                .foregroundStyle(Theme.textPrimary)
-                            Button("Place Now") { store.autoPlace(all: false) }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                        if store.showNavigator, !store.snapshot.pads.isEmpty {
+                            navigator
+                                .canvasScrollShield()
+                                .padding(10)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                         }
-                        .font(.callout)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
-                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
-                        .padding(10)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    }
-                    if let session = store.placementSession {
-                        PlaceNewPartsHUD(session: session)
-                            .canvasScrollShield()
+                        if showLayersPanel {
+                            LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
+                                        visible: $visible, active: $activeLayer)
+                                .canvasScrollShield()
+                                .padding(10)
+                        }
+                        if !store.snapshot.pads.isEmpty, unplacedCount == 0, !store.isBusy, !store.snapshot.ratsnest.isEmpty {
+                            // Like "Place Now" for footprints: one click routes what is still a ratsnest line.
+                            let openCount = store.snapshot.ratsnest.count
+                            HStack(spacing: 8) {
+                                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(Theme.skyBlue)
+                                Text("\(openCount) connection\(openCount == 1 ? " is" : "s are") not routed yet")
+                                    .foregroundStyle(Theme.textPrimary)
+                                Button("Auto Route") { Task { await store.autoRouteBoard() } }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            }
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
                             .padding(10)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        }
+                        if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
+                            // Viewing the board never edits it; new parts are placed only on request.
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
+                                Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
+                                    .foregroundStyle(Theme.textPrimary)
+                                Button("Place Now") { store.autoPlace(all: false) }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            }
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        }
+                        if let session = store.placementSession {
+                            PlaceNewPartsHUD(session: session)
+                                .canvasScrollShield()
+                                .padding(10)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        }
+                        if store.snapshot.pads.isEmpty {
+                            BlueEmptyState(systemImage: "square.grid.3x3.square",
+                                           title: "No footprints on the board",
+                                           message: "Place the schematic's footprints automatically, then Auto Route the board.",
+                                           actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
-                    if store.snapshot.pads.isEmpty {
-                        BlueEmptyState(systemImage: "square.grid.3x3.square",
-                                       title: "No footprints on the board",
-                                       message: "Place the schematic's footprints automatically, then Auto Route the board.",
-                                       actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if show3DBeside {  // the board in 3D beside the layout, following every edit
+                        Divider()
+                        BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
+                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""))
+                            .frame(minWidth: 240, maxWidth: .infinity)
                     }
                 }
 
@@ -535,8 +641,21 @@ struct LayersPanel: View {
     @Binding var visible: Set<PCBLayer>
     @Binding var active: PCBLayer
     @AppStorage("pcb.colourByNet") private var colourByNet = true
+    @AppStorage("pcb.pick.parts") private var pickParts = true
+    @AppStorage("pcb.pick.copper") private var pickCopper = true
+    @AppStorage("pcb.pourClearance") private var pourClearance = false
 
     var body: some View {
+        // Scrolls when the window is short (many layers): the panel never sets the workspace's minimum height.
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+        .frame(width: 210)
+        .bluePanel()
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("COPPER COLOURS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 2)
             Picker("Copper colours", selection: $colourByNet) {
@@ -557,7 +676,33 @@ struct LayersPanel: View {
                 }
             }
             Divider().padding(.vertical, 4)
-            Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 4)
+            Text("SELECTABLE").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            HStack {
+                Toggle("Parts", isOn: $pickParts)
+                Toggle("Tracks & Vias", isOn: $pickCopper)
+            }
+            .toggleStyle(.checkbox)
+            .controlSize(.small)
+            .help("What a click or drag on the board can select")
+            Toggle("Pour Clearances", isOn: $pourClearance)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
+                .help("Show each pour's clearance round the other nets' pads and tracks in it, and mark the islands it left out")
+            Divider().padding(.vertical, 4)
+            HStack {
+                Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                Spacer()
+                Menu("Presets") {
+                    ForEach(PCBLayer.Preset.allCases) { preset in
+                        Button(LocalizedStringKey(preset.rawValue)) { visible = preset.layers(board) }
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .controlSize(.small)
+                .help("Show a set of layers: all, one side, copper only, or the assembly drawing")
+            }
+            .padding(.bottom, 4)
             ForEach(layers) { layer in
                 HStack(spacing: 8) {
                     Button {
@@ -591,8 +736,6 @@ struct LayersPanel: View {
             }
         }
         .padding(10)
-        .frame(width: 210)
-        .bluePanel()
     }
 }
 
@@ -662,11 +805,19 @@ struct PCBCanvas: View {
     var activeLayer: PCBLayer
     /// Copper coloured by what it carries (power red, ground blue, …) or by layer (top red, bottom blue, …).
     @AppStorage("pcb.colourByNet") private var colourByNet = true
+    /// Selection filters: what a click or drag can pick (layers panel).
+    @AppStorage("pcb.pick.parts") private var pickParts = true
+    @AppStorage("pcb.pick.copper") private var pickCopper = true
+    @AppStorage("pcb.pourClearance") private var pourClearance = false
 
     private enum DragMode {
         case move(Set<Int>)
         case pan(CGSize)
         case zoomBox
+        /// ⇧-drag on empty board: selects the footprints and tracks inside the rectangle.
+        case marquee
+        /// Keep-out tool: the rectangle to keep tracks and vias out of.
+        case keepoutBox
         /// Select tool on a track or via: the shove-drag starts once the pointer has moved a few points.
         case dragTrack(Int, CGPoint)
         case dragVia(Int, CGPoint)
@@ -686,6 +837,7 @@ struct PCBCanvas: View {
     @State private var spaceHeld = false   // Space + left-drag pans; a Space tap rotates
     @State private var spaceUsedForPan = false
     @State private var zoomRect: CGRect?   // screen space, while dragging a zoom area
+    @State private var shapePoints: [CGPoint] = []  // corners of the pour / outline / cutout being drawn
     @FocusState private var focused: Bool
 
     private let limits = Viewport.pcbLimits
@@ -711,7 +863,8 @@ struct PCBCanvas: View {
                         .onEnded { _ in magnifyBase = nil }
                 )
                 .canvasMouseInput(onScroll: { event, point in viewport.handleScroll(event, at: point, limits: limits) },
-                                  onPan: { viewport.pan(by: $0) })
+                                  onPan: { viewport.pan(by: $0) },
+                                  onRightClick: { contextMenu(at: viewport.toWorld($0)) })
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p):
@@ -784,6 +937,10 @@ struct PCBCanvas: View {
                     return .handled
                 }
                 .onKeyPress(.escape) {
+                    if store.pcbShapeTool != nil {
+                        if shapePoints.isEmpty { store.pcbShapeTool = nil } else { shapePoints = [] }
+                        return .handled
+                    }
                     if store.placementSession != nil {
                         store.skipPlacement()  // the part keeps its automatic position
                     } else if store.routePreview != nil {
@@ -798,12 +955,23 @@ struct PCBCanvas: View {
                         zoomArmed = false
                     } else if routeTool {
                         routeTool = false
+                    } else if store.pcbHighlightNet != nil {
+                        store.pcbHighlightNet = nil
                     } else {
                         store.select(component: nil)
                     }
                     return .handled
                 }
+                .onKeyPress(keys: [.delete, .deleteForward], phases: .down) { _ in
+                    guard !store.selectedTracks.isEmpty, store.routePreview == nil else { return .ignored }
+                    store.deleteSelectedCopper()
+                    return .handled
+                }
                 .onKeyPress(.return) {
+                    if let tool = store.pcbShapeTool, !shapePoints.isEmpty {
+                        finishShape(tool)
+                        return .handled
+                    }
                     if store.tuneSession != nil {
                         store.applyTune()
                         return .handled
@@ -842,6 +1010,11 @@ struct PCBCanvas: View {
                 .reduce(CGRect.null) { $0.union($1.rect) }
             if rect.isNull { fit(size) } else { viewport.fit(rect.insetBy(dx: -2, dy: -2), in: size, limits: limits) }
         case .zoomArea: zoomArmed = true
+        case .focus(let p):
+            if viewport.scale < Viewport.pcbBaseScale * 2 {
+                viewport.setScale(Viewport.pcbBaseScale * 3, anchor: CGPoint(x: size.width / 2, y: size.height / 2), limits: limits)
+            }
+            viewport.center(on: p, in: size)
         default:
             viewport.apply(command, size: size, anchor: hover, baseScale: Viewport.pcbBaseScale, limits: limits)
         }
@@ -948,17 +1121,21 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
+                    } else if let tool = store.pcbShapeTool {
+                        dragMode = tool == .keepout ? .keepoutBox : .pan(viewport.offset)  // a click adds a corner
                     } else if store.placementSession != nil {
                         dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
                         dragMode = .tuneDrag(hit.id, world)
-                    } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
+                    } else if !panMode, !routeTool, !tuneTool, pickCopper, pad(at: world) == nil, let hit = copperHit(at: world) {
                         dragMode = hit.isVia ? .dragVia(hit.id, world) : .dragTrack(hit.id, world)
-                    } else if !panMode, !routeTool, !tuneTool, let id = footprint(at: world) {
+                    } else if !panMode, !routeTool, !tuneTool, pickParts, let id = footprint(at: world) {
                         // ⇧ adds on release (select toggles); selecting here as well would toggle it straight back off.
                         let shift = NSEvent.modifierFlags.contains(.shift)
                         if !store.selection.contains(id) && !shift { store.select(component: id) }
                         dragMode = .move(shift ? store.selection.union([id]) : store.selection)
+                    } else if !panMode, !routeTool, !tuneTool, NSEvent.modifierFlags.contains(.shift) {
+                        dragMode = .marquee
                     } else {
                         dragMode = .pan(viewport.offset)
                     }
@@ -970,7 +1147,7 @@ struct PCBCanvas: View {
                 case .pan(let start):
                     viewport.offset = CGSize(width: start.width + value.translation.width,
                                              height: start.height + value.translation.height)
-                case .zoomBox:
+                case .zoomBox, .marquee, .keepoutBox:
                     zoomRect = CGRect(origin: value.startLocation, size: .zero)
                         .union(CGRect(origin: value.location, size: .zero))
                 case .dragTrack(let id, let grab):
@@ -997,6 +1174,12 @@ struct PCBCanvas: View {
                     } else {
                         viewport.zoom(by: 2, anchor: value.location, limits: limits)
                     }
+                } else if case .marquee = dragMode {
+                    if moved, let rect = zoomRect { selectInside(rect) }
+                } else if case .keepoutBox = dragMode {
+                    if moved, let rect = zoomRect { store.addKeepout(worldRect(rect), layer: -1) }
+                } else if !moved, !spaceHeld, let tool = store.pcbShapeTool {
+                    shapeClick(viewport.toWorld(value.location), tool: tool)
                 } else if copperDragActive {
                     copperDragActive = false
                     store.finishRoute(at: viewport.toWorld(value.location))
@@ -1017,7 +1200,7 @@ struct PCBCanvas: View {
                             store.selectTrack(id, extend: shift)  // a click on a track selects it for the track commands
                         } else {
                             store.selectTrack(nil, extend: shift)
-                            store.select(component: footprint(at: world), extend: shift)
+                            store.select(component: pickParts ? footprint(at: world) : nil, extend: shift)
                         }
                     }
                 } else if case .move(let ids) = dragMode {
@@ -1025,13 +1208,140 @@ struct PCBCanvas: View {
                         guard let c = store.snapshot.component(id) else { return nil }
                         return (id, CGPoint(x: c.pcb.x + dragDelta.width, y: c.pcb.y + dragDelta.height))
                     }
-                    store.moveFootprints(moves)
+                    // Their tracks' ends come along; ⌥ moves the parts alone.
+                    store.moveFootprints(moves, withTracks: !NSEvent.modifierFlags.contains(.option))
                     store.selection.formUnion(ids)
                 }
                 dragMode = nil
                 dragDelta = .zero
                 zoomRect = nil
             }
+    }
+
+    /// Marquee: selects the footprints whose courtyards and the tracks whose ends lie inside `rect` (screen space).
+    private func selectInside(_ rect: CGRect) {
+        let area = worldRect(rect)
+        store.selection.formUnion(store.snapshot.courtyards.filter { area.contains($0.rect) }.map(\.component))
+        store.selectedTracks.formUnion(store.snapshot.tracks.filter {
+            visible.contains(.copper($0.layer)) && area.contains(CGPoint(x: $0.ax, y: $0.ay)) && area.contains(CGPoint(x: $0.bx, y: $0.by))
+        }.map(\.id))
+    }
+
+    private func worldRect(_ rect: CGRect) -> CGRect {
+        let a = viewport.toWorld(rect.origin), b = viewport.toWorld(CGPoint(x: rect.maxX, y: rect.maxY))
+        return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
+    }
+
+    /// Pour / outline / cutout tool click: adds a corner (0.25 mm grid); a double-click closes the shape.
+    private func shapeClick(_ world: CGPoint, tool: DesignStore.PCBShapeTool) {
+        if (NSApp.currentEvent?.clickCount ?? 1) >= 2 {
+            finishShape(tool)
+        } else {
+            shapePoints.append(CGPoint(x: (world.x / 0.25).rounded() * 0.25, y: (world.y / 0.25).rounded() * 0.25))
+        }
+    }
+
+    private func finishShape(_ tool: DesignStore.PCBShapeTool) {
+        store.finishShape(tool, points: shapePoints, layer: activeLayer.copperIndex ?? 0)
+        shapePoints = []
+    }
+
+    /// Right-click: track (split, merge, delete), via (delete), footprint (align, rotate, flip) or empty board.
+    private func contextMenu(at world: CGPoint) -> [CanvasMenuItem] {
+        let net = pad(at: world).map(\.net) ?? copperHit(at: world, vias: false).flatMap { hit in
+            store.snapshot.tracks.first { $0.id == hit.id }?.net
+        }
+        let highlight: [CanvasMenuItem] = net.flatMap { $0 >= 0 ? $0 : nil }.map { n in
+            [CanvasMenuItem(title: store.pcbHighlightNet == n ? String(localized: "Clear Net Highlight") : String(localized: "Highlight Net")) {
+                store.pcbHighlightNet = store.pcbHighlightNet == n ? nil : n
+            }, .separator]
+        } ?? []
+        return highlight + baseMenu(at: world)
+    }
+
+    private func baseMenu(at world: CGPoint) -> [CanvasMenuItem] {
+        if pad(at: world) == nil, let hit = copperHit(at: world) {
+            if hit.isVia {
+                return [CanvasMenuItem(title: String(localized: "Delete Via")) { store.deleteSelectedCopper(vias: [hit.id]) }]
+            }
+            if !store.selectedTracks.contains(hit.id) { store.selectTrack(hit.id) }
+            return [
+                CanvasMenuItem(title: String(localized: "Split Track Here")) { store.splitTrack(hit.id, at: world) },
+                CanvasMenuItem(title: String(localized: "Merge Tracks")) { store.mergeTracks() },
+                CanvasMenuItem(title: String(localized: "Select Whole Route")) { store.selectTrackNets() },
+                CanvasMenuItem(title: String(localized: "Minimise Vias")) { store.minimizeVias() },
+                .separator,
+                CanvasMenuItem(title: String(localized: "Delete")) { store.deleteSelectedCopper() },
+            ]
+        }
+        if let id = footprint(at: world) {
+            if !store.selection.contains(id) { store.select(component: id) }
+            let several = store.selection.count >= 2, many = store.selection.count >= 3
+            return [
+                CanvasMenuItem(title: String(localized: "Rotate"), key: "r") { store.rotateFootprints() },
+                CanvasMenuItem(title: String(localized: "Flip"), key: "f") { store.flipFootprints() },
+                .separator,
+                CanvasMenuItem(title: String(localized: "Align Left"), enabled: several) { store.alignFootprints(.left) },
+                CanvasMenuItem(title: String(localized: "Align Right"), enabled: several) { store.alignFootprints(.right) },
+                CanvasMenuItem(title: String(localized: "Align Top"), enabled: several) { store.alignFootprints(.top) },
+                CanvasMenuItem(title: String(localized: "Align Bottom"), enabled: several) { store.alignFootprints(.bottom) },
+                CanvasMenuItem(title: String(localized: "Align Horizontal Centres"), enabled: several) { store.alignFootprints(.centreY) },
+                CanvasMenuItem(title: String(localized: "Align Vertical Centres"), enabled: several) { store.alignFootprints(.centreX) },
+                CanvasMenuItem(title: String(localized: "Distribute Horizontally"), enabled: many) { store.alignFootprints(.distributeX) },
+                CanvasMenuItem(title: String(localized: "Distribute Vertically"), enabled: many) { store.alignFootprints(.distributeY) },
+            ]
+        }
+        let board = store.snapshot.board
+        var shapes: [CanvasMenuItem] = board.keepouts.filter { $0.rect.contains(world) }.map { ko in
+            CanvasMenuItem(title: String(localized: "Delete Keep-out")) { store.removeKeepout(ko) }
+        }
+        for (index, cut) in board.cutouts.enumerated() where cut.count >= 3 {
+            let path = Path { $0.addLines(cut.map(\.point)); $0.closeSubpath() }
+            if path.contains(world) {
+                shapes.append(CanvasMenuItem(title: String(localized: "Delete Cutout")) { store.removeCutout(at: index) })
+            }
+        }
+        for (index, zone) in store.snapshot.zones.enumerated() {
+            guard let poly = zone.polygon, poly.count >= 3, visible.contains(.copper(zone.layer)) else { continue }
+            let path = Path { $0.addLines(poly.map(\.point)); $0.closeSubpath() }
+            if path.contains(world) {
+                shapes.append(CanvasMenuItem(title: String(localized: "Delete Pour")) { store.removeZone(at: index) })
+            }
+        }
+        if store.pcbCompare != nil {
+            shapes.append(CanvasMenuItem(title: String(localized: "Clear Comparison")) { store.pcbCompare = nil })
+        }
+        return shapes + [
+            CanvasMenuItem(title: String(localized: "Merge Tracks"), enabled: !store.snapshot.tracks.isEmpty) { store.mergeTracks() },
+            CanvasMenuItem(title: String(localized: "Minimise Vias"), enabled: !store.snapshot.vias.isEmpty) { store.minimizeVias() },
+            CanvasMenuItem(title: String(localized: "Zoom to Fit")) { store.requestView(.fit) },
+        ]
+    }
+
+    /// Board diff against an earlier version: tracks only in it dashed red (removed), only now green (added), and the
+    /// earlier courtyards of moved parts dashed amber.
+    private func drawComparison(_ ctx: inout GraphicsContext, old: DesignSnapshot, screen: CGAffineTransform) {
+        func key(_ t: SnapTrack) -> String {
+            let a = "\(Int((t.ax * 1000).rounded())),\(Int((t.ay * 1000).rounded()))"
+            let b = "\(Int((t.bx * 1000).rounded())),\(Int((t.by * 1000).rounded()))"
+            return "\(t.layer)|" + (a < b ? a + "|" + b : b + "|" + a)
+        }
+        let now = Set(store.snapshot.tracks.map(key)), before = Set(old.tracks.map(key))
+        var removed = Path(), added = Path()
+        for t in old.tracks where !now.contains(key(t)) {
+            removed.move(to: CGPoint(x: t.ax, y: t.ay))
+            removed.addLine(to: CGPoint(x: t.bx, y: t.by))
+        }
+        for t in store.snapshot.tracks where !before.contains(key(t)) {
+            added.move(to: CGPoint(x: t.ax, y: t.ay))
+            added.addLine(to: CGPoint(x: t.bx, y: t.by))
+        }
+        ctx.stroke(removed.applying(screen), with: .color(Theme.error), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 3]))
+        ctx.stroke(added.applying(screen), with: .color(.green), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        let current = Dictionary(store.snapshot.courtyards.map { ($0.component, $0.rect) }, uniquingKeysWith: { a, _ in a })
+        for cy in old.courtyards where current[cy.component].map({ $0 != cy.rect }) ?? true {
+            ctx.stroke(Path(cy.rect).applying(screen), with: .color(Theme.warning), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+        }
     }
 
     // MARK: - Drawing
@@ -1046,7 +1356,8 @@ struct PCBCanvas: View {
         func shifted(_ component: Int, _ p: CGPoint) -> CGPoint {
             moving.contains(component) ? CGPoint(x: p.x + d.width, y: p.y + d.height) : p
         }
-        let hoveredNet: Int? = hover.flatMap { pad(at: viewport.toWorld($0)) }.flatMap { $0.net >= 0 ? $0.net : nil }
+        let hoveredNet: Int? = store.pcbHighlightNet
+            ?? hover.flatMap { pad(at: viewport.toWorld($0)) }.flatMap { $0.net >= 0 ? $0.net : nil }
         // Only what is on screen is drawn (large boards); designators fade out when zoomed far out.
         let view = viewport.visibleWorldRect(in: size).insetBy(dx: -2, dy: -2)
         func onScreen(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double, pad: Double = 0) -> Bool {
@@ -1065,9 +1376,10 @@ struct PCBCanvas: View {
 
         // Board (rectangle or custom outline) and mounting holes
         let boardRect = CGRect(x: 0, y: 0, width: snap.board.width, height: snap.board.height)
-        let outline = snap.board.hasCustomOutline ? Path(snap.board.outlinePath)
+        var outline = snap.board.hasCustomOutline ? Path(snap.board.outlinePath)
                                                   : Path(roundedRect: boardRect, cornerRadius: 0.8)
-        ctx.fill(outline.applying(screen), with: .color(Theme.boardFill))
+        outline.addPath(Path(snap.board.cutoutPath))  // cutouts stay open (even-odd fill)
+        ctx.fill(outline.applying(screen), with: .color(Theme.boardFill), style: FillStyle(eoFill: true))
         if visible.contains(.boardOutline) {
             ctx.stroke(outline.applying(screen), with: .color(Theme.boardEdge), lineWidth: 1.5)
             if !snap.board.hasCustomOutline {
@@ -1077,6 +1389,21 @@ struct PCBCanvas: View {
             }
         }
         drawGrid(&ctx, board: boardRect, view: view)
+        if visible.contains(.boardOutline) {
+            for ko in snap.board.keepouts where ko.rect.intersects(view) {
+                let r = Path(ko.rect).applying(screen)
+                ctx.fill(r, with: .color(Theme.error.opacity(0.08)))
+                ctx.stroke(r, with: .color(Theme.error.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [6, 3]))
+                ctx.draw(Text(ko.name).font(.caption2).foregroundColor(Theme.error),
+                         at: CGPoint(x: ko.rect.minX, y: ko.rect.minY).applying(screen), anchor: .bottomLeading)
+            }
+        }
+        for zone in snap.zones where zone.layer < max(1, snap.board.layerCount) && visible.contains(.copper(zone.layer)) {
+            guard let poly = zone.polygon, poly.count >= 3 else { continue }
+            let path = Path { $0.addLines(poly.map(\.point)); $0.closeSubpath() }
+            ctx.stroke(path.applying(screen), with: .color(Theme.copperColor(zone.layer, layerCount: max(1, snap.board.layerCount))),
+                       style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+        }
 
         // Copper pours (under tracks and pads), bottom-most first.
         for fill in snap.zoneFills.sorted(by: { $0.layer > $1.layer })
@@ -1087,6 +1414,7 @@ struct PCBCanvas: View {
             let base = copper(fill.net, fill.layer)
             let highlight = hoveredNet == fill.net
             ctx.fill(path.applying(screen), with: .color(highlight ? Theme.iceBlue.opacity(0.35) : base.opacity(isActive ? 0.32 : 0.14)))
+            if pourClearance, isActive { drawPourClearance(fill, in: &ctx, screen: screen, view: view) }
         }
         for hole in snap.board.holes {
             let keep = CGRect(x: hole.x - hole.keepout / 2, y: hole.y - hole.keepout / 2, width: hole.keepout, height: hole.keepout)
@@ -1154,7 +1482,9 @@ struct PCBCanvas: View {
                 && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)
-                ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * 0.15).applying(screen),
+                let shape = p.outline != nil ? p.shape(at: CGPoint(x: moved.midX, y: moved.midY))
+                    : Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * (p.corner ?? 0.15))
+                ctx.fill(shape.applying(screen),
                          with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : (isActive ? Theme.pad : Theme.pad.opacity(0.45))))
             }
         }
@@ -1163,8 +1493,12 @@ struct PCBCanvas: View {
             for p in snap.pads where p.throughHole && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let c = shifted(p.component, CGPoint(x: p.x, y: p.y))
                 let r = CGRect(x: c.x - p.w / 2, y: c.y - p.h / 2, width: p.w, height: p.h)
-                let shape = p.round ? Path(ellipseIn: r) : Path(r)
-                ctx.fill(shape.applying(screen), with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : Theme.pad))
+                let shape = p.shape(at: c)
+                if p.npth == true {  // a plain hole: no copper ring
+                    ctx.stroke(Path(ellipseIn: r).applying(screen), with: .color(Theme.boardEdge), lineWidth: 1)
+                } else {
+                    ctx.fill(shape.applying(screen), with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : Theme.pad))
+                }
                 let hole = CGRect(x: c.x - p.drill / 2, y: c.y - p.drill / 2, width: p.drill, height: p.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
@@ -1250,10 +1584,50 @@ struct PCBCanvas: View {
                        style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
         }
 
+        // Solder mask (openings 0.05 mm larger than the pads, as in the Gerbers), paste stencil and fabrication drawing.
+        if visible.contains(.solderMask) {
+            var mask = outline
+            for p in snap.pads where p.throughHole || !p.bottom { mask.addRect(p.rect.insetBy(dx: -0.05, dy: -0.05)) }
+            let m = snap.board.mask.swatch
+            ctx.fill(mask.applying(screen), with: .color(Color(red: m.red, green: m.green, blue: m.blue).opacity(0.45)),
+                     style: FillStyle(eoFill: true))
+        }
+        if visible.contains(.paste) {
+            var paste = Path()
+            for p in snap.pads where !p.throughHole && onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h)) { paste.addRect(p.rect) }
+            ctx.fill(paste.applying(screen), with: .color(Color(white: 0.78).opacity(0.85)))
+        }
+        if visible.contains(.fab) {
+            let pin1 = Dictionary(snap.pads.filter { $0.number == 1 }.map { ($0.component, $0) }, uniquingKeysWith: { a, _ in a })
+            for cy in snap.courtyards where cy.rect.intersects(view) {
+                let body = cy.rect.insetBy(dx: min(0.25, cy.rect.width / 4), dy: min(0.25, cy.rect.height / 4))
+                ctx.stroke(Path(body).applying(screen), with: .color(Theme.warning.opacity(0.85)), lineWidth: 1)
+                Self.strokeFootprintLines(cy, fab: true, in: &ctx, screen: screen, k: k, colour: Theme.warning)
+                if let p = pin1[cy.component] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: p.x - 0.2, y: p.y - 0.2, width: 0.4, height: 0.4)).applying(screen),
+                             with: .color(Theme.warning))
+                }
+                if showDesignators, let c = snap.component(cy.component) {
+                    ctx.draw(Text(c.ref).font(.system(size: max(7, min(12, 0.8 * k)), design: .monospaced))
+                                .foregroundColor(Theme.warning),
+                             at: CGPoint(x: body.midX, y: body.midY).applying(screen))
+                }
+            }
+        }
+
         // Silkscreen / courtyards / designators
         for cy in snap.courtyards where moving.contains(cy.component) || cy.rect.intersects(view) {
             let rect = cy.rect.offsetBy(dx: moving.contains(cy.component) ? d.width : 0, dy: moving.contains(cy.component) ? d.height : 0)
             let selected = store.selection.contains(cy.component)
+            // While dragging: a courtyard that overlaps a part on the same side turns red.
+            let side = snap.component(cy.component)?.pcb.bottom
+            if moving.contains(cy.component), snap.courtyards.contains(where: {
+                !moving.contains($0.component) && $0.rect.intersects(rect) && snap.component($0.component)?.pcb.bottom == side
+            }) {
+                ctx.fill(Path(rect).applying(screen), with: .color(Theme.error.opacity(0.25)))
+                ctx.stroke(Path(rect).applying(screen), with: .color(Theme.error), lineWidth: 1.6)
+                continue
+            }
             if visible.contains(.courtyard) || selected {
                 ctx.stroke(Path(rect).applying(screen), with: .color(selected ? Theme.selection : Theme.lightBlue.opacity(0.35)),
                            style: StrokeStyle(lineWidth: selected ? 1.6 : 0.8, dash: selected ? [] : [3, 3]))
@@ -1261,9 +1635,10 @@ struct PCBCanvas: View {
             if selected {
                 ctx.fill(Path(rect).applying(screen), with: .color(Theme.blue.opacity(0.12)))
             }
-            if visible.contains(.silkscreen), let c = snap.component(cy.component) {
+            if let c = snap.component(cy.component), visible.contains(c.pcb.bottom ? .bottomSilk : .silkscreen) {
                 let inner = rect.insetBy(dx: 0.15, dy: 0.15)
                 ctx.stroke(Path(inner).applying(screen), with: .color(Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9)), lineWidth: max(0.6, 0.12 * k))
+                Self.strokeFootprintLines(cy, fab: false, in: &ctx, screen: screen, k: k, colour: Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9))
                 guard showDesignators else { continue }
                 // Designator above the part, like the silkscreen; the value inside it once there is room.
                 let fontSize = max(8, min(15, 1.0 * k))
@@ -1330,13 +1705,26 @@ struct PCBCanvas: View {
             let s = CGPoint(x: v.x, y: v.y).applying(screen)
             ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.error), lineWidth: 2)
         }
+        if let id = store.focusedViolation, let v = store.drcResults.first(where: { $0.id == id && $0.hasLocation }) {
+            let s = CGPoint(x: v.x, y: v.y).applying(screen)
+            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 14, y: s.y - 14, width: 28, height: 28)), with: .color(Theme.warning), lineWidth: 2.5)
+        }
 
+        if let old = store.pcbCompare { drawComparison(&ctx, old: old, screen: screen) }
+        if !shapePoints.isEmpty {
+            let path = Path { $0.addLines(shapePoints + (hover.map { [viewport.toWorld($0)] } ?? [])) }
+            ctx.stroke(path.applying(screen), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+        }
         if let r = zoomRect {
             ctx.fill(Path(r), with: .color(Theme.blue.opacity(0.12)))
             ctx.stroke(Path(r), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
         }
         if zoomArmed {
             CanvasOverlays.banner("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels", in: &ctx, size: size)
+        } else if let tool = store.pcbShapeTool {
+            CanvasOverlays.banner(tool == .keepout ? String(localized: "Keep-out — drag a rectangle · Esc ends")
+                                  : String(localized: "Click the corners; double-click or Enter closes the shape · Esc cancels"),
+                                  in: &ctx, size: size)
         } else if let route {
             var length = String(format: "%.2f mm", route.length)
             if let net = route.netLength, let target = route.targetLength, target > 0 {
@@ -1371,6 +1759,9 @@ struct PCBCanvas: View {
             }
         } else if routeTool {
             CanvasOverlays.banner("Route — click a pad, via or track to start · \(store.routerBus ? "bus of \(store.routerBusWidth)" : routePair ? "differential pair" : "single track")",
+                                  in: &ctx, size: size)
+        } else if let old = store.pcbCompare {
+            CanvasOverlays.banner(String(localized: "Compared with \(old.name): green added, red removed, amber moved · right-click to clear"),
                                   in: &ctx, size: size)
         }
 
@@ -1469,6 +1860,63 @@ struct BoardMenu: View {
             TextField("Board name", text: $boardName)
             Button("OK") { store.renameBoard(store.snapshot.boards.active, to: boardName) }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+}
+
+extension SnapPad {
+    /// The pad's outline (circle, rectangle or rounded rectangle) around `centre`.
+    func shape(at centre: CGPoint) -> Path {
+        if let outline, outline.count >= 6 {
+            let points = stride(from: 0, to: outline.count - 1, by: 2).map { CGPoint(x: centre.x + outline[$0], y: centre.y + outline[$0 + 1]) }
+            return Path { $0.addLines(points); $0.closeSubpath() }
+        }
+        let r = CGRect(x: centre.x - w / 2, y: centre.y - h / 2, width: w, height: h)
+        if round { return Path(ellipseIn: r) }
+        return Path(roundedRect: r, cornerRadius: (corner ?? 0) * min(w, h))
+    }
+}
+
+extension PCBCanvas {
+    /// A footprint's drawn silk or fab lines (`SnapCourtyard.lines`).
+    static func strokeFootprintLines(_ cy: SnapCourtyard, fab: Bool, in ctx: inout GraphicsContext, screen: CGAffineTransform,
+                                     k: CGFloat, colour: Color) {
+        guard let v = cy.lines else { return }
+        for i in stride(from: 0, to: v.count - 5, by: 6) where (v[i + 5] != 0) == fab {
+            var line = Path()
+            line.move(to: CGPoint(x: v[i], y: v[i + 1]))
+            line.addLine(to: CGPoint(x: v[i + 2], y: v[i + 3]))
+            ctx.stroke(line.applying(screen), with: .color(colour), lineWidth: max(0.6, v[i + 4] * k))
+        }
+    }
+}
+
+extension PCBCanvas {
+    /// Pour clearance overlay: the pour's clearance as a halo round the other nets' pads and tracks on its layer, and an
+    /// X on each floating island the fill left out.
+    func drawPourClearance(_ fill: ZoneFillInfo, in ctx: inout GraphicsContext, screen: CGAffineTransform, view: CGRect) {
+        let snap = store.snapshot
+        guard snap.zones.indices.contains(fill.zone) else { return }
+        let gap = snap.zones[fill.zone].clearance
+        let halo = Color.orange.opacity(0.55)
+        for p in snap.pads where p.net != fill.net && (p.throughHole || (p.layer ?? 0) == fill.layer) && p.rect.intersects(view) {
+            let r = p.rect.insetBy(dx: -gap, dy: -gap)
+            ctx.stroke(Path(roundedRect: r, cornerRadius: gap).applying(screen), with: .color(halo), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+        }
+        for t in snap.tracks where t.net != fill.net && t.layer == fill.layer {
+            var line = Path()
+            line.move(to: CGPoint(x: t.ax, y: t.ay))
+            line.addLine(to: CGPoint(x: t.bx, y: t.by))
+            ctx.stroke(line.applying(screen), with: .color(halo.opacity(0.35)),
+                       style: StrokeStyle(lineWidth: (t.width + 2 * gap) * viewport.scale, lineCap: .round))
+        }
+        let v = fill.removedIslands ?? []
+        for i in stride(from: 0, to: v.count - 1, by: 2) {
+            let c = CGPoint(x: v[i], y: v[i + 1]).applying(screen)
+            var x = Path()
+            x.move(to: CGPoint(x: c.x - 5, y: c.y - 5)); x.addLine(to: CGPoint(x: c.x + 5, y: c.y + 5))
+            x.move(to: CGPoint(x: c.x - 5, y: c.y + 5)); x.addLine(to: CGPoint(x: c.x + 5, y: c.y - 5))
+            ctx.stroke(x, with: .color(Theme.warning), lineWidth: 2)
         }
     }
 }

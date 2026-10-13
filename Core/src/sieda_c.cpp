@@ -303,6 +303,64 @@ int32_t sieda_rotate_component(SiedaProject* project, int32_t id, int32_t delta)
     return project->project.schematic.rotateComponent(id, delta) ? 1 : 0;
 }
 
+int32_t sieda_mirror_component(SiedaProject* project, int32_t id, int32_t vertical) {
+    if (!project) return 0;
+    return project->project.schematic.mirrorComponent(id, vertical != 0) ? 1 : 0;
+}
+
+int32_t sieda_connect_touching(SiedaProject* project, int32_t id, int32_t wires) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.connectTouching(id, wires != 0); });
+}
+
+int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.cleanupWires(sheet); });
+}
+
+int32_t sieda_set_component_locked(SiedaProject* project, int32_t id, int32_t locked) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || c->locked == (locked != 0)) return 0;
+    c->locked = locked != 0;
+    return 1;
+}
+
+int32_t sieda_set_label_power(SiedaProject* project, int32_t id, int32_t power) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || c->kind != ComponentKind::NetLabel || c->power == (power != 0)) return 0;
+    c->power = power != 0;
+    return 1;
+}
+
+int32_t sieda_add_sheet_graphic(SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return -1;
+    try {
+        const Json j = Json::parse(request_json);
+        SheetGraphic g;
+        g.kind = j.get("kind").asString("");
+        g.sheet = j.get("sheet").asInt(0);
+        g.text = j.get("text").asString("");
+        for (const auto& pt : j.get("points").items()) g.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        return project->project.schematic.addGraphic(g);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_remove_sheet_graphic(SiedaProject* project, int32_t id) {
+    return project && project->project.schematic.removeGraphic(id) ? 1 : 0;
+}
+
+int32_t sieda_move_sheet_graphic(SiedaProject* project, int32_t id, double dx, double dy) {
+    return project && std::isfinite(dx) && std::isfinite(dy) && project->project.schematic.moveGraphic(id, {dx, dy}) ? 1 : 0;
+}
+
+int32_t sieda_set_sheet_graphic_text(SiedaProject* project, int32_t id, const char* text) {
+    return project && text && project->project.schematic.setGraphicText(id, text) ? 1 : 0;
+}
+
 int32_t sieda_set_component_value(SiedaProject* project, int32_t id, const char* value) {
     if (!project) return 0;
     return guarded([&] {
@@ -346,6 +404,21 @@ int32_t sieda_connect(SiedaProject* project, int32_t ca, int32_t pa, int32_t cb,
     } catch (...) {
         return -1;
     }
+}
+
+int32_t sieda_drag_wire_segment(SiedaProject* project, int32_t wire_id, double dx, double dy) {
+    if (!project || !std::isfinite(dx) || !std::isfinite(dy)) return 0;
+    if (!project->project.schematic.dragWireSegment(wire_id, {dx, dy})) return 0;
+    project->project.schematicChanged();
+    return 1;
+}
+
+int32_t sieda_move_wire_end(SiedaProject* project, int32_t wire_id, int32_t end_b, double x, double y, int32_t component,
+                            int32_t pin) {
+    if (!project || !std::isfinite(x) || !std::isfinite(y)) return 0;
+    if (!project->project.schematic.moveWireEnd(wire_id, end_b != 0, {x, y}, {component, pin})) return 0;
+    project->project.schematicChanged();
+    return 1;
 }
 
 int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y) {
@@ -630,6 +703,47 @@ char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out) {
         if (error_out) *error_out = dup(e.what());
         return nullptr;
     }
+}
+
+char* sieda_footprint_library_json(const SiedaProject* project, const char* query) {
+    std::vector<std::string> words;
+    std::istringstream in(str(query));
+    for (std::string w; in >> w;) {
+        for (auto& ch : w) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        words.push_back(w);
+    }
+    Json out = Json::array();
+    auto add = [&](const std::string& name, const FootprintDef& fp) {
+        std::string text = name + " " + fp.label;
+        for (auto& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        for (const auto& w : words)
+            if (text.find(w) == std::string::npos) return;
+        if (out.size() >= 200) return;
+        Json j = Json::object();
+        j["name"] = name, j["label"] = fp.label.empty() ? fp.name : fp.label, j["pads"] = static_cast<int>(fp.pads.size());
+        j["width"] = fp.courtyardW, j["height"] = fp.courtyardH;
+        out.push(j);
+    };
+    for (const auto& fp : Library::instance().footprints()) add(fp.name, fp);
+    for (const auto& id : project ? project->project.customLibrary : std::vector<std::string>{})
+        if (const CustomPart* part = CustomPartRegistry::instance().find(id)) add("CUSTOM:" + id, part->footprint);
+    return dup(out.dump());
+}
+
+char* sieda_footprint_lands_json(const char* name) {
+    const FootprintDef* fp = Library::instance().footprint(str(name));
+    if (!fp) return nullptr;
+    Json lands = Json::array();
+    for (const PadDef& pad : fp->pads) {
+        Json l = Json::array();
+        for (double v : {pad.offset.x, pad.offset.y, pad.size.x, pad.size.y, pad.throughHole ? pad.drill : 0.0}) l.push(v);
+        l.push(pad.round ? 1 : 0);
+        l.push(std::string(pad.pinIndex < 0 ? "-" : ""));
+        lands.push(l);
+    }
+    Json j = Json::object();
+    j["lands"] = lands, j["bodySize"] = fp->body.width, j["bodyDepth"] = fp->body.depth;
+    return dup(j.dump());
 }
 
 char* sieda_check_land_pattern(const char* spec_json, double min_gap) {
@@ -1281,6 +1395,32 @@ int32_t sieda_router_strategy(void) { return static_cast<int32_t>(routerStrategy
 
 void sieda_router_set_threads(int32_t threads) { setRoutingThreads(threads); }
 
+char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json) {
+    if (!project) return nullptr;
+    try {
+        Project& p = project->project;
+        const PcbLayout before = p.pcb;
+        AutorouteOptions o;
+        const Json names = Json::parse(str(nets_json));
+        for (const Json& n : names.items()) o.nets.push_back(n.asString(""));
+        if (o.nets.empty()) return nullptr;
+        o.minimizeVias = true;
+        o.protectLocked = true;
+        std::swap(p.pcb.settings.autorouter, o);
+        p.autoRoute();
+        std::swap(p.pcb.settings.autorouter, o);
+        Json j = Json::object();
+        j["viasBefore"] = static_cast<int>(before.vias.size()), j["viasAfter"] = static_cast<int>(p.pcb.vias.size());
+        const bool kept = p.pcb.vias.size() < before.vias.size() &&
+                          p.pcb.ratsnest(p.schematic).size() <= before.ratsnest(p.schematic).size();
+        if (!kept) p.pcb = before;
+        j["kept"] = kept;
+        return dup(j.dump());
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
+
 void sieda_pcb_clear_routing(SiedaProject* project) {
     if (project) project->project.pcb.clearRouting();
 }
@@ -1495,6 +1635,50 @@ int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
     return 1;
 }
 
+extern "C++" {
+namespace {
+std::vector<Vec2> pointsFromJson(const char* json) {
+    std::vector<Vec2> out;
+    if (!json) return out;
+    try {
+        const Json list = Json::parse(json);
+        for (const auto& v : list.items()) {
+            const Vec2 p{v.get("x").asNumber(NAN), v.get("y").asNumber(NAN)};
+            if (!std::isfinite(p.x) || !std::isfinite(p.y)) return {};
+            out.push_back(p);
+        }
+    } catch (const std::exception&) {
+        return {};
+    }
+    return out.size() >= 3 && out.size() <= 4096 ? out : std::vector<Vec2>{};
+}
+}  // namespace
+}  // extern "C++"
+
+int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, int32_t layer, const char* points_json) {
+    auto poly = pointsFromJson(points_json);
+    if (poly.empty()) return -1;
+    const int32_t index = sieda_pcb_add_zone(project, net_name, layer, 0, 0);
+    if (index >= 0) project->project.pcb.zones[static_cast<size_t>(index)].polygon = std::move(poly);
+    return index;
+}
+
+int32_t sieda_pcb_add_cutout(SiedaProject* project, const char* points_json) {
+    if (!project) return 0;
+    auto poly = pointsFromJson(points_json);
+    auto& s = project->project.pcb.settings;
+    if (poly.empty() || !std::all_of(poly.begin(), poly.end(), [&](Vec2 p) { return s.contains(p); })) return 0;
+    s.cutouts.push_back(std::move(poly));
+    return 1;
+}
+
+int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index) {
+    if (!project || index < 0 || index >= static_cast<int32_t>(project->project.pcb.settings.cutouts.size())) return 0;
+    auto& cuts = project->project.pcb.settings.cutouts;
+    cuts.erase(cuts.begin() + index);
+    return 1;
+}
+
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
 }
@@ -1521,6 +1705,26 @@ void sieda_pcb_clear_tamper_meshes(SiedaProject* project) {
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {
     if (!project || !name) return 0;
     return project->project.pcb.settings.applyPreset(name) ? 1 : 0;
+}
+
+int32_t sieda_export_file(const SiedaProject* project, const char* format, const char* path) {
+    if (!project || !format || !path) return 0;
+    try {
+        const Project& p = project->project;
+        std::string content;
+        if (std::string(format) == "glb") {
+            content = exportGltf(buildAssemblyMesh(p.schematic, p.pcb), p.name);
+        } else if (char* text = sieda_export(project, format)) {
+            content = text;
+            sieda_string_free(text);
+        }
+        if (content.empty()) return 0;
+        std::ofstream f(path, std::ios::binary);
+        f << content;
+        return f.good() ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
 }
 
 char* sieda_export(const SiedaProject* project, const char* format) {
@@ -1559,6 +1763,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         }
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
+        if (f == "vrml") return dup(exportVrml(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
         if (f == "ipc2581") return dup(exportIpc2581(p));
         if (f == "review") return dup(reviewMarkdown(p));
@@ -1785,6 +1990,23 @@ char* sieda_si_checks_json(const SiedaProject* project) {
     }
 }
 
+SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const Json j = Json::parse(options_json ? options_json : "{}");
+        MeshOptions opt;
+        opt.components = j.get("components").asBool(true);
+        for (const auto& id : j.get("hidden").items()) opt.hidden.insert(id.asInt(-1));
+        opt.standoffs = std::clamp(j.get("standoffs").asNumber(0), 0.0, 50.0);
+        opt.enclosure = j.get("enclosure").asBool(false);
+        auto* m = new SiedaMesh();
+        m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
+        return m;
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components) {
     if (!project) return nullptr;
     try {
@@ -1818,6 +2040,18 @@ char* sieda_model3d_fit(const char* spec_json) {
         j["error"] = e.what();
         return dup(j.dump());
     }
+}
+
+int32_t sieda_pcb_set_part_model(SiedaProject* project, int32_t component_id, const char* model_id, const char* name,
+                                 double unit) {
+    if (!project || !project->project.schematic.find(component_id)) return 0;
+    auto& models = project->project.pcb.partModels;
+    if (str(model_id).empty()) return models.erase(component_id) > 0 ? 1 : 0;
+    if (!Model3DRegistry::instance().get(str(model_id)) || !std::isfinite(unit) || unit <= 0 || unit > 1000) return 0;
+    Model3DRef ref;
+    ref.id = str(model_id), ref.name = str(name), ref.unit = unit;
+    models[component_id] = model3dSeated(ref);  // centred on the footprint, standing on the board
+    return 1;
 }
 
 SiedaMesh* sieda_model3d_preview(const char* spec_json) {
@@ -2487,6 +2721,32 @@ int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
     const auto n = vias.size();
     vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& v) { return v.id == via_id; }), vias.end());
     return vias.size() < n ? 1 : 0;
+}
+
+int32_t sieda_pcb_split_track(SiedaProject* project, int32_t track_id, double x, double y) {
+    return project ? project->project.pcb.splitTrack(track_id, {x, y}) : -1;
+}
+
+int32_t sieda_pcb_merge_tracks(SiedaProject* project, const char* ids_json) {
+    if (!project) return 0;
+    std::vector<int> ids;
+    try {
+        const Json list = ids_json ? Json::parse(ids_json) : Json();
+        for (const auto& id : list.items()) ids.push_back(id.asInt(-1));
+    } catch (const std::exception&) {
+        return 0;
+    }
+    if (ids_json && ids.empty()) return 0;
+    return project->project.pcb.mergeTracks(project->project.schematic, ids);
+}
+
+int32_t sieda_pcb_move_footprint_with_tracks(SiedaProject* project, int32_t id, double x, double y) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || !c->hasFootprint()) return 0;
+    project->project.pcb.moveFootprintWithTracks(project->project.schematic, id, {x, y});
+    project->project.schematicChanged();
+    return 1;
 }
 
 }  // extern "C"

@@ -18,6 +18,58 @@ extension DesignStore {
         selection = []
     }
 
+    /// Deletes the selected tracks, or the given `vias` instead. One undo step.
+    func deleteSelectedCopper(vias: [Int] = []) {
+        let tracks = vias.isEmpty ? Array(selectedTracks) : []
+        guard !tracks.isEmpty || !vias.isEmpty else { return }
+        if routePreview != nil { cancelRoute() }
+        perform(vias.isEmpty ? "Deleted \(tracks.count) track(s)" : "Deleted copper", invalidatesAnalysis: false) { engine in
+            tracks.forEach { engine.removeTrack($0) }
+            vias.forEach { engine.removeVia($0) }
+        }
+        if vias.isEmpty { selectedTracks = [] }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
+    /// Splits a straight track in two at the point nearest `point` (a new corner to drag).
+    func splitTrack(_ id: Int, at point: CGPoint) {
+        var new: Int?
+        performChecked("Split track", invalidatesAnalysis: false,
+                       failureMessage: "Split: only a straight track can be split, away from its ends") {
+            new = $0.splitTrack(id, at: point)
+            return new != nil
+        }
+        if let new { selectedTracks = [id, new] }
+    }
+
+    /// Joins the selected tracks (all when none is selected) that continue each other in a straight line.
+    func mergeTracks() {
+        let ids = selectedTracks.isEmpty ? nil : Array(selectedTracks).sorted()
+        var joins = 0
+        performChecked("Merged tracks", invalidatesAnalysis: false,
+                       failureMessage: "Merge: no straight joints between tracks of one net, layer and width") {
+            joins = $0.mergeTracks(ids)
+            return joins > 0
+        }
+        if joins > 0 {
+            selectedTracks = []
+            statusMessage = "Merged \(joins) joint(s)"
+        }
+    }
+
+    /// Goes to the next (`delta` 1) or previous (-1) located design rule error: rings it and zooms the board to it.
+    func stepDRC(_ delta: Int) {
+        let located = drcResults.filter { $0.severity == .error && $0.hasLocation }
+        guard !located.isEmpty else { return }
+        let at = located.firstIndex { $0.id == focusedViolation }.map { ($0 + delta + located.count) % located.count }
+            ?? (delta > 0 ? 0 : located.count - 1)
+        let v = located[at]
+        focusedViolation = v.id
+        if v.components.count == 1 { selection = Set(v.components) }
+        requestView(.focus(CGPoint(x: v.x, y: v.y)))
+        statusMessage = "\(at + 1) of \(located.count): \(v.message)"
+    }
+
     /// Selects every track of the selected tracks' nets (the whole route), so a command covers it.
     func selectTrackNets() {
         let nets = Set(snapshot.tracks.filter { selectedTracks.contains($0.id) }.map(\.net))
@@ -37,6 +89,20 @@ extension DesignStore {
             _ = $0.setLengthRule(net: net, target: max(0, target), tolerance: max(0, tolerance))
         }
         if tuneSession != nil { setTuneTarget(tuneSession?.target ?? 0) }
+    }
+
+    /// A length rule as a delay: delayPs ± tolerancePs, converted to mm on the outer layer (0 removes it). Undoable.
+    func setDelayRule(net: String, delayPs: Double, tolerancePs: Double) {
+        guard !net.isEmpty, delayPs.isFinite, tolerancePs.isFinite else { return }
+        perform(delayPs > 0 ? "Set delay rule" : "Removed length rule", invalidatesAnalysis: false) {
+            _ = $0.setDelayRule(net: net, delayPs: max(0, delayPs), tolerancePs: max(0, tolerancePs))
+        }
+    }
+
+    /// Sets a differential pair's rule (an interface preset and / or impedance); no values removes it. Undoable.
+    func setPairRule(_ rule: PairRuleInfo) {
+        perform("Pair rule for \(rule.pair)", invalidatesAnalysis: false) { _ = $0.setPairRule(rule) }
+        if !drcResults.isEmpty { runDRC() }
     }
 
     /// Sets or (fewer than two nets) removes a match group. Undoable.
@@ -113,8 +179,27 @@ extension DesignStore {
             return
         }
         runBoardCommand("Gloss", failure: "Gloss: the routes are already as tight as the board allows") {
-            $0.gloss(tracks: tracks)
+            $0.gloss(tracks: tracks, moveVias: true)
         }
+    }
+
+    /// Via minimisation on the nets of the selected tracks (every net when none is selected): routed again with fewer
+    /// vias, kept only when it has fewer vias and leaves nothing more unrouted. One undo step.
+    func minimizeVias() {
+        let ids = Set(commandTracks)
+        let nets = Set(snapshot.tracks.filter { ids.contains($0.id) }.map(\.net)).compactMap { n in snapshot.nets.first { $0.index == n }?.name }
+        guard !nets.isEmpty else {
+            statusMessage = "Minimise Vias: there are no routed nets"
+            return
+        }
+        if routePreview != nil { cancelRoute() }
+        var outcome: EDAEngine.ViaMinimisation?
+        performChecked("Minimise vias", invalidatesAnalysis: false, failureMessage: "Minimise Vias: no via could be saved") {
+            outcome = $0.minimizeVias(nets: nets.sorted())
+            return outcome?.kept == true
+        }
+        if let o = outcome, o.kept { statusMessage = "Minimise Vias: \(o.viasBefore) → \(o.viasAfter) vias" }
+        if !drcResults.isEmpty { runDRC() }
     }
 
     /// Teardrops whose track end lies on one of `tracks` (a teardrop ends on the track it widens).

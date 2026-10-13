@@ -115,6 +115,24 @@ int replaceInSchematic(Schematic& sch, const std::string& text, const std::strin
     }
     int changed = 0;
     for (const auto& [id, value] : edits) changed += sch.setValue(id, value) ? 1 : 0;
+    // Designators too (refs): a new one must still be a designator (letters then a number) and be free.
+    if (o.refs) {
+        std::vector<std::pair<int, std::string>> renames;
+        std::set<std::string> taken;
+        for (const auto& c : sch.components()) taken.insert(c.ref);
+        for (const auto& c : sch.components()) {
+            if (!isPart(c) || c.packageOnly || c.instanceOf != 0 || c.kind == ComponentKind::PartUnit || !matches(c.ref, text, o)) continue;
+            const std::string ref = replaced(c.ref, text, with, o);
+            const size_t digits = ref.find_first_of("0123456789");
+            const bool shaped = digits != std::string::npos && digits > 0 &&
+                                ref.find_first_not_of("0123456789", digits) == std::string::npos &&
+                                std::all_of(ref.begin(), ref.begin() + static_cast<long>(digits), [](char ch) { return std::isalpha(static_cast<unsigned char>(ch)) || ch == '_'; });
+            if (ref == c.ref || !shaped || taken.count(ref)) continue;
+            taken.insert(ref);
+            renames.push_back({c.id, ref});
+        }
+        for (const auto& [id, ref] : renames) changed += sch.setRef(id, ref) ? 1 : 0;
+    }
     return changed;
 }
 

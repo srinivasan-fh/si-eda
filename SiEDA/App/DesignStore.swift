@@ -71,6 +71,10 @@ final class DesignStore: ObservableObject {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
     @Published var selectedWire: Int?
+    /// The part whose designator and value are being edited in place (double-click on the schematic).
+    @Published var quickEdit: Int?
+    /// The note / line / arrow / rectangle selected on the schematic.
+    @Published var selectedGraphic: Int?
     /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
     @Published var selectedBus: Int?
     /// The schematic's Find & Replace panel.
@@ -86,6 +90,8 @@ final class DesignStore: ObservableObject {
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []
+    /// The check finding opened from the messages / rule check list: its spot is ringed on the canvas.
+    @Published var focusedViolation: String?
     @Published var drcResults: [RuleViolation] = []
     @Published var validationResults: [RuleViolation] = []
     @Published private(set) var verificationReport: VerificationReport?
@@ -250,7 +256,11 @@ final class DesignStore: ObservableObject {
         recoveryWork = nil
         guard let recovery, isDirty else { return }
         recovery.save(json: engine.saveJSON(), documentURL: documentURL)
+        // Settings ▸ "Save projects automatically": a saved project is written to its own file after each pause too.
+        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL { _ = write(to: url) }
     }
+
+    static let autosaveKey = "autosaveProject"
 
     /// Reopens work recovered after a crash: the design comes back unsaved, pointing at its original file if any.
     func restoreRecovered(_ pending: CrashRecovery.Pending) {
@@ -308,6 +318,7 @@ final class DesignStore: ObservableObject {
         selection = selection.filter { snapshot.component($0) != nil }  // O(1) per part (large designs)
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
+        if let g = selectedGraphic, !sheetSnapshot.sheetGraphics.contains(where: { $0.id == g }) { selectedGraphic = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
@@ -453,19 +464,31 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func addComponent(_ kind: ComponentKind, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
-        let snapped = SchematicAutoLayout.snap(point)
-        perform("Placed \(kind.displayName)") { id = $0.addComponent(kind, at: snapped, rotation: rotation) }
+        let snapped = SchematicGrid.snap(point)
+        perform("Placed \(kind.displayName)") {
+            id = $0.addComponent(kind, at: snapped, rotation: rotation)
+            if id >= 0 { _ = $0.connectTouching(id, wires: false) }  // a pin placed on another pin is wired to it
+        }
         if id >= 0 { selection = [id] }
         return id
     }
 
-    func moveComponents(_ ids: Set<Int>, by delta: CGSize) {
+    /// Moves parts with their wires following (drag); `detach` moves them alone, leaving the wires to other parts
+    /// behind (⌥-drag). Pins that land on a wire or another pin are wired to it.
+    func moveComponents(_ ids: Set<Int>, by delta: CGSize, detach: Bool = false) {
         guard !ids.isEmpty, delta != .zero else { return }
+        if ids.contains(where: { lockedParts.contains($0) }) {
+            statusMessage = "Locked parts stay where they are (unlock them first)"
+            return
+        }
         let moves = snapshot.components.filter { ids.contains($0.id) }
-        perform("Moved \(moves.count) part(s)", invalidatesAnalysis: false) { engine in
+        let cut = detach ? snapshot.wires.filter { ids.contains($0.a.component) != ids.contains($0.b.component) }.map(\.id) : []
+        perform(detach ? "Moved \(moves.count) part(s) alone" : "Moved \(moves.count) part(s)", invalidatesAnalysis: detach) { engine in
+            cut.forEach { engine.removeWire($0) }
             for c in moves {
-                engine.moveComponent(c.id, to: SchematicAutoLayout.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
+                engine.moveComponent(c.id, to: SchematicGrid.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
             }
+            for c in moves { engine.connectTouching(c.id, wires: false) }  // pin on pin; a wire it crosses stays apart
         }
     }
 
@@ -476,6 +499,11 @@ final class DesignStore: ObservableObject {
     }
 
     func deleteSelection() {
+        if let graphic = selectedGraphic {
+            perform("Deleted drawing", invalidatesAnalysis: false) { $0.removeSheetGraphic(graphic) }
+            selectedGraphic = nil
+            return
+        }
         if let bus = selectedBus {
             perform("Deleted bus") { $0.removeBus(bus) }
             selectedBus = nil
@@ -623,7 +651,7 @@ final class DesignStore: ObservableObject {
                 if p == w.end { return .pin(w.b) }
                 return .split(id, p)
             case .point(let p):
-                return .junction(SchematicAutoLayout.snap(p))
+                return .junction(SchematicGrid.snap(p))
             }
         }
         guard let from = resolve(start), let to = resolve(end) else { return nil }
@@ -653,13 +681,26 @@ final class DesignStore: ObservableObject {
 
     /// Bends a wire through `point`: a junction there splits it, and can be dragged further later.
     func bendWire(_ id: Int, at point: CGPoint) {
-        let p = SchematicAutoLayout.snap(point)
+        let p = SchematicGrid.snap(point)
         var junction: Int?
         performChecked("Bent wire", invalidatesAnalysis: false) { engine in
             junction = engine.splitWire(id, at: p)
             return junction != nil
         }
         if let junction { selection = [junction]; selectedWire = nil }
+    }
+
+    /// Drags a straight wire sideways by `offset` (its perpendicular part); it stays straight. Undoable.
+    func dragWireSegment(_ id: Int, by offset: CGSize) {
+        guard offset != .zero else { return }
+        performChecked("Moved wire", invalidatesAnalysis: false) { $0.dragWireSegment(id, dx: offset.width, dy: offset.height) }
+    }
+
+    /// Moves end b (else a) of a wire off its pin: onto `pin`, or a loose junction at `point`. Undoable.
+    func moveWireEnd(_ id: Int, b: Bool, to pin: PinAddress?, at point: CGPoint) {
+        performChecked("Moved wire end", failureMessage: "The wire end cannot go there") {
+            $0.moveWireEnd(id, b: b, x: point.x, y: point.y, component: pin?.component ?? -1, pin: pin?.pin ?? 0)
+        }
     }
 
     /// Abandons a wire being drawn: the corners already placed for it (dangling junctions) are removed.
@@ -733,6 +774,7 @@ final class DesignStore: ObservableObject {
     func select(component id: Int?, extend: Bool = false) {
         selectedWire = nil
         selectedBus = nil
+        selectedGraphic = nil
         guard let id else {
             if !extend { selection = [] }
             return
@@ -782,14 +824,17 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func addCustomComponent(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
-        let snapped = SchematicAutoLayout.snap(point)
+        let snapped = SchematicGrid.snap(point)
         let part = snapshot.customPart(partId)
         let name = part?.name ?? "part"
         if part?.isMultiUnit == true {
             // A multi-unit part is placed gate by gate: unit A now, the others with Place Next Unit.
             perform("Placed \(name) unit A") { id = $0.addCustomUnits(partId: partId, at: snapped, rotation: rotation) }
         } else {
-            perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+            perform("Placed \(name)") {
+                id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation)
+                if id >= 0 { _ = $0.connectTouching(id, wires: false) }
+            }
         }
         if id >= 0 { selection = [id] }
         return id
@@ -1191,7 +1236,7 @@ final class DesignStore: ObservableObject {
             count = $0.replace(trimmed, with: replacement, matchCase: matchCase, wholeWord: wholeWord)
             return count > 0
         }
-        if done { statusMessage = "Replaced \(count) value(s) and label(s)" }
+        if done { statusMessage = "Replaced \(count) value(s), label(s) and designator(s)" }
         return count
     }
 
@@ -1827,11 +1872,27 @@ final class DesignStore: ObservableObject {
         didSet { if routerTuneWhileRouting != oldValue { applyRouterOptions() } }
     }
 
+    /// The PCB drawing tool in use (nil = none) and the net a drawn pour takes ("" = the ground net).
+    @Published var pcbShapeTool: PCBShapeTool?
+    /// Net highlighted on the board until cleared (right-click a pad or track → Highlight Net; Esc clears it).
+    @Published var pcbHighlightNet: Int?
+    /// The earlier version picked with Compare with File: the board draws what changed from it until cleared.
+    @Published var pcbCompare: DesignSnapshot?
+    @Published var pourNet = ""
+
+    /// Route tool track width and differential pair gap in mm (0 = the board's net-class rules).
+    @Published var routerWidth = 0.0 {
+        didSet { if routerWidth != oldValue { applyRouterOptions() } }
+    }
+    @Published var routerPairGap = 0.0 {
+        didSet { if routerPairGap != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
                                  teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle,
-                                 tune: routerTuneWhileRouting)
+                                 tune: routerTuneWhileRouting, width: routerWidth, pairGap: routerPairGap)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -2195,6 +2256,59 @@ final class DesignStore: ObservableObject {
         if index == nil { alert = AlertItem(title: "Pour not added", message: "\(name) is not in the layer stack.") }
     }
 
+    /// PCB drawing tools: a pour, the board outline or a cutout (click corners, double-click or Enter closes) and a
+    /// routing keep-out (drag a rectangle).
+    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout }
+    /// Closes a drawn shape (≥ 3 corners) as `tool`; a pour takes `pourNet` (empty = the ground net) on `layer`.
+    func finishShape(_ tool: PCBShapeTool, points: [CGPoint], layer: Int) {
+        guard points.count >= 3 else {
+            statusMessage = "Draw at least three corners, then double-click or press Enter"
+            return
+        }
+        switch tool {
+        case .pour:
+            let net = pourNet.isEmpty
+                ? (snapshot.nets.first(where: { $0.ground })?.name ?? snapshot.nets.first?.name ?? "") : pourNet
+            guard !net.isEmpty else {
+                statusMessage = "Pour: the schematic has no nets yet"
+                return
+            }
+            performChecked("\(net) pour on \(snapshot.board.layerName(layer))", invalidatesAnalysis: false,
+                           failureMessage: "Pour: the shape needs three corners on a copper layer") {
+                $0.addZone(net: net, layer: layer, polygon: points) != nil
+            }
+        case .outline:
+            performChecked("Drew board outline", invalidatesAnalysis: false,
+                           failureMessage: "Outline: the shape must not cross itself") { $0.setOutline(points) }
+            fitToken &+= 1
+        case .cutout:
+            performChecked("Added board cutout", invalidatesAnalysis: false,
+                           failureMessage: "Cutout: draw it inside the board") { $0.addCutout(points) }
+        case .keepout:
+            break
+        }
+    }
+
+    /// Adds a routing keep-out (no tracks or vias; `pours` keeps copper pours out too) over `rect` on `layer`
+    /// (-1 = every copper layer).
+    func addKeepout(_ rect: CGRect, layer: Int, pours: Bool = false) {
+        guard rect.width > 0.1, rect.height > 0.1 else { return }
+        let r = rect.standardized
+        let keepout = RouteKeepout(name: "Keep-out \(snapshot.board.keepouts.count + 1)", x0: r.minX, y0: r.minY,
+                                   x1: r.maxX, y1: r.maxY, layer: layer, tracks: true, vias: true, pours: pours ? true : nil)
+        let all = snapshot.board.keepouts + [keepout]
+        perform("Added keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(all) }
+    }
+
+    func removeKeepout(_ keepout: RouteKeepout) {
+        let rest = snapshot.board.keepouts.filter { $0 != keepout }
+        perform("Removed keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(rest) }
+    }
+
+    func removeCutout(at index: Int) {
+        perform("Removed board cutout", invalidatesAnalysis: false) { $0.removeCutout(at: index) }
+    }
+
     func removeZone(at index: Int) {
         perform("Removed copper pour", invalidatesAnalysis: false) { $0.removeZone(at: index) }
     }
@@ -2266,16 +2380,57 @@ final class DesignStore: ObservableObject {
         moveFootprints([(id, point)])
     }
 
-    /// Moves several footprints as one undo step (snapped to the 0.25 mm placement grid).
-    func moveFootprints(_ moves: [(id: Int, point: CGPoint)]) {
+    /// Moves several footprints as one undo step (snapped to the 0.25 mm placement grid unless `snap` is false); the ends
+    /// of their tracks come along unless `withTracks` is false.
+    func moveFootprints(_ moves: [(id: Int, point: CGPoint)], withTracks: Bool = true, snap: Bool = true) {
         guard !isBusy, !moves.isEmpty else { return }
         performChecked(moves.count == 1 ? "Moved footprint" : "Moved \(moves.count) footprints", invalidatesAnalysis: false,
                        failureMessage: "Footprints could not be moved there") { engine in
             moves.reduce(false) { moved, move in
-                let snapped = CGPoint(x: (move.point.x / 0.25).rounded() * 0.25, y: (move.point.y / 0.25).rounded() * 0.25)
-                return engine.moveFootprint(move.id, to: snapped) || moved
+                let to = snap ? CGPoint(x: (move.point.x / 0.25).rounded() * 0.25, y: (move.point.y / 0.25).rounded() * 0.25)
+                    : move.point
+                return (withTracks ? engine.moveFootprintWithTracks(move.id, to: to) : engine.moveFootprint(move.id, to: to))
+                    || moved
             }
         }
+    }
+
+    enum FootprintAlignment { case left, right, top, bottom, centreX, centreY, distributeX, distributeY }
+
+    /// Lines the selected footprints' courtyards up on the outermost one's edge (or centre line), or spaces them
+    /// evenly between the outermost two. One undo step; their tracks come along.
+    func alignFootprints(_ how: FootprintAlignment) {
+        let boxes = snapshot.courtyards.filter { selection.contains($0.component) }
+        guard boxes.count >= (how == .distributeX || how == .distributeY ? 3 : 2) else {
+            statusMessage = "Align: select two or more footprints (three to distribute)"
+            return
+        }
+        let all = boxes.reduce(CGRect.null) { $0.union($1.rect) }
+        var shift: [Int: CGSize] = [:]
+        func spread(_ key: (CGRect) -> CGFloat, _ size: (CGRect) -> CGFloat, _ make: (CGFloat) -> CGSize) {
+            let sorted = boxes.sorted { key($0.rect) < key($1.rect) }
+            let gap = (sorted.map { size($0.rect) }.reduce(0, -) + size(all)) / CGFloat(sorted.count - 1)
+            var at = key(sorted[0].rect)
+            for box in sorted {
+                shift[box.component] = make(at - key(box.rect))
+                at += size(box.rect) + gap
+            }
+        }
+        switch how {
+        case .left: boxes.forEach { shift[$0.component] = CGSize(width: all.minX - $0.rect.minX, height: 0) }
+        case .right: boxes.forEach { shift[$0.component] = CGSize(width: all.maxX - $0.rect.maxX, height: 0) }
+        case .top: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.minY - $0.rect.minY) }
+        case .bottom: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.maxY - $0.rect.maxY) }
+        case .centreX: boxes.forEach { shift[$0.component] = CGSize(width: all.midX - $0.rect.midX, height: 0) }
+        case .centreY: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.midY - $0.rect.midY) }
+        case .distributeX: spread(\.minX, \.width) { CGSize(width: $0, height: 0) }
+        case .distributeY: spread(\.minY, \.height) { CGSize(width: 0, height: $0) }
+        }
+        let moves = shift.compactMap { entry -> (id: Int, point: CGPoint)? in
+            guard let c = snapshot.component(entry.key), entry.value != .zero else { return nil }
+            return (entry.key, CGPoint(x: c.pcb.x + entry.value.width, y: c.pcb.y + entry.value.height))
+        }
+        if moves.isEmpty { statusMessage = "Align: the footprints are already lined up" } else { moveFootprints(moves, snap: false) }
     }
 
     func rotateFootprints() {
@@ -2714,21 +2869,21 @@ final class DesignStore: ObservableObject {
 
     /// Asks where to save, then writes the file off the main thread (STEP or 3D exports of a big board take a while).
     func export(_ format: ExportFormat) async {
+        await exportFile(format.rawValue, name: format.fileName, title: format.displayName)
+    }
+
+    /// Writes one export (any `sieda_export_file` format, binary ones too, e.g. "glb") to a file the user picks.
+    func exportFile(_ format: String, name: String, title: String) async {
         guard !isBusy else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = format.fileName
+        panel.nameFieldStringValue = name
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let engine = self.engine
-        guard let content = await runBusy("Exporting \(format.displayName)…", { engine.export(format) }) else {
-            alert = AlertItem(title: "Export failed", message: "The core could not produce \(format.displayName).")
+        let engine = self.engine, path = url.path
+        guard await runBusy("Exporting \(title)…", { engine.exportFile(format, to: path) }) else {
+            alert = AlertItem(title: "Export failed", message: "The core could not write \(title).")
             return
         }
-        do {
-            try content.write(to: url, atomically: true, encoding: .utf8)
-            statusMessage = "Exported \(format.displayName)"
-        } catch {
-            present(error, title: "Export failed")
-        }
+        statusMessage = "Exported \(title)"
     }
 
     /// Files of the last fabrication package exported (for tests and the status line).

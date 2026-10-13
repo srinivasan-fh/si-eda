@@ -1,5 +1,6 @@
 // SiEDA Core — C ABI of the MCP engine (docs/MCP.md): the app's live endpoint and other hosts drive McpServer through
 // these calls. Every entry point is exception-safe.
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -119,6 +120,17 @@ char* sieda_mcp_tools_json(void) {
         return dupMcp(list.dump());
     } catch (...) {
         return dupMcp("[]");
+    }
+}
+
+char* sieda_render_schematic(const SiedaProject* project, int32_t sheet, int32_t width, const char* format) {
+    if (!project) return nullptr;
+    try {
+        const int w = std::clamp(static_cast<int>(width), 200, 8000);
+        if (format && std::string(format) == "png") return dupMcp(sieda::mcp::base64Encode(sieda::mcp::renderSchematicPng(*project, sheet, w)));
+        return dupMcp(sieda::mcp::renderSchematicSvg(*project, sheet, w));
+    } catch (...) {
+        return nullptr;
     }
 }
 

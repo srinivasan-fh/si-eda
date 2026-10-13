@@ -3749,11 +3749,18 @@ struct InteractiveRouter::Impl {
         }
         layer = l;
         width = std::max(netWidth(pNet), netWidth(nNet));
+        const PairRule* rule = base->s.pairRule(pairStem(base->netName(pNet), base->netName(nNet)));
+        if (rule && rule->width > 0 && opt.width <= 0) width = std::max(base->s.minTrackWidth, rule->width);
         if (opt.pairGap > 0) {
             gap = opt.pairGap;
+        } else if (rule && rule->gap > 0) {
+            gap = rule->gap;
         } else {
-            const auto geom = differentialPairGeometry(base->s, l, base->s.differentialImpedance);
+            const double ohms = rule && rule->impedance > 0 ? rule->impedance : base->s.differentialImpedance;
+            const auto geom = differentialPairGeometry(base->s, l, ohms);
             gap = std::max(geom.second, base->s.clearance);
+            if (rule && rule->impedance > 0 && rule->width <= 0 && opt.width <= 0 && geom.first > 0 && geom.first <= 1.0)
+                width = std::max(base->s.minTrackWidth, std::ceil(geom.first * 100) / 100);
         }
         gap = std::max(gap, base->clearance(pNet, nNet));
         spacing = width + gap;
@@ -4605,14 +4612,14 @@ struct InteractiveRouter::Impl {
 
     /// The path bent around the fixed copper in its way (each obstacle's octagonal clearance hull, the shorter way
     /// round), as the shove engine walks a pushed line around a pad. Empty when an obstacle cannot be passed.
-    std::vector<Vec2> hugPath(std::vector<Vec2> pts, int net, double hw) const {
+    std::vector<Vec2> hugPath(std::vector<Vec2> pts, int net, double hw, int onLayer = -1) const {
         std::vector<Hit> hits;
         for (int round = 0; round < 6; ++round) {
             bool found = false;
             Hit h;
             for (size_t k = 0; k + 1 < pts.size() && !found; ++k) {
                 hits.clear();
-                segmentHits(committed, {net}, layer, pts[k], pts[k + 1], hw, &hits);
+                segmentHits(committed, {net}, onLayer >= 0 ? onLayer : layer, pts[k], pts[k + 1], hw, &hits);
                 for (const Hit& x : hits)
                     if (x.fixed && (x.kind == HitKind::Pad || x.kind == HitKind::Track || x.kind == HitKind::Via)) {
                         h = x;
@@ -4872,7 +4879,7 @@ struct InteractiveRouter::Impl {
 
     /// The dragged copper at offset `d`: the selection moved, each boundary end joined back (links to anchors,
     /// lines rejoining their old paths with the posture, skipping a corner where that is shorter and not acute).
-    std::vector<Track> multiTracks(Vec2 d) const {
+    std::vector<Track> multiTracks(Vec2 d, bool hug = false) const {
         std::vector<Track> out;
         const RoutePosture posture = opt.posture;
         for (size_t s : mdrag.sel) {
@@ -4907,15 +4914,17 @@ struct InteractiveRouter::Impl {
                         }
                     }
                 if (best.size() < 2) best = {q, p.back()};
+                if (hug)
+                    if (auto bent = hugPath(best, L.net, L.width / 2, L.layer); bent.size() >= 2) best = bent;
                 for (const Track& t : toTracks(best, L.net, L.layer, L.width)) out.push_back(t);
             }
         }
         return out;
     }
 
-    bool placeMulti(World& w, Vec2 d, std::string& why) const {
+    bool placeMulti(World& w, Vec2 d, std::string& why, bool hug = false) const {
         std::vector<size_t> added;
-        for (const Track& t : multiTracks(d)) added.push_back(w.addTrack(t, true));
+        for (const Track& t : multiTracks(d, hug)) added.push_back(w.addTrack(t, true));
         if (highlight()) return true;
         if (opt.mode == RouterMode::Shove) {
             Shover sh(w, opt);
@@ -4948,6 +4957,18 @@ struct InteractiveRouter::Impl {
             mdrag.tracks = multiTracks(d);
             mdrag.valid = true;
             return;
+        }
+        if (opt.hugDrag) {  // the lines rejoining the moved copper bend round fixed copper
+            World wh = committed;
+            std::string whyHug;
+            if (placeMulti(wh, d, whyHug, true)) {
+                current = wh;
+                mdrag.offset = d;
+                mdrag.tracks = multiTracks(d, true);
+                mdrag.valid = true;
+                status += " — hugging an obstacle";
+                return;
+            }
         }
         blocked = true;
         status = why;
@@ -5120,7 +5141,7 @@ struct InteractiveRouter::Impl {
 
     /// The lines on a via at `pos`: each starts at the via and rejoins its old path with a 45° link, skipping a
     /// corner when that makes a shorter join without an acute corner.
-    std::vector<Track> viaLines(Vec2 pos) const {
+    std::vector<Track> viaLines(Vec2 pos, bool hug = false) const {
         std::vector<Track> out;
         for (const Line& L : vdrag.lines) {
             const std::vector<Vec2>& p = L.pts;
@@ -5141,16 +5162,18 @@ struct InteractiveRouter::Impl {
                 }
             }
             if (best.size() < 2) best = {pos, p.back()};
+            if (hug)  // bend round fixed copper in the way (hug drag)
+                if (auto bent = hugPath(best, L.net, L.width / 2, L.layer); bent.size() >= 2) best = bent;
             for (const Track& t : toTracks(best, L.net, L.layer, L.width)) out.push_back(t);
         }
         return out;
     }
 
-    bool placeVia(World& w, Vec2 pos, std::string& why) const {
+    bool placeVia(World& w, Vec2 pos, std::string& why, bool hug = false) const {
         Via nv = vdrag.via;
         nv.position = pos;
         std::vector<size_t> tracks;
-        for (const Track& t : viaLines(pos)) tracks.push_back(w.addTrack(t, true));
+        for (const Track& t : viaLines(pos, hug)) tracks.push_back(w.addTrack(t, true));
         const size_t vi = w.addVia(nv, true);
         if (highlight()) return true;
         if (opt.mode == RouterMode::Shove) {
@@ -5188,6 +5211,18 @@ struct InteractiveRouter::Impl {
             vdrag.tracks = viaLines(to);
             vdrag.valid = true;
             return;
+        }
+        if (opt.hugDrag) {  // the via's tracks bend round the fixed copper in their way
+            World wh = committed;
+            std::string whyHug;
+            if (placeVia(wh, to, whyHug, true)) {
+                current = wh;
+                vdrag.at = to;
+                vdrag.tracks = viaLines(to, true);
+                vdrag.valid = true;
+                status = "Dragging a via of " + base->netName(vdrag.via.net) + " — hugging an obstacle";
+                return;
+            }
         }
         // Stop at the furthest point along the way that fits.
         blocked = true;
@@ -7568,9 +7603,44 @@ BoardEditResult glossTracks(PcbLayout& pcb, const Schematic& sch, const std::vec
         for (size_t sgm : L.segs) w.goneT[sgm] = 0;
     }
     finishEdit(pcb, w, r, added, {}, opt.apply);
-    char buf[120];
+    int moved = 0;
+    if (opt.moveVias && opt.apply) {
+        std::set<int> nets;
+        for (const Track& t : B.tracks)
+            if (want.count(t.id)) nets.insert(t.net);
+        const std::vector<Via> vias = pcb.vias;
+        for (const Via& v : vias) {
+            if (!nets.count(v.net)) continue;
+            std::vector<Vec2> far;
+            for (const Track& t : pcb.tracks)
+                if (t.net == v.net && !t.teardrop && (samePoint(t.a, v.position, 1e-6) || samePoint(t.b, v.position, 1e-6)))
+                    far.push_back(samePoint(t.a, v.position, 1e-6) ? t.b : t.a);
+            if (far.size() != 2) continue;
+            const Vec2 ab = far[1] - far[0];
+            if (ab.dot(ab) < 1e-12) continue;
+            const double u = std::clamp((v.position - far[0]).dot(ab) / ab.dot(ab), 0.0, 1.0);
+            const Vec2 target = far[0] + ab * u;
+            if ((target - v.position).length() < 0.05) continue;
+            InteractiveRouter router(pcb, sch);
+            RouterOptions ro;
+            ro.mode = RouterMode::Walkaround;
+            router.setOptions(ro);
+            if (!router.beginViaDrag(v.id, v.position)) continue;
+            if (router.moveTo(target).blocked) {
+                router.cancel();
+                continue;
+            }
+            router.commit();
+            ++moved;
+        }
+    }
+    char buf[160];
     std::snprintf(buf, sizeof buf, "%d line%s improved, %.2f mm shorter", r.added, r.added == 1 ? "" : "s", saved);
     r.message = r.added > 0 ? buf : "The selected lines are already as tight as the board allows";
+    if (moved > 0) {
+        r.ok = true;
+        r.message += "; " + std::to_string(moved) + " via" + (moved == 1 ? "" : "s") + " moved";
+    }
     return r;
 }
 

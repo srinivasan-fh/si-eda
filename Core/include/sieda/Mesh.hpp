@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <set>
 #include <vector>
 
 #include "sieda/Geometry.hpp"
@@ -89,6 +90,12 @@ struct MeshOptions {
     bool components = true;
     bool copper = true;
     bool silkscreen = true;
+    /// Parts left out of the model (3D view Hide / Isolate): no body, and their pads stay bare.
+    std::set<int> hidden;
+    /// Hex standoffs of this length (mm) under the mounting holes, with pan-head screws on top; 0 = none.
+    double standoffs = 0;
+    /// The enclosure model (BoardSettings::enclosure), see-through.
+    bool enclosure = false;
 };
 
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& options = {});

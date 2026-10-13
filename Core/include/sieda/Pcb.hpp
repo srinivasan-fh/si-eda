@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "sieda/CustomParts.hpp"
 #include "sieda/Geometry.hpp"
 #include "sieda/Schematic.hpp"
 
@@ -22,7 +23,28 @@ struct LengthRule {
     std::string net;
     double target = 0;
     double tolerance = 0.1;
+    /// Set as a delay (ps): target and tolerance are that delay on the outer layer at the net's width
+    /// (propagationDelayPerMm). JSON "delayPs", written only when set.
+    double delayPs = 0;
 };
+
+/// A differential pair's own rule (Pair Rules, or an interface preset): impedance target (Ω, 0 = the board's), track
+/// width and gap (mm, 0 = from the impedance on the stack-up) and P/N skew tolerance (mm, 0 = the board's).
+struct PairRule {
+    std::string pair;    // the pair's stem: "USB_D" for USB_D_P / USB_D_N (pairStem)
+    double impedance = 0, width = 0, gap = 0, skew = 0;
+    std::string preset;  // the interface preset it came from ("usb2", …); informative
+};
+
+/// Interface presets: typical design-guide differential impedance and intra-pair skew; the device's own layout guide
+/// wins where it differs.
+struct InterfacePreset {
+    const char* id;
+    const char* name;
+    double impedance;  // Ω differential
+    double skew;       // mm
+};
+const std::vector<InterfacePreset>& interfacePresets();
 
 /// A match group (as xSignal classes in other tools): the routed lengths of these nets' xSignals should match the
 /// longest of them within `tolerance` mm.
@@ -229,6 +251,13 @@ struct BoardSettings {
     /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
     std::vector<LengthRule> lengthRules;
     std::vector<MatchGroup> matchGroups;
+    /// Per-pair rules (saved only when present); pairRule = the rule of a pair's stem, or nullptr.
+    std::vector<PairRule> pairRules;
+    const PairRule* pairRule(const std::string& stem) const {
+        for (const auto& r : pairRules)
+            if (r.pair == stem) return &r;
+        return nullptr;
+    }
     /// Autorouter strategy (saved with the board only when it differs from the defaults).
     AutorouteOptions autorouter;
     /// Routing keep-outs (saved only when there are any).
@@ -237,6 +266,8 @@ struct BoardSettings {
     /// height zones. Saved only when set.
     double maxHeightTop = 0, maxHeightBottom = 0;
     std::vector<HeightZone> heightZones;
+    /// Enclosure model (Model3DRegistry id; mm in the MCAD frame of Mechanical.hpp) the parts must clear.
+    std::string enclosure;
     /// Production panel for the fabrication package (saved only when it has more than one board).
     PanelSettings panel;
     /// Manufacturer DFM / DFA rule pack (Dfm.hpp) the DRC checks against; empty = none (not saved).
@@ -260,6 +291,21 @@ struct BoardSettings {
     /// Board outline polygon (mm, inside [0,width]×[0,height]); empty = the width × height rectangle.
     std::vector<Vec2> outline;
     std::vector<MountingHole> holes;
+    /// Board cutouts: closed shapes routed out of the board (mm, board coordinates). Copper, parts and pours keep the
+    /// edge clearance from them as from the outline. JSON "cutouts", written only when present.
+    std::vector<std::vector<Vec2>> cutouts;
+    /// Calls `edge(a, b)` for every edge of the outline polygon and of the cutouts.
+    template <class F>
+    void forEachEdge(F&& edge) const {
+        if (hasCustomOutline()) {
+            for (size_t i = 0, j = outline.size() - 1; i < outline.size(); j = i++) edge(outline[j], outline[i]);
+        } else {
+            const Vec2 r[4] = {{0, 0}, {width, 0}, {width, height}, {0, height}};
+            for (size_t i = 0, j = 3; i < 4; j = i++) edge(r[j], r[i]);
+        }
+        for (const auto& c : cutouts)
+            for (size_t i = 0, j = c.size() - 1; i < c.size(); j = i++) edge(c[j], c[i]);
+    }
 
     /// Outline as a polygon (the rectangle when no custom outline is set).
     std::vector<Vec2> outlinePolygon() const;
@@ -288,7 +334,7 @@ struct BoardSettings {
     static int normalizeLayerCount(int n) {
         if (n <= 1) return 1;
         if (n <= 2) return 2;
-        return std::min(kMaxLayers, n + (n % 2));
+        return n >= kMaxLayers ? kMaxLayers : n + (n % 2);  // no overflow for a huge count from a file
     }
 };
 
@@ -345,6 +391,15 @@ struct Pad {
     double drill = 0;
     bool bottom = false;  // SMD pad side
     int smdLayer = 0;     // copper layer of an SMD pad (0 = top, bottomLayer() for parts on the bottom side)
+    /// Footprint pad options (PadDef): rounded-rectangle corner ratio, non-plated hole (no copper: a hole of `drill`,
+    /// no net), mask margin (< 0 = 0.05 mm) and paste ratio (< 0 = automatic) in pasteGrid² windows.
+    double corner = 0;
+    bool npth = false;
+    double mask = -1, paste = -1;
+    int pasteGrid = 1;
+    /// Polygon pad round `position` (board frame; empty = rectangle / circle) and the inner-layer diameter (0 = size).
+    std::vector<Vec2> outline{};
+    double inner = 0;
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
     bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };
@@ -416,6 +471,8 @@ struct CopperZone {
     /// Plane layer: reserved for this net — other nets cross it only with vias (anti-pads are cut automatically).
     bool plane = false;
     double clearance = 0;  // 0 = board clearance
+    /// Drawn pour shape (mm, board coordinates); empty = the whole board. JSON "polygon", written only when set.
+    std::vector<Vec2> polygon;
 };
 
 /// Poured copper of one zone, as a raster of islands (cell centres at ((i+0.5)·cell, (j+0.5)·cell)).
@@ -427,6 +484,8 @@ struct ZoneFill {
     int cols = 0, rows = 0;
     std::vector<int> island;  // island index per cell, -1 = no copper
     int islands = 0;
+    /// Centres of the floating islands the fill left out (copper not touching the net), for island markers.
+    std::vector<Vec2> removedIslands{};
     std::vector<Rect> rects;  // the same copper as merged rectangles (drawing, Gerber regions, 3D)
     /// Island whose copper overlaps a disc of `radius` at `p`, or -1.
     int islandNear(Vec2 p, double radius) const;
@@ -551,6 +610,9 @@ public:
     std::vector<Track> tracks;
     std::vector<Via> vias;
     std::vector<CopperZone> zones;
+    /// Imported 3D models of placed parts by component id (any part, catalog ones too), over their generated
+    /// bodies; saved as "partModels" only when there are any.
+    std::map<int, Model3DRef> partModels;
     std::vector<TamperMesh> tamperMeshes;
     /// Which of the project's boards this layout is (Project::activeBoard; not saved with it). Parts of another board
     /// (PcbPlacement::board) are left alone: Auto Place, the unplaced-part checks and the part counts skip them.
@@ -571,6 +633,8 @@ public:
     /// Pads of every footprint currently placed on the board, with net assignments from the schematic.
     std::vector<Pad> pads(const Schematic& sch) const;
     Rect courtyard(const Component& c) const;
+    /// The footprint's drawn silk / fab lines on the board (mirrored on the bottom side).
+    std::vector<FootprintLine> footprintLines(const Component& c) const;
 
     /// Places any not-yet-placed footprints; with `all` re-places everything (connectivity-driven clustering).
     void autoPlace(Schematic& sch, bool all);
@@ -618,6 +682,15 @@ public:
 
     int addTrack(Track t);
     int addVia(Via v);
+    /// Splits a straight track at the point of it nearest `at` into two tracks meeting there; the new one's id, or -1
+    /// (an arc, a teardrop, or `at` too close to an end).
+    int splitTrack(int id, Vec2 at);
+    /// Joins straight tracks of one net, layer and width that continue each other in a straight line through a point
+    /// nothing else meets (no third track, via or pad); `only` limits it to those tracks (empty = all). Returns joins.
+    int mergeTracks(const Schematic& sch, const std::vector<int>& only = {});
+    /// Moves a footprint to `to` and drags along the ends of the tracks on its pads (rubber band): they stay
+    /// connected. Returns the number of track ends moved.
+    int moveFootprintWithTracks(Schematic& sch, int componentId, Vec2 to);
 
 private:
     int nextId_ = 1;

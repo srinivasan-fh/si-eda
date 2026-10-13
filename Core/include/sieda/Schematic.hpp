@@ -118,6 +118,15 @@ struct Component {
     std::string value;
     Vec2 position;  // schematic units
     int rotation = 0;
+    /// Mirrored left-right in its own frame before the rotation (a vertical mirror is this plus 180°).
+    bool mirror = false;
+    /// Locked on the schematic: the editor does not move it (the board lock is `pcb.locked`).
+    bool locked = false;
+    /// Net labels: drawn as a power symbol (a bar on a stem, the rail's name beyond it) instead of a flag; it joins
+    /// its net exactly as the label would.
+    bool power = false;
+    /// A point of the symbol's own frame (pin offsets, outline corners) turned into the sheet's orientation.
+    Vec2 orient(Vec2 local) const { return rotate90(mirror ? Vec2{-local.x, local.y} : local, rotation); }
     PcbPlacement pcb;
     std::string customPart;  // CustomPartRegistry id when kind == ComponentKind::Custom
     std::vector<int> noConnect;  // pin indices deliberately left open (no-connect flag): ERC does not flag them
@@ -249,6 +258,17 @@ struct Wire {
     int instanceOf = 0;
 };
 
+/// A drawing on a sheet that is not part of the circuit: a note (text), a line, an arrow or a rectangle (a section
+/// boundary). Points in schematic units: a note's anchor (its text's top left); a line's / arrow's two ends (the
+/// arrow head at the second); a rectangle's two corners.
+struct SheetGraphic {
+    int id = -1;
+    int sheet = 1;
+    std::string kind;  // "text", "line", "arrow", "rect"
+    std::vector<Vec2> points;
+    std::string text;
+};
+
 struct Net {
     int index = -1;
     std::string name;
@@ -309,6 +329,8 @@ public:
     bool removeComponent(int id);
     bool moveComponent(int id, Vec2 position);
     bool rotateComponent(int id, int deltaDeg = 90);
+    /// Mirrors a part left-right (vertical = also turned 180°); its wires follow its pins.
+    bool mirrorComponent(int id, bool vertical = false);
     bool setValue(int id, const std::string& value);
     /// Fits the part in another package variant ("" = default); false if the kind has no such variant.
     bool setPackage(int id, const std::string& package);
@@ -325,6 +347,22 @@ public:
     /// Splits a wire at `position` with a new junction (T-junction or bend point) and returns the junction's id:
     /// the two halves keep the connection and further wires can end on the junction. -1 for an unknown wire.
     int splitWire(int wireId, Vec2 position);
+    /// Drags a straight (horizontal or vertical) wire sideways by the perpendicular part of `offset`, keeping it
+    /// straight: an end on a plain bend (a junction of two wires) moves with it, any other end gets a new junction and
+    /// a link from where it was. False for a slanted / L-shaped wire, a zero move or a repeated sheet's copy.
+    bool dragWireSegment(int wireId, Vec2 offset);
+    /// Moves end `b` (else `a`) of a wire off its pin: onto pin `to` when that is a pin, else onto a new junction at
+    /// `position` (a loose end to wire on from). False for an unknown wire, a repeated sheet's copy or a loop.
+    bool moveWireEnd(int wireId, bool b, Vec2 position, PinRef to);
+    /// Pins of part `id` that touch something without being wired to it — another part's pin on the same spot, or the
+    /// route of a wire running through (`wires`) — get wired to it (a T-junction on the wire). Returns the joins made.
+    int connectTouching(int id, bool wires = true);
+    /// What touches `pin` on the sheet without a wire to it: other parts' pins on the same spot and wires whose route
+    /// runs through it (not ending there).
+    void touching(PinRef pin, std::vector<PinRef>* pins, std::vector<int>* wires) const;
+    /// Removes the bends (junctions joining exactly two wires) that lie on a straight run on `sheet`: the wire is
+    /// drawn the same without them. Returns the number removed.
+    int cleanupWires(int sheet);
     /// Removes a chain of dangling junctions starting at `junctionId` (a wire abandoned half-way). Returns count.
     int removeDanglingJunctions(int junctionId);
     /// Number of wire ends on the component's pins.
@@ -580,6 +618,17 @@ public:
     /// Differential pairs marked by directives: (positive, negative) nets.
     std::vector<std::pair<int, int>> directiveDiffPairs() const;
 
+    // ---- notes and drawings on sheets ----
+    const std::vector<SheetGraphic>& graphics() const { return graphics_; }
+    /// Adds a note / line / arrow / rectangle on `g.sheet` (the active sheet when 0); its id, or -1 for an unknown
+    /// kind, the wrong number of points (text 1, others 2) or text over 2000 characters.
+    int addGraphic(SheetGraphic g);
+    bool removeGraphic(int id);
+    bool moveGraphic(int id, Vec2 by);
+    bool setGraphicText(int id, const std::string& text);
+    /// Restores a graphic as saved (file loading).
+    void restoreGraphic(const SheetGraphic& g);
+
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
     const Bus* findBus(int id) const;
@@ -673,6 +722,8 @@ private:
     std::vector<Wire> wires_;
     std::vector<Bus> buses_;
     int nextBusId_ = 1;
+    std::vector<SheetGraphic> graphics_;
+    int nextGraphicId_ = 1;
     bool omitUnfitted_ = false;
     std::vector<Sheet> sheets_{Sheet{1, "Main", 0}};
     int activeSheet_ = 1;

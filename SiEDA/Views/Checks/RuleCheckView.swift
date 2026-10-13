@@ -262,7 +262,13 @@ private struct ViolationRow: View {
             if !violation.components.isEmpty {
                 store.selection = Set(violation.components)
                 store.selectedWire = nil
-                store.workspace = target
+            }
+            guard !violation.components.isEmpty || violation.hasLocation else { return }
+            store.focusedViolation = violation.id
+            store.workspace = target
+            // Zoom to the location once the editor is on screen.
+            if violation.hasLocation, target == .pcb {
+                DispatchQueue.main.async { store.requestView(.focus(CGPoint(x: violation.x, y: violation.y))) }
             }
         } label: {
             HStack(alignment: .top, spacing: 10) {
@@ -273,7 +279,7 @@ private struct ViolationRow: View {
                     Text(violation.code).font(.caption.monospaced()).foregroundStyle(Theme.textMuted)
                 }
                 Spacer()
-                if !violation.components.isEmpty {
+                if !violation.components.isEmpty || violation.hasLocation {
                     Image(systemName: "scope").foregroundStyle(Theme.lightBlue)
                 }
             }
@@ -282,6 +288,6 @@ private struct ViolationRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(violation.components.isEmpty ? "" : "Cross-probe to the affected parts")
+        .help(violation.components.isEmpty && !violation.hasLocation ? "" : "Cross-probe to the affected parts")
     }
 }

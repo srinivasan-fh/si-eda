@@ -6,6 +6,7 @@ struct SchematicMessagesPanel: View {
     @EnvironmentObject private var store: DesignStore
     @Binding var isShown: Bool
     @State private var showInfo = false
+    @State private var cursor = -1  // the message opened last (previous / next step from it)
 
     var body: some View {
         let shown = store.ercResults.filter { showInfo || $0.severity != .info }
@@ -17,6 +18,14 @@ struct SchematicMessagesPanel: View {
                 Text("\(errors) errors · \(warnings) warnings").font(.caption).foregroundStyle(Theme.textMuted)
                 Spacer()
                 Toggle("Info", isOn: $showInfo).toggleStyle(.checkbox).font(.caption)
+                Button { step(-1, in: shown) } label: { Image(systemName: "chevron.up") }
+                    .disabled(shown.isEmpty)
+                    .help("Previous message")
+                    .accessibilityLabel("Previous message")
+                Button { step(1, in: shown) } label: { Image(systemName: "chevron.down") }
+                    .disabled(shown.isEmpty)
+                    .help("Next message")
+                    .accessibilityLabel("Next message")
                 Button { store.runERC() } label: { Label("Compile", systemImage: "hammer") }
                     .help("Run the electrical rule check on every sheet")
                 Button { isShown = false } label: { Image(systemName: "xmark") }
@@ -89,12 +98,26 @@ struct SchematicMessagesPanel: View {
         return info.name
     }
 
+    /// Opens the previous / next message (wrapping round).
+    private func step(_ by: Int, in list: [RuleViolation]) {
+        guard !list.isEmpty else { return }
+        cursor = ((cursor + by) % list.count + list.count) % list.count
+        open(list[cursor])
+    }
+
+    /// Shows a finding: its sheet, every part it names selected, its spot centred and ringed (wire- or net-only
+    /// findings too).
     private func open(_ v: RuleViolation) {
+        store.focusedViolation = v.id
         if let sheet = v.sheet, let first = v.components.first {
             store.crossProbe(component: first, sheet: sheet)
         } else if let first = v.components.first {
             store.reveal(component: first)
+        } else if let sheet = v.sheet {
+            store.selectSheet(sheet, fit: false)
         }
+        if v.components.count > 1 { store.selection = Set(v.components) }
+        if v.hasLocation { store.requestView(.focus(CGPoint(x: v.x, y: v.y))) }
     }
 }
 

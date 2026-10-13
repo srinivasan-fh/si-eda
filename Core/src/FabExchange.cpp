@@ -132,7 +132,7 @@ struct Board {
             Layer l{bottomSide ? "smb" : "smt", "SOLDER_MASK", "SOLDERMASK", bottomSide ? 'B' : 'T', "", "", {}};
             const int cl = bottomSide ? copper - 1 : 0;
             for (const auto& pad : pads)
-                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, 0.05));
+                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, pad.mask >= 0 ? pad.mask : 0.05));
             return l;
         };
 
@@ -167,7 +167,7 @@ struct Board {
                 l.features.push_back(f);
             }
             for (const auto& pad : pads)
-                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, 0));
+                if (pad.onLayer(cl) && !pad.npth) l.features.push_back(padFeature(pad, 0));
             for (const auto& v : pcb.vias) {
                 if (!v.spans(cl)) continue;
                 Feature f;
@@ -197,7 +197,7 @@ struct Board {
         const std::string top = copperName(0, copper), bottom = copperName(copper - 1, copper);
         Layer through{"drill", "DRILL", "DRILL", 'A', top, bottom, {}};
         for (const auto& pad : pads)
-            if (pad.throughHole && pad.drill > 0) through.features.push_back(hole(pad.position, pad.drill, pad.net, true));
+            if (pad.throughHole && pad.drill > 0) through.features.push_back(hole(pad.position, pad.drill, pad.net, !pad.npth));
         std::map<std::pair<int, int>, Layer> spans;
         for (const auto& v : pcb.vias) {
             if (v.isThrough()) {
@@ -222,6 +222,15 @@ struct Board {
         std::vector<Vec2> poly;
         for (const auto& p : pcb.settings.outlinePolygon()) poly.push_back(up(p));
         return poly;
+    }
+
+    std::vector<std::vector<Vec2>> cutouts() const {
+        std::vector<std::vector<Vec2>> out;
+        for (const auto& c : pcb.settings.cutouts) {
+            out.emplace_back();
+            for (const auto& p : c) out.back().push_back(up(p));
+        }
+        return out;
     }
 
     std::string netName(int net) const {
@@ -275,7 +284,12 @@ std::string exportIpc(const Board& board) {
 
     // Step body first: it fills the dictionaries the Content section lists.
     std::ostringstream step;
-    step << "<Step name=\"pcb\"><Datum x=\"0\" y=\"0\"/><Profile>" << polygon(board.profile()) << "</Profile>\n";
+    step << "<Step name=\"pcb\"><Datum x=\"0\" y=\"0\"/><Profile>" << polygon(board.profile());
+    for (const auto& c : board.cutouts()) {  // a Cutout has the Polygon's content
+        const std::string body = polygon(c);
+        step << "<Cutout>" << body.substr(9, body.size() - 19) << "</Cutout>";
+    }
+    step << "</Profile>\n";
     std::map<std::string, const Component*> packages;
     for (bool bottomSide : {false, true})
         for (const Component* c : board.placed(bottomSide)) packages.emplace(c->footprintName(), c);
@@ -517,7 +531,13 @@ std::string exportOdb(const Board& board) {
     const auto poly = board.profile();
     profile << "UNITS=MM\n#\n#Num Features\n#\nS P 0\nOB " << num(poly[0].x) << " " << num(poly[0].y) << " I\n";
     for (size_t i = 1; i <= poly.size(); ++i) profile << "OS " << num(poly[i % poly.size()].x) << " " << num(poly[i % poly.size()].y) << "\n";
-    profile << "OE\nSE\n";
+    profile << "OE\n";
+    for (const auto& c : board.cutouts()) {  // holes of the profile
+        profile << "OB " << num(c[0].x) << " " << num(c[0].y) << " H\n";
+        for (size_t i = 1; i <= c.size(); ++i) profile << "OS " << num(c[i % c.size()].x) << " " << num(c[i % c.size()].y) << "\n";
+        profile << "OE\n";
+    }
+    profile << "SE\n";
     files.push_back({step + "profile", profile.str()});
     for (const auto& l : board.layers) files.push_back({step + "layers/" + l.name + "/features", odbFeatures(l)});
 

@@ -52,6 +52,8 @@ The options bar shows the router settings while the Route tool is active:
 - **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)); **True arcs** (on by
   default) writes them as true arc tracks, off writes short straight chords.
 - **Bus** and its width: the next route is a bus (see [Bus routing](#bus-routing)).
+- **Track width** (and **Pair gap** for a pair): *Rule width* / *Rule gap* follow the net class; a fixed value
+  overrides it for the routes you lay now (router options `width` / `pairGap`).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
 if it is blocked. A blocked head is outlined in amber.
@@ -284,6 +286,8 @@ the footprint, and a click without dragging still selects.
 **Hug obstacles** (options bar, on by default): where the moved segment runs into copper that cannot move (a pad, a
 locked track, a fixed via), it bends around it on its clearance hull, the shorter way round, instead of stopping
 short; other nets' tracks are still pushed (Shove) or kept clear. Without it the segment stops at the obstacle.
+Dragging a via or a corner (or several tracks) with it on, the tracks that follow the moved copper bend round such
+obstacles the same way when the plain move does not fit.
 
 Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`), router option `hugDrag` (`"hug"`).
 
@@ -306,6 +310,70 @@ the moved end; an end on a pad or via gets a link to it. One undo step; shove an
 
 Core: `InteractiveRouter::beginMultiDrag(trackIds, grab)` (C: `sieda_router_begin_multi_drag`); preview kind
 `multidrag`.
+
+## Editing tracks and parts
+
+- **Delete** (⌫) deletes the selected tracks; right-click a via for **Delete Via**. One undo step.
+- Right-click a track: **Split Track Here** cuts a straight track in two at that point (a new corner to drag);
+  **Merge Tracks** joins tracks of one net, layer and width that continue each other in a straight line through a point
+  no via, pad or third track meets (the selected tracks, or every track from empty board).
+- **Dragging a footprint** drags the ends of the tracks on its pads along, so they stay connected (rubber band);
+  ⌥-drag moves it alone. While dragging, a courtyard that overlaps a part on the same side turns red.
+- **⇧-drag on empty board** selects the footprints and tracks inside the rectangle.
+- Right-click a footprint: **Rotate**, **Flip**, **Align** left / right / top / bottom / centres (courtyard edges, two
+  or more parts) and **Distribute** horizontally / vertically (equal gaps, three or more).
+
+Core: `PcbLayout::splitTrack`, `mergeTracks`, `moveFootprintWithTracks` (C: `sieda_pcb_split_track`,
+`sieda_pcb_merge_tracks`, `sieda_pcb_move_footprint_with_tracks`, with `sieda_pcb_remove_track` / `_via`).
+
+## Finding things on the board
+
+- **DRC navigation**: the ◀ ▶ buttons next to the DRC badge step through the located errors, ring the current one and
+  zoom to it; a click on a Design Checks row (with or without parts) does the same.
+- **Highlight Net** (right-click a pad or track) keeps a net highlighted until Esc or Clear Net Highlight.
+- **Selectable** (layers panel): whether clicks and drags pick parts, tracks and vias.
+- **Compare with File** (Team) also draws the board's changes from that version: added tracks green, removed ones
+  dashed red, moved parts' earlier courtyards dashed amber; right-click → Clear Comparison.
+
+## Pair rules, delay targets and interface presets
+
+Length Rules → **Pair Rules** lists the board's differential pairs by stem (`USB_D` for `USB_D_P` / `USB_D_N`). An
+**interface preset** gives a pair its typical differential impedance and intra-pair skew: USB 2.0 (90 Ω, 1.27 mm),
+USB 3.x (90 Ω, 0.127 mm), PCI Express (85 Ω, 0.127 mm), Ethernet MDI (100 Ω, 1.27 mm), HDMI / DisplayPort
+(100 Ω, 0.127 mm), LVDS / MIPI (100 Ω, 0.254 mm), DDR clock / strobe (80 Ω, 0.127 mm), CAN / RS-485 (120 Ω, 2.54 mm).
+These are common design-guide values; the device's own layout guide wins. A `PairRule` (board JSON `pairRules`,
+written only when present) can also give the pair's width and gap. The interactive router and the autorouter take the
+pair's width and gap (else the stack-up geometry for its impedance), length tuning and the DRC its skew; pairs
+without a rule keep the board's rules and copper.
+
+A length rule can be given in **ps**: it is converted to mm on the outer layer at the net's width
+(`propagationDelayPerMm`) and keeps its delay (`LengthRule::delayPs`). C: `sieda_pcb_set_pair_rule`,
+`sieda_interface_presets_json`, `sieda_pcb_set_delay_rule`; MCP `pcb_pair_rules`, `pcb_length_rules` `delayPs`.
+
+## Drawing pours, outline, cutouts and keep-outs
+
+The tool strip has four drawing tools (Esc leaves them; a second click on the button too):
+
+- **Pour**: click the corners on the active layer, double-click or Enter closes; the options bar picks the net
+  (*Ground* = the ground net). The pour fills only inside its shape (`CopperZone::polygon`, JSON `polygon`, written only
+  when drawn) and refills by itself whenever copper changes.
+- **Outline**: the board shape (the same as Board Setup → Outline).
+- **Cutout**: a closed shape inside the board, routed out of it (`BoardSettings::cutouts`, JSON `cutouts`, written only
+  when present). Copper, parts and pours keep the edge clearance from it as from the outline; it is a loop in the
+  Edge.Cuts Gerber, a `Cutout` in IPC-2581, a hole of the ODB++ profile and an opening in the 3D board.
+- **Keep-out**: drag a rectangle; no tracks or vias inside (`RouteKeepout`, shown dashed red on the Keep-Out / Outline
+  layer).
+
+Right-click a keep-out, cutout or drawn pour to delete it. C: `sieda_pcb_add_zone_polygon`, `sieda_pcb_add_cutout` /
+`_remove_cutout`, `sieda_pcb_set_keepouts`; MCP `pcb_add_pour` `polygon`, `pcb_set_outline` `cutouts`.
+
+**Pour Clearances** (layers panel): on the active layer, each pour's clearance is drawn as a dashed halo round the
+other nets' pads and tracks in it, and an orange X marks each floating island the fill left out (copper that would
+not touch its net; `ZoneFill::removedIslands`, snapshot `zoneFills[].removedIslands`).
+
+The layers panel also shows **Bottom Overlay** (bottom parts' silkscreen), **Solder Mask** (openings 0.05 mm larger than
+the pads, as in the Gerbers), **Paste** (SMD pads) and **Fabrication** (part bodies, pin 1, designators), with presets
+(All Layers, Top Side, Bottom Side, Copper Only, Assembly).
 
 ## Multi-route
 
@@ -374,7 +442,13 @@ Core: `stitchVias`, `shieldTracks` (`ViaPatternOptions`: net, pitch, offset, are
 **Gloss** (wand icon) pulls the routes through the selected tracks (all routes with none selected) tight: each line
 (a chain of tracks between pads, vias and junctions) gets 45° shortcuts where they keep clearance and make no acute
 corner, then is searched again (walkaround on the router's grid) and the shorter result is kept. Arcs, locked tracks
-and teardrops end a line and stay. A line that cannot get shorter is left exactly as it was.
+and teardrops end a line and stay. A line that cannot get shorter is left exactly as it was. Then each via of those
+nets that joins exactly two tracks is pulled towards the straight line between their other ends (a via drag in walk
+around: nothing else moves, every rule kept; C option `"moveVias"`).
+
+**Minimise Vias** (right-click a track, or the board for every net): the nets of the selected tracks are routed again
+with via minimisation; the result is kept only when it has fewer vias and leaves no connection more unrouted (one undo
+step). C: `sieda_pcb_minimize_vias`.
 
 **Remove loops** (Route tool options, on by default): when a finished route joins pads of its net that an older
 path already joined, the older tracks that were needed before but are redundant now are removed with the route, as
@@ -608,10 +682,10 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - Teardrops are fans of straight tracks (a curved teardrop's outline is their envelope, not a true arc or polygon)
   on straight tracks, at pads and vias only (not at T
   junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
-  grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
+  grid (no hexagonal or edge-of-pour patterns). Glossing moves only vias that join exactly two tracks.
   Loop removal skips poured nets.
-- Hugging bends a dragged segment round fixed copper only (up to six obstacles); a corner drag, a multi-track drag
-  and a via drag still stop short. Match lengths tunes each net on one straight track (as the Tune tool) and does not
+- Hugging bends dragged copper round fixed copper only (up to six obstacles per line); the moved via or corner itself
+  still stops short of an obstacle. Match lengths tunes each net on one straight track (as the Tune tool) and does not
   re-route a bus to equal lengths while it is drawn.
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
 - The Select-tool drag picks the via, then the track on the active layer, under the pointer (near a track's end: its

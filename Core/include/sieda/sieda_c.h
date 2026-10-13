@@ -60,6 +60,26 @@ int32_t sieda_add_component(SiedaProject* project, int32_t kind, const char* val
 int32_t sieda_remove_component(SiedaProject* project, int32_t component_id);
 int32_t sieda_move_component(SiedaProject* project, int32_t component_id, double x, double y);
 int32_t sieda_rotate_component(SiedaProject* project, int32_t component_id, int32_t delta_degrees);
+/* Mirrors a part left-right (vertical != 0: top-bottom, i.e. also turned 180°). 1 on success. */
+int32_t sieda_mirror_component(SiedaProject* project, int32_t component_id, int32_t vertical);
+/* Wires the part's pins to whatever they touch unconnected (a pin on the same spot, a wire's route: T-junction).
+ * Returns the number of joins. */
+int32_t sieda_connect_touching(SiedaProject* project, int32_t component_id, int32_t wires);
+/* Removes wire bends lying on a straight run of `sheet` (the drawing stays the same). Returns the number removed. */
+int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet);
+/* Locks (1) or unlocks (0) a part on the schematic: the editor leaves a locked part where it is. */
+int32_t sieda_set_component_locked(SiedaProject* project, int32_t component_id, int32_t locked);
+/* Draws a net label as a power symbol (1) or as a flag (0); connectivity is unchanged. */
+int32_t sieda_set_label_power(SiedaProject* project, int32_t component_id, int32_t power);
+/* Notes and drawings on sheets. request {"kind":"text"|"line"|"arrow"|"rect","sheet"?,"points":[{x,y}…],"text"?}
+ * → its id, or -1. */
+int32_t sieda_add_sheet_graphic(SiedaProject* project, const char* request_json);
+int32_t sieda_remove_sheet_graphic(SiedaProject* project, int32_t id);
+int32_t sieda_move_sheet_graphic(SiedaProject* project, int32_t id, double dx, double dy);
+int32_t sieda_set_sheet_graphic_text(SiedaProject* project, int32_t id, const char* text);
+/* One schematic sheet as an image `width` pixels wide: format "svg" → the SVG text, "png" → the PNG as base64.
+ * Caller frees. */
+char* sieda_render_schematic(const SiedaProject* project, int32_t sheet, int32_t width, const char* format);
 int32_t sieda_set_component_value(SiedaProject* project, int32_t component_id, const char* value);
 /* Package variant of a passive / diode ("R_0603", "CP_Tant_B", "D_DO41_THT"…; "" = default). 1 on success. */
 int32_t sieda_set_component_package(SiedaProject* project, int32_t component_id, const char* package);
@@ -74,6 +94,13 @@ int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 /* Splits a wire at (x, y) with a junction (T-junction / bend point) and returns the junction's component id, or -1.
  * Wires can then start or end on the junction's pin 0; deleting a junction that joins two wires straightens them. */
 int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y);
+/* Drags a straight wire sideways (dx for a vertical one, dy for a horizontal one), keeping it straight: bends at its
+ * ends move with it, other ends get a junction. 1 on success. */
+int32_t sieda_drag_wire_segment(SiedaProject* project, int32_t wire_id, double dx, double dy);
+/* Moves one end (end_b = 1: b, else a) of a wire onto pin (component, pin), or with component < 0 onto a new junction
+ * at (x, y). 1 on success. */
+int32_t sieda_move_wire_end(SiedaProject* project, int32_t wire_id, int32_t end_b, double x, double y, int32_t component,
+                            int32_t pin);
 /* Removes a chain of dangling junctions (a wire abandoned half-way) starting at `junction_id`. Returns the count. */
 int32_t sieda_remove_dangling_junctions(SiedaProject* project, int32_t junction_id);
 
@@ -121,6 +148,13 @@ char* sieda_custom_part_preview(const char* spec_json, char** error_out);
 /* Footprint editor: the part's footprint as an editable land pattern (spec JSON with package type "CUSTOM" and one
  * land per pad). NULL and *error_out (caller frees) on an invalid spec. Caller frees. */
 char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out);
+/* Footprint library browser: the built-in footprints and the project's custom parts' footprints whose name or label
+ * holds every word of `query` (case-insensitive; "" = all, at most 200): [{"name","label","pads","width","height"}].
+ * Caller frees. */
+char* sieda_footprint_library_json(const SiedaProject* project, const char* query);
+/* A library footprint (a name from sieda_footprint_library_json) as land pattern JSON {"lands":[…],"bodySize",
+ * "bodyDepth"} in the land format (pad k on pin k + 1, mechanical pads "-"); NULL for an unknown name. Caller frees. */
+char* sieda_footprint_lands_json(const char* name);
 /* Footprint editor checks: [{severity,code,message,pads:[n]}] for a spec's land pattern — overlapping pads, copper
  * gaps below min_gap mm, annular rings, pads without pins and pins without pads. Caller frees. */
 char* sieda_check_land_pattern(const char* spec_json, double min_gap);
@@ -320,7 +354,8 @@ char* sieda_pcb_route_report(const SiedaProject* project);
 char* sieda_pcb_keepouts(const SiedaProject* project);
 int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json);
 /* Enclosure limits for the 3D clearance DRC (MECH_HEIGHT, MECH_HEIGHT_ZONE; MECH_BODY_COLLISION is always on):
- * {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}]} (mm, 0 = no limit).
+ * {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}],"enclosure"} (mm,
+ * 0 = no limit; "enclosure" = a sieda_model3d_import id in the MCAD frame, checked as MECH_ENCLOSURE).
  * The getter returns {} without limits. Set returns 1 on success. */
 char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
@@ -350,6 +385,10 @@ char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width
 double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
+/* Interactive via minimisation: the named nets (JSON array of names) are routed again with via minimisation; the
+ * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.
+ * The board's autoroute options are left as they were. Caller frees. */
+char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
 char* sieda_design_rule_presets_json(void);
@@ -403,6 +442,11 @@ void sieda_pcb_clear_mounting_holes(SiedaProject* project);
  * only pass through with vias). clearance_mm ≤ 0 uses the board clearance. Returns the zone index or -1. */
 int32_t sieda_pcb_add_zone(SiedaProject* project, const char* net_name, int32_t layer, int32_t plane, double clearance_mm);
 int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index);
+/* A copper pour limited to a drawn shape: points_json = [{"x","y"}] (mm, ≥ 3). Returns the zone index or -1. */
+int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, int32_t layer, const char* points_json);
+/* Board cutouts (closed shapes routed out of the board, inside the outline). add returns 1 on success. */
+int32_t sieda_pcb_add_cutout(SiedaProject* project, const char* points_json);
+int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index);
 void sieda_pcb_clear_zones(SiedaProject* project);
 /** Active tamper mesh (PCI PTS): serpentines of net_a (horizontal stripes, inner layer_a) and net_b (vertical
  * stripes, inner layer_b) laid over component `ref` plus margin_mm by the autorouter; each net joins exactly two pins
@@ -476,6 +520,13 @@ int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t lo
 /* Deletes one track / via by id. Returns 1 on success. */
 int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id);
 int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id);
+/* Splits a straight track at the point nearest (x, y): the new track's id, or -1. */
+int32_t sieda_pcb_split_track(SiedaProject* project, int32_t track_id, double x, double y);
+/* Joins collinear tracks of one net / layer / width through a free point; ids_json = [track id] or NULL = all.
+ * Returns the number of joins. */
+int32_t sieda_pcb_merge_tracks(SiedaProject* project, const char* ids_json);
+/* Moves a footprint and drags the ends of the tracks on its pads with it. Returns 1 on success. */
+int32_t sieda_pcb_move_footprint_with_tracks(SiedaProject* project, int32_t component_id, double x, double y);
 
 /* ---- signal & power integrity --------------------------------------------------------------------------------------- */
 /* Parses an IBIS (.ibs, IBIS 4.x / 5.x) file for preview at corner "typ", "min" (weak / slow) or "max" (strong / fast):
@@ -568,12 +619,14 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
- *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
+ *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj", "vrml" (VRML 2.0, metres),
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn), "idx" (ProSTEP EDMD / IDX v4.5 baseline),
  *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
  *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
  *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
+/* sieda_export written to a file, plus "glb" (glTF 2.0 binary of the 3D assembly, in metres). 1 on success. */
+int32_t sieda_export_file(const SiedaProject* project, const char* format, const char* path);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],
  * "summary":{lines, placements, dnp, missingMpn, unpriced, costPerBoard}, "buildQuantity", "orderCost"}. */
@@ -697,6 +750,9 @@ char* sieda_review_command(SiedaProject* project, const char* request_json);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);
+/* sieda_mesh_build with options_json {"components": bool, "hidden": [component id], "standoffs": mm (hex standoffs and
+ * screws at the mounting holes), "enclosure": bool (the enclosure model, see-through)}; hidden parts are left out. */
+SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* options_json);
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);
@@ -713,6 +769,10 @@ char* sieda_model3d_fit(const char* spec_json);
 /* The part alone on a small board (pads, solder, its 3D model or generated body), for the alignment preview.
  * NULL for an invalid spec. Free with sieda_mesh_free. */
 SiedaMesh* sieda_model3d_preview(const char* spec_json);
+/* A placed part's own 3D model (any part, catalog ones too): a sieda_model3d_import id in `unit` mm per file unit,
+ * centred on the footprint and seated on the board; "" removes it. 1 on success. */
+int32_t sieda_pcb_set_part_model(SiedaProject* project, int32_t component_id, const char* model_id, const char* name,
+                                 double unit);
 int32_t sieda_mesh_vertex_count(const SiedaMesh* mesh);
 int32_t sieda_mesh_index_count(const SiedaMesh* mesh);
 const float* sieda_mesh_positions(const SiedaMesh* mesh); /* 3 floats per vertex */
@@ -936,6 +996,13 @@ char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, c
 /* Length rule of a net (its xSignal length, pad to pad through series parts): target ± tolerance mm; target <= 0
  * removes it. 1 on success. */
 int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm);
+/* A length rule given as a delay (ps ± ps): converted to mm on the outer layer at the net's width. Returns 1. */
+int32_t sieda_pcb_set_delay_rule(SiedaProject* project, const char* net_name, double delay_ps, double tolerance_ps);
+/* A differential pair's rule: rule_json {pair (stem, e.g. "USB_D"), impedance, width, gap, skew, preset}; "preset"
+ * alone fills impedance and skew from sieda_interface_presets_json; no values removes the rule. Returns 1. */
+int32_t sieda_pcb_set_pair_rule(SiedaProject* project, const char* rule_json);
+/* [{id, name, impedance, skew}] typical interface presets. Caller frees. */
+char* sieda_interface_presets_json(void);
 /* Match group {"name","nets":[names],"tolerance"}: replaces the group of that name; fewer than two nets removes it. */
 int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json);
 /* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":

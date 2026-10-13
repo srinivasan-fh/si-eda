@@ -165,16 +165,47 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
     if (s.package.pitch > 0) pkg["pitch"] = s.package.pitch;  // only when set: older parts keep their ids
     if (s.package.bodySize > 0) pkg["bodySize"] = s.package.bodySize;
     if (s.package.bodyDepth > 0) pkg["bodyDepth"] = s.package.bodyDepth;
+    if (s.package.courtyard > 0) pkg["courtyard"] = s.package.courtyard;
+    if (!s.package.graphics.empty()) {
+        Json gs = Json::array();
+        for (const FootprintLine& g : s.package.graphics) {
+            Json gj = Json::array();
+            for (double v : {g.a.x, g.a.y, g.b.x, g.b.y, g.width}) gj.push(v);
+            gj.push(std::string(g.fab ? "fab" : "silk"));
+            gs.push(gj);
+        }
+        pkg["graphics"] = gs;
+    }
     if (!s.package.lands.empty()) {
         Json lands = Json::array();
         for (const auto& l : s.package.lands) {
             Json lj = Json::array();
             for (double v : {l.x, l.y, l.w, l.h}) lj.push(v);
-            if (l.drill > 0 || l.round || !l.pin.empty()) {  // [x, y, w, h, drill, round(, pin)]
+            if (l.drill > 0 || l.round || !l.pin.empty() || l.hasOptions()) {  // [x, y, w, h, drill, round(, pin(, {…}))]
                 lj.push(l.drill);
                 lj.push(l.round ? 1 : 0);
             }
-            if (!l.pin.empty()) lj.push(l.pin);
+            if (!l.pin.empty() || l.hasOptions()) lj.push(l.pin);
+            if (l.hasOptions()) {
+                Json o = Json::object();
+                if (l.corner > 0) o["corner"] = l.corner;
+                if (l.npth) o["npth"] = true;
+                if (l.mask >= 0) o["mask"] = l.mask;
+                if (l.paste >= 0) o["paste"] = l.paste;
+                if (l.pasteGrid > 1) o["pasteGrid"] = l.pasteGrid;
+                if (l.chamfer > 0) o["chamfer"] = l.chamfer;
+                if (l.inner > 0) o["inner"] = l.inner;
+                if (!l.outline.empty()) {
+                    Json pts = Json::array();
+                    for (const Vec2& v : l.outline) {
+                        Json pt = Json::array();
+                        pt.push(v.x), pt.push(v.y);
+                        pts.push(pt);
+                    }
+                    o["outline"] = pts;
+                }
+                lj.push(o);
+            }
             lands.push(lj);
         }
         pkg["lands"] = lands;
@@ -267,21 +298,7 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         }
         j["model"] = m;
     }
-    if (!s.model3d.empty()) {  // only when present, so ids of parts without a 3D model stay stable
-        Json m3 = Json::object();
-        m3["id"] = s.model3d.id;
-        m3["name"] = s.model3d.name;
-        m3["unit"] = s.model3d.unit;
-        auto vec = [](const std::array<double, 3>& v) {
-            Json a = Json::array();
-            for (double x : v) a.push(x);
-            return a;
-        };
-        m3["scale"] = vec(s.model3d.scale);
-        m3["rotate"] = vec(s.model3d.rotate);
-        m3["offset"] = vec(s.model3d.offset);
-        j["model3d"] = m3;
-    }
+    if (!s.model3d.empty()) j["model3d"] = model3dRefToJson(s.model3d);  // only when present: ids stay stable
     return j;
 }
 
@@ -374,15 +391,49 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
         const double depth = pkg.get("bodyDepth").asNumber(0);
         s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        for (const Json& gj : pkg.get("graphics").items()) {
+            const char* bad = "Each footprint graphic is [x0, y0, x1, y1, width, \"silk\" | \"fab\"] in mm (at most 500).";
+            if (!gj.isArray() || gj.size() != 6 || s.package.graphics.size() >= 500) throw JsonError(bad);
+            FootprintLine g{{gj[0].asNumber(0), gj[1].asNumber(0)}, {gj[2].asNumber(0), gj[3].asNumber(0)},
+                            gj[4].asNumber(0.15), gj[5].asString("silk") == "fab"};
+            for (double v : {g.a.x, g.a.y, g.b.x, g.b.y})
+                if (!std::isfinite(v) || std::fabs(v) > 60) throw JsonError(bad);
+            if (!(g.width > 0.01 && g.width <= 2)) throw JsonError(bad);
+            s.package.graphics.push_back(g);
+        }
+        const double court = pkg.get("courtyard").asNumber(0);
+        s.package.courtyard = std::isfinite(court) && court > 0 && court <= 5 ? court : 0;
         for (const auto& lj : pkg.get("lands").items()) {
-            if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7))
-                throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin] in mm.");
+            if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7 && lj.size() != 8))
+                throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin(, options)] in mm.");
             PackageSpec::Land l{lj[0].asNumber(0), lj[1].asNumber(0), lj[2].asNumber(0), lj[3].asNumber(0)};
             if (lj.size() >= 6) {
                 l.drill = lj[4].asNumber(0);
                 l.round = lj[5].asNumber(0) != 0;
             }
-            if (lj.size() == 7) l.pin = trim(lj[6].asString(""));
+            if (lj.size() >= 7) l.pin = trim(lj[6].asString(""));
+            if (lj.size() == 8) {
+                const Json& o = lj[7];
+                auto num = [&](const char* k, double def, double lo, double hi) {
+                    const double v = o.get(k).asNumber(def);
+                    return std::isfinite(v) ? std::clamp(v, lo, hi) : def;
+                };
+                l.corner = num("corner", 0, 0, 0.5);
+                l.npth = o.get("npth").asBool(false);
+                l.mask = o.has("mask") ? num("mask", -1, 0, 2) : -1;
+                l.paste = o.has("paste") ? num("paste", -1, 0, 1) : -1;
+                l.pasteGrid = static_cast<int>(num("pasteGrid", 1, 1, 8));
+                l.chamfer = num("chamfer", 0, 0, 0.5);
+                l.inner = num("inner", 0, 0, 30);
+                for (const Json& pt : o.get("outline").items()) {
+                    const double x = pt[0].asNumber(0), y = pt[1].asNumber(0);
+                    if (!std::isfinite(x) || !std::isfinite(y) || std::fabs(x) > 30 || std::fabs(y) > 30 || l.outline.size() >= 64)
+                        throw JsonError("A pad outline has at most 64 points within 30 mm of the pad centre.");
+                    l.outline.push_back({x, y});
+                }
+                if (!l.outline.empty() && l.outline.size() < 3) throw JsonError("A pad outline needs at least 3 points.");
+                if (l.npth && l.drill <= 0) throw JsonError("A non-plated pad needs a drill.");
+            }
             const bool ok = std::isfinite(l.x) && std::isfinite(l.y) && std::fabs(l.x) <= 60 && std::fabs(l.y) <= 60 &&
                             l.w > 0.05 && l.w <= 30 && l.h > 0.05 && l.h <= 30;
             if (!ok) throw JsonError("Land pattern pads must lie within 60 mm and be 0.05…30 mm in size.");
@@ -487,9 +538,29 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             s.model.loads.push_back(l);
         }
     }
-    const Json& m3 = j.get("model3d");
+    s.model3d = model3dRefFromJson(j.get("model3d"));
+    return s;
+}
+
+Json model3dRefToJson(const Model3DRef& ref) {
+    Json m3 = Json::object();
+    m3["id"] = ref.id;
+    m3["name"] = ref.name;
+    m3["unit"] = ref.unit;
+    auto vec = [](const std::array<double, 3>& v) {
+        Json a = Json::array();
+        for (double x : v) a.push(x);
+        return a;
+    };
+    m3["scale"] = vec(ref.scale);
+    m3["rotate"] = vec(ref.rotate);
+    m3["offset"] = vec(ref.offset);
+    return m3;
+}
+
+Model3DRef model3dRefFromJson(const Json& m3) {
+    Model3DRef r;
     if (m3.isObject() && !trim(m3.get("id").asString("")).empty()) {
-        Model3DRef& r = s.model3d;
         r.id = trim(m3.get("id").asString(""));
         if (r.id.size() > 64) throw JsonError("3D model id is too long.");
         r.name = trim(m3.get("name").asString(""));
@@ -513,7 +584,7 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         r.rotate = vec("rotate", {0, 0, 0}, -3600, 3600, "rotation");
         r.offset = vec("offset", {0, 0, 0}, -200, 200, "offset");
     }
-    return s;
+    return r;
 }
 
 // ------------------------------------------------------------------ geometry generation
@@ -575,6 +646,7 @@ struct PadPlacement {
     Vec2 offset, size;
     bool tht = false, round = false;
     double drill = 0;
+    const PackageSpec::Land* land = nullptr;  // the land pattern pad it comes from (its options)
 };
 
 /// Pad positions for pad numbers 1..n of a package (index 0 = pad 1).
@@ -743,7 +815,7 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         double xMax = 0, yMax = 0;
         for (int i = 0; i < n && i < static_cast<int>(exact->lands.size()); ++i) {
             const auto& l = exact->lands[i];
-            pads.push_back({{l.x, l.y}, {l.w, l.h}, l.drill > 0, l.round, l.drill});
+            pads.push_back({{l.x, l.y}, {l.w, l.h}, l.drill > 0, l.round, l.drill, &l});
             xMax = std::max(xMax, std::fabs(l.x) + l.w / 2);
             yMax = std::max(yMax, std::fabs(l.y) + l.h / 2);
         }
@@ -762,8 +834,9 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         xMax = std::max(xMax, std::fabs(p.offset.x) + p.size.x / 2);
         yMax = std::max(yMax, std::fabs(p.offset.y) + p.size.y / 2);
     }
-    courtW = 2 * xMax + 0.5;
-    courtH = 2 * yMax + 0.5;
+    const double margin = exact && exact->courtyard > 0 ? exact->courtyard : 0.25;
+    courtW = 2 * xMax + 2 * margin;
+    courtH = 2 * yMax + 2 * margin;
     return pads;
 }
 
@@ -952,6 +1025,20 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         pad.throughHole = placements[i].tht;
         pad.round = placements[i].round;
         pad.drill = placements[i].drill;
+        if (const auto* l = placements[i].land) {
+            pad.corner = l->corner;
+            pad.npth = l->npth;
+            pad.mask = l->mask;
+            pad.paste = l->paste;
+            pad.pasteGrid = l->pasteGrid;
+            pad.inner = l->inner;
+            pad.outline = l->outline;
+            if (pad.outline.empty() && l->chamfer > 0 && !pad.round) {  // octagon: the four corners cut at 45°
+                const double hx = pad.size.x / 2, hy = pad.size.y / 2, k = l->chamfer * std::min(pad.size.x, pad.size.y);
+                pad.outline = {{-hx + k, -hy}, {hx - k, -hy}, {hx, -hy + k}, {hx, hy - k},
+                               {hx - k, hy},   {-hx + k, hy}, {-hx, hy - k}, {-hx, -hy + k}};
+            }
+        }
         std::string number = !ballNumbers.empty()         ? ballNumbers[i]
                              : spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc)
                                                           : std::to_string(i + 1);
@@ -1007,6 +1094,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             }
         }
     }
+    fp.lines = spec.package.graphics;
     part->footprint = fp;
 
     if (!spec.units.empty()) {

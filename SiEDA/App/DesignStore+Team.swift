@@ -61,6 +61,45 @@ extension DesignStore {
         if !drcResults.isEmpty { runDRC() }
     }
 
+    /// Loads an enclosure (STEP / STL / OBJ / VRML, millimetres in the MCAD frame of the STEP export) the parts must
+    /// clear; the DRC reports MECH_ENCLOSURE and the 3D view shows it see-through. Undoable.
+    func loadEnclosure() {
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose the enclosure model (STEP, STL, OBJ or VRML) in the board's MCAD frame")
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        let result = EDAEngine.importModel3D(name: url.lastPathComponent, data: data)
+        guard result.ok, let id = result.id else {
+            alert = AlertItem(title: "Enclosure not loaded", message: result.error)
+            return
+        }
+        performChecked("Enclosure", invalidatesAnalysis: false) { $0.setEnclosureModel(id) }
+        runDRC()
+    }
+
+    /// Gives a placed part (a catalog part too) its own 3D model from a STEP / STL / OBJ / VRML file. Undoable.
+    func assignPartModel(_ component: Int) {
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose the part's 3D model (STEP, STL, OBJ or VRML)")
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        let result = EDAEngine.importModel3D(name: url.lastPathComponent, data: data)
+        guard result.ok, let id = result.id else {
+            alert = AlertItem(title: "3D model not loaded", message: result.error)
+            return
+        }
+        performChecked("3D model", invalidatesAnalysis: false) {
+            $0.setPartModel(component, model: id, name: url.lastPathComponent, unit: result.unit ?? 1)
+        }
+    }
+
+    func removePartModel(_ component: Int) {
+        performChecked("Remove 3D model", invalidatesAnalysis: false) { $0.setPartModel(component, model: "") }
+    }
+
+    func removeEnclosure() {
+        performChecked("Remove enclosure", invalidatesAnalysis: false) { $0.setEnclosureModel("") }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Manufacturer rule pack ("" = none): tightens the DRC minimums and adds the DFM / DFA checks. Undoable.
     /// Field-solved Z0 and Zdiff of each copper layer's impedance-controlled widths (from the stack-up report), keyed by
     /// layer name; solved off the main thread.
@@ -109,6 +148,8 @@ extension DesignStore {
                                       extensions: ["siedaproj"]) else { return }
         let (url, text) = picked
         designDiff = DesignDiff(title: url.lastPathComponent, text: engine.diffText(from: text))
+        let earlier = EDAEngine(name: url.lastPathComponent)
+        pcbCompare = (try? earlier.load(json: text)) != nil ? earlier.snapshot() : nil
     }
 }
 

@@ -586,6 +586,10 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     if (layers > 1) slab(-t, underside, mask);
     // Mounting holes: dark bore through the board with a plated ring (twice the drill) for the screw head, both sides.
     const Rgba bore{0.02f, 0.03f, 0.05f, 1.0f};
+    for (const auto& c : s.cutouts) {  // cutouts: a dark opening through the board, like the holes
+        m.surface = Surface::Hole;
+        m.addPrism(c, -t - 0.02, 0.02, bore);
+    }
     for (const auto& h : s.holes) {
         m.surface = Surface::Hole;
         m.addCylinder({h.position.x, -t - 0.02, h.position.y}, h.drill / 2, t + 0.04, bore, 24);
@@ -593,12 +597,29 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         const double ring = std::max(h.drill / 2 + 0.3, std::min(h.keepout / 2, h.drill));
         m.addCylinder({h.position.x, 0.0, h.position.y}, ring, cu, gold, 32);
         if (layers > 1) m.addCylinder({h.position.x, -t - cu, h.position.y}, ring, cu, gold, 32);
+        if (opt.standoffs > 0) {  // brass hex standoff (six-sided cylinder) below, steel pan-head screw above
+            m.surface = Surface::Gold;
+            m.addCylinder({h.position.x, -t - cu - opt.standoffs, h.position.y}, h.drill, opt.standoffs, {0.78f, 0.62f, 0.32f, 1}, 6);
+            m.surface = Surface::Tin;
+            m.addCylinder({h.position.x, cu, h.position.y}, h.drill * 0.9, h.drill * 0.6, {0.55f, 0.56f, 0.58f, 1}, 24);
+        }
+    }
+    if (opt.enclosure && !s.enclosure.empty()) {  // MCAD frame (underside at Z = 0, Y = -board y), see-through
+        const size_t first = m.vertexCount();
+        Model3DRef ref;
+        ref.id = s.enclosure;
+        if (appendModel3D(m, ref, PcbPlacement{}, -t, -t))
+            for (size_t v = first; v < m.vertexCount(); ++v) {
+                m.surfaces[v] = static_cast<uint8_t>(Surface::Glass);
+                const float grey[4] = {0.80f, 0.82f, 0.86f, 0.25f};
+                std::copy(grey, grey + 4, m.colors.begin() + static_cast<std::ptrdiff_t>(v * 4));
+            }
     }
 
     auto ps = pcb.pads(sch);
     // Which components are drawn (their pads carry solder joints; bare pads show the copper finish).
     auto populated = [&](int componentId) {
-        if (!opt.components) return false;
+        if (!opt.components || opt.hidden.count(componentId)) return false;
         const Component* c = sch.find(componentId);
         return c && c->hasFootprint() && c->pcb.placed && !embeddedElement(*c, s);
     };
@@ -617,14 +638,34 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
             const auto pts = trackPolyline(tr, 0.005);  // an arc as short chords
             for (size_t k = 0; k + 1 < pts.size(); ++k) m.addSegmentBox(pts[k], pts[k + 1], tr.width, y0, y0 + cu, trackColor);
         }
+        // Polygon and rounded-rectangle pads as prisms of their outline (board XY); empty = a plain box.
+        auto padShape = [](const Pad& p) {
+            std::vector<Vec2> out;
+            for (const Vec2& v : p.outline) out.push_back(p.position + v);
+            if (out.empty() && p.corner > 0 && !p.round) {
+                const double r = p.corner * std::min(p.size.x, p.size.y), hx = p.size.x / 2 - r, hy = p.size.y / 2 - r;
+                const Vec2 centres[4] = {{hx, hy}, {-hx, hy}, {-hx, -hy}, {hx, -hy}};
+                for (int k = 0; k < 4; ++k)
+                    for (int i = 0; i <= 4; ++i) {
+                        const double a = (k + i / 4.0) * M_PI / 2;
+                        out.push_back(p.position + centres[k] + Vec2{r * std::cos(a), r * std::sin(a)});
+                    }
+            }
+            double area = 0;  // counter-clockwise for addPrism (bottom-side parts arrive mirrored)
+            for (size_t i = 0; i < out.size(); ++i) area += out[i].x * out[(i + 1) % out.size()].y - out[(i + 1) % out.size()].x * out[i].y;
+            if (area < 0) std::reverse(out.begin(), out.end());
+            return out;
+        };
         for (const auto& p : ps) {
             const bool joint = populated(p.componentId);
+            const std::vector<Vec2> shape = padShape(p);
             if (p.throughHole) {
                 for (bool top : {true, false}) {
                     if (!top && layers == 1) continue;  // single-sided: copper on the top layer only
                     double y = top ? 0.0 : -t - cu;
                     m.surface = Surface::Finish;
                     if (p.round) m.addCylinder({p.position.x, y, p.position.y}, p.size.x / 2, cu, gold);
+                    else if (!shape.empty()) m.addPrism(shape, y, y + cu, gold);
                     else
                         m.addBox({p.position.x - p.size.x / 2, y, p.position.y - p.size.y / 2},
                                  {p.position.x + p.size.x / 2, y + cu, p.position.y + p.size.y / 2}, gold);
@@ -651,8 +692,9 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
                 // Surface pads, or the terminations / plates of an embedded passive on an inner layer.
                 double y0 = p.smdLayer == kTopLayer ? 0.0 : p.bottom ? -t - cu : copperLayerBase(p.smdLayer, layers, t, cu);
                 m.surface = Surface::Finish;
-                m.addBox({p.position.x - p.size.x / 2, y0, p.position.y - p.size.y / 2},
-                         {p.position.x + p.size.x / 2, y0 + cu, p.position.y + p.size.y / 2}, gold);
+                if (!shape.empty()) m.addPrism(shape, y0, y0 + cu, gold);
+                else m.addBox({p.position.x - p.size.x / 2, y0, p.position.y - p.size.y / 2},
+                              {p.position.x + p.size.x / 2, y0 + cu, p.position.y + p.size.y / 2}, gold);
                 const bool outer = p.smdLayer == kTopLayer || p.bottom;
                 if (joint && outer) {
                     // Reflowed solder: a low, slightly inset dome over the pad (it wets up the part's terminal).
@@ -698,6 +740,8 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
             m.addSegmentBox(p1, p2, 0.12, y0, y1, silk);
             m.addSegmentBox(p2, p3, 0.12, y0, y1, silk);
             m.addSegmentBox(p3, p0, 0.12, y0, y1, silk);
+            for (const FootprintLine& l : pcb.footprintLines(c))
+                if (!l.fab) m.addSegmentBox(l.a, l.b, l.width, y0, y1, silk);
             // Reference designator just above the outline (scaled down for tiny parts and long names).
             if (!c.ref.empty()) {
                 double h = std::clamp(std::min(r.width(), r.height()) * 0.55, 0.6, 1.0);
@@ -724,10 +768,13 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
 
     if (opt.components) {
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s)) continue;  // embedded: inside the board
+            if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s) || opt.hidden.count(c.id)) continue;  // embedded: inside the board
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (!fp) continue;
-            // An imported 3D model (VRML / STL / OBJ) replaces the generated body, leads and pins.
+            // An imported 3D model (VRML / STL / OBJ / STEP) replaces the generated body, leads and pins: the part's
+            // own (PcbLayout::partModels) first, else its custom part's.
+            if (auto own = pcb.partModels.find(c.id); own != pcb.partModels.end() && appendModel3D(m, own->second, c.pcb, cu, -t - cu))
+                continue;
             if (c.kind == ComponentKind::Custom)
                 if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart))
                     if (appendModel3D(m, part->spec.model3d, c.pcb, cu, -t - cu)) continue;

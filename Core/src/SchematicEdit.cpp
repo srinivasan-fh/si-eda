@@ -54,6 +54,143 @@ bool alignModeFromName(const std::string& name, AlignMode* out) {
     return false;
 }
 
+namespace {
+/// A wire's drawn route: straight, or an L along x first (as the canvas draws it).
+std::vector<Vec2> wireRoute(Vec2 a, Vec2 b) {
+    if (a.x == b.x || a.y == b.y) return {a, b};
+    return {a, {b.x, a.y}, b};
+}
+
+bool onSegment(Vec2 p, Vec2 a, Vec2 b) {
+    const double eps = 0.5;
+    if (std::fabs(a.x - b.x) < 1e-9) return std::fabs(p.x - a.x) < eps && p.y > std::min(a.y, b.y) - eps && p.y < std::max(a.y, b.y) + eps;
+    if (std::fabs(a.y - b.y) < 1e-9) return std::fabs(p.y - a.y) < eps && p.x > std::min(a.x, b.x) - eps && p.x < std::max(a.x, b.x) + eps;
+    return false;
+}
+}  // namespace
+
+void Schematic::touching(PinRef pin, std::vector<PinRef>* pins, std::vector<int>* wires) const {
+    const Component* self = find(pin.component);
+    if (!self) return;
+    const Vec2 p = pinPosition(pin);
+    auto near = [&](Vec2 q) { return std::fabs(q.x - p.x) < 0.5 && std::fabs(q.y - p.y) < 0.5; };
+    auto wired = [&](PinRef other) {
+        for (const auto& w : wires_)
+            if ((w.a == pin && w.b == other) || (w.b == pin && w.a == other)) return true;
+        return false;
+    };
+    if (pins)
+        for (const auto& o : components_) {
+            if (o.id == self->id || o.sheet != self->sheet || o.packageOnly) continue;
+            for (int k = 0; k < static_cast<int>(o.def().pins.size()); ++k)
+                if (near(pinPosition({o.id, k})) && !wired({o.id, k})) pins->push_back({o.id, k});
+        }
+    if (wires)
+        for (const auto& w : wires_) {
+            if (w.a == pin || w.b == pin) continue;
+            const Component* end = find(w.a.component);
+            if (!end || end->sheet != self->sheet) continue;
+            const Vec2 a = pinPosition(w.a), b = pinPosition(w.b);
+            if (near(a) || near(b)) continue;  // ends there: a pin on the same spot, found above
+            const auto route = wireRoute(a, b);
+            for (size_t i = 0; i + 1 < route.size(); ++i)
+                if (onSegment(p, route[i], route[i + 1])) {
+                    wires->push_back(w.id);
+                    break;
+                }
+        }
+}
+
+int Schematic::connectTouching(int id, bool wires) {
+    const Component* c = find(id);
+    if (!c || c->packageOnly) return 0;
+    int joins = 0;
+    for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+        std::vector<PinRef> pins;
+        std::vector<int> onWires;
+        touching({id, i}, &pins, wires ? &onWires : nullptr);
+        for (const PinRef& o : pins) joins += connect({id, i}, o) >= 0;
+        for (int w : onWires) {
+            const int j = splitWire(w, pinPosition({id, i}));
+            if (j >= 0) joins += connect({id, i}, {j, 0}) >= 0;
+        }
+    }
+    return joins;
+}
+
+int Schematic::cleanupWires(int sheet) {
+    int removed = 0;
+    for (bool again = true; again;) {
+        again = false;
+        for (const auto& c : components_) {
+            if (c.kind != ComponentKind::Junction || c.sheet != sheet || c.instanceOf != 0) continue;
+            std::vector<PinRef> ends;
+            for (const auto& w : wires_) {
+                if (w.a.component == c.id) ends.push_back(w.b);
+                else if (w.b.component == c.id) ends.push_back(w.a);
+            }
+            if (ends.size() != 2) continue;
+            const Vec2 a = pinPosition(ends[0]), b = pinPosition(ends[1]), j = c.position;
+            const bool straight = (a.x == j.x && b.x == j.x && (a.y - j.y) * (b.y - j.y) < 0) ||
+                                  (a.y == j.y && b.y == j.y && (a.x - j.x) * (b.x - j.x) < 0);
+            if (!straight) continue;
+            removeComponent(c.id);  // heals the two wires into one
+            ++removed;
+            again = true;
+            break;
+        }
+    }
+    return removed;
+}
+
+int Schematic::addGraphic(SheetGraphic g) {
+    const bool text = g.kind == "text";
+    if ((!text && g.kind != "line" && g.kind != "arrow" && g.kind != "rect") || g.points.size() != (text ? 1u : 2u) ||
+        g.text.size() > 2000 || (text && g.text.empty()) || graphics_.size() >= 10000)
+        return -1;
+    for (const Vec2 p : g.points)
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || std::fabs(p.x) > 1e7 || std::fabs(p.y) > 1e7) return -1;
+    if (g.sheet <= 0) g.sheet = activeSheet_;
+    g.id = nextGraphicId_++;
+    graphics_.push_back(std::move(g));
+    edited();
+    return graphics_.back().id;
+}
+
+void Schematic::restoreGraphic(const SheetGraphic& g) {
+    if (g.id <= 0 || addGraphic(g) < 0) return;
+    graphics_.back().id = g.id;
+    nextGraphicId_ = std::max(nextGraphicId_, g.id + 1);
+}
+
+bool Schematic::removeGraphic(int id) {
+    const auto it = std::find_if(graphics_.begin(), graphics_.end(), [&](const SheetGraphic& g) { return g.id == id; });
+    if (it == graphics_.end()) return false;
+    graphics_.erase(it);
+    edited();
+    return true;
+}
+
+bool Schematic::moveGraphic(int id, Vec2 by) {
+    for (auto& g : graphics_)
+        if (g.id == id) {
+            for (auto& p : g.points) p = p + by;
+            edited();
+            return true;
+        }
+    return false;
+}
+
+bool Schematic::setGraphicText(int id, const std::string& text) {
+    for (auto& g : graphics_)
+        if (g.id == id && g.kind == "text" && !text.empty() && text.size() <= 2000) {
+            g.text = text;
+            edited();
+            return true;
+        }
+    return false;
+}
+
 std::array<double, 4> Schematic::symbolOutline(const Component& c) const {
     // Local boxes as the canvas draws them (SchematicSymbols.bounds), before rotation.
     double x0 = -40, y0 = -40, x1 = 40, y1 = 40;
@@ -107,7 +244,7 @@ std::array<double, 4> Schematic::symbolOutline(const Component& c) const {
     }
     double mx = 1e300, my = 1e300, Mx = -1e300, My = -1e300;
     for (const Vec2 corner : {Vec2{x0, y0}, Vec2{x1, y0}, Vec2{x1, y1}, Vec2{x0, y1}}) {
-        const Vec2 p = c.position + rotate90(corner, c.rotation);
+        const Vec2 p = c.position + c.orient(corner);
         mx = std::min(mx, p.x);
         my = std::min(my, p.y);
         Mx = std::max(Mx, p.x);
@@ -254,6 +391,8 @@ Json Schematic::copyComponents(const std::vector<int>& rawIds, const std::vector
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.mirror) j["mirror"] = true;
+        if (c.power) j["power"] = true;
         if (!c.customPart.empty()) j["customPart"] = c.customPart;
         if (!c.package.empty()) j["package"] = c.package;
         if (c.kind == ComponentKind::NetLabel) {
@@ -391,6 +530,8 @@ std::vector<int> Schematic::pasteComponents(const Json& clip, const PasteOptions
             if (id < 0) continue;
             ids[i] = id;
             created.push_back(id);
+            if (j.get("mirror").asBool(false)) find(id)->mirror = true;
+            if (kind == ComponentKind::NetLabel && j.get("power").asBool(false)) find(id)->power = true;
             const std::string package = j.get("package").asString("");
             if (!package.empty()) setPackage(id, package);
             if (kind == ComponentKind::NetLabel) {

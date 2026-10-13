@@ -50,12 +50,34 @@ struct PackageSpec {
         double drill = 0;
         bool round = false;
         std::string pin;
+        /// Pad options (JSON: a trailing object, written only when one is set): corner radius as a fraction of the
+        /// short side (rounded rectangle, 0…0.5), a non-plated hole (no copper), the solder mask margin (mm, < 0 =
+        /// the board's 0.05) and the paste size as a fraction of the pad (< 0 = automatic, 0 = no paste) split into
+        /// pasteGrid × pasteGrid windows (thermal pads).
+        double corner = 0;
+        bool npth = false;
+        double mask = -1, paste = -1;
+        int pasteGrid = 1;
+        /// More shapes: corners cut at 45° (`chamfer`, a fraction of the short side, 0…0.5) or any outline (`outline`,
+        /// mm round the pad centre, y down: trapezoids, custom pads); `inner` = a through-hole pad's diameter on the
+        /// inner copper layers (pad stack; 0 = the pad's own size).
+        double chamfer = 0;
+        std::vector<Vec2> outline{};
+        double inner = 0;
+        bool hasOptions() const {
+            return corner > 0 || npth || mask >= 0 || paste >= 0 || pasteGrid > 1 || chamfer > 0 || !outline.empty() || inner > 0;
+        }
         Land() = default;
         Land(double x_, double y_, double w_, double h_, double drill_ = 0, bool round_ = false, std::string pin_ = {})
             : x(x_), y(y_), w(w_), h(h_), drill(drill_), round(round_), pin(std::move(pin_)) {}
     };
     std::vector<Land> lands;
     double bodyDepth = 0;
+    /// Land patterns: courtyard margin around the pads and body (mm, 0 = 0.25). JSON "courtyard", written when set.
+    double courtyard = 0;
+    /// Drawn silkscreen / fabrication lines (JSON "graphics": [[x0, y0, x1, y1, width, "silk" | "fab"]]), written
+    /// when there are any.
+    std::vector<FootprintLine> graphics;
 };
 
 /// Behavioural simulation model of a custom part (optional). Pins are referenced by number or name.
@@ -213,6 +235,10 @@ bool usesLandPattern(const std::string& packageType);
 /// "CUSTOM", one land per pad, body kept). Pins numbered "EP" / "TAB" take their pad's number. Parts already on a
 /// land pattern are returned unchanged. Throws JsonError for an invalid part or a BGA (ball names, not numbers).
 CustomPartSpec landPatternFromFootprint(const CustomPartSpec& spec);
+/// A part's 3D model reference as JSON {"id","name","unit","scale","rotate","offset"} and back (empty for no id;
+/// throws JsonError on bad values).
+Json model3dRefToJson(const Model3DRef& ref);
+Model3DRef model3dRefFromJson(const Json& j);
 
 /// Manufacturability of a land pattern: pads that overlap, copper gaps below `minGap` (mm), annular rings below
 /// 0.1 mm, pads with no pin and pins with no pad. `pads` are 1-based pad numbers.

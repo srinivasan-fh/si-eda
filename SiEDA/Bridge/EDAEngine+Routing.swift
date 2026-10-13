@@ -49,6 +49,25 @@ enum MeanderCornerChoice: String, CaseIterable, Identifiable {
 }
 
 /// Length rules, match groups and their members' current lengths (`sieda_length_targets_json`).
+/// A differential pair's own rule (core `PairRule`, board JSON "pairRules"); 0 / nil = the board's.
+struct PairRuleInfo: Codable, Equatable, Identifiable {
+    var pair: String
+    var impedance: Double?
+    var width: Double?
+    var gap: Double?
+    var skew: Double?
+    var preset: String?
+    var id: String { pair }
+}
+
+/// A typical interface preset (core `interfacePresets()`).
+struct InterfacePresetInfo: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var impedance: Double
+    var skew: Double
+}
+
 struct LengthTargets: Decodable, Equatable {
     struct Rule: Decodable, Equatable, Identifiable {
         var net: String
@@ -57,6 +76,8 @@ struct LengthTargets: Decodable, Equatable {
         var length: Double
         var ok: Bool
         var routed: Bool
+        /// Set as a delay (ps); target / tolerance are its length.
+        var delayPs: Double?
         var id: String { net }
     }
     struct Member: Decodable, Equatable, Identifiable {
@@ -105,13 +126,13 @@ extension EDAEngine {
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
                                removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false,
                                teardropStyle: TeardropStyleChoice = .straight,
-                               tune: Bool = false) -> String {
+                               tune: Bool = false, width: Double = 0, pairGap: Double = 0) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
             + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug),"
             + "\"teardropStyle\":\"\(teardropStyle.rawValue)\","
-            + "\"tuneWhileRouting\":\(tune)}"
+            + "\"tuneWhileRouting\":\(tune),\"width\":\(width),\"pairGap\":\(pairGap)}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.
@@ -183,6 +204,23 @@ extension EDAEngine {
         withHandle { sieda_pcb_set_length_rule($0, net, target, tolerance) } == 1
     }
 
+    /// A length rule given as a delay (ps ± ps), converted on the outer layer at the net's width.
+    @discardableResult
+    func setDelayRule(net: String, delayPs: Double, tolerancePs: Double) -> Bool {
+        withHandle { sieda_pcb_set_delay_rule($0, net, delayPs, tolerancePs) } == 1
+    }
+
+    /// A differential pair's rule by its stem: an interface preset id and / or values; none removes it.
+    @discardableResult
+    func setPairRule(_ rule: PairRuleInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(rule), let json = String(data: data, encoding: .utf8) else { return false }
+        return withHandle { sieda_pcb_set_pair_rule($0, json) } == 1
+    }
+
+    static func interfacePresets() -> [InterfacePresetInfo] {
+        decode([InterfacePresetInfo].self, from: take(sieda_interface_presets_json())) ?? []
+    }
+
     /// Match group: these nets' xSignal lengths match the longest within `tolerance`; fewer than two nets removes it.
     @discardableResult
     func setMatchGroup(name: String, nets: [String], tolerance: Double) -> Bool {
@@ -232,11 +270,19 @@ extension EDAEngine {
     }
 
     /// Glossing: pulls the lines through the tracks tight (and re-searches them with `retrace`).
-    func gloss(tracks: [Int], retrace: Bool = true) -> BoardEditResult? {
-        let options = "{\"retrace\":\(retrace)}"
+    func gloss(tracks: [Int], retrace: Bool = true, moveVias: Bool = false) -> BoardEditResult? {
+        let options = "{\"retrace\":\(retrace),\"moveVias\":\(moveVias)}"
         return Self.decode(BoardEditResult.self, from: withHandle {
             Self.take(sieda_pcb_gloss($0, Self.idList(tracks), options))
         })
+    }
+
+    struct ViaMinimisation: Decodable { var viasBefore: Int; var viasAfter: Int; var kept: Bool }
+
+    /// Routes the nets again with via minimisation; kept only when it saves vias without new unrouted connections.
+    func minimizeVias(nets: [String]) -> ViaMinimisation? {
+        guard let data = try? JSONSerialization.data(withJSONObject: nets), let json = String(data: data, encoding: .utf8) else { return nil }
+        return Self.decode(ViaMinimisation.self, from: withHandle { Self.take(sieda_pcb_minimize_vias($0, json)) })
     }
 
     static func viaPatternOptions(net: String, pitch: Double) -> String {

@@ -225,34 +225,49 @@ std::vector<Vec2> BoardSettings::outlinePolygon() const {
     return {{0, 0}, {width, 0}, {width, height}, {0, height}};
 }
 
-bool BoardSettings::contains(Vec2 p) const {
-    if (!hasCustomOutline()) return p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height;
+namespace {
+bool insidePolygon(const std::vector<Vec2>& poly, Vec2 p) {
     bool in = false;
-    for (size_t i = 0, j = outline.size() - 1; i < outline.size(); j = i++) {
-        const Vec2 &a = outline[i], &b = outline[j];
+    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+        const Vec2 &a = poly[i], &b = poly[j];
         if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) in = !in;
     }
     return in;
 }
+}  // namespace
+
+const std::vector<InterfacePreset>& interfacePresets() {
+    static const std::vector<InterfacePreset> presets = {
+        {"usb2", "USB 2.0", 90, 1.27},       {"usb3", "USB 3.x", 90, 0.127},  {"pcie", "PCI Express", 85, 0.127},
+        {"ethernet", "Ethernet (MDI)", 100, 1.27}, {"hdmi", "HDMI / DisplayPort", 100, 0.127},
+        {"lvds", "LVDS / MIPI", 100, 0.254}, {"ddr", "DDR clock / strobe", 80, 0.127}, {"can", "CAN / RS-485", 120, 2.54},
+    };
+    return presets;
+}
+
+bool BoardSettings::contains(Vec2 p) const {
+    const bool in = hasCustomOutline() ? insidePolygon(outline, p) : p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height;
+    if (!in) return false;
+    for (const auto& c : cutouts)
+        if (c.size() >= 3 && insidePolygon(c, p)) return false;
+    return true;
+}
 
 double BoardSettings::edgeDistance(Vec2 p) const {
-    if (!hasCustomOutline()) {
+    if (!hasCustomOutline() && cutouts.empty()) {
         double d = std::min({p.x, p.y, width - p.x, height - p.y});
         if (d >= 0) return d;
         return -pointRectDistance(p, Rect(0, 0, width, height));
     }
     double d = std::numeric_limits<double>::max();
-    for (size_t i = 0, j = outline.size() - 1; i < outline.size(); j = i++)
-        d = std::min(d, pointSegmentDistance(p, outline[j], outline[i]));
+    forEachEdge([&](Vec2 a, Vec2 b) { d = std::min(d, pointSegmentDistance(p, a, b)); });
     return contains(p) ? d : -d;
 }
 
 double BoardSettings::segmentEdgeDistance(Vec2 a, Vec2 b) const {
     if (!contains(a) || !contains(b)) return -1;
-    auto poly = outlinePolygon();
     double d = std::numeric_limits<double>::max();
-    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++)
-        d = std::min(d, segmentSegmentDistance(a, b, poly[j], poly[i]));
+    forEachEdge([&](Vec2 u, Vec2 v) { d = std::min(d, segmentSegmentDistance(a, b, u, v)); });
     return d;
 }
 
@@ -260,9 +275,8 @@ double BoardSettings::trackEdgeDistance(const Track& t) const {
     const ArcGeom g = trackArc(t);
     if (!g.valid) return segmentEdgeDistance(t.a, t.b);
     if (!contains(t.a) || !contains(t.b)) return -1;
-    auto poly = outlinePolygon();
     double d = std::numeric_limits<double>::max();
-    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) d = std::min(d, segmentArcDistance(poly[j], poly[i], g));
+    forEachEdge([&](Vec2 u, Vec2 v) { d = std::min(d, segmentArcDistance(u, v, g)); });
     // An arc that bulges out of the board crosses the outline (distance 0); one that stays inside does not.
     return d;
 }
@@ -275,9 +289,9 @@ double BoardSettings::holeDistance(Vec2 p) const {
 
 bool BoardSettings::rectInside(const Rect& r, double margin) const {
     if (!contains(r.center())) return false;
-    auto poly = outlinePolygon();
-    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++)
-        if (segmentRectDistance(poly[j], poly[i], r) < margin) return false;
+    bool clear = true;
+    forEachEdge([&](Vec2 a, Vec2 b) { clear = clear && segmentRectDistance(a, b, r) >= margin; });
+    if (!clear) return false;
     for (const auto& h : holes)
         if (pointRectDistance(h.position, r) < h.keepout / 2) return false;
     return true;
@@ -377,9 +391,32 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.drill = pd.drill;
             p.bottom = c.pcb.bottom;
             p.smdLayer = c.pcb.bottom ? settings.bottomLayer() : kTopLayer;
+            p.corner = pd.corner;
+            p.mask = pd.mask;
+            p.paste = pd.paste;
+            p.pasteGrid = pd.pasteGrid;
+            p.inner = pd.inner;
+            for (const Vec2& v : pd.outline) p.outline.push_back(transformFootprintPoint(pd.offset + v, c.pcb) - p.position);
+            if (pd.npth) {  // a plain hole: no copper and no net, its keep-out the size of the drill
+                p.npth = true;
+                p.outline.clear();
+                p.net = -1;
+                p.round = true;
+                p.size = {pd.drill, pd.drill};
+            }
             out.push_back(p);
         }
     }
+    return out;
+}
+
+std::vector<FootprintLine> PcbLayout::footprintLines(const Component& c) const {
+    std::vector<FootprintLine> out;
+    if (const FootprintDef* fp = c.hasFootprint() ? Library::instance().footprint(c.footprintName()) : nullptr)
+        for (FootprintLine l : fp->lines) {
+            l.a = transformFootprintPoint(l.a, c.pcb), l.b = transformFootprintPoint(l.b, c.pcb);
+            out.push_back(l);
+        }
     return out;
 }
 
@@ -402,6 +439,86 @@ int PcbLayout::addVia(Via v) {
     v.id = nextId_++;
     vias.push_back(v);
     return v.id;
+}
+
+int PcbLayout::splitTrack(int id, Vec2 at) {
+    const auto it = std::find_if(tracks.begin(), tracks.end(), [&](const Track& t) { return t.id == id; });
+    if (it == tracks.end() || it->arc || it->teardrop) return -1;
+    const Vec2 d = it->b - it->a;
+    const double len2 = d.x * d.x + d.y * d.y;
+    if (len2 < 1e-12) return -1;
+    const double u = std::clamp(((at.x - it->a.x) * d.x + (at.y - it->a.y) * d.y) / len2, 0.0, 1.0);
+    const Vec2 p = it->a + d * u;
+    if ((p - it->a).length() < 0.05 || (p - it->b).length() < 0.05) return -1;
+    Track second = *it;
+    second.a = p;
+    it->b = p;
+    return addTrack(second);
+}
+
+int PcbLayout::mergeTracks(const Schematic& sch, const std::vector<int>& only) {
+    const std::set<int> pick(only.begin(), only.end());
+    const auto padList = pads(sch);
+    auto key = [](Vec2 p) { return std::make_pair(std::lround(p.x * 1000), std::lround(p.y * 1000)); };
+    int joins = 0;
+    for (bool again = true; again;) {
+        again = false;
+        std::map<std::pair<long, long>, std::vector<size_t>> ends;  // track ends by point (µm)
+        for (size_t i = 0; i < tracks.size(); ++i) {
+            ends[key(tracks[i].a)].push_back(i);
+            ends[key(tracks[i].b)].push_back(i);
+        }
+        for (const auto& [pt, list] : ends) {
+            if (list.size() != 2 || list[0] == list[1]) continue;
+            Track& s = tracks[list[0]];
+            Track& t = tracks[list[1]];
+            if (s.arc || t.arc || s.teardrop || t.teardrop || s.locked || t.locked || s.net != t.net || s.layer != t.layer ||
+                std::fabs(s.width - t.width) > 1e-9 || (!pick.empty() && (!pick.count(s.id) || !pick.count(t.id))))
+                continue;
+            const Vec2 joint{static_cast<double>(pt.first) / 1000, static_cast<double>(pt.second) / 1000};
+            const Vec2 sFar = key(s.a) == pt ? s.b : s.a, tFar = key(t.a) == pt ? t.b : t.a;
+            const Vec2 u = joint - sFar, w = tFar - joint;
+            const double cross = u.x * w.y - u.y * w.x, dot = u.x * w.x + u.y * w.y;
+            if (std::fabs(cross) > 1e-6 * std::max(1.0, u.length() * w.length()) || dot <= 0) continue;  // not straight on
+            bool busy = false;  // a via or pad there keeps the joint
+            for (const auto& v : vias) busy = busy || (v.position - joint).length() < v.diameter / 2;
+            for (const auto& p : padList)
+                busy = busy || (p.onLayer(s.layer) && std::fabs(p.position.x - joint.x) < p.size.x / 2 && std::fabs(p.position.y - joint.y) < p.size.y / 2);
+            if (busy) continue;
+            s.a = sFar;
+            s.b = tFar;
+            tracks.erase(tracks.begin() + static_cast<long>(list[1]));
+            ++joins;
+            again = true;
+            break;
+        }
+    }
+    return joins;
+}
+
+int PcbLayout::moveFootprintWithTracks(Schematic& sch, int componentId, Vec2 to) {
+    Component* c = sch.find(componentId);
+    if (!c || !c->hasFootprint()) return 0;
+    std::vector<Pad> before;
+    for (const auto& p : pads(sch))
+        if (p.componentId == componentId) before.push_back(p);
+    const Vec2 by = to - c->pcb.position;
+    c->pcb.position = to;
+    c->pcb.placed = true;
+    int moved = 0;
+    for (auto& t : tracks) {
+        if (t.locked) continue;
+        for (Vec2* end : {&t.a, &t.b})
+            for (const auto& p : before)
+                if (p.onLayer(t.layer) && std::fabs(end->x - p.position.x) <= p.size.x / 2 + 1e-6 &&
+                    std::fabs(end->y - p.position.y) <= p.size.y / 2 + 1e-6) {
+                    *end = *end + by;
+                    if (t.arc) t.arc = false;  // a dragged arc end makes it straight
+                    ++moved;
+                    break;
+                }
+    }
+    return moved;
 }
 
 bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
@@ -3457,15 +3574,23 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
             pl.width = std::max(settings.widthFor(rep.positive), settings.widthFor(rep.negative));
             const double pairClearance = std::max(settings.clearanceFor(rep.positive), settings.clearanceFor(rep.negative));
-            double gap = ropt.pairGap;
+            // The pair's own rule (impedance, width, gap) over the board's.
+            const PairRule* rule = settings.pairRule(pairStem(rep.positive, rep.negative));
+            const double ohms = rule && rule->impedance > 0 ? rule->impedance : settings.differentialImpedance;
+            if (rule && rule->width > 0) pl.width = std::max(settings.minTrackWidth, rule->width);
+            else if (rule && rule->impedance > 0) {
+                const double dw = differentialPairGeometry(settings, kTopLayer, ohms).first;
+                if (dw > 0 && dw <= 1.0) pl.width = std::max(settings.minTrackWidth, std::ceil(dw * 100) / 100);
+            }
+            double gap = ropt.pairGap > 0 ? ropt.pairGap : rule && rule->gap > 0 ? rule->gap : 0;
             if (gap <= 0) {
-                const double geo = differentialPairGeometry(settings, kTopLayer, settings.differentialImpedance).second;
+                const double geo = differentialPairGeometry(settings, kTopLayer, ohms).second;
                 gap = geo > 0 && geo <= 1.0 ? geo : settings.clearance;
             }
             pl.minGap = pairClearance;
             pl.gap = std::max(gap, pairClearance);
             // A pair at the stack-up's outer width and gap takes each layer's own (inner striplines differ).
-            if (ropt.pairGap <= 0 && !stackupPair.empty() && std::fabs(pl.width - stackupPair[kTopLayer].first) < 1e-9 &&
+            if (ropt.pairGap <= 0 && !rule && !stackupPair.empty() && std::fabs(pl.width - stackupPair[kTopLayer].first) < 1e-9 &&
                 std::fabs(gap - stackupPair[kTopLayer].second) < 1e-12)
                 for (const auto& [lw, lg] : stackupPair) {
                     pl.layerWidth.push_back(lw > 0 ? lw : pl.width);

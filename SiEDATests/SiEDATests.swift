@@ -3372,6 +3372,44 @@ final class FootprintEditorTests: XCTestCase {
 
     // MARK: - Document
 
+    func testPadOptionsRotateAlignGridOriginAndIPC() throws {
+        var draft = FootprintDraft(spec: twoPin([Land(x: -1, y: 0, w: 1.0, h: 0.5), Land(x: 1, y: 0.2, w: 1.0, h: 0.5)]))
+        let ids = Set(draft.pads.map(\.id))
+        // Options survive the land JSON (the core's trailing object).
+        draft.pads[0].land.options = .init(corner: 0.25, npth: nil, mask: 0.1, paste: 0.6, pasteGrid: 2)
+        let json = try JSONEncoder().encode(draft.pads[0].land)
+        XCTAssertEqual(try JSONDecoder().decode(Land.self, from: json), draft.pads[0].land)
+        XCTAssertTrue(String(decoding: json, as: UTF8.self).contains("pasteGrid"))
+        // Rotate turns positions and sizes; align puts the tops level; origin moves to pad 1.
+        draft.rotate(ids)
+        XCTAssertEqual(draft.pads[0].land.w, 0.5)
+        draft.align(ids, .top)
+        XCTAssertEqual(draft.pads[0].land.y - draft.pads[0].land.h / 2, draft.pads[1].land.y - draft.pads[1].land.h / 2, accuracy: 1e-9)
+        draft.setOrigin(CGPoint(x: draft.pads[0].land.x, y: draft.pads[0].land.y))
+        XCTAssertEqual(draft.pads[0].land.x, 0, accuracy: 1e-12)
+        // A 3 × 2 grid from pad 1 adds five pads; thermal vias fill a large pad.
+        XCTAssertEqual(draft.grid(from: draft.pads[0].id, columns: 3, rows: 2, pitchX: 2, pitchY: 2).count, 5)
+        var ep = FootprintDraft(spec: twoPin([Land(x: 0, y: 0, w: 3, h: 3), Land(x: 3, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(ep.addThermalVias(to: ep.pads[0].id).count, 9)
+        // IPC-7351B nominal gull wing for an SOIC-8 (L 5.8–6.2, S 3.8–4.2, W 0.31–0.51).
+        let r = try XCTUnwrap(FootprintDraft.ipc7351(lMin: 5.8, lMax: 6.2, sMin: 3.8, sMax: 4.2, wMin: 0.31, wMax: 0.51,
+                                                      toe: 0.35, heel: 0.35, side: 0.03))
+        XCTAssertEqual(r.length, 1.904, accuracy: 0.001)
+        XCTAssertEqual(r.width, 0.578, accuracy: 0.001)
+        XCTAssertEqual(r.centres, 5.0, accuracy: 0.001)
+        // The courtyard margin is kept with the part.
+        ep.courtyardMargin = 0.5
+        XCTAssertEqual(ep.applied(to: twoPin([])).package.courtyard, 0.5)
+        // Change summary against the footprint as opened.
+        let opened = FootprintDraft(spec: twoPin([Land(x: 0, y: 0, w: 1, h: 1), Land(x: 2, y: 0, w: 1, h: 1)]))
+        var edited = opened
+        edited.pads[0].land.x = 0.5
+        edited.pads[1].land.w = 2
+        edited.addPad(at: CGPoint(x: 4, y: 0), grid: 0.05)
+        let c = edited.changes(from: opened)
+        XCTAssertEqual([c.added, c.removed, c.moved, c.resized], [1, 0, 1, 1])
+    }
+
     func testSnapRoundsToTheGrid() {
         XCTAssertEqual(FootprintDraft.snap(1.26, 0.05), 1.25, accuracy: 1e-12)
         XCTAssertEqual(FootprintDraft.snap(1.276, 0.05), 1.3, accuracy: 1e-12)
@@ -6434,6 +6472,127 @@ final class ArcRoutingTests: XCTestCase {
         // The chords option still writes short straight pieces.
         XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, rounded: true, arcs: false)
             .contains("\"arcCorners\":false"))
+    }
+
+    func testSplitMergeDeleteTracksDragAndAlign() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        twoResistors(engine)
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, width: 0.4).contains("\"width\":0.4"))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 32))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        let count = store.snapshot.tracks.count
+        // Split a straight track in the middle, then merge the halves back.
+        let track = try XCTUnwrap(store.snapshot.tracks.first { !$0.isArc && hypot($0.bx - $0.ax, $0.by - $0.ay) > 2 })
+        store.splitTrack(track.id, at: CGPoint(x: (track.ax + track.bx) / 2, y: (track.ay + track.by) / 2))
+        XCTAssertEqual(store.snapshot.tracks.count, count + 1)
+        XCTAssertEqual(store.selectedTracks.count, 2)
+        store.mergeTracks()
+        XCTAssertEqual(store.snapshot.tracks.count, count)
+        // Drag a part: its tracks stay connected.
+        let r2 = try XCTUnwrap(store.snapshot.components.last)
+        store.moveFootprints([(r2.id, CGPoint(x: r2.pcb.x + 3, y: r2.pcb.y + 2))])
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        // Delete the selected tracks: the connection is open again; undo brings them back.
+        store.selectTrack(track.id)
+        store.selectTrackNets()
+        store.deleteSelectedCopper()
+        XCTAssertTrue(store.snapshot.tracks.isEmpty)
+        XCTAssertFalse(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks.count, count)
+        // Align the two parts' courtyards on their top edge.
+        store.selection = Set(store.snapshot.components.map(\.id))
+        store.alignFootprints(.top)
+        let tops = store.snapshot.courtyards.map(\.y0)
+        XCTAssertEqual(tops.min() ?? 0, tops.max() ?? 1, accuracy: 1e-6)
+    }
+
+    func testDrawnPourCutoutAndKeepout() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        // A keep-out rectangle, a cutout and a GND-less pour (the first net) drawn as shapes; each one undo step.
+        store.addKeepout(CGRect(x: 2, y: 2, width: 4, height: 3), layer: -1)
+        XCTAssertEqual(store.snapshot.board.keepouts.count, 1)
+        let square = [CGPoint(x: 20, y: 5), CGPoint(x: 24, y: 5), CGPoint(x: 24, y: 9), CGPoint(x: 20, y: 9)]
+        store.finishShape(.cutout, points: square, layer: 0)
+        XCTAssertEqual(store.snapshot.board.cutouts.count, 1)
+        store.finishShape(.pour, points: square.map { CGPoint(x: $0.x + 10, y: $0.y + 10) }, layer: 0)
+        XCTAssertEqual(store.snapshot.zones.last?.polygon?.count, 4)
+        store.finishShape(.cutout, points: Array(square.prefix(2)), layer: 0)  // two corners: refused
+        XCTAssertEqual(store.snapshot.board.cutouts.count, 1)
+        store.undo()
+        XCTAssertTrue(store.snapshot.zones.isEmpty)
+        store.removeKeepout(try XCTUnwrap(store.snapshot.board.keepouts.first))
+        XCTAssertTrue(store.snapshot.board.keepouts.isEmpty)
+    }
+
+    func testPairRulePresetAndDelayRule() throws {
+        let store = DesignStore()
+        XCTAssertTrue(EDAEngine.interfacePresets().contains { $0.id == "usb2" && $0.impedance == 90 })
+        store.setPairRule(PairRuleInfo(pair: "USB_D", preset: "pcie"))
+        XCTAssertEqual(store.snapshot.board.pairRules.first?.impedance, 85)
+        store.setPairRule(PairRuleInfo(pair: "USB_D"))  // no values: removed
+        XCTAssertTrue(store.snapshot.board.pairRules.isEmpty)
+        twoResistors(store.engine)
+        store.refresh()
+        let net = try XCTUnwrap(store.snapshot.nets.first { $0.pinCount >= 2 }?.name)
+        store.setDelayRule(net: net, delayPs: 100, tolerancePs: 5)
+        let rule = try XCTUnwrap(store.engine.lengthTargets().rules.first)
+        XCTAssertEqual(rule.delayPs, 100)
+        XCTAssertGreaterThan(rule.target, 10)
+    }
+
+    func testEnclosureStandoffsAnd3DExports() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        // A lid 50 mm above the board: shown see-through in the mesh, saved in the mechanical limits.
+        let stl = "solid lid\nfacet normal 0 0 1\nouter loop\nvertex 0 0 50\nvertex 10 0 50\nvertex 0 -10 50\nendloop\nendfacet\nendsolid lid\n"
+        let id = try XCTUnwrap(EDAEngine.importModel3D(name: "lid.stl", data: Data(stl.utf8)).id)
+        XCTAssertTrue(store.engine.setEnclosureModel(id))
+        XCTAssertEqual(store.engine.enclosureModel(), id)
+        let plain = try XCTUnwrap(store.engine.buildMesh(includeComponents: true))
+        let shown = try XCTUnwrap(store.engine.buildMesh(includeComponents: true, standoffs: 6, enclosure: true))
+        XCTAssertGreaterThan(shown.vertexCount, plain.vertexCount)
+        XCTAssertTrue(store.engine.setEnclosureModel(""))
+        XCTAssertEqual(store.engine.enclosureModel(), "")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-test.glb")
+        XCTAssertTrue(store.engine.exportFile("glb", to: url.path))
+        XCTAssertEqual(try Data(contentsOf: url).prefix(4), Data("glTF".utf8))
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    func testShortcutsFootprintLibraryPadShapesAndPartModels() throws {
+        // Shortcut text in both spellings; a bare modifier is no shortcut.
+        XCTAssertEqual(ShortcutStore.parse("cmd+shift+k"), KeyboardShortcut("k", modifiers: [.command, .shift]))
+        XCTAssertEqual(ShortcutStore.parse("⌥⌘P"), KeyboardShortcut("p", modifiers: [.command, .option]))
+        XCTAssertNil(ShortcutStore.parse("cmd"))
+        // Library footprints load as lands; a chamfered / outlined pad round-trips through the part's JSON.
+        let soic = try XCTUnwrap(EDAEngine.footprintLibrary("soic 8").first)
+        XCTAssertEqual(EDAEngine.footprintLands(soic.name)?.lands.count, soic.pads)
+        var land = CustomPartSpec.Land(x: 0, y: 0, w: 2, h: 2)
+        land.options.chamfer = 0.25
+        land.options.outline = [[-1, 1], [1, 1], [0.6, -1], [-0.6, -1]]
+        let back = try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land))
+        XCTAssertEqual(back, land)
+        let graphic = CustomPartSpec.Graphic(x0: 0, y0: 0, x1: 1, y1: 0, fab: true)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Graphic.self, from: JSONEncoder().encode(graphic)), graphic)
+        // A part's own 3D model is one undo step.
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        let stl = "solid b\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 1\nendloop\nendfacet\nendsolid b\n"
+        let id = try XCTUnwrap(EDAEngine.importModel3D(name: "b.stl", data: Data(stl.utf8)).id)
+        let part = try XCTUnwrap(store.snapshot.components.first { $0.pcb.placed }?.id)
+        XCTAssertTrue(store.engine.setPartModel(part, model: id))
+        XCTAssertTrue(store.engine.setPartModel(part, model: ""))
     }
 
     func testConvertCornersToArcsFromTheStore() throws {

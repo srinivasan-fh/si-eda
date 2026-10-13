@@ -97,7 +97,7 @@ enum SchematicSymbols {
     /// and all their numbers.
     static func drawPinLabels(_ ctx: GraphicsContext, part: CustomPartInfo, transform t: CGAffineTransform, fontSize: CGFloat,
                               textColor: Color = Theme.symbol, nameColor: (CustomPartInfo.SymbolPin) -> Color,
-                              numberColor: Color) {
+                              numberColor: Color, showNames: Bool = true, showNumbers: Bool = true) {
         drawGraphicTexts(ctx, part: part, transform: t, color: textColor)
         let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
         var order: [String] = []
@@ -121,7 +121,9 @@ enum SchematicSymbols {
             let outward = CGVector(dx: end.x - edgeOnScreen.x, dy: end.y - edgeOnScreen.y)
             let horizontal = abs(outward.dx) >= abs(outward.dy)
             let name = Text(pin.name).font(.system(size: fontSize, design: .monospaced)).foregroundColor(nameColor(pin))
-            if horizontal {
+            if !showNames {
+                // Pin names hidden (display settings).
+            } else if horizontal {
                 ctx.draw(name, at: inner, anchor: outward.dx > 0 ? .trailing : .leading)
             } else {
                 var rotated = ctx
@@ -129,6 +131,7 @@ enum SchematicSymbols {
                 rotated.rotate(by: .degrees(-90))
                 rotated.draw(name, at: .zero, anchor: outward.dy < 0 ? .trailing : .leading)
             }
+            guard showNumbers else { continue }
             let mid = CGPoint(x: (edgeOnScreen.x + end.x) / 2, y: (edgeOnScreen.y + end.y) / 2)
             let numbers = Text(group.numbers.joined(separator: ",")).font(.system(size: fontSize * 0.85, design: .monospaced))
                 .foregroundColor(numberColor)
@@ -387,9 +390,11 @@ enum SchematicSymbols {
     }
 
     /// Transform from symbol space to world space (rotation is clockwise on screen).
-    static func transform(position: CGPoint, rotation: Int) -> CGAffineTransform {
+    /// Symbol frame → sheet: mirrored left-right first (when `mirror`), then turned, then placed.
+    static func transform(position: CGPoint, rotation: Int, mirror: Bool = false) -> CGAffineTransform {
         CGAffineTransform(translationX: position.x, y: position.y)
             .rotated(by: CGFloat(rotation) * .pi / 180)
+            .scaledBy(x: mirror ? -1 : 1, y: 1)
     }
 }
 

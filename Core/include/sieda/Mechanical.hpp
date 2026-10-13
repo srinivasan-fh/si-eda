@@ -56,7 +56,13 @@ std::string idxResponse(const std::string& changesIdx, bool accept);
 /// 3D clearance checks (part of the DRC): MECH_HEIGHT (a part taller than its side's enclosure limit),
 /// MECH_HEIGHT_ZONE (taller than a height zone it stands in) and MECH_BODY_COLLISION (two fitted parts' bodies on
 /// the same side overlap). Parts not fitted (DNP) are left out. No limits set: only collisions are checked.
+/// MECH_ENCLOSURE: a part body cuts into the enclosure model (BoardSettings::enclosure). MECH_CONNECTOR_ACCESS (info):
+/// another body stands in the 3 mm in front of a connector's open end.
 std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayout& pcb);
+
+/// The open end of a footprint: the side its pads lean away from (an antenna, a connector's mouth) — 0 top,
+/// 1 bottom, 2 left, 3 right — with how far the pads' centre sits off the courtyard's, and the area past the pads.
+int openEnd(const Rect& cy, const std::vector<Pad>& pads, double* gap, Rect* area);
 
 /// {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}]}; null when unset.
 Json mechanicalLimitsToJson(const BoardSettings& s);

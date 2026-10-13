@@ -34,6 +34,7 @@
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "../src/SiedaProjectInternal.hpp"
 #include "sieda/Channel.hpp"
 #include "sieda/Eye.hpp"
 #include "sieda/LossyLine.hpp"
@@ -9154,6 +9155,81 @@ TEST(variants_drive_simulation_values_and_unfitted_parts) {
 }
 
 #include "sieda/SchematicSearch.hpp"
+
+TEST(schematic_mirror_touching_and_wire_cleanup) {
+    Schematic s;
+    // Mirror: pin 1 (−30, 0) goes to +30; a vertical mirror also turns the part 180°. Saved and copied with the part.
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.mirrorComponent(r1));
+    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
+    CHECK(s.mirrorComponent(r1, true));
+    CHECK(!s.find(r1)->mirror && s.find(r1)->rotation == 180);
+    CHECK_NEAR(s.pinPosition({r1, 0}).x, 30, 1e-9);
+    s.mirrorComponent(r1);
+    // Touching: R2's pin 1 dropped on R1's pin 2 spot, and a wire's route running through R3's pin 1.
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-60, 0});  // its pin 2 on R1's pin 1 spot (−30, 0)
+    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
+    int r4 = s.addComponent(ComponentKind::Resistor, "1k", {100, 200});
+    int r5 = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    s.connect({r4, 1}, {r5, 0});  // (130, 200) → (270, 200): straight, through nothing yet
+    s.rotateComponent(r3, 90);
+    s.moveComponent(r3, {140, 230});  // R3 pin 1 at (140, 200): on that wire; pin 2 below it
+    std::vector<PinRef> pins;
+    std::vector<int> wires;
+    s.touching({r3, 0}, &pins, &wires);
+    CHECK(wires.size() == 1 && pins.empty());
+    bool flagged = false;
+    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
+    CHECK(flagged);
+    CHECK(s.connectTouching(r3) == 1);  // a T-junction on the wire
+    CHECK(s.netOf({r3, 0}) == s.netOf({r4, 1}));
+    flagged = false;
+    for (const auto& v : s.runERC()) flagged |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.components.front() == r3;
+    CHECK(!flagged);
+    // R2's pin 2 lands on R1's pin (both at (−30, 0) once R1 is plain again).
+    CHECK_NEAR(s.pinPosition({r2, 1}).x, s.pinPosition({r1, 0}).x, 1e-9);
+    CHECK(s.connectTouching(r2) == 1 && s.netOf({r2, 1}) == s.netOf({r1, 0}));
+    // Cleanup: a bend on a straight run goes; the connection stays.
+    int a = s.addComponent(ComponentKind::Resistor, "1k", {0, 400});
+    int b = s.addComponent(ComponentKind::Resistor, "1k", {200, 400});
+    s.connect({a, 1}, {b, 0});
+    const int bend = s.splitWire(s.wires().back().id, {100, 400});
+    CHECK(bend > 0 && s.wireCount(bend) == 2);
+    CHECK(s.cleanupWires(1) >= 1);
+    CHECK(!s.find(bend) && s.netOf({a, 1}) == s.netOf({b, 0}));
+    // Mirror, lock and the power-symbol look are saved with the part; replace renames designators too.
+    Project p;
+    p.schematic = s;
+    p.schematic.find(r3)->mirror = true;
+    p.schematic.find(r3)->locked = true;
+    const int vcc = p.schematic.addComponent(ComponentKind::NetLabel, "VCC", {0, -100});
+    p.schematic.find(vcc)->power = true;
+    // Notes and drawings on a sheet: saved, moved, edited, refused when malformed.
+    SheetGraphic note;
+    note.kind = "text";
+    note.points = {{0, -200}};
+    note.text = "POWER INPUT";
+    const int noteId = p.schematic.addGraphic(note);
+    SheetGraphic box;
+    box.kind = "rect";
+    box.points = {{-50, -220}, {400, 260}};
+    CHECK(noteId > 0 && p.schematic.addGraphic(box) > 0);
+    SheetGraphic bad;
+    bad.kind = "rect";
+    bad.points = {{0, 0}};
+    CHECK(p.schematic.addGraphic(bad) == -1);
+    CHECK(p.schematic.moveGraphic(noteId, {10, 0}) && p.schematic.setGraphicText(noteId, "POWER IN"));
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.schematic.graphics().size() == 2 && back.schematic.graphics()[0].text == "POWER IN" &&
+          back.schematic.graphics()[0].points[0].x == 10);
+    CHECK(back.schematic.find(r3)->mirror && back.schematic.find(r3)->locked && back.schematic.find(vcc)->power);
+    SearchOptions o;
+    o.wholeWord = true;
+    o.values = o.labels = false;
+    CHECK(replaceInSchematic(back.schematic, "R3", "R30", o) == 1 && back.schematic.find(r3)->ref == "R30");
+    CHECK(replaceInSchematic(back.schematic, "R30", "R1", o) == 0);  // R1 is taken
+}
+
 
 // ======================================================================= find / replace, net navigator, title block
 
@@ -22425,4 +22501,441 @@ TEST(restored_ids_saturate_at_int_max) {
     const Project q = Project::fromJson(j);
     CHECK(q.schematic.components().size() == 1);
     CHECK(nextIdAfter(2147483647) == 2147483647 && nextIdAfter(5) == 6);
+}
+
+TEST(pcb_split_merge_and_drag_tracks_with_footprint) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.autoRoute(p.schematic);
+    // Drag a part: the track ends on its pads come along by the same offset, so its pads stay connected.
+    const int id = p.schematic.components().front().id;
+    std::vector<Vec2> ends;
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == id)
+            for (const auto& t : p.pcb.tracks)
+                for (Vec2 e : {t.a, t.b})
+                    if (pad.bounds().contains(e) && pad.onLayer(t.layer)) ends.push_back(e);
+    CHECK(!ends.empty());
+    const Vec2 by{2, 1}, to = p.schematic.find(id)->pcb.position + by;
+    CHECK(p.pcb.moveFootprintWithTracks(p.schematic, id, to) == static_cast<int>(ends.size()));
+    for (Vec2 e : ends)
+        CHECK(std::any_of(p.pcb.tracks.begin(), p.pcb.tracks.end(), [&](const Track& t) {
+            return (t.a - (e + by)).length() < 1e-9 || (t.b - (e + by)).length() < 1e-9;
+        }));
+    // Split a straight track in the middle, then merge the halves back.
+    const auto t = std::find_if(p.pcb.tracks.begin(), p.pcb.tracks.end(),
+                                [](const Track& x) { return !x.arc && (x.b - x.a).length() > 1; });
+    CHECK(t != p.pcb.tracks.end());
+    const int tid = t->id;
+    const size_t count = p.pcb.tracks.size();
+    const int half = p.pcb.splitTrack(tid, (t->a + t->b) * 0.5);
+    CHECK(half > 0 && p.pcb.tracks.size() == count + 1);
+    CHECK(p.pcb.splitTrack(half, p.pcb.tracks.back().b) == -1);  // at an end
+    CHECK(p.pcb.mergeTracks(p.schematic, {tid, half}) == 1 && p.pcb.tracks.size() == count);
+}
+
+TEST(pcb_cutouts_and_drawn_pours) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    auto& s = p.pcb.settings;
+    // A 4 × 4 mm cutout in the middle: outside the board for copper, an edge to keep clear of, a loop in Edge.Cuts.
+    const Vec2 c{s.width / 2, s.height / 2};
+    s.cutouts.push_back({c + Vec2{-2, -2}, c + Vec2{2, -2}, c + Vec2{2, 2}, c + Vec2{-2, 2}});
+    CHECK(!s.contains(c));
+    CHECK_NEAR(s.edgeDistance(c + Vec2{3, 0}), 1, 1e-9);
+    CHECK(s.segmentEdgeDistance(c + Vec2{-3, 0}, c + Vec2{3, 0}) <= 0);  // straight across it
+    const std::string edge = exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts);
+    size_t loops = 0;
+    for (size_t at = edge.find("D02*"); at != std::string::npos; at = edge.find("D02*", at + 1)) ++loops;
+    CHECK(loops == 2);
+    // A pour drawn over the half with a GND pad fills only there, and never inside the cutout; both survive a save.
+    CopperZone z;
+    z.net = "GND";
+    int gnd = -1;
+    for (const auto& n : p.schematic.nets())
+        if (n.name == "GND") gnd = n.index;
+    double padX = 0;
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.net == gnd) padX = pad.position.x;
+    const double x0 = padX < s.width / 2 ? 0 : s.width / 2, x1 = x0 + s.width / 2;
+    z.polygon = {{x0, 0}, {x1, 0}, {x1, s.height}, {x0, s.height}};
+    p.pcb.zones.push_back(z);
+    const auto& fills = p.pcb.zoneFills(p.schematic);
+    CHECK(fills.size() == 1 && fills[0].area() > 0);
+    for (const auto& r : fills[0].rects) CHECK(r.x0 >= x0 - 1e-9 && r.x1 <= x1 + 1e-9 && !r.contains(c));
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.cutouts.size() == 1 && back.pcb.zones.size() == 1 && back.pcb.zones[0].polygon.size() == 4);
+}
+
+TEST(pcb_pair_rules_presets_and_delay_rules) {
+    CHECK(pairStem("USB_D_P", "USB_D_N") == "USB_D" && pairStem("D+", "D-") == "D");
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "22", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "22", {0, 100});
+    const int lp = s.addComponent(ComponentKind::NetLabel, "USB_D_P", {-100, 0});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "USB_D_N", {-100, 100});
+    CHECK(s.connect({r1, 0}, {lp, pin(s, lp, "N")}) >= 0 && s.connect({r2, 0}, {ln, pin(s, ln, "N")}) >= 0);
+    p.schematicChanged();
+    SiedaProject* c = sieda_project_new("pairs");
+    c->project = p;
+    // A preset fills the pair's impedance and skew; length tuning and DRC take the pair's skew.
+    CHECK(sieda_pcb_set_pair_rule(c, R"({"pair":"USB_D","preset":"usb2"})") == 1);
+    const PairRule* rule = c->project.pcb.settings.pairRule("USB_D");
+    CHECK(rule && rule->impedance == 90 && rule->skew == 1.27 && rule->preset == "usb2");
+    bool found = false;
+    for (const auto& g : lengthGroups(c->project.schematic, c->project.pcb.settings))
+        if (g.kind == "pair") found = g.name == "USB_D" && g.tolerance == 1.27;
+    CHECK(found);
+    // A delay rule becomes a length on the outer layer and keeps its ps; both survive a save.
+    CHECK(sieda_pcb_set_delay_rule(c, "USB_D_P", 100, 5) == 1);
+    const auto& lr = c->project.pcb.settings.lengthRules.back();
+    const double perMm = propagationDelayPerMm(c->project.pcb.settings, kTopLayer, c->project.pcb.settings.widthFor("USB_D_P")) * 1e12;
+    CHECK_NEAR(lr.target, 100 / perMm, 1e-9);
+    CHECK(lr.delayPs == 100 && lr.target > 10 && lr.target < 25);  // ~6–7 ps/mm on FR-4 microstrip
+    const Project back = Project::fromJson(c->project.toJson());
+    CHECK(back.pcb.settings.pairRules.size() == 1 && back.pcb.settings.lengthRules.back().delayPs == 100);
+    // No values removes the rule.
+    CHECK(sieda_pcb_set_pair_rule(c, R"({"pair":"USB_D"})") == 1 && c->project.pcb.settings.pairRules.empty());
+    sieda_project_free(c);
+}
+
+TEST(footprint_pad_options_rounded_npth_mask_paste) {
+    // A land pattern with a rounded pad (mask 0.1, paste split 2 × 2 at 60 %) and a non-plated hole.
+    CustomPartSpec spec;
+    spec.name = "PADOPT";
+    spec.refPrefix = "U";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 3;
+    PackageSpec::Land a{-2, 0, 3, 3};
+    a.corner = 0.25, a.mask = 0.1, a.paste = 0.6, a.pasteGrid = 2;
+    PackageSpec::Land b{2, 0, 1.2, 1.2, 0.7, true, "2"};
+    PackageSpec::Land hole{0, 3, 1.6, 1.6, 1.0, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {a, b, hole};
+    // The options survive the part's JSON.
+    const CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.package.lands[0].corner == 0.25 && back.package.lands[0].pasteGrid == 2 && back.package.lands[2].npth);
+    Project p;
+    const std::string id = p.addCustomPart(back);
+    const int u = p.schematic.addCustomComponent(id, "", {0, 0});
+    CHECK(u > 0);
+    p.pcb.autoPlace(p.schematic, true);
+    const auto pads = p.pcb.pads(p.schematic);
+    CHECK(pads.size() == 3 && pads[0].corner == 0.25 && pads[2].npth && pads[2].net < 0);
+    // Copper: a rounded-rectangle macro aperture, and no copper for the plain hole; it drills in the NPTH file.
+    const std::string top = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(top.find("%AMRR*") != std::string::npos && top.find("ADD10RR,") != std::string::npos);
+    size_t flashes = 0;
+    for (size_t at = top.find("D03*"); at != std::string::npos; at = top.find("D03*", at + 1)) ++flashes;
+    CHECK(flashes == 2);
+    CHECK(exportExcellonDrill(p.schematic, p.pcb, false).find("T1C1.000") != std::string::npos);
+    CHECK(exportExcellonDrill(p.schematic, p.pcb, true).find("C1.000") == std::string::npos);
+    // Paste: four windows for the rounded pad; mask grows it by its own margin.
+    const std::string paste = exportGerber(p.schematic, p.pcb, GerberLayer::TopPaste);
+    size_t windows = 0;
+    for (size_t at = paste.find("D03*"); at != std::string::npos; at = paste.find("D03*", at + 1)) ++windows;
+    CHECK(windows == 4);
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::TopMask).find("RR,3.2000X3.2000X0.8500") != std::string::npos);
+    // A wider courtyard margin widens the footprint's courtyard by twice the difference.
+    const double before = p.pcb.courtyard(*p.schematic.find(u)).width();
+    CustomPartSpec wide = back;
+    wide.name = "PADOPT-WIDE";
+    wide.package.courtyard = 0.75;
+    CHECK(customPartSpecFromJson(customPartSpecToJson(wide)).package.courtyard == 0.75);
+    const int w = p.schematic.addCustomComponent(p.addCustomPart(wide), "", {0, 100});
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK_NEAR(p.pcb.courtyard(*p.schematic.find(w)).width() - before, 1.0, 1e-6);
+}
+
+TEST(assembly_mesh_hides_parts) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    const Mesh all = buildAssemblyMesh(p.schematic, p.pcb);
+    MeshOptions opt;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) opt.hidden.insert(c.id);
+    const Mesh none = buildAssemblyMesh(p.schematic, p.pcb, opt);
+    CHECK(none.positions.size() < all.positions.size());
+    CHECK(none.surfaceVertices(Surface::Plastic) == 0 && all.surfaceVertices(Surface::Plastic) > 0);
+    CHECK(none.surfaceVertices(Surface::Solder) == 0);  // bare pads, no joints
+}
+
+TEST(mechanical_enclosure_connector_access_and_3d_exports) {
+    Project p = placedBenchBoard();
+    auto codes = [&](const std::string& code) {
+        int n = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code;
+        return n;
+    };
+    // Enclosure (MCAD frame: Y = -board y, underside at Z = 0): a rib 0.2 mm above the board through U1's body.
+    const Component* u1 = p.schematic.findByRef("U1");
+    auto rib = [&](double x, double y, double z) {
+        char stl[600];
+        std::snprintf(stl, sizeof stl, "solid rib\nfacet normal 0 0 1\nouter loop\nvertex %g %g %g\nvertex %g %g %g\n"
+                      "vertex %g %g %g\nendloop\nendfacet\nendsolid rib\n", x - 5, -y - 5, z, x + 5, -y - 5, z, x, -y + 5, z);
+        return Model3DRegistry::instance().add(parseStl(stl, "rib.stl"));
+    };
+    const double t = p.pcb.settings.thickness;
+    p.pcb.settings.enclosure = rib(u1->pcb.position.x, u1->pcb.position.y, t + 0.2);
+    CHECK(codes("MECH_ENCLOSURE") == 1);
+    const Project reloaded = Project::fromJson(p.toJson());  // saved with its mesh
+    CHECK(reloaded.pcb.settings.enclosure == p.pcb.settings.enclosure);
+    CHECK(p.toJson().get("models3d").size() >= 1);
+    MeshOptions shown;
+    shown.enclosure = true;
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb, shown).surfaceVertices(Surface::Glass) >
+          buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Glass));
+    p.pcb.settings.enclosure = rib(u1->pcb.position.x, u1->pcb.position.y, t + 60);  // well above every part
+    CHECK(codes("MECH_ENCLOSURE") == 0);
+    p.pcb.settings.enclosure.clear();
+    // Connector access: a part moved into the 3 mm in front of the USB-C's open end is a note.
+    {
+        mcp::McpServer m;
+        CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+        CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+            "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+            "nets": {"GND": ["J1.GND(A1)", "R1.1"]}, "pins": false})J"))));
+        CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+        Json all = Json::object();
+        all["all"] = true;
+        CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+        Project& q = m.project()->project;
+        auto access = [&] {
+            std::vector<RuleViolation> found;
+            for (const auto& v : q.pcb.runDRC(q.schematic))
+                if (v.code == "MECH_CONNECTOR_ACCESS") found.push_back(v);
+            return found;
+        };
+        CHECK(access().empty());
+        const Component* j1 = q.schematic.findByRef("J1");
+        std::vector<Pad> own;
+        for (const auto& pad : q.pcb.pads(q.schematic))
+            if (pad.componentId == j1->id) own.push_back(pad);
+        double gap = 0;
+        Rect area;
+        const Rect cy = q.pcb.courtyard(*j1);
+        const int side = openEnd(cy, own, &gap, &area);
+        CHECK(gap >= 0.5);
+        const Vec2 front = side == 0 ? Vec2{cy.center().x, cy.y0 - 1.5} : side == 1 ? Vec2{cy.center().x, cy.y1 + 1.5}
+                         : side == 2 ? Vec2{cy.x0 - 1.5, cy.center().y} : Vec2{cy.x1 + 1.5, cy.center().y};
+        for (auto& r : q.schematic.mutableComponents())
+            if (r.ref == "R1") r.pcb.position = front, r.pcb.bottom = j1->pcb.bottom;
+        const auto blocked = access();
+        CHECK(blocked.size() == 1 && blocked[0].severity == Severity::Info);
+    }
+    // Standoffs and screws at the mounting holes.
+    p.pcb.settings.holes.push_back({{5, 5}});
+    MeshOptions standoffs;
+    standoffs.standoffs = 5;
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb, standoffs).surfaceVertices(Surface::Gold) >
+          buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Gold));
+    // glTF binary, VRML (read back by the model reader), the MCP 3D render and the file export.
+    const Mesh mesh = buildAssemblyMesh(p.schematic, p.pcb);
+    const std::string glb = exportGltf(mesh, "bench \"board\"");
+    CHECK(glb.compare(0, 4, "glTF") == 0);
+    auto le32 = [&](size_t at) {
+        uint32_t v = 0;
+        for (int k = 3; k >= 0; --k) v = v * 256 + static_cast<uint8_t>(glb[at + k]);
+        return v;
+    };
+    CHECK(le32(8) == glb.size());
+    CHECK(Json::parse(glb.substr(20, le32(12))).get("accessors").size() == 4);
+    const Model3DMesh back = parseVrml(exportVrml(mesh, "bench"), "bench.wrl");
+    CHECK(back.triangleCount() > 0 && back.triangleCount() <= mesh.triangleCount());
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    const std::string png = mcp::render3dPng(*sp, "iso", 320);
+    CHECK(png.compare(0, 8, "\x89PNG\r\n\x1a\n") == 0);
+    CHECK(mcp::render3dPng(*sp, "top", 200).size() > 100);
+    const std::string path = (std::filesystem::temp_directory_path() / "sieda_board.glb").string();
+    CHECK(sieda_export_file(sp, "glb", path.c_str()) == 1);
+    CHECK(std::filesystem::file_size(path) == exportGltf(mesh, p.name).size());
+    std::filesystem::remove(path);
+    sieda_project_free(sp);
+}
+
+TEST(footprint_chamfer_outline_pad_stack_and_graphics) {
+    // A chamfered pad, a trapezoid pad, a through-hole pad 1.0 mm on the inner layers, and drawn silk / fab lines.
+    CustomPartSpec spec;
+    spec.name = "PADSHAPES";
+    spec.refPrefix = "U";
+    spec.pins = {{"1", "A"}, {"2", "B"}, {"3", "C"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 3;
+    PackageSpec::Land a{-3, 0, 2, 2};
+    a.chamfer = 0.25;
+    PackageSpec::Land b{0, 0, 2, 2};
+    b.outline = {{-1, 1}, {1, 1}, {0.6, -1}, {-0.6, -1}};
+    PackageSpec::Land c{3, 0, 1.8, 1.8, 1.0, true};
+    c.inner = 1.0;
+    spec.package.lands = {a, b, c};
+    spec.package.graphics = {{{-4.5, -1.5}, {4.5, -1.5}, 0.15, false}, {{-4.5, 1.5}, {4.5, 1.5}, 0.1, true}};
+    const CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.package.lands[0].chamfer == 0.25 && back.package.lands[1].outline.size() == 4 && back.package.lands[2].inner == 1.0);
+    CHECK(back.package.graphics.size() == 2 && back.package.graphics[1].fab);
+    Project p;
+    p.pcb.settings.layerCount = 4;
+    const int u = p.schematic.addCustomComponent(p.addCustomPart(back), "", {0, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    const auto pads = p.pcb.pads(p.schematic);
+    CHECK(pads.size() == 3 && pads[0].outline.size() == 8 && pads[1].outline.size() == 4 && pads[2].inner == 1.0);
+    // Copper: two polygon pads as regions, one flashed through-hole pad; inner layers flash the 1.0 mm stack size.
+    const std::string top = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    size_t regions = 0;
+    for (size_t at = top.find("G36*"); at != std::string::npos; at = top.find("G36*", at + 1)) ++regions;
+    CHECK(regions == 2);
+    CHECK(exportCopperGerber(p.schematic, p.pcb, 1).find("C,1.0000") != std::string::npos);
+    CHECK(exportCopperGerber(p.schematic, p.pcb, 1).find("C,1.8000") == std::string::npos);
+    // Silk: the drawn silk line is on the silkscreen; the fab line goes to the assembly drawing only.
+    const std::string silk = exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk);
+    CHECK(silk.find("C,0.1500") != std::string::npos && silk.find("C,0.1000") == std::string::npos);
+    CHECK(exportAssemblySvg(p.schematic, p.pcb, false, "t").find("stroke=\"#8a5a00\"") != std::string::npos);
+    CHECK(p.pcb.footprintLines(*p.schematic.find(u)).size() == 2);
+    const Json snap = p.snapshot();
+    CHECK(snap.get("courtyards")[0].get("lines").size() == 12);
+    for (const auto& pad : snap.get("pads").items())
+        if (pad.get("number").asInt(0) == 2) CHECK(pad.get("outline").size() == 8);
+    // 3D: the polygon pads are prisms of their outline (more finish vertices than plain boxes would give).
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Finish) > 0);
+}
+
+TEST(footprint_library_browser_lists_and_loads) {
+    auto take = [](char* s) {
+        std::string out = s ? s : "";
+        sieda_string_free(s);
+        return out;
+    };
+    const Json all = Json::parse(take(sieda_footprint_library_json(nullptr, "")));
+    CHECK(all.size() > 10);
+    const Json soic = Json::parse(take(sieda_footprint_library_json(nullptr, "soic 8")));
+    CHECK(soic.size() >= 1 && soic.size() < all.size());
+    const std::string name = soic[0].get("name").asString("");
+    const Json lands = Json::parse(take(sieda_footprint_lands_json(name.c_str())));
+    CHECK(lands.get("lands").size() == static_cast<size_t>(soic[0].get("pads").asInt(0)));
+    CHECK(lands.get("lands")[0].size() == 7 && lands.get("bodySize").asNumber(0) > 0);
+    CHECK(sieda_footprint_lands_json("NO_SUCH_FOOTPRINT") == nullptr);
+}
+
+TEST(pcb_island_markers_via_minimisation_and_gloss_moving_vias) {
+    // A GND pour over the half of the board without a GND pad is one floating island: dropped, and marked.
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    auto& s = p.pcb.settings;
+    int gnd = -1;
+    for (const auto& n : p.schematic.nets())
+        if (n.name == "GND") gnd = n.index;
+    double padX = 0;
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.net == gnd) padX = pad.position.x;
+    const double x0 = padX < s.width / 2 ? s.width * 0.75 : 0, x1 = x0 + s.width / 4;
+    CopperZone z;
+    z.net = "GND";
+    z.polygon = {{x0, 0}, {x1, 0}, {x1, s.height}, {x0, s.height}};
+    p.pcb.zones.push_back(z);
+    const auto& fills = p.pcb.zoneFills(p.schematic);
+    CHECK(fills.size() == 1 && fills[0].islands == 0 && !fills[0].removedIslands.empty());
+    const Vec2 mark = fills[0].removedIslands[0];
+    CHECK(mark.x >= x0 && mark.x <= x1);
+    CHECK(p.snapshot().get("zoneFills")[0].get("removedIslands").size() == 2 * fills[0].removedIslands.size());
+    p.pcb.zones.clear();
+    // Via minimisation on a routed board: kept only when it saves vias, else the board is unchanged.
+    Project r = placedBenchBoard();
+    r.pcb.settings.layerCount = 2;
+    r.autoRoute();
+    const std::string before = r.toJson().dump();
+    SiedaProject* sp = sieda_project_load_json(before.c_str(), nullptr);
+    Json nets = Json::array();
+    for (const auto& n : sp->project.schematic.nets()) nets.push(n.name);
+    char* out = sieda_pcb_minimize_vias(sp, nets.dump().c_str());
+    CHECK(out != nullptr);
+    const Json m = Json::parse(out);
+    sieda_string_free(out);
+    CHECK(m.get("viasBefore").asInt(-1) >= 0);
+    if (m.get("kept").asBool(false)) CHECK(m.get("viasAfter").asInt(0) < m.get("viasBefore").asInt(0));
+    else CHECK(sp->project.pcb.vias.size() == static_cast<size_t>(m.get("viasBefore").asInt(-1)));
+    CHECK(sp->project.pcb.settings.autorouter.nets.empty());  // the board's own options are untouched
+    // Gloss with moving vias keeps every rule.
+    std::vector<int> ids;
+    for (const auto& t : sp->project.pcb.tracks) ids.push_back(t.id);
+    auto errors = [&] {
+        int n = 0;
+        for (const auto& v : sp->project.pcb.runDRC(sp->project.schematic)) n += v.severity == Severity::Error;
+        return n;
+    };
+    const int errorsBefore = errors();
+    GlossOptions go;
+    go.moveVias = true;
+    glossTracks(sp->project.pcb, sp->project.schematic, ids, go);
+    CHECK(errors() <= errorsBefore);
+    sieda_project_free(sp);
+}
+
+TEST(schematic_wire_segment_drag_and_wire_end_move) {
+    // R1.2 → R2.1 wired straight across; dragging the wire down keeps it horizontal through two new junctions.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    const Vec2 a = s.pinPosition({r1, 1}), b = s.pinPosition({r2, 0});
+    s.moveComponent(r2, s.find(r2)->position + Vec2{0, a.y - b.y});  // the two pins level
+    const int w = s.connect({r1, 1}, {r2, 0});
+    CHECK(w >= 0);
+    CHECK(s.dragWireSegment(w, {7, 40}));
+    CHECK(s.wires().size() == 3);
+    int junctions = 0;
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::Junction) {
+            ++junctions;
+            CHECK_NEAR(c.position.y, s.pinPosition({r1, 1}).y + 40, 1e-9);
+        }
+    CHECK(junctions == 2);
+    // Dragged again, the bends move (no new junctions); the net is unchanged.
+    int middle = -1;
+    for (const auto& x : s.wires())
+        if (s.find(x.a.component)->kind == ComponentKind::Junction && s.find(x.b.component)->kind == ComponentKind::Junction)
+            middle = x.id;
+    CHECK(middle >= 0 && s.dragWireSegment(middle, {0, 20}));
+    CHECK(s.wires().size() == 3);
+    CHECK(s.netOf({r1, 1}) == s.netOf({r2, 0}));
+    // A wire end moved off R2.1 onto empty space: R2.1 is no longer on the net, a loose junction ends the wire.
+    int last = -1;
+    for (const auto& x : s.wires())
+        if (x.a.component == r2 || x.b.component == r2) last = x.id;
+    const auto& lw = *std::find_if(s.wires().begin(), s.wires().end(), [&](const Wire& x) { return x.id == last; });
+    CHECK(s.moveWireEnd(last, lw.b.component == r2, {300, 300}, {}));
+    CHECK(s.netOf({r1, 1}) != s.netOf({r2, 0}));
+    CHECK(!s.dragWireSegment(9999, {0, 10}));
+}
+
+TEST(pcb_part_model_on_a_catalog_part) {
+    // A 3 × 2 × 1.5 mm box model on the LED (a built-in part): seated on the board over its footprint, saved with
+    // the project with its mesh, and removed again.
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    const char* box =
+        "solid box\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 0 0\nvertex 3 2 1.5\nendloop\nendfacet\n"
+        "facet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 2 1.5\nvertex 0 2 1.5\nendloop\nendfacet\nendsolid box\n";
+    const std::string id = Model3DRegistry::instance().add(parseStl(box, "box.stl"));
+    int led = -1;
+    for (const auto& c : p.schematic.components())
+        if (c.kind == ComponentKind::LED) led = c.id;
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    const size_t before = buildAssemblyMesh(sp->project.schematic, sp->project.pcb).vertexCount();
+    CHECK(sieda_pcb_set_part_model(sp, led, id.c_str(), "box.stl", 1) == 1);
+    CHECK(sieda_pcb_set_part_model(sp, 99999, id.c_str(), "box.stl", 1) == 0);
+    CHECK(sieda_pcb_set_part_model(sp, led, "m0000000000000000", "x", 1) == 0);
+    const Mesh with = buildAssemblyMesh(sp->project.schematic, sp->project.pcb);
+    CHECK(with.vertexCount() != before);
+    const Json saved = sp->project.toJson();
+    CHECK(saved.get("board").get("partModels").size() == 1 || saved.get("partModels").size() == 1);
+    bool hasMesh = false;
+    for (const auto& m : saved.get("models3d").items()) hasMesh = hasMesh || m.get("id").asString("") == id;
+    CHECK(hasMesh);
+    const Project back = Project::fromJson(saved);
+    CHECK(back.pcb.partModels.count(led) == 1 && back.pcb.partModels.at(led).id == id);
+    CHECK(BoardSettings::normalizeLayerCount(2147483647) == BoardSettings::kMaxLayers);  // a hostile file's count
+    CHECK(sieda_pcb_set_part_model(sp, led, "", "", 1) == 1);
+    CHECK(sp->project.pcb.partModels.empty());
+    sieda_project_free(sp);
 }

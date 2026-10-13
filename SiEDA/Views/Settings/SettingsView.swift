@@ -13,6 +13,8 @@ struct SettingsView: View {
                 .tabItem { Label("Suppliers", systemImage: "shippingbox") }
             MCPSettingsView()
                 .tabItem { Label("AI Access (MCP)", systemImage: "dot.radiowaves.left.and.right") }
+            ShortcutSettings()
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
@@ -282,6 +284,7 @@ private struct AppearanceSettings: View {
     /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
+    @AppStorage(DesignStore.autosaveKey) private var autosave = false
     @State private var customisingSchematic = false
 
     var body: some View {
@@ -297,6 +300,10 @@ private struct AppearanceSettings: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+            Toggle("Save projects automatically", isOn: $autosave)
+            Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Toggle("Show splash screen at launch", isOn: $showSplashScreen)
@@ -355,5 +362,105 @@ private struct AboutSettings: View {
         }
         .padding(30)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// User-assignable key equivalents of the main menu commands (Settings → Shortcuts), kept in the user defaults.
+final class ShortcutStore: ObservableObject {
+    static let shared = ShortcutStore()
+    struct Command: Identifiable {
+        let id: String
+        let title: String
+        let standard: String  // "cmd+shift+k"; "" = none
+    }
+    static let commands: [Command] = [
+        .init(id: "newProject", title: "New Project", standard: "cmd+n"),
+        .init(id: "open", title: "Open…", standard: "cmd+o"),
+        .init(id: "save", title: "Save", standard: "cmd+s"),
+        .init(id: "saveAs", title: "Save As…", standard: "cmd+shift+s"),
+        .init(id: "fabPackage", title: "Export Fabrication Package…", standard: "cmd+shift+e"),
+        .init(id: "palette", title: "Command Palette…", standard: "cmd+k"),
+        .init(id: "zoomFit", title: "Zoom to Fit", standard: "cmd+0"),
+        .init(id: "erc", title: "Run Electrical Rule Check", standard: "cmd+shift+k"),
+        .init(id: "dcOp", title: "DC Operating Point", standard: "cmd+shift+d"),
+        .init(id: "autoPlace", title: "Auto-Place Footprints", standard: ""),
+        .init(id: "autoRoute", title: "Auto Route Board", standard: "cmd+shift+r"),
+        .init(id: "drc", title: "Run Design Rule Check", standard: ""),
+    ]
+    private static let key = "app.shortcuts"
+    @Published private(set) var overrides: [String: String]
+
+    init() { overrides = UserDefaults.standard.dictionary(forKey: Self.key) as? [String: String] ?? [:] }
+
+    /// The text of a command's shortcut ("cmd+shift+k"), or "" for none.
+    func text(_ id: String) -> String { overrides[id] ?? Self.commands.first { $0.id == id }?.standard ?? "" }
+
+    /// nil = back to the standard one.
+    func set(_ id: String, _ text: String?) {
+        overrides[id] = text
+        UserDefaults.standard.set(overrides, forKey: Self.key)
+    }
+
+    func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
+
+    /// "cmd+shift+k" (or ⌘⇧K-style symbols) → a shortcut; nil when there is no single key.
+    static func parse(_ text: String) -> KeyboardShortcut? {
+        var modifiers: EventModifiers = []
+        var key: Character?
+        for part in text.lowercased().replacingOccurrences(of: "⌘", with: "cmd+").replacingOccurrences(of: "⇧", with: "shift+")
+            .replacingOccurrences(of: "⌥", with: "opt+").replacingOccurrences(of: "⌃", with: "ctrl+").split(separator: "+") {
+            switch part.trimmingCharacters(in: .whitespaces) {
+            case "cmd", "command": modifiers.insert(.command)
+            case "shift": modifiers.insert(.shift)
+            case "opt", "option", "alt": modifiers.insert(.option)
+            case "ctrl", "control": modifiers.insert(.control)
+            case let k where k.count == 1: key = k.first
+            default: return nil
+            }
+        }
+        return key.map { KeyboardShortcut(KeyEquivalent($0), modifiers: modifiers) }
+    }
+
+    /// Commands that share a shortcut with another one.
+    var clashes: Set<String> {
+        var seen: [String: String] = [:], out = Set<String>()
+        for c in Self.commands {
+            let t = text(c.id).lowercased()
+            guard !t.isEmpty else { continue }
+            if let other = seen[t] { out.formUnion([other, c.id]) } else { seen[t] = c.id }
+        }
+        return out
+    }
+}
+
+/// Settings → Shortcuts: type a command's keys ("cmd+shift+k"), empty for none; Reset restores the standard one.
+struct ShortcutSettings: View {
+    @ObservedObject private var shortcuts = ShortcutStore.shared
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(ShortcutStore.commands) { command in
+                    HStack {
+                        Text(LocalizedStringKey(command.title))
+                        Spacer()
+                        if shortcuts.clashes.contains(command.id) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                                .help("Another command uses the same keys")
+                        }
+                        TextField("", text: Binding(get: { shortcuts.text(command.id) }, set: { shortcuts.set(command.id, $0) }),
+                                  prompt: Text(verbatim: command.standard.isEmpty ? "—" : command.standard))
+                            .frame(width: 150)
+                            .font(.body.monospaced())
+                        Button("Reset") { shortcuts.set(command.id, nil) }
+                            .disabled(shortcuts.overrides[command.id] == nil)
+                    }
+                }
+            } footer: {
+                Text("Type the keys as cmd, shift, opt and ctrl plus one key, joined by +, e.g. cmd+shift+k. Leave empty for no shortcut.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }

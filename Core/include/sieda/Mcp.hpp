@@ -160,6 +160,8 @@ std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width
 std::string renderSchematicPng(const SiedaProject& project, int sheet, int width);
 std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width);
 std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width);
+/// The assembled board in 3D (shaded, orthographic) as PNG: view iso (default), top, bottom, front, back, left, right.
+std::string render3dPng(const SiedaProject& project, const std::string& view, int width);
 
 std::string base64Encode(const std::string& bytes);
 

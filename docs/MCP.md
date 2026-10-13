@@ -587,7 +587,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (38)
+### pcb (39)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -621,6 +621,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
 | `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 5 mm pitch), optionally inside an area; none under a part's courtyard. |
 | `pcb_length_rules` | edit | Length / phase matching: enable serpentine tuning and tolerances, set per-net length rules [{net, target, tolerance}] (target 0 removes), match groups [{name, nets:[…], tolerance}], and tune now. |
+| `pcb_pair_rules` | edit | Differential pair rules by the pair's stem (USB_D for USB_D_P / USB_D_N): an interface preset (usb2, usb3, pcie, ethernet, hdmi, lvds, ddr, can: typical impedance and skew) and / or impedance (Ω), width, gap (mm) and skew tolerance (mm); a rule with no values removes it. |
 | `pcb_set_hdi` | edit | HDI (IPC-2226): blind / buried vias and laser microvias (drill / pad mm), via-in-pad. |
 | `pcb_remove_copper` | edit (destructive) | Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias). |
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
@@ -699,11 +700,11 @@ Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D mode
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
 | `output_pick_and_place` | writes files | Pick-and-place / centroid file (designator, x, y, rotation, side) as CSV, inline or written to path. |
 | `output_schematic_pdf` | writes files | The schematic as a PDF (one page per sheet with frame and title block, bookmarks by hierarchy), written to path inside the root, or returned as an embedded PDF resource. |
-| `output_3d_model` | writes files | The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a mesh (STL, OBJ). |
+| `output_3d_model` | writes files | The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a mesh (STL, OBJ, VRML 2.0, glTF 2.0 binary .glb). |
 | `output_idx_response` | writes files | Writes the IDX response to a change file from MCAD: every change it proposes accepted or rejected. |
 | `output_idx_changes` | writes files | Writes an IDX SendChanges file with only the parts placed differently from a baseline IDX (the one MCAD already has). |
 
-### render (2)
+### render (3)
 
 Pictures of the schematic and the board (PNG or SVG).
 
@@ -711,4 +712,5 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
+| `render_3d` | read | A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every part's body, seen from the given side. |
 

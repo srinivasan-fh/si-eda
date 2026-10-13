@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <tuple>
 #include <set>
 
 #include "sieda/CustomParts.hpp"
@@ -228,6 +229,57 @@ int Schematic::splitWire(int wireId, Vec2 position) {
     return j;
 }
 
+bool Schematic::dragWireSegment(int wireId, Vec2 offset) {
+    auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    if (it == wires_.end() || masterWireOf(wireId) != wireId) return false;
+    const Wire w = *it;
+    const Vec2 a = pinPosition(w.a), b = pinPosition(w.b);
+    const bool horizontal = std::fabs(a.y - b.y) < 1e-9, vertical = std::fabs(a.x - b.x) < 1e-9;
+    if (horizontal == vertical) return false;
+    const Vec2 d = horizontal ? Vec2{0, offset.y} : Vec2{offset.x, 0};
+    if (d.length() < 1e-9) return false;
+    auto bend = [&](PinRef end) {  // a junction joined by exactly two wires
+        const Component* c = find(end.component);
+        if (!c || c->kind != ComponentKind::Junction) return false;
+        int n = 0;
+        for (const Wire& x : wires_) n += (x.a.component == end.component) + (x.b.component == end.component);
+        return n == 2;
+    };
+    int current = wireId;
+    for (PinRef end : {w.a, w.b}) {
+        const Vec2 at = pinPosition(end) + d;
+        if (bend(end)) {
+            moveComponent(end.component, at);
+            continue;
+        }
+        const int j = splitWire(current, at);  // the old end stays linked to the new junction
+        if (j < 0) return false;
+        // Carry on with the piece that still runs from the new junction to the far end.
+        for (const Wire& x : wires_)
+            if ((x.a.component == j || x.b.component == j) && !(x.a == end) && !(x.b == end)) current = x.id;
+    }
+    return true;
+}
+
+bool Schematic::moveWireEnd(int wireId, bool b, Vec2 position, PinRef to) {
+    auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    if (it == wires_.end() || masterWireOf(wireId) != wireId) return false;
+    const PinRef keep = b ? it->a : it->b;
+    if (to.component < 0) {
+        const Component* end = find(keep.component);
+        const int shown = activeSheet_;
+        if (end) activeSheet_ = end->sheet;  // on the wire's sheet
+        to = {addComponent(ComponentKind::Junction, "", position), 0};
+        activeSheet_ = shown;
+    }
+    if (to == keep || !find(to.component)) return false;
+    wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
+    connect(keep, to);
+    invalidate();
+    edited();
+    return true;
+}
+
 int Schematic::removeDanglingJunctions(int junctionId) {
     int removed = 0;
     for (int id = masterOf(junctionId); id >= 0;) {
@@ -257,6 +309,15 @@ bool Schematic::rotateComponent(int id, int deltaDeg) {
     Component* c = find(masterOf(id));
     if (!c) return false;
     c->rotation = (((c->rotation + deltaDeg) % 360) + 360) % 360;
+    edited();
+    return true;
+}
+
+bool Schematic::mirrorComponent(int id, bool vertical) {
+    Component* c = find(masterOf(id));
+    if (!c) return false;
+    c->mirror = !c->mirror;
+    if (vertical) c->rotation = (c->rotation + 180) % 360;
     edited();
     return true;
 }
@@ -376,6 +437,8 @@ void Schematic::clear() {
     wires_.clear();
     buses_.clear();
     nextBusId_ = 1;
+    graphics_.clear();
+    nextGraphicId_ = 1;
     sheets_ = {Sheet{1, "Main", 0}};
     activeSheet_ = 1;
     nextSheetId_ = 2;
@@ -466,7 +529,7 @@ Vec2 Schematic::pinPosition(PinRef pin) const {
     if (pin.pin < 0 || pin.pin >= static_cast<int>(pins.size())) return c->position;
     // Schematic y axis points down; rotation is clockwise degrees as seen on screen, which is exactly
     // rotate90() applied in y-down coordinates.
-    return c->position + rotate90(pins[static_cast<size_t>(pin.pin)].offset, c->rotation);
+    return c->position + c->orient(pins[static_cast<size_t>(pin.pin)].offset);
 }
 
 // ---------------------------------------------------------------- connectivity
@@ -825,6 +888,64 @@ std::vector<RuleViolation> Schematic::runERC() const {
         add(Severity::Error, "ERC_NO_GROUND", "Circuit has sources but no ground reference. Add a Ground symbol.", {},
             components_.front().position);
 
+    {
+        // Pins that touch a wire's route or another pin without being connected (they look joined, but are not).
+        // Pins are bucketed by sheet and grid line, so each wire segment looks only at the pins on its line.
+        std::map<std::tuple<int, long, int>, std::vector<std::pair<PinRef, Vec2>>> line;  // (sheet, coord, axis)
+        std::map<std::pair<int, std::pair<long, long>>, std::vector<PinRef>> spot;
+        for (const auto& c : components_) {
+            if (c.packageOnly) continue;
+            for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) {
+                const Vec2 p = pinPosition({c.id, i});
+                const long x = std::lround(p.x), y = std::lround(p.y);
+                line[{c.sheet, x, 0}].push_back({{c.id, i}, p});
+                line[{c.sheet, y, 1}].push_back({{c.id, i}, p});
+                spot[{c.sheet, {x, y}}].push_back({c.id, i});
+            }
+        }
+        std::set<PinRef> reported;
+        // A note: a pin on another pin or wire corner, or a wire drawn across a pin (an L-route over it), without a
+        // connection — the netlist follows the wires, so this is a drawing to tidy, not a fault.
+        auto report = [&](PinRef pin, const std::string& what, Severity severity = Severity::Info) {
+            if (!reported.insert(pin).second) return;
+            const Component* c = find(pin.component);
+            const std::string name = c->kind == ComponentKind::Junction ? "A wire corner" : displayRef(*c) + "." + c->def().pins[static_cast<size_t>(pin.pin)].name;
+            add(severity, "ERC_TOUCHING_UNCONNECTED", name + " touches " + what + " but is not connected to it: wire it, or move it clear.",
+                {pin.component}, pinPosition(pin));
+        };
+        for (const auto& [key, list] : spot) {
+            if (list.size() < 2) continue;
+            for (size_t i = 0; i < list.size(); ++i)
+                for (size_t k = i + 1; k < list.size(); ++k) {
+                    if (list[i].component == list[k].component) continue;  // a part's own stacked pins
+                    const int n1 = netOf(list[i]), n2 = netOf(list[k]);
+                    if (n1 >= 0 && n1 == n2) continue;
+                    const Component* other = find(list[k].component);
+                    report(list[i], other->kind == ComponentKind::Junction ? "a wire corner" : displayRef(*other) + "." + other->def().pins[static_cast<size_t>(list[k].pin)].name);
+                }
+        }
+        for (const auto& w : wires_) {
+            const Component* end = find(w.a.component);
+            if (!end) continue;
+            const Vec2 a = pinPosition(w.a), b = pinPosition(w.b);
+            const int net = netOf(w.a);
+            std::vector<std::pair<Vec2, Vec2>> segs;
+            if (a.x == b.x || a.y == b.y) segs = {{a, b}};
+            else segs = {{a, {b.x, a.y}}, {{b.x, a.y}, b}};
+            for (const auto& [p, q] : segs) {
+                const bool vertical = p.x == q.x;
+                auto it = line.find({end->sheet, std::lround(vertical ? p.x : p.y), vertical ? 0 : 1});
+                if (it == line.end()) continue;
+                const double lo = vertical ? std::min(p.y, q.y) : std::min(p.x, q.x), hi = vertical ? std::max(p.y, q.y) : std::max(p.x, q.x);
+                for (const auto& [pin, at] : it->second) {
+                    const double t = vertical ? at.y : at.x;
+                    if (t <= lo + 0.5 || t >= hi - 0.5) continue;  // the ends are pins of the wire itself or a stacked spot
+                    if (pin == w.a || pin == w.b || (net >= 0 && netOf(pin) == net)) continue;
+                    report(pin, "a wire", Severity::Info);
+                }
+            }
+        }
+    }
     for (const auto& c : components_) {
         if (c.kind == ComponentKind::Junction) {
             if (wireCount(c.id) < 2)

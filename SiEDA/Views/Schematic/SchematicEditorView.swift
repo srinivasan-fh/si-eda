@@ -9,6 +9,7 @@ enum SchematicTool: Equatable {
     case pan
     case place(ComponentKind)
     case placeCustom(String)  // custom part id from the component library
+    case graphic(String)      // a note ("text"), "line", "arrow" or section "rect" drawn on the sheet
 
     var title: String {
         switch self {
@@ -19,6 +20,13 @@ enum SchematicTool: Equatable {
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
         case .placeCustom: return "Place Custom Part"
+        case .graphic(let kind):
+            switch kind {
+            case "text": return "Note"
+            case "arrow": return "Arrow"
+            case "rect": return "Section Rectangle"
+            default: return "Line"
+            }
         }
     }
 }
@@ -84,6 +92,15 @@ struct SchematicEditorView: View {
                     tool = .place(.voltageSource)
                 }
                 ToolStripDivider()
+                ToolStripButton(systemImage: "textformat", help: "Note (T) — click to place text on the sheet",
+                                isActive: tool == .graphic("text")) { tool = .graphic("text") }
+                ToolStripButton(systemImage: "line.diagonal.arrow", help: "Arrow — drag from tail to head",
+                                isActive: tool == .graphic("arrow")) { tool = .graphic("arrow") }
+                ToolStripButton(systemImage: "rectangle.dashed", help: "Section rectangle — drag a corner to the other",
+                                isActive: tool == .graphic("rect")) { tool = .graphic("rect") }
+                ToolStripButton(systemImage: "minus", help: "Line — drag from one end to the other",
+                                isActive: tool == .graphic("line")) { tool = .graphic("line") }
+                ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
                 ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
                 ToolStripDivider()
@@ -136,6 +153,18 @@ struct SchematicEditorView: View {
                         Button("Cut") { store.cutSelection() }.disabled(store.selection.isEmpty)
                         Button("Paste") { store.paste() }.disabled(!store.canPaste)
                         Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
+                        Button("Duplicate") { store.duplicateSelection() }.disabled(store.selection.isEmpty)
+                        Divider()
+                        Button("Mirror Horizontally") { store.mirror(store.selection, vertical: false) }.disabled(store.selection.isEmpty)
+                        Button("Mirror Vertically") { store.mirror(store.selection, vertical: true) }.disabled(store.selection.isEmpty)
+                        Button("Lock") { store.setLocked(store.selection, true) }.disabled(store.selection.isEmpty)
+                        Button("Unlock") { store.setLocked(store.selection, false) }.disabled(store.selection.isEmpty)
+                        Divider()
+                        Button("Select All") { store.selectAllOnSheet() }
+                        Button("Select Same Value") { store.selectSameValue() }.disabled(store.selection.isEmpty)
+                        Button("Select Connected Parts") { store.selectConnected() }
+                            .disabled(store.selection.isEmpty && store.selectedWire == nil)
+                        Button("Clean Up Wires") { store.cleanupWires() }
                         Divider()
                         Button("Align Left") { store.align("left", byOutline: alignByOutline) }
                         Button("Align Right") { store.align("right", byOutline: alignByOutline) }
@@ -172,9 +201,26 @@ struct SchematicEditorView: View {
                     .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
                     Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
                         .help("Every ERC message of every sheet; click one to go there")
-                    Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
-                        .help("PDF of every sheet with bookmarks, frames and title blocks")
+                    Menu {
+                        Button("PDF…") { store.exportSchematicPDF() }
+                        Button("PNG Image…") { store.exportSchematicImage(format: "png") }
+                        Button("SVG Image…") { store.exportSchematicImage(format: "svg") }
+                        Divider()
+                        Button("Print…") { store.printSchematic() }
+                    } label: {
+                        Label("PDF", systemImage: "doc.richtext")
+                    }
+                    .fixedSize()
+                    .help("PDF of every sheet with bookmarks, frames and title blocks")
                     appearanceMenu
+                    Menu {
+                        SchematicViewOptionsMenu()
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+                    .fixedSize()
+                    .help("Snap grid, what the canvas shows (pin numbers, names, designators, values) and what can be selected")
+                    .accessibilityLabel("View Options")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -273,6 +319,9 @@ struct SchematicEditorView: View {
             Text("Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).")
         }
         .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
+        .sheet(isPresented: Binding(get: { store.quickEdit != nil }, set: { if !$0 { store.quickEdit = nil } })) {
+            if let id = store.quickEdit { QuickEditSheet(id: id).environmentObject(store) }
+        }
         .sheet(isPresented: $store.showSchematicColours) { SchematicThemeEditor() }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
@@ -309,6 +358,9 @@ struct SchematicEditorView: View {
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
         case .bus: return "Click the bus corners · click the last point again or press Return to name it (D[0..7]) · Esc cancels"
+        case .graphic(let kind):
+            return kind == "text" ? "Click where the note goes, then type it · double-click a note to edit it · Esc returns to Select"
+                : "Drag from one end to the other · drawings are not part of the circuit · Esc returns to Select"
         }
     }
 
@@ -859,5 +911,47 @@ struct SimulationTransport: View {
         } message: {
             Text(live.error ?? "")
         }
+    }
+}
+
+/// Double-click on a part: its designator and value (a net label's name) edited in place, one undo step each.
+struct QuickEditSheet: View {
+    @EnvironmentObject private var store: DesignStore
+    @Environment(\.dismiss) private var dismiss
+    let id: Int
+    @State private var ref = ""
+    @State private var value = ""
+
+    var body: some View {
+        let part = store.snapshot.component(id)
+        let isLabel = part?.componentKind == .netLabel
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isLabel ? "Net Label" : "Edit Properties").font(.headline)
+            if !isLabel, part?.componentKind.isVirtual == false {
+                TextField("Designator", text: $ref)
+            }
+            TextField(isLabel ? "Net name" : "Value", text: $value)
+                .onSubmit(apply)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                Button("OK", action: apply).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
+        .onAppear {
+            ref = part?.ref ?? ""
+            value = part?.value ?? ""
+        }
+    }
+
+    private func apply() {
+        if let part = store.snapshot.component(id) {
+            let r = ref.trimmingCharacters(in: .whitespaces), v = value.trimmingCharacters(in: .whitespaces)
+            if !r.isEmpty, r != part.ref, !part.componentKind.isVirtual { store.setRef(id, r) }
+            if !v.isEmpty, v != part.value { store.setValue(id, v) }
+        }
+        dismiss()
     }
 }

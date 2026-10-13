@@ -4,7 +4,11 @@
 - macOS app: `./run.sh` (builds the core, generates the Xcode project, runs the app).
 - Footprint Editor: core in `Core/src/CustomParts.cpp` (`landPatternFromFootprint`, `checkLandPattern`), app in
   `SiEDA/Models/FootprintDraft.swift` and `SiEDA/Views/Library/FootprintEditorView.swift`; guide in
-  `docs/FOOTPRINT_EDITOR.md`. Keep the Swift `CustomPartSpec.Land` encoding identical to the core's land JSON.
+  `docs/FOOTPRINT_EDITOR.md`. Keep the Swift `CustomPartSpec.Land` encoding identical to the core's land JSON (pad options = a trailing
+  object: corner, npth, mask, paste, pasteGrid, chamfer, outline (polygon pads: `Pad::outline`, Gerber G36 regions,
+  3D prisms), inner (pad stack); carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++). Footprint
+  silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
+  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`.
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
@@ -27,8 +31,12 @@
   `BoardMenu` in `PCBEditorView.swift`, MCP `pcb_boards`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
   (Swift); keep their JSON identical. Nested repetition and per-channel values
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
-  directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste in
-  `SchematicEdit.cpp`; back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
+  directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste, mirror (`Component::mirror`, `orient`), touching pins joined
+  (`connectTouching`, ERC_TOUCHING_UNCONNECTED) and `cleanupWires` in `SchematicEdit.cpp`, straight-wire drag
+  `Schematic::dragWireSegment` and `moveWireEnd` in `Schematic.cpp` (app: right-click menu
+  `CanvasMenuItem`, double-click `QuickEditSheet`, X / Y / ⌘D / ⌥-drag / '/' keys, schematic `locked`, net-label `power` look,
+  sheet notes / drawings `SheetGraphic` (`sheetGraphics`), view options `SchematicGrid` (snap step, display, selection
+  filters)); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
   (gate) checks `checkUnits` in `CustomParts.cpp`, app `SiEDA/Models/UnitDraft.swift` + `UnitEditorView.swift`. AI
   plans keep this structure (`DesignPlanCompiler.plan(from:)` / `apply` / `preservingStructure`); new project fields
   are written only when used so older files load and save identically.
@@ -57,6 +65,8 @@
   (one tab per set-up step), MCP + cloud LLM agent clients, Own LLM = SiEDA's circuit model `SiEDA/AI/CircuitModel.swift`, trained in the app
   (`CircuitTrainer.swift`, `OwnModelViews.swift`: dataset / training / results) or by
   `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit; values the request fixes computed by `Core/src/CircuitValues.cpp` (`circuitPlanValues`)); guide in `docs/AI.md`.
+- Configurable menu shortcuts: `ShortcutStore` / `ShortcutSettings` in `SiEDA/Views/Settings/SettingsView.swift` (user
+  defaults "app.shortcuts"; `SiEDACommands` reads `shortcuts.shortcut(id)`).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
@@ -72,7 +82,8 @@
   `parseStep`: Part 21 parser, B-rep faces triangulated in their surface's parameters with seams unwrapped so shells
   stay closed, assembly placements, units, colours; B-spline / unknown surfaces use their boundary and are counted in
   `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
-  mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. Tests:
+  mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. The 3D view's tools (camera presets, layers, hide / isolate =
+  `MeshOptions::hidden`, explode, section cut, measure, click to cross-probe) are in `SiEDA/Views/ThreeD/Board3DView.swift`. Tests:
   `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),
   `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target. Generated bodies in
   `Core/src/Mesh.cpp` take the shape people know (`lookOf` / `drawLook`: USB-C / micro / A shells with a mouth, tact switch,
@@ -81,7 +92,11 @@
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
-  shielding, gloss, loop removal on commit, hug drag, Stop mode, `matchTrackLengths` — opt-in router options, so default
+  shielding, gloss, loop removal on commit, hug drag (segments, vias, corners), Stop mode, gloss `moveVias`, `sieda_pcb_minimize_vias`,
+  pour island markers `ZoneFill::removedIslands`, `matchTrackLengths`, split / merge tracks and footprint drag with its tracks (`PcbLayout::splitTrack` / `mergeTracks` /
+  `moveFootprintWithTracks`), drawn pours (`CopperZone::polygon`) and board cutouts (`BoardSettings::cutouts`,
+  `forEachEdge` = outline + cutout edges), pair rules / interface presets (`PairRule` by `pairStem`,
+  `interfacePresets()`) and delay length rules (`LengthRule::delayPs`) — opt-in router options, so default
   routing is unchanged; head searches may run on several threads but must give the sequential result), C API additions in `Core/src/sieda_c_routing.cpp`; app in
   `SiEDA/Views/PCB/`, `SiEDA/App/DesignStore+Routing.swift`, `SiEDA/Bridge/EDAEngine+Routing.swift`; guide in
   `docs/INTERACTIVE_ROUTING.md`.
@@ -153,7 +168,11 @@
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
-  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
+  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits,
+  MECH_ENCLOSURE against `BoardSettings::enclosure` (a Model3DRegistry id in the MCAD frame, in the "mechanical" JSON,
+  its mesh saved in `models3d`), MECH_CONNECTOR_ACCESS info via `openEnd`); glTF / VRML exports (`exportGltf`,
+  `exportVrml`, `sieda_export_file`), MCP `render_3d` (`render3dPng`, a z-buffer rasteriser in `McpRender.cpp`); a placed
+  part's own 3D model `PcbLayout::partModels` (`model3dRefToJson` / `FromJson`, `sieda_pcb_set_part_model`);
   IDX / EDMD v4.5 baseline (with keep-outs / height zones), change file, import of placement, outline, thickness and
   keep-outs (`exportIdx`, `exportIdxChanges`, `importIdx`, `importIdxPlacement`), accept / reject `idxResponse`,
   namespace-agnostic XML reader, fuzzed in the `idf` target);

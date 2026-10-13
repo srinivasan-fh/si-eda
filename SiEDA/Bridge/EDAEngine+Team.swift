@@ -96,11 +96,27 @@ extension EDAEngine {
     }
 
     func setEnclosureHeights(top: Double, bottom: Double) -> Bool {
+        updateMechanicalLimits { $0["maxHeightTop"] = top; $0["maxHeightBottom"] = bottom }
+    }
+
+    /// The enclosure model the parts must clear (an imported 3D model's id, MCAD frame; "" = none): MECH_ENCLOSURE.
+    func enclosureModel() -> String {
+        struct Limits: Decodable { var enclosure: String? }
+        return Self.decode(Limits.self, from: withHandle { Self.take(sieda_pcb_mechanical_limits($0)) })?.enclosure ?? ""
+    }
+
+    /// A placed part's own 3D model (an imported model id, seated on its footprint); "" removes it.
+    func setPartModel(_ component: Int, model: String, name: String = "", unit: Double = 1) -> Bool {
+        withHandle { sieda_pcb_set_part_model($0, Int32(component), model, name, unit) } == 1
+    }
+
+    func setEnclosureModel(_ id: String) -> Bool { updateMechanicalLimits { $0["enclosure"] = id.isEmpty ? nil : id } }
+
+    private func updateMechanicalLimits(_ change: (inout [String: Any]) -> Void) -> Bool {
         withHandle { handle -> Bool in
             let current = Self.take(sieda_pcb_mechanical_limits(handle)) ?? "{}"
             guard var limits = (try? JSONSerialization.jsonObject(with: Data(current.utf8))) as? [String: Any] else { return false }
-            limits["maxHeightTop"] = top
-            limits["maxHeightBottom"] = bottom
+            change(&limits)
             guard let data = try? JSONSerialization.data(withJSONObject: limits),
                   let json = String(data: data, encoding: .utf8) else { return false }
             return sieda_pcb_set_mechanical_limits(handle, json) == 1

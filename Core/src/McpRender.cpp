@@ -13,6 +13,7 @@
 #include "SiedaProjectInternal.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Mcp.hpp"
+#include "sieda/Mesh.hpp"
 #include "sieda/TrackGeometry.hpp"
 
 namespace sieda::mcp {
@@ -468,6 +469,24 @@ Scene schematicScene(const Project& project, int sheet) {
         grow(b, any, a);
         grow(b, any, c);
     }
+    for (const auto& g : sch.graphics()) {  // notes and drawings
+        if (g.sheet != sheet || g.points.empty()) continue;
+        for (const auto& p : g.points) grow(b, any, p);
+        if (g.kind == "text") {
+            s.text(g.points[0] + Vec2{0, 9}, g.text.substr(0, g.text.find('\n')), 9, textC, false);
+            grow(b, any, g.points[0] + Vec2{textWidth(g.text, 9), 12});
+        } else if (g.kind == "rect") {
+            const Vec2 a = g.points[0], c = g.points[1];
+            s.polyline({a, {c.x, a.y}, c, {a.x, c.y}, a}, 1, textC);
+        } else {
+            s.polyline({g.points[0], g.points[1]}, 1, textC);
+            if (g.kind == "arrow") {
+                const Vec2 d = g.points[1] - g.points[0];
+                const Vec2 u1 = d * (1 / std::max(1e-9, d.length())), n{-u1.y, u1.x};
+                s.polyline({g.points[1] - u1 * 8 + n * 3.5, g.points[1], g.points[1] - u1 * 8 - n * 3.5}, 1, textC);
+            }
+        }
+    }
     for (const auto& bus : sch.buses()) {
         if (bus.sheet != sheet) continue;
         s.polyline(bus.points, 4, "#2a5caa");
@@ -483,7 +502,7 @@ Scene schematicScene(const Project& project, int sheet) {
         switch (c.kind) {
             case ComponentKind::Junction: s.disc(c.position, 3, wireC); break;
             case ComponentKind::Ground: {  // the bars below its pin, turned with it (as its outline)
-                auto at = [&](double x, double y) { return c.position + rotate90({x, y}, c.rotation); };
+                auto at = [&](double x, double y) { return c.position + c.orient({x, y}); };
                 s.line(at(0, 0), at(0, 10), 1.5, body);
                 s.line(at(-10, 10), at(10, 10), 1.5, body);
                 s.line(at(-6, 14), at(6, 14), 1.5, body);
@@ -499,6 +518,17 @@ Scene schematicScene(const Project& project, int sheet) {
                     return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
                 };
                 const double w = textWidth(name, 9) + 16, hh = 7;
+                if (c.power) {  // a power symbol: a stem from the pin to a bar, the rail's name beyond it
+                    s.line(turn({0, 0}), turn({12, 0}), 1.5, body);
+                    s.line(turn({12, -9}), turn({12, 9}), 2, body);
+                    const Vec2 at = turn({12 + 4 + (r == 90 || r == 270 ? 6 : textWidth(name, 9) / 2), 0});
+                    s.text(at + Vec2{0, 3.5}, name, 9, labelC, true);
+                    grow(b, any, turn({12, -9}));
+                    grow(b, any, turn({12, 9}));
+                    grow(b, any, at + Vec2{textWidth(name, 9) / 2, 0});
+                    grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
+                    break;
+                }
                 s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
                 const Vec2 mid = turn({(w + hh) / 2, 0});
                 s.text(mid + Vec2{0, 3.5}, name, 9, labelC, true);
@@ -732,6 +762,87 @@ std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& la
 }
 std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width) {
     return toPng(pcbScene(project.project, layers), width);
+}
+
+std::string render3dPng(const SiedaProject& project, const std::string& view, int width) {
+    const Mesh m = buildAssemblyMesh(project.project.schematic, project.project.pcb);
+    // Orthographic camera on direction d (from the board towards the eye; Y up), pitch / yaw per view.
+    double pitch = 0.6, yaw = 0.55;
+    if (view == "top") pitch = 1.5707, yaw = 0;
+    else if (view == "bottom") pitch = -1.5707, yaw = 0;
+    else if (view == "front") pitch = 0.2, yaw = 0;
+    else if (view == "back") pitch = 0.2, yaw = M_PI;
+    else if (view == "left") pitch = 0.2, yaw = -M_PI / 2;
+    else if (view == "right") pitch = 0.2, yaw = M_PI / 2;
+    const Vec3 d{std::cos(pitch) * std::sin(yaw), std::sin(pitch), std::cos(pitch) * std::cos(yaw)};
+    Vec3 right = Vec3{0, 1, 0}.cross(d);
+    right = right * (1 / std::max(1e-9, right.length()));
+    const Vec3 up = d.cross(right), light{0.36, 0.80, 0.48};
+    auto dot = [](Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; };
+    const size_t nv = m.vertexCount();
+    std::vector<double> sx(nv), sy(nv), sz(nv);
+    double x0 = 1e30, y0 = 1e30, x1 = -1e30, y1 = -1e30;
+    for (size_t i = 0; i < nv; ++i) {
+        const Vec3 p{m.positions[3 * i], m.positions[3 * i + 1], m.positions[3 * i + 2]};
+        sx[i] = dot(p, right), sy[i] = dot(p, up), sz[i] = dot(p, d);
+        x0 = std::min(x0, sx[i]), x1 = std::max(x1, sx[i]), y0 = std::min(y0, sy[i]), y1 = std::max(y1, sy[i]);
+    }
+    const int w = std::clamp(width, 64, 2048);
+    const double margin = w * 0.04, scale = nv ? (w - 2 * margin) / std::max(1e-6, x1 - x0) : 1;
+    const int h = std::clamp(static_cast<int>((y1 - y0) * scale + 2 * margin), 64, 2048);
+    std::vector<uint8_t> rgb(static_cast<size_t>(w) * h * 3);
+    for (int y = 0; y < h; ++y)  // background: a dark vertical gradient
+        for (int x = 0; x < w; ++x) {
+            uint8_t* px = &rgb[(static_cast<size_t>(y) * w + x) * 3];
+            px[0] = static_cast<uint8_t>(34 - 14 * y / h), px[1] = static_cast<uint8_t>(40 - 16 * y / h), px[2] = static_cast<uint8_t>(52 - 20 * y / h);
+        }
+    std::vector<double> depth(static_cast<size_t>(w) * h, -1e30);
+    for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
+        const uint32_t a = m.indices[t], b = m.indices[t + 1], c = m.indices[t + 2];
+        double X[3], Y[3];
+        const uint32_t v[3] = {a, b, c};
+        for (int k = 0; k < 3; ++k) X[k] = (sx[v[k]] - x0) * scale + margin, Y[k] = (y1 - sy[v[k]]) * scale + margin;
+        const double area = (X[1] - X[0]) * (Y[2] - Y[0]) - (X[2] - X[0]) * (Y[1] - Y[0]);
+        if (std::fabs(area) < 1e-12) continue;
+        Vec3 n{0, 0, 0};
+        float col[3] = {0, 0, 0};
+        for (uint32_t k : v) {
+            n = n + Vec3{m.normals[3 * k], m.normals[3 * k + 1], m.normals[3 * k + 2]};
+            for (int q = 0; q < 3; ++q) col[q] += m.colors[4 * k + q] / 3;
+        }
+        const double shade = 0.35 + 0.65 * std::fabs(dot(n, light)) / std::max(1e-9, n.length());
+        const int bx0 = std::max(0, static_cast<int>(std::floor(std::min({X[0], X[1], X[2]})))),
+                  bx1 = std::min(w - 1, static_cast<int>(std::ceil(std::max({X[0], X[1], X[2]})))),
+                  by0 = std::max(0, static_cast<int>(std::floor(std::min({Y[0], Y[1], Y[2]})))),
+                  by1 = std::min(h - 1, static_cast<int>(std::ceil(std::max({Y[0], Y[1], Y[2]}))));
+        for (int y = by0; y <= by1; ++y)
+            for (int x = bx0; x <= bx1; ++x) {
+                const double px = x + 0.5, py = y + 0.5;
+                const double l0 = ((X[1] - px) * (Y[2] - py) - (X[2] - px) * (Y[1] - py)) / area,
+                             l1 = ((X[2] - px) * (Y[0] - py) - (X[0] - px) * (Y[2] - py)) / area, l2 = 1 - l0 - l1;
+                if (l0 < 0 || l1 < 0 || l2 < 0) continue;
+                const double z = l0 * sz[a] + l1 * sz[b] + l2 * sz[c];
+                double& zb = depth[static_cast<size_t>(y) * w + x];
+                if (z <= zb) continue;
+                zb = z;
+                uint8_t* out = &rgb[(static_cast<size_t>(y) * w + x) * 3];
+                for (int q = 0; q < 3; ++q) out[q] = static_cast<uint8_t>(std::clamp(col[q] * shade * 255.0, 0.0, 255.0));
+            }
+    }
+    std::string raw;
+    raw.reserve(static_cast<size_t>(h) * (w * 3 + 1));
+    for (int y = 0; y < h; ++y) {
+        raw += '\0';  // filter: none
+        raw.append(reinterpret_cast<const char*>(&rgb[static_cast<size_t>(y) * w * 3]), static_cast<size_t>(w) * 3);
+    }
+    std::string png = "\x89PNG\r\n\x1a\n", ihdr;
+    for (uint32_t val : {static_cast<uint32_t>(w), static_cast<uint32_t>(h)})
+        for (int k = 3; k >= 0; --k) ihdr += static_cast<char>((val >> (8 * k)) & 0xFF);
+    ihdr += static_cast<char>(8), ihdr += static_cast<char>(2), ihdr += std::string(3, '\0');  // 8-bit RGB
+    chunk(png, "IHDR", ihdr);
+    chunk(png, "IDAT", zlibCompress(raw, static_cast<size_t>(w) * 3 + 1));
+    chunk(png, "IEND", "");
+    return png;
 }
 
 std::string base64Encode(const std::string& bytes) {

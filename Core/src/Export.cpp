@@ -314,6 +314,24 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     };
     auto circle = [&](double d) { return "C," + mm(d); };
     auto rect = [&](double w, double h) { return "R," + mm(w) + "X" + mm(h); };
+    // A pad's aperture: circle, rectangle or rounded rectangle (macro RR: width, height, corner radius).
+    auto padAperture = [&](const Pad& p, double grow) {
+        const double w = p.size.x + 2 * grow, h = p.size.y + 2 * grow;
+        if (p.round) return circle(w);
+        const double r = p.corner * std::min(p.size.x, p.size.y) + grow;
+        return p.corner > 0 && r > 1e-4 ? "RR," + mm(w) + "X" + mm(h) + "X" + mm(r) : rect(w, h);
+    };
+    // A polygon pad (chamfered, trapezoid, drawn) as a G36 region: its outline scaled by `scale` and grown by `grow`
+    // outward from the pad centre.
+    auto padRegion = [&](const Pad& p, double grow, double scale) {
+        std::string r = "G36*\n";
+        for (size_t i = 0; i <= p.outline.size(); ++i) {
+            const Vec2 v = p.outline[i % p.outline.size()];
+            const double len = v.length();
+            r += coord(p.position + (len > 1e-9 ? v * ((len * scale + grow) / len) : v)) + (i ? "D01*\n" : "D02*\n");
+        }
+        return r + "G37*";
+    };
 
     std::vector<std::pair<int, std::string>> ops;  // aperture, operation
     std::vector<std::string> regions;              // filled G36/G37 regions (drawn first)
@@ -324,11 +342,18 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     if (copperIndex >= 0) isCopper = true;
 
     if (isCopper || isMask) {
-        double grow = isMask ? 0.05 : 0.0;
         for (const auto& p : pcb.pads(sch)) {
-            if (!p.onLayer(cl)) continue;
-            int ap = aperture(p.round ? circle(p.size.x + 2 * grow) : rect(p.size.x + 2 * grow, p.size.y + 2 * grow));
-            ops.push_back({ap, coord(p.position) + "D03*"});
+            if (!p.onLayer(cl) || (p.npth && !isMask)) continue;  // a non-plated hole has no copper
+            const double grow = isMask ? (p.mask >= 0 ? p.mask : 0.05) : 0.0;
+            if (!isMask && p.throughHole && p.inner > 0 && cl != kTopLayer && cl != bottom) {  // pad stack: inner size
+                ops.push_back({aperture(circle(p.inner)), coord(p.position) + "D03*"});
+                continue;
+            }
+            if (!p.outline.empty()) {
+                regions.push_back(padRegion(p, grow, 1));
+                continue;
+            }
+            ops.push_back({aperture(padAperture(p, grow)), coord(p.position) + "D03*"});
         }
         for (const auto& v : pcb.vias) {
             if (isMask || !v.spans(cl)) continue;  // tented vias; a via lands on the copper layers it spans
@@ -363,10 +388,26 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         // area) so the part does not float on too much solder.
         int side = layer == GerberLayer::TopPaste ? kTopLayer : bottom;
         for (const auto& p : pcb.pads(sch)) {
-            if (p.throughHole || p.smdLayer != side) continue;
+            if (p.throughHole || p.smdLayer != side || p.paste == 0) continue;
+            if (!p.outline.empty()) {
+                regions.push_back(padRegion(p, 0, p.paste > 0 ? p.paste : 1));
+                continue;
+            }
             double w = p.size.x, h = p.size.y;
-            if (w >= 2.5 && h >= 2.5) w *= 0.8, h *= 0.8;
-            ops.push_back({aperture(p.round ? circle(w) : rect(w, h)), coord(p.position) + "D03*"});
+            if (p.paste > 0) {
+                w *= p.paste, h *= p.paste;
+            } else if (w >= 2.5 && h >= 2.5) {
+                w *= 0.8, h *= 0.8;
+            }
+            // pasteGrid > 1: the window split into n × n openings, each centred in its cell of the pad.
+            const int n = std::max(1, p.pasteGrid);
+            Pad cell = p;
+            cell.size = {w / n * (n > 1 ? 0.85 : 1), h / n * (n > 1 ? 0.85 : 1)};
+            for (int i = 0; i < n; ++i)
+                for (int j = 0; j < n; ++j) {
+                    const Vec2 at = p.position + Vec2{(i + 0.5 - n / 2.0) * p.size.x / n, (j + 0.5 - n / 2.0) * p.size.y / n};
+                    ops.push_back({aperture(padAperture(cell, 0)), coord(n > 1 ? at : p.position) + "D03*"});
+                }
         }
     } else if (layer == GerberLayer::TopSilk || layer == GerberLayer::BottomSilk) {
         const bool bottomSide = layer == GerberLayer::BottomSilk;
@@ -376,6 +417,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             Rect r = pcb.courtyard(c).inflated(-0.15);
             ops.push_back({ap, coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" + coord({r.x1, r.y1}) +
                                    "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*"});
+            for (const FootprintLine& l : pcb.footprintLines(c))  // the footprint's drawn silkscreen
+                if (!l.fab) ops.push_back({aperture(circle(l.width)), coord(l.a) + "D02*\n" + coord(l.b) + "D01*"});
             // Pin-1 marker dot.
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (fp && !fp->pads.empty()) {
@@ -399,18 +442,25 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         }
     } else {  // EdgeCuts: the outline polygon
         int ap = aperture(circle(0.1));
-        auto poly = s.outlinePolygon();
-        std::string path = coord(poly[0]) + "D02*";
-        for (size_t i = 1; i <= poly.size(); ++i) path += "\n" + coord(poly[i % poly.size()]) + "D01*";
-        ops.push_back({ap, path});
+        auto loops = s.cutouts;
+        loops.insert(loops.begin(), s.outlinePolygon());
+        for (const auto& poly : loops) {  // the outline, then each cutout
+            std::string path = coord(poly[0]) + "D02*";
+            for (size_t i = 1; i <= poly.size(); ++i) path += "\n" + coord(poly[i % poly.size()]) + "D01*";
+            ops.push_back({ap, path});
+        }
     }
 
     // Aperture definitions sorted by D-code.
     std::map<int, std::string> byCode;
     for (const auto& [def, code] : apertures) byCode[code] = def;
+    if (std::any_of(apertures.begin(), apertures.end(), [](const auto& a) { return a.first.rfind("RR,", 0) == 0; }))
+        // Rounded rectangle: two crossing rectangles and a circle at each corner ($1 width, $2 height, $3 radius).
+        o << "%AMRR*\n21,1,$1,$2-$3x2,0,0,0*\n21,1,$1-$3x2,$2,0,0,0*\n1,1,$3x2,$1/2-$3,$2/2-$3*\n"
+             "1,1,$3x2,-$1/2+$3,$2/2-$3*\n1,1,$3x2,$1/2-$3,-$2/2+$3*\n1,1,$3x2,-$1/2+$3,-$2/2+$3*%\n";
     for (const auto& [code, def] : byCode) {
-        std::string type = def.substr(0, 1), params = def.substr(2);
-        o << "%ADD" << code << type << "," << params << "*%\n";
+        const size_t comma = def.find(',');
+        o << "%ADD" << code << def.substr(0, comma) << "," << def.substr(comma + 1) << "*%\n";
     }
     if (!regions.empty()) o << "G01*\n";
     for (const auto& r : regions) o << r << "\n";
@@ -476,11 +526,13 @@ std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool
     };
     if (plated) {
         for (const auto& p : pcb.pads(sch))
-            if (p.throughHole && p.drill > 0) holes[key(p.drill)].push_back(p.position);
+            if (p.throughHole && p.drill > 0 && !p.npth) holes[key(p.drill)].push_back(p.position);
         for (const auto& v : pcb.vias)
             if (v.isThrough()) holes[key(v.drill)].push_back(v.position);  // blind / buried: exportExcellonSpan
     } else {
         for (const auto& h : pcb.settings.holes) holes[key(h.drill)].push_back(h.position);
+        for (const auto& p : pcb.pads(sch))
+            if (p.npth) holes[key(p.drill)].push_back(p.position);
     }
 
     std::ostringstream o;
@@ -725,6 +777,9 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
         Rect r = pcb.courtyard(c).inflated(-0.15);
         o << "<rect x=\"" << mm(r.x0) << "\" y=\"" << mm(r.y0) << "\" width=\"" << mm(r.x1 - r.x0) << "\" height=\""
           << mm(r.y1 - r.y0) << "\" fill=\"none\" stroke=\"#1b4f9c\" stroke-width=\"0.15\"/>\n";
+        for (const FootprintLine& l : pcb.footprintLines(c))  // drawn silk and fab (assembly) lines
+            o << "<line x1=\"" << mm(l.a.x) << "\" y1=\"" << mm(l.a.y) << "\" x2=\"" << mm(l.b.x) << "\" y2=\"" << mm(l.b.y)
+              << "\" stroke=\"" << (l.fab ? "#8a5a00" : "#333") << "\" stroke-width=\"" << mm(l.width) << "\"/>\n";
         const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (fp && !fp->pads.empty()) {
             Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
@@ -784,6 +839,66 @@ std::string exportObj(const Mesh& mesh, const std::string& name) {
         if (a == b || b == c || a == c) continue;
         o << "f " << a << "//" << a << " " << b << "//" << b << " " << c << "//" << c << "\n";
     }
+    return o.str();
+}
+
+std::string exportGltf(const Mesh& mesh, const std::string& name) {
+    const size_t nv = mesh.vertexCount(), ni = mesh.indices.size();
+    if (nv == 0 || ni == 0) return {};
+    std::string bin;
+    auto put = [&](const void* p, size_t n) { bin.append(static_cast<const char*>(p), n); };
+    put(mesh.positions.data(), nv * 12), put(mesh.normals.data(), nv * 12), put(mesh.colors.data(), nv * 16);
+    put(mesh.indices.data(), ni * 4);
+    double lo[3] = {1e30, 1e30, 1e30}, hi[3] = {-1e30, -1e30, -1e30};
+    for (size_t i = 0; i < nv * 3; ++i) lo[i % 3] = std::min(lo[i % 3], double(mesh.positions[i])), hi[i % 3] = std::max(hi[i % 3], double(mesh.positions[i]));
+    // glTF 2.0 binary: one mesh with vertex colours, in metres (the mesh is in mm, Y up).
+    std::string safe = name.empty() ? std::string("board") : name.substr(0, 200);
+    for (char& ch : safe)
+        if (ch == '"' || ch == '\\' || static_cast<unsigned char>(ch) < 0x20) ch = '_';
+    char json[2048];
+    std::snprintf(json, sizeof json,
+        R"({"asset":{"version":"2.0","generator":"SiEDA"},"scene":0,"scenes":[{"nodes":[0]}],)"
+        R"("nodes":[{"name":"%s","mesh":0,"scale":[0.001,0.001,0.001]}],)"
+        R"("meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"COLOR_0":2},"indices":3,"material":0}]}],)"
+        R"("materials":[{"pbrMetallicRoughness":{"metallicFactor":0.1,"roughnessFactor":0.6},"doubleSided":true}],)"
+        R"("buffers":[{"byteLength":%zu}],"bufferViews":[{"buffer":0,"byteLength":%zu},{"buffer":0,"byteOffset":%zu,"byteLength":%zu},)"
+        R"({"buffer":0,"byteOffset":%zu,"byteLength":%zu},{"buffer":0,"byteOffset":%zu,"byteLength":%zu}],)"
+        R"("accessors":[{"bufferView":0,"componentType":5126,"count":%zu,"type":"VEC3","min":[%g,%g,%g],"max":[%g,%g,%g]},)"
+        R"({"bufferView":1,"componentType":5126,"count":%zu,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":%zu,"type":"VEC4"},)"
+        R"({"bufferView":3,"componentType":5125,"count":%zu,"type":"SCALAR"}]})",
+        safe.c_str(),
+        bin.size(), nv * 12, nv * 12, nv * 12, nv * 24, nv * 16, nv * 40, ni * 4, nv, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2],
+        nv, nv, ni);
+    std::string j = json;
+    while (j.size() % 4) j += ' ';
+    std::string out = "glTF";
+    auto u32 = [&](size_t v) { for (int k = 0; k < 4; ++k) out += static_cast<char>((v >> (8 * k)) & 0xFF); };
+    u32(2), u32(12 + 8 + j.size() + 8 + bin.size());
+    u32(j.size()), out += "JSON", out += j;
+    u32(bin.size()), out += std::string("BIN\0", 4), out += bin;
+    return out;
+}
+
+std::string exportVrml(const Mesh& mesh, const std::string& name) {
+    std::ostringstream o;
+    char buf[200];
+    // VRML 2.0 in metres (the mesh is in mm), vertex colours, one indexed face set.
+    o << "#VRML V2.0 utf8\n# SiEDA 3D export: " << name << "\nTransform { scale 0.001 0.001 0.001 children [\n"
+      << "Shape { appearance Appearance { material Material { diffuseColor 1 1 1 } }\n"
+      << "geometry IndexedFaceSet { solid FALSE colorPerVertex TRUE\ncoord Coordinate { point [\n";
+    for (size_t i = 0; i < mesh.vertexCount(); ++i) {
+        std::snprintf(buf, sizeof buf, "%g %g %g,\n", mesh.positions[i * 3], mesh.positions[i * 3 + 1], mesh.positions[i * 3 + 2]);
+        o << buf;
+    }
+    o << "] }\ncolor Color { color [\n";
+    for (size_t i = 0; i < mesh.vertexCount(); ++i) {
+        std::snprintf(buf, sizeof buf, "%.3f %.3f %.3f,\n", mesh.colors[i * 4], mesh.colors[i * 4 + 1], mesh.colors[i * 4 + 2]);
+        o << buf;
+    }
+    o << "] }\ncoordIndex [\n";
+    for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
+        o << mesh.indices[t] << ' ' << mesh.indices[t + 1] << ' ' << mesh.indices[t + 2] << " -1,\n";
+    o << "] } }\n] }\n";
     return o.str();
 }
 

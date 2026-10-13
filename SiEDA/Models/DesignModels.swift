@@ -53,6 +53,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var activeVariant = ""
     /// Graphical buses on every sheet (filtered to one sheet by `onSheet`).
     var buses: [BusInfo] = []
+    /// Notes, lines, arrows and section rectangles drawn on sheets (filtered to one sheet by `onSheet`).
+    var sheetGraphics: [SheetGraphicInfo] = []
     /// Title block printed on every schematic sheet.
     var titleBlock = TitleBlockInfo()
     /// Signal harness types (named bundles of signals).
@@ -130,6 +132,7 @@ struct DesignSnapshot: Decodable, Equatable {
         variants = try field(.variants, \.variants, [])
         activeVariant = try field(.activeVariant, \.activeVariant, "")
         buses = try field(.buses, \.buses, [])
+        sheetGraphics = try field(.sheetGraphics, \.sheetGraphics, [])
         titleBlock = try field(.titleBlock, \.titleBlock, TitleBlockInfo())
         harnessTypes = try field(.harnessTypes, \.harnessTypes, [])
         netClassDefs = try field(.netClassDefs, \.netClassDefs, [])
@@ -149,7 +152,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards
+        case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards, sheetGraphics
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -167,6 +170,7 @@ struct DesignSnapshot: Decodable, Equatable {
         guard sheets.count > 1 || components.contains(where: { $0.isUnitPackage }) else { return self }
         var copy = self
         copy.buses = buses.filter { $0.sheet == sheet }
+        copy.sheetGraphics = sheetGraphics.filter { $0.sheet == sheet }
         copy.components = components.filter { $0.sheetId == sheet && !$0.isUnitPackage }
         let ids = Set(copy.components.map(\.id))
         copy.wires = wires.filter { ids.contains($0.a.component) && ids.contains($0.b.component) }
@@ -251,6 +255,15 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var x: Double
     var y: Double
     var rotation: Int
+    /// Mirrored left-right in its own frame (before the rotation); nil = not mirrored.
+    var mirror: Bool?
+    var isMirrored: Bool { mirror ?? false }
+    /// Locked on the schematic (the editor leaves it where it is); nil = free.
+    var locked: Bool?
+    var isLocked: Bool { locked ?? false }
+    /// Net labels drawn as a power symbol (bar on a stem); nil = a flag.
+    var power: Bool?
+    var isPower: Bool { power ?? false }
     var footprint: String
     var pins: [SnapPin]
     var pcb: PcbPlacement
@@ -572,6 +585,43 @@ struct NetPlacesReport: Decodable, Equatable {
 }
 
 /// A graphical bus: a named polyline ("D[0..7]") whose members leave it through bus entries (net labels with `bus`).
+/// A note, line, arrow or section rectangle on a sheet (not part of the circuit).
+struct SheetGraphicInfo: Decodable, Equatable, Identifiable {
+    var id: Int
+    var sheet: Int
+    var kind: String  // "text", "line", "arrow", "rect"
+    var points: [BoardPoint]
+    var text: String?
+
+    var path: [CGPoint] { points.map(\.point) }
+    /// Notes are drawn at 10 units a line, about 6.5 units a character.
+    var bounds: CGRect {
+        let pts = path
+        guard let first = pts.first else { return .null }
+        if kind == "text" {
+            let lines = (text ?? "").split(separator: "\n", omittingEmptySubsequences: false)
+            let width = CGFloat(lines.map(\.count).max() ?? 0) * 6.5
+            return CGRect(x: first.x, y: first.y, width: max(width, 10), height: CGFloat(max(1, lines.count)) * 12)
+        }
+        return pts.reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: .zero)) }
+    }
+
+    /// Distance from `p` to the drawing (inside a note counts as on it).
+    func distance(to p: CGPoint) -> CGFloat {
+        let pts = path
+        if kind == "text" { return bounds.insetBy(dx: -2, dy: -2).contains(p) ? 0 : .greatestFiniteMagnitude }
+        guard pts.count == 2 else { return .greatestFiniteMagnitude }
+        let segs: [(CGPoint, CGPoint)] = kind == "rect"
+            ? [(pts[0], CGPoint(x: pts[1].x, y: pts[0].y)), (CGPoint(x: pts[1].x, y: pts[0].y), pts[1]),
+               (pts[1], CGPoint(x: pts[0].x, y: pts[1].y)), (CGPoint(x: pts[0].x, y: pts[1].y), pts[0])]
+            : [(pts[0], pts[1])]
+        return segs.map { a, b in
+            let q = WireGeometry.nearestPoint(onSegment: a, b, to: p)
+            return hypot(q.x - p.x, q.y - p.y)
+        }.min() ?? .greatestFiniteMagnitude
+    }
+}
+
 struct BusInfo: Decodable, Equatable, Identifiable {
     var id: Int
     var sheet: Int
@@ -785,6 +835,10 @@ struct BoardInfo: Decodable, Equatable {
     var autoSizeNets = true
     /// Custom outline polygon (empty = width × height rectangle).
     var outline: [BoardPoint] = []
+    /// Board cutouts (inner holes of any shape, routed out) and routing keep-outs.
+    var cutouts: [[BoardPoint]] = []
+    var keepouts: [RouteKeepout] = []
+    var pairRules: [PairRuleInfo] = []
     var holes: [MountingHoleInfo] = []
     /// Production panel (core `PanelSettings`); nil = a single board.
     var panel: PanelInfo?
@@ -834,6 +888,9 @@ struct BoardInfo: Decodable, Equatable {
         autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
+        cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
+        keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
+        pairRules = try c.decodeIfPresent([PairRuleInfo].self, forKey: .pairRules) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
         dfmPack = try c.decodeIfPresent(String.self, forKey: .dfmPack) ?? ""
     }
@@ -844,6 +901,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
+        case cutouts, keepouts, pairRules
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -863,6 +921,16 @@ struct BoardInfo: Decodable, Equatable {
         return path
     }
 
+    /// The cutouts as closed subpaths (fill the board with the even-odd rule to leave them open).
+    var cutoutPath: CGPath {
+        let path = CGMutablePath()
+        for cut in cutouts where cut.count >= 3 {
+            path.addLines(between: cut.map(\.point))
+            path.closeSubpath()
+        }
+        return path
+    }
+
     /// "Top", "Inner 1", …, "Bottom"
     func layerName(_ layer: Int) -> String {
         if layer == 0 { return "Top" }
@@ -871,7 +939,7 @@ struct BoardInfo: Decodable, Equatable {
     }
 }
 
-struct BoardPoint: Codable, Equatable {
+struct BoardPoint: Codable, Equatable, Hashable {
     var x: Double
     var y: Double
     var point: CGPoint { CGPoint(x: x, y: y) }
@@ -904,6 +972,8 @@ struct CopperZoneInfo: Decodable, Equatable, Identifiable, Hashable {
     var layer: Int
     var plane: Bool
     var clearance: Double
+    /// Drawn pour shape (nil = the whole board).
+    var polygon: [BoardPoint]?
     var id: String { "\(net)|\(layer)|\(plane)" }
 }
 
@@ -915,6 +985,8 @@ struct ZoneFillInfo: Decodable, Equatable {
     var islands: Int
     var area: Double
     var rects: [Double]
+    /// Centres (x, y pairs) of the floating islands the fill left out.
+    var removedIslands: [Double]?
 
     var cgRects: [CGRect] {
         stride(from: 0, to: rects.count - 3, by: 4).map {
@@ -950,6 +1022,11 @@ struct SnapPad: Decodable, Equatable {
     var bottom: Bool
     /// Copper layer of an SMD pad (inner layers for embedded passives); -1 for through-hole.
     var layer: Int?
+    /// Rounded-rectangle corner ratio and non-plated hole (footprint pad options).
+    var corner: Double?
+    var npth: Bool?
+    /// Polygon pad (chamfered, trapezoid, drawn): x, y pairs round the pad centre (board mm).
+    var outline: [Double]?
     var rect: CGRect { CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h) }
 }
 
@@ -1139,6 +1216,8 @@ struct SnapCourtyard: Decodable, Equatable {
     var y0: Double
     var x1: Double
     var y1: Double
+    /// The footprint's drawn lines on the board: x0, y0, x1, y1, width, fab (1) per line.
+    var lines: [Double]?
     var rect: CGRect { CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0) }
 }
 

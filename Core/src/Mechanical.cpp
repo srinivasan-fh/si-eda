@@ -13,6 +13,7 @@
 
 #include "sieda/Embedded.hpp"
 #include "sieda/Library.hpp"
+#include "sieda/Model3D.hpp"
 
 namespace sieda {
 
@@ -233,7 +234,45 @@ bool bodiesOverlap(const Body& a, const Body& b) {
     return true;
 }
 
+/// Does triangle t (MCAD mm) cut the box centred on c with half sizes h? Separating axes (Akenine-Möller).
+bool triangleHitsBox(const std::array<Vec3, 3>& t, Vec3 c, Vec3 h) {
+    const Vec3 v[3] = {t[0] - c, t[1] - c, t[2] - c};
+    auto dot = [](Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; };
+    auto axisSeparates = [&](Vec3 a) {
+        const double p0 = dot(v[0], a), p1 = dot(v[1], a), p2 = dot(v[2], a);
+        const double r = h.x * std::fabs(a.x) + h.y * std::fabs(a.y) + h.z * std::fabs(a.z);
+        return std::min({p0, p1, p2}) > r || std::max({p0, p1, p2}) < -r;
+    };
+    const Vec3 e[3] = {v[1] - v[0], v[2] - v[1], v[0] - v[2]}, unit[3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    for (const Vec3& u : unit)
+        if (axisSeparates(u)) return false;
+    if (axisSeparates(e[0].cross(e[1]))) return false;
+    for (const Vec3& u : unit)
+        for (const Vec3& ei : e)
+            if (axisSeparates(u.cross(ei))) return false;
+    return true;
+}
+
 }  // namespace
+
+int openEnd(const Rect& cy, const std::vector<Pad>& pads, double* gap, Rect* area) {
+    double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    Vec2 sum{0, 0};
+    for (const auto& pad : pads) {
+        x0 = std::min(x0, pad.position.x - pad.size.x / 2), y0 = std::min(y0, pad.position.y - pad.size.y / 2);
+        x1 = std::max(x1, pad.position.x + pad.size.x / 2), y1 = std::max(y1, pad.position.y + pad.size.y / 2);
+        sum = sum + pad.position;
+    }
+    const Vec2 off = cy.center() - sum * (1.0 / std::max<size_t>(1, pads.size()));
+    const int side = std::fabs(off.y) >= std::fabs(off.x) ? (off.y < 0 ? 0 : 1) : (off.x < 0 ? 2 : 3);
+    *gap = std::max(std::fabs(off.x), std::fabs(off.y));
+    *area = cy;
+    if (side == 0) area->y1 = y0 - 0.5;
+    else if (side == 1) area->y0 = y1 + 0.5;
+    else if (side == 2) area->x1 = x0 - 0.5;
+    else area->x0 = x1 + 0.5;
+    return side;
+}
 
 std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayout& pcb) {
     const BoardSettings& s = pcb.settings;
@@ -284,12 +323,68 @@ std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayou
         add("MECH_BODY_COLLISION", "The bodies of " + a.c->ref + " and " + b.c->ref + " collide.", {a.c->id, b.c->id},
             {(std::max(ra.x0, rb.x0) + std::min(ra.x1, rb.x1)) / 2, (std::max(ra.y0, rb.y0) + std::min(ra.y1, rb.y1)) / 2});
     }
+    // Enclosure: a part body (box, MCAD frame: Y = -board y, underside at Z = 0) cut by any enclosure triangle.
+    if (auto enclosure = s.enclosure.empty() ? nullptr : Model3DRegistry::instance().get(s.enclosure)) {
+        const auto& p = enclosure->positions;
+        for (size_t i = 0; i < bodies.size(); ++i) {
+            const Rect& r = boxes[i];
+            const bool bottom = bodies[i].c->pcb.bottom;
+            const double z0 = bottom ? -bodies[i].height : s.thickness, z1 = bottom ? 0.0 : s.thickness + bodies[i].height;
+            const Vec3 c{(r.x0 + r.x1) / 2, -(r.y0 + r.y1) / 2, (z0 + z1) / 2};
+            const Vec3 h{r.width() / 2 - 0.01, r.height() / 2 - 0.01, (z1 - z0) / 2 - 0.01};
+            for (size_t t = 0; t + 2 < enclosure->indices.size(); t += 3) {
+                std::array<Vec3, 3> tri;
+                for (int k = 0; k < 3; ++k) {
+                    const size_t v = enclosure->indices[t + k] * 3;
+                    tri[k] = {p[v], p[v + 1], p[v + 2]};
+                }
+                if (triangleHitsBox(tri, c, h)) {
+                    add("MECH_ENCLOSURE", "The body of " + bodies[i].c->ref + " cuts into the enclosure.", {bodies[i].c->id},
+                        bodies[i].c->pcb.position);
+                    break;
+                }
+            }
+        }
+    }
+    // Connector access: the 3 mm in front of a connector's open end (where the plug goes) must be clear of other
+    // bodies on its side. A note: the plug's real size is the designer's call.
+    const auto pads = pcb.pads(sch);
+    for (const Body& b : bodies) {
+        const Component& c = *b.c;
+        const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+        if (prefix != "J" && prefix != "P" && prefix != "CN" && prefix != "USB") continue;
+        std::vector<Pad> own;
+        for (const auto& pad : pads)
+            if (pad.componentId == c.id) own.push_back(pad);
+        if (own.empty()) continue;
+        double gap = 0;
+        Rect area;
+        const Rect cy = pcb.courtyard(c);
+        const int side = openEnd(cy, own, &gap, &area);
+        if (gap < 0.5) continue;  // no open end (a pin header)
+        Rect front = cy;
+        if (side == 0) front = Rect(cy.x0, cy.y0 - 3, cy.x1, cy.y0);
+        else if (side == 1) front = Rect(cy.x0, cy.y1, cy.x1, cy.y1 + 3);
+        else if (side == 2) front = Rect(cy.x0 - 3, cy.y0, cy.x0, cy.y1);
+        else front = Rect(cy.x1, cy.y0, cy.x1 + 3, cy.y1);
+        for (size_t j = 0; j < bodies.size(); ++j) {
+            const Rect& r = boxes[j];
+            if (bodies[j].c == b.c || bodies[j].c->pcb.bottom != c.pcb.bottom || r.x1 <= front.x0 || front.x1 <= r.x0 ||
+                r.y1 <= front.y0 || front.y1 <= r.y0)
+                continue;
+            add("MECH_CONNECTOR_ACCESS", "The mating side of " + c.ref + " is blocked by " + bodies[j].c->ref + ".",
+                {c.id, bodies[j].c->id}, front.center());
+            out.back().severity = Severity::Info;
+            break;
+        }
+    }
     return out;
 }
 
 Json mechanicalLimitsToJson(const BoardSettings& s) {
-    if (s.maxHeightTop <= 0 && s.maxHeightBottom <= 0 && s.heightZones.empty()) return Json();
+    if (s.maxHeightTop <= 0 && s.maxHeightBottom <= 0 && s.heightZones.empty() && s.enclosure.empty()) return Json();
     Json j = Json::object(), zones = Json::array();
+    if (!s.enclosure.empty()) j["enclosure"] = s.enclosure;
     j["maxHeightTop"] = s.maxHeightTop;
     j["maxHeightBottom"] = s.maxHeightBottom;
     for (const HeightZone& z : s.heightZones) {
@@ -310,6 +405,7 @@ void mechanicalLimitsFromJson(const Json& j, BoardSettings& s) {
     s.maxHeightTop = len(j.get("maxHeightTop"));
     s.maxHeightBottom = len(j.get("maxHeightBottom"));
     s.heightZones.clear();
+    s.enclosure = j.get("enclosure").asString("");
     if (!j.get("zones").isArray()) return;
     for (const Json& e : j.get("zones").items()) {
         HeightZone z;

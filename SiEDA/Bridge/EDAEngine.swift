@@ -188,6 +188,28 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_rotate_component($0, Int32(id), Int32(degrees)) } == 1
     }
 
+    /// Mirrors a part left-right (vertical: top-bottom); its wires follow its pins.
+    @discardableResult
+    func mirrorComponent(_ id: Int, vertical: Bool = false) -> Bool {
+        withHandle { sieda_mirror_component($0, Int32(id), vertical ? 1 : 0) } == 1
+    }
+
+    /// Wires part `id`'s pins to pins on the same spot, and (`wires`) to wires running through them, unconnected.
+    @discardableResult
+    func connectTouching(_ id: Int, wires: Bool = true) -> Int { Int(withHandle { sieda_connect_touching($0, Int32(id), wires ? 1 : 0) }) }
+
+    /// Locks or unlocks a part on the schematic.
+    @discardableResult
+    func setLocked(_ id: Int, _ locked: Bool) -> Bool { withHandle { sieda_set_component_locked($0, Int32(id), locked ? 1 : 0) } == 1 }
+
+    /// Draws a net label as a power symbol or as a flag.
+    @discardableResult
+    func setLabelPower(_ id: Int, _ power: Bool) -> Bool { withHandle { sieda_set_label_power($0, Int32(id), power ? 1 : 0) } == 1 }
+
+    /// Removes wire bends on straight runs of a sheet; returns how many.
+    @discardableResult
+    func cleanupWires(sheet: Int) -> Int { Int(withHandle { sieda_cleanup_wires($0, Int32(sheet)) }) }
+
     @discardableResult
     func setValue(_ id: Int, _ value: String) -> Bool {
         withHandle { sieda_set_component_value($0, Int32(id), value) } == 1
@@ -519,6 +541,26 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
 
+    /// A note / line / arrow / rectangle on the active sheet; its id.
+    func addSheetGraphic(kind: String, points: [CGPoint], text: String = "") -> Int? {
+        let request: [String: Any] = ["kind": kind, "text": text,
+                                      "points": points.map { ["x": Double($0.x), "y": Double($0.y)] }]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return nil }
+        let id = withHandle { sieda_add_sheet_graphic($0, String(decoding: data, as: UTF8.self)) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func removeSheetGraphic(_ id: Int) -> Bool { withHandle { sieda_remove_sheet_graphic($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func moveSheetGraphic(_ id: Int, by d: CGSize) -> Bool {
+        withHandle { sieda_move_sheet_graphic($0, Int32(id), Double(d.width), Double(d.height)) } == 1
+    }
+
+    @discardableResult
+    func setSheetGraphicText(_ id: Int, _ text: String) -> Bool { withHandle { sieda_set_sheet_graphic_text($0, Int32(id), text) } == 1 }
+
     /// Makes a net label an entry of a bus on its sheet (0: an ordinary label again).
     @discardableResult
     func setLabelBus(_ label: Int, bus: Int) -> Bool { withHandle { sieda_set_label_bus($0, Int32(label), Int32(bus)) } == 1 }
@@ -561,7 +603,7 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func replace(_ text: String, with replacement: String, matchCase: Bool = false, wholeWord: Bool = false) -> Int {
         let request: [String: Any] = ["text": text, "replacement": replacement, "matchCase": matchCase, "wholeWord": wholeWord,
-                                      "fields": ["value", "label"]]
+                                      "fields": ["value", "label", "ref"]]
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return 0 }
         let json = String(decoding: data, as: UTF8.self)
         return Int(withHandle { sieda_schematic_replace($0, json) })
@@ -1054,6 +1096,29 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_pcb_move_footprint($0, Int32(id), Double(point.x), Double(point.y)) } == 1
     }
 
+    /// Moves a footprint and drags the ends of the tracks on its pads along (they stay connected).
+    func moveFootprintWithTracks(_ id: Int, to point: CGPoint) -> Bool {
+        withHandle { sieda_pcb_move_footprint_with_tracks($0, Int32(id), Double(point.x), Double(point.y)) } == 1
+    }
+
+    @discardableResult
+    func removeTrack(_ id: Int) -> Bool { withHandle { sieda_pcb_remove_track($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func removeVia(_ id: Int) -> Bool { withHandle { sieda_pcb_remove_via($0, Int32(id)) } == 1 }
+
+    /// Splits a straight track at the point nearest `point`: the new track's id, or nil.
+    func splitTrack(_ id: Int, at point: CGPoint) -> Int? {
+        let new = withHandle { sieda_pcb_split_track($0, Int32(id), Double(point.x), Double(point.y)) }
+        return new > 0 ? Int(new) : nil
+    }
+
+    /// Joins collinear tracks of one net, layer and width through free points (`ids` nil = every track): joins made.
+    func mergeTracks(_ ids: [Int]?) -> Int {
+        let json = ids.map { "[" + $0.map(String.init).joined(separator: ",") + "]" }
+        return Int(withHandle { sieda_pcb_merge_tracks($0, json) })
+    }
+
     /// Forms a resistor / capacitor inside the board on inner layer `layer` (0 = surface part again).
     @discardableResult
     func setEmbedded(_ id: Int, layer: Int) -> Bool {
@@ -1411,6 +1476,24 @@ final class EDAEngine: @unchecked Sendable {
         return index >= 0 ? Int(index) : nil
     }
 
+    /// Adds a copper pour limited to `polygon` (board mm); returns the zone index or nil.
+    @discardableResult
+    func addZone(net: String, layer: Int, polygon: [CGPoint]) -> Int? {
+        let json = "[" + polygon.map { "{\"x\":\($0.x),\"y\":\($0.y)}" }.joined(separator: ",") + "]"
+        let index = withHandle { sieda_pcb_add_zone_polygon($0, net, Int32(layer), json) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    /// Adds a board cutout (a closed shape routed out of the board); false when it is not inside the board.
+    @discardableResult
+    func addCutout(_ points: [CGPoint]) -> Bool {
+        let json = "[" + points.map { "{\"x\":\($0.x),\"y\":\($0.y)}" }.joined(separator: ",") + "]"
+        return withHandle { sieda_pcb_add_cutout($0, json) } == 1
+    }
+
+    @discardableResult
+    func removeCutout(at index: Int) -> Bool { withHandle { sieda_pcb_remove_cutout($0, Int32(index)) } == 1 }
+
     @discardableResult
     func removeZone(at index: Int) -> Bool { withHandle { sieda_pcb_remove_zone($0, Int32(index)) } == 1 }
 
@@ -1427,18 +1510,34 @@ final class EDAEngine: @unchecked Sendable {
 
     // MARK: - Export & 3D
 
+    func dragWireSegment(_ id: Int, dx: Double, dy: Double) -> Bool {
+        withHandle { sieda_drag_wire_segment($0, Int32(id), dx, dy) } == 1
+    }
+
+    func moveWireEnd(_ id: Int, b: Bool, x: Double, y: Double, component: Int, pin: Int) -> Bool {
+        withHandle { sieda_move_wire_end($0, Int32(id), b ? 1 : 0, x, y, Int32(component), Int32(pin)) } == 1
+    }
+
     func export(_ format: ExportFormat) -> String? {
         withHandle { Self.take(sieda_export($0, format.rawValue)) }
     }
+
+    /// Writes an export (text or binary, e.g. "glb") straight to a file.
+    func exportFile(_ format: String, to path: String) -> Bool { withHandle { sieda_export_file($0, format, path) } == 1 }
 
     /// Copper Gerber of layer `oneBasedLayer` (1 = top … layerCount = bottom).
     func exportCopperLayer(_ oneBasedLayer: Int) -> String? {
         withHandle { Self.take(sieda_export($0, "gerber_l\(oneBasedLayer)")) }
     }
 
-    func buildMesh(includeComponents: Bool) -> MeshData? {
+    /// The assembly mesh; `standoffs` (mm) adds hex standoffs and screws at the mounting holes, `enclosure` the
+    /// enclosure model (see-through).
+    func buildMesh(includeComponents: Bool, hidden: Set<Int> = [], standoffs: Double = 0, enclosure: Bool = false) -> MeshData? {
         withHandle { handle -> MeshData? in
-            Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0))
+            guard !hidden.isEmpty || standoffs > 0 || enclosure else { return Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0)) }
+            let json = "{\"components\":\(includeComponents),\"hidden\":[\(hidden.sorted().map(String.init).joined(separator: ","))],"
+                + "\"standoffs\":\(standoffs),\"enclosure\":\(enclosure)}"
+            return Self.copyMesh(sieda_mesh_build_options(handle, json))
         }
     }
 
@@ -1495,6 +1594,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case fabNotes = "fab_notes"
     case stl
     case obj
+    case vrml
     case step
     case idfBoard = "idf_board"
     case idfLibrary = "idf_library"
@@ -1528,6 +1628,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "board-NPTH.drl"
         case .stl: return "assembly.stl"
         case .obj: return "assembly.obj"
+        case .vrml: return "assembly.wrl"
         case .step: return "board.step"
         case .idfBoard: return "board.emn"
         case .idfLibrary: return "board.emp"
@@ -1561,6 +1662,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "Excellon Drill — Mounting Holes (NPTH)"
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
+        case .vrml: return "3D Model (VRML 2.0)"
         case .step: return "STEP AP214 — Board and Parts (MCAD)"
         case .idfBoard: return "IDF 3.0 Board (.emn)"
         case .idfLibrary: return "IDF 3.0 Library (.emp)"
@@ -1724,6 +1826,12 @@ extension EDAEngine {
     }
 
     /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
+    /// One schematic sheet as an SVG ("svg") or PNG ("png") image `width` pixels wide.
+    func schematicImage(sheet: Int, width: Int, format: String) -> Data? {
+        guard let text = Self.take(withHandle { sieda_render_schematic($0, Int32(sheet), Int32(width), format) }) else { return nil }
+        return format == "png" ? Data(base64Encoded: text) : Data(text.utf8)
+    }
+
     func schematicPDF(fontPath: String? = EDAEngine.unicodeFontPath) -> Data? {
         Self.take(withHandle { sieda_export_schematic_pdf_with_font($0, fontPath) }).map { Data($0.utf8) }
     }

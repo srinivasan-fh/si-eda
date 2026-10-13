@@ -17,7 +17,11 @@
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/InteractiveRouter.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Validation.hpp"
+#include "sieda/Mechanical.hpp"
+#include "sieda/Export.hpp"
+#include "sieda/Mesh.hpp"
 
 namespace fs = std::filesystem;
 
@@ -490,27 +494,6 @@ std::string packageChoices(ComponentKind kind) {
 /// Decoupling capacitors (one pin on an IC's supply net, the other on ground) moved next to the IC supply pin they
 /// serve, one capacitor per pin in pin order: one further than 5 mm goes to the nearest legal spot 2.5–6 mm from the
 /// pin (room left for the pins' escape routes). Locked parts stay. Returns "C3 → U1.VDD" for each one moved.
-/// The open end of a footprint: the side its pads lean away from (an antenna, a connector's mouth) — 0 top,
-/// 1 bottom, 2 left, 3 right — with how far the pads' centre sits off the courtyard's, and the area past the pads.
-int openEnd(const Rect& cy, const std::vector<Pad>& pads, double* gap, Rect* area) {
-    double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    Vec2 sum{0, 0};
-    for (const auto& pad : pads) {
-        x0 = std::min(x0, pad.position.x - pad.size.x / 2), y0 = std::min(y0, pad.position.y - pad.size.y / 2);
-        x1 = std::max(x1, pad.position.x + pad.size.x / 2), y1 = std::max(y1, pad.position.y + pad.size.y / 2);
-        sum = sum + pad.position;
-    }
-    const Vec2 off = cy.center() - sum * (1.0 / std::max<size_t>(1, pads.size()));
-    const int side = std::fabs(off.y) >= std::fabs(off.x) ? (off.y < 0 ? 0 : 1) : (off.x < 0 ? 2 : 3);
-    *gap = std::max(std::fabs(off.x), std::fabs(off.y));
-    *area = cy;
-    if (side == 0) area->y1 = y0 - 0.5;
-    else if (side == 1) area->y0 = y1 + 0.5;
-    else if (side == 2) area->x1 = x0 - 0.5;
-    else area->x0 = x1 + 0.5;
-    return side;
-}
-
 bool hasAntenna(const Component& c) {
     const CustomPart* cp = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
     std::string text = cp ? cp->spec.description : "";
@@ -1272,10 +1255,16 @@ void schematicTools(Table& t) {
               .num("x", "New x")
               .num("y", "New y")
               .integer("rotation", "Absolute rotation (0, 90, 180, 270)")
-              .integer("rotate", "Relative rotation in degrees (multiples of 90)"),
+              .integer("rotate", "Relative rotation in degrees (multiples of 90)")
+              .str("mirror", "\"x\" mirrors left-right, \"y\" top-bottom (toggles)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const int id = componentId(*p, a.get("ref"));
+              if (a.has("mirror")) {
+                  const std::string axis = argStr(a, "mirror");
+                  check(axis == "x" || axis == "y", "mirror is \"x\" or \"y\"");
+                  sieda_mirror_component(p, id, axis == "y" ? 1 : 0);
+              }
               const Component* c = p->project.schematic.find(id);
               if (a.has("x") || a.has("y")) {
                   const Vec2 from = c->position;
@@ -2800,9 +2789,16 @@ void pcbTools(Table& t) {
               .str("preset", "Outline preset", false, {"rectangle", "rounded", "circle", "quad-x"})
               .num("width", "Preset width / diameter / span (mm)")
               .num("height", "Preset height (mm)")
-              .num("param", "Corner radius / arm width (mm)"),
+              .num("param", "Corner radius / arm width (mm)")
+              .any("cutouts", "Board cutouts: [[{x, y}, …], …] (closed shapes inside the board); [] removes them"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
+              if (a.get("cutouts").isArray()) {
+                  p->project.pcb.settings.cutouts.clear();
+                  for (const auto& c : a.get("cutouts").items())
+                      check(sieda_pcb_add_cutout(p, c.dump().c_str()) == 1, "A cutout needs 3 or more corners inside the board");
+                  if (!a.has("preset") && !a.has("points")) return out(pcbSummary(s).get("outline"));
+              }
               if (a.has("preset")) {
                   check(sieda_pcb_outline_preset(p, argStr(a, "preset").c_str(), argNum(a, "width", p->project.pcb.settings.width),
                                                  argNum(a, "height", p->project.pcb.settings.height), argNum(a, "param", 2)) == 1,
@@ -3308,11 +3304,18 @@ void pcbTools(Table& t) {
               .str("net", "Net name, e.g. \"GND\"", true)
               .integer("layer", "Copper layer (default 0 = top)")
               .boolean("plane", "Reserve the layer as a plane")
-              .num("clearance", "Clearance (mm, default board clearance)"),
+              .num("clearance", "Clearance (mm, default board clearance)")
+              .any("polygon", "Optional pour shape: [{x, y}] (mm, 3 or more corners); default the whole board"),
           [](McpServer& s, const Json& a) {
               netIndex(proj(s), requireStr(a, "net"));
-              const int z = sieda_pcb_add_zone(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), argBool(a, "plane", false) ? 1 : 0,
-                                               argNum(a, "clearance", 0));
+              const int z = a.has("polygon")
+                  ? sieda_pcb_add_zone_polygon(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), a.get("polygon").dump().c_str())
+                  : sieda_pcb_add_zone(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), argBool(a, "plane", false) ? 1 : 0,
+                                       argNum(a, "clearance", 0));
+              if (z >= 0 && a.has("polygon")) {
+                  P(s)->project.pcb.zones[static_cast<size_t>(z)].plane = argBool(a, "plane", false);
+                  P(s)->project.pcb.zones[static_cast<size_t>(z)].clearance = std::max(0.0, argNum(a, "clearance", 0));
+              }
               check(z >= 0, "Could not add the pour (layer out of range?)");
               Json j = obj();
               j["zone"] = z;
@@ -3525,7 +3528,7 @@ void pcbTools(Table& t) {
               .boolean("enabled", "Tune lengths after Auto Route")
               .num("pairSkew", "Intra-pair skew tolerance (mm)")
               .num("busTolerance", "Bus length tolerance (mm)")
-              .array("rules", "[{net, target, tolerance}]", "object")
+              .array("rules", "[{net, target, tolerance}] mm, or [{net, delayPs, tolerancePs}] as a delay", "object")
               .array("groups", "[{name, nets, tolerance}]", "object")
               .boolean("tune", "Add serpentines now"),
           [](McpServer& s, const Json& a) {
@@ -3536,13 +3539,40 @@ void pcbTools(Table& t) {
                                                 argNum(a, "busTolerance", st.busLengthTolerance));
               if (a.get("rules").isArray())
                   for (const auto& r : a.get("rules").items())
-                      check(sieda_pcb_set_length_rule(p, requireStr(r, "net").c_str(), argNum(r, "target", 0), argNum(r, "tolerance", 0.5)) == 1,
+                      check(r.has("delayPs") ? sieda_pcb_set_delay_rule(p, requireStr(r, "net").c_str(), argNum(r, "delayPs", 0),
+                                                                         argNum(r, "tolerancePs", 5)) == 1
+                                             : sieda_pcb_set_length_rule(p, requireStr(r, "net").c_str(), argNum(r, "target", 0),
+                                                                         argNum(r, "tolerance", 0.5)) == 1,
                             "Invalid length rule");
               if (a.get("groups").isArray())
                   for (const auto& g : a.get("groups").items()) check(sieda_pcb_set_match_group(p, g.dump().c_str()) == 1, "Invalid match group");
               Json j = obj();
               if (argBool(a, "tune", false)) j["netsTuned"] = sieda_pcb_tune_lengths(p);
               j["targets"] = takeJson(sieda_length_targets_json(p));
+              return out(j);
+          });
+    t.add("pcb", "pcb_pair_rules", "Pair rules", Kind::Edit, false,
+          "Differential pair rules by the pair's stem (USB_D for USB_D_P / USB_D_N): an interface preset (usb2, usb3, "
+          "pcie, ethernet, hdmi, lvds, ddr, can: typical impedance and skew) and / or impedance (Ω), width, gap (mm) "
+          "and skew tolerance (mm); a rule with no values removes it. The routers use the pair's impedance, width and "
+          "gap; length tuning and DRC its skew. Returns the board's pairs, their rules and the presets.",
+          Schema().array("rules", "[{pair, preset, impedance, width, gap, skew}]", "object"), [](McpServer& s, const Json& a) {
+              for (const auto& r : a.get("rules").items()) check(sieda_pcb_set_pair_rule(P(s), r.dump().c_str()) == 1, "Invalid pair rule");
+              const Project& pr = proj(s);
+              Json j = obj(), pairs = Json::array();
+              for (auto [pn, nn] : differentialPairs(pr.schematic)) {
+                  const auto& nets = pr.schematic.nets();
+                  Json e = obj();
+                  e["pair"] = pairStem(nets[static_cast<size_t>(pn)].name, nets[static_cast<size_t>(nn)].name);
+                  if (const PairRule* rule = pr.pcb.settings.pairRule(e.get("pair").asString(""))) {
+                      for (auto [k, v] : {std::pair{"impedance", rule->impedance}, {"width", rule->width}, {"gap", rule->gap}, {"skew", rule->skew}})
+                          if (v > 0) e[k] = v;
+                      if (!rule->preset.empty()) e["preset"] = rule->preset;
+                  }
+                  pairs.push(e);
+              }
+              j["pairs"] = pairs;
+              j["presets"] = takeJson(sieda_interface_presets_json());
               return out(j);
           });
     t.add("pcb", "pcb_set_hdi", "HDI", Kind::Edit, true,
@@ -4326,12 +4356,15 @@ void outputTools(Table& t) {
     t.add("output", "output_3d_model", "3D / MCAD model", Kind::Files, false,
           "The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one "
           "named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a "
-          "mesh (STL, OBJ).",
+          "mesh (STL, OBJ, VRML 2.0, glTF 2.0 binary .glb).",
           Schema().str("path", "File to write, e.g. \"out/board.step\"", true)
-              .str("format", "step, idf_board, idf_library, idx, stl (default) or obj", false,
-                   {"step", "idf_board", "idf_library", "idx", "stl", "obj"}),
+              .str("format", "step, idf_board, idf_library, idx, stl (default), obj, vrml or glb", false,
+                   {"step", "idf_board", "idf_library", "idx", "stl", "obj", "vrml", "glb"}),
           [](McpServer& s, const Json& a) {
-              const std::string content = takeText(sieda_export(P(s), argStr(a, "format", "stl").c_str()));
+              const std::string format = argStr(a, "format", "stl");
+              const Project& pr = P(s)->project;
+              const std::string content = format == "glb" ? exportGltf(buildAssemblyMesh(pr.schematic, pr.pcb), pr.name)
+                                                          : takeText(sieda_export(P(s), format.c_str()));
               if (content.empty()) throw ToolError("Could not build the 3D model");
               Json j = obj();
               j["written"] = s.writeFile(requireStr(a, "path"), content);
@@ -4563,6 +4596,16 @@ void renderTools(Table& t) {
               const std::string f = argStr(a, "format", "png");
               const int w = argInt(a, "width", 1000);
               return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w) : renderPcbPng(*P(s), layers, w), "pcb");
+          });
+    t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
+          "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "
+          "part's body, seen from the given side.",
+          Schema()
+              .str("view", "iso (default), top, bottom, front, back, left or right", false,
+                   {"iso", "top", "bottom", "front", "back", "left", "right"})
+              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+          [](McpServer& s, const Json& a) {
+              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000)), "board3d");
           });
 }
 

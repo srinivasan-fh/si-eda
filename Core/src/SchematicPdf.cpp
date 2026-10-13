@@ -64,6 +64,9 @@ Box sheetExtent(const Schematic& s, int sheet) {
     for (const auto& bus : s.buses())
         if (bus.sheet == sheet)
             for (const auto& p : bus.points) b.add(p);
+    for (const auto& g : s.graphics())
+        if (g.sheet == sheet)
+            for (const auto& p : g.points) b.add(p);
     return b;
 }
 
@@ -317,7 +320,7 @@ struct Mapping {
 /// A part's free-form symbol drawings (Symbol Editor graphics), turned with the component and placed on the page.
 void drawSymbolGraphics(Canvas& cv, const Mapping& m, const Component& c, const std::vector<SymbolGraphic>& graphics) {
     const double u = m.scale;
-    auto at = [&](Vec2 p) { return m(c.position + rotate90(p, c.rotation)); };
+    auto at = [&](Vec2 p) { return m(c.position + c.orient(p)); };
     for (const auto& g : graphics) {
         if (g.points.empty()) continue;
         cv.width(std::max(0.1, 1.4 * u * std::max(0.25, g.lineWidth)));
@@ -355,7 +358,8 @@ struct SymbolPen {
     const Mapping& m;
     Vec2 pos;
     int rotation;
-    Vec2 at(double x, double y) const { return m(pos + rotate90({x, y}, rotation)); }
+    bool mirror = false;
+    Vec2 at(double x, double y) const { return m(pos + rotate90({mirror ? -x : x, y}, rotation)); }
     void line(double x1, double y1, double x2, double y2) {
         const Vec2 a = at(x1, y1), b = at(x2, y2);
         cv.line(a.x, a.y, b.x, b.y);
@@ -646,6 +650,39 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
             cv.text(a.x + 1, a.y - 1, text, b.name, 0, true);
         }
     }
+    // Notes and drawings: text, lines, arrows and section rectangles.
+    cv.width(std::max(0.15, 1.2 * u));
+    for (const auto& g : s.graphics()) {
+        if (g.sheet != sheet.id || g.points.empty()) continue;
+        const Vec2 a = m(g.points[0]);
+        if (g.kind == "text") {
+            double y = a.y + text;
+            size_t start = 0;
+            for (size_t nl = 0; nl != std::string::npos; start = nl + 1) {  // one line per '\n'
+                nl = g.text.find('\n', start);
+                cv.text(a.x, y, text, g.text.substr(start, nl == std::string::npos ? std::string::npos : nl - start), 0);
+                y += text * 1.3;
+            }
+            continue;
+        }
+        const Vec2 b = m(g.points.back());
+        if (g.kind == "rect") {
+            cv.line(a.x, a.y, b.x, a.y);
+            cv.line(b.x, a.y, b.x, b.y);
+            cv.line(b.x, b.y, a.x, b.y);
+            cv.line(a.x, b.y, a.x, a.y);
+            continue;
+        }
+        cv.line(a.x, a.y, b.x, b.y);
+        if (g.kind == "arrow") {
+            const Vec2 d = b - a;
+            const double len = std::max(1e-9, d.length()), h = std::max(1.0, 8 * u);
+            const Vec2 u1 = d * (1 / len), n{-u1.y, u1.x};
+            const Vec2 l = b - u1 * h + n * (h * 0.45), r = b - u1 * h - n * (h * 0.45);
+            cv.line(b.x, b.y, l.x, l.y);
+            cv.line(b.x, b.y, r.x, r.y);
+        }
+    }
     // Sheet symbols: a box around each child's entries with the child's name.
     cv.width(std::max(0.2, 1.6 * u));
     for (const auto& child : s.sheets()) {
@@ -698,7 +735,7 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
                 if (wireEnds[c.id] >= 3) cv.dot(at.x, at.y, std::max(0.35, 3 * u));
                 continue;
             case ComponentKind::Ground: {
-                SymbolPen pen{cv, m, c.position, c.rotation};
+                SymbolPen pen{cv, m, c.position, c.rotation, c.mirror};
                 drawBuiltinSymbol(pen, c.kind, c.value);
                 continue;
             }
@@ -714,6 +751,14 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
                     return r == 90 ? Vec2{pin.x - y, pin.y + x} : r == 180 ? Vec2{pin.x - x, pin.y - y}
                          : r == 270 ? Vec2{pin.x + y, pin.y - x} : Vec2{pin.x + x, pin.y + y};
                 };
+                if (c.power) {  // a power symbol: a stem to a bar, the rail's name beyond it
+                    const Vec2 a = turn(0, 0), e = turn(12 * u, 0), b0 = turn(12 * u, -9 * u), b1 = turn(12 * u, 9 * u);
+                    cv.line(a.x, a.y, e.x, e.y);
+                    cv.line(b0.x, b0.y, b1.x, b1.y);
+                    const Vec2 t = turn((12 + 5) * u + (r == 90 || r == 270 ? 0.5 * text : 0), 0);
+                    cv.text(t.x, t.y + 0.35 * text, text, name, r == 0 ? 0 : r == 180 ? 2 : 1, true);
+                    continue;
+                }
                 if (c.scope == LabelScope::Port || c.scope == LabelScope::SheetEntry || c.scope == LabelScope::Global)
                     cv.polygon({turn(0, 0), turn(hh, -hh), turn(w, -hh), turn(w, hh), turn(hh, hh)}, false);
                 else {
@@ -735,7 +780,7 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
         const std::string ref = s.displayRef(c);
         {
             // Built-in parts: their real symbols, designator above and value below the outline.
-            SymbolPen pen{cv, m, c.position, c.rotation};
+            SymbolPen pen{cv, m, c.position, c.rotation, c.mirror};
             if (drawBuiltinSymbol(pen, c.kind, c.value)) {
                 const auto o = s.symbolOutline(c);
                 const Vec2 lo = m({o[0], o[1]}), hi = m({o[2], o[3]});
@@ -755,13 +800,13 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
         if (part) {
             const double hw = unit ? part->units[static_cast<size_t>(c.unit - 1)].halfWidth : part->symbolHalfWidth;
             const double hh = unit ? part->units[static_cast<size_t>(c.unit - 1)].halfHeight : part->symbolHalfHeight;
-            const Vec2 p0 = m(c.position + rotate90({-hw, -hh}, c.rotation));
-            const Vec2 p1 = m(c.position + rotate90({hw, hh}, c.rotation));
+            const Vec2 p0 = m(c.position + c.orient({-hw, -hh}));
+            const Vec2 p1 = m(c.position + c.orient({hw, hh}));
             a = {std::min(p0.x, p1.x), std::min(p0.y, p1.y)};
             b = {std::max(p0.x, p1.x), std::max(p0.y, p1.y)};
         } else {
             Box body;
-            for (const auto& pd : pins) body.add(c.position + rotate90(pd.offset, c.rotation));
+            for (const auto& pd : pins) body.add(c.position + c.orient(pd.offset));
             if (body.empty()) body.add(c.position);
             const double inset = 10;
             a = m({body.minX + inset, body.minY - (body.maxY - body.minY < 1 ? 15 : -inset + 10)});

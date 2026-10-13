@@ -121,9 +121,22 @@ Json boardJson(const BoardSettings& s) {
             j["net"] = r.net;
             j["target"] = r.target;
             j["tolerance"] = r.tolerance;
+            if (r.delayPs > 0) j["delayPs"] = r.delayPs;
             rules.push(j);
         }
         b["lengthRules"] = rules;
+    }
+    if (!s.pairRules.empty()) {
+        Json rules = Json::array();
+        for (const auto& r : s.pairRules) {
+            Json j = Json::object();
+            j["pair"] = r.pair;
+            for (auto [k, v] : {std::pair{"impedance", r.impedance}, {"width", r.width}, {"gap", r.gap}, {"skew", r.skew}})
+                if (v > 0) j[k] = v;
+            if (!r.preset.empty()) j["preset"] = r.preset;
+            rules.push(j);
+        }
+        b["pairRules"] = rules;
     }
     if (!s.matchGroups.empty()) {
         Json groups = Json::array();
@@ -152,6 +165,15 @@ Json boardJson(const BoardSettings& s) {
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
     b["outline"] = outline;
+    if (!s.cutouts.empty()) {
+        Json cuts = Json::array();
+        for (const auto& c : s.cutouts) {
+            Json pts = Json::array();
+            for (const auto& v : c) pts.push(vec(v));
+            cuts.push(pts);
+        }
+        b["cutouts"] = cuts;
+    }
     Json holes = Json::array();
     for (const auto& h : s.holes) {
         Json j = vec(h.position);
@@ -291,6 +313,28 @@ Json harnessTypesJson(const Schematic& sch) {
     return arr;
 }
 
+/// Notes and drawings on sheets: {id, sheet, kind, points [{x, y}], text?}.
+Json graphicsJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& g : sch.graphics()) {
+        Json j = Json::object();
+        j["id"] = g.id;
+        j["sheet"] = g.sheet;
+        j["kind"] = g.kind;
+        Json pts = Json::array();
+        for (const Vec2 p : g.points) {
+            Json q = Json::object();
+            q["x"] = p.x;
+            q["y"] = p.y;
+            pts.push(q);
+        }
+        j["points"] = pts;
+        if (!g.text.empty()) j["text"] = g.text;
+        arr.push(j);
+    }
+    return arr;
+}
+
 Json busesJson(const Schematic& sch, bool withMembers) {
     Json arr = Json::array();
     for (const auto& b : sch.buses()) {
@@ -327,6 +371,11 @@ Json zonesJson(const std::vector<CopperZone>& zones) {
         j["layer"] = z.layer;
         j["plane"] = z.plane;
         j["clearance"] = z.clearance;
+        if (!z.polygon.empty()) {
+            Json pts = Json::array();
+            for (const auto& v : z.polygon) pts.push(vec(v));
+            j["polygon"] = pts;
+        }
         arr.push(j);
     }
     return arr;
@@ -533,6 +582,15 @@ static Json boardContentJson(const PcbLayout& pcb) {
     root["vias"] = vias;
     root["zones"] = zonesJson(pcb.zones);
     root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
+    if (!pcb.partModels.empty()) {
+        Json models = Json::array();
+        for (const auto& [id, ref] : pcb.partModels) {
+            Json m = Json::object();
+            m["component"] = id, m["model"] = model3dRefToJson(ref);
+            models.push(m);
+        }
+        root["partModels"] = models;
+    }
     return root;
 }
 
@@ -591,7 +649,9 @@ Json Project::toJson() const {
         }
     root["customParts"] = library;
     // Imported 3D models of the library parts (Model3D.hpp); only when there are any.
-    if (Json models = models3dForParts(customLibrary); models.size() > 0) root["models3d"] = models;
+    std::vector<std::string> boardModels{pcb.settings.enclosure};  // the enclosure and the parts' own models
+    for (const auto& [id, ref] : pcb.partModels) boardModels.push_back(ref.id);
+    if (Json models = models3dForParts(customLibrary, boardModels); models.size() > 0) root["models3d"] = models;
 
     Json comps = Json::array();
     comps.reserve(schematic.components().size());
@@ -604,6 +664,9 @@ Json Project::toJson() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.mirror) j["mirror"] = true;
+        if (c.locked) j["locked"] = true;
+        if (c.power) j["power"] = true;
         if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (!c.firmware.empty()) {
             j["firmware"] = c.firmware;
@@ -644,6 +707,7 @@ Json Project::toJson() const {
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
     if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
+    if (!schematic.graphics().empty()) root["sheetGraphics"] = graphicsJson(schematic);
     if (!schematic.harnessTypes().empty()) root["harnessTypes"] = harnessTypesJson(schematic);
     if (!schematic.netClassDefs().empty()) root["netClassDefs"] = netClassDefsJson(schematic);
     if (!schematic.directives().empty()) root["directives"] = directivesJson(schematic, false);
@@ -783,7 +847,19 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
         r.net = j.get("net").asString("");
         r.target = j.get("target").asNumber(0);
         r.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        r.delayPs = std::clamp(j.get("delayPs").asNumber(0), 0.0, 1e6);
         if (!r.net.empty() && r.target > 0 && std::isfinite(r.target)) s.lengthRules.push_back(r);
+    }
+    for (const auto& j : b.get("pairRules").items()) {
+        PairRule r;
+        r.pair = j.get("pair").asString("");
+        auto num = [&](const char* k, double hi) { const double v = j.get(k).asNumber(0); return std::isfinite(v) ? std::clamp(v, 0.0, hi) : 0.0; };
+        r.impedance = num("impedance", 500);
+        r.width = num("width", 10);
+        r.gap = num("gap", 10);
+        r.skew = num("skew", 100);
+        r.preset = j.get("preset").asString("");
+        if (!r.pair.empty()) s.pairRules.push_back(r);
     }
     for (const auto& j : b.get("matchGroups").items()) {
         MatchGroup g;
@@ -812,6 +888,11 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             s.width = std::max(s.width, w);  // keep the stored size (the outline may not touch every bound)
             s.height = std::max(s.height, h);
         }
+        for (const auto& c : b.get("cutouts").items()) {
+            std::vector<Vec2> cut;
+            for (const auto& v : c.items()) cut.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
+            if (cut.size() >= 3 && cut.size() <= 4096) s.cutouts.push_back(std::move(cut));
+        }
         for (const auto& j : b.get("holes").items()) {
             MountingHole m;
             m.position = {j.get("x").asNumber(), j.get("y").asNumber()};
@@ -826,8 +907,12 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
         z.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
         z.plane = j.get("plane").asBool(false);
         z.clearance = std::max(0.0, j.get("clearance").asNumber(0));
+        for (const auto& v : j.get("polygon").items()) z.polygon.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
+        if (z.polygon.size() < 3 || z.polygon.size() > 4096) z.polygon.clear();
         if (!z.net.empty()) pcb.zones.push_back(z);
     }
+    for (const auto& j : root.get("partModels").items())
+        if (Model3DRef ref = model3dRefFromJson(j.get("model")); !ref.empty()) pcb.partModels[j.get("component").asInt(-1)] = ref;
     for (const auto& j : root.get("tamperMeshes").items()) {
         TamperMesh m;
         m.componentRef = j.get("component").asString("");
@@ -918,6 +1003,9 @@ Project Project::fromJson(const Json& root) {
         c.value = j.get("value").asString(c.def().defaultValue);
         c.position = {j.get("x").asNumber(), j.get("y").asNumber()};
         c.rotation = j.get("rotation").asInt(0);
+        c.mirror = j.get("mirror").asBool(false);
+        c.locked = j.get("locked").asBool(false);
+        c.power = c.kind == ComponentKind::NetLabel && j.get("power").asBool(false);
         if (c.kind == ComponentKind::Custom) {
             std::string id = j.get("customPart").asString("");
             auto it = idMap.find(id);
@@ -1004,6 +1092,15 @@ Project Project::fromJson(const Json& root) {
         if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component) || !wireIds.insert(w.id).second) continue;
         w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
+    }
+    for (const auto& j : root.get("sheetGraphics").items()) {
+        SheetGraphic g;
+        g.id = j.get("id").asInt(-1);
+        g.sheet = j.get("sheet").asInt(1);
+        g.kind = j.get("kind").asString("");
+        g.text = j.get("text").asString("");
+        for (const auto& pt : j.get("points").items()) g.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        p.schematic.restoreGraphic(g);
     }
     for (const auto& j : root.get("buses").items()) {
         Bus b;
@@ -1147,6 +1244,9 @@ Json Project::snapshot() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.mirror) j["mirror"] = true;
+        if (c.locked) j["locked"] = true;
+        if (c.power) j["power"] = true;
         j["footprint"] = c.footprintName();
         if (!c.package.empty()) j["package"] = c.package;
         j["sheet"] = c.sheet;
@@ -1312,6 +1412,7 @@ Json Project::snapshot() const {
             root["boards"] = boards;
         }
         root["buses"] = busesJson(schematic, true);
+        root["sheetGraphics"] = graphicsJson(schematic);
         root["harnessTypes"] = harnessTypesJson(schematic);
         root["netClassDefs"] = netClassDefsJson(schematic);
         root["directives"] = directivesJson(schematic, true);
@@ -1361,6 +1462,13 @@ Json Project::snapshot() const {
         j["drill"] = p.drill;
         j["bottom"] = p.bottom;
         j["layer"] = p.throughHole ? -1 : p.smdLayer;
+        if (p.corner > 0) j["corner"] = p.corner;
+        if (p.npth) j["npth"] = true;
+        if (!p.outline.empty()) {  // polygon pad round (x, y), board mm
+            Json pts = Json::array();
+            for (const Vec2& v : p.outline) pts.push(v.x), pts.push(v.y);
+            j["outline"] = pts;
+        }
         pads.push(j);
     }
     root["pads"] = pads;
@@ -1422,6 +1530,11 @@ Json Project::snapshot() const {
         j["net"] = f.net;
         j["layer"] = f.layer;
         j["islands"] = f.islands;
+        if (!f.removedIslands.empty()) {  // flat x, y pairs
+            Json removed = Json::array();
+            for (const Vec2& v : f.removedIslands) removed.push(v.x), removed.push(v.y);
+            j["removedIslands"] = removed;
+        }
         j["area"] = f.area();
         Json rects = Json::array();  // flat x0, y0, x1, y1 quadruples
         rects.reserve(4 * f.rects.size());
@@ -1457,6 +1570,12 @@ Json Project::snapshot() const {
         j["y0"] = r.y0;
         j["x1"] = r.x1;
         j["y1"] = r.y1;
+        if (auto lines = pcb.footprintLines(c); !lines.empty()) {  // drawn graphics: x0, y0, x1, y1, width, fab
+            Json flat = Json::array();
+            for (const FootprintLine& l : lines)
+                for (double v : {l.a.x, l.a.y, l.b.x, l.b.y, l.width, l.fab ? 1.0 : 0.0}) flat.push(v);
+            j["lines"] = flat;
+        }
         courtyards.push(j);
     }
     root["courtyards"] = courtyards;
