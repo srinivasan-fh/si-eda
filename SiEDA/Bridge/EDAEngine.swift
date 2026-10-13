@@ -194,9 +194,7 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_mirror_component($0, Int32(id), vertical ? 1 : 0) } == 1
     }
 
-    /// Wires the part's pins to what they touch unconnected (a pin on the same spot, a wire running through).
-    @discardableResult
-    /// Wires part `id`'s pins to pins on the same spot, and (`wires`) to wires running through them.
+    /// Wires part `id`'s pins to pins on the same spot, and (`wires`) to wires running through them, unconnected.
     @discardableResult
     func connectTouching(_ id: Int, wires: Bool = true) -> Int { Int(withHandle { sieda_connect_touching($0, Int32(id), wires ? 1 : 0) }) }
 

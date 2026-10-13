@@ -165,6 +165,7 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
     if (s.package.pitch > 0) pkg["pitch"] = s.package.pitch;  // only when set: older parts keep their ids
     if (s.package.bodySize > 0) pkg["bodySize"] = s.package.bodySize;
     if (s.package.bodyDepth > 0) pkg["bodyDepth"] = s.package.bodyDepth;
+    if (s.package.courtyard > 0) pkg["courtyard"] = s.package.courtyard;
     if (!s.package.lands.empty()) {
         Json lands = Json::array();
         for (const auto& l : s.package.lands) {
@@ -383,6 +384,8 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
         const double depth = pkg.get("bodyDepth").asNumber(0);
         s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        const double court = pkg.get("courtyard").asNumber(0);
+        s.package.courtyard = std::isfinite(court) && court > 0 && court <= 5 ? court : 0;
         for (const auto& lj : pkg.get("lands").items()) {
             if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7 && lj.size() != 8))
                 throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin(, options)] in mm.");
@@ -785,8 +788,9 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         xMax = std::max(xMax, std::fabs(p.offset.x) + p.size.x / 2);
         yMax = std::max(yMax, std::fabs(p.offset.y) + p.size.y / 2);
     }
-    courtW = 2 * xMax + 0.5;
-    courtH = 2 * yMax + 0.5;
+    const double margin = exact && exact->courtyard > 0 ? exact->courtyard : 0.25;
+    courtW = 2 * xMax + 2 * margin;
+    courtH = 2 * yMax + 2 * margin;
     return pads;
 }
 

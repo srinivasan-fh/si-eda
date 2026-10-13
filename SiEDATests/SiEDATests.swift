@@ -3372,6 +3372,36 @@ final class FootprintEditorTests: XCTestCase {
 
     // MARK: - Document
 
+    func testPadOptionsRotateAlignGridOriginAndIPC() throws {
+        var draft = FootprintDraft(spec: twoPin([Land(x: -1, y: 0, w: 1.0, h: 0.5), Land(x: 1, y: 0.2, w: 1.0, h: 0.5)]))
+        let ids = Set(draft.pads.map(\.id))
+        // Options survive the land JSON (the core's trailing object).
+        draft.pads[0].land.options = .init(corner: 0.25, npth: nil, mask: 0.1, paste: 0.6, pasteGrid: 2)
+        let json = try JSONEncoder().encode(draft.pads[0].land)
+        XCTAssertEqual(try JSONDecoder().decode(Land.self, from: json), draft.pads[0].land)
+        XCTAssertTrue(String(decoding: json, as: UTF8.self).contains("pasteGrid"))
+        // Rotate turns positions and sizes; align puts the tops level; origin moves to pad 1.
+        draft.rotate(ids)
+        XCTAssertEqual(draft.pads[0].land.w, 0.5)
+        draft.align(ids, .top)
+        XCTAssertEqual(draft.pads[0].land.y - draft.pads[0].land.h / 2, draft.pads[1].land.y - draft.pads[1].land.h / 2, accuracy: 1e-9)
+        draft.setOrigin(CGPoint(x: draft.pads[0].land.x, y: draft.pads[0].land.y))
+        XCTAssertEqual(draft.pads[0].land.x, 0, accuracy: 1e-12)
+        // A 3 × 2 grid from pad 1 adds five pads; thermal vias fill a large pad.
+        XCTAssertEqual(draft.grid(from: draft.pads[0].id, columns: 3, rows: 2, pitchX: 2, pitchY: 2).count, 5)
+        var ep = FootprintDraft(spec: twoPin([Land(x: 0, y: 0, w: 3, h: 3), Land(x: 3, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(ep.addThermalVias(to: ep.pads[0].id).count, 9)
+        // IPC-7351B nominal gull wing for an SOIC-8 (L 5.8–6.2, S 3.8–4.2, W 0.31–0.51).
+        let r = try XCTUnwrap(FootprintDraft.ipc7351(lMin: 5.8, lMax: 6.2, sMin: 3.8, sMax: 4.2, wMin: 0.31, wMax: 0.51,
+                                                      toe: 0.35, heel: 0.35, side: 0.03))
+        XCTAssertEqual(r.length, 1.904, accuracy: 0.001)
+        XCTAssertEqual(r.width, 0.578, accuracy: 0.001)
+        XCTAssertEqual(r.centres, 5.0, accuracy: 0.001)
+        // The courtyard margin is kept with the part.
+        ep.courtyardMargin = 0.5
+        XCTAssertEqual(ep.applied(to: twoPin([])).package.courtyard, 0.5)
+    }
+
     func testSnapRoundsToTheGrid() {
         XCTAssertEqual(FootprintDraft.snap(1.26, 0.05), 1.25, accuracy: 1e-12)
         XCTAssertEqual(FootprintDraft.snap(1.276, 0.05), 1.3, accuracy: 1e-12)

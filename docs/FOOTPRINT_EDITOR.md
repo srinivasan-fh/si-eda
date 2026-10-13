@@ -84,6 +84,21 @@ The pad panel also sets, per pad:
 - **Add Thermal Vias**: 0.3 mm plated vias on a 1 mm grid inside the pad, on its pin.
 - **Rotate** (toolbar): the selected pads turn 90° about their centre.
 
+## Layout tools
+
+- **Units**: mm or mil (the toolbar); the cursor position shows at the top left of the canvas.
+- **Arrange**: origin at pad 1 or at the selected pad; align left / right / top / bottom / centres; distribute.
+- **Pad array**: a row (copies and pitch) or a grid (rows and row pitch), numbered along the chosen direction.
+- **Body → Courtyard**: the courtyard margin around pads and body (IPC-7351 nominal 0.25 mm; package JSON
+  `courtyard`, written only when it differs).
+- **Generate**: a standard package's pads (SOIC, TSSOP, SON, QFN, LQFP, BGA, SOT-23, SOT-223, DIP, headers, TO-220)
+  from pins, pitch and body size; it replaces the pads (undo brings them back).
+- **IPC-7351 calculator** (two-sided gull-wing parts): from the datasheet's toe-to-toe span L, heel-to-heel span S and
+  lead width W (min / max), the density level's toe / heel / side fillets (most 0.55 / 0.45 / 0.05, nominal
+  0.35 / 0.35 / 0.03, least 0.15 / 0.25 / 0.01 mm) and tolerances F 0.05, P 0.025 mm: Z = Lmin + 2·toe + RMS,
+  G = Smax − 2·heel − RMS, X = Wmin + 2·side + RMS; the pad is (Z − G) / 2 × X with rows (Z + G) / 2 apart.
+  Apply to Selected Pads sizes and places them.
+
 ## How pads map to pins
 
 Pads are numbered 1…N in order. A pad connects to:

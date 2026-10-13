@@ -182,6 +182,8 @@ struct CustomPartSpec: Codable, Equatable {
         /// "LGA" / "CUSTOM" packages: the exact land pattern (pad 1…N in order) and the body length (y).
         var lands: [Land]?
         var bodyDepth: Double?
+        /// Courtyard margin around pads and body (mm, nil = 0.25).
+        var courtyard: Double?
 
         /// True when the footprint is drawn pad-for-pad from `lands` (catalog LGA parts, footprint-editor parts).
         var usesLandPattern: Bool { type == "LGA" || type == "CUSTOM" }

@@ -23,6 +23,8 @@ struct FootprintDraft: Equatable {
     var pads: [Pad]
     var bodyW: Double
     var bodyD: Double
+    /// Courtyard margin around pads and body (mm).
+    var courtyardMargin = 0.25
     /// "LGA" stays "LGA" (a catalog land pattern); anything edited from a generated footprint becomes "CUSTOM".
     var packageType: String
 
@@ -34,6 +36,7 @@ struct FootprintDraft: Equatable {
         let extentY = pads.map { abs($0.land.y) + $0.land.h / 2 }.max() ?? 1
         bodyW = spec.package.bodySize ?? extentX * 2
         bodyD = spec.package.bodyDepth ?? spec.package.bodySize ?? extentY * 2
+        courtyardMargin = spec.package.courtyard ?? 0.25
     }
 
     /// Writes the land pattern into the part: the package becomes the edited land pattern; the pins are kept.
@@ -44,6 +47,7 @@ struct FootprintDraft: Equatable {
         spec.package.pitch = nil
         spec.package.bodySize = bodyW > 0.5 ? bodyW : nil
         spec.package.bodyDepth = bodyD > 0.5 ? bodyD : nil
+        spec.package.courtyard = abs(courtyardMargin - 0.25) > 1e-9 ? courtyardMargin : nil
     }
 
     /// The part with this footprint (for previews and the core's checks).
@@ -168,6 +172,73 @@ struct FootprintDraft: Equatable {
         return made
     }
 
+    /// Moves the footprint origin to `point` (pads shift by −point).
+    mutating func setOrigin(_ point: CGPoint) {
+        for i in pads.indices {
+            pads[i].land.x -= point.x
+            pads[i].land.y -= point.y
+        }
+    }
+
+    enum Alignment { case left, right, top, bottom, centreX, centreY, distributeX, distributeY }
+
+    /// Lines pads up on the outermost edge (or the centre line), or spaces their centres evenly between the outermost.
+    mutating func align(_ ids: Set<Pad.ID>, _ how: Alignment) {
+        let chosen = pads.indices.filter { ids.contains(pads[$0].id) }
+        guard chosen.count >= 2 else { return }
+        let l = chosen.map { pads[$0].land }
+        let left = l.map { $0.x - $0.w / 2 }.min()!, right = l.map { $0.x + $0.w / 2 }.max()!
+        let top = l.map { $0.y - $0.h / 2 }.min()!, bottom = l.map { $0.y + $0.h / 2 }.max()!
+        func spread(_ key: WritableKeyPath<CustomPartSpec.Land, Double>) {
+            let order = chosen.sorted { pads[$0].land[keyPath: key] < pads[$1].land[keyPath: key] }
+            let first = pads[order.first!].land[keyPath: key], last = pads[order.last!].land[keyPath: key]
+            for (k, i) in order.enumerated() { pads[i].land[keyPath: key] = first + (last - first) * Double(k) / Double(order.count - 1) }
+        }
+        switch how {
+        case .left: chosen.forEach { pads[$0].land.x = left + pads[$0].land.w / 2 }
+        case .right: chosen.forEach { pads[$0].land.x = right - pads[$0].land.w / 2 }
+        case .top: chosen.forEach { pads[$0].land.y = top + pads[$0].land.h / 2 }
+        case .bottom: chosen.forEach { pads[$0].land.y = bottom - pads[$0].land.h / 2 }
+        case .centreX: chosen.forEach { pads[$0].land.x = (left + right) / 2 }
+        case .centreY: chosen.forEach { pads[$0].land.y = (top + bottom) / 2 }
+        case .distributeX: if chosen.count >= 3 { spread(\.x) }
+        case .distributeY: if chosen.count >= 3 { spread(\.y) }
+        }
+    }
+
+    /// A columns × rows grid of copies of a pad at the pitches (the pad itself is the top-left one), numbered row by
+    /// row (or column by column) after the last pad. Returns the new ids.
+    @discardableResult
+    mutating func grid(from id: Pad.ID, columns: Int, rows: Int, pitchX: Double, pitchY: Double, byColumn: Bool = false) -> Set<Pad.ID> {
+        guard let start = pads.first(where: { $0.id == id })?.land, columns >= 1, rows >= 1, columns * rows <= 1024 else { return [] }
+        var made = Set<Pad.ID>()
+        let cells = byColumn ? (0..<columns).flatMap { c in (0..<rows).map { (c, $0) } } : (0..<rows).flatMap { r in (0..<columns).map { ($0, r) } }
+        for (c, r) in cells where c != 0 || r != 0 {
+            var land = start
+            land.pin = ""
+            land.x += Double(c) * pitchX
+            land.y += Double(r) * pitchY
+            let pad = Pad(land: land)
+            pads.append(pad)
+            made.insert(pad.id)
+        }
+        return made
+    }
+
+    /// IPC-7351B land for a two-sided gull-wing or chip part from its lead dimensions (mm): toe-to-toe span L,
+    /// heel-to-heel span S and lead width W (min / max each), fillet goals (toe, heel, side) for the density level,
+    /// fabrication and placement tolerances F and P. Returns pad length × width and the pad-centre distance.
+    static func ipc7351(lMin: Double, lMax: Double, sMin: Double, sMax: Double, wMin: Double, wMax: Double,
+                        toe: Double, heel: Double, side: Double, f: Double = 0.05, p: Double = 0.025)
+        -> (length: Double, width: Double, centres: Double)? {
+        guard lMax >= lMin, sMax >= sMin, wMax >= wMin, lMin > sMax, wMin > 0 else { return nil }
+        let z = lMin + 2 * toe + (pow(lMax - lMin, 2) + f * f + p * p).squareRoot()
+        let g = sMax - 2 * heel - (pow(sMax - sMin, 2) + f * f + p * p).squareRoot()
+        let x = wMin + 2 * side + (pow(wMax - wMin, 2) + f * f + p * p).squareRoot()
+        guard z > g, x > 0 else { return nil }
+        return ((z - g) / 2, x, (z + g) / 2)
+    }
+
     /// Gives a pad a new number (1…N) by moving it in the order; the pads in between shift by one. Pads that follow
     /// their own number keep following it, so their pins move with the number.
     mutating func setNumber(of id: Pad.ID, to number: Int) {
@@ -199,7 +270,8 @@ struct FootprintDraft: Equatable {
             minY = min(minY, p.land.y - p.land.h / 2)
             maxY = max(maxY, p.land.y + p.land.h / 2)
         }
-        return CGRect(x: minX - 0.25, y: minY - 0.25, width: maxX - minX + 0.5, height: maxY - minY + 0.5)
+        let m = courtyardMargin
+        return CGRect(x: minX - m, y: minY - m, width: maxX - minX + 2 * m, height: maxY - minY + 2 * m)
     }
 
     /// Topmost pad under a point (mm), if any.

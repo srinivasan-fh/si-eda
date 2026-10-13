@@ -65,6 +65,8 @@ struct PackageSpec {
     };
     std::vector<Land> lands;
     double bodyDepth = 0;
+    /// Land patterns: courtyard margin around the pads and body (mm, 0 = 0.25). JSON "courtyard", written when set.
+    double courtyard = 0;
 };
 
 /// Behavioural simulation model of a custom part (optional). Pins are referenced by number or name.

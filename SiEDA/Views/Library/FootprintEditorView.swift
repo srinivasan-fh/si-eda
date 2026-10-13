@@ -22,7 +22,31 @@ struct FootprintEditorView: View {
     @State private var arrayCount = 4
     @State private var arrayPitch = 1.27
     @State private var arrayHorizontal = false
+    @State private var arrayRows = 1
+    @State private var arrayRowPitch = 1.27
     @State private var checkTask: Task<Void, Never>?
+    @State private var hoverPoint: CGPoint?
+    /// Lengths shown in mils (1 mil = 0.0254 mm) instead of mm.
+    @AppStorage("footprint.units.mil") private var mil = false
+    // Generator and IPC-7351 calculator inputs.
+    @State private var genType = "SOIC"
+    @State private var genPins = 8
+    @State private var genPitch = 1.27
+    @State private var genBody = 3.9
+    @State private var ipc = IPCInput()
+
+    struct IPCInput {
+        var lMin = 5.8, lMax = 6.2, sMin = 3.8, sMax = 4.2, wMin = 0.31, wMax = 0.51
+        var density = 1  // 0 most, 1 nominal, 2 least
+    }
+
+    private static let alignments: [(title: String, how: FootprintDraft.Alignment)] = [
+        ("Align Left", .left), ("Align Right", .right), ("Align Top", .top), ("Align Bottom", .bottom),
+        ("Align Horizontal Centres", .centreY), ("Align Vertical Centres", .centreX),
+        ("Distribute Horizontally", .distributeX), ("Distribute Vertically", .distributeY),
+    ]
+
+    private static let generatorTypes = ["SOIC", "TSSOP", "SON", "QFN", "LQFP", "BGA", "SOT23", "SOT223", "DIP", "HEADER", "HEADER2", "TO220"]
 
     static let grids: [Double] = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.635, 1.0, 1.27, 2.54]
 
@@ -92,6 +116,28 @@ struct FootprintEditorView: View {
                 .help("Turn the selected pads 90° about their centre")
             Button { edit { $0.centre() } } label: { Label("Centre", systemImage: "scope") }
                 .help("Move the footprint origin to the centre of the pads")
+            Menu {
+                Button("Origin at Pad 1") {
+                    if let p = draft.pads.first?.land { edit { $0.setOrigin(CGPoint(x: p.x, y: p.y)) } }
+                }
+                Button("Origin at Selected Pad") {
+                    if let i = selectedIndex { let p = draft.pads[i].land; edit { $0.setOrigin(CGPoint(x: p.x, y: p.y)) } }
+                }
+                .disabled(selectedIndex == nil)
+                Divider()
+                ForEach(Self.alignments, id: \.title) { item in
+                    Button(LocalizedStringKey(item.title)) { let ids = selection; edit { $0.align(ids, item.how) } }
+                        .disabled(selection.count < 2)
+                }
+            } label: { Label("Arrange", systemImage: "align.horizontal.left") }
+                .help("Set the origin; align or distribute the selected pads")
+            Picker("Units", selection: $mil) {
+                Text(verbatim: "mm").tag(false)
+                Text(verbatim: "mil").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
             Divider().frame(height: 18)
             Button { _ = history.undo(&draft) } label: { Image(systemName: "arrow.uturn.backward") }
                 .disabled(!history.canUndo)
@@ -250,6 +296,15 @@ struct FootprintEditorView: View {
                 Text("Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes")
                     .font(.caption2).foregroundStyle(Theme.textMuted).padding(8)
             }
+            .overlay(alignment: .topLeading) {
+                if let p = hoverPoint {
+                    Text(verbatim: "X \(length(p.x))  Y \(length(p.y))")
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.skyBlue).padding(8)
+                }
+            }
+            .onContinuousHover { phase in
+                if case .active(let at) = phase { hoverPoint = toModel(at, size) } else { hoverPoint = nil }
+            }
             .accessibilityElement()
             .accessibilityLabel("Footprint canvas")
             .accessibilityValue("\(draft.pads.count) pads, \(selection.count) selected")
@@ -280,21 +335,32 @@ struct FootprintEditorView: View {
             Divider()
             bodyFields
             Divider()
+            generator
+            Divider()
+            ipcCalculator
+            Divider()
             issueList
             Divider()
             padTable
         }
     }
 
+    /// A length field in the chosen units (the value is kept in mm).
     private func number(_ title: String, _ value: Binding<Double>, step: Double) -> some View {
-        HStack {
+        let f = mil ? 0.0254 : 1.0
+        let shown = Binding(get: { value.wrappedValue / f }, set: { value.wrappedValue = $0 * f })
+        return HStack {
             Text(title).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
-            TextField(title, value: value, format: .number.precision(.fractionLength(0...4)))
+            TextField(title, value: shown, format: .number.precision(.fractionLength(0...4)))
                 .textFieldStyle(.blue)
                 .frame(width: 90)
             Stepper("", value: value, step: step).labelsHidden()
-            Text("mm").font(.caption2).foregroundStyle(Theme.textMuted)
+            Text(verbatim: mil ? "mil" : "mm").font(.caption2).foregroundStyle(Theme.textMuted)
         }
+    }
+
+    private func length(_ mm: Double) -> String {
+        mil ? String(format: "%.1f mil", mm / 0.0254) : String(format: "%.3f mm", mm)
     }
 
     /// A binding to one land field that records undo once per edit.
@@ -412,6 +478,16 @@ struct FootprintEditorView: View {
             }
             .disabled(selectedIndex == nil)
             .controlSize(.small)
+            Stepper("Rows: \(arrayRows)", value: $arrayRows, in: 1...64).font(.caption)
+            number("Row pitch", $arrayRowPitch, step: 0.05)
+            Button("Add Grid from Pad") {
+                guard let id = selection.first else { return }
+                let cols = arrayCount + 1, rows = arrayRows, px = arrayPitch, py = arrayRowPitch, byColumn = !arrayHorizontal
+                selection = editMaking { $0.grid(from: id, columns: cols, rows: rows, pitchX: px, pitchY: py, byColumn: byColumn) }
+            }
+            .disabled(selectedIndex == nil || arrayRows < 2)
+            .controlSize(.small)
+            .help("A grid of copies (columns = copies + 1, the pad top-left), numbered along the direction picked above")
         }
     }
 
@@ -420,6 +496,83 @@ struct FootprintEditorView: View {
             Text("BODY").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
             number("Width", Binding(get: { draft.bodyW }, set: { v in edit { $0.bodyW = Swift.min(Swift.max(v, 0.5), 60) } }), step: 0.1)
             number("Length", Binding(get: { draft.bodyD }, set: { v in edit { $0.bodyD = Swift.min(Swift.max(v, 0.5), 60) } }), step: 0.1)
+            number("Courtyard", Binding(get: { draft.courtyardMargin },
+                                        set: { v in edit { $0.courtyardMargin = Swift.min(Swift.max(v, 0.05), 5) } }), step: 0.05)
+                .help("Courtyard margin around the pads and body (IPC-7351: 0.25 mm nominal)")
+        }
+    }
+
+    /// Generator: a standard package's pads (replaces the pads; undoable).
+    private var generator: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("GENERATE").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            Picker("Package", selection: $genType) {
+                ForEach(Self.generatorTypes, id: \.self) { Text(verbatim: $0).tag($0) }
+            }
+            .font(.caption)
+            Stepper("Pins: \(genPins)", value: $genPins, in: 1...1024).font(.caption)
+            number("Pitch", $genPitch, step: 0.05)
+            number("Body", $genBody, step: 0.1)
+            Button("Generate Pads") {
+                var part = spec
+                part.package = CustomPartSpec.Package(type: genType, pinCount: genPins, pitch: genPitch, bodySize: genBody)
+                if case .success(let made) = EDAEngine.landPattern(part) {
+                    let generated = FootprintDraft(spec: made)
+                    edit {
+                        $0.pads = generated.pads
+                        $0.bodyW = generated.bodyW
+                        $0.bodyD = generated.bodyD
+                    }
+                    selection = []
+                }
+            }
+            .controlSize(.small)
+            .help("Replace the pads with the package's standard land pattern (undo brings them back)")
+        }
+    }
+
+    /// IPC-7351B pad calculator for two-sided gull-wing / chip parts.
+    private var ipcCalculator: some View {
+        let goals = [(0.55, 0.45, 0.05), (0.35, 0.35, 0.03), (0.15, 0.25, 0.01)][ipc.density]
+        let result = FootprintDraft.ipc7351(lMin: ipc.lMin, lMax: ipc.lMax, sMin: ipc.sMin, sMax: ipc.sMax,
+                                            wMin: ipc.wMin, wMax: ipc.wMax, toe: goals.0, heel: goals.1, side: goals.2)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("IPC-7351 CALCULATOR").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            Picker("Density", selection: $ipc.density) {
+                Text("Most").tag(0)
+                Text("Nominal").tag(1)
+                Text("Least").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            number("L min", $ipc.lMin, step: 0.05)
+            number("L max", $ipc.lMax, step: 0.05)
+            number("S min", $ipc.sMin, step: 0.05)
+            number("S max", $ipc.sMax, step: 0.05)
+            number("W min", $ipc.wMin, step: 0.01)
+            number("W max", $ipc.wMax, step: 0.01)
+            if let r = result {
+                Text(verbatim: "\(length(r.length)) × \(length(r.width)) · rows \(length(r.centres)) apart")
+                    .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+                Button("Apply to Selected Pads") {
+                    let ids = selection
+                    edit {
+                        for i in $0.pads.indices where ids.contains($0.pads[i].id) {
+                            let across = abs($0.pads[i].land.x) >= abs($0.pads[i].land.y)
+                            $0.pads[i].land.w = across ? r.length : r.width
+                            $0.pads[i].land.h = across ? r.width : r.length
+                            if across { $0.pads[i].land.x = ($0.pads[i].land.x < 0 ? -1 : 1) * r.centres / 2 }
+                            else { $0.pads[i].land.y = ($0.pads[i].land.y < 0 ? -1 : 1) * r.centres / 2 }
+                        }
+                    }
+                }
+                .controlSize(.small)
+                .disabled(selection.isEmpty)
+            } else {
+                Text("L must exceed S, and every max its min").font(.caption2).foregroundStyle(Theme.warning)
+            }
+            Text("Gull-wing leads. L: toe-to-toe span, S: heel-to-heel span, W: lead width (datasheet). F 0.05 / P 0.025 mm.")
+                .font(.caption2).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 

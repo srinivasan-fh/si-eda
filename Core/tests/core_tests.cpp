@@ -22638,4 +22638,13 @@ TEST(footprint_pad_options_rounded_npth_mask_paste) {
     for (size_t at = paste.find("D03*"); at != std::string::npos; at = paste.find("D03*", at + 1)) ++windows;
     CHECK(windows == 4);
     CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::TopMask).find("RR,3.2000X3.2000X0.8500") != std::string::npos);
+    // A wider courtyard margin widens the footprint's courtyard by twice the difference.
+    const double before = p.pcb.courtyard(*p.schematic.find(u)).width();
+    CustomPartSpec wide = back;
+    wide.name = "PADOPT-WIDE";
+    wide.package.courtyard = 0.75;
+    CHECK(customPartSpecFromJson(customPartSpecToJson(wide)).package.courtyard == 0.75);
+    const int w = p.schematic.addCustomComponent(p.addCustomPart(wide), "", {0, 100});
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK_NEAR(p.pcb.courtyard(*p.schematic.find(w)).width() - before, 1.0, 1e-6);
 }
