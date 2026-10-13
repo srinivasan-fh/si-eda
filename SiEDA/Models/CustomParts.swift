@@ -239,10 +239,11 @@ struct CustomPartSpec: Codable, Equatable {
             var paste: Double?
             var pasteGrid: Int?
             /// 45° corners (fraction of the short side), a drawn outline ([x, y] round the centre, mm) and the
-            /// inner-layer diameter of a through-hole pad (pad stack).
+            /// inner-layer diameter of a through-hole pad (pad stack); `solder` = its diameter on the solder side.
             var chamfer: Double?
             var outline: [[Double]]?
             var inner: Double?
+            var solder: Double?
             var isEmpty: Bool { self == Options() }
         }
 

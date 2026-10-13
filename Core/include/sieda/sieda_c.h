@@ -389,6 +389,9 @@ void sieda_pcb_clear_routing(SiedaProject* project);
  * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.
  * The board's autoroute options are left as they were. Caller frees. */
 char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json);
+/// Pours refilled on demand: `hold` keeps the last fill through edits, `refill` pours again now. Returns 1 while the
+/// held fill is out of date.
+int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
 char* sieda_design_rule_presets_json(void);

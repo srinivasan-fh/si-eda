@@ -399,7 +399,7 @@ struct Pad {
     int pasteGrid = 1;
     /// Polygon pad round `position` (board frame; empty = rectangle / circle) and the inner-layer diameter (0 = size).
     std::vector<Vec2> outline{};
-    double inner = 0;
+    double inner = 0, solder = 0;  // solder: a through-hole pad's diameter on the side opposite the part (0 = size)
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
     bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };
@@ -625,8 +625,13 @@ public:
     /// clearance to earlier ones of other nets.
     std::vector<ZoneFill> fillZones(const Schematic& sch, const std::vector<Pad>& pads, const std::vector<Track>& tracks,
                                     const std::vector<Via>& vias) const;
-    /// Current pours (cached; refilled automatically when copper, zones or the board change).
+    /// Current pours (cached; refilled automatically when copper, zones or the board change, unless `holdPours`).
     const std::vector<ZoneFill>& zoneFills(const Schematic& sch) const;
+    /// Pours refilled on demand only (an editing preference, not saved): edits keep the last fill until
+    /// `refillPours`; `poursStale` says the copper has changed since.
+    bool holdPours = false;
+    void refillPours() const { fillValid_ = false; }
+    bool poursStale() const { return fillStale_; }
     /// True if `net` has a zone (its connections may be made through poured copper).
     bool isZoneNet(const Schematic& sch, int net) const;
 
@@ -704,7 +709,7 @@ private:
     bool fullResolutionOnly_ = false, usedCoarse_ = false;
     mutable std::vector<ZoneFill> fillCache_;
     mutable size_t fillKey_ = 0;
-    mutable bool fillValid_ = false;
+    mutable bool fillValid_ = false, fillStale_ = false;
     /// fillZones: the cells inside the outline and clear of the holes, kept while boardMaskKey_ (its inputs) holds.
     mutable std::vector<char> boardMask_;
     mutable std::string boardMaskKey_;

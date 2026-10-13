@@ -987,6 +987,8 @@ struct ZoneFillInfo: Decodable, Equatable {
     var rects: [Double]
     /// Centres (x, y pairs) of the floating islands the fill left out.
     var removedIslands: [Double]?
+    /// A held fill (Refill Pours on demand) the copper has changed since.
+    var stale: Bool?
 
     var cgRects: [CGRect] {
         stride(from: 0, to: rects.count - 3, by: 4).map {

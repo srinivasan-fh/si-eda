@@ -60,12 +60,14 @@ struct PackageSpec {
         int pasteGrid = 1;
         /// More shapes: corners cut at 45° (`chamfer`, a fraction of the short side, 0…0.5) or any outline (`outline`,
         /// mm round the pad centre, y down: trapezoids, custom pads); `inner` = a through-hole pad's diameter on the
-        /// inner copper layers (pad stack; 0 = the pad's own size).
+        /// inner copper layers (pad stack; 0 = the pad's own size); `solder` = its diameter on the solder side (the
+        /// layer opposite the part, copper and mask; 0 = the pad's own size).
         double chamfer = 0;
         std::vector<Vec2> outline{};
-        double inner = 0;
+        double inner = 0, solder = 0;
         bool hasOptions() const {
-            return corner > 0 || npth || mask >= 0 || paste >= 0 || pasteGrid > 1 || chamfer > 0 || !outline.empty() || inner > 0;
+            return corner > 0 || npth || mask >= 0 || paste >= 0 || pasteGrid > 1 || chamfer > 0 || !outline.empty() || inner > 0 ||
+                   solder > 0;
         }
         Land() = default;
         Land(double x_, double y_, double w_, double h_, double drill_ = 0, bool round_ = false, std::string pin_ = {})

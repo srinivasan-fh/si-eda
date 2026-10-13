@@ -64,6 +64,29 @@ struct FootprintDraft: Equatable {
         }
     }
 
+    /// A short silkscreen bar beside pad 1 on its inner side (towards the centre: inside the courtyard, 0.3 mm clear
+    /// of the pad, so the silk-on-pad check stays quiet).
+    mutating func addPin1Mark() {
+        guard let p = pads.first?.land else { return }
+        let alongX = abs(p.x) >= abs(p.y)
+        let sx: Double = p.x > 0 ? 1 : -1, sy: Double = p.y > 0 ? 1 : -1
+        let c = alongX ? CGPoint(x: p.x - sx * (p.w / 2 + 0.4), y: p.y) : CGPoint(x: p.x, y: p.y - sy * (p.h / 2 + 0.4))
+        let half = 0.15  // across the line to the centre
+        graphics.append(alongX ? .init(x0: c.x, y0: c.y - half, x1: c.x, y1: c.y + half, width: 0.2)
+                               : .init(x0: c.x - half, y0: c.y, x1: c.x + half, y1: c.y, width: 0.2))
+    }
+
+    /// Pads a selection filter lets through: "smd", "tht" (drilled), "mechanical" (no pin or a plain hole), else all.
+    func passes(_ pad: Pad, filter: String) -> Bool {
+        let l = pad.land
+        switch filter {
+        case "smd": return l.drill == 0
+        case "tht": return l.drill > 0 && l.options.npth != true
+        case "mechanical": return l.pin == "-" || l.options.npth == true
+        default: return true
+        }
+    }
+
     /// The part with this footprint (for previews and the core's checks).
     func applied(to spec: CustomPartSpec) -> CustomPartSpec {
         var copy = spec
@@ -349,3 +372,42 @@ struct EditHistory<Document: Equatable> {
 
 /// Undo / redo of footprint edits.
 typealias FootprintHistory = EditHistory<FootprintDraft>
+
+/// The user's own footprint library: one JSON file per footprint (pads, body, courtyard margin, silk / fab lines) in
+/// Application Support/SiEDA/Footprints, listed in the footprint editor's Library popover.
+enum UserFootprintLibrary {
+    struct Saved: Codable {
+        var lands: [CustomPartSpec.Land]
+        var bodyW: Double
+        var bodyD: Double
+        var courtyard: Double
+        var graphics: [CustomPartSpec.Graphic]
+    }
+
+    static var folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("SiEDA/Footprints", isDirectory: true)
+
+    private static func file(_ name: String) -> URL {
+        let safe = name.map { "/:\\".contains($0) ? "-" : $0 }
+        return folder.appendingPathComponent(String(safe)).appendingPathExtension("json")
+    }
+
+    static func names() -> [String] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.pathExtension == "json" }.map { $0.deletingPathExtension().lastPathComponent }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    static func save(_ draft: FootprintDraft, as name: String) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let saved = Saved(lands: draft.pads.map(\.land), bodyW: draft.bodyW, bodyD: draft.bodyD, courtyard: draft.courtyardMargin,
+                          graphics: draft.graphics)
+        try JSONEncoder().encode(saved).write(to: file(name), options: .atomic)
+    }
+
+    static func load(_ name: String) -> Saved? {
+        (try? Data(contentsOf: file(name))).flatMap { try? JSONDecoder().decode(Saved.self, from: $0) }
+    }
+
+    static func remove(_ name: String) { try? FileManager.default.removeItem(at: file(name)) }
+}

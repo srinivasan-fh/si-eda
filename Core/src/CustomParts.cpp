@@ -195,6 +195,7 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
                 if (l.pasteGrid > 1) o["pasteGrid"] = l.pasteGrid;
                 if (l.chamfer > 0) o["chamfer"] = l.chamfer;
                 if (l.inner > 0) o["inner"] = l.inner;
+                if (l.solder > 0) o["solder"] = l.solder;
                 if (!l.outline.empty()) {
                     Json pts = Json::array();
                     for (const Vec2& v : l.outline) {
@@ -425,6 +426,7 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
                 l.pasteGrid = static_cast<int>(num("pasteGrid", 1, 1, 8));
                 l.chamfer = num("chamfer", 0, 0, 0.5);
                 l.inner = num("inner", 0, 0, 30);
+                l.solder = num("solder", 0, 0, 30);
                 for (const Json& pt : o.get("outline").items()) {
                     const double x = pt[0].asNumber(0), y = pt[1].asNumber(0);
                     if (!std::isfinite(x) || !std::isfinite(y) || std::fabs(x) > 30 || std::fabs(y) > 30 || l.outline.size() >= 64)
@@ -1032,6 +1034,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             pad.paste = l->paste;
             pad.pasteGrid = l->pasteGrid;
             pad.inner = l->inner;
+            pad.solder = l->solder;
             pad.outline = l->outline;
             if (pad.outline.empty() && l->chamfer > 0 && !pad.round) {  // octagon: the four corners cut at 45°
                 const double hx = pad.size.x / 2, hy = pad.size.y / 2, k = l->chamfer * std::min(pad.size.x, pad.size.y);
@@ -1369,6 +1372,90 @@ CustomPartSpec landPatternFromFootprint(const CustomPartSpec& spec) {
     return out;
 }
 
+namespace {
+/// Distance from point p to the rectangle (centre c, half sizes h); 0 inside.
+double rectDistance(Vec2 p, Vec2 c, Vec2 h) {
+    const double dx = std::max(0.0, std::fabs(p.x - c.x) - h.x), dy = std::max(0.0, std::fabs(p.y - c.y) - h.y);
+    return std::hypot(dx, dy);
+}
+
+/// Pin-1 marking, numbering order, paste apertures, silkscreen on pads and graphics outside the courtyard.
+void landChecksMore(const CustomPartSpec& spec, std::vector<LandIssue>& out) {
+    const auto& lands = spec.package.lands;
+    const auto& lines = spec.package.graphics;
+    char text[200];
+    for (size_t i = 0; i < lands.size(); ++i) {
+        const auto& l = lands[i];
+        const int n = static_cast<int>(i) + 1;
+        if (l.drill == 0 && l.paste > 0 && l.paste < 0.5 - 1e-9) {
+            std::snprintf(text, sizeof text, "Pad %d: a paste opening %.0f %% of the pad size starves the joint (50–100 %% is usual).", n,
+                          l.paste * 100);
+            out.push_back({"warning", "LAND_PASTE", text, {n}});
+        } else if (l.drill == 0 && l.w * l.h >= 9 && l.pasteGrid <= 1 && l.paste >= 0.9) {
+            std::snprintf(text, sizeof text, "Pad %d: a %.1f × %.1f mm pad under one full paste window floats the part; split "
+                          "the paste into windows (about 50–80 %% coverage).", n, l.w, l.h);
+            out.push_back({"info", "LAND_PASTE", text, {n}});
+        }
+        for (const FootprintLine& g : lines) {
+            if (g.fab) continue;
+            const Vec2 c{l.x, l.y}, h{l.w / 2, l.h / 2};
+            double d = 1e9;
+            for (int k = 0; k <= 20; ++k) d = std::min(d, rectDistance(g.a + (g.b - g.a) * (k / 20.0), c, h));
+            if (d - g.width / 2 < 0.15 - 1e-9) {
+                std::snprintf(text, sizeof text, "A silkscreen line comes within %.2f mm of pad %d (keep 0.15 mm; the fab clips "
+                              "silk off pads).", std::max(0.0, d - g.width / 2), n);
+                out.push_back({"warning", "LAND_SILK_PAD", text, {n}});
+                break;
+            }
+        }
+    }
+    if (lands.size() > 2 && !lines.empty()) {  // own silkscreen drawn: pad 1 told apart by its shape or a mark near it
+        const auto& p1 = lands[0];
+        bool distinct = false;
+        for (size_t i = 1; i < lands.size() && !distinct; ++i)
+            distinct = lands[i].round != p1.round || std::fabs(lands[i].corner - p1.corner) > 1e-9 ||
+                       std::fabs(lands[i].chamfer - p1.chamfer) > 1e-9 || lands[i].outline.size() != p1.outline.size();
+        const Vec2 c1{p1.x, p1.y}, h1{p1.w / 2, p1.h / 2};
+        for (const FootprintLine& g : lines)  // a silk mark within 1 mm of pad 1's edge
+            distinct = distinct || (!g.fab && std::min(rectDistance(g.a, c1, h1), rectDistance(g.b, c1, h1)) < 1.0);
+        if (!distinct)
+            out.push_back({"info", "LAND_PIN1", "Pad 1 looks like every other pad: give it another shape (rounded / "
+                                                "chamfered) or add a pin-1 mark (Add Pin-1 Mark).", {1}});
+    }
+    if (lands.size() > 2 && std::none_of(lands.begin(), lands.end(), [](const auto& l) { return !l.pin.empty(); })) {
+        // Numbering (pads without ball names): consecutive pads should be neighbours; count the big jumps.
+        std::vector<double> step;
+        for (size_t i = 0; i + 1 < lands.size(); ++i)
+            step.push_back(std::hypot(lands[i + 1].x - lands[i].x, lands[i + 1].y - lands[i].y));
+        std::vector<double> sorted = step;
+        std::nth_element(sorted.begin(), sorted.begin() + static_cast<long>(sorted.size() / 2), sorted.end());
+        const double median = sorted[sorted.size() / 2];
+        int jumps = 0;
+        for (double d : step) jumps += d > 3 * median + 1e-9;
+        if (median > 0 && jumps > std::max(4, static_cast<int>(lands.size() / 8))) {
+            std::snprintf(text, sizeof text, "Pad numbers jump across the footprint %d times instead of running along the rows "
+                          "(pad 1 top-left, then counter-clockwise or down one row and up the other).", jumps);
+            out.push_back({"warning", "LAND_NUMBERING", text, {}});
+        }
+    }
+    // Graphics should stay inside the courtyard (pads and body plus the margin).
+    double x0 = 0, x1 = 0, y0 = 0, y1 = 0;
+    for (const auto& l : lands)
+        x0 = std::min(x0, l.x - l.w / 2), x1 = std::max(x1, l.x + l.w / 2), y0 = std::min(y0, l.y - l.h / 2),
+        y1 = std::max(y1, l.y + l.h / 2);
+    const double bw = spec.package.bodySize / 2, bd = (spec.package.bodyDepth > 0 ? spec.package.bodyDepth : spec.package.bodySize) / 2;
+    const double m = spec.package.courtyard > 0 ? spec.package.courtyard : 0.25;
+    x0 = std::min(x0, -bw) - m, x1 = std::max(x1, bw) + m, y0 = std::min(y0, -bd) - m, y1 = std::max(y1, bd) + m;
+    for (const FootprintLine& g : lines)
+        for (Vec2 e : {g.a, g.b})
+            if (e.x < x0 - 1e-9 || e.x > x1 + 1e-9 || e.y < y0 - 1e-9 || e.y > y1 + 1e-9) {
+                out.push_back({"info", "LAND_COURTYARD", std::string(g.fab ? "A fab" : "A silkscreen") +
+                                                         " line runs outside the courtyard: a neighbour may be placed on it.", {}});
+                return;
+            }
+}
+}  // namespace
+
 std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGap) {
     std::vector<LandIssue> out;
     const auto& lands = spec.package.lands;
@@ -1411,7 +1498,15 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
                 std::snprintf(text, sizeof text, "Pads %d and %d are %.3f mm apart (minimum %.2f mm).", a, b, g, minGap);
                 out.push_back({"warning", "LAND_GAP", text, {a, b}});
             }
+            // Solder mask web between the two openings (each pad's margin, default 0.05 mm).
+            const double web = g - (lands[i].mask >= 0 ? lands[i].mask : 0.05) - (lands[j].mask >= 0 ? lands[j].mask : 0.05);
+            if (g >= minGap && web < -1e-9 && (lands[i].drill == 0 || lands[j].drill == 0)) {
+                std::snprintf(text, sizeof text, "The solder mask openings of pads %d and %d overlap (their %.3f mm gap is less "
+                              "than the two mask margins): solder can bridge them; shrink the margins.", a, b, g);
+                out.push_back({"info", "LAND_MASK_SLIVER", text, {a, b}});
+            }
         }
+    landChecksMore(spec, out);
     return out;
 }
 

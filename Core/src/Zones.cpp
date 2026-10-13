@@ -437,7 +437,8 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         for (double d : {v.position.x, v.position.y, v.diameter}) hashD(h, d);
         hashI(h, v.net);
     }
-    if (!fillValid_ || h != fillKey_) {
+    fillStale_ = fillValid_ && h != fillKey_ && holdPours;
+    if (!fillValid_ || (h != fillKey_ && !holdPours)) {
         fillCache_ = fillZones(sch, ps, tracks, vias);
         fillKey_ = h;
         fillValid_ = true;

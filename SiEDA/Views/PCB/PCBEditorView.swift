@@ -173,6 +173,8 @@ struct PCBEditorView: View {
                                 isActive: store.pcbShapeTool == .cutout) { pickShape(.cutout) }
                 ToolStripButton(systemImage: "nosign", help: "Draw a routing keep-out: drag a rectangle (no tracks or vias inside)",
                                 isActive: store.pcbShapeTool == .keepout) { pickShape(.keepout) }
+                ToolStripButton(systemImage: "capsule", help: "Cut a slot: drag from one end to the other (right-click for its width)",
+                                isActive: store.pcbShapeTool == .slot) { pickShape(.slot) }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
@@ -483,6 +485,22 @@ struct PCBEditorView: View {
                             .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
                             .padding(10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        }
+                        if store.snapshot.zoneFills.contains(where: { $0.stale == true }) {  // held pours (Refill Pours on demand)
+                            HStack(spacing: 8) {
+                                Image(systemName: "drop.triangle").foregroundStyle(Theme.warning)
+                                Text("Pours are out of date").foregroundStyle(Theme.textPrimary)
+                                Button("Refill Pours") { store.refillPours() }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            }
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         }
                         if let session = store.placementSession {
                             PlaceNewPartsHUD(session: session)
@@ -899,22 +917,24 @@ struct PCBCanvas: View {
                     return .handled
                 }
                 .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
-                // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
-                .onKeyPress(keys: ["r", "f", "v", "V", "h", "x", "t"], phases: .down) { press in
-                    guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
-                    if store.placementSession != nil, press.key == KeyEquivalent("r") || press.key == KeyEquivalent("f") {
+                // Single-letter tool keys (Settings → Shortcuts); ⌘/⌥/⌃ combinations belong to menus and text editing.
+                .onKeyPress(phases: .down) { press in
+                    guard press.modifiers.subtracting(.shift).isEmpty,
+                          let key = ShortcutStore.shared.toolKey(press.characters, canvas: "pcb") else { return .ignored }
+                    if store.placementSession != nil, key == KeyEquivalent("r") || key == KeyEquivalent("f") {
                         // Placing new parts: R turns and F flips the part at the cursor.
-                        if press.key == KeyEquivalent("r") { store.rotatePlacement() } else { store.flipPlacement() }
+                        if key == KeyEquivalent("r") { store.rotatePlacement() } else { store.flipPlacement() }
                         return .handled
                     }
-                    switch press.key {
+                    switch key {
+                    case KeyEquivalent("b"): store.refillPours()
                     case KeyEquivalent("t"):
                         panMode = false
                         routeTool = false
                         tuneTool = true
                     case KeyEquivalent("r"): store.rotateFootprints()
                     case KeyEquivalent("f"): store.flipFootprints()
-                    case KeyEquivalent("v"), KeyEquivalent("V"):
+                    case KeyEquivalent("v"):
                         // While routing, V places a via and continues on the other side (as in other PCB tools);
                         // Shift-V goes to the next layer the other way (blind / micro vias).
                         if store.routePreview != nil {
@@ -1122,7 +1142,7 @@ struct PCBCanvas: View {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
                     } else if let tool = store.pcbShapeTool {
-                        dragMode = tool == .keepout ? .keepoutBox : .pan(viewport.offset)  // a click adds a corner
+                        dragMode = tool == .keepout || tool == .slot ? .keepoutBox : .pan(viewport.offset)  // a click adds a corner
                     } else if store.placementSession != nil {
                         dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
@@ -1177,7 +1197,9 @@ struct PCBCanvas: View {
                 } else if case .marquee = dragMode {
                     if moved, let rect = zoomRect { selectInside(rect) }
                 } else if case .keepoutBox = dragMode {
-                    if moved, let rect = zoomRect { store.addKeepout(worldRect(rect), layer: -1) }
+                    if moved, store.pcbShapeTool == .slot {
+                        store.addSlot(from: viewport.toWorld(value.startLocation), to: viewport.toWorld(value.location))
+                    } else if moved, let rect = zoomRect { store.addKeepout(worldRect(rect), layer: -1) }
                 } else if !moved, !spaceHeld, let tool = store.pcbShapeTool {
                     shapeClick(viewport.toWorld(value.location), tool: tool)
                 } else if copperDragActive {
@@ -1311,9 +1333,18 @@ struct PCBCanvas: View {
         if store.pcbCompare != nil {
             shapes.append(CanvasMenuItem(title: String(localized: "Clear Comparison")) { store.pcbCompare = nil })
         }
+        if store.pcbShapeTool == .slot {
+            shapes += [0.6, 0.8, 1.0, 1.5, 2.0, 3.0].map { w in
+                CanvasMenuItem(title: String(format: String(localized: "Slot Width %.1f mm"), w) + (store.slotWidth == w ? " ✓" : "")) { store.slotWidth = w }
+            }
+        }
         return shapes + [
             CanvasMenuItem(title: String(localized: "Merge Tracks"), enabled: !store.snapshot.tracks.isEmpty) { store.mergeTracks() },
             CanvasMenuItem(title: String(localized: "Minimise Vias"), enabled: !store.snapshot.vias.isEmpty) { store.minimizeVias() },
+            CanvasMenuItem(title: String(localized: "Refill Pours"), key: "b", enabled: !store.snapshot.zones.isEmpty) { store.refillPours() },
+            CanvasMenuItem(title: store.holdPours ? String(localized: "Refill Pours After Every Edit") : String(localized: "Refill Pours Only on Demand")) {
+                store.holdPours.toggle()
+            },
             CanvasMenuItem(title: String(localized: "Zoom to Fit")) { store.requestView(.fit) },
         ]
     }
@@ -1723,6 +1754,7 @@ struct PCBCanvas: View {
             CanvasOverlays.banner("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels", in: &ctx, size: size)
         } else if let tool = store.pcbShapeTool {
             CanvasOverlays.banner(tool == .keepout ? String(localized: "Keep-out — drag a rectangle · Esc ends")
+                                  : tool == .slot ? String(format: String(localized: "Slot %.2f mm — drag from one end to the other · Esc ends"), store.slotWidth)
                                   : String(localized: "Click the corners; double-click or Enter closes the shape · Esc cancels"),
                                   in: &ctx, size: size)
         } else if let route {

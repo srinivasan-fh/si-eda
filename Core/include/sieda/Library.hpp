@@ -73,7 +73,7 @@ struct PadDef {
     int pasteGrid = 1;
     /// Polygon pad (chamfered or drawn outline) round the pad centre, footprint frame; inner-layer size (pad stack).
     std::vector<Vec2> outline{};
-    double inner = 0;
+    double inner = 0, solder = 0;  // solder: diameter on the side opposite the part
 };
 
 /// A footprint line on the silkscreen or the fabrication (assembly) drawing, footprint frame (mm, y down).

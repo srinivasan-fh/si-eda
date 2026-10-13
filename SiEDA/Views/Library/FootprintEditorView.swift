@@ -41,6 +41,21 @@ struct FootprintEditorView: View {
     @State private var libraryQuery = ""
     @State private var show3D = false
     @State private var preview3D: MeshData?
+    /// Layers hidden on the canvas (comma list of `Self.layers` ids); mask and paste openings start hidden.
+    @AppStorage("footprint.hiddenLayers") private var hiddenLayers = "mask,paste"
+    /// Selection filter: "all", "smd", "tht" or "mechanical" pads can be picked.
+    @State private var pickFilter = "all"
+    @State private var saveName = ""
+    @State private var myFootprints: [String] = []
+    static let layers = [("copper", "Copper"), ("mask", "Solder Mask"), ("paste", "Paste"), ("silk", "Silkscreen"),
+                         ("fab", "Fabrication"), ("courtyard", "Courtyard"), ("body", "Body")]
+    private func shows(_ layer: String) -> Bool { !hiddenLayers.split(separator: ",").contains(Substring(layer)) }
+    /// The pad under `point` the selection filter lets through.
+    private func pickPad(at point: CGPoint) -> FootprintDraft.Pad.ID? {
+        guard let id = draft.pad(at: point), let pad = draft.pads.first(where: { $0.id == id }),
+              draft.passes(pad, filter: pickFilter) else { return nil }
+        return id
+    }
 
     struct IPCInput {
         var lMin = 5.8, lMax = 6.2, sMin = 3.8, sMax = 4.2, wMin = 0.31, wMax = 0.51
@@ -109,6 +124,42 @@ struct FootprintEditorView: View {
     /// Library footprints to start from (search by name or package).
     private var libraryBrowser: some View {
         VStack(alignment: .leading, spacing: 8) {
+            HStack {  // the user's own library (Application Support/SiEDA/Footprints)
+                TextField("Name", text: $saveName).textFieldStyle(.roundedBorder)
+                Button("Save to My Footprints") {
+                    let name = saveName.trimmingCharacters(in: .whitespaces)
+                    try? UserFootprintLibrary.save(draft, as: name.isEmpty ? (spec.name.isEmpty ? "Footprint" : spec.name) : name)
+                    saveName = ""
+                    myFootprints = UserFootprintLibrary.names()
+                }
+                .disabled(draft.pads.isEmpty)
+            }
+            let mine = myFootprints.filter { libraryQuery.isEmpty || $0.localizedCaseInsensitiveContains(libraryQuery) }
+            if !mine.isEmpty {
+                Text("MY FOOTPRINTS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                ForEach(mine, id: \.self) { name in
+                    HStack {
+                        Button(name) {
+                            guard let saved = UserFootprintLibrary.load(name) else { return }
+                            selection = []
+                            edit {
+                                $0.pads = saved.lands.map { FootprintDraft.Pad(land: $0) }
+                                $0.bodyW = saved.bodyW
+                                $0.bodyD = saved.bodyD
+                                $0.courtyardMargin = saved.courtyard
+                                $0.graphics = saved.graphics
+                            }
+                            showLibrary = false
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                        Button { UserFootprintLibrary.remove(name); myFootprints = UserFootprintLibrary.names() } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Remove from My Footprints")
+                    }
+                }
+                Divider()
+            }
             TextField("Search footprints", text: $libraryQuery).textFieldStyle(.roundedBorder)
             List(EDAEngine.footprintLibrary(libraryQuery)) { fp in
                 Button {
@@ -132,6 +183,7 @@ struct FootprintEditorView: View {
             .frame(width: 340, height: 360)
         }
         .padding(12)
+        .onAppear { myFootprints = UserFootprintLibrary.names() }
     }
 
     private var toolbar: some View {
@@ -184,6 +236,28 @@ struct FootprintEditorView: View {
             Button { showLibrary = true } label: { Label("Library", systemImage: "books.vertical") }
                 .help("Start from a library footprint: its pads replace these (undoable)")
                 .popover(isPresented: $showLibrary) { libraryBrowser }
+            Menu {
+                ForEach(Self.layers.indices, id: \.self) { i in
+                    Toggle(LocalizedStringKey(Self.layers[i].1), isOn: Binding(get: { shows(Self.layers[i].0) }, set: { on in
+                        var set = Set(hiddenLayers.split(separator: ",").map(String.init))
+                        if on { set.remove(Self.layers[i].0) } else { set.insert(Self.layers[i].0) }
+                        hiddenLayers = set.sorted().joined(separator: ",")
+                    }))
+                }
+            } label: { Label("Layers", systemImage: "square.3.layers.3d") }
+                .help("Show or hide copper, mask and paste openings, silkscreen, fabrication, courtyard and body")
+            Menu {
+                Picker("Pick", selection: $pickFilter) {
+                    Text("All Pads").tag("all")
+                    Text("SMD Pads").tag("smd")
+                    Text("Through-Hole Pads").tag("tht")
+                    Text("Mechanical Pads").tag("mechanical")
+                }
+                .pickerStyle(.inline)
+                Divider()
+                Button("Select All of These") { selection = Set(draft.pads.filter { draft.passes($0, filter: pickFilter) }.map(\.id)) }
+            } label: { Label("Select", systemImage: "line.3.horizontal.decrease.circle") }
+                .help("Selection filter: which pads a click picks")
             Toggle(isOn: $show3D) { Label("3D", systemImage: "cube") }
                 .toggleStyle(.button)
                 .help("Show the part in 3D above the side panel")
@@ -245,7 +319,7 @@ struct FootprintEditorView: View {
         return CGPoint(x: (p.x - size.width / 2) / s, y: (p.y - size.height / 2) / s)
     }
 
-    private var issuePads: Set<Int> { Set(issues.flatMap(\.pads)) }
+    private var issuePads: Set<Int> { Set(issues.filter { $0.severity != "info" }.flatMap(\.pads)) }
 
     private var canvas: some View {
         GeometryReader { geo in
@@ -270,11 +344,15 @@ struct FootprintEditorView: View {
                 ctx.stroke(axes.applying(t), with: .color(Theme.skyBlue.opacity(0.6)), lineWidth: 1)
                 // Body and courtyard.
                 let body = CGRect(x: -draft.bodyW / 2, y: -draft.bodyD / 2, width: draft.bodyW, height: draft.bodyD)
-                ctx.fill(Path(body).applying(t), with: .color(Theme.boardFill.opacity(0.8)))
-                ctx.stroke(Path(body).applying(t), with: .color(Theme.silkscreen.opacity(0.8)), lineWidth: 1)
-                ctx.stroke(Path(draft.courtyard).applying(t), with: .color(Theme.lightBlue.opacity(0.4)),
-                           style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                for g in draft.graphics {  // drawn silk (white) and fab (amber) lines
+                if shows("body") {
+                    ctx.fill(Path(body).applying(t), with: .color(Theme.boardFill.opacity(0.8)))
+                    ctx.stroke(Path(body).applying(t), with: .color(Theme.silkscreen.opacity(0.8)), lineWidth: 1)
+                }
+                if shows("courtyard") {
+                    ctx.stroke(Path(draft.courtyard).applying(t), with: .color(Theme.lightBlue.opacity(0.4)),
+                               style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                }
+                for g in draft.graphics where shows(g.fab ? "fab" : "silk") {  // drawn silk (white) and fab (amber) lines
                     var line = Path()
                     line.move(to: CGPoint(x: g.x0, y: g.y0))
                     line.addLine(to: CGPoint(x: g.x1, y: g.y1))
@@ -293,10 +371,21 @@ struct FootprintEditorView: View {
                     let r = CGRect(x: l.x - l.w / 2, y: l.y - l.h / 2, width: l.w, height: l.h)
                     let shape = l.path(in: r)
                     let mechanical = l.pin == "-"
-                    if l.options.npth == true {  // a plain hole: outline only
+                    if !shows("copper") {  // copper hidden: only the openings and labels
+                    } else if l.options.npth == true {  // a plain hole: outline only
                         ctx.stroke(shape.applying(t), with: .color(Theme.via), lineWidth: 1)
                     } else {
                         ctx.fill(shape.applying(t), with: .color(mechanical ? Theme.via.opacity(0.6) : Theme.pad))
+                    }
+                    if shows("mask") {  // the solder mask opening (pad + margin)
+                        let m = l.options.mask ?? 0.05
+                        ctx.stroke(l.path(in: r.insetBy(dx: -m, dy: -m)).applying(t), with: .color(Theme.success.opacity(0.8)),
+                                   style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                    }
+                    if shows("paste"), l.drill == 0, l.options.paste != 0 {  // the stencil opening (fraction per side)
+                        let f = l.options.paste ?? 1
+                        ctx.stroke(l.path(in: r.insetBy(dx: l.w * (1 - f) / 2, dy: l.h * (1 - f) / 2)).applying(t),
+                                   with: .color(Theme.textSecondary), lineWidth: 1)
                     }
                     if l.drill > 0 {
                         let d = l.drill
@@ -317,7 +406,7 @@ struct FootprintEditorView: View {
                     }
                 }
                 // Pin-1 marker.
-                if let first = draft.pads.first?.land {
+                if shows("silk"), let first = draft.pads.first?.land {
                     let m = CGPoint(x: first.x + (first.x <= 0 ? -1 : 1) * (first.w / 2 + 0.4), y: first.y).applying(t)
                     ctx.fill(Path(ellipseIn: CGRect(x: m.x - 3, y: m.y - 3, width: 6, height: 6)), with: .color(Theme.silkscreen))
                 }
@@ -328,7 +417,7 @@ struct FootprintEditorView: View {
                     .onChanged { value in
                         if dragStart == nil {
                             dragStart = value.startLocation
-                            let hit = draft.pad(at: toModel(value.startLocation, size))
+                            let hit = pickPad(at: toModel(value.startLocation, size))
                             let extend = NSEvent.modifierFlags.contains(.shift) || NSEvent.modifierFlags.contains(.command)
                             if let hit {
                                 if extend { selection.formSymmetricDifference([hit]) }
@@ -337,7 +426,7 @@ struct FootprintEditorView: View {
                                 selection = []
                             }
                         }
-                        if !selection.isEmpty, draft.pad(at: toModel(value.startLocation, size)) != nil {
+                        if !selection.isEmpty, pickPad(at: toModel(value.startLocation, size)) != nil {
                             dragMoved = value.translation
                         }
                     }
@@ -532,6 +621,9 @@ struct FootprintEditorView: View {
                 number("Inner Ø", Binding(get: { land.options.inner ?? 0 }, set: { v in set { $0.inner = v > 0 && v.isFinite ? Swift.min(v, 30) : nil } }),
                        step: 0.05)
                     .help("Pad stack: the pad's diameter on the inner copper layers (0 = its own size)")
+                number("Solder-side Ø", Binding(get: { land.options.solder ?? 0 }, set: { v in set { $0.solder = v > 0 && v.isFinite ? Swift.min(v, 30) : nil } }),
+                       step: 0.05)
+                    .help("Pad stack: the pad's diameter on the side opposite the part (0 = its own size)")
                 Toggle("Non-plated hole (no copper)", isOn: Binding(get: { land.options.npth == true }, set: { on in set { $0.npth = on ? true : nil } }))
                     .toggleStyle(.checkbox).font(.caption)
             }
@@ -632,8 +724,13 @@ struct FootprintEditorView: View {
             }
             .controlSize(.small)
             .help("Outline the body with four lines on the silkscreen or the fabrication drawing")
-            Button("Add Line") { edit { $0.graphics.append(.init(x0: -1, y0: 0, x1: 1, y1: 0)) } }
-                .controlSize(.small)
+            HStack {
+                Button("Add Line") { edit { $0.graphics.append(.init(x0: -1, y0: 0, x1: 1, y1: 0)) } }
+                Button("Add Pin-1 Mark") { edit { $0.addPin1Mark() } }
+                    .disabled(draft.pads.isEmpty)
+                    .help("A short silkscreen bar beside pad 1, on its inner side")
+            }
+            .controlSize(.small)
             ForEach(draft.graphics.indices, id: \.self) { i in
                 HStack(spacing: 4) {
                     ForEach([\CustomPartSpec.Graphic.x0, \.y0, \.x1, \.y1], id: \.self) { key in
@@ -738,9 +835,10 @@ struct FootprintEditorView: View {
                 Button {
                     selection = Set(issue.pads.compactMap { n in n >= 1 && n <= draft.pads.count ? draft.pads[n - 1].id : nil })
                 } label: {
-                    Label(issue.message, systemImage: issue.isError ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
+                    Label(issue.message, systemImage: issue.isError ? "xmark.octagon.fill"
+                          : issue.severity == "info" ? "info.circle" : "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundStyle(issue.isError ? Theme.error : Theme.warning)
+                        .foregroundStyle(issue.isError ? Theme.error : issue.severity == "info" ? Theme.textSecondary : Theme.warning)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)

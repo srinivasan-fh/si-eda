@@ -69,6 +69,7 @@ struct Body {
     double height;
     float r, g, b;
     bool round = false;
+    double z0 = 0;  // the body's underside above the board (a 3D model raised on its own leads or standoffs)
     Rect box() const {
         Rect r{outline[0].x, outline[0].y, outline[0].x, outline[0].y};
         for (const auto& v : outline) r = Rect(std::min(r.x0, v.x), std::min(r.y0, v.y), std::max(r.x1, v.x), std::max(r.y1, v.y));
@@ -96,6 +97,25 @@ std::vector<Body> partBodies(const Schematic& sch, const PcbLayout& pcb) {
         body.outline = b.cylinder ? circle(p, std::min(w, d) / 2, 24)
                                   : std::vector<Vec2>{{p.x - w / 2, p.y - d / 2}, {p.x + w / 2, p.y - d / 2},
                                                       {p.x + w / 2, p.y + d / 2}, {p.x - w / 2, p.y + d / 2}};
+        // A part drawn by its 3D model (its own, else its custom part's) takes the model's bounds and z range.
+        const Model3DRef* model = nullptr;
+        if (auto own = pcb.partModels.find(c.id); own != pcb.partModels.end() && !own->second.empty()) model = &own->second;
+        else if (c.kind == ComponentKind::Custom)
+            if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart); part && !part->spec.model3d.empty())
+                model = &part->spec.model3d;
+        std::array<double, 6> mb{};
+        if (model && model3dAlignedBounds(*model, mb) && mb[5] > std::max(0.0, mb[2])) {
+            Rect r{1e18, 1e18, -1e18, -1e18};
+            for (double x : {mb[0], mb[3]})
+                for (double y : {mb[1], mb[4]}) {  // model y points up the footprint (−y on the board)
+                    const Vec2 q = p + rotate90(Vec2{c.pcb.bottom ? -x : x, -y}, c.pcb.rotation);
+                    r = Rect(std::min(r.x0, q.x), std::min(r.y0, q.y), std::max(r.x1, q.x), std::max(r.y1, q.y));
+                }
+            body.outline = {{r.x0, r.y0}, {r.x1, r.y0}, {r.x1, r.y1}, {r.x0, r.y1}};
+            body.round = false;
+            body.z0 = std::max(0.0, mb[2]);
+            body.height = mb[5];
+        }
         out.push_back(std::move(body));
     }
     return out;
@@ -220,6 +240,7 @@ std::vector<std::string> tokens(const std::string& line) {
 bool bodiesOverlap(const Body& a, const Body& b) {
     const Rect ra = a.box(), rb = b.box();
     constexpr double e = 1e-3;
+    if (a.z0 >= b.height - e || b.z0 >= a.height - e) return false;  // one body passes over the other
     if (ra.x1 <= rb.x0 + e || rb.x1 <= ra.x0 + e || ra.y1 <= rb.y0 + e || rb.y1 <= ra.y0 + e) return false;
     auto circleRect = [&](const Rect& c, const Rect& r) {
         const Vec2 m{(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2};

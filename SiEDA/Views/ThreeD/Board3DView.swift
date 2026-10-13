@@ -26,6 +26,12 @@ struct Board3DWorkspace: View {
     @State private var measuring = false
     @State private var measured: [SCNVector3] = []
     @State private var picked: Int?
+    @AppStorage("threeD.panels") private var panels = true
+    @State private var savedViews: [String: [Double]] = [:]
+    @State private var namingView = false
+    @State private var viewName = ""
+    /// Named viewpoints are kept per project name.
+    private var viewsKey: String { "threeD.views." + store.snapshot.name }
 
     private var mode: Mode { Mode(rawValue: modeRaw) ?? .assembly }
 
@@ -71,6 +77,8 @@ struct Board3DWorkspace: View {
                               + "4 and 6 layers show their inner copper on the board edge")
                     Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
                     assemblyTools
+                    Toggle("Panels", isOn: $panels).toggleStyle(.switch).controlSize(.mini)
+                        .help("Layers and parts on the left, the picked part's properties on the right, 3D checks below")
                 }
                 Spacer()
                 Button { resetCamera += 1 } label: { Label("Reset View", systemImage: "camera.metering.center.weighted") }
@@ -99,19 +107,169 @@ struct Board3DWorkspace: View {
                     layerLegend
                         .padding(12)
                 } else {
-                    BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: showComponents,
-                                   board: store.snapshot.board, resetToken: resetCamera,
-                                   finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats,
-                                   look: look, camera: camera, clashes: clashBodies, onClick: clicked)
-                    pickInfo.padding(12)
+                    HStack(spacing: 0) {
+                        if panels {
+                            layersPanel.frame(width: 200)
+                            Divider()
+                        }
+                        VStack(spacing: 0) {
+                            ZStack(alignment: .bottomLeading) {
+                                BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: showComponents,
+                                               board: store.snapshot.board, resetToken: resetCamera,
+                                               finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats,
+                                               look: look, camera: camera, clashes: clashBodies,
+                                               selected: store.snapshot.bodies.filter { store.selection.contains($0.component) },
+                                               onClick: clicked, onSaveView: saveView)
+                                if !panels || measuring { pickInfo.padding(12) }
+                            }
+                            if panels {
+                                Divider()
+                                checksPanel.frame(height: 130)
+                            }
+                        }
+                        if panels {
+                            Divider()
+                            propertiesPanel.frame(width: 230)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.navy)
             .overlay(alignment: .bottomTrailing) {
-                if !store.snapshot.pads.isEmpty { navigationHint.padding(12) }
+                if !store.snapshot.pads.isEmpty, !panels || mode == .xray { navigationHint.padding(12) }
             }
         }
+        .onAppear { savedViews = UserDefaults.standard.dictionary(forKey: viewsKey) as? [String: [Double]] ?? [:] }
+        .onChange(of: viewsKey) { _, key in savedViews = UserDefaults.standard.dictionary(forKey: key) as? [String: [Double]] ?? [:] }
+        .alert("Save View", isPresented: $namingView) {
+            TextField("Name", text: $viewName)
+            Button("Save") {
+                let name = viewName.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty { camera = CameraCommand(.saveAs(name)) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func saveView(_ name: String, _ values: [Double]) {
+        savedViews[name] = values
+        UserDefaults.standard.set(savedViews, forKey: viewsKey)
+    }
+
+    /// Left panel: the board's layers and the parts (click selects, the eye hides).
+    private var layersPanel: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                ForEach(Self.surfaceToggles, id: \.surface) { item in
+                    Toggle(LocalizedStringKey(item.title), isOn: Binding(get: { !look.hiddenSurfaces.contains(item.surface) }, set: { on in
+                        if on { look.hiddenSurfaces.remove(item.surface) } else { look.hiddenSurfaces.insert(item.surface) }
+                    }))
+                }
+                Toggle("Components", isOn: $showComponents)
+                Toggle("Standoffs and Screws", isOn: $look.standoffs)
+                Toggle("Enclosure", isOn: $look.enclosure)
+                Toggle("Show Clashes", isOn: $look.clashes)
+                Divider()
+                Text("PARTS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                ForEach(store.snapshot.bodies, id: \.component) { body in
+                    if let c = store.snapshot.component(body.component) {
+                        let hidden = look.hiddenParts.contains(c.id)
+                        HStack(spacing: 6) {
+                            Button {
+                                if hidden { look.hiddenParts.remove(c.id) } else { look.hiddenParts.insert(c.id) }
+                            } label: { Image(systemName: hidden ? "eye.slash" : "eye") }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel(hidden ? "Show Part" : "Hide Part")
+                            Button {
+                                picked = c.id
+                                store.select(component: c.id)
+                            } label: {
+                                Text(verbatim: "\(c.ref)  \(c.value)").lineLimit(1)
+                                    .foregroundStyle(store.selection.contains(c.id) ? Theme.skyBlue : hidden ? Theme.textMuted : Theme.textPrimary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .toggleStyle(.checkbox)
+            .font(.caption)
+            .padding(10)
+        }
+        .background(Theme.deepBlue.opacity(0.45))
+    }
+
+    /// Right panel: the picked (or selected) part's properties and its 3D model.
+    private var propertiesPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PROPERTIES").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            if let id = picked ?? store.selection.first, let c = store.snapshot.component(id) {
+                let body = store.snapshot.bodies.first { $0.component == id }
+                Group {
+                    LabeledContent("Part", value: c.ref)
+                    LabeledContent("Value", value: c.value)
+                    if let body { LabeledContent("Package", value: body.package) }
+                    LabeledContent("Side", value: c.pcb.bottom ? String(localized: "Bottom") : String(localized: "Top"))
+                    LabeledContent("Position", value: String(format: "%.2f, %.2f mm", c.pcb.x, c.pcb.y))
+                    if let body {
+                        LabeledContent("Body", value: String(format: "%.2f × %.2f × %.2f mm", body.w, body.d, body.h))
+                    }
+                }
+                .font(.caption)
+                Button("3D Model…") { store.assignPartModel(id) }
+                    .help("Give this part its own 3D model (STEP, STL, OBJ or VRML), seated on its footprint")
+                Button("Generated Body") { store.removePartModel(id) }
+                    .help("Back to the generated body (or its library part's model)")
+                Button("Focus") { camera = CameraCommand(.focus(CGPoint(x: c.pcb.x, y: c.pcb.y))) }
+            } else {
+                Text("Click a part in the model or the list.").font(.caption).foregroundStyle(Theme.textMuted)
+            }
+            Spacer()
+        }
+        .controlSize(.small)
+        .padding(10)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Theme.deepBlue.opacity(0.45))
+    }
+
+    /// Bottom panel: the 3D clearance findings of the last check (click picks and focuses the part).
+    private var checksPanel: some View {
+        let checks = store.drcResults.filter { $0.code.hasPrefix("MECH_") }
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("3D CHECKS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                Spacer()
+                Button("Check 3D Clearances") { store.runDRC() }.controlSize(.small)
+            }
+            if checks.isEmpty {
+                Text("No 3D findings. Check 3D Clearances lists collisions, heights, the enclosure and connector access.")
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(checks) { v in
+                        Button {
+                            if let id = v.components.first, let c = store.snapshot.component(id) {
+                                picked = id
+                                store.select(component: id)
+                                camera = CameraCommand(.focus(CGPoint(x: c.pcb.x, y: c.pcb.y)))
+                            }
+                        } label: {
+                            Label(v.message, systemImage: v.severity == .error ? "xmark.octagon.fill"
+                                  : v.severity == .warning ? "exclamationmark.triangle.fill" : "info.circle")
+                                .font(.caption)
+                                .foregroundStyle(v.severity == .error ? Theme.error : v.severity == .warning ? Theme.warning : Theme.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Theme.deepBlue.opacity(0.45))
     }
 
     /// Live read-outs for the holographic HUD.
@@ -163,8 +321,20 @@ struct Board3DWorkspace: View {
                     }
                 }
                 .disabled(store.selection.isEmpty)
-                Button("Save View") { camera = CameraCommand(.save) }
-                Button("Restore Saved View") { camera = CameraCommand(.restore) }
+                Button("Save View As…") {
+                    viewName = ""
+                    namingView = true
+                }
+                if !savedViews.isEmpty {
+                    Divider()
+                    ForEach(savedViews.keys.sorted(), id: \.self) { name in
+                        Button(name) { camera = CameraCommand(.go(savedViews[name] ?? [])) }
+                    }
+                    Button("Forget Saved Views") {
+                        savedViews = [:]
+                        UserDefaults.standard.removeObject(forKey: viewsKey)
+                    }
+                }
             } label: { Label("View", systemImage: "camera") }
                 .fixedSize()
                 .help("Top, bottom (flip), front, back, side and isometric views; focus the selected part; save a view")
@@ -361,6 +531,8 @@ struct CameraCommand: Equatable {
         case focus(CGPoint)  // board millimetres
         case save, restore
         case saveImage(URL), saveUSDZ(URL)
+        case saveAs(String)  // a named viewpoint: the camera's position and orientation go to `onSaveView`
+        case go([Double])    // back to a named viewpoint (x, y, z, then the orientation quaternion)
     }
     let id = UUID()
     let action: Action
@@ -402,7 +574,10 @@ struct BoardSceneView: NSViewRepresentable {
     var look = Board3DWorkspace.AssemblyLook()
     var camera: CameraCommand?
     var clashes: [SnapBody] = []
+    /// Parts selected in the editors, boxed in the selection colour.
+    var selected: [SnapBody] = []
     var onClick: (SCNVector3, CGPoint) -> Void = { _, _ in }
+    var onSaveView: (String, [Double]) -> Void = { _, _ in }
 
     final class Coordinator: NSObject {
         var lastRevision = -1
@@ -412,6 +587,9 @@ struct BoardSceneView: NSViewRepresentable {
         var lastMesh: [String] = []
         var lastClashes: [SnapBody] = []
         let clashNode = SCNNode()
+        var lastSelected: [SnapBody] = []
+        let selectedNode = SCNNode()
+        var onSaveView: (String, [Double]) -> Void = { _, _ in }
         var lastCamera: UUID?
         var saved: (SCNVector3, SCNQuaternion)?
         let boardNode = SCNNode()
@@ -510,6 +688,7 @@ struct BoardSceneView: NSViewRepresentable {
 
         scene.rootNode.addChildNode(context.coordinator.boardNode)
         scene.rootNode.addChildNode(context.coordinator.clashNode)
+        scene.rootNode.addChildNode(context.coordinator.selectedNode)
         context.coordinator.view = view
         view.addGestureRecognizer(NSClickGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.clicked(_:))))
         return view
@@ -519,6 +698,7 @@ struct BoardSceneView: NSViewRepresentable {
         let c = context.coordinator
         c.board = board
         c.onClick = onClick
+        c.onSaveView = onSaveView
         let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)"]
         if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish || c.lastMesh != meshKey {
             c.lastRevision = revision
@@ -535,7 +715,11 @@ struct BoardSceneView: NSViewRepresentable {
         applyLook(c)
         if c.lastClashes != clashes {
             c.lastClashes = clashes
-            showClashes(c)
+            showBoxes(c.clashNode, clashes, colour: .systemRed)
+        }
+        if c.lastSelected != selected {
+            c.lastSelected = selected
+            showBoxes(c.selectedNode, selected, colour: .systemCyan)
         }
         if let camera, camera.id != c.lastCamera {
             c.lastCamera = camera.id
@@ -563,20 +747,20 @@ struct BoardSceneView: NSViewRepresentable {
         }
     }
 
-    /// Red see-through boxes round the bodies the 3D clearance DRC flagged.
-    private func showClashes(_ c: Coordinator) {
-        c.clashNode.childNodes.forEach { $0.removeFromParentNode() }
+    /// See-through boxes round bodies: red for the parts the 3D clearance DRC flagged, cyan for the selection.
+    private func showBoxes(_ parent: SCNNode, _ bodies: [SnapBody], colour: NSColor) {
+        parent.childNodes.forEach { $0.removeFromParentNode() }
         let material = SCNMaterial()
-        material.diffuse.contents = NSColor.systemRed.withAlphaComponent(0.4)
-        material.emission.contents = NSColor.systemRed.withAlphaComponent(0.3)
+        material.diffuse.contents = colour.withAlphaComponent(0.4)
+        material.emission.contents = colour.withAlphaComponent(0.3)
         material.isDoubleSided = true
-        for b in c.lastClashes {
+        for b in bodies {
             let box = SCNBox(width: CGFloat(b.w) + 0.2, height: CGFloat(b.h) + 0.2, length: CGFloat(b.d) + 0.2, chamferRadius: 0)
             box.materials = [material]
             let node = SCNNode(geometry: box)
             let y = b.bottom ? -board.thickness - b.h / 2 : b.h / 2
             node.position = SCNVector3(CGFloat(b.x - board.width / 2), CGFloat(y), CGFloat(b.y - board.height / 2))
-            c.clashNode.addChildNode(node)
+            parent.addChildNode(node)
         }
     }
 
@@ -625,6 +809,14 @@ struct BoardSceneView: NSViewRepresentable {
             scene.rootNode.addChildNode(c.boardNode.clone())
             scene.write(to: url, options: nil, delegate: nil, progressHandler: nil)
             return
+        case .saveAs(let name):
+            let p = c.cameraNode.position, o = c.cameraNode.orientation
+            c.onSaveView(name, [p.x, p.y, p.z, o.x, o.y, o.z, o.w].map { Double($0) })
+            return
+        case .go(let v):
+            guard v.count == 7 else { return }
+            c.cameraNode.position = SCNVector3(CGFloat(v[0]), CGFloat(v[1]), CGFloat(v[2]))
+            c.cameraNode.orientation = SCNQuaternion(CGFloat(v[3]), CGFloat(v[4]), CGFloat(v[5]), CGFloat(v[6]))
         case .restore:
             guard let saved = c.saved else { return }
             c.cameraNode.position = saved.0

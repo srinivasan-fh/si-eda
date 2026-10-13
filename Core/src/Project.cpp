@@ -1530,6 +1530,7 @@ Json Project::snapshot() const {
         j["net"] = f.net;
         j["layer"] = f.layer;
         j["islands"] = f.islands;
+        if (pcb.poursStale()) j["stale"] = true;  // held pours (PcbLayout::holdPours) the copper has moved on from
         if (!f.removedIslands.empty()) {  // flat x, y pairs
             Json removed = Json::array();
             for (const Vec2& v : f.removedIslands) removed.push(v.x), removed.push(v.y);

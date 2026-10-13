@@ -1395,6 +1395,15 @@ int32_t sieda_router_strategy(void) { return static_cast<int32_t>(routerStrategy
 
 void sieda_router_set_threads(int32_t threads) { setRoutingThreads(threads); }
 
+int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill) {
+    if (!project) return 0;
+    PcbLayout& pcb = project->project.pcb;
+    pcb.holdPours = hold != 0;
+    if (refill) pcb.refillPours();
+    pcb.zoneFills(project->project.schematic);
+    return pcb.poursStale() ? 1 : 0;
+}
+
 char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json) {
     if (!project) return nullptr;
     try {
