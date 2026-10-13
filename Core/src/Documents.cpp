@@ -147,7 +147,7 @@ DxfOutline importDxfOutline(const std::string& text) {
     double scale = 1;  // $INSUNITS: 1 inch, 4 mm (default), 5 cm, 6 m
     for (size_t i = 0; i + 1 < pairs.size(); ++i)
         if (pairs[i].first == 9 && pairs[i].second == "$INSUNITS") {
-            const int u = std::atoi(pairs[i + 1].second.c_str());
+            const long u = std::strtol(pairs[i + 1].second.c_str(), nullptr, 10);
             scale = u == 1 ? 25.4 : u == 2 ? 304.8 : u == 5 ? 10 : u == 6 ? 1000 : 1;
         }
     // A file that names its layers: only the outline-like ones (OUTLINE, Edge.Cuts, BOARD, PROFILE, CUTOUT …) count.
@@ -176,6 +176,10 @@ DxfOutline importDxfOutline(const std::string& text) {
         const Vec2 c = mid + normal * h;
         const double a0 = std::atan2(a.y - c.y, a.x - c.x), a1 = std::atan2(b.y - c.y, b.x - c.x);
         auto arc = bulge > 0 ? arcPoints(c, r, a0, a1) : arcPoints(c, r, a1, a0);
+        if (arc.size() < 2) {  // a degenerate arc (non-finite or huge): a straight segment
+            pts.push_back(b);
+            return;
+        }
         if (bulge < 0) std::reverse(arc.begin(), arc.end());
         pts.insert(pts.end(), arc.begin() + 1, arc.end());
     };
@@ -191,6 +195,11 @@ DxfOutline importDxfOutline(const std::string& text) {
                 if (pairs[k].first == 8) keep = outlineLayer(pairs[k].second);
             if (!keep) continue;
         }
+        auto flags = [&](int code) {  // integer group values (70 = polyline flags), clamped by strtol
+            for (size_t k = i + 1; k < j; ++k)
+                if (pairs[k].first == code) return std::strtol(pairs[k].second.c_str(), nullptr, 10);
+            return 0L;
+        };
         auto value = [&](int code, double fallback = 0) {
             for (size_t k = i + 1; k < j; ++k)
                 if (pairs[k].first == code) return std::atof(pairs[k].second.c_str());
@@ -212,7 +221,7 @@ DxfOutline importDxfOutline(const std::string& text) {
                 if (pairs[k].first == 20 && !verts.empty()) verts.back().y = std::atof(pairs[k].second.c_str());
                 if (pairs[k].first == 42 && !bulges.empty()) bulges.back() = std::atof(pairs[k].second.c_str());
             }
-            const bool closed = (static_cast<int>(value(70)) & 1) != 0;
+            const bool closed = (flags(70) & 1) != 0;
             if (verts.size() < 2) continue;
             std::vector<Vec2> pts{verts[0]};
             for (size_t k = 1; k < verts.size(); ++k) bulgeTo(pts, verts[k - 1], verts[k], bulges[k - 1]);
@@ -224,7 +233,7 @@ DxfOutline importDxfOutline(const std::string& text) {
                 for (size_t k = 1; k < pts.size(); ++k) segments.push_back({pts[k - 1], pts[k]});
             }
         } else if (type == "POLYLINE") {
-            const bool closed = (static_cast<int>(value(70)) & 1) != 0;
+            const bool closed = (flags(70) & 1) != 0;
             std::vector<Vec2> pts;
             size_t k = j;
             while (k < pairs.size() && !(pairs[k].first == 0 && pairs[k].second == "SEQEND")) {
