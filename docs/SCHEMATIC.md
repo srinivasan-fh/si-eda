@@ -345,8 +345,10 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   **Paste Here** pastes at the pointer.
 - **Touching pins connect**: a part placed or moved so a pin lands on another part's pin is wired to it
   (`Schematic::connectTouching`, `sieda_connect_touching`; with `wires` also onto a wire's route through a T-junction,
-  which the app does not do on its own); the ERC notes `ERC_TOUCHING_UNCONNECTED` (info) for a pin that touches a wire
-  or pin without a connection.
+  which the app does only on request: right-click a part → **Connect Touching Pins and Wires**); the ERC notes
+  `ERC_TOUCHING_UNCONNECTED` (info) for a pin that touches a wire or pin without a connection.
+- **⇧-drag a box** on the sheet: it adds the parts it touches and takes the wires with both ends inside it (drawn
+  selected); Delete removes both in one undo step.
 - **Clean Up Wires** (Arrange menu, right-click) removes bends lying on straight runs (`cleanupWires`,
   `sieda_cleanup_wires`). While drawing a wire, **/** turns its corner the other way (vertical first).
 - **Dragging a straight wire** moves it sideways and keeps it straight: a bend at either end moves with it, any other

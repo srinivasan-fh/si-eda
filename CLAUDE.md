@@ -6,9 +6,11 @@
   `SiEDA/Models/FootprintDraft.swift` and `SiEDA/Views/Library/FootprintEditorView.swift`; guide in
   `docs/FOOTPRINT_EDITOR.md`. Keep the Swift `CustomPartSpec.Land` encoding identical to the core's land JSON (pad options = a trailing
   object: corner, npth, mask, paste, pasteGrid, chamfer, outline (polygon pads: `Pad::outline`, Gerber G36 regions,
-  3D prisms), inner (pad stack); carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++). Footprint
+  3D prisms), inner / solder (pad stack: inner layers / the side opposite the part); carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++). Footprint
   silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
-  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`.
+  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. More land checks in `landChecksMore` (LAND_PASTE /
+  SILK_PAD / PIN1 / NUMBERING / COURTYARD, LAND_MASK_SLIVER in the pair loop) must stay quiet on every catalog part;
+  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift).
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
@@ -66,7 +68,8 @@
   (`CircuitTrainer.swift`, `OwnModelViews.swift`: dataset / training / results) or by
   `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit; values the request fixes computed by `Core/src/CircuitValues.cpp` (`circuitPlanValues`)); guide in `docs/AI.md`.
 - Configurable menu shortcuts: `ShortcutStore` / `ShortcutSettings` in `SiEDA/Views/Settings/SettingsView.swift` (user
-  defaults "app.shortcuts"; `SiEDACommands` reads `shortcuts.shortcut(id)`).
+  defaults "app.shortcuts"; `SiEDACommands` reads `shortcuts.shortcut(id)`); canvas tool keys `ShortcutStore.toolKeys`
+  ("sch." / "pcb."), the canvases switch on `toolKey(_:canvas:)` (the tool's standard key).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
@@ -93,7 +96,8 @@
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
   shielding, gloss, loop removal on commit, hug drag (segments, vias, corners), Stop mode, gloss `moveVias`, `sieda_pcb_minimize_vias`,
-  pour island markers `ZoneFill::removedIslands`, `matchTrackLengths`, split / merge tracks and footprint drag with its tracks (`PcbLayout::splitTrack` / `mergeTracks` /
+  pour island markers `ZoneFill::removedIslands`, pours held until refilled (`PcbLayout::holdPours`, `refillPours`,
+  `sieda_pcb_hold_pours`, snapshot fill `stale`), `matchTrackLengths`, split / merge tracks and footprint drag with its tracks (`PcbLayout::splitTrack` / `mergeTracks` /
   `moveFootprintWithTracks`), drawn pours (`CopperZone::polygon`) and board cutouts (`BoardSettings::cutouts`,
   `forEachEdge` = outline + cutout edges), pair rules / interface presets (`PairRule` by `pairStem`,
   `interfacePresets()`) and delay length rules (`LengthRule::delayPs`) — opt-in router options, so default
@@ -147,6 +151,10 @@
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
   reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
+- Documents in `Core/src/Documents.cpp`: DXF export / outline import (`exportDxf`, `importDxfOutline`,
+  `applyDxfOutline`, MCP `pcb_import_dxf`, fuzzed in the `idf` target), test-point report, interactive HTML BOM and the
+  bring-up checklist; all four are in the fabrication package and `sieda_export` ("dxf", "testpoints", "html_bom",
+  "bringup"). Product checklist with every item's status: `docs/EDA_CHECKLIST.md`.
 - IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
   XML valid against the IPC-2581C schema (KiCad's `qa/data/pcbnew/ipc2581/IPC-2581C.xsd`).
@@ -168,7 +176,8 @@
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
-  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits,
+  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits; a part drawn by a 3D model collides by the model's
+  bounds and z range (`Body::z0`),
   MECH_ENCLOSURE against `BoardSettings::enclosure` (a Model3DRegistry id in the MCAD frame, in the "mechanical" JSON,
   its mesh saved in `models3d`), MECH_CONNECTOR_ACCESS info via `openEnd`); glTF / VRML exports (`exportGltf`,
   `exportVrml`, `sieda_export_file`), MCP `render_3d` (`render3dPng`, a z-buffer rasteriser in `McpRender.cpp`); a placed

@@ -19,6 +19,7 @@
 
 #include <algorithm>
 
+#include "sieda/Documents.hpp"
 #include "sieda/Analysis.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/Avr.hpp"
@@ -3124,7 +3125,9 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
     parts[1]->pcb.bottom = parts[0]->pcb.bottom;
     const Rect a = p.pcb.courtyard(*parts[0]), b = p.pcb.courtyard(*parts[1]);
     parts[1]->pcb.position = parts[1]->pcb.position + Vec2{a.x1 + 0.1 - b.x0, a.y0 - b.y0};
-    CHECK(codes().count("DFA_PART_SPACING"));
+    CHECK(codes().count("DFA_PART_SPACING") && !codes().count("DFA_REFDES_OVERLAP"));
+    parts[1]->pcb.position = parts[0]->pcb.position + Vec2{0.3, 0};  // designators on top of each other
+    CHECK(codes().count("DFA_REFDES_OVERLAP"));
     // Saved only when set.
     Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.dfmPack == "oshpark-2");
@@ -3154,6 +3157,8 @@ TEST(fabrication_package_is_complete) {
                               "-F_Silkscreen", "-B_Silkscreen", "-Edge_Cuts"})
         CHECK(has(g + layer + ".gbr"));
     CHECK(has(g + "-PTH.drl") && has(g + "-NPTH.drl") && has(g + "-ipc356.ipc") && has(g + "-job.gbrjob"));
+    CHECK(has("assembly/Amp_rev_A-test_points.csv") && has("assembly/Amp_rev_A-interactive_bom.html"));
+    CHECK(has("Amp_rev_A-bring_up_checklist.md") && has("mechanical/Amp_rev_A.dxf"));
     for (const char* a : {"-bom.csv", "-bom_assembly.csv", "-cpl.csv", "-pick_and_place.csv", "-assembly_top.svg",
                           "-assembly_bottom.svg"})
         CHECK(has("assembly/Amp_rev_A" + std::string(a)));
@@ -22769,10 +22774,12 @@ TEST(footprint_chamfer_outline_pad_stack_and_graphics) {
     b.outline = {{-1, 1}, {1, 1}, {0.6, -1}, {-0.6, -1}};
     PackageSpec::Land c{3, 0, 1.8, 1.8, 1.0, true};
     c.inner = 1.0;
+    c.solder = 2.4;
     spec.package.lands = {a, b, c};
     spec.package.graphics = {{{-4.5, -1.5}, {4.5, -1.5}, 0.15, false}, {{-4.5, 1.5}, {4.5, 1.5}, 0.1, true}};
     const CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
     CHECK(back.package.lands[0].chamfer == 0.25 && back.package.lands[1].outline.size() == 4 && back.package.lands[2].inner == 1.0);
+    CHECK(back.package.lands[2].solder == 2.4);
     CHECK(back.package.graphics.size() == 2 && back.package.graphics[1].fab);
     Project p;
     p.pcb.settings.layerCount = 4;
@@ -22787,6 +22794,10 @@ TEST(footprint_chamfer_outline_pad_stack_and_graphics) {
     CHECK(regions == 2);
     CHECK(exportCopperGerber(p.schematic, p.pcb, 1).find("C,1.0000") != std::string::npos);
     CHECK(exportCopperGerber(p.schematic, p.pcb, 1).find("C,1.8000") == std::string::npos);
+    // The solder side (bottom, the part on top) flashes 2.4 mm copper and a 2.5 mm mask opening; the top keeps 1.8 mm.
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper).find("C,2.4000") != std::string::npos);
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::BottomMask).find("C,2.5000") != std::string::npos);
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper).find("C,2.4000") == std::string::npos);
     // Silk: the drawn silk line is on the silkscreen; the fab line goes to the assembly drawing only.
     const std::string silk = exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk);
     CHECK(silk.find("C,0.1500") != std::string::npos && silk.find("C,0.1000") == std::string::npos);
@@ -22798,6 +22809,50 @@ TEST(footprint_chamfer_outline_pad_stack_and_graphics) {
         if (pad.get("number").asInt(0) == 2) CHECK(pad.get("outline").size() == 8);
     // 3D: the polygon pads are prisms of their outline (more finish vertices than plain boxes would give).
     CHECK(buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Finish) > 0);
+}
+
+TEST(footprint_checks_paste_silk_pin1_numbering_courtyard_mask) {
+    CustomPartSpec spec;
+    spec.name = "CHECKS";
+    spec.pins = {{"1", "A"}, {"2", "B"}, {"3", "C"}, {"4", "D"}};
+    spec.package.type = "CUSTOM";
+    using L = PackageSpec::Land;
+    auto codes = [&] {
+        std::multiset<std::string> out;
+        for (const auto& i : checkLandPattern(spec)) out.insert(i.code);
+        return out;
+    };
+    spec.package.lands = {L(-1.5, -1, 1, 0.6), L(-1.5, 1, 1, 0.6), L(1.5, 1, 1, 0.6), L(1.5, -1, 1, 0.6)};
+    CHECK(codes().empty());
+    // Silk drawn far from pad 1 (pads all alike): pin-1 note; a silk line across pad 2: silk-on-pad warning.
+    spec.package.graphics = {{{0, -3}, {0.5, -3}, 0.15, false}, {{-1.5, 1}, {-1.5, 1.4}, 0.15, false}};
+    auto c = codes();
+    CHECK(c.count("LAND_PIN1") == 1 && c.count("LAND_SILK_PAD") == 1);
+    // A mark beside pad 1 clears the note; a line far outside the pads is outside the courtyard.
+    spec.package.graphics = {{{-2.4, -1.6}, {-2.2, -1.6}, 0.15, false}, {{-6, 0}, {-5, 0}, 0.1, true}};
+    c = codes();
+    CHECK(c.count("LAND_PIN1") == 0 && c.count("LAND_COURTYARD") == 1);
+    spec.package.graphics.clear();
+    // Starved paste is a warning; a large pad under one full window is a note.
+    spec.package.lands[0].paste = 0.3;
+    spec.package.lands.push_back(L(0, 4, 3.5, 3.5, 0, false, "4"));
+    spec.package.lands.back().paste = 1.0;
+    c = codes();
+    CHECK(c.count("LAND_PASTE") == 2);
+    spec.package.lands.pop_back();
+    spec.package.lands[0].paste = -1;
+    // Mask margins that eat the whole gap leave no web; numbering that jumps about is a warning.
+    spec.package.lands[0].mask = spec.package.lands[1].mask = 0.75;
+    CHECK(codes().count("LAND_MASK_SLIVER") == 1);
+    spec.package.lands[0].mask = spec.package.lands[1].mask = -1;
+    spec.pins.clear();
+    spec.package.lands.clear();
+    const int rightRow[] = {7, 0, 6, 1, 5, 2, 4, 3};  // left row in order, the right row out of order
+    for (int i = 0; i < 16; ++i) {
+        spec.pins.push_back({std::to_string(i + 1), "P" + std::to_string(i + 1)});
+        spec.package.lands.push_back(i < 8 ? L(0, i * 1.27, 1, 0.6) : L(5, rightRow[i - 8] * 1.27, 1, 0.6));
+    }
+    CHECK(codes().count("LAND_NUMBERING") == 1);
 }
 
 TEST(footprint_library_browser_lists_and_loads) {
@@ -22906,6 +22961,123 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(s.moveWireEnd(last, lw.b.component == r2, {300, 300}, {}));
     CHECK(s.netOf({r1, 1}) != s.netOf({r2, 0}));
     CHECK(!s.dragWireSegment(9999, {0, 10}));
+}
+
+TEST(documents_dxf_test_points_html_bom_and_bring_up) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"},
+                  {"ref": "R2", "kind": "resistor", "value": "4.7k"}, {"ref": "R3", "kind": "resistor", "value": "4.7k"},
+                  {"ref": "C1", "kind": "capacitor", "value": "100n"}],
+        "nets": {"+5V": ["R1.1", "C1.1"], "GND": ["J1.GND(A1)", "C1.2", "R3.2"], "SDA": ["R1.2", "R2.1"],
+                 "NRST": ["R2.2", "R3.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    Project& p = m.project()->project;
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.ref == "R3") c.ref = "TP1";  // a test point on NRST
+    p.pcb.settings.holes.push_back({{3, 3}});
+    p.pcb.settings.cutouts.push_back({{20, 20}, {24, 20}, {24, 23}, {20, 23}});
+    // DXF: the outline and cutout come back from our own file (the courtyards and drills are on other layers).
+    const std::string dxf = exportDxf(p.schematic, p.pcb);
+    CHECK(dxf.find("OUTLINE") != std::string::npos && dxf.find("CIRCLE") != std::string::npos);
+    const DxfOutline back = importDxfOutline(dxf);
+    CHECK(back.error.empty() && back.outline.size() == 4 && back.cutouts.size() == 1);
+    CHECK(std::fabs(back.width - p.pcb.settings.width) < 1e-3 && std::fabs(back.height - p.pcb.settings.height) < 1e-3);
+    // A drawn outline in inches: a rounded rectangle (bulged polyline) with a round cutout; Y up becomes Y down.
+    const std::string inch =
+        "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n1\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n4\n70\n1\n10\n0\n20\n0\n42\n0\n10\n2\n20\n0\n42\n0.414214\n10\n2.5\n20\n0.5\n42\n0\n"
+        "10\n0\n20\n0.5\n42\n0\n0\nCIRCLE\n8\n0\n10\n0.5\n20\n0.25\n40\n0.1\n0\nENDSEC\n0\nEOF\n";
+    const DxfOutline drawn = importDxfOutline(inch);
+    CHECK(drawn.error.empty() && drawn.outline.size() > 6 && drawn.cutouts.size() == 1);
+    CHECK(std::fabs(drawn.width - 63.5) < 0.01 && std::fabs(drawn.height - 12.7) < 0.01);
+    CHECK(!importDxfOutline("0\nSECTION\n0\nEOF\n").error.empty() && !importDxfOutline("not a dxf").error.empty());
+    PcbLayout board = p.pcb;
+    CHECK(applyDxfOutline(board, drawn) && board.settings.width == drawn.width && board.settings.cutouts.size() == 1);
+    // Test points: TP1 probes NRST; every other net gets its best pad or a no-access line.
+    const std::string tp = exportTestPointReport(p.schematic, p.pcb);
+    CHECK(tp.find("testpoint,TP1,NRST") != std::string::npos);
+    CHECK(tp.find(",SDA,") != std::string::npos && tp.find(",+5V,") != std::string::npos);
+    // Interactive BOM: one self-contained file with both sides and the parts.
+    const std::string bom = exportHtmlBom(p);
+    CHECK(bom.find("<svg") != std::string::npos && bom.find("data-ref=\"R1\"") != std::string::npos);
+    CHECK(bom.find("http") == std::string::npos);
+    // Bring-up: the rail with its voltage, the reset net, the I2C bus.
+    const std::string up = bringUpChecklist(p);
+    CHECK(up.find("+5V = 5 V") != std::string::npos && up.find("NRST") != std::string::npos);
+    CHECK(up.find("I2C") != std::string::npos && up.find("Resistance +5V") != std::string::npos);
+    // The same through the C API.
+    char* text = sieda_export(m.project(), "bringup");
+    CHECK(text && std::string(text) == up);
+    sieda_string_free(text);
+    char* res = sieda_pcb_import_dxf(m.project(), inch.c_str());
+    CHECK(res && Json::parse(res).get("ok").asBool(false) && m.project()->project.pcb.settings.cutouts.size() == 1);
+    sieda_string_free(res);
+}
+
+TEST(pcb_pours_held_until_refilled) {
+    // Held pours keep their fill through edits (marked stale in the snapshot) until refilled.
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    CHECK(sieda_pcb_add_zone(sp, "GND", 0, 0, 0) >= 0);
+    auto stale = [&] {
+        const Json snap = sp->project.snapshot();  // kept: items() refers into it
+        for (const auto& f : snap.get("zoneFills").items())
+            if (f.get("stale").asBool(false)) return true;
+        return false;
+    };
+    CHECK(!stale() && sieda_pcb_hold_pours(sp, 1, 0) == 0);
+    auto fill = [&] {  // a fingerprint of the poured rectangles
+        double sum = 0;
+        const auto& rects = sp->project.pcb.zoneFills(sp->project.schematic)[0].rects;
+        for (const Rect& r : rects) sum += r.x0 * 1.3 + r.y0 * 1.7 + r.x1 * 2.1 + r.y1 * 2.9;
+        return std::make_pair(rects.size(), sum);
+    };
+    const auto before = fill();
+    Component* led = nullptr;
+    for (auto& c : sp->project.schematic.components())
+        if (c.kind == ComponentKind::LED) led = sp->project.schematic.find(c.id);
+    led->pcb.position = led->pcb.position + Vec2{3, 2};
+    CHECK(stale() && fill() == before);
+    CHECK(sieda_pcb_hold_pours(sp, 1, 1) == 0 && !stale());
+    CHECK(fill() != before);
+    led->pcb.position = led->pcb.position - Vec2{3, 2};
+    CHECK(sieda_pcb_hold_pours(sp, 0, 0) == 0 && !stale());  // not held: every edit refills
+    CHECK(fill() == before);
+    sieda_project_free(sp);
+}
+
+TEST(mechanical_collisions_use_model_bounds_and_z_ranges) {
+    // The LED moved onto the resistor collides; drawn by a 3D model raised 3 mm (a part on standoffs) it passes over.
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    int led = -1, res = -1;
+    for (const auto& c : p.schematic.components()) {
+        if (c.kind == ComponentKind::LED) led = c.id;
+        if (c.kind == ComponentKind::Resistor) res = c.id;
+    }
+    p.schematic.find(led)->pcb.position = p.schematic.find(res)->pcb.position;
+    auto collides = [&] {
+        for (const auto& v : mechanicalChecks(p.schematic, p.pcb))
+            if (v.code == "MECH_BODY_COLLISION") return true;
+        return false;
+    };
+    CHECK(collides());
+    const char* box =
+        "solid box\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 0 0\nvertex 3 2 1.5\nendloop\nendfacet\n"
+        "facet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 2 1.5\nvertex 0 2 1.5\nendloop\nendfacet\nendsolid box\n";
+    Model3DRef ref;
+    ref.id = Model3DRegistry::instance().add(parseStl(box, "box.stl"));
+    ref.offset = {{-1.5, -1, 3}};
+    p.pcb.partModels[led] = ref;
+    CHECK(!collides());
+    p.pcb.partModels[led].offset = {{-1.5, -1, 0}};  // seated on the board: back in the resistor's way
+    CHECK(collides());
 }
 
 TEST(pcb_part_model_on_a_catalog_part) {

@@ -65,6 +65,7 @@ add_library(sieda_core STATIC
   Core/src/Firmware.cpp
     Core/src/Mesh.cpp
     Core/src/Export.cpp
+    Core/src/Documents.cpp
     Core/src/Fabrication.cpp
     Core/src/FabExchange.cpp
     Core/src/Panel.cpp

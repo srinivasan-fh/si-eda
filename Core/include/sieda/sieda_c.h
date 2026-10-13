@@ -389,6 +389,12 @@ void sieda_pcb_clear_routing(SiedaProject* project);
  * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.
  * The board's autoroute options are left as they were. Caller frees. */
 char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json);
+/// Pours refilled on demand: `hold` keeps the last fill through edits, `refill` pours again now. Returns 1 while the
+/// held fill is out of date.
+int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill);
+/// Board outline and cutouts from a DXF (closed loops of lines, arcs, polylines, circles; mm or $INSUNITS inches):
+/// {"ok", "error", "width", "height", "corners", "cutouts"}; the board is unchanged when ok is false.
+char* sieda_pcb_import_dxf(SiedaProject* project, const char* dxf_text);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
 char* sieda_design_rule_presets_json(void);
@@ -622,7 +628,9 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj", "vrml" (VRML 2.0, metres),
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn), "idx" (ProSTEP EDMD / IDX v4.5 baseline),
  *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
- *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
+ *         "review" (design review, Markdown), "dxf" (R12 DXF: outline, holes, drills, silk / fab, courtyards),
+ *         "testpoints" (probe points per net, CSV), "html_bom" (interactive BOM and board viewer), "bringup"
+ *         (bring-up checklist, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
  *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* sieda_export written to a file, plus "glb" (glTF 2.0 binary of the 3D assembly, in metres). 1 on success. */

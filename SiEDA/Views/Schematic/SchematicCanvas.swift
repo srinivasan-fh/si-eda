@@ -227,10 +227,11 @@ struct SchematicCanvas: View {
                 store.duplicateSelection()
                 return .handled
             }
-            // Single-letter tool keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
-            .onKeyPress(keys: ["r", "w", "q", "v", "h", "g", "l", "p", "b", "x", "y", "/", "t"], phases: .down) { press in
-                guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
-                switch press.key {
+            // Single-letter tool keys (Settings → Shortcuts); ⌘/⌥/⌃ combinations belong to menus and text editing.
+            .onKeyPress(phases: .down) { press in
+                guard press.modifiers.subtracting(.shift).isEmpty,
+                      let key = ShortcutStore.shared.toolKey(press.characters, canvas: "sch") else { return .ignored }
+                switch key {
                 case KeyEquivalent("r"): rotate()
                 case KeyEquivalent("x"): store.mirror(store.targets(hovered: hoveredComponent), vertical: false)
                 case KeyEquivalent("y"): store.mirror(store.targets(hovered: hoveredComponent), vertical: true)
@@ -278,7 +279,7 @@ struct SchematicCanvas: View {
 
     /// Delete / ⌫: the selected wire, bus or parts, else the part under the pointer.
     private func deleteTargets() {
-        if store.selectedWire != nil || store.selectedBus != nil || !store.selection.isEmpty { store.deleteSelection() }
+        if store.selectedWire != nil || store.selectedBus != nil || !store.selection.isEmpty || !store.boxedWires.isEmpty { store.deleteSelection() }
         else if let id = hoveredComponent { store.delete([id]) }
     }
 
@@ -305,6 +306,7 @@ struct SchematicCanvas: View {
                 .separator,
                 CanvasMenuItem(title: String(localized: "Select Same Value")) { store.selectSameValue() },
                 CanvasMenuItem(title: String(localized: "Select Connected Parts")) { store.selectConnected() },
+                CanvasMenuItem(title: String(localized: "Connect Touching Pins and Wires")) { store.connectTouching(ids) },
                 CanvasMenuItem(title: c.isLocked ? String(localized: "Unlock") : String(localized: "Lock")) { store.setLocked(ids, !c.isLocked) },
                 c.componentKind == .netLabel
                     ? CanvasMenuItem(title: c.isPower ? String(localized: "Show as Label") : String(localized: "Show as Power Symbol")) {
@@ -563,6 +565,8 @@ struct SchematicCanvas: View {
                             let boxed = Self.componentBounds(store.sheetSnapshot).filter { $0.rect.intersects(worldRect) }.map(\.id)
                             store.selection.formUnion(boxed)
                             store.selectedWire = nil
+                            // Wires with both ends in the box are selected too (Delete removes them with the parts).
+                            store.boxedWires = Set(store.sheetSnapshot.wires.filter { worldRect.contains($0.start) && worldRect.contains($0.end) }.map(\.id))
                         }
                     default:
                         break
@@ -849,7 +853,7 @@ struct SchematicCanvas: View {
             } else {
                 path.addLines(Self.wirePath(a, b))
             }
-            let selected = store.selectedWire == w.id || (w.net >= 0 && highlighted.contains(w.net))
+            let selected = store.selectedWire == w.id || store.boxedWires.contains(w.id) || (w.net >= 0 && highlighted.contains(w.net))
             if selected {
                 ctx.stroke(path.applying(screen), with: .color(pal.selectionHalo.color.opacity(0.6)), lineWidth: 7)
             }

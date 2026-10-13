@@ -387,13 +387,36 @@ final class ShortcutStore: ObservableObject {
         .init(id: "autoRoute", title: "Auto Route Board", standard: "cmd+shift+r"),
         .init(id: "drc", title: "Run Design Rule Check", standard: ""),
     ]
+    /// Single-key canvas tools ("pcb." / "sch." canvas); the canvases switch on the standard key.
+    static let toolKeys: [Command] = [
+        .init(id: "sch.select", title: "Schematic: Select", standard: "v"),
+        .init(id: "sch.wire", title: "Schematic: Wire", standard: "w"),
+        .init(id: "sch.bus", title: "Schematic: Bus", standard: "b"),
+        .init(id: "sch.noConnect", title: "Schematic: No-Connect", standard: "q"),
+        .init(id: "sch.label", title: "Schematic: Net Label", standard: "l"),
+        .init(id: "sch.ground", title: "Schematic: Ground", standard: "g"),
+        .init(id: "sch.place", title: "Schematic: Place Part", standard: "p"),
+        .init(id: "sch.text", title: "Schematic: Text", standard: "t"),
+        .init(id: "sch.pan", title: "Schematic: Pan", standard: "h"),
+        .init(id: "sch.rotate", title: "Schematic: Rotate", standard: "r"),
+        .init(id: "sch.mirrorX", title: "Schematic: Mirror Horizontally", standard: "x"),
+        .init(id: "sch.mirrorY", title: "Schematic: Mirror Vertically", standard: "y"),
+        .init(id: "sch.corner", title: "Schematic: Wire Corner", standard: "/"),
+        .init(id: "pcb.select", title: "PCB: Select (Via While Routing)", standard: "v"),
+        .init(id: "pcb.route", title: "PCB: Route", standard: "x"),
+        .init(id: "pcb.tune", title: "PCB: Length Tuning", standard: "t"),
+        .init(id: "pcb.pan", title: "PCB: Pan", standard: "h"),
+        .init(id: "pcb.rotate", title: "PCB: Rotate", standard: "r"),
+        .init(id: "pcb.flip", title: "PCB: Flip Side", standard: "f"),
+        .init(id: "pcb.refill", title: "PCB: Refill Pours", standard: "b"),
+    ]
     private static let key = "app.shortcuts"
     @Published private(set) var overrides: [String: String]
 
     init() { overrides = UserDefaults.standard.dictionary(forKey: Self.key) as? [String: String] ?? [:] }
 
     /// The text of a command's shortcut ("cmd+shift+k"), or "" for none.
-    func text(_ id: String) -> String { overrides[id] ?? Self.commands.first { $0.id == id }?.standard ?? "" }
+    func text(_ id: String) -> String { overrides[id] ?? (Self.commands + Self.toolKeys).first { $0.id == id }?.standard ?? "" }
 
     /// nil = back to the standard one.
     func set(_ id: String, _ text: String?) {
@@ -402,6 +425,26 @@ final class ShortcutStore: ObservableObject {
     }
 
     func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
+
+    /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
+    static let toolPresetNames = ["SiEDA", "KiCad"]
+    static let toolPresets: [String: [String: String]] = [
+        "SiEDA": [:],
+        "KiCad": ["sch.place": "a", "sch.ground": "p", "sch.select": "", "sch.pan": "", "pcb.tune": "7", "pcb.pan": ""],
+    ]
+
+    func applyToolPreset(_ keys: [String: String]) {
+        for tool in Self.toolKeys { overrides[tool.id] = keys[tool.id] }
+        UserDefaults.standard.set(overrides, forKey: Self.key)
+    }
+
+    /// The standard key of the `canvas` tool ("sch", "pcb") the typed key is set to; nil when no tool has it.
+    func toolKey(_ characters: String, canvas: String) -> KeyEquivalent? {
+        let typed = characters.lowercased()
+        guard !typed.isEmpty, let tool = Self.toolKeys.first(where: { $0.id.hasPrefix(canvas + ".") && text($0.id).lowercased() == typed })
+        else { return nil }
+        return KeyEquivalent(Character(tool.standard))
+    }
 
     /// "cmd+shift+k" (or ⌘⇧K-style symbols) → a shortcut; nil when there is no single key.
     static func parse(_ text: String) -> KeyboardShortcut? {
@@ -424,10 +467,11 @@ final class ShortcutStore: ObservableObject {
     /// Commands that share a shortcut with another one.
     var clashes: Set<String> {
         var seen: [String: String] = [:], out = Set<String>()
-        for c in Self.commands {
+        for c in Self.commands + Self.toolKeys {  // menus clash with menus, a canvas's tools with each other
             let t = text(c.id).lowercased()
             guard !t.isEmpty else { continue }
-            if let other = seen[t] { out.formUnion([other, c.id]) } else { seen[t] = c.id }
+            let key = (c.id.contains(".") ? String(c.id.prefix { $0 != "." }) : "") + "|" + t
+            if let other = seen[key] { out.formUnion([other, c.id]) } else { seen[key] = c.id }
         }
         return out
     }
@@ -439,26 +483,34 @@ struct ShortcutSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                ForEach(ShortcutStore.commands) { command in
-                    HStack {
-                        Text(LocalizedStringKey(command.title))
-                        Spacer()
-                        if shortcuts.clashes.contains(command.id) {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                                .help("Another command uses the same keys")
+            ForEach([ShortcutStore.commands, ShortcutStore.toolKeys], id: \.first?.id) { group in
+                Section(LocalizedStringKey(group.first?.id.contains(".") == true ? "Canvas Tool Keys" : "Menu Commands")) {
+                    ForEach(group) { command in
+                        HStack {
+                            Text(LocalizedStringKey(command.title))
+                            Spacer()
+                            if shortcuts.clashes.contains(command.id) {
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                                    .help("Another command uses the same keys")
+                            }
+                            TextField("", text: Binding(get: { shortcuts.text(command.id) }, set: { shortcuts.set(command.id, $0) }),
+                                      prompt: Text(verbatim: command.standard.isEmpty ? "—" : command.standard))
+                                .frame(width: 150)
+                                .font(.body.monospaced())
+                            Button("Reset") { shortcuts.set(command.id, nil) }
+                                .disabled(shortcuts.overrides[command.id] == nil)
                         }
-                        TextField("", text: Binding(get: { shortcuts.text(command.id) }, set: { shortcuts.set(command.id, $0) }),
-                                  prompt: Text(verbatim: command.standard.isEmpty ? "—" : command.standard))
-                            .frame(width: 150)
-                            .font(.body.monospaced())
-                        Button("Reset") { shortcuts.set(command.id, nil) }
-                            .disabled(shortcuts.overrides[command.id] == nil)
                     }
                 }
-            } footer: {
-                Text("Type the keys as cmd, shift, opt and ctrl plus one key, joined by +, e.g. cmd+shift+k. Leave empty for no shortcut.")
-                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Text("Type the keys as cmd, shift, opt and ctrl plus one key, joined by +, e.g. cmd+shift+k. Leave empty for no shortcut.")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("A canvas tool takes one key.").font(.caption).foregroundStyle(.secondary)
+            Picker("Canvas Key Preset", selection: Binding(get: { "" }, set: { name in
+                if let keys = ShortcutStore.toolPresets[name] { shortcuts.applyToolPreset(keys) }
+            })) {
+                Text("Choose…").tag("")
+                ForEach(ShortcutStore.toolPresetNames, id: \.self) { Text(verbatim: $0).tag($0) }
             }
         }
         .formStyle(.grouped)

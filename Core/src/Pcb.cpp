@@ -396,6 +396,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.paste = pd.paste;
             p.pasteGrid = pd.pasteGrid;
             p.inner = pd.inner;
+            p.solder = pd.solder;
             for (const Vec2& v : pd.outline) p.outline.push_back(transformFootprintPoint(pd.offset + v, c.pcb) - p.position);
             if (pd.npth) {  // a plain hole: no copper and no net, its keep-out the size of the drill
                 p.npth = true;

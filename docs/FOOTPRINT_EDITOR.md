@@ -81,6 +81,8 @@ The pad panel also sets, per pad:
   Chamfered and custom pads go to the Gerbers as filled regions (copper, mask grown by its margin, paste), and to the
   3D view as their own shape.
 - **Inner Ø** (a pad with a drill): the pad stack — its diameter on the inner copper layers (0 = its own size).
+- **Solder-side Ø** (a pad with a drill): its diameter on the side opposite the part (copper and mask opening; 0 = its
+  own size; land option `solder`).
 - **Non-plated hole** (a pad with a drill): no copper and no net; the hole goes in the NPTH drill file.
 - **Mask**: the solder mask opening margin (board default 0.05 mm), in the Gerbers, IPC-2581 and ODB++.
 - **Paste**: automatic (80 % per side on pads of 2.5 mm and more), none, or 50–100 % of the pad, split into up to
@@ -95,6 +97,7 @@ The **Graphics** section of the side panel draws lines into the footprint:
 - **Body on Silk** / **Body on Fab**: the body's outline as four lines, on the silkscreen (0.1 mm outside the body)
   or on the fabrication (assembly) drawing.
 - **Add Line**, then type its ends (x0, y0, x1, y1 in mm); **Fab** moves it to the fabrication drawing.
+- **Add Pin-1 Mark**: a short silk bar beside pad 1 on its inner side (0.3 mm clear of the pad).
 
 Silk lines go to the silkscreen Gerber, the 3D view and the board's Top / Bottom Overlay. Fab lines go to the assembly
 drawings and the board's Fabrication layer.
@@ -113,6 +116,14 @@ drawings and the board's Fabrication layer.
   0.35 / 0.35 / 0.03, least 0.15 / 0.25 / 0.01 mm) and tolerances F 0.05, P 0.025 mm: Z = Lmin + 2·toe + RMS,
   G = Smax − 2·heel − RMS, X = Wmin + 2·side + RMS; the pad is (Z − G) / 2 × X with rows (Z + G) / 2 apart.
   Apply to Selected Pads sizes and places them.
+
+- **Layers** (toolbar): show or hide copper, the solder mask and paste openings (dashed / thin outlines, hidden at
+  first), silkscreen, fabrication, courtyard and body.
+- **Select** (toolbar): the selection filter — all pads, SMD, through-hole or mechanical (no pin or a plain hole); a
+  click picks only those, and **Select All of These** takes them all.
+- **Library → Save to My Footprints**: the pads, body, courtyard and graphics as one JSON file in
+  `~/Library/Application Support/SiEDA/Footprints` (`UserFootprintLibrary`); **My Footprints** at the top of the
+  Library popover loads one (undoable) or removes it.
 
 ## Reviewing
 
@@ -147,6 +158,14 @@ The core checks the land pattern on every edit (`checkLandPattern`), with a mini
 | `LAND_NO_PIN` | warning | A pad's pin is not in the part's pin list. Mark it `-` if it is mechanical. |
 | `LAND_NO_PAD` | error | A pin of the part has no pad. |
 | `LAND_INVALID` | error | The land pattern cannot be read, e.g. a drill as large as its pad. |
+| `LAND_PASTE` | warning / info | A paste opening under 50 % of the pad size starves the joint (warning); a pad of 9 mm² or more under one full window floats the part (note: split it into windows). |
+| `LAND_SILK_PAD` | warning | A silkscreen line comes within 0.15 mm of a pad. |
+| `LAND_PIN1` | info | The footprint has its own graphics but nothing tells pad 1 apart: no other shape and no silk mark within 1 mm of it. |
+| `LAND_NUMBERING` | warning | Pads without ball names are numbered across the footprint (more than 4, or one in 8, steps of over three times the usual pitch). |
+| `LAND_COURTYARD` | info | A silk or fab line runs outside the courtyard. |
+| `LAND_MASK_SLIVER` | info | The mask openings of two pads overlap (their gap is less than the two margins). |
+
+The added checks are quiet on every catalog footprint.
 
 Errors block **Apply Footprint**. The core also refuses to register a land-pattern part with a pin that has no pad
 or an invalid land, so a broken footprint can never be saved.

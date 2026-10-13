@@ -1,4 +1,5 @@
 // SiEDA Core — C ABI implementation. Every entry point is exception-safe.
+#include "sieda/Documents.hpp"
 #include "sieda/sieda_c.h"
 
 #include "sieda/Aerospace.hpp"
@@ -1395,6 +1396,30 @@ int32_t sieda_router_strategy(void) { return static_cast<int32_t>(routerStrategy
 
 void sieda_router_set_threads(int32_t threads) { setRoutingThreads(threads); }
 
+char* sieda_pcb_import_dxf(SiedaProject* project, const char* dxf_text) {
+    if (!project || !dxf_text) return nullptr;
+    try {
+        const DxfOutline d = importDxfOutline(dxf_text);
+        Json j = Json::object();
+        j["ok"] = applyDxfOutline(project->project.pcb, d);
+        j["error"] = d.error;
+        j["width"] = d.width, j["height"] = d.height;
+        j["corners"] = static_cast<int>(d.outline.size()), j["cutouts"] = static_cast<int>(d.cutouts.size());
+        return dup(j.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill) {
+    if (!project) return 0;
+    PcbLayout& pcb = project->project.pcb;
+    pcb.holdPours = hold != 0;
+    if (refill) pcb.refillPours();
+    pcb.zoneFills(project->project.schematic);
+    return pcb.poursStale() ? 1 : 0;
+}
+
 char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json) {
     if (!project) return nullptr;
     try {
@@ -1770,6 +1795,10 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
         if (f == "idx") return dup(exportIdx(p.schematic, p.pcb, p.name));
+        if (f == "dxf") return dup(exportDxf(p.schematic, p.pcb));
+        if (f == "testpoints") return dup(exportTestPointReport(p.schematic, p.pcb));
+        if (f == "html_bom") return dup(exportHtmlBom(p));
+        if (f == "bringup") return dup(bringUpChecklist(p));
         return nullptr;
     } catch (...) {
         return nullptr;

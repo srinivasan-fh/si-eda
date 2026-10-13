@@ -446,6 +446,13 @@ and teardrops end a line and stay. A line that cannot get shorter is left exactl
 nets that joins exactly two tracks is pulled towards the straight line between their other ends (a via drag in walk
 around: nothing else moves, every rule kept; C option `"moveVias"`).
 
+**Refill Pours** (B, or right-click the board): pours the copper zones again now. **Refill Pours Only on Demand** keeps
+the last fill through edits (large boards edit faster) and shows *Pours are out of date* until you refill
+(`PcbLayout::holdPours`, not saved; C `sieda_pcb_hold_pours`; snapshot fills carry `stale`).
+
+**Slot tool** (capsule button): drag from one end of a milled slot to the other; it becomes a round-ended board cutout
+of the slot width (right-click while the tool is on: 0.6–3 mm).
+
 **Minimise Vias** (right-click a track, or the board for every net): the nets of the selected tracks are routed again
 with via minimisation; the result is kept only when it has fewer vias and leaves no connection more unrouted (one undo
 step). C: `sieda_pcb_minimize_vias`.

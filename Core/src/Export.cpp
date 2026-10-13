@@ -349,6 +349,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 ops.push_back({aperture(circle(p.inner)), coord(p.position) + "D03*"});
                 continue;
             }
+            if (p.throughHole && p.solder > 0 && cl == (p.bottom ? kTopLayer : bottom)) {  // pad stack: solder-side size
+                ops.push_back({aperture(circle(p.solder + 2 * grow)), coord(p.position) + "D03*"});
+                continue;
+            }
             if (!p.outline.empty()) {
                 regions.push_back(padRegion(p, grow, 1));
                 continue;

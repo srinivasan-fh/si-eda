@@ -15,13 +15,22 @@ Coordinates are in MCAD's frame:
 - **Origin:** the board's underside is at Z = 0.
 - **Parts:** top-side parts sit on Z = thickness; bottom-side parts hang below Z = 0.
 
+## DXF
+
+**Export → DXF** (and `mechanical/<name>.dxf` in the fabrication package) writes an AutoCAD R12 drawing in millimetres,
+Y up, origin at the board's lower-left: layers OUTLINE (outline and cutouts), HOLES, DRILLS, SILK_TOP / SILK_BOTTOM,
+FAB and COURTYARD. **File → Import Board Outline (DXF)…** (MCP `pcb_import_dxf`, C `sieda_pcb_import_dxf`) reads
+closed loops of lines, arcs, polylines with bulges and circles — only from outline-like layers (OUTLINE, Edge.Cuts,
+BOARD, PROFILE, CUT…) when the file names them; millimetres, or inches by `$INSUNITS`. The largest loop becomes the
+outline and the loops inside it cutouts; one undo step.
+
 ## 3D clearance (DRC)
 
 The design rule check also checks the parts in 3D (Errors):
 
 | Code | When |
 |---|---|
-| `MECH_BODY_COLLISION` | Two fitted parts' bodies overlap on the same side. Always checked; parts marked DNP are left out. |
+| `MECH_BODY_COLLISION` | Two fitted parts' bodies overlap on the same side, in plan and in height. A part drawn by a 3D model uses the model's bounds and height range, so a body raised on its own leads or standoffs passes over the parts below it. Always checked; parts marked DNP are left out. |
 | `MECH_HEIGHT` | A part is taller than the enclosure allows on its side (**Board Setup → Mechanical → Tallest part, top / bottom**). |
 | `MECH_HEIGHT_ZONE` | A part stands in a height zone (a rectangle under a display, a rib or a battery) and is taller than the zone allows. |
 
@@ -102,7 +111,8 @@ Code: `Core/src/Mechanical.cpp` (`exportStep`, `exportIdfBoard`, `exportIdfLibra
 The 3D workspace (**Assembly**) has these tools in its options bar:
 
 - **View:** top, bottom (flip), front, back, left, right and isometric cameras; **Focus Selection** flies to the
-  selected part; **Save View** / **Restore Saved View**.
+  selected part; **Save View As…** names the current camera (kept per project name); the named views follow, and
+  **Forget Saved Views** clears them.
 - **Layers:** show or hide the solder mask, silkscreen, copper finish, solder and part markings; **Hide Selected
   Parts**, **Isolate Selected Parts**, **Show All Parts**.
 - **Explode** (slider): lifts the parts up to 8 mm off the board.
@@ -110,7 +120,11 @@ The 3D workspace (**Assembly**) has these tools in its options bar:
 - **Measure:** click two points on the model for the distance and its X / Y / Z parts.
 
 Clicking a part selects it in the schematic and the board (cross-probe) and shows its designator, value, side and body
-height.
+height. Parts selected in the schematic or the PCB layout are boxed in cyan in 3D.
+
+**Panels** (on by default) lays the workspace out like a mechanical CAD tool: layers and the parts list (eye = hide,
+click = select) on the left, the picked part's properties and 3D model on the right, and the 3D clearance findings
+below (click one to pick and fly to its part).
 
 The **Mechanical** menu:
 

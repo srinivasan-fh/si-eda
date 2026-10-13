@@ -280,6 +280,10 @@ extension EDAEngine {
     struct ViaMinimisation: Decodable { var viasBefore: Int; var viasAfter: Int; var kept: Bool }
 
     /// Routes the nets again with via minimisation; kept only when it saves vias without new unrouted connections.
+    /// Pours kept through edits until refilled (`hold`), `refill` pours again now; true while a held fill is out of date.
+    @discardableResult
+    func holdPours(_ hold: Bool, refill: Bool) -> Bool { withHandle { sieda_pcb_hold_pours($0, hold ? 1 : 0, refill ? 1 : 0) } != 0 }
+
     func minimizeVias(nets: [String]) -> ViaMinimisation? {
         guard let data = try? JSONSerialization.data(withJSONObject: nets), let json = String(data: data, encoding: .utf8) else { return nil }
         return Self.decode(ViaMinimisation.self, from: withHandle { Self.take(sieda_pcb_minimize_vias($0, json)) })

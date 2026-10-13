@@ -1600,6 +1600,10 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case idfLibrary = "idf_library"
     case idx
     case ipc2581
+    case dxf
+    case testPoints = "testpoints"
+    case htmlBom = "html_bom"
+    case bringUp = "bringup"
 
     var id: String { rawValue }
 
@@ -1634,6 +1638,10 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idfLibrary: return "board.emp"
         case .idx: return "board.idx"
         case .ipc2581: return "board-ipc2581.xml"
+        case .dxf: return "board.dxf"
+        case .testPoints: return "test_points.csv"
+        case .htmlBom: return "interactive_bom.html"
+        case .bringUp: return "bring_up_checklist.md"
         }
     }
 
@@ -1668,6 +1676,10 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idfLibrary: return "IDF 3.0 Library (.emp)"
         case .idx: return "IDX / EDMD Baseline for MCAD (.idx)"
         case .ipc2581: return "IPC-2581C — Layers, Nets, Parts and BOM (XML)"
+        case .dxf: return "DXF — Outline, Holes, Silk and Courtyards (MCAD)"
+        case .testPoints: return "Test-Point Report for Fixtures (CSV)"
+        case .htmlBom: return "Interactive BOM and Board Viewer (HTML)"
+        case .bringUp: return "Bring-Up Checklist (Markdown)"
         }
     }
 }

@@ -1,5 +1,5 @@
 // libFuzzer targets for everything SiEDA reads from outside: project / JSON files, SPICE model libraries, KiCad /
-// Eagle / Altium libraries and 3D models, and IDF placement files. Built only with -DSIEDA_FUZZ=ON (clang); one
+// Eagle / Altium libraries and 3D models, and IDF / IDX / DXF files from MCAD. Built only with -DSIEDA_FUZZ=ON (clang); one
 // binary per target, chosen by SIEDA_FUZZ_<NAME>. A crash, hang or sanitizer report is a bug: inputs may be refused
 // (an exception or an error result), never mishandled.
 #include <cstddef>
@@ -7,6 +7,7 @@
 #include <exception>
 #include <string>
 
+#include "sieda/Documents.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/LibraryImport.hpp"
 #include "sieda/Mechanical.hpp"
@@ -40,6 +41,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         BoardSettings board;
         (void)importIdx(sch, board, text);  // IDX (EDMD XML) from the same MCAD side
         (void)idxResponse(text, true);
+        (void)importDxfOutline(text);  // DXF board outlines from the same MCAD side
 #else
 #error "Define one SIEDA_FUZZ_<TARGET>"
 #endif

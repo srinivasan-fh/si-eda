@@ -6595,6 +6595,110 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.engine.setPartModel(part, model: ""))
     }
 
+    func testWireBoxPoursOnDemandSlotsToolKeysAndFootprintLibrary() throws {
+        // Canvas tool keys: the standard key, and a key moved to another tool.
+        let keys = ShortcutStore.shared
+        XCTAssertEqual(keys.toolKey("x", canvas: "pcb"), KeyEquivalent("x"))
+        XCTAssertEqual(keys.toolKey("V", canvas: "pcb"), KeyEquivalent("v"))
+        keys.set("pcb.route", "w")
+        XCTAssertEqual(keys.toolKey("w", canvas: "pcb"), KeyEquivalent("x"))
+        XCTAssertNil(keys.toolKey("x", canvas: "pcb"))
+        XCTAssertEqual(keys.toolKey("w", canvas: "sch"), KeyEquivalent("w"))  // each canvas has its own keys
+        keys.set("pcb.route", nil)
+
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        // Wires taken by a marquee go with Delete (one undo step).
+        let wire = try XCTUnwrap(store.snapshot.wires.first)
+        store.boxedWires = [wire.id]
+        store.deleteSelection()
+        XCTAssertTrue(store.snapshot.wires.isEmpty)
+        store.undo()
+        XCTAssertFalse(store.snapshot.wires.isEmpty)
+        store.connectTouching(Set(store.snapshot.components.map(\.id)))
+        XCTAssertFalse(store.snapshot.wires.isEmpty)
+
+        // Pours held through edits until refilled.
+        let net = try XCTUnwrap(store.snapshot.nets.first?.name)
+        XCTAssertNotNil(store.engine.addZone(net: net, layer: 0, polygon: [CGPoint(x: 1, y: 1), CGPoint(x: 49, y: 1),
+                                                                         CGPoint(x: 49, y: 39), CGPoint(x: 1, y: 39)]))
+        store.refresh()
+        XCTAssertFalse(store.snapshot.zoneFills.isEmpty)
+        store.holdPours = true
+        defer { store.holdPours = false }
+        let part = try XCTUnwrap(store.snapshot.components.first { $0.pcb.placed }?.id)
+        store.engine.moveFootprint(part, to: CGPoint(x: 20, y: 25))
+        store.refresh()
+        XCTAssertTrue(store.snapshot.zoneFills.contains { $0.stale == true })
+        store.refillPours()
+        XCTAssertFalse(store.snapshot.zoneFills.contains { $0.stale == true })
+
+        // A slot is a round-ended cutout of the slot width.
+        let cutouts = store.snapshot.board.cutouts.count
+        store.slotWidth = 1.5
+        defer { UserDefaults.standard.removeObject(forKey: "pcb.slotWidth") }
+        store.addSlot(from: CGPoint(x: 20, y: 8), to: CGPoint(x: 30, y: 8))
+        XCTAssertEqual(store.snapshot.board.cutouts.count, cutouts + 1)
+        let slot = try XCTUnwrap(store.snapshot.board.cutouts.last)
+        XCTAssertEqual(slot.count, 18)
+        XCTAssertEqual(slot.map(\.y).max()! - slot.map(\.y).min()!, 1.5, accuracy: 1e-6)
+
+        // Footprints: a pin-1 mark clears the pin-1 note; the selection filter; the user library round trip.
+        let ne555 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "NE555" }).spec
+        let editable = try EDAEngine.landPattern(ne555).get()
+        var draft = FootprintDraft(spec: editable)
+        for i in draft.pads.indices { draft.pads[i].land.round = true }  // pad 1 no longer square
+        draft.graphics = [.init(x0: -1, y0: 6, x1: 1, y1: 6)]
+        XCTAssertTrue(EDAEngine.checkLandPattern(draft.applied(to: editable)).contains { $0.code == "LAND_PIN1" })
+        draft.addPin1Mark()
+        let marked = EDAEngine.checkLandPattern(draft.applied(to: editable)).map(\.code)
+        XCTAssertFalse(marked.contains("LAND_PIN1") || marked.contains("LAND_SILK_PAD"), "\(marked)")
+        XCTAssertEqual(draft.pads.filter { draft.passes($0, filter: "tht") }.count, 8)
+        XCTAssertTrue(draft.pads.filter { draft.passes($0, filter: "smd") }.isEmpty)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let saved = UserFootprintLibrary.folder
+        UserFootprintLibrary.folder = folder
+        defer {
+            UserFootprintLibrary.folder = saved
+            try? FileManager.default.removeItem(at: folder)
+        }
+        try UserFootprintLibrary.save(draft, as: "DIP-8 mine")
+        XCTAssertEqual(UserFootprintLibrary.names(), ["DIP-8 mine"])
+        let loaded = try XCTUnwrap(UserFootprintLibrary.load("DIP-8 mine"))
+        XCTAssertEqual(loaded.lands, draft.pads.map(\.land))
+        XCTAssertEqual(loaded.graphics, draft.graphics)
+        UserFootprintLibrary.remove("DIP-8 mine")
+        XCTAssertTrue(UserFootprintLibrary.names().isEmpty)
+        // The solder-side pad size survives the land JSON.
+        var land = editable.package.lands![0]
+        land.options.solder = 2.2
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land)).options.solder, 2.2)
+    }
+
+    func testDocumentExportsDXFOutlineAndCanvasKeyPresets() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        for format in [ExportFormat.dxf, .testPoints, .htmlBom, .bringUp] {
+            XCTAssertFalse((store.engine.export(format) ?? "").isEmpty, format.rawValue)
+        }
+        // Our own DXF reads back as the same rectangle.
+        let dxf = try XCTUnwrap(store.engine.export(.dxf))
+        let back = try XCTUnwrap(store.engine.importDXFOutline(dxf))
+        XCTAssertTrue(back.ok)
+        XCTAssertEqual(back.corners, 4)
+        XCTAssertFalse(try XCTUnwrap(store.engine.importDXFOutline("0\nEOF\n")).ok)
+        // The KiCad preset moves Place Part to A and the ground symbol to P; SiEDA restores the standard keys.
+        let keys = ShortcutStore.shared
+        keys.applyToolPreset(try XCTUnwrap(ShortcutStore.toolPresets["KiCad"]))
+        XCTAssertEqual(keys.toolKey("a", canvas: "sch"), KeyEquivalent("p"))
+        XCTAssertEqual(keys.toolKey("p", canvas: "sch"), KeyEquivalent("g"))
+        XCTAssertNil(keys.toolKey("h", canvas: "pcb"))
+        keys.applyToolPreset([:])
+        XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

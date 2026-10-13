@@ -71,6 +71,16 @@ final class DesignStore: ObservableObject {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
     @Published var selectedWire: Int?
+    /// Wires taken by a marquee (both ends inside the box); deleted with the selected parts.
+    @Published var boxedWires: Set<Int> = []
+    /// Pours refilled on demand (B / Refill Pours) instead of after every board edit (large boards edit faster).
+    @Published var holdPours = UserDefaults.standard.bool(forKey: "pcb.holdPours") {
+        didSet {
+            UserDefaults.standard.set(holdPours, forKey: "pcb.holdPours")
+            engine.holdPours(holdPours, refill: !holdPours)
+            refresh()
+        }
+    }
     /// The part whose designator and value are being edited in place (double-click on the schematic).
     @Published var quickEdit: Int?
     /// The note / line / arrow / rectangle selected on the schematic.
@@ -297,7 +307,15 @@ final class DesignStore: ObservableObject {
     /// One alert per run of failed snapshot reads.
     private var snapshotErrorShown = false
 
+    /// Pours the copper zones again now (they also refill on every edit unless `holdPours`).
+    func refillPours() {
+        engine.holdPours(holdPours, refill: true)
+        refresh()
+        statusMessage = snapshot.zones.isEmpty ? "There are no pours to refill" : "Pours refilled"
+    }
+
     func refresh() {
+        if holdPours { engine.holdPours(true, refill: false) }  // a design just opened or undone starts unheld
         // Only the changed sections of the snapshot after an edit; `coreSnapshot` is the copy they apply to.
         switch engine.snapshotChecked(base: coreSnapshot, delta: true) {
         case .success(let snap):
@@ -514,10 +532,21 @@ final class DesignStore: ObservableObject {
             selectedWire = nil
             return
         }
-        let ids = selection
-        guard !ids.isEmpty else { return }
-        perform("Deleted \(ids.count) part(s)") { engine in ids.forEach { engine.removeComponent($0) } }
+        let ids = selection, wires = boxedWires.intersection(snapshot.wires.map(\.id))
+        boxedWires = []
+        guard !ids.isEmpty || !wires.isEmpty else { return }
+        perform("Deleted \(ids.count) part(s), \(wires.count) wire(s)") { engine in
+            wires.forEach { engine.removeWire($0) }
+            ids.forEach { engine.removeComponent($0) }
+        }
         selection = []
+    }
+
+    /// Joins the parts' pins to the pins and wires they touch (a pin dropped on a wire becomes a connection).
+    func connectTouching(_ ids: Set<Int>) {
+        var joined = 0
+        perform("Connected touching pins") { engine in ids.forEach { joined += engine.connectTouching($0, wires: true) } }
+        statusMessage = joined > 0 ? "Joined \(joined) touching pin(s)" : "No pin touches another pin or a wire"
     }
 
     // MARK: - Microcontroller firmware
@@ -775,6 +804,7 @@ final class DesignStore: ObservableObject {
         selectedWire = nil
         selectedBus = nil
         selectedGraphic = nil
+        if !extend { boxedWires = [] }
         guard let id else {
             if !extend { selection = [] }
             return
@@ -2258,7 +2288,7 @@ final class DesignStore: ObservableObject {
 
     /// PCB drawing tools: a pour, the board outline or a cutout (click corners, double-click or Enter closes) and a
     /// routing keep-out (drag a rectangle).
-    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout }
+    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout, slot }
     /// Closes a drawn shape (≥ 3 corners) as `tool`; a pour takes `pourNet` (empty = the ground net) on `layer`.
     func finishShape(_ tool: PCBShapeTool, points: [CGPoint], layer: Int) {
         guard points.count >= 3 else {
@@ -2284,9 +2314,31 @@ final class DesignStore: ObservableObject {
         case .cutout:
             performChecked("Added board cutout", invalidatesAnalysis: false,
                            failureMessage: "Cutout: draw it inside the board") { $0.addCutout(points) }
-        case .keepout:
+        case .keepout, .slot:
             break
         }
+    }
+
+    /// Width of the slots the slot tool cuts (mm).
+    var slotWidth: Double {
+        get { UserDefaults.standard.object(forKey: "pcb.slotWidth") as? Double ?? 1.0 }
+        set { UserDefaults.standard.set(newValue, forKey: "pcb.slotWidth"); objectWillChange.send() }
+    }
+
+    /// A milled slot from `a` to `b` (`slotWidth` wide, round ends) as a board cutout.
+    func addSlot(from a: CGPoint, to b: CGPoint) {
+        let dx = Double(b.x - a.x), dy = Double(b.y - a.y), r = slotWidth / 2
+        guard hypot(dx, dy) > 0.05 else { return }
+        let angle = atan2(dy, dx), steps = 8
+        var points: [CGPoint] = []
+        for (centre, start) in [(b, angle - Double.pi / 2), (a, angle + Double.pi / 2)] {  // a half circle round each end
+            for i in 0...steps {
+                let t = start + Double(i) * Double.pi / Double(steps)
+                points.append(CGPoint(x: Double(centre.x) + r * cos(t), y: Double(centre.y) + r * sin(t)))
+            }
+        }
+        performChecked(String(format: "Added %.2f mm slot", slotWidth), invalidatesAnalysis: false,
+                       failureMessage: "Slot: draw it inside the board") { $0.addCutout(points) }
     }
 
     /// Adds a routing keep-out (no tracks or vias; `pours` keeps copper pours out too) over `rect` on `layer`
