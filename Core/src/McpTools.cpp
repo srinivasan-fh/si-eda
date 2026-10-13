@@ -534,15 +534,22 @@ Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
                 break;
             }
         }
-        if (rotation < 0) continue;  // no open end (a pin header): Auto Place puts it
+        const bool side = rotation < 0;  // no open end (a pin header): the left edge, as it is turned
+        if (side && antenna) continue;
+        if (side) {
+            rotation = c.pcb.rotation;
+            cy = pr.checkPlacement(c.id, {st.width / 2, st.height / 2}, rotation, c.pcb.bottom, 0).courtyard;
+        }
         // The antenna end at the edge; a connector 1 mm in, so copper can still pass in front of its pads.
-        const double half = cy.height() / 2, y = edge == 0 ? st.edgeClearance + half : st.height - st.edgeClearance - half - 1;
-        for (int k = 0; k < 4 * static_cast<int>(st.width); ++k) {
-            const double x = st.width / 2 + (k % 2 ? 1 : -1) * 0.5 * ((k + 1) / 2);
+        const double y0 = edge == 0 ? st.edgeClearance + cy.height() / 2 : st.height - st.edgeClearance - cy.height() / 2 - 1;
+        const double x0 = st.edgeClearance + cy.width() / 2 + 1;
+        for (int k = 0; k < 4 * static_cast<int>(std::max(st.width, st.height)); ++k) {
+            const double step = (k % 2 ? 1 : -1) * 0.5 * ((k + 1) / 2);
+            const double x = side ? x0 : st.width / 2 + step, y = side ? st.height / 2 + step : y0;
             if (!takeJson(sieda_pcb_place_footprint(p, c.id, x, y, rotation, c.pcb.bottom ? 1 : 0, 0.25, 0)).get("committed").asBool(false))
                 continue;
             held->push_back(c.id);
-            moved.push(c.ref + " → " + (edge == 0 ? "top" : "bottom") + " edge");
+            moved.push(c.ref + " → " + (side ? "left" : edge == 0 ? "top" : "bottom") + " edge");
             if (antenna) {  // copper kept out from under the antenna
                 const Component& m = *pr.schematic.find(c.id);
                 std::vector<Pad> pads;
@@ -666,6 +673,25 @@ Json placeDecoupling(SiedaProject* p) {
                     break;
                 }
         }
+    }
+    // A capacitor from ground to a signal net with one IC pin (AREF, EN, a reference or filter pin) goes beside it.
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::Capacitor || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2) continue;
+        const int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
+        const int net = n1 >= 0 && sch.netRole(n1) == NetRole::Ground && n0 >= 0 && sch.netRole(n0) == NetRole::Signal ? n0
+                        : n0 >= 0 && sch.netRole(n0) == NetRole::Ground && n1 >= 0 && sch.netRole(n1) == NetRole::Signal ? n1 : -1;
+        if (net < 0) continue;
+        Pad pin;
+        int ics = 0;
+        for (const auto& pad : p->project.pcb.pads(sch)) {
+            const Component* o = sch.find(pad.componentId);
+            if (pad.net != net || !o || o->id == c.id) continue;
+            if (o->ref.size() > 1 && o->ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(o->ref[1]))) ics = 99;  // a load cap
+            if (o->def().pins.size() >= 3 && ++ics == 1) pin = pad;
+        }
+        if (ics != 1 || (sch.find(c.id)->pcb.position - pin.position).length() <= 3) continue;
+        const std::string label = pinLabel(*p, {pin.componentId, pin.pinIndex});
+        if (nearest(c.id, pin.position, 1.5, 9)) moved.push(c.ref + " → " + label);
     }
     return moved;
 }
@@ -981,8 +1007,10 @@ void schematicTools(Table& t) {
               return out(componentJson(*P(s), id, false));
           });
     t.add("schematic", "schematic_move_component", "Move component", Kind::Edit, true,
-          "Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it) "
-          "and/or turns it (rotation: absolute degrees; rotate: relative degrees).",
+          "Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, "
+          "a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; "
+          "rotate: relative degrees). overlaps lists symbols it now sits on. Net labels / grounds (#NL…, #GND…) move by "
+          "their own ref (schematic_list_components netSymbols: true lists them).",
           Schema()
               .str("ref", "Designator", true)
               .num("x", "New x")
@@ -1008,7 +1036,28 @@ void schematicTools(Table& t) {
               if (a.has("rotation")) delta = argInt(a, "rotation", 0) - c->rotation;
               delta = ((delta % 360) + 360) % 360;
               if (delta) check(sieda_rotate_component(p, id, delta) == 1, "Could not rotate");
-              return out(componentJson(*p, id));
+              // A tag naming a wire from this part to another (schematic_build) goes back to the wire's middle.
+              const Schematic& sch = p->project.schematic;
+              std::map<int, std::vector<PinRef>> tagEnds;
+              for (const auto& w : sch.wires())
+                  for (const auto& [end, other] : {std::pair{w.a, w.b}, std::pair{w.b, w.a}})
+                      if (const Component* t = sch.find(other.component); t && t->kind == ComponentKind::NetLabel)
+                          tagEnds[t->id].push_back(end);
+              for (const auto& [tag, ends] : tagEnds)
+                  if (ends.size() == 2 && (ends[0].component == id || ends[1].component == id) && ends[0].component != ends[1].component) {
+                      const Vec2 m = (sch.pinPosition(ends[0]) + sch.pinPosition(ends[1])) * 0.5;
+                      sieda_move_component(p, tag, std::round(m.x / 10) * 10, std::round(m.y / 10) * 10);
+                  }
+              Json j = componentJson(*p, id);
+              const auto o = sch.symbolOutline(*sch.find(id));
+              Json overlaps = Json::array();  // another symbol under it: move again
+              for (const auto& other : sch.components())
+                  if (other.id != id && other.sheet == sch.find(id)->sheet && !other.packageOnly && !isNetSymbolKind(other.kind)) {
+                      const auto q = sch.symbolOutline(other);
+                      if (o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3]) overlaps.push(other.ref);
+                  }
+              if (overlaps.size()) j["overlaps"] = overlaps;
+              return out(j);
           });
     t.add("schematic", "schematic_connect", "Connect pins", Kind::Edit, false,
           "Draws wires between pins. Give from + to, a chain (each pin wired to the next: all of a chain's pins end up "
@@ -1132,6 +1181,7 @@ void schematicTools(Table& t) {
                   }
               }
               int tags = 0;
+              const size_t wiresBefore = p->project.schematic.wires().size();
               if (ids.empty() && a.has("from") && a.has("to")) {  // through a net tag between them (schematic_build)
                   const PinAddress pa = pinAddress(*p, a.get("from")), pb = pinAddress(*p, a.get("to"));
                   std::map<int, int> touches;  // net symbol → which of the two pins it is wired to (bit 1 / 2)
@@ -1146,10 +1196,9 @@ void schematicTools(Table& t) {
                       if (bits == 3) tags += sieda_remove_component(p, id) == 1;  // its wires go with it
               }
               if (ids.empty() && !tags) throw ToolError("No such wire");
-              int removed = 0;
-              for (int id : ids) removed += sieda_remove_wire(p, id) == 1;
+              for (int id : ids) sieda_remove_wire(p, id);
               Json j = obj();
-              j["wiresRemoved"] = removed;
+              j["wiresRemoved"] = static_cast<int>(wiresBefore - p->project.schematic.wires().size());  // with a tag's wires
               if (tags) j["tagsRemoved"] = tags;
               return out(j);
           });
@@ -1317,7 +1366,9 @@ void schematicTools(Table& t) {
                   if (c.packageOnly || isNetSymbolKind(c.kind)) continue;
                   Json pins = Json::array();
                   for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i)
-                      if (!sch.isPinConnected({c.id, i}) && !c.isNoConnect(i)) pins.push(pinLabel(*P(s), {c.id, i}));
+                      if (!sch.isPinConnected({c.id, i}) && !c.isNoConnect(i) &&
+                          static_cast<PinType>(c.def().pins[static_cast<size_t>(i)].type) != PinType::NoConnect)  // an NC pin
+                          pins.push(pinLabel(*P(s), {c.id, i}));
                   openCount += pins.size();
                   if (pins.size()) open[c.ref] = pins;
               }
@@ -2052,7 +2103,7 @@ void libraryTools(Table& t) {
                   e["pins"] = pins;
                   return e;
               };
-              std::vector<std::pair<size_t, const StandardPart*>> partial;  // parts matching some of the words
+              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked;  // some of the words / all of them
               for (const auto& p : standardParts()) {
                   const std::string cat = lowerStr(p.category), mfr = lowerStr(p.spec.manufacturer);
                   const std::string pkg = compact(p.spec.package.type + std::to_string(p.spec.package.pinCount) + p.footprint);
@@ -2073,8 +2124,13 @@ void libraryTools(Table& t) {
                       continue;
                   }
                   ++total;
-                  if (static_cast<int>(list.size()) < limit) list.push(entry(p));
+                  size_t named = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
+                  for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
+                  ranked.push_back({named, &p});
               }
+              std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
+              for (const auto& [n, part] : ranked)
+                  if (static_cast<int>(list.size()) < limit) list.push(entry(*part));
               if (!total && !partial.empty()) {  // nothing has every word: the parts with the most of them
                   size_t best = 0;
                   for (const auto& [n, p] : partial) best = std::max(best, n);
@@ -2997,6 +3053,14 @@ void pcbTools(Table& t) {
                   u["to"] = pinLabel(*P(s), {pb->componentId, pb->pinIndex});
                   const int net = pr.schematic.netOf({pa->componentId, pa->pinIndex});
                   if (net >= 0) u["net"] = pr.schematic.nets()[static_cast<size_t>(net)].name;
+                  Json at = Json::array();  // the two ends (mm): one pin may have two pads (a switch)
+                  for (Vec2 v : {a, b}) {
+                      Json xy = Json::array();
+                      xy.push(v.x);
+                      xy.push(v.y);
+                      at.push(xy);
+                  }
+                  u["at"] = at;
                   open.push(u);
               }
               if (open.size()) j["unrouted"] = open;

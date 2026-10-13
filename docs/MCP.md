@@ -362,6 +362,11 @@ What the agent gets back, so it can wire correctly without guessing:
   vias, pours) over it, and a USB / connector part with an open end (its mouth) at the bottom edge facing out
   (`edgesPlaced`; `edges: false` skips it); `decoupling` is on by default with `all`.
 - `project_undo` never steps back past `project_open` / `project_new` / `project_load_example`.
+- `pcb_autoplace` `all` also puts connectors without an open end (pin headers) at the left edge, and a capacitor
+  from ground to a single IC pin (AREF, EN) beside that pin.
+- `schematic_move_component` puts a tag naming a wire back at the wire's middle and lists `overlaps`; the ERC's
+  `unconnectedPins` leaves out pins typed no-connect; `library_search` ranks parts whose name has the words first;
+  each `pcb_drc` `unrouted` entry has both ends' coordinates (`at`).
 - `pcb_stitch_vias` defaults to a 5 mm pitch and keeps vias out from under parts (`underParts`); `render_pcb`
   draws keep-outs; `schematic_disconnect` between two pins joined through a `schematic_build` tag removes the tag.
 - `pcb_drc` flags a part whose courtyard leaves the board or overlaps another (`DRC_PLACE_*`, a forced pose) and an
@@ -498,7 +503,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_set_value` | edit | Sets a part's value ("4k7", "100n", "Blue", a source's "3.3" or "SIN(0 1 50)"). |
 | `schematic_set_package` | edit | Sets the package variant of a passive / diode ("R_0603", "C_1206", "CP_Tant_B", "D_DO41_THT"; "" = default). |
 | `schematic_rename` | edit | Changes a part's designator. |
-| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
+| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
 | `schematic_connect` | edit | Draws wires between pins. |
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
 | `schematic_net_label` | edit | Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins net "net" (also across sheets for scope global). |

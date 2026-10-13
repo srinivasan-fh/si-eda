@@ -20943,6 +20943,17 @@ TEST(mcp_edges_stitching_and_tags) {
     const Json& bx = u1.get("bounds");
     CHECK(added.get("x").asNumber() + 30 < bx.get("x0").asNumber() || added.get("x").asNumber() - 30 > bx.get("x1").asNumber() ||
           added.get("y").asNumber() + 30 < bx.get("y0").asNumber() || added.get("y").asNumber() - 30 > bx.get("y1").asNumber());
+    // The module's NC pins are not "unconnected"; a part moved onto another says so; "usb-c" finds the receptacle first.
+    const Json erc = mcpData(mcpTool(s, "schematic_erc", Json::object()));
+    for (const auto& pin : erc.get("unconnectedPins").get("U1").items()) CHECK(pin.asString("").find(".NC") == std::string::npos);
+    Json mv = Json::object();
+    mv["ref"] = "R9";
+    mv["x"] = u1.get("x");
+    mv["y"] = u1.get("y");
+    CHECK(mcpData(mcpTool(s, "schematic_move_component", mv)).get("overlaps").size() > 0);
+    Json q = Json::object();
+    q["query"] = "usb-c";
+    CHECK(mcpData(mcpTool(s, "library_search", q)).get("parts")[0].get("name").asString("") == "USB-C-RECEPTACLE-USB2");
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
