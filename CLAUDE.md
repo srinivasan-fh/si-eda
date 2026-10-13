@@ -79,6 +79,9 @@
   schema, price breaks, BOM roll-up, catalog match), app in `SiEDA/Suppliers/` (URLSession clients, Keychain keys,
   offline cache), `SupplierSearchView`, `BomLivePricingView`; guide in `docs/SUPPLIERS.md`. Tests never use the
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
+- Netlist import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV; in the `library` fuzz
+  target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
+  then `schematic_build`), app File → Import Netlist… through `DesignStore.runTool`.
 - Altium libraries: `Core/src/AltiumLibrary.cpp` (MS-CFB `CompoundFile`, SchLib / PcbLib records), converted in
   `LibraryImport.cpp` (`importAltium`); fixtures written by `tools/make_altium_fixtures.py` (don't edit the binaries).
 - 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers and the STEP AP203 / AP214 reader

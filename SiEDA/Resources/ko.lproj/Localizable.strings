@@ -1690,3 +1690,4 @@
 "Add a drawing dimension: drag from one point to the other" = "도면 치수 추가: 한 점에서 다른 점으로 드래그";
 "Delete Dimension" = "치수 삭제";
 "Dimension — drag from one point to the other · Esc ends" = "치수 — 한 점에서 다른 점으로 드래그 · Esc 종료";
+"Import Netlist…" = "넷리스트 가져오기…";

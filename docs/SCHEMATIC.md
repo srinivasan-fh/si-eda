@@ -527,6 +527,21 @@ Code: `SiEDA/Views/Schematic/SchematicPalette.swift` (palettes, schemes, grid st
 value the canvas draws with), `SchematicCustomTheme.swift` (named colours, roles, custom theme) and
 `SchematicAppearanceViews.swift` (menus, swatches, the Customise sheet).
 
+## Importing a netlist
+
+**File → Import Netlist…** (MCP `schematic_import_netlist`, core `parseNetlist` in `LibraryImport.cpp`) builds the
+schematic from another tool's netlist: KiCad (`.net`, KiCad 5 – 8), Protel / Tango (`[ part ]` and `( net )` blocks,
+written by Altium, OrCAD, EasyEDA and PADS) or a CSV with Net, Designator and Pin columns. Each part becomes:
+
+- a built-in resistor, capacitor, inductor, diode or LED when its designator is R / C / L / D and it has two pins (the
+  package from a size in its footprint name: `R_0603_1608Metric` → 0603);
+- the catalog part when the netlist's library part name or value names one (`ATmega328P-AU`);
+- otherwise a library part with the netlist's pins (KiCad's pin names when given), its package from the footprint
+  name (`SOIC-8`, `TQFP-32`, `PinHeader_1x02`), else a header.
+
+Then the nets are drawn as `schematic_build` draws them: unnamed two-pin nets (`Net-(D1-A)`) as plain wires, KiCad's
+`unconnected-(…)` pins flagged no-connect, the rest with labels, and the ERC runs. One undo step.
+
 ## Files and compatibility
 
 New project fields (all optional when reading):

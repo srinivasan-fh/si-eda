@@ -1690,3 +1690,4 @@
 "Add a drawing dimension: drag from one point to the other" = "Tekenmaat toevoegen: sleep van het ene punt naar het andere";
 "Delete Dimension" = "Maat verwijderen";
 "Dimension — drag from one point to the other · Esc ends" = "Maat — sleep van het ene punt naar het andere · Esc stopt";
+"Import Netlist…" = "Netlijst importeren…";

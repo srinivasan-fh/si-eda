@@ -1690,3 +1690,4 @@
 "Add a drawing dimension: drag from one point to the other" = "添加图纸尺寸：从一点拖动到另一点";
 "Delete Dimension" = "删除尺寸";
 "Dimension — drag from one point to the other · Esc ends" = "尺寸 — 从一点拖动到另一点 · Esc 结束";
+"Import Netlist…" = "导入网表…";

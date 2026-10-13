@@ -120,4 +120,21 @@ Json libraryImportToJson(const LibraryImport& result);
 /// The C API's entry point: request {"files":[{"name","content"}],"pairs":{"symbol":"footprint"}}.
 Json importLibraryRequest(const Json& request);
 
+/// One part of an imported netlist: designator, value, footprint and library part name as the file gives them, and
+/// pin names by number where the file has them (KiCad's pinfunction).
+struct NetlistPart {
+    std::string ref, value, footprint, part;
+    std::map<std::string, std::string> pinNames;
+};
+/// A netlist read from another tool: its parts and its nets, each a list of (designator, pin number).
+struct ParsedNetlist {
+    std::string format;  // "kicad", "protel", "csv"
+    std::vector<NetlistPart> parts;
+    std::vector<std::pair<std::string, std::vector<std::pair<std::string, std::string>>>> nets;
+};
+/// Reads a KiCad netlist (.net, "(export …)"), a Protel / Tango netlist ([ part ] and ( net ) blocks, also written by
+/// Altium, OrCAD, EasyEDA and PADS) or a CSV with Net, Designator (Ref / Reference) and Pin columns. Parts the nets
+/// name but the file does not list are added with only their designator. Throws ImportError for anything else.
+ParsedNetlist parseNetlist(const std::string& text);
+
 }  // namespace sieda

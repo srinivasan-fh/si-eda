@@ -23010,6 +23010,59 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(!s.dragWireSegment(9999, {0, 10}));
 }
 
+TEST(netlist_import_kicad_protel_csv) {
+    // KiCad, Protel / Tango and CSV netlists read into parts and nets; the MCP import makes built-in passives,
+    // catalog parts and library parts, wires unnamed two-pin nets, flags KiCad's unconnected pins and joins the nets.
+    const std::string kicad = R"NET((export (version "E")
+  (components
+    (comp (ref "U1") (value "ATmega328P-AU") (footprint "Package_QFP:TQFP-32_7x7mm_P0.8mm") (libsource (lib "MCU") (part "ATmega328P-A")))
+    (comp (ref "C1") (value "100n") (footprint "Capacitor_SMD:C_0603_1608Metric") (libsource (lib "Device") (part "C")))
+    (comp (ref "D1") (value "Red") (footprint "LED_SMD:LED_0805_2012Metric") (libsource (lib "Device") (part "LED")))
+    (comp (ref "R1") (value "330") (footprint "Resistor_SMD:R_0603_1608Metric") (libsource (lib "Device") (part "R")))
+    (comp (ref "J1") (value "PWR") (footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical") (libsource (lib "Conn") (part "Conn_01x02"))))
+  (nets
+    (net (code "1") (name "GND") (node (ref "U1") (pin "3") (pinfunction "GND")) (node (ref "U1") (pin "5")) (node (ref "U1") (pin "21"))
+      (node (ref "C1") (pin "2")) (node (ref "D1") (pin "1")) (node (ref "J1") (pin "2") (pinfunction "Pin_2")))
+    (net (code "2") (name "+5V") (node (ref "U1") (pin "4")) (node (ref "U1") (pin "6")) (node (ref "U1") (pin "18"))
+      (node (ref "C1") (pin "1")) (node (ref "J1") (pin "1") (pinfunction "Pin_1")))
+    (net (code "3") (name "/LED") (node (ref "U1") (pin "17")) (node (ref "R1") (pin "1")))
+    (net (code "4") (name "Net-(D1-A)") (node (ref "D1") (pin "2")) (node (ref "R1") (pin "2")))
+    (net (code "5") (name "unconnected-(U1-PD0)") (node (ref "U1") (pin "30")))))
+)NET";
+    const ParsedNetlist k = parseNetlist(kicad);
+    CHECK(k.format == "kicad" && k.parts.size() == 5 && k.nets.size() == 5);
+    CHECK(k.parts[0].part == "ATmega328P-A" && k.parts[4].pinNames.at("1") == "Pin_1");
+    const ParsedNetlist p = parseNetlist("[\nR1\n0603\n10k\n]\n[\nC1\n0603\n1u\n]\n(\nVCC\nR1-1\nC1-1\n)\n(\nGND\nR1-2\nC1-2\n)\n");
+    CHECK(p.format == "protel" && p.parts.size() == 2 && p.parts[0].value == "10k" && p.nets.size() == 2 && p.nets[0].second[1].first == "C1");
+    const ParsedNetlist c = parseNetlist("Net,Designator,Pin\nVCC,R1,1\nVCC,U9,8\nGND,R1,2\n");
+    CHECK(c.format == "csv" && c.parts.size() == 2 && c.nets.size() == 2);  // U9 added from the nets
+    for (const char* bad : {"", "hello", "(export (nets (net (name \"A\") (node (ref \"R1\")", "(\nA\nnodash\n)\n", "Net,Value\nA,1\n"}) {
+        bool threw = false;
+        try {
+            (void)parseNetlist(bad);
+        } catch (const ImportError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = kicad;
+    const Json r = mcpData(mcpTool(m, "schematic_import_netlist", args));
+    const Json& as = r.get("imported").get("as");
+    CHECK(as.get("C1").asString("") == "capacitor" && as.get("D1").asString("") == "led" && as.get("R1").asString("") == "resistor");
+    CHECK(as.get("U1").asString("") == "ATMEGA328P-AU" && as.get("J1").asString("") == "Conn_01x02-2");
+    CHECK(r.get("checks").get("erc").get("errors").asInt(-1) == 0);
+    const Schematic& sch = m.project()->project.schematic;
+    const Component* d1 = sch.findByRef("D1");
+    const Component* r1 = sch.findByRef("R1");
+    CHECK(d1 && r1 && sch.netOf({d1->id, 1}) == sch.netOf({r1->id, 1}) && sch.netOf({d1->id, 1}) >= 0);
+    const Component* u1 = sch.findByRef("U1");
+    CHECK(u1 && sch.findByRef("C1") && sch.netOf({u1->id, 2}) == sch.netOf({sch.findByRef("C1")->id, 1}));  // GND
+    CHECK(mcpFailed(mcpTool(m, "schematic_import_netlist", Json::parse(R"({"text": "not a netlist"})"))));
+}
+
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,
     // the stack-up and the revision table; dimensions and revisions save, load and reach the DXF; net lengths per net.

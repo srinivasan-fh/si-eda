@@ -52,6 +52,25 @@ extension DesignStore {
         statusMessage = parts.isEmpty ? "\(url.lastPathComponent): no change" : "\(url.lastPathComponent): " + parts.joined(separator: ", ")
     }
 
+    /// Builds the schematic from another tool's netlist (KiCad .net, Protel / Tango, CSV) through the core's
+    /// schematic_import_netlist tool, one undo step.
+    func importNetlist() {
+        guard let picked = chooseText("Choose a netlist: KiCad (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV.",
+                                      extensions: ["net", "netlist", "csv", "txt"]) else { return }
+        let (url, text) = picked
+        let r = runTool("schematic_import_netlist", arguments: ["text": text])
+        guard !r.isError, let data = r.text.data(using: .utf8),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let imported = j["imported"] as? [String: Any] else {
+            statusMessage = "\(url.lastPathComponent): \(r.text)"
+            return
+        }
+        let errors = ((j["checks"] as? [String: Any])?["erc"] as? [String: Any])?["errors"] as? Int ?? 0
+        statusMessage = "\(url.lastPathComponent): \(imported["parts"] as? Int ?? 0) parts, \(imported["nets"] as? Int ?? 0) nets, "
+            + "\((imported["created"] as? [Any])?.count ?? 0) new library parts; ERC \(errors) error(s)"
+        requestView(.fit)
+    }
+
     /// Board outline and cutouts from a DXF drawing (MCAD), one undo step.
     func importDXFOutline() {
         guard let picked = chooseText("Choose the board outline drawing (.dxf) from mechanical CAD.", extensions: ["dxf"]) else { return }

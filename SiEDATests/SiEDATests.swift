@@ -6699,6 +6699,17 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
     }
 
+    func testNetlistImportThroughTheCoreTool() throws {
+        let store = DesignStore()
+        let csv = "Net,Designator,Pin\nVCC,R1,1\nVCC,C1,1\nGND,R1,2\nGND,C1,2\n"
+        let r = store.runTool("schematic_import_netlist", arguments: ["text": csv])
+        XCTAssertFalse(r.isError, r.text)
+        XCTAssertTrue(r.text.contains("\"imported\""))
+        XCTAssertTrue(store.snapshot.components.contains { $0.ref == "R1" })
+        XCTAssertTrue(store.snapshot.components.contains { $0.ref == "C1" })
+        XCTAssertTrue(store.runTool("schematic_import_netlist", arguments: ["text": "nonsense"]).isError)
+    }
+
     func testDrawingDimensionsRevisionsAndFabDrawing() throws {
         let store = DesignStore()
         twoResistors(store.engine)

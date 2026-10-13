@@ -2153,4 +2153,148 @@ Json importLibraryRequest(const Json& request) {
     return libraryImportToJson(importLibraryFiles(files, pairs));
 }
 
+// ------------------------------------------------------------------ netlists from other tools
+
+ParsedNetlist parseNetlist(const std::string& text) {
+    constexpr size_t kMaxParts = 20000, kMaxNodes = 200000;
+    ParsedNetlist out;
+    size_t nodes = 0;
+    auto trimmed = [](std::string v) {
+        const size_t a = v.find_first_not_of(" \t\r\n"), b = v.find_last_not_of(" \t\r\n");
+        return a == std::string::npos ? std::string() : v.substr(a, b - a + 1);
+    };
+    auto addNode = [&](std::vector<std::pair<std::string, std::string>>& net, std::string ref, std::string pin) {
+        ref = trimmed(ref), pin = trimmed(pin);
+        if (ref.empty() || pin.empty()) return;
+        if (++nodes > kMaxNodes) throw ImportError("too many connections");
+        net.push_back({ref, pin});
+    };
+    size_t start = text.find_first_not_of(" \t\r\n\xEF\xBB\xBF");
+    if (start == std::string::npos) throw ImportError("the netlist is empty");
+    if (text.compare(start, 7, "(export") == 0) {  // KiCad
+        out.format = "kicad";
+        const SNode root = SexprParser(text).parse();
+        if (const SNode* comps = root.child("components"))
+            for (const auto& c : comps->kids) {
+                if (c.head() != "comp") continue;
+                if (out.parts.size() >= kMaxParts) throw ImportError("too many parts");
+                auto field = [&](const SNode& n, const char* key) {
+                    const SNode* k = n.child(key);
+                    return k ? k->atom(1) : std::string();
+                };
+                NetlistPart part{field(c, "ref"), field(c, "value"), field(c, "footprint"), "", {}};
+                if (const SNode* lib = c.child("libsource")) part.part = field(*lib, "part");
+                if (!part.ref.empty()) out.parts.push_back(part);
+            }
+        if (const SNode* nets = root.child("nets"))
+            for (const auto& n : nets->kids) {
+                if (n.head() != "net") continue;
+                const SNode* name = n.child("name");
+                std::vector<std::pair<std::string, std::string>> members;
+                for (const auto& node : n.kids) {
+                    if (node.head() != "node") continue;
+                    const SNode *ref = node.child("ref"), *pin = node.child("pin"), *fn = node.child("pinfunction");
+                    if (!ref || !pin) continue;
+                    addNode(members, ref->atom(1), pin->atom(1));
+                    if (fn && !fn->atom(1).empty())
+                        for (auto& p : out.parts)
+                            if (p.ref == ref->atom(1)) p.pinNames[pin->atom(1)] = fn->atom(1);
+                }
+                out.nets.push_back({name ? name->atom(1) : std::string(), std::move(members)});
+            }
+    } else if (text[start] == '[' || text[start] == '(') {  // Protel / Tango
+        out.format = "protel";
+        std::istringstream in(text);
+        std::string line;
+        int lineNo = 0;
+        while (std::getline(in, line)) {
+            ++lineNo;
+            line = trimmed(line);
+            if (line == "[") {
+                std::vector<std::string> fields;
+                while (std::getline(in, line) && trimmed(line) != "]") {
+                    ++lineNo;
+                    fields.push_back(trimmed(line));
+                }
+                ++lineNo;
+                if (fields.empty() || fields[0].empty()) continue;
+                if (out.parts.size() >= kMaxParts) throw ImportError("too many parts");
+                out.parts.push_back({fields[0], fields.size() > 2 ? fields[2] : "", fields.size() > 1 ? fields[1] : "", "", {}});
+            } else if (line == "(") {
+                std::string name;
+                std::vector<std::pair<std::string, std::string>> members;
+                bool first = true;
+                while (std::getline(in, line) && trimmed(line) != ")") {
+                    ++lineNo;
+                    const std::string v = trimmed(line);
+                    if (v.empty()) continue;
+                    if (first) {
+                        name = v, first = false;
+                        continue;
+                    }
+                    const size_t dash = v.rfind('-');
+                    if (dash == std::string::npos || dash == 0) throw ImportError("line " + std::to_string(lineNo) + ": expected REF-PIN");
+                    addNode(members, v.substr(0, dash), v.substr(dash + 1));
+                }
+                ++lineNo;
+                out.nets.push_back({name, std::move(members)});
+            } else if (!line.empty()) {
+                throw ImportError("line " + std::to_string(lineNo) + ": expected '[' or '('");
+            }
+        }
+    } else {  // CSV with a header row
+        out.format = "csv";
+        std::istringstream in(text);
+        std::string line;
+        std::vector<std::string> head;
+        int net = -1, ref = -1, pin = -1, lineNo = 0;
+        std::map<std::string, size_t> netIndex;
+        auto cells = [&](const std::string& l) {
+            std::vector<std::string> v;
+            std::string cur;
+            bool quote = false;
+            for (char ch : l) {
+                if (ch == '"') quote = !quote;
+                else if ((ch == ',' || ch == ';' || ch == '\t') && !quote) v.push_back(trimmed(cur)), cur.clear();
+                else cur += ch;
+            }
+            v.push_back(trimmed(cur));
+            return v;
+        };
+        while (std::getline(in, line)) {
+            ++lineNo;
+            if (trimmed(line).empty()) continue;
+            const auto v = cells(line);
+            if (head.empty()) {
+                head = v;
+                for (int i = 0; i < static_cast<int>(v.size()); ++i) {
+                    std::string h = v[static_cast<size_t>(i)];
+                    for (auto& ch : h) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                    if (h == "net" || h == "net name" || h == "netname") net = i;
+                    if (h == "ref" || h == "designator" || h == "reference" || h == "refdes" || h == "part") ref = i;
+                    if (h == "pin" || h == "pin number" || h == "pad") pin = i;
+                }
+                if (net < 0 || ref < 0 || pin < 0) throw ImportError("not a netlist: KiCad (.net), Protel / Tango, or CSV with Net, Designator and Pin columns");
+                continue;
+            }
+            const int need = std::max({net, ref, pin});
+            if (static_cast<int>(v.size()) <= need) throw ImportError("line " + std::to_string(lineNo) + ": too few columns");
+            const std::string& n = v[static_cast<size_t>(net)];
+            if (!netIndex.count(n)) netIndex[n] = out.nets.size(), out.nets.push_back({n, {}});
+            addNode(out.nets[netIndex[n]].second, v[static_cast<size_t>(ref)], v[static_cast<size_t>(pin)]);
+        }
+        if (head.empty()) throw ImportError("the netlist is empty");
+    }
+    std::set<std::string> known;
+    for (const auto& p : out.parts) known.insert(p.ref);
+    for (const auto& [name, members] : out.nets)
+        for (const auto& [ref, pin] : members)
+            if (known.insert(ref).second) {
+                if (out.parts.size() >= kMaxParts) throw ImportError("too many parts");
+                out.parts.push_back({ref, "", "", "", {}});
+            }
+    if (out.parts.empty()) throw ImportError("the netlist names no parts");
+    return out;
+}
+
 }  // namespace sieda
