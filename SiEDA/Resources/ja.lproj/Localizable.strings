@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: 回転";
 "PCB: Flip Side" = "PCB: 面を反転";
 "PCB: Refill Pours" = "PCB: ベタを再充填";
+"Canvas Key Preset" = "キャンバスキーのプリセット";
+"Import Board Outline (DXF)…" = "基板外形を読み込む (DXF)…";

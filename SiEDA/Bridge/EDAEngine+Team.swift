@@ -83,6 +83,13 @@ extension EDAEngine {
     /// What an IDX (EDMD) import from MCAD changed: parts moved, the outline / thickness, keep-outs and height zones.
     struct IDXImport: Decodable { var moved: [String]; var outline, thickness: Bool; var keepouts, heightZones: Int }
 
+    struct DXFImport: Decodable { var ok: Bool; var error: String; var width, height: Double; var corners, cutouts: Int }
+
+    /// Board outline and cutouts from a DXF drawing (closed loops; mm, or inches by $INSUNITS).
+    func importDXFOutline(_ dxf: String) -> DXFImport? {
+        Self.decode(DXFImport.self, from: withHandle { Self.take(sieda_pcb_import_dxf($0, dxf)) })
+    }
+
     /// Applies an IDX baseline or change file from MCAD.
     func importIDX(_ idx: String) -> IDXImport? {
         Self.decode(IDXImport.self, from: withHandle { Self.take(sieda_import_idx($0, idx)) })

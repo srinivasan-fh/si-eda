@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: फिरवा";
 "PCB: Flip Side" = "PCB: बाजू उलटा";
 "PCB: Refill Pours" = "PCB: पोर पुन्हा भरा";
+"Canvas Key Preset" = "कॅनव्हास की प्रीसेट";
+"Import Board Outline (DXF)…" = "बोर्ड बाह्यरेषा आयात करा (DXF)…";

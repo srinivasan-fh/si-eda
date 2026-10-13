@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: சுழற்று";
 "PCB: Flip Side" = "PCB: பக்கத்தைத் திருப்பு";
 "PCB: Refill Pours" = "PCB: ஊற்றுகளை மீண்டும் நிரப்பு";
+"Canvas Key Preset" = "கேன்வாஸ் விசை முன்னமைவு";
+"Import Board Outline (DXF)…" = "பலகை வெளிக்கோட்டை இறக்கு (DXF)…";

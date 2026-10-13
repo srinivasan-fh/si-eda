@@ -4296,7 +4296,9 @@ void outputTools(Table& t) {
           "One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, "
           "pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / "
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
-          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj. variant: an assembly variant for the assembly outputs.",
+          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), "
+          "testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
+          "checklist, Markdown). variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
           [](McpServer& s, const Json& a) {
               const std::string f = requireStr(a, "format");
@@ -4503,6 +4505,17 @@ void teamTools(Table& t) {
           [](McpServer& s, const Json& a) {
               const std::string idx = readFileArg(s, requireStr(a, "path")).asString();
               return out(takeJson(sieda_import_idx(P(s), idx.c_str())));
+          });
+    t.add("pcb", "pcb_import_dxf", "Import board outline (DXF)", Kind::Edit, false,
+          "Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) "
+          "and circles, on outline-like layers when the file names them (OUTLINE, Edge.Cuts, BOARD …); millimetres, or "
+          "inches by $INSUNITS. The largest loop is the outline, loops inside it are cutouts.",
+          Schema().str("path", "The .dxf file inside the root", true),
+          [](McpServer& s, const Json& a) {
+              const std::string dxf = readFileArg(s, requireStr(a, "path")).asString();
+              Json j = takeJson(sieda_pcb_import_dxf(P(s), dxf.c_str()));
+              if (!j.get("ok").asBool(false)) throw ToolError("DXF not imported: " + j.get("error").asString("unreadable"));
+              return out(j);
           });
     t.add("output", "output_idx_response", "IDX response for MCAD", Kind::Files, false,
           "Writes the IDX response to a change file from MCAD: every change it proposes accepted or rejected.",

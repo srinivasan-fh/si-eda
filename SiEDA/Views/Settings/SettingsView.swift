@@ -426,6 +426,18 @@ final class ShortcutStore: ObservableObject {
 
     func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
 
+    /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
+    static let toolPresetNames = ["SiEDA", "KiCad"]
+    static let toolPresets: [String: [String: String]] = [
+        "SiEDA": [:],
+        "KiCad": ["sch.place": "a", "sch.ground": "p", "sch.select": "", "sch.pan": "", "pcb.tune": "7", "pcb.pan": ""],
+    ]
+
+    func applyToolPreset(_ keys: [String: String]) {
+        for tool in Self.toolKeys { overrides[tool.id] = keys[tool.id] }
+        UserDefaults.standard.set(overrides, forKey: Self.key)
+    }
+
     /// The standard key of the `canvas` tool ("sch", "pcb") the typed key is set to; nil when no tool has it.
     func toolKey(_ characters: String, canvas: String) -> KeyEquivalent? {
         let typed = characters.lowercased()
@@ -494,6 +506,12 @@ struct ShortcutSettings: View {
             Text("Type the keys as cmd, shift, opt and ctrl plus one key, joined by +, e.g. cmd+shift+k. Leave empty for no shortcut.")
                 .font(.caption).foregroundStyle(.secondary)
             Text("A canvas tool takes one key.").font(.caption).foregroundStyle(.secondary)
+            Picker("Canvas Key Preset", selection: Binding(get: { "" }, set: { name in
+                if let keys = ShortcutStore.toolPresets[name] { shortcuts.applyToolPreset(keys) }
+            })) {
+                Text("Choose…").tag("")
+                ForEach(ShortcutStore.toolPresetNames, id: \.self) { Text(verbatim: $0).tag($0) }
+            }
         }
         .formStyle(.grouped)
     }

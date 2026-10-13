@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <map>
 
+#include "sieda/Export.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/TrackGeometry.hpp"
@@ -278,6 +279,31 @@ std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb)
             add(Severity::Warning, "DFA_HEAVY_BOTTOM",
                 c->ref + " (" + mm(height(*c)) + " tall) on the bottom side may drop off in the second reflow; move it to the top",
                 {c->id}, pcb.courtyard(*c).center(), true);
+    // Silkscreen designators (placed as the silkscreen Gerber places them: 1 mm text above the part, below it at the
+    // top edge) that run into each other cannot be read on the assembled board.
+    {
+        std::vector<Rect> text;
+        for (const Component* c : placed) {
+            const Rect r = pcb.courtyard(*c).inflated(-0.15);
+            const double w = silkscreenTextWidth(c->ref, 1.0);
+            double baseline = r.y0 - 0.45;
+            if (baseline - 1.0 < s.edgeClearance) baseline = r.y1 + 0.45 + 1.0;
+            text.push_back({(r.x0 + r.x1 - w) / 2, baseline - 1.0, (r.x0 + r.x1 + w) / 2, baseline});
+        }
+        int shown = 0;
+        for (size_t i = 0; i < placed.size() && shown < 20; ++i)
+            for (size_t j = i + 1; j < placed.size() && shown < 20; ++j) {
+                const Rect &a = text[i], &b = text[j];
+                if (placed[i]->pcb.bottom != placed[j]->pcb.bottom || a.x1 <= b.x0 + 0.05 || b.x1 <= a.x0 + 0.05 ||
+                    a.y1 <= b.y0 + 0.05 || b.y1 <= a.y0 + 0.05)
+                    continue;
+                ++shown;
+                add(Severity::Warning, "DFA_REFDES_OVERLAP",
+                    "The silkscreen designators of " + placed[i]->ref + " and " + placed[j]->ref +
+                        " overlap and cannot be read; move one of the parts",
+                    {placed[i]->id, placed[j]->id}, a.center(), true);
+            }
+    }
     // Plated holes deeper than the service plates reliably.
     int deep = 0;
     double worst = 0;

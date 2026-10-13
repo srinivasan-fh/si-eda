@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: 회전";
 "PCB: Flip Side" = "PCB: 면 뒤집기";
 "PCB: Refill Pours" = "PCB: 동박 다시 채우기";
+"Canvas Key Preset" = "캔버스 키 프리셋";
+"Import Board Outline (DXF)…" = "보드 외곽선 가져오기(DXF)…";

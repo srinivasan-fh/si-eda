@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: ತಿರುಗಿಸಿ";
 "PCB: Flip Side" = "PCB: ಬದಿ ತಿರುಗಿಸಿ";
 "PCB: Refill Pours" = "PCB: ಪೋರ್‌ಗಳನ್ನು ಮತ್ತೆ ತುಂಬಿ";
+"Canvas Key Preset" = "ಕ್ಯಾನ್ವಾಸ್ ಕೀ ಪೂರ್ವನಿಗದಿ";
+"Import Board Outline (DXF)…" = "ಬೋರ್ಡ್ ಬಾಹ್ಯರೇಖೆ ಆಮದು (DXF)…";

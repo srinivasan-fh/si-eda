@@ -19,6 +19,7 @@
 
 #include <algorithm>
 
+#include "sieda/Documents.hpp"
 #include "sieda/Analysis.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/Avr.hpp"
@@ -3124,7 +3125,9 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
     parts[1]->pcb.bottom = parts[0]->pcb.bottom;
     const Rect a = p.pcb.courtyard(*parts[0]), b = p.pcb.courtyard(*parts[1]);
     parts[1]->pcb.position = parts[1]->pcb.position + Vec2{a.x1 + 0.1 - b.x0, a.y0 - b.y0};
-    CHECK(codes().count("DFA_PART_SPACING"));
+    CHECK(codes().count("DFA_PART_SPACING") && !codes().count("DFA_REFDES_OVERLAP"));
+    parts[1]->pcb.position = parts[0]->pcb.position + Vec2{0.3, 0};  // designators on top of each other
+    CHECK(codes().count("DFA_REFDES_OVERLAP"));
     // Saved only when set.
     Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.dfmPack == "oshpark-2");
@@ -3154,6 +3157,8 @@ TEST(fabrication_package_is_complete) {
                               "-F_Silkscreen", "-B_Silkscreen", "-Edge_Cuts"})
         CHECK(has(g + layer + ".gbr"));
     CHECK(has(g + "-PTH.drl") && has(g + "-NPTH.drl") && has(g + "-ipc356.ipc") && has(g + "-job.gbrjob"));
+    CHECK(has("assembly/Amp_rev_A-test_points.csv") && has("assembly/Amp_rev_A-interactive_bom.html"));
+    CHECK(has("Amp_rev_A-bring_up_checklist.md") && has("mechanical/Amp_rev_A.dxf"));
     for (const char* a : {"-bom.csv", "-bom_assembly.csv", "-cpl.csv", "-pick_and_place.csv", "-assembly_top.svg",
                           "-assembly_bottom.svg"})
         CHECK(has("assembly/Amp_rev_A" + std::string(a)));
@@ -22956,6 +22961,62 @@ TEST(schematic_wire_segment_drag_and_wire_end_move) {
     CHECK(s.moveWireEnd(last, lw.b.component == r2, {300, 300}, {}));
     CHECK(s.netOf({r1, 1}) != s.netOf({r2, 0}));
     CHECK(!s.dragWireSegment(9999, {0, 10}));
+}
+
+TEST(documents_dxf_test_points_html_bom_and_bring_up) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"},
+                  {"ref": "R2", "kind": "resistor", "value": "4.7k"}, {"ref": "R3", "kind": "resistor", "value": "4.7k"},
+                  {"ref": "C1", "kind": "capacitor", "value": "100n"}],
+        "nets": {"+5V": ["R1.1", "C1.1"], "GND": ["J1.GND(A1)", "C1.2", "R3.2"], "SDA": ["R1.2", "R2.1"],
+                 "NRST": ["R2.2", "R3.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    Project& p = m.project()->project;
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.ref == "R3") c.ref = "TP1";  // a test point on NRST
+    p.pcb.settings.holes.push_back({{3, 3}});
+    p.pcb.settings.cutouts.push_back({{20, 20}, {24, 20}, {24, 23}, {20, 23}});
+    // DXF: the outline and cutout come back from our own file (the courtyards and drills are on other layers).
+    const std::string dxf = exportDxf(p.schematic, p.pcb);
+    CHECK(dxf.find("OUTLINE") != std::string::npos && dxf.find("CIRCLE") != std::string::npos);
+    const DxfOutline back = importDxfOutline(dxf);
+    CHECK(back.error.empty() && back.outline.size() == 4 && back.cutouts.size() == 1);
+    CHECK(std::fabs(back.width - p.pcb.settings.width) < 1e-3 && std::fabs(back.height - p.pcb.settings.height) < 1e-3);
+    // A drawn outline in inches: a rounded rectangle (bulged polyline) with a round cutout; Y up becomes Y down.
+    const std::string inch =
+        "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n1\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n4\n70\n1\n10\n0\n20\n0\n42\n0\n10\n2\n20\n0\n42\n0.414214\n10\n2.5\n20\n0.5\n42\n0\n"
+        "10\n0\n20\n0.5\n42\n0\n0\nCIRCLE\n8\n0\n10\n0.5\n20\n0.25\n40\n0.1\n0\nENDSEC\n0\nEOF\n";
+    const DxfOutline drawn = importDxfOutline(inch);
+    CHECK(drawn.error.empty() && drawn.outline.size() > 6 && drawn.cutouts.size() == 1);
+    CHECK(std::fabs(drawn.width - 63.5) < 0.01 && std::fabs(drawn.height - 12.7) < 0.01);
+    CHECK(!importDxfOutline("0\nSECTION\n0\nEOF\n").error.empty() && !importDxfOutline("not a dxf").error.empty());
+    PcbLayout board = p.pcb;
+    CHECK(applyDxfOutline(board, drawn) && board.settings.width == drawn.width && board.settings.cutouts.size() == 1);
+    // Test points: TP1 probes NRST; every other net gets its best pad or a no-access line.
+    const std::string tp = exportTestPointReport(p.schematic, p.pcb);
+    CHECK(tp.find("testpoint,TP1,NRST") != std::string::npos);
+    CHECK(tp.find(",SDA,") != std::string::npos && tp.find(",+5V,") != std::string::npos);
+    // Interactive BOM: one self-contained file with both sides and the parts.
+    const std::string bom = exportHtmlBom(p);
+    CHECK(bom.find("<svg") != std::string::npos && bom.find("data-ref=\"R1\"") != std::string::npos);
+    CHECK(bom.find("http") == std::string::npos);
+    // Bring-up: the rail with its voltage, the reset net, the I2C bus.
+    const std::string up = bringUpChecklist(p);
+    CHECK(up.find("+5V = 5 V") != std::string::npos && up.find("NRST") != std::string::npos);
+    CHECK(up.find("I2C") != std::string::npos && up.find("Resistance +5V") != std::string::npos);
+    // The same through the C API.
+    char* text = sieda_export(m.project(), "bringup");
+    CHECK(text && std::string(text) == up);
+    sieda_string_free(text);
+    char* res = sieda_pcb_import_dxf(m.project(), inch.c_str());
+    CHECK(res && Json::parse(res).get("ok").asBool(false) && m.project()->project.pcb.settings.cutouts.size() == 1);
+    sieda_string_free(res);
 }
 
 TEST(pcb_pours_held_until_refilled) {

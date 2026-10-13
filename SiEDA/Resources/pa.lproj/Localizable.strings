@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: ਘੁਮਾਓ";
 "PCB: Flip Side" = "PCB: ਪਾਸਾ ਪਲਟੋ";
 "PCB: Refill Pours" = "PCB: ਪੋਰ ਮੁੜ ਭਰੋ";
+"Canvas Key Preset" = "ਕੈਨਵਸ ਕੁੰਜੀ ਪ੍ਰੀਸੈੱਟ";
+"Import Board Outline (DXF)…" = "ਬੋਰਡ ਰੂਪਰੇਖਾ ਆਯਾਤ ਕਰੋ (DXF)…";

@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: Draaien";
 "PCB: Flip Side" = "PCB: Zijde omdraaien";
 "PCB: Refill Pours" = "PCB: Vlakken opnieuw vullen";
+"Canvas Key Preset" = "Voorinstelling canvastoetsen";
+"Import Board Outline (DXF)…" = "Bordcontour importeren (DXF)…";

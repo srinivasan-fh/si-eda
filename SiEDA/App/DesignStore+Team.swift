@@ -52,6 +52,21 @@ extension DesignStore {
         statusMessage = parts.isEmpty ? "\(url.lastPathComponent): no change" : "\(url.lastPathComponent): " + parts.joined(separator: ", ")
     }
 
+    /// Board outline and cutouts from a DXF drawing (MCAD), one undo step.
+    func importDXFOutline() {
+        guard let picked = chooseText("Choose the board outline drawing (.dxf) from mechanical CAD.", extensions: ["dxf"]) else { return }
+        let (url, text) = picked
+        var result: EDAEngine.DXFImport?
+        performExternalEdit("Board outline from \(url.lastPathComponent)") { engine in
+            result = engine.importDXFOutline(text)
+            return result?.ok == true
+        }
+        guard let r = result else { statusMessage = "\(url.lastPathComponent): not a DXF file"; return }
+        statusMessage = r.ok ? String(format: "%@: board %.1f × %.1f mm, %d cutout(s)", url.lastPathComponent, r.width, r.height, r.cutouts)
+                             : "\(url.lastPathComponent): \(r.error)"
+        if r.ok { requestView(.fit) }
+    }
+
     /// Tallest part allowed per side by the enclosure (mm, 0 = no limit); the DRC reports MECH_HEIGHT. Undoable.
     func setEnclosureHeight(top: Double? = nil, bottom: Double? = nil) {
         let current = engine.enclosureHeights()

@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: Drehen";
 "PCB: Flip Side" = "PCB: Seite wechseln";
 "PCB: Refill Pours" = "PCB: Flächen neu füllen";
+"Canvas Key Preset" = "Voreinstellung der Zeichenflächentasten";
+"Import Board Outline (DXF)…" = "Platinenumriss importieren (DXF)…";

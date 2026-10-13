@@ -15,6 +15,15 @@ Coordinates are in MCAD's frame:
 - **Origin:** the board's underside is at Z = 0.
 - **Parts:** top-side parts sit on Z = thickness; bottom-side parts hang below Z = 0.
 
+## DXF
+
+**Export → DXF** (and `mechanical/<name>.dxf` in the fabrication package) writes an AutoCAD R12 drawing in millimetres,
+Y up, origin at the board's lower-left: layers OUTLINE (outline and cutouts), HOLES, DRILLS, SILK_TOP / SILK_BOTTOM,
+FAB and COURTYARD. **File → Import Board Outline (DXF)…** (MCP `pcb_import_dxf`, C `sieda_pcb_import_dxf`) reads
+closed loops of lines, arcs, polylines with bulges and circles — only from outline-like layers (OUTLINE, Edge.Cuts,
+BOARD, PROFILE, CUT…) when the file names them; millimetres, or inches by `$INSUNITS`. The largest loop becomes the
+outline and the loops inside it cutouts; one undo step.
+
 ## 3D clearance (DRC)
 
 The design rule check also checks the parts in 3D (Errors):

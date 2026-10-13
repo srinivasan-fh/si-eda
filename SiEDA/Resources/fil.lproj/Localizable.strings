@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: I-rotate";
 "PCB: Flip Side" = "PCB: Baligtarin ang Panig";
 "PCB: Refill Pours" = "PCB: Punan Muli ang mga Pour";
+"Canvas Key Preset" = "Preset ng mga Key sa Canvas";
+"Import Board Outline (DXF)…" = "I-import ang Balangkas ng Board (DXF)…";

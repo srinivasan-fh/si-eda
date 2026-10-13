@@ -1,0 +1,49 @@
+// SiEDA Core — documents for mechanical exchange, test and bring-up: DXF (board outline, cutouts, holes, drills,
+// silk / fab lines) both ways, the test-point report for fixture builders, a self-contained interactive HTML BOM and
+// board viewer for hand assembly, and a bring-up checklist drawn from the design's rails, clocks, resets and buses.
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "sieda/Geometry.hpp"
+
+namespace sieda {
+
+class Project;
+class Schematic;
+class PcbLayout;
+
+/// AutoCAD R12 ASCII DXF of the board in millimetres, Y up (MCAD convention, origin at the board's lower-left):
+/// layers OUTLINE (outline and cutouts), HOLES (mounting holes), DRILLS (plated pad holes and vias), SILK_TOP /
+/// SILK_BOTTOM and FAB (the footprints' drawn lines) and COURTYARD.
+std::string exportDxf(const Schematic& sch, const PcbLayout& pcb);
+
+/// Closed loops read from a DXF: LINE / ARC chains, LWPOLYLINE and POLYLINE (closed or end-to-start), CIRCLE.
+/// Millimetres (inches by $INSUNITS 1), Y flipped into board coordinates with the lower-left corner at the origin.
+/// The largest loop is the outline, every other loop inside it a cutout.
+struct DxfOutline {
+    std::vector<Vec2> outline;
+    std::vector<std::vector<Vec2>> cutouts;
+    double width = 0, height = 0;
+    std::string error;  // empty on success
+};
+DxfOutline importDxfOutline(const std::string& text);
+/// Applies a read outline to the board: size, outline polygon and cutouts. False (board unchanged) on an error.
+bool applyDxfOutline(PcbLayout& pcb, const DxfOutline& dxf);
+
+/// Test-point report (CSV) for bed-of-nails / flying-probe fixtures: one row per probe point — test-point parts
+/// (TP…) first, then for each other net its best accessible pad (through-hole: both sides; else an SMD pad of at
+/// least 0.6 mm on the outer side) — and a row per net no probe can reach.
+std::string exportTestPointReport(const Schematic& sch, const PcbLayout& pcb);
+
+/// One self-contained HTML file (no network): the board drawn per side with every part's pads and courtyard, and the
+/// BOM grouped by value and footprint; clicking a BOM line highlights its parts, a checkbox per line tracks hand
+/// assembly.
+std::string exportHtmlBom(const Project& project);
+
+/// Bring-up checklist (Markdown): safety first (shorts on every rail before power), then rails with their expected
+/// voltage and source, clocks, reset / enable / boot nets, programming and bus interfaces, each with what to measure.
+std::string bringUpChecklist(const Project& project);
+
+}  // namespace sieda

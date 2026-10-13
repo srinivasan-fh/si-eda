@@ -1,0 +1,31 @@
+# GitHub Actions template for a hardware repository: every push and pull request checks the design headlessly
+# (ERC, DRC, reliability, design verification) and keeps the fabrication package as a build artifact.
+# Copy to .github/workflows/sieda-check.yml in the design's repository and set DESIGN to the project file.
+name: SiEDA design check
+on: [push, pull_request]
+env:
+  DESIGN: board.siedaproj
+  SIEDA_REF: main   # pin a SiEDA commit or tag for reproducible checks
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: srinivasan-fh/si-eda
+          ref: ${{ env.SIEDA_REF }}
+          path: .sieda
+      - name: Build the SiEDA core
+        run: |
+          sudo apt-get update && sudo apt-get install -y libharfbuzz-dev
+          cmake -S .sieda -B .sieda/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build .sieda/build -j --target sieda-cli
+      - name: Check the design and write the fabrication package
+        # Exit code 1 when design verification fails (ERC / DRC errors, unrouted nets, missing outputs).
+        run: .sieda/build/sieda-cli "$DESIGN" out/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fabrication-package
+          path: out/

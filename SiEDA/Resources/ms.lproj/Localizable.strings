@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: Putar";
 "PCB: Flip Side" = "PCB: Terbalikkan Sisi";
 "PCB: Refill Pours" = "PCB: Isi Semula Tuangan";
+"Canvas Key Preset" = "Pratetap Kekunci Kanvas";
+"Import Board Outline (DXF)…" = "Import Garis Luar Papan (DXF)…";

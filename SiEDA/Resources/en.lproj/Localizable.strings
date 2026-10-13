@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: Rotate";
 "PCB: Flip Side" = "PCB: Flip Side";
 "PCB: Refill Pours" = "PCB: Refill Pours";
+"Canvas Key Preset" = "Canvas Key Preset";
+"Import Board Outline (DXF)…" = "Import Board Outline (DXF)…";

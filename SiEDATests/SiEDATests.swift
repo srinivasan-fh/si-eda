@@ -6676,6 +6676,29 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land)).options.solder, 2.2)
     }
 
+    func testDocumentExportsDXFOutlineAndCanvasKeyPresets() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        for format in [ExportFormat.dxf, .testPoints, .htmlBom, .bringUp] {
+            XCTAssertFalse((store.engine.export(format) ?? "").isEmpty, format.rawValue)
+        }
+        // Our own DXF reads back as the same rectangle.
+        let dxf = try XCTUnwrap(store.engine.export(.dxf))
+        let back = try XCTUnwrap(store.engine.importDXFOutline(dxf))
+        XCTAssertTrue(back.ok)
+        XCTAssertEqual(back.corners, 4)
+        XCTAssertFalse(try XCTUnwrap(store.engine.importDXFOutline("0\nEOF\n")).ok)
+        // The KiCad preset moves Place Part to A and the ground symbol to P; SiEDA restores the standard keys.
+        let keys = ShortcutStore.shared
+        keys.applyToolPreset(try XCTUnwrap(ShortcutStore.toolPresets["KiCad"]))
+        XCTAssertEqual(keys.toolKey("a", canvas: "sch"), KeyEquivalent("p"))
+        XCTAssertEqual(keys.toolKey("p", canvas: "sch"), KeyEquivalent("g"))
+        XCTAssertNil(keys.toolKey("h", canvas: "pcb"))
+        keys.applyToolPreset([:])
+        XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

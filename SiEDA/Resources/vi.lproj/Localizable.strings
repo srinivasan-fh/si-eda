@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: Xoay";
 "PCB: Flip Side" = "PCB: Lật mặt";
 "PCB: Refill Pours" = "PCB: Đổ lại đồng";
+"Canvas Key Preset" = "Bộ phím canvas định sẵn";
+"Import Board Outline (DXF)…" = "Nhập đường viền bo mạch (DXF)…";

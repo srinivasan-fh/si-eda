@@ -1,3 +1,4 @@
+#include "sieda/Documents.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/FabExchange.hpp"
 #include "sieda/Panel.hpp"
@@ -477,6 +478,10 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(a + "-assembly_top.svg", exportAssemblySvg(asmSch, pcb, false, project.name), "Assembly drawing, top" + variantNote);
     if (f.partsBottom)
         add(a + "-assembly_bottom.svg", exportAssemblySvg(asmSch, pcb, true, project.name), "Assembly drawing, bottom" + variantNote);
+    add(a + "-test_points.csv", exportTestPointReport(asmSch, pcb), "Test points per net for the bed-of-nails / flying-probe fixture");
+    add(a + "-interactive_bom.html", exportHtmlBom(project), "Interactive BOM and board viewer for hand assembly" + variantNote);
+    add(base + "-bring_up_checklist.md", bringUpChecklist(project), "Bring-up checklist: shorts, rails, clocks, resets, interfaces");
+    add("mechanical/" + base + ".dxf", exportDxf(sch, pcb), "Board outline, holes, silk and courtyards for MCAD (DXF)");
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
     add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");

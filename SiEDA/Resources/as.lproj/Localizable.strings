@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: ঘূৰাওক";
 "PCB: Flip Side" = "PCB: ফাল সলনি";
 "PCB: Refill Pours" = "PCB: পৌৰ পুনৰ ভৰাওক";
+"Canvas Key Preset" = "কেনভাছ কী প্ৰিছেট";
+"Import Board Outline (DXF)…" = "বোৰ্ডৰ ৰূপৰেখা আমদানি কৰক (DXF)…";

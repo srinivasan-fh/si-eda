@@ -1680,3 +1680,5 @@
 "PCB: Rotate" = "PCB: 旋轉";
 "PCB: Flip Side" = "PCB: 翻面";
 "PCB: Refill Pours" = "PCB: 重新敷銅";
+"Canvas Key Preset" = "畫布按鍵預設";
+"Import Board Outline (DXF)…" = "匯入電路板外框 (DXF)…";
