@@ -198,6 +198,10 @@ needs `lengthAware`): nets with a length target route longest first, and after t
 toward their targets — shorter with cheaper vias, or longer through a waypoint — before the meanders (Length-aware
 routing). It is not part of the High quality preset, so that preset routes as before.
 
+**Vias off pads** (`viasOffPads`, off by default; JSON `"viasOffPads"`, written only when on): a pour net's pad fan-out
+via stands clear of its SMD pad by a 0.1 mm solder-mask web, so no via sits in the pad to wick the solder away. The
+MCP `pcb_autoroute` turns it on for its own runs.
+
 **Shape-based completion** (`shapeCompletion`, off by default; JSON `"shapeCompletion"`, written only when on): after
 the grid passes, every connection still unrouted (ratsnest line, shortest first) is routed by the interactive router's
 gridless engine (`routequality::shapeComplete`): exact copper shapes and the DRC's own clearance checks, from either end

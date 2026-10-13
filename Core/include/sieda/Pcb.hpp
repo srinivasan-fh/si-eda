@@ -108,6 +108,9 @@ struct AutorouteOptions {
     /// another layer), so channels and off-grid pins the grid cannot fit still connect. JSON "shapeCompletion",
     /// written only when on.
     bool shapeCompletion = false;
+    /// A pour net's pad fan-out via clears its SMD pad (no via in the pad to wick the solder away). JSON "viasOffPads",
+    /// written only when on.
+    bool viasOffPads = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }

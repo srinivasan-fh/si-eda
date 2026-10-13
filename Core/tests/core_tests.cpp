@@ -20997,7 +20997,30 @@ TEST(mcp_headers_crystal_and_clear_reports) {
     for (const auto& pad : j2.get("pads").get("J2").items())
         x0 = std::min(x0, pad.get("x").asNumber()), x1 = std::max(x1, pad.get("x").asNumber());
     CHECK(x1 - x0 < 0.1);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", Json::parse(R"({"net": "GND", "layer": 1})"))));
     CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    {  // The GND pads' fan-out vias stand clear of the SMD pads (no via in pad).
+        char* st = sieda_project_state_json(s.project());
+        const Json pj = Json::parse(st);
+        sieda_string_free(st);
+        std::function<Json(const Json&)> vias = [&](const Json& j) -> Json {
+            if (j.isObject()) {
+                if (j.get("vias").isArray()) return j.get("vias");
+                for (const auto& [k, v] : j.fields())
+                    if (const Json r = vias(v); r.isArray()) return r;
+            }
+            return Json();
+        };
+        const Json vs = vias(pj);
+        const Json caps = mcpData(mcpTool(s, "pcb_summary", Json::parse(R"({"pads": ["C1", "C2", "C3"]})")));
+        int inPad = 0;
+        for (const char* ref : {"C1", "C2", "C3"})
+            for (const auto& pad : caps.get("pads").get(ref).items())
+                for (const auto& v : vs.items())
+                    inPad += std::fabs(v.get("x").asNumber() - pad.get("x").asNumber()) < pad.get("w").asNumber() / 2 + v.get("diameter").asNumber() / 2 &&
+                             std::fabs(v.get("y").asNumber() - pad.get("y").asNumber()) < pad.get("h").asNumber() / 2 + v.get("diameter").asNumber() / 2;
+        CHECK(vs.size() > 0 && inPad == 0);
+    }
     {  // Auto Place keeps the assembly spacing standard; a part moved against the IC is flagged by the DRC and the move.
         const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
         for (const auto& v : drc.get("violations").items()) CHECK(v.get("code").asString("") != "DRC_PART_SPACING");
@@ -21105,6 +21128,14 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     CHECK(routed.get("stitchingRestored").asInt(0) > 0);
     CHECK(routed.get("pairsNotCoupled").size() == 1 &&
           routed.get("pairsNotCoupled")[0].asString("").find("USB_D_P / USB_D_N") != std::string::npos);
+    // "J5.GND" without a number joins every GND pin of the USB-C, not only the first.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "J5", "part": "USB-C-RECEPTACLE-USB2"}],
+        "nets": {"GND": ["J5.GND", "R1.2"], "VB5": ["J5.VBUS"]}, "pins": false})J"))));
+    const Json nets = mcpData(mcpTool(s, "schematic_list_nets", Json::object()));
+    std::string gnd;
+    for (const auto& n : nets.get("nets").items())
+        if (n.get("name").asString("") == "GND") gnd = n.get("pins").dump();
+    CHECK(gnd.find("J5.GND(A1)") != std::string::npos && gnd.find("J5.GND(A12)") != std::string::npos);
 }
 
 TEST(mcp_routing_repair_rails_chip_review_and_ac_points) {
