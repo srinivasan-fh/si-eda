@@ -23063,6 +23063,64 @@ TEST(netlist_import_kicad_protel_csv) {
     CHECK(mcpFailed(mcpTool(m, "schematic_import_netlist", Json::parse(R"({"text": "not a netlist"})"))));
 }
 
+TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
+    // Our own Gerbers and drill file read back: the outline spans the board, every hole is a drill flash, copper has
+    // strokes / flashes / pour regions. A hand-written file with arcs, a region, a macro aperture and clear polarity
+    // reads too; a reference layer saves, loads and comes back as shapes.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"A": ["J1.1", "R1.1"], "GND": ["J1.2", "R1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_add_pour", Json::parse(R"({"net": "GND", "layer": 1})"))));
+    Project& p = m.project()->project;
+    const BoardSettings& b = p.pcb.settings;
+    const GerberImage edge = parseGerber(exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts));
+    CHECK(edge.error.empty() && edge.kind == "gerber");
+    CHECK(std::fabs((edge.x1 - edge.x0) - b.width) < 0.5 && std::fabs((edge.y1 - edge.y0) - b.height) < 0.5);
+    const GerberImage drill = parseGerber(exportExcellonDrill(p.schematic, p.pcb, true));
+    size_t holes = p.pcb.vias.size();
+    for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0 && !pad.npth;
+    CHECK(drill.kind == "drill" && drill.shapes.size() == holes && holes >= 2);
+    const GerberImage bottom = parseGerber(exportCopperGerber(p.schematic, p.pcb, 1));
+    int strokes = 0, flashes = 0, regions = 0;
+    for (const auto& sh : bottom.shapes) {
+        strokes += sh.kind == GerberShape::Stroke, flashes += sh.kind == GerberShape::Flash, regions += sh.kind == GerberShape::Region;
+        CHECK(sh.a.x >= -1 && sh.a.x <= b.width + 1 && sh.a.y >= -1 && sh.a.y <= b.height + 1);
+    }
+    CHECK(flashes >= 2 && strokes + regions > 0);
+    const std::string hand = "%FSLAX26Y26*%%MOIN*%%AMBOX*21,1,$1,$2,0,0,0*%%ADD10C,0.010*%%ADD11BOX,0.1X0.05*%"
+                             "%ADD12R,0.1X0.05*%D10*G75*X0Y0D02*G01X1000000Y0D01*G03X0Y1000000I-1000000J0D01*"
+                             "D11*X500000Y500000D03*D12*X600000Y600000D03*G36*X0Y0D02*X100000Y0D01*X100000Y100000D01*X0Y0D01*G37*"
+                             "%LPC*%D10*X0Y0D02*X50000Y0D01*M02*";
+    const GerberImage h = parseGerber(hand);
+    CHECK(h.error.empty() && h.warnings.size() == 1);  // the macro aperture
+    int arcSegments = 0, regionCount = 0, clearCount = 0;
+    for (const auto& sh : h.shapes) arcSegments += sh.kind == GerberShape::Stroke, regionCount += sh.kind == GerberShape::Region, clearCount += sh.clear;
+    CHECK(arcSegments > 5 && regionCount == 1 && clearCount == 1);
+    CHECK(std::fabs(h.x1 - 25.4 - 0.127) < 0.01);  // inches to mm, plus the 0.010" pen
+    CHECK(!parseGerber("hello").error.empty() && !parseGerber("").error.empty());
+    const std::string json = gerberImageJson(h);
+    CHECK(json.find("\"regions\":[[0,") != std::string::npos && json.find("\"kind\":\"gerber\"") != std::string::npos);
+    // Reference layers.
+    CHECK(sieda_pcb_add_reference_layer(m.project(), "other board", exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts).c_str()) == 0);
+    CHECK(sieda_pcb_add_reference_layer(m.project(), "junk", "hello") == -1);
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.referenceLayers.size() == 1 && q.referenceLayers[0].name == "other board");
+    CHECK(p.snapshot().get("referenceLayers")[0].get("name").asString("") == "other board");
+    char* layer = sieda_pcb_reference_layer_json(m.project(), 0);
+    CHECK(layer && std::string(layer).find("\"strokes\":[[") != std::string::npos);
+    sieda_string_free(layer);
+    CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 0, 0) == 1 && !p.referenceLayers[0].visible);
+    CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 1, 1) == 1 && p.referenceLayers.empty());
+    CHECK(Project().toJson().dump().find("referenceLayers") == std::string::npos);
+}
+
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,
     // the stack-up and the revision table; dimensions and revisions save, load and reach the DXF; net lengths per net.

@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "मोजमाप हटवा";
 "Dimension — drag from one point to the other · Esc ends" = "मोजमाप — एका बिंदूपासून दुसऱ्यापर्यंत ओढा · Esc समाप्त";
 "Import Netlist…" = "नेटलिस्ट आयात करा…";
+"Add to Board" = "बोर्डवर जोडा";
+"Gerber Viewer" = "गर्बर व्ह्यूअर";
+"Gerber Viewer…" = "गर्बर व्ह्यूअर…";
+"Import Gerber as Reference Layer…" = "गर्बर संदर्भ स्तर म्हणून आयात करा…";
+"Keep this file over the board as a reference layer" = "ही फाइल बोर्डवर संदर्भ स्तर म्हणून ठेवा";
+"Open Files…" = "फाइल्स उघडा…";
+"Open Gerber and drill files to view them." = "पाहण्यासाठी गर्बर आणि ड्रिल फाइल्स उघडा.";
+"Not Gerber or drill files: %@" = "गर्बर किंवा ड्रिल फाइल्स नाहीत: %@";
+"Hide Reference Layer %@" = "संदर्भ स्तर %@ लपवा";
+"Show Reference Layer %@" = "संदर्भ स्तर %@ दाखवा";
+"Remove Reference Layer %@" = "संदर्भ स्तर %@ काढा";

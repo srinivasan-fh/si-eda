@@ -192,7 +192,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Gerber, Excellon (PTH / NPTH), all layers, ➕ stencil | ✅ | |
 | P0 | BOM, pick-and-place, assembly drawings, fab notes | ✅ | |
 | P0 | One-click output job, package validation | ✅ | fabrication package |
-| P0 | Built-in Gerber viewer | ⏳ | |
+| P0 | Built-in Gerber viewer | ✅ | File → Gerber Viewer… (Gerber X2 / RS-274X and Excellon, layered, any file kept on the board) |
 | P0 | ➕ Versioned bundle with a README (layer order, stack-up, finish) | ✅ | `fab_notes.txt` lists every file, the stack-up, finish and drill chart |
 | P1 | Gerber X2, IPC-2581, ODB++, ➕ IPC-D-356 | ✅ | |
 | P1 | DFM / DFA, drill-to-copper, mask bridge, polarity, fab profiles | ✅ | |
@@ -298,7 +298,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | EasyEDA / Eagle projects | 🟡 | Eagle libraries ✅ |
 | P1 | Import-fidelity report, library mapping | 🟡 | library import notes ✅ |
 | P1 | ➕ LTspice / SPICE netlist import | 🟡 | SPICE models ✅; schematic import ⏳ |
-| P1 | ➕ Gerber / ODB++ import as a reference layer | ⏳ | |
+| P1 | ➕ Gerber / ODB++ import as a reference layer | 🟡 | Gerber and drill reference layers ✅ (saved with the project); ODB++ ⏳ |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
 | P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ⏳ | |
 | P3 | Enterprise migration, PLM / ERP, archival | ⏳ | |
@@ -383,7 +383,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 ## Pending (bigger — one by one)
 
 1. ~~Drawn drill map with drill symbols on the fabrication drawing (§10 P0)~~ ✅
-2. Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)
+2. ~~Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)~~ ✅
 3. KiCad project import: schematic + board (§17 P1), then EasyEDA / Eagle projects, LTspice schematics
 4. ~~Netlist import (§17 P0)~~ ✅
 5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅

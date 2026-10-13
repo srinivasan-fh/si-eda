@@ -57,6 +57,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var sheetGraphics: [SheetGraphicInfo] = []
     /// Title block printed on every schematic sheet.
     var titleBlock = TitleBlockInfo()
+    /// Gerber / drill files kept over the board (core `Project::referenceLayers`); shapes via `EDAEngine.referenceLayer`.
+    var referenceLayers: [ReferenceLayerInfo] = []
     /// Signal harness types (named bundles of signals).
     var harnessTypes: [HarnessTypeInfo] = []
     /// Schematic directives: net classes and the directives on nets (the source of the board's net rules).
@@ -134,6 +136,7 @@ struct DesignSnapshot: Decodable, Equatable {
         buses = try field(.buses, \.buses, [])
         sheetGraphics = try field(.sheetGraphics, \.sheetGraphics, [])
         titleBlock = try field(.titleBlock, \.titleBlock, TitleBlockInfo())
+        referenceLayers = try field(.referenceLayers, \.referenceLayers, [])
         harnessTypes = try field(.harnessTypes, \.harnessTypes, [])
         netClassDefs = try field(.netClassDefs, \.netClassDefs, [])
         directives = try field(.directives, \.directives, [])
@@ -152,7 +155,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards, sheetGraphics
+        case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards, sheetGraphics, referenceLayers
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -555,6 +558,63 @@ struct TitleBlockInfo: Codable, Equatable {
     var drawnBy = ""
     /// Revision table, oldest first (nil when the project has none; sent whole when set).
     var revisions: [RevisionInfo]?
+}
+
+/// A reference layer's entry in the snapshot.
+struct ReferenceLayerInfo: Codable, Equatable {
+    var name: String
+    var visible = true
+    var bytes = 0.0
+}
+
+/// A Gerber or drill file's shapes as paths (mm, Y up as in the file): strokes grouped by pen width, filled flashes
+/// and regions; clear-polarity shapes apart (drawn in the background colour).
+struct GerberArtwork {
+    var kind = "gerber"
+    var bounds = CGRect.null
+    var strokes: [(width: Double, path: CGPath)] = []
+    var fills = CGMutablePath()
+    var clearFills = CGMutablePath()
+    var clearStrokes: [(width: Double, path: CGPath)] = []
+    var shapeCount = 0
+    var error = ""
+
+    /// From `sieda_gerber_parse` / `sieda_pcb_reference_layer_json`.
+    init?(json: String) {
+        guard let j = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else { return nil }
+        kind = j["kind"] as? String ?? "gerber"
+        error = j["error"] as? String ?? ""
+        if let b = j["bounds"] as? [Double], b.count == 4 { bounds = CGRect(x: b[0], y: b[1], width: b[2] - b[0], height: b[3] - b[1]) }
+        var pens: [Double: CGMutablePath] = [:], clearPens: [Double: CGMutablePath] = [:]
+        for s in j["strokes"] as? [[Double]] ?? [] where s.count >= 6 {
+            let path = s[5] != 0 ? clearPens[s[4], default: CGMutablePath()] : pens[s[4], default: CGMutablePath()]
+            path.move(to: CGPoint(x: s[0], y: s[1]))
+            path.addLine(to: CGPoint(x: s[2], y: s[3]))
+            if s[5] != 0 { clearPens[s[4]] = path } else { pens[s[4]] = path }
+            shapeCount += 1
+        }
+        for f in j["flashes"] as? [[Any]] ?? [] where f.count >= 6 {
+            guard let x = f[0] as? Double, let y = f[1] as? Double, let w = f[2] as? Double, let h = f[3] as? Double else { continue }
+            let rect = CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h)
+            let target = (f[5] as? Double ?? 0) != 0 ? clearFills : fills
+            switch f[4] as? String ?? "C" {
+            case "R": target.addRect(rect)
+            case "O": target.addRoundedRect(in: rect, cornerWidth: min(w, h) / 2, cornerHeight: min(w, h) / 2)
+            default: target.addEllipse(in: rect)
+            }
+            shapeCount += 1
+        }
+        for r in j["regions"] as? [[Double]] ?? [] where r.count >= 7 {
+            let target = r[0] != 0 ? clearFills : fills
+            target.move(to: CGPoint(x: r[1], y: r[2]))
+            var i = 3
+            while i + 1 < r.count { target.addLine(to: CGPoint(x: r[i], y: r[i + 1])); i += 2 }
+            target.closeSubpath()
+            shapeCount += 1
+        }
+        strokes = pens.map { ($0.key, $0.value) }
+        clearStrokes = clearPens.map { ($0.key, $0.value) }
+    }
 }
 
 /// One line of the revision table (core `Revision`).

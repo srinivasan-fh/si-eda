@@ -163,6 +163,9 @@ final class DesignStore: ObservableObject {
     @Published var designDiff: DesignDiff?
     @Published var variantMatrix: VariantMatrix?
     @Published var showReview = false
+    @Published var showGerberViewer = false
+    /// Reference layers' shapes, read once per layer ("index:name:bytes").
+    var referenceArtworkCache: [String: GerberArtwork] = [:]
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.
     @Published private(set) var revision = 0
     /// Incremented when a whole new design arrives (AI plan, open, example, re-placement) so editors re-fit.

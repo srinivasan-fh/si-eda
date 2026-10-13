@@ -53,6 +53,15 @@ enum Theme {
     static let silkscreen = Color(red: 0.88, green: 0.94, blue: 1.00)
     static let ratsnest = Color(red: 0.75, green: 0.85, blue: 1.00).opacity(0.75)
 
+    /// Reference layers and the Gerber viewer: one distinct colour per layer (violet, teal, amber, rose, lime, sky …).
+    static func referenceColour(_ index: Int) -> Color {
+        let palette: [Color] = [Color(red: 0.72, green: 0.45, blue: 1.00), Color(red: 0.20, green: 0.80, blue: 0.75),
+                                Color(red: 1.00, green: 0.70, blue: 0.20), Color(red: 1.00, green: 0.45, blue: 0.60),
+                                Color(red: 0.60, green: 0.90, blue: 0.30), Color(red: 0.40, green: 0.70, blue: 1.00),
+                                Color(red: 0.95, green: 0.95, blue: 0.95), Color(red: 0.85, green: 0.55, blue: 0.35)]
+        return palette[abs(index) % palette.count]
+    }
+
     /// Copper layer colours (Layer colour mode, layer tabs, X-Ray stack): standard CAD colours per layer.
     static func copperColor(_ layer: Int, layerCount: Int) -> Color {
         if layer == 0 { return topCopper }

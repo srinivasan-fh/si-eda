@@ -6699,6 +6699,24 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
     }
 
+    func testGerberArtworkAndReferenceLayers() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        let edge = try XCTUnwrap(store.engine.export(.gerberEdge))
+        let art = try XCTUnwrap(EDAEngine.gerberArtwork(edge))
+        XCTAssertTrue(art.error.isEmpty)
+        XCTAssertGreaterThan(art.shapeCount, 3)
+        XCTAssertFalse(art.bounds.isNull)
+        store.addReferenceLayer(name: "edge", text: edge)
+        XCTAssertEqual(store.snapshot.referenceLayers.first?.name, "edge")
+        XCTAssertNotNil(store.referenceArtwork(0))
+        store.setReferenceLayer(0, visible: false)
+        XCTAssertEqual(store.snapshot.referenceLayers.first?.visible, false)
+        store.removeReferenceLayer(0)
+        XCTAssertTrue(store.snapshot.referenceLayers.isEmpty)
+    }
+
     func testNetlistImportThroughTheCoreTool() throws {
         let store = DesignStore()
         let csv = "Net,Designator,Pin\nVCC,R1,1\nVCC,C1,1\nGND,R1,2\nGND,C1,2\n"

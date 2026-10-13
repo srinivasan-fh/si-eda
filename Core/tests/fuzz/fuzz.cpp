@@ -46,6 +46,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)importIdx(sch, board, text);  // IDX (EDMD XML) from the same MCAD side
         (void)idxResponse(text, true);
         (void)importDxfOutline(text);  // DXF board outlines from the same MCAD side
+        (void)gerberImageJson(parseGerber(text));  // Gerber / Excellon reference layers
 #else
 #error "Define one SIEDA_FUZZ_<TARGET>"
 #endif

@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "寸法を削除";
 "Dimension — drag from one point to the other · Esc ends" = "寸法 — 一方の点からもう一方へドラッグ · Esc で終了";
 "Import Netlist…" = "ネットリストをインポート…";
+"Add to Board" = "ボードに追加";
+"Gerber Viewer" = "Gerber ビューア";
+"Gerber Viewer…" = "Gerber ビューア…";
+"Import Gerber as Reference Layer…" = "Gerber を参照レイヤーとしてインポート…";
+"Keep this file over the board as a reference layer" = "このファイルを参照レイヤーとしてボード上に表示";
+"Open Files…" = "ファイルを開く…";
+"Open Gerber and drill files to view them." = "Gerber とドリルファイルを開いて表示します。";
+"Not Gerber or drill files: %@" = "Gerber またはドリルファイルではありません: %@";
+"Hide Reference Layer %@" = "参照レイヤー %@ を隠す";
+"Show Reference Layer %@" = "参照レイヤー %@ を表示";
+"Remove Reference Layer %@" = "参照レイヤー %@ を削除";

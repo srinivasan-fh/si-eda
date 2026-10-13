@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "치수 삭제";
 "Dimension — drag from one point to the other · Esc ends" = "치수 — 한 점에서 다른 점으로 드래그 · Esc 종료";
 "Import Netlist…" = "넷리스트 가져오기…";
+"Add to Board" = "보드에 추가";
+"Gerber Viewer" = "Gerber 뷰어";
+"Gerber Viewer…" = "Gerber 뷰어…";
+"Import Gerber as Reference Layer…" = "Gerber를 참조 레이어로 가져오기…";
+"Keep this file over the board as a reference layer" = "이 파일을 보드 위 참조 레이어로 유지";
+"Open Files…" = "파일 열기…";
+"Open Gerber and drill files to view them." = "Gerber 및 드릴 파일을 열어 확인하세요.";
+"Not Gerber or drill files: %@" = "Gerber 또는 드릴 파일이 아님: %@";
+"Hide Reference Layer %@" = "참조 레이어 %@ 숨기기";
+"Show Reference Layer %@" = "참조 레이어 %@ 표시";
+"Remove Reference Layer %@" = "참조 레이어 %@ 삭제";

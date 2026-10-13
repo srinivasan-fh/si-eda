@@ -17,6 +17,7 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/LibraryImport.hpp"
+#include "sieda/Documents.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -4696,6 +4697,38 @@ void teamTools(Table& t) {
               const std::string dxf = readFileArg(s, requireStr(a, "path")).asString();
               Json j = takeJson(sieda_pcb_import_dxf(P(s), dxf.c_str()));
               if (!j.get("ok").asBool(false)) throw ToolError("DXF not imported: " + j.get("error").asString("unreadable"));
+              return out(j);
+          });
+    t.add("pcb", "pcb_reference_layer", "Reference layer (Gerber)", Kind::Edit, false,
+          "Keeps a Gerber or Excellon drill file over the board as a reference layer (origin at the board's lower-left "
+          "corner, never fabricated): path adds one; index with visible shows / hides it, with remove deletes it. "
+          "Returns the layers with each one's shape counts and bounds (mm).",
+          Schema().str("path", "Gerber / drill file inside the root to add").str("name", "Layer name (default: the file name)")
+              .integer("index", "Layer to change").boolean("visible", "Show or hide it").boolean("remove", "Delete it"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              if (a.has("path")) {
+                  const std::string path = requireStr(a, "path");
+                  const std::string text = readFileArg(s, path).asString();
+                  const std::string name = a.has("name") ? argStr(a, "name") : path.substr(path.find_last_of('/') + 1);
+                  check(sieda_pcb_add_reference_layer(p, name.c_str(), text.c_str()) >= 0,
+                        "Not a Gerber or drill file with a drawing (or 32 reference layers already)");
+              }
+              if (a.has("index"))
+                  check(sieda_pcb_set_reference_layer(p, a.get("index").asInt(-1), argBool(a, "visible", true) ? 1 : 0,
+                                                      argBool(a, "remove", false) ? 1 : 0) == 1, "No reference layer with that index");
+              Json layers = Json::array();
+              for (const auto& r : p->project.referenceLayers) {
+                  const GerberImage img = parseGerber(r.text);
+                  Json j = obj();
+                  j["name"] = r.name, j["visible"] = r.visible, j["kind"] = img.kind, j["shapes"] = static_cast<int>(img.shapes.size());
+                  Json b = Json::array();
+                  for (double v : {img.x0, img.y0, img.x1, img.y1}) b.push(v);
+                  j["bounds"] = b;
+                  layers.push(j);
+              }
+              Json j = obj();
+              j["referenceLayers"] = layers;
               return out(j);
           });
     t.add("output", "output_idx_response", "IDX response for MCAD", Kind::Files, false,

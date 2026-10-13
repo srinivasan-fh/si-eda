@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "కొలతను తొలగించండి";
 "Dimension — drag from one point to the other · Esc ends" = "కొలత — ఒక బిందువు నుండి మరొకదానికి లాగండి · Esc ముగిస్తుంది";
 "Import Netlist…" = "నెట్‌లిస్ట్ దిగుమతి చేయండి…";
+"Add to Board" = "బోర్డుకు జోడించండి";
+"Gerber Viewer" = "గెర్బర్ వ్యూయర్";
+"Gerber Viewer…" = "గెర్బర్ వ్యూయర్…";
+"Import Gerber as Reference Layer…" = "గెర్బర్‌ను రిఫరెన్స్ లేయర్‌గా దిగుమతి చేయండి…";
+"Keep this file over the board as a reference layer" = "ఈ ఫైల్‌ను బోర్డుపై రిఫరెన్స్ లేయర్‌గా ఉంచండి";
+"Open Files…" = "ఫైళ్లను తెరవండి…";
+"Open Gerber and drill files to view them." = "చూడటానికి గెర్బర్ మరియు డ్రిల్ ఫైళ్లను తెరవండి.";
+"Not Gerber or drill files: %@" = "గెర్బర్ లేదా డ్రిల్ ఫైళ్లు కావు: %@";
+"Hide Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ దాచండి";
+"Show Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ చూపించండి";
+"Remove Reference Layer %@" = "రిఫరెన్స్ లేయర్ %@ తొలగించండి";

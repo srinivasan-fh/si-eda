@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "आयाम हटाएँ";
 "Dimension — drag from one point to the other · Esc ends" = "आयाम — एक बिंदु से दूसरे तक खींचें · Esc समाप्त";
 "Import Netlist…" = "नेटलिस्ट आयात करें…";
+"Add to Board" = "बोर्ड में जोड़ें";
+"Gerber Viewer" = "गर्बर व्यूअर";
+"Gerber Viewer…" = "गर्बर व्यूअर…";
+"Import Gerber as Reference Layer…" = "गर्बर को संदर्भ परत के रूप में आयात करें…";
+"Keep this file over the board as a reference layer" = "इस फ़ाइल को बोर्ड पर संदर्भ परत के रूप में रखें";
+"Open Files…" = "फ़ाइलें खोलें…";
+"Open Gerber and drill files to view them." = "देखने के लिए गर्बर और ड्रिल फ़ाइलें खोलें।";
+"Not Gerber or drill files: %@" = "गर्बर या ड्रिल फ़ाइलें नहीं: %@";
+"Hide Reference Layer %@" = "संदर्भ परत %@ छिपाएँ";
+"Show Reference Layer %@" = "संदर्भ परत %@ दिखाएँ";
+"Remove Reference Layer %@" = "संदर्भ परत %@ हटाएँ";

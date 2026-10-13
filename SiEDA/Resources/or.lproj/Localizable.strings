@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "ମାପ ବିଲୋପ କରନ୍ତୁ";
 "Dimension — drag from one point to the other · Esc ends" = "ମାପ — ଗୋଟିଏ ବିନ୍ଦୁରୁ ଅନ୍ୟକୁ ଟାଣନ୍ତୁ · Esc ଶେଷ";
 "Import Netlist…" = "ନେଟଲିଷ୍ଟ ଆମଦାନି କରନ୍ତୁ…";
+"Add to Board" = "ବୋର୍ଡରେ ଯୋଗ କରନ୍ତୁ";
+"Gerber Viewer" = "ଗର୍ବର ଭ୍ୟୁଅର";
+"Gerber Viewer…" = "ଗର୍ବର ଭ୍ୟୁଅର…";
+"Import Gerber as Reference Layer…" = "ଗର୍ବରକୁ ସନ୍ଦର୍ଭ ସ୍ତର ଭାବେ ଆମଦାନି କରନ୍ତୁ…";
+"Keep this file over the board as a reference layer" = "ଏହି ଫାଇଲକୁ ବୋର୍ଡ ଉପରେ ସନ୍ଦର୍ଭ ସ୍ତର ଭାବେ ରଖନ୍ତୁ";
+"Open Files…" = "ଫାଇଲ ଖୋଲନ୍ତୁ…";
+"Open Gerber and drill files to view them." = "ଦେଖିବା ପାଇଁ ଗର୍ବର ଓ ଡ୍ରିଲ ଫାଇଲ ଖୋଲନ୍ତୁ।";
+"Not Gerber or drill files: %@" = "ଗର୍ବର କିମ୍ବା ଡ୍ରିଲ ଫାଇଲ ନୁହେଁ: %@";
+"Hide Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ଲୁଚାନ୍ତୁ";
+"Show Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ଦେଖାନ୍ତୁ";
+"Remove Reference Layer %@" = "ସନ୍ଦର୍ଭ ସ୍ତର %@ ହଟାନ୍ତୁ";

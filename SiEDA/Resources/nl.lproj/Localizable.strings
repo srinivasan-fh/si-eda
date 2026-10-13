@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "Maat verwijderen";
 "Dimension — drag from one point to the other · Esc ends" = "Maat — sleep van het ene punt naar het andere · Esc stopt";
 "Import Netlist…" = "Netlijst importeren…";
+"Add to Board" = "Aan bord toevoegen";
+"Gerber Viewer" = "Gerber-viewer";
+"Gerber Viewer…" = "Gerber-viewer…";
+"Import Gerber as Reference Layer…" = "Gerber importeren als referentielaag…";
+"Keep this file over the board as a reference layer" = "Dit bestand als referentielaag over het bord houden";
+"Open Files…" = "Bestanden openen…";
+"Open Gerber and drill files to view them." = "Open Gerber- en boorbestanden om ze te bekijken.";
+"Not Gerber or drill files: %@" = "Geen Gerber- of boorbestanden: %@";
+"Hide Reference Layer %@" = "Referentielaag %@ verbergen";
+"Show Reference Layer %@" = "Referentielaag %@ tonen";
+"Remove Reference Layer %@" = "Referentielaag %@ verwijderen";

@@ -1691,3 +1691,14 @@
 "Delete Dimension" = "Xóa kích thước";
 "Dimension — drag from one point to the other · Esc ends" = "Kích thước — kéo từ điểm này đến điểm kia · Esc kết thúc";
 "Import Netlist…" = "Nhập netlist…";
+"Add to Board" = "Thêm vào bo mạch";
+"Gerber Viewer" = "Trình xem Gerber";
+"Gerber Viewer…" = "Trình xem Gerber…";
+"Import Gerber as Reference Layer…" = "Nhập Gerber làm lớp tham chiếu…";
+"Keep this file over the board as a reference layer" = "Giữ tệp này trên bo mạch làm lớp tham chiếu";
+"Open Files…" = "Mở tệp…";
+"Open Gerber and drill files to view them." = "Mở tệp Gerber và tệp khoan để xem.";
+"Not Gerber or drill files: %@" = "Không phải tệp Gerber hoặc tệp khoan: %@";
+"Hide Reference Layer %@" = "Ẩn lớp tham chiếu %@";
+"Show Reference Layer %@" = "Hiện lớp tham chiếu %@";
+"Remove Reference Layer %@" = "Xóa lớp tham chiếu %@";

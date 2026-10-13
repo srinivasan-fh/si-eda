@@ -588,7 +588,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (40)
+### pcb (41)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -634,6 +634,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
 | `pcb_import_dxf` | edit | Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) and circles, on outline-like layers when the file names them (OUTLINE, Edge.Cuts, BOARD …); millimetres, or inches by $INSUNITS. |
+| `pcb_reference_layer` | edit | Keeps a Gerber or Excellon drill file over the board as a reference layer (origin at the board's lower-left corner, never fabricated): path adds one; index with visible shows / hides it, with remove deletes it. |
 
 ### sim (14)
 
