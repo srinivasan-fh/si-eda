@@ -1024,12 +1024,6 @@ struct SnapPad: Decodable, Equatable {
     var corner: Double?
     var npth: Bool?
     var rect: CGRect { CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h) }
-    /// The pad's outline (circle, rectangle or rounded rectangle) around `centre`.
-    func shape(at centre: CGPoint) -> Path {
-        let r = CGRect(x: centre.x - w / 2, y: centre.y - h / 2, width: w, height: h)
-        if round { return Path(ellipseIn: r) }
-        return Path(roundedRect: r, cornerRadius: (corner ?? 0) * min(w, h))
-    }
 }
 
 struct SnapTrack: Decodable, Equatable, Identifiable {
