@@ -270,11 +270,19 @@ extension EDAEngine {
     }
 
     /// Glossing: pulls the lines through the tracks tight (and re-searches them with `retrace`).
-    func gloss(tracks: [Int], retrace: Bool = true) -> BoardEditResult? {
-        let options = "{\"retrace\":\(retrace)}"
+    func gloss(tracks: [Int], retrace: Bool = true, moveVias: Bool = false) -> BoardEditResult? {
+        let options = "{\"retrace\":\(retrace),\"moveVias\":\(moveVias)}"
         return Self.decode(BoardEditResult.self, from: withHandle {
             Self.take(sieda_pcb_gloss($0, Self.idList(tracks), options))
         })
+    }
+
+    struct ViaMinimisation: Decodable { var viasBefore: Int; var viasAfter: Int; var kept: Bool }
+
+    /// Routes the nets again with via minimisation; kept only when it saves vias without new unrouted connections.
+    func minimizeVias(nets: [String]) -> ViaMinimisation? {
+        guard let data = try? JSONSerialization.data(withJSONObject: nets), let json = String(data: data, encoding: .utf8) else { return nil }
+        return Self.decode(ViaMinimisation.self, from: withHandle { Self.take(sieda_pcb_minimize_vias($0, json)) })
     }
 
     static func viaPatternOptions(net: String, pitch: Double) -> String {

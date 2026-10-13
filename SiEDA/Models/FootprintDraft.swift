@@ -25,6 +25,8 @@ struct FootprintDraft: Equatable {
     var bodyD: Double
     /// Courtyard margin around pads and body (mm).
     var courtyardMargin = 0.25
+    /// Drawn silkscreen / fab lines.
+    var graphics: [CustomPartSpec.Graphic] = []
     /// "LGA" stays "LGA" (a catalog land pattern); anything edited from a generated footprint becomes "CUSTOM".
     var packageType: String
 
@@ -37,6 +39,7 @@ struct FootprintDraft: Equatable {
         bodyW = spec.package.bodySize ?? extentX * 2
         bodyD = spec.package.bodyDepth ?? spec.package.bodySize ?? extentY * 2
         courtyardMargin = spec.package.courtyard ?? 0.25
+        graphics = spec.package.graphics ?? []
     }
 
     /// Writes the land pattern into the part: the package becomes the edited land pattern; the pins are kept.
@@ -48,6 +51,17 @@ struct FootprintDraft: Equatable {
         spec.package.bodySize = bodyW > 0.5 ? bodyW : nil
         spec.package.bodyDepth = bodyD > 0.5 ? bodyD : nil
         spec.package.courtyard = abs(courtyardMargin - 0.25) > 1e-9 ? courtyardMargin : nil
+        spec.package.graphics = graphics.isEmpty ? nil : graphics
+    }
+
+    /// The body's outline as four lines on the silkscreen (0.1 mm outside it, clear of the pads' mask) or the fab layer.
+    mutating func outlineBody(fab: Bool) {
+        let gap = fab ? 0 : 0.1, x = bodyW / 2 + gap, y = bodyD / 2 + gap
+        let corners = [(-x, -y), (x, -y), (x, y), (-x, y)]
+        for i in 0..<4 {
+            let (a, b) = (corners[i], corners[(i + 1) % 4])
+            graphics.append(.init(x0: a.0, y0: a.1, x1: b.0, y1: b.1, width: fab ? 0.1 : 0.15, fab: fab))
+        }
     }
 
     /// The part with this footprint (for previews and the core's checks).
@@ -147,7 +161,13 @@ struct FootprintDraft: Equatable {
             pads[i].land.y = cy + (l.x - cx)
             pads[i].land.w = l.h
             pads[i].land.h = l.w
+            pads[i].land.options.outline = l.options.outline?.map { [-$0[1], $0[0]] }  // a quarter turn, like the pad
         }
+    }
+
+    /// Pad outline presets: a trapezoid (top edge `top` × the width, y down) or the pad's rectangle to edit.
+    static func trapezoid(_ l: CustomPartSpec.Land, top: Double = 0.6) -> [[Double]] {
+        [[-l.w / 2, l.h / 2], [l.w / 2, l.h / 2], [l.w * top / 2, -l.h / 2], [-l.w * top / 2, -l.h / 2]]
     }
 
     /// Thermal vias in a pad (an exposed / thermal pad): plated holes of `drill` on a `pitch` grid inside it, on the

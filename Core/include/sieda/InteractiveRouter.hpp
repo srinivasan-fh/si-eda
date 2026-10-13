@@ -84,6 +84,7 @@ struct RouterOptions {
     TeardropStyle teardropStyle = TeardropStyle::Straight;
     /// Hug: a dragged segment that runs into copper that cannot move (pads, locked tracks, fixed vias) bends around it
     /// on its clearance hull instead of stopping short; other nets' tracks are still shoved (Shove) or kept clear.
+    /// Via and corner drags: the tracks that follow the moved via / vertex bend round such copper the same way.
     bool hugDrag = false;
     /// Tune while routing: routing a bus, or a single net with a length target (length rule, match group or
     /// matched-length group), the members that are short get accordion meanders on the tracks this route adds (only
@@ -441,6 +442,9 @@ BoardEditResult shieldTracks(PcbLayout& pcb, const Schematic& sch, const std::ve
 struct GlossOptions {
     /// Also search a new path for each line (walkaround on a fine grid) and keep it when it is shorter.
     bool retrace = true;
+    /// Then each via of those nets joining exactly two tracks is pulled towards the straight line between their other
+    /// ends (a via drag in walkaround: every rule kept, nothing else moves). Needs `apply`.
+    bool moveVias = false;
     bool apply = true;
 };
 

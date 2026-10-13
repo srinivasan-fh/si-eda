@@ -229,6 +229,57 @@ int Schematic::splitWire(int wireId, Vec2 position) {
     return j;
 }
 
+bool Schematic::dragWireSegment(int wireId, Vec2 offset) {
+    auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    if (it == wires_.end() || masterWireOf(wireId) != wireId) return false;
+    const Wire w = *it;
+    const Vec2 a = pinPosition(w.a), b = pinPosition(w.b);
+    const bool horizontal = std::fabs(a.y - b.y) < 1e-9, vertical = std::fabs(a.x - b.x) < 1e-9;
+    if (horizontal == vertical) return false;
+    const Vec2 d = horizontal ? Vec2{0, offset.y} : Vec2{offset.x, 0};
+    if (d.length() < 1e-9) return false;
+    auto bend = [&](PinRef end) {  // a junction joined by exactly two wires
+        const Component* c = find(end.component);
+        if (!c || c->kind != ComponentKind::Junction) return false;
+        int n = 0;
+        for (const Wire& x : wires_) n += (x.a.component == end.component) + (x.b.component == end.component);
+        return n == 2;
+    };
+    int current = wireId;
+    for (PinRef end : {w.a, w.b}) {
+        const Vec2 at = pinPosition(end) + d;
+        if (bend(end)) {
+            moveComponent(end.component, at);
+            continue;
+        }
+        const int j = splitWire(current, at);  // the old end stays linked to the new junction
+        if (j < 0) return false;
+        // Carry on with the piece that still runs from the new junction to the far end.
+        for (const Wire& x : wires_)
+            if ((x.a.component == j || x.b.component == j) && !(x.a == end) && !(x.b == end)) current = x.id;
+    }
+    return true;
+}
+
+bool Schematic::moveWireEnd(int wireId, bool b, Vec2 position, PinRef to) {
+    auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    if (it == wires_.end() || masterWireOf(wireId) != wireId) return false;
+    const PinRef keep = b ? it->a : it->b;
+    if (to.component < 0) {
+        const Component* end = find(keep.component);
+        const int shown = activeSheet_;
+        if (end) activeSheet_ = end->sheet;  // on the wire's sheet
+        to = {addComponent(ComponentKind::Junction, "", position), 0};
+        activeSheet_ = shown;
+    }
+    if (to == keep || !find(to.component)) return false;
+    wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
+    connect(keep, to);
+    invalidate();
+    edited();
+    return true;
+}
+
 int Schematic::removeDanglingJunctions(int junctionId) {
     int removed = 0;
     for (int id = masterOf(junctionId); id >= 0;) {
@@ -853,8 +904,9 @@ std::vector<RuleViolation> Schematic::runERC() const {
             }
         }
         std::set<PinRef> reported;
-        // A pin on another pin is a warning; a wire drawn across a pin (an L-route over it) is a note.
-        auto report = [&](PinRef pin, const std::string& what, Severity severity = Severity::Warning) {
+        // A note: a pin on another pin or wire corner, or a wire drawn across a pin (an L-route over it), without a
+        // connection — the netlist follows the wires, so this is a drawing to tidy, not a fault.
+        auto report = [&](PinRef pin, const std::string& what, Severity severity = Severity::Info) {
             if (!reported.insert(pin).second) return;
             const Component* c = find(pin.component);
             const std::string name = c->kind == ComponentKind::Junction ? "A wire corner" : displayRef(*c) + "." + c->def().pins[static_cast<size_t>(pin.pin)].name;

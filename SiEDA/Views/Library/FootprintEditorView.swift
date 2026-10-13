@@ -37,6 +37,10 @@ struct FootprintEditorView: View {
     @State private var genPitch = 1.27
     @State private var genBody = 3.9
     @State private var ipc = IPCInput()
+    @State private var showLibrary = false
+    @State private var libraryQuery = ""
+    @State private var show3D = false
+    @State private var preview3D: MeshData?
 
     struct IPCInput {
         var lMin = 5.8, lMax = 6.2, sMin = 3.8, sMax = 4.2, wMin = 0.31, wMax = 0.51
@@ -69,9 +73,15 @@ struct FootprintEditorView: View {
                 canvas
                     .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
-                ScrollView { sidePanel.padding(12) }
-                    .frame(width: 300)
-                    .background(Theme.deepBlue.opacity(0.45))
+                VStack(spacing: 0) {
+                    if show3D {
+                        Model3DPreview(mesh: preview3D).frame(height: 220)
+                        Divider()
+                    }
+                    ScrollView { sidePanel.padding(12) }
+                }
+                .frame(width: 300)
+                .background(Theme.deepBlue.opacity(0.45))
             }
             Divider()
             footer
@@ -80,6 +90,13 @@ struct FootprintEditorView: View {
         .background(Theme.navy)
         .onAppear { runChecks() }
         .onChange(of: draft) { _, _ in scheduleChecks() }
+        .task(id: show3D ? draft : nil) {  // the 3D preview follows the edits
+            guard show3D else { return }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
+            let part = draft.applied(to: spec)
+            preview3D = await Task.detached(priority: .userInitiated) { EDAEngine.model3DPreviewMesh(part) }.value
+        }
         .onDeleteCommand {
             let ids = selection
             edit { $0.delete(ids) }
@@ -88,6 +105,34 @@ struct FootprintEditorView: View {
     }
 
     // MARK: - Toolbar
+
+    /// Library footprints to start from (search by name or package).
+    private var libraryBrowser: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Search footprints", text: $libraryQuery).textFieldStyle(.roundedBorder)
+            List(EDAEngine.footprintLibrary(libraryQuery)) { fp in
+                Button {
+                    guard let found = EDAEngine.footprintLands(fp.name) else { return }
+                    selection = []
+                    edit {
+                        $0.pads = found.lands.map { FootprintDraft.Pad(land: $0) }
+                        if found.bodyW > 0.5 { $0.bodyW = found.bodyW }
+                        if found.bodyD > 0.5 { $0.bodyD = found.bodyD }
+                    }
+                    showLibrary = false
+                } label: {
+                    HStack {
+                        Text(verbatim: fp.label)
+                        Spacer()
+                        Text("\(fp.pads) pads").foregroundStyle(Theme.textMuted).font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(width: 340, height: 360)
+        }
+        .padding(12)
+    }
 
     private var toolbar: some View {
         HStack(spacing: 8) {
@@ -136,6 +181,12 @@ struct FootprintEditorView: View {
                 }
             } label: { Label("Arrange", systemImage: "align.horizontal.left") }
                 .help("Set the origin; align or distribute the selected pads")
+            Button { showLibrary = true } label: { Label("Library", systemImage: "books.vertical") }
+                .help("Start from a library footprint: its pads replace these (undoable)")
+                .popover(isPresented: $showLibrary) { libraryBrowser }
+            Toggle(isOn: $show3D) { Label("3D", systemImage: "cube") }
+                .toggleStyle(.button)
+                .help("Show the part in 3D above the side panel")
             Picker("Units", selection: $mil) {
                 Text(verbatim: "mm").tag(false)
                 Text(verbatim: "mil").tag(true)
@@ -223,6 +274,12 @@ struct FootprintEditorView: View {
                 ctx.stroke(Path(body).applying(t), with: .color(Theme.silkscreen.opacity(0.8)), lineWidth: 1)
                 ctx.stroke(Path(draft.courtyard).applying(t), with: .color(Theme.lightBlue.opacity(0.4)),
                            style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                for g in draft.graphics {  // drawn silk (white) and fab (amber) lines
+                    var line = Path()
+                    line.move(to: CGPoint(x: g.x0, y: g.y0))
+                    line.addLine(to: CGPoint(x: g.x1, y: g.y1))
+                    ctx.stroke(line.applying(t), with: .color(g.fab ? Theme.warning : Theme.silkscreen), lineWidth: max(1, g.width * s))
+                }
                 // Pads (selected ones follow the drag preview).
                 let flagged = issuePads
                 let preview = CGSize(width: dragMoved.width / s, height: dragMoved.height / s)
@@ -234,7 +291,7 @@ struct FootprintEditorView: View {
                         l.y = FootprintDraft.snap(l.y + preview.height, grid)
                     }
                     let r = CGRect(x: l.x - l.w / 2, y: l.y - l.h / 2, width: l.w, height: l.h)
-                    let shape = l.round ? Path(ellipseIn: r) : Path(roundedRect: r, cornerRadius: min(l.w, l.h) * (l.options.corner ?? 0.12))
+                    let shape = l.path(in: r)
                     let mechanical = l.pin == "-"
                     if l.options.npth == true {  // a plain hole: outline only
                         ctx.stroke(shape.applying(t), with: .color(Theme.via), lineWidth: 1)
@@ -397,17 +454,25 @@ struct FootprintEditorView: View {
             number("Width", landBinding(index, \.w, min: 0.06, max: 30), step: grid)
             number("Height", landBinding(index, \.h, min: 0.06, max: 30), step: grid)
             number("Drill", landBinding(index, \.drill, min: 0, max: 29), step: 0.05)
-            Picker("Shape", selection: Binding(get: { pad.land.round ? 2 : (pad.land.options.corner ?? 0) > 0 ? 1 : 0 }, set: { shape in
+            Picker("Shape", selection: Binding(get: {
+                let o = pad.land.options
+                return pad.land.round ? 2 : o.outline != nil ? 4 : (o.chamfer ?? 0) > 0 ? 3 : (o.corner ?? 0) > 0 ? 1 : 0
+            }, set: { shape in
                 edit {
+                    let l = $0.pads[index].land
                     $0.pads[index].land.round = shape == 2
                     $0.pads[index].land.options.corner = shape == 1 ? 0.25 : nil
+                    $0.pads[index].land.options.chamfer = shape == 3 ? 0.25 : nil
+                    $0.pads[index].land.options.outline = shape == 4 ? FootprintDraft.trapezoid(l) : nil
                 }
             })) {
                 Text("Rectangle").tag(0)
                 Text("Rounded").tag(1)
                 Text(pad.land.w == pad.land.h ? "Circle" : "Oval").tag(2)
+                Text("Chamfered").tag(3)
+                Text("Custom Outline").tag(4)
             }
-            .pickerStyle(.segmented)
+            .help("Custom Outline starts as a trapezoid; type its corners below")
             padOptions(index)
             Picker("Pin", selection: Binding(get: { pad.land.pin }, set: { pin in edit { $0.pads[index].land.pin = pin } })) {
                 Text("Pin \(index + 1) (its number)").tag("")
@@ -442,7 +507,31 @@ struct FootprintEditorView: View {
                 }
                 .help("Corner radius as a share of the pad's short side")
             }
+            if (land.options.chamfer ?? 0) > 0 {
+                HStack {
+                    Text("Chamfer").font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
+                    Slider(value: Binding(get: { land.options.chamfer ?? 0.25 }, set: { v in set { $0.chamfer = v } }), in: 0.05...0.5)
+                    Text(verbatim: String(format: "%.0f %%", (land.options.chamfer ?? 0) * 100)).font(.caption2).monospacedDigit()
+                }
+                .help("45° corner cut as a share of the pad's short side")
+            }
+            if let outline = land.options.outline {
+                TextField("Corners", text: Binding(get: {
+                    outline.map { String(format: "%.3g, %.3g", $0[0], $0[1]) }.joined(separator: "; ")
+                }, set: { text in
+                    let points = text.split(separator: ";").compactMap { pair -> [Double]? in
+                        let v = pair.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+                        return v.count == 2 ? v : nil
+                    }
+                    if points.count >= 3 { set { $0.outline = points } }
+                }))
+                .font(.caption.monospacedDigit())
+                .help("Outline corners round the pad centre in mm: x, y; x, y; … (y down)")
+            }
             if land.drill > 0 {
+                number("Inner Ø", Binding(get: { land.options.inner ?? 0 }, set: { v in set { $0.inner = v > 0 && v.isFinite ? Swift.min(v, 30) : nil } }),
+                       step: 0.05)
+                    .help("Pad stack: the pad's diameter on the inner copper layers (0 = its own size)")
                 Toggle("Non-plated hole (no copper)", isOn: Binding(get: { land.options.npth == true }, set: { on in set { $0.npth = on ? true : nil } }))
                     .toggleStyle(.checkbox).font(.caption)
             }
@@ -536,6 +625,31 @@ struct FootprintEditorView: View {
             number("Courtyard", Binding(get: { draft.courtyardMargin },
                                         set: { v in edit { $0.courtyardMargin = Swift.min(Swift.max(v, 0.05), 5) } }), step: 0.05)
                 .help("Courtyard margin around the pads and body (IPC-7351: 0.25 mm nominal)")
+            Text("GRAPHICS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            HStack {
+                Button("Body on Silk") { edit { $0.outlineBody(fab: false) } }
+                Button("Body on Fab") { edit { $0.outlineBody(fab: true) } }
+            }
+            .controlSize(.small)
+            .help("Outline the body with four lines on the silkscreen or the fabrication drawing")
+            Button("Add Line") { edit { $0.graphics.append(.init(x0: -1, y0: 0, x1: 1, y1: 0)) } }
+                .controlSize(.small)
+            ForEach(draft.graphics.indices, id: \.self) { i in
+                HStack(spacing: 4) {
+                    ForEach([\CustomPartSpec.Graphic.x0, \.y0, \.x1, \.y1], id: \.self) { key in
+                        TextField("", value: Binding(get: { draft.graphics[i][keyPath: key] }, set: { v in
+                            edit { $0.graphics[i][keyPath: key] = Swift.min(Swift.max(v, -60), 60) }
+                        }), format: .number.precision(.fractionLength(0...3)))
+                        .font(.caption.monospacedDigit()).frame(width: 44)
+                    }
+                    Toggle("Fab", isOn: Binding(get: { draft.graphics[i].fab }, set: { on in edit { $0.graphics[i].fab = on } }))
+                        .toggleStyle(.checkbox).font(.caption2)
+                    Button { edit { $0.graphics.remove(at: i) } } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove Line")
+                }
+                .help("Line from (x0, y0) to (x1, y1) in mm; Fab = the fabrication (assembly) drawing, else the silkscreen")
+            }
         }
     }
 
@@ -731,5 +845,25 @@ struct FootprintEditorView: View {
 
     private func runChecks() {
         issues = EDAEngine.checkLandPattern(draft.applied(to: spec))
+    }
+}
+
+extension CustomPartSpec.Land {
+    /// The pad's shape in `r` (its rectangle): circle / oval, drawn outline, chamfered or rounded rectangle.
+    func path(in r: CGRect) -> Path {
+        if round { return Path(ellipseIn: r) }
+        if let outline = options.outline, outline.count >= 3 {
+            return Path { $0.addLines(outline.map { CGPoint(x: r.midX + $0[0], y: r.midY + $0[1]) }); $0.closeSubpath() }
+        }
+        if let c = options.chamfer, c > 0 {
+            let k = c * min(r.width, r.height)
+            return Path { p in
+                p.addLines([CGPoint(x: r.minX + k, y: r.minY), CGPoint(x: r.maxX - k, y: r.minY), CGPoint(x: r.maxX, y: r.minY + k),
+                            CGPoint(x: r.maxX, y: r.maxY - k), CGPoint(x: r.maxX - k, y: r.maxY), CGPoint(x: r.minX + k, y: r.maxY),
+                            CGPoint(x: r.minX, y: r.maxY - k), CGPoint(x: r.minX, y: r.minY + k)])
+                p.closeSubpath()
+            }
+        }
+        return Path(roundedRect: r, cornerRadius: min(r.width, r.height) * (options.corner ?? 0.12))
     }
 }

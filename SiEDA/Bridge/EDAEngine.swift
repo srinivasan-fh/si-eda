@@ -1510,6 +1510,14 @@ final class EDAEngine: @unchecked Sendable {
 
     // MARK: - Export & 3D
 
+    func dragWireSegment(_ id: Int, dx: Double, dy: Double) -> Bool {
+        withHandle { sieda_drag_wire_segment($0, Int32(id), dx, dy) } == 1
+    }
+
+    func moveWireEnd(_ id: Int, b: Bool, x: Double, y: Double, component: Int, pin: Int) -> Bool {
+        withHandle { sieda_move_wire_end($0, Int32(id), b ? 1 : 0, x, y, Int32(component), Int32(pin)) } == 1
+    }
+
     func export(_ format: ExportFormat) -> String? {
         withHandle { Self.take(sieda_export($0, format.rawValue)) }
     }
@@ -1587,7 +1595,6 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case stl
     case obj
     case vrml
-    case glb
     case step
     case idfBoard = "idf_board"
     case idfLibrary = "idf_library"
@@ -1622,7 +1629,6 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .stl: return "assembly.stl"
         case .obj: return "assembly.obj"
         case .vrml: return "assembly.wrl"
-        case .glb: return "assembly.glb"
         case .step: return "board.step"
         case .idfBoard: return "board.emn"
         case .idfLibrary: return "board.emp"
@@ -1657,7 +1663,6 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
         case .vrml: return "3D Model (VRML 2.0)"
-        case .glb: return "3D Model (glTF 2.0 binary)"
         case .step: return "STEP AP214 — Board and Parts (MCAD)"
         case .idfBoard: return "IDF 3.0 Board (.emn)"
         case .idfLibrary: return "IDF 3.0 Library (.emp)"

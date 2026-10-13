@@ -76,6 +76,25 @@ extension DesignStore {
         runDRC()
     }
 
+    /// Gives a placed part (a catalog part too) its own 3D model from a STEP / STL / OBJ / VRML file. Undoable.
+    func assignPartModel(_ component: Int) {
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose the part's 3D model (STEP, STL, OBJ or VRML)")
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        let result = EDAEngine.importModel3D(name: url.lastPathComponent, data: data)
+        guard result.ok, let id = result.id else {
+            alert = AlertItem(title: "3D model not loaded", message: result.error)
+            return
+        }
+        performChecked("3D model", invalidatesAnalysis: false) {
+            $0.setPartModel(component, model: id, name: url.lastPathComponent, unit: result.unit ?? 1)
+        }
+    }
+
+    func removePartModel(_ component: Int) {
+        performChecked("Remove 3D model", invalidatesAnalysis: false) { $0.setPartModel(component, model: "") }
+    }
+
     func removeEnclosure() {
         performChecked("Remove enclosure", invalidatesAnalysis: false) { $0.setEnclosureModel("") }
         if !drcResults.isEmpty { runDRC() }

@@ -65,6 +65,30 @@ extension EDAEngine {
         return result
     }
 
+    /// A footprint of the library browser (`sieda_footprint_library_json`).
+    struct LibraryFootprint: Decodable, Identifiable, Hashable {
+        var name: String
+        var label: String
+        var pads: Int
+        var width: Double
+        var height: Double
+        var id: String { name }
+    }
+
+    /// Built-in footprints whose name or label holds every word of `query` (at most 200).
+    static func footprintLibrary(_ query: String) -> [LibraryFootprint] {
+        guard let json = takeModelString(sieda_footprint_library_json(nil, query)) else { return [] }
+        return (try? JSONDecoder().decode([LibraryFootprint].self, from: Data(json.utf8))) ?? []
+    }
+
+    /// A library footprint's pads as lands (pad k on pin k + 1) and its body size.
+    static func footprintLands(_ name: String) -> (lands: [CustomPartSpec.Land], bodyW: Double, bodyD: Double)? {
+        struct Reply: Decodable { var lands: [CustomPartSpec.Land]; var bodySize: Double; var bodyDepth: Double }
+        guard let json = takeModelString(sieda_footprint_lands_json(name)),
+              let r = try? JSONDecoder().decode(Reply.self, from: Data(json.utf8)) else { return nil }
+        return (r.lands, r.bodySize, r.bodyDepth)
+    }
+
     /// The part alone on a small board (pads, solder, its model or generated body), for the alignment preview.
     static func model3DPreviewMesh(_ spec: CustomPartSpec) -> MeshData? {
         guard let mesh = sieda_model3d_preview(spec.jsonString()) else { return nil }

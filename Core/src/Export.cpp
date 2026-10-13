@@ -321,6 +321,17 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         const double r = p.corner * std::min(p.size.x, p.size.y) + grow;
         return p.corner > 0 && r > 1e-4 ? "RR," + mm(w) + "X" + mm(h) + "X" + mm(r) : rect(w, h);
     };
+    // A polygon pad (chamfered, trapezoid, drawn) as a G36 region: its outline scaled by `scale` and grown by `grow`
+    // outward from the pad centre.
+    auto padRegion = [&](const Pad& p, double grow, double scale) {
+        std::string r = "G36*\n";
+        for (size_t i = 0; i <= p.outline.size(); ++i) {
+            const Vec2 v = p.outline[i % p.outline.size()];
+            const double len = v.length();
+            r += coord(p.position + (len > 1e-9 ? v * ((len * scale + grow) / len) : v)) + (i ? "D01*\n" : "D02*\n");
+        }
+        return r + "G37*";
+    };
 
     std::vector<std::pair<int, std::string>> ops;  // aperture, operation
     std::vector<std::string> regions;              // filled G36/G37 regions (drawn first)
@@ -334,6 +345,14 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         for (const auto& p : pcb.pads(sch)) {
             if (!p.onLayer(cl) || (p.npth && !isMask)) continue;  // a non-plated hole has no copper
             const double grow = isMask ? (p.mask >= 0 ? p.mask : 0.05) : 0.0;
+            if (!isMask && p.throughHole && p.inner > 0 && cl != kTopLayer && cl != bottom) {  // pad stack: inner size
+                ops.push_back({aperture(circle(p.inner)), coord(p.position) + "D03*"});
+                continue;
+            }
+            if (!p.outline.empty()) {
+                regions.push_back(padRegion(p, grow, 1));
+                continue;
+            }
             ops.push_back({aperture(padAperture(p, grow)), coord(p.position) + "D03*"});
         }
         for (const auto& v : pcb.vias) {
@@ -370,6 +389,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         int side = layer == GerberLayer::TopPaste ? kTopLayer : bottom;
         for (const auto& p : pcb.pads(sch)) {
             if (p.throughHole || p.smdLayer != side || p.paste == 0) continue;
+            if (!p.outline.empty()) {
+                regions.push_back(padRegion(p, 0, p.paste > 0 ? p.paste : 1));
+                continue;
+            }
             double w = p.size.x, h = p.size.y;
             if (p.paste > 0) {
                 w *= p.paste, h *= p.paste;
@@ -394,6 +417,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             Rect r = pcb.courtyard(c).inflated(-0.15);
             ops.push_back({ap, coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" + coord({r.x1, r.y1}) +
                                    "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*"});
+            for (const FootprintLine& l : pcb.footprintLines(c))  // the footprint's drawn silkscreen
+                if (!l.fab) ops.push_back({aperture(circle(l.width)), coord(l.a) + "D02*\n" + coord(l.b) + "D01*"});
             // Pin-1 marker dot.
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (fp && !fp->pads.empty()) {
@@ -752,6 +777,9 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
         Rect r = pcb.courtyard(c).inflated(-0.15);
         o << "<rect x=\"" << mm(r.x0) << "\" y=\"" << mm(r.y0) << "\" width=\"" << mm(r.x1 - r.x0) << "\" height=\""
           << mm(r.y1 - r.y0) << "\" fill=\"none\" stroke=\"#1b4f9c\" stroke-width=\"0.15\"/>\n";
+        for (const FootprintLine& l : pcb.footprintLines(c))  // drawn silk and fab (assembly) lines
+            o << "<line x1=\"" << mm(l.a.x) << "\" y1=\"" << mm(l.a.y) << "\" x2=\"" << mm(l.b.x) << "\" y2=\"" << mm(l.b.y)
+              << "\" stroke=\"" << (l.fab ? "#8a5a00" : "#333") << "\" stroke-width=\"" << mm(l.width) << "\"/>\n";
         const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (fp && !fp->pads.empty()) {
             Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);

@@ -286,6 +286,8 @@ the footprint, and a click without dragging still selects.
 **Hug obstacles** (options bar, on by default): where the moved segment runs into copper that cannot move (a pad, a
 locked track, a fixed via), it bends around it on its clearance hull, the shorter way round, instead of stopping
 short; other nets' tracks are still pushed (Shove) or kept clear. Without it the segment stops at the obstacle.
+Dragging a via or a corner (or several tracks) with it on, the tracks that follow the moved copper bend round such
+obstacles the same way when the plain move does not fit.
 
 Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`), router option `hugDrag` (`"hug"`).
 
@@ -365,6 +367,10 @@ The tool strip has four drawing tools (Esc leaves them; a second click on the bu
 Right-click a keep-out, cutout or drawn pour to delete it. C: `sieda_pcb_add_zone_polygon`, `sieda_pcb_add_cutout` /
 `_remove_cutout`, `sieda_pcb_set_keepouts`; MCP `pcb_add_pour` `polygon`, `pcb_set_outline` `cutouts`.
 
+**Pour Clearances** (layers panel): on the active layer, each pour's clearance is drawn as a dashed halo round the
+other nets' pads and tracks in it, and an orange X marks each floating island the fill left out (copper that would
+not touch its net; `ZoneFill::removedIslands`, snapshot `zoneFills[].removedIslands`).
+
 The layers panel also shows **Bottom Overlay** (bottom parts' silkscreen), **Solder Mask** (openings 0.05 mm larger than
 the pads, as in the Gerbers), **Paste** (SMD pads) and **Fabrication** (part bodies, pin 1, designators), with presets
 (All Layers, Top Side, Bottom Side, Copper Only, Assembly).
@@ -436,7 +442,13 @@ Core: `stitchVias`, `shieldTracks` (`ViaPatternOptions`: net, pitch, offset, are
 **Gloss** (wand icon) pulls the routes through the selected tracks (all routes with none selected) tight: each line
 (a chain of tracks between pads, vias and junctions) gets 45° shortcuts where they keep clearance and make no acute
 corner, then is searched again (walkaround on the router's grid) and the shorter result is kept. Arcs, locked tracks
-and teardrops end a line and stay. A line that cannot get shorter is left exactly as it was.
+and teardrops end a line and stay. A line that cannot get shorter is left exactly as it was. Then each via of those
+nets that joins exactly two tracks is pulled towards the straight line between their other ends (a via drag in walk
+around: nothing else moves, every rule kept; C option `"moveVias"`).
+
+**Minimise Vias** (right-click a track, or the board for every net): the nets of the selected tracks are routed again
+with via minimisation; the result is kept only when it has fewer vias and leaves no connection more unrouted (one undo
+step). C: `sieda_pcb_minimize_vias`.
 
 **Remove loops** (Route tool options, on by default): when a finished route joins pads of its net that an older
 path already joined, the older tracks that were needed before but are redundant now are removed with the route, as
@@ -670,10 +682,10 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - Teardrops are fans of straight tracks (a curved teardrop's outline is their envelope, not a true arc or polygon)
   on straight tracks, at pads and vias only (not at T
   junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
-  grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
+  grid (no hexagonal or edge-of-pour patterns). Glossing moves only vias that join exactly two tracks.
   Loop removal skips poured nets.
-- Hugging bends a dragged segment round fixed copper only (up to six obstacles); a corner drag, a multi-track drag
-  and a via drag still stop short. Match lengths tunes each net on one straight track (as the Tune tool) and does not
+- Hugging bends dragged copper round fixed copper only (up to six obstacles per line); the moved via or corner itself
+  still stops short of an obstacle. Match lengths tunes each net on one straight track (as the Tune tool) and does not
   re-route a bus to equal lengths while it is drawn.
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
 - The Select-tool drag picks the via, then the track on the active layer, under the pointer (near a track's end: its

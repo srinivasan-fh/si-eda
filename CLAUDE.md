@@ -5,7 +5,10 @@
 - Footprint Editor: core in `Core/src/CustomParts.cpp` (`landPatternFromFootprint`, `checkLandPattern`), app in
   `SiEDA/Models/FootprintDraft.swift` and `SiEDA/Views/Library/FootprintEditorView.swift`; guide in
   `docs/FOOTPRINT_EDITOR.md`. Keep the Swift `CustomPartSpec.Land` encoding identical to the core's land JSON (pad options = a trailing
-  object: corner, npth, mask, paste, pasteGrid; carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++).
+  object: corner, npth, mask, paste, pasteGrid, chamfer, outline (polygon pads: `Pad::outline`, Gerber G36 regions,
+  3D prisms), inner (pad stack); carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++). Footprint
+  silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
+  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`.
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
@@ -29,7 +32,8 @@
   (Swift); keep their JSON identical. Nested repetition and per-channel values
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
   directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste, mirror (`Component::mirror`, `orient`), touching pins joined
-  (`connectTouching`, ERC_TOUCHING_UNCONNECTED) and `cleanupWires` in `SchematicEdit.cpp` (app: right-click menu
+  (`connectTouching`, ERC_TOUCHING_UNCONNECTED) and `cleanupWires` in `SchematicEdit.cpp`, straight-wire drag
+  `Schematic::dragWireSegment` and `moveWireEnd` in `Schematic.cpp` (app: right-click menu
   `CanvasMenuItem`, double-click `QuickEditSheet`, X / Y / ⌘D / ⌥-drag / '/' keys, schematic `locked`, net-label `power` look,
   sheet notes / drawings `SheetGraphic` (`sheetGraphics`), view options `SchematicGrid` (snap step, display, selection
   filters)); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
@@ -61,6 +65,8 @@
   (one tab per set-up step), MCP + cloud LLM agent clients, Own LLM = SiEDA's circuit model `SiEDA/AI/CircuitModel.swift`, trained in the app
   (`CircuitTrainer.swift`, `OwnModelViews.swift`: dataset / training / results) or by
   `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit; values the request fixes computed by `Core/src/CircuitValues.cpp` (`circuitPlanValues`)); guide in `docs/AI.md`.
+- Configurable menu shortcuts: `ShortcutStore` / `ShortcutSettings` in `SiEDA/Views/Settings/SettingsView.swift` (user
+  defaults "app.shortcuts"; `SiEDACommands` reads `shortcuts.shortcut(id)`).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
@@ -86,7 +92,8 @@
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
-  shielding, gloss, loop removal on commit, hug drag, Stop mode, `matchTrackLengths`, split / merge tracks and footprint drag with its tracks (`PcbLayout::splitTrack` / `mergeTracks` /
+  shielding, gloss, loop removal on commit, hug drag (segments, vias, corners), Stop mode, gloss `moveVias`, `sieda_pcb_minimize_vias`,
+  pour island markers `ZoneFill::removedIslands`, `matchTrackLengths`, split / merge tracks and footprint drag with its tracks (`PcbLayout::splitTrack` / `mergeTracks` /
   `moveFootprintWithTracks`), drawn pours (`CopperZone::polygon`) and board cutouts (`BoardSettings::cutouts`,
   `forEachEdge` = outline + cutout edges), pair rules / interface presets (`PairRule` by `pairStem`,
   `interfacePresets()`) and delay length rules (`LengthRule::delayPs`) — opt-in router options, so default
@@ -164,7 +171,8 @@
   (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits,
   MECH_ENCLOSURE against `BoardSettings::enclosure` (a Model3DRegistry id in the MCAD frame, in the "mechanical" JSON,
   its mesh saved in `models3d`), MECH_CONNECTOR_ACCESS info via `openEnd`); glTF / VRML exports (`exportGltf`,
-  `exportVrml`, `sieda_export_file`), MCP `render_3d` (`render3dPng`, a z-buffer rasteriser in `McpRender.cpp`);
+  `exportVrml`, `sieda_export_file`), MCP `render_3d` (`render3dPng`, a z-buffer rasteriser in `McpRender.cpp`); a placed
+  part's own 3D model `PcbLayout::partModels` (`model3dRefToJson` / `FromJson`, `sieda_pcb_set_part_model`);
   IDX / EDMD v4.5 baseline (with keep-outs / height zones), change file, import of placement, outline, thickness and
   keep-outs (`exportIdx`, `exportIdxChanges`, `importIdx`, `importIdxPlacement`), accept / reject `idxResponse`,
   namespace-agnostic XML reader, fuzzed in the `idf` target);

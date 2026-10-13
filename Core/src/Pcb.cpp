@@ -395,8 +395,11 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.mask = pd.mask;
             p.paste = pd.paste;
             p.pasteGrid = pd.pasteGrid;
+            p.inner = pd.inner;
+            for (const Vec2& v : pd.outline) p.outline.push_back(transformFootprintPoint(pd.offset + v, c.pcb) - p.position);
             if (pd.npth) {  // a plain hole: no copper and no net, its keep-out the size of the drill
                 p.npth = true;
+                p.outline.clear();
                 p.net = -1;
                 p.round = true;
                 p.size = {pd.drill, pd.drill};
@@ -404,6 +407,16 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             out.push_back(p);
         }
     }
+    return out;
+}
+
+std::vector<FootprintLine> PcbLayout::footprintLines(const Component& c) const {
+    std::vector<FootprintLine> out;
+    if (const FootprintDef* fp = c.hasFootprint() ? Library::instance().footprint(c.footprintName()) : nullptr)
+        for (FootprintLine l : fp->lines) {
+            l.a = transformFootprintPoint(l.a, c.pcb), l.b = transformFootprintPoint(l.b, c.pcb);
+            out.push_back(l);
+        }
     return out;
 }
 

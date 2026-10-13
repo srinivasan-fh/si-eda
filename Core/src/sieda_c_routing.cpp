@@ -287,6 +287,7 @@ char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const c
         const Json o = parseOr(options_json, Json::object());
         GlossOptions opt;
         opt.retrace = o.get("retrace").asBool(true);
+        opt.moveVias = o.get("moveVias").asBool(false);
         opt.apply = o.get("apply").asBool(true);
         if (project->router) project->router->cancel();
         return boardEditString(project, glossTracks(project->project.pcb, project->project.schematic, ids, opt));

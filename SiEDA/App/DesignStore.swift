@@ -488,7 +488,7 @@ final class DesignStore: ObservableObject {
             for c in moves {
                 engine.moveComponent(c.id, to: SchematicGrid.snap(CGPoint(x: c.x + delta.width, y: c.y + delta.height)))
             }
-            for c in moves { engine.connectTouching(c.id) }
+            for c in moves { engine.connectTouching(c.id, wires: false) }  // pin on pin; a wire it crosses stays apart
         }
     }
 
@@ -688,6 +688,19 @@ final class DesignStore: ObservableObject {
             return junction != nil
         }
         if let junction { selection = [junction]; selectedWire = nil }
+    }
+
+    /// Drags a straight wire sideways by `offset` (its perpendicular part); it stays straight. Undoable.
+    func dragWireSegment(_ id: Int, by offset: CGSize) {
+        guard offset != .zero else { return }
+        performChecked("Moved wire", invalidatesAnalysis: false) { $0.dragWireSegment(id, dx: offset.width, dy: offset.height) }
+    }
+
+    /// Moves end b (else a) of a wire off its pin: onto `pin`, or a loose junction at `point`. Undoable.
+    func moveWireEnd(_ id: Int, b: Bool, to pin: PinAddress?, at point: CGPoint) {
+        performChecked("Moved wire end", failureMessage: "The wire end cannot go there") {
+            $0.moveWireEnd(id, b: b, x: point.x, y: point.y, component: pin?.component ?? -1, pin: pin?.pin ?? 0)
+        }
     }
 
     /// Abandons a wire being drawn: the corners already placed for it (dangling junctions) are removed.
@@ -2856,17 +2869,21 @@ final class DesignStore: ObservableObject {
 
     /// Asks where to save, then writes the file off the main thread (STEP or 3D exports of a big board take a while).
     func export(_ format: ExportFormat) async {
+        await exportFile(format.rawValue, name: format.fileName, title: format.displayName)
+    }
+
+    /// Writes one export (any `sieda_export_file` format, binary ones too, e.g. "glb") to a file the user picks.
+    func exportFile(_ format: String, name: String, title: String) async {
         guard !isBusy else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = format.fileName
+        panel.nameFieldStringValue = name
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let engine = self.engine
-        let path = url.path
-        guard await runBusy("Exporting \(format.displayName)…", { engine.exportFile(format.rawValue, to: path) }) else {
-            alert = AlertItem(title: "Export failed", message: "The core could not write \(format.displayName).")
+        let engine = self.engine, path = url.path
+        guard await runBusy("Exporting \(title)…", { engine.exportFile(format, to: path) }) else {
+            alert = AlertItem(title: "Export failed", message: "The core could not write \(title).")
             return
         }
-        statusMessage = "Exported \(format.displayName)"
+        statusMessage = "Exported \(title)"
     }
 
     /// Files of the last fabrication package exported (for tests and the status line).

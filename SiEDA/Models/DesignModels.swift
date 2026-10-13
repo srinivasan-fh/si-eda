@@ -985,6 +985,8 @@ struct ZoneFillInfo: Decodable, Equatable {
     var islands: Int
     var area: Double
     var rects: [Double]
+    /// Centres (x, y pairs) of the floating islands the fill left out.
+    var removedIslands: [Double]?
 
     var cgRects: [CGRect] {
         stride(from: 0, to: rects.count - 3, by: 4).map {
@@ -1023,6 +1025,8 @@ struct SnapPad: Decodable, Equatable {
     /// Rounded-rectangle corner ratio and non-plated hole (footprint pad options).
     var corner: Double?
     var npth: Bool?
+    /// Polygon pad (chamfered, trapezoid, drawn): x, y pairs round the pad centre (board mm).
+    var outline: [Double]?
     var rect: CGRect { CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h) }
 }
 
@@ -1212,6 +1216,8 @@ struct SnapCourtyard: Decodable, Equatable {
     var y0: Double
     var x1: Double
     var y1: Double
+    /// The footprint's drawn lines on the board: x0, y0, x1, y1, width, fab (1) per line.
+    var lines: [Double]?
     var rect: CGRect { CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0) }
 }
 

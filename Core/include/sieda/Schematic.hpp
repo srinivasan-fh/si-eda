@@ -347,6 +347,13 @@ public:
     /// Splits a wire at `position` with a new junction (T-junction or bend point) and returns the junction's id:
     /// the two halves keep the connection and further wires can end on the junction. -1 for an unknown wire.
     int splitWire(int wireId, Vec2 position);
+    /// Drags a straight (horizontal or vertical) wire sideways by the perpendicular part of `offset`, keeping it
+    /// straight: an end on a plain bend (a junction of two wires) moves with it, any other end gets a new junction and
+    /// a link from where it was. False for a slanted / L-shaped wire, a zero move or a repeated sheet's copy.
+    bool dragWireSegment(int wireId, Vec2 offset);
+    /// Moves end `b` (else `a`) of a wire off its pin: onto pin `to` when that is a pin, else onto a new junction at
+    /// `position` (a loose end to wire on from). False for an unknown wire, a repeated sheet's copy or a loop.
+    bool moveWireEnd(int wireId, bool b, Vec2 position, PinRef to);
     /// Pins of part `id` that touch something without being wired to it — another part's pin on the same spot, or the
     /// route of a wire running through (`wires`) — get wired to it (a T-junction on the wire). Returns the joins made.
     int connectTouching(int id, bool wires = true);

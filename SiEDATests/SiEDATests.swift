@@ -6569,6 +6569,32 @@ final class ArcRoutingTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
+    func testShortcutsFootprintLibraryPadShapesAndPartModels() throws {
+        // Shortcut text in both spellings; a bare modifier is no shortcut.
+        XCTAssertEqual(ShortcutStore.parse("cmd+shift+k"), KeyboardShortcut("k", modifiers: [.command, .shift]))
+        XCTAssertEqual(ShortcutStore.parse("⌥⌘P"), KeyboardShortcut("p", modifiers: [.command, .option]))
+        XCTAssertNil(ShortcutStore.parse("cmd"))
+        // Library footprints load as lands; a chamfered / outlined pad round-trips through the part's JSON.
+        let soic = try XCTUnwrap(EDAEngine.footprintLibrary("soic 8").first)
+        XCTAssertEqual(EDAEngine.footprintLands(soic.name)?.lands.count, soic.pads)
+        var land = CustomPartSpec.Land(x: 0, y: 0, w: 2, h: 2)
+        land.options.chamfer = 0.25
+        land.options.outline = [[-1, 1], [1, 1], [0.6, -1], [-0.6, -1]]
+        let back = try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land))
+        XCTAssertEqual(back, land)
+        let graphic = CustomPartSpec.Graphic(x0: 0, y0: 0, x1: 1, y1: 0, fab: true)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Graphic.self, from: JSONEncoder().encode(graphic)), graphic)
+        // A part's own 3D model is one undo step.
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        let stl = "solid b\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 1\nendloop\nendfacet\nendsolid b\n"
+        let id = try XCTUnwrap(EDAEngine.importModel3D(name: "b.stl", data: Data(stl.utf8)).id)
+        let part = try XCTUnwrap(store.snapshot.components.first { $0.pcb.placed }?.id)
+        XCTAssertTrue(store.engine.setPartModel(part, model: id))
+        XCTAssertTrue(store.engine.setPartModel(part, model: ""))
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

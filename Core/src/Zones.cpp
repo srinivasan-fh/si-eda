@@ -311,6 +311,17 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         for (size_t c = 0; c < n; ++c)
             if (label[c] >= 0) f.island[c] = island[static_cast<size_t>(label[c])];
         f.islands = count;
+        std::vector<Vec2> sum(touches.size(), Vec2{0, 0});  // removed islands of 4+ cells: their centres
+        std::vector<int> cells(touches.size(), 0);
+        for (size_t c = 0; c < n; ++c)
+            if (label[c] >= 0 && !touches[static_cast<size_t>(label[c])]) {
+                sum[static_cast<size_t>(label[c])] = sum[static_cast<size_t>(label[c])] +
+                    Vec2{(static_cast<double>(c % static_cast<size_t>(cols)) + 0.5) * cell,
+                         (static_cast<double>(c / static_cast<size_t>(cols)) + 0.5) * cell};
+                ++cells[static_cast<size_t>(label[c])];
+            }
+        for (size_t id = 0; id < touches.size(); ++id)
+            if (cells[id] >= 4) f.removedIslands.push_back(sum[id] * (1.0 / cells[id]));
 
         // Merge into rectangles: horizontal runs, extended downward while the run repeats.
         std::map<std::tuple<int, int, int>, size_t> open;  // (i0, i1, island) → rect index

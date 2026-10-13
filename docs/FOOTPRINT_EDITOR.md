@@ -76,13 +76,28 @@ errors or no pads.
 The pad panel also sets, per pad:
 
 - **Shape**: Rectangle, **Rounded** (corner radius as a share of the short side, 5–50 %; a rounded-rectangle aperture
-  macro in the Gerbers) or Circle / Oval.
+  macro in the Gerbers), Circle / Oval, **Chamfered** (45° corners, 5–50 % of the short side) or **Custom Outline**.
+  A custom outline starts as a trapezoid; type its corners round the pad centre (`x, y; x, y; …`, mm, y down).
+  Chamfered and custom pads go to the Gerbers as filled regions (copper, mask grown by its margin, paste), and to the
+  3D view as their own shape.
+- **Inner Ø** (a pad with a drill): the pad stack — its diameter on the inner copper layers (0 = its own size).
 - **Non-plated hole** (a pad with a drill): no copper and no net; the hole goes in the NPTH drill file.
 - **Mask**: the solder mask opening margin (board default 0.05 mm), in the Gerbers, IPC-2581 and ODB++.
 - **Paste**: automatic (80 % per side on pads of 2.5 mm and more), none, or 50–100 % of the pad, split into up to
   4 × 4 windows for a large thermal pad.
 - **Add Thermal Vias**: 0.3 mm plated vias on a 1 mm grid inside the pad, on its pin.
 - **Rotate** (toolbar): the selected pads turn 90° about their centre.
+
+## Silkscreen and fabrication graphics
+
+The **Graphics** section of the side panel draws lines into the footprint:
+
+- **Body on Silk** / **Body on Fab**: the body's outline as four lines, on the silkscreen (0.1 mm outside the body)
+  or on the fabrication (assembly) drawing.
+- **Add Line**, then type its ends (x0, y0, x1, y1 in mm); **Fab** moves it to the fabrication drawing.
+
+Silk lines go to the silkscreen Gerber, the 3D view and the board's Top / Bottom Overlay. Fab lines go to the assembly
+drawings and the board's Fabrication layer.
 
 ## Layout tools
 
@@ -167,8 +182,12 @@ A land-pattern part is a normal custom-part spec. Its package carries the lands:
       …,
       [0, 9, 3, 3, 2.2, 1, "-"],
       [0, 0, 2, 2, 0, 0, "8"],
-      [0, 4, 3, 3, 0, 0, "", {"corner": 0.25, "mask": 0.1, "paste": 0.6, "pasteGrid": 2}]
-    ]
+      [0, 4, 3, 3, 0, 0, "", {"corner": 0.25, "mask": 0.1, "paste": 0.6, "pasteGrid": 2}],
+      [3, 4, 2, 2, 0, 0, "", {"chamfer": 0.25}],
+      [6, 4, 2, 2, 0, 0, "", {"outline": [[-1, 1], [1, 1], [0.6, -1], [-0.6, -1]]}],
+      [6, 0, 1.8, 1.8, 1.0, 1, "", {"inner": 1.0}]
+    ],
+    "graphics": [[-4, -6, 4, -6, 0.15, "silk"], [-3.5, -5, 3.5, -5, 0.1, "fab"]]
   }
 }
 ```
@@ -185,6 +204,9 @@ Limits:
 - Up to 512 lands, each within 60 mm of the origin and 0.05–30 mm in size.
 - The drill must be smaller than the pad.
 - `bodySize` is the body width (x) and `bodyDepth` its length (y). Without them the body is the pads' extent.
+- A pad outline has 3–64 points within 30 mm of the pad centre.
+- `graphics`: up to 500 lines `[x0, y0, x1, y1, width, "silk" | "fab"]`, width 0.01–2 mm, written only when there are
+  any.
 
 The project file (`.siedaproj`) stores the spec as it is, so the footprint is saved with the project.
 

@@ -24,6 +24,8 @@ struct SchematicCanvas: View {
         case zoomBox
         case wire(WireEnd)     // press on a pin (or, with the wire tool, a wire) and drag to a pin, wire or point
         case bend(Int)         // drag a wire to bend it through a new junction
+        case segment(Int, CGPoint)  // drag a straight wire sideways (it stays straight)
+        case wireEnd(Int, Bool)     // drag the selected wire's end (b: true) off its pin
         case moveBus(Int)      // drag a bus (and its entries)
         case livePress(Int)    // a switch held while the live simulation runs
         case drawGraphic(CGPoint)  // drag out a line / arrow / section rectangle from this point
@@ -499,7 +501,7 @@ struct SchematicCanvas: View {
                 case .marquee, .zoomBox:
                     marquee = CGRect(origin: value.startLocation, size: .zero)
                         .union(CGRect(origin: value.location, size: .zero))
-                case .wire, .bend:
+                case .wire, .bend, .segment, .wireEnd:
                     hover = value.location  // hover events stop during a drag; keep the rubber band on the cursor
                 case .livePress, nil:
                     break
@@ -537,6 +539,13 @@ struct SchematicCanvas: View {
                         if end == start { pendingWire = start } else { finishWire(from: start, to: end) }
                     case .bend(let id):
                         store.bendWire(id, at: viewport.toWorld(value.location))
+                    case .segment(let id, let start):
+                        let p = viewport.toWorld(value.location)
+                        store.dragWireSegment(id, by: SchematicGrid.snap(CGSize(width: p.x - start.x, height: p.y - start.y)))
+                    case .wireEnd(let id, let isB):
+                        let p = SchematicGrid.snap(viewport.toWorld(value.location))
+                        if case .pin(let address) = wireEnd(at: p) { store.moveWireEnd(id, b: isB, to: address, at: p) }
+                        else { store.moveWireEnd(id, b: isB, to: nil, at: p) }
                     case .moveBus(let id):
                         store.moveBus(id, by: SchematicGrid.snap(dragDelta))
                     case .moveGraphic(let id):
@@ -602,7 +611,15 @@ struct SchematicCanvas: View {
                 store.selectedGraphic = g
                 dragMode = .moveGraphic(g)  // a note or drawing moves as one
             } else if !shift, pendingWire == nil, let hit = wireHit(at: world) {
-                dragMode = .bend(hit.id)  // pull a wire into shape
+                let w = store.sheetSnapshot.wires.first { $0.id == hit.id }
+                let a = w.flatMap { pinPosition($0.a) }, b = w.flatMap { pinPosition($0.b) }
+                if store.selectedWire == hit.id, let a, let b, min(hypot(world.x - a.x, world.y - a.y), hypot(world.x - b.x, world.y - b.y)) <= pickTolerance {
+                    dragMode = .wireEnd(hit.id, hypot(world.x - b.x, world.y - b.y) < hypot(world.x - a.x, world.y - a.y))
+                } else if let a, let b, (a.x == b.x) != (a.y == b.y), !NSEvent.modifierFlags.contains(.option) {
+                    dragMode = .segment(hit.id, world)  // a straight wire moves sideways; ⌥ bends it instead
+                } else {
+                    dragMode = .bend(hit.id)  // pull a wire into shape
+                }
             } else if !shift, tool == .select, let bus = busHit(at: world) {
                 store.select(component: nil)
                 store.selectedBus = bus
@@ -823,6 +840,12 @@ struct SchematicCanvas: View {
             if let bending, bending.id == w.id {  // the wire being pulled into shape
                 path.addLines(Self.wirePath(a, bending.point))
                 path.addLines(Self.wirePath(bending.point, b))
+            } else if case .segment(let id, let start) = dragMode, id == w.id, let h = hover {  // moved sideways
+                let p = viewport.toWorld(h), d = SchematicGrid.snap(CGSize(width: p.x - start.x, height: p.y - start.y))
+                let off = a.y == b.y ? CGSize(width: 0, height: d.height) : CGSize(width: d.width, height: 0)
+                path.addLines([a, CGPoint(x: a.x + off.width, y: a.y + off.height), CGPoint(x: b.x + off.width, y: b.y + off.height), b])
+            } else if case .wireEnd(let id, let isB) = dragMode, id == w.id, let h = hover {  // an end pulled off its pin
+                path.addLines(Self.wirePath(isB ? a : b, SchematicGrid.snap(viewport.toWorld(h))))
             } else {
                 path.addLines(Self.wirePath(a, b))
             }

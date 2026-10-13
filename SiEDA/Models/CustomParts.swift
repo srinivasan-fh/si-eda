@@ -184,9 +184,35 @@ struct CustomPartSpec: Codable, Equatable {
         var bodyDepth: Double?
         /// Courtyard margin around pads and body (mm, nil = 0.25).
         var courtyard: Double?
+        /// Drawn silkscreen / fabrication lines of the footprint.
+        var graphics: [Graphic]?
 
         /// True when the footprint is drawn pad-for-pad from `lands` (catalog LGA parts, footprint-editor parts).
         var usesLandPattern: Bool { type == "LGA" || type == "CUSTOM" }
+    }
+
+    /// A footprint line, encoded like the core: [x0, y0, x1, y1, width, "silk" | "fab"] (mm, y down).
+    struct Graphic: Codable, Equatable {
+        var x0: Double, y0: Double, x1: Double, y1: Double
+        var width = 0.15
+        var fab = false
+
+        init(x0: Double, y0: Double, x1: Double, y1: Double, width: Double = 0.15, fab: Bool = false) {
+            (self.x0, self.y0, self.x1, self.y1, self.width, self.fab) = (x0, y0, x1, y1, width, fab)
+        }
+
+        init(from decoder: Decoder) throws {
+            var c = try decoder.unkeyedContainer()
+            (x0, y0, x1, y1) = (try c.decode(Double.self), try c.decode(Double.self), try c.decode(Double.self), try c.decode(Double.self))
+            width = try c.decode(Double.self)
+            fab = try c.decode(String.self) == "fab"
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.unkeyedContainer()
+            for v in [x0, y0, x1, y1, width] { try c.encode(v) }
+            try c.encode(fab ? "fab" : "silk")
+        }
     }
 
     /// One pad of a land pattern, in mm (y down). Encoded like the core: [x, y, w, h] for an SMD rectangle, else
@@ -212,6 +238,11 @@ struct CustomPartSpec: Codable, Equatable {
             var mask: Double?
             var paste: Double?
             var pasteGrid: Int?
+            /// 45° corners (fraction of the short side), a drawn outline ([x, y] round the centre, mm) and the
+            /// inner-layer diameter of a through-hole pad (pad stack).
+            var chamfer: Double?
+            var outline: [[Double]]?
+            var inner: Double?
             var isEmpty: Bool { self == Options() }
         }
 

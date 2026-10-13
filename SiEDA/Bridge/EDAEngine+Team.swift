@@ -105,6 +105,11 @@ extension EDAEngine {
         return Self.decode(Limits.self, from: withHandle { Self.take(sieda_pcb_mechanical_limits($0)) })?.enclosure ?? ""
     }
 
+    /// A placed part's own 3D model (an imported model id, seated on its footprint); "" removes it.
+    func setPartModel(_ component: Int, model: String, name: String = "", unit: Double = 1) -> Bool {
+        withHandle { sieda_pcb_set_part_model($0, Int32(component), model, name, unit) } == 1
+    }
+
     func setEnclosureModel(_ id: String) -> Bool { updateMechanicalLimits { $0["enclosure"] = id.isEmpty ? nil : id } }
 
     private func updateMechanicalLimits(_ change: (inout [String: Any]) -> Void) -> Bool {

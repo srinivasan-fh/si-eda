@@ -288,6 +288,7 @@ struct SiEDACommands: Commands {
     @ObservedObject var store: DesignStore
     @ObservedObject var agents: AgentOrchestrator
     @ObservedObject var settings: AISettings
+    @ObservedObject var shortcuts = ShortcutStore.shared
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
@@ -297,7 +298,7 @@ struct SiEDACommands: Commands {
         }
         CommandGroup(replacing: .newItem) {
             Button("New Project") { store.newProject() }
-                .keyboardShortcut("n")
+                .keyboardShortcut(shortcuts.shortcut("newProject"))
             Menu("New from Example") {
                 ForEach(OfflineProvider.categories, id: \.self) { category in
                     Section(category) {
@@ -308,7 +309,7 @@ struct SiEDACommands: Commands {
                 }
             }
             Button("Open…") { store.openProject() }
-                .keyboardShortcut("o")
+                .keyboardShortcut(shortcuts.shortcut("open"))
             Menu("Open Recent") {
                 let recents = NSDocumentController.shared.recentDocumentURLs
                 ForEach(recents, id: \.self) { url in
@@ -324,12 +325,12 @@ struct SiEDACommands: Commands {
         }
         CommandGroup(replacing: .saveItem) {
             Button("Save") { store.save() }
-                .keyboardShortcut("s")
+                .keyboardShortcut(shortcuts.shortcut("save"))
             Button("Save As…") { store.saveAs() }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .keyboardShortcut(shortcuts.shortcut("saveAs"))
             Divider()
             Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .keyboardShortcut(shortcuts.shortcut("fabPackage"))
             Menu("Export") {
                 ForEach(ExportFormat.allCases) { format in
                     Button(format.displayName) { Task { await store.export(format) } }
@@ -370,7 +371,7 @@ struct SiEDACommands: Commands {
             let canvas = store.workspace.hasCanvas
             Divider()
             Button("Command Palette…") { store.showCommandPalette.toggle() }
-                .keyboardShortcut("k", modifiers: .command)
+                .keyboardShortcut(shortcuts.shortcut("palette"))
             Button("Zoom In") { store.requestView(.zoomIn) }
                 .keyboardShortcut("=", modifiers: .command)
                 .disabled(!canvas)
@@ -378,7 +379,7 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut("-", modifiers: .command)
                 .disabled(!canvas)
             Button("Zoom to Fit") { store.requestView(.fit) }
-                .keyboardShortcut("0", modifiers: .command)
+                .keyboardShortcut(shortcuts.shortcut("zoomFit"))
                 .disabled(!canvas)
             Button("Zoom to Selection") { store.requestView(.fitSelection) }
                 .keyboardShortcut("0", modifiers: [.command, .option])
@@ -406,17 +407,19 @@ struct SiEDACommands: Commands {
         }
         CommandMenu("Design") {
             Button("Run Electrical Rule Check") { store.runERC(); store.showChecks(.rules) }
-                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .keyboardShortcut(shortcuts.shortcut("erc"))
             Button("DC Operating Point") {
                 Task { await store.simulateDC(); store.workspace = .simulation }
             }
-            .keyboardShortcut("d", modifiers: [.command, .shift])
+            .keyboardShortcut(shortcuts.shortcut("dcOp"))
             Divider()
             Button("Auto-Place Footprints") { store.autoPlace(all: true) }
+                .keyboardShortcut(shortcuts.shortcut("autoPlace"))
             Button("Fit Board to Components") { store.fitBoard() }
             Button("Auto Route Board") { Task { await store.autoRouteBoard() } }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .keyboardShortcut(shortcuts.shortcut("autoRoute"))
             Button("Run Design Rule Check") { store.runDRC(); store.showChecks(.rules) }
+                .keyboardShortcut(shortcuts.shortcut("drc"))
             Button("Add Thermal Vias") { store.addThermalVias() }
                 .help("Stitch vias at the selected (or every) power MOSFET's drain / tab pad")
             Menu("Robot Platform") {

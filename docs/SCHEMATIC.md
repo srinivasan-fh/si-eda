@@ -343,11 +343,17 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   MCP `schematic_move_component` `mirror`), **Rotate** (R / Space) — on the selection, or on the part under the
   pointer when nothing is selected (Delete too). **⌘D** duplicates the selection with new designators; right-click
   **Paste Here** pastes at the pointer.
-- **Touching pins connect**: a part placed or moved so a pin lands on another pin or on a wire's route is wired to it
-  (a T-junction on the wire; `Schematic::connectTouching`, `sieda_connect_touching`); ERC warns
-  `ERC_TOUCHING_UNCONNECTED` for a pin that touches a wire or pin without a connection (older drawings).
+- **Touching pins connect**: a part placed or moved so a pin lands on another part's pin is wired to it
+  (`Schematic::connectTouching`, `sieda_connect_touching`; with `wires` also onto a wire's route through a T-junction,
+  which the app does not do on its own); the ERC notes `ERC_TOUCHING_UNCONNECTED` (info) for a pin that touches a wire
+  or pin without a connection.
 - **Clean Up Wires** (Arrange menu, right-click) removes bends lying on straight runs (`cleanupWires`,
   `sieda_cleanup_wires`). While drawing a wire, **/** turns its corner the other way (vertical first).
+- **Dragging a straight wire** moves it sideways and keeps it straight: a bend at either end moves with it, any other
+  end gets a junction and a short link from where it was (`Schematic::dragWireSegment`, `sieda_drag_wire_segment`).
+  **⌥-drag** (or a wire with a corner) bends it through a new junction instead.
+- **Dragging a wire's end**: select the wire, then drag one of its ends off its pin — onto another pin, or into empty
+  space where it ends on a loose junction to wire on from (`Schematic::moveWireEnd`, `sieda_move_wire_end`).
 - **Right-click menu** on a part (edit, rotate, mirror, duplicate, copy, select same value / connected parts, lock,
   delete), a wire (select connected parts, clean up, delete) or the sheet (paste here, select all, clean up, fit).
   A right-drag still pans. **Double-click** a part to edit its designator and value (a label's name) in place.

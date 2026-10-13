@@ -94,6 +94,13 @@ int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 /* Splits a wire at (x, y) with a junction (T-junction / bend point) and returns the junction's component id, or -1.
  * Wires can then start or end on the junction's pin 0; deleting a junction that joins two wires straightens them. */
 int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y);
+/* Drags a straight wire sideways (dx for a vertical one, dy for a horizontal one), keeping it straight: bends at its
+ * ends move with it, other ends get a junction. 1 on success. */
+int32_t sieda_drag_wire_segment(SiedaProject* project, int32_t wire_id, double dx, double dy);
+/* Moves one end (end_b = 1: b, else a) of a wire onto pin (component, pin), or with component < 0 onto a new junction
+ * at (x, y). 1 on success. */
+int32_t sieda_move_wire_end(SiedaProject* project, int32_t wire_id, int32_t end_b, double x, double y, int32_t component,
+                            int32_t pin);
 /* Removes a chain of dangling junctions (a wire abandoned half-way) starting at `junction_id`. Returns the count. */
 int32_t sieda_remove_dangling_junctions(SiedaProject* project, int32_t junction_id);
 
@@ -141,6 +148,13 @@ char* sieda_custom_part_preview(const char* spec_json, char** error_out);
 /* Footprint editor: the part's footprint as an editable land pattern (spec JSON with package type "CUSTOM" and one
  * land per pad). NULL and *error_out (caller frees) on an invalid spec. Caller frees. */
 char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out);
+/* Footprint library browser: the built-in footprints and the project's custom parts' footprints whose name or label
+ * holds every word of `query` (case-insensitive; "" = all, at most 200): [{"name","label","pads","width","height"}].
+ * Caller frees. */
+char* sieda_footprint_library_json(const SiedaProject* project, const char* query);
+/* A library footprint (a name from sieda_footprint_library_json) as land pattern JSON {"lands":[…],"bodySize",
+ * "bodyDepth"} in the land format (pad k on pin k + 1, mechanical pads "-"); NULL for an unknown name. Caller frees. */
+char* sieda_footprint_lands_json(const char* name);
 /* Footprint editor checks: [{severity,code,message,pads:[n]}] for a spec's land pattern — overlapping pads, copper
  * gaps below min_gap mm, annular rings, pads without pins and pins without pads. Caller frees. */
 char* sieda_check_land_pattern(const char* spec_json, double min_gap);
@@ -371,6 +385,10 @@ char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width
 double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
+/* Interactive via minimisation: the named nets (JSON array of names) are routed again with via minimisation; the
+ * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.
+ * The board's autoroute options are left as they were. Caller frees. */
+char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
 char* sieda_design_rule_presets_json(void);
@@ -751,6 +769,10 @@ char* sieda_model3d_fit(const char* spec_json);
 /* The part alone on a small board (pads, solder, its 3D model or generated body), for the alignment preview.
  * NULL for an invalid spec. Free with sieda_mesh_free. */
 SiedaMesh* sieda_model3d_preview(const char* spec_json);
+/* A placed part's own 3D model (any part, catalog ones too): a sieda_model3d_import id in `unit` mm per file unit,
+ * centred on the footprint and seated on the board; "" removes it. 1 on success. */
+int32_t sieda_pcb_set_part_model(SiedaProject* project, int32_t component_id, const char* model_id, const char* name,
+                                 double unit);
 int32_t sieda_mesh_vertex_count(const SiedaMesh* mesh);
 int32_t sieda_mesh_index_count(const SiedaMesh* mesh);
 const float* sieda_mesh_positions(const SiedaMesh* mesh); /* 3 floats per vertex */

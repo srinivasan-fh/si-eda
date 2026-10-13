@@ -196,7 +196,7 @@ struct Board3DWorkspace: View {
                 Divider()
                 Button("Save Image…") { if let url = Self.saveURL("board.png") { camera = CameraCommand(.saveImage(url)) } }
                 Button("Export USDZ…") { if let url = Self.saveURL("board.usdz") { camera = CameraCommand(.saveUSDZ(url)) } }
-                Button("Export glTF (.glb)…") { Task { await store.export(.glb) } }
+                Button("Export glTF (.glb)…") { Task { await store.exportFile("glb", name: "assembly.glb", title: "glTF 2.0") } }
                 Button("Export VRML…") { Task { await store.export(.vrml) } }
             } label: { Label("Mechanical", systemImage: "shippingbox") }
                 .fixedSize()
@@ -229,8 +229,16 @@ struct Board3DWorkspace: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.8)))
         } else if let id = picked, let c = store.snapshot.component(id) {
             let height = store.snapshot.bodies.first { $0.component == id }.map { String(format: " · %.2f mm", $0.h) } ?? ""
-            Label("\(c.ref) · \(c.value) · \(c.pcb.bottom ? "bottom" : "top")\(height)", systemImage: "cpu").font(.caption).padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.8)))
+            HStack(spacing: 8) {
+                Label("\(c.ref) · \(c.value) · \(c.pcb.bottom ? "bottom" : "top")\(height)", systemImage: "cpu").font(.caption)
+                Button("3D Model…") { store.assignPartModel(id) }
+                    .help("Give this part its own 3D model (STEP, STL, OBJ or VRML), seated on its footprint")
+                Button("Generated Body") { store.removePartModel(id) }
+                    .help("Back to the generated body (or its library part's model)")
+            }
+            .controlSize(.small)
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.8)))
         }
     }
 

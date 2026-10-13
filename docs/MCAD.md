@@ -122,6 +122,11 @@ The **Mechanical** menu:
 - **Save Image…** (PNG of the view), **Export USDZ…**, **Export glTF (.glb)…** and **Export VRML…** (metres, vertex
   colours). **File → Export** has glTF and VRML too.
 
+A clicked part's **3D Model…** gives it its own model (STEP / STL / OBJ / VRML, any part, catalog ones too), centred
+on its footprint and standing on the board (`PcbLayout::partModels`, saved as `partModels` with the mesh in `models3d`;
+C `sieda_pcb_set_part_model`); **Generated Body** removes it. The cube button in PCB Layout shows the board in 3D beside
+the layout, following every edit.
+
 **Layers → Standoffs and Screws** draws a 6 mm brass hex standoff under each mounting hole and a pan-head screw on top.
 
 `MECH_CONNECTOR_ACCESS` (a note) names a part standing in the 3 mm in front of a connector's open end, where the plug

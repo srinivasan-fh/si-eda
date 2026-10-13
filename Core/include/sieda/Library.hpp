@@ -71,6 +71,16 @@ struct PadDef {
     bool npth = false;
     double mask = -1, paste = -1;
     int pasteGrid = 1;
+    /// Polygon pad (chamfered or drawn outline) round the pad centre, footprint frame; inner-layer size (pad stack).
+    std::vector<Vec2> outline{};
+    double inner = 0;
+};
+
+/// A footprint line on the silkscreen or the fabrication (assembly) drawing, footprint frame (mm, y down).
+struct FootprintLine {
+    Vec2 a, b;
+    double width = 0.15;
+    bool fab = false;
 };
 
 struct BodyDef {
@@ -85,6 +95,7 @@ struct FootprintDef {
     std::vector<PadDef> pads;
     double courtyardW = 0, courtyardH = 0;
     BodyDef body;
+    std::vector<FootprintLine> lines{};  // drawn silk / fab graphics (custom footprints)
 };
 
 struct ComponentDef {

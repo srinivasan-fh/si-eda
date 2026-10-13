@@ -96,6 +96,7 @@ struct PCBEditorView: View {
     @State private var canvasSize: CGSize = .zero
     @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
     @State private var activeLayer: PCBLayer = .copper(0)
+    @AppStorage("pcb.threeDBeside") private var show3DBeside = false
     @State private var panMode = false
     /// Route tool (X): interactive routing with walkaround / push-and-shove.
     @State private var routeTool = false
@@ -415,81 +416,93 @@ struct PCBEditorView: View {
                                 .help("Next design rule error: zoom to it")
                         }
                     }
+                    Toggle(isOn: $show3DBeside) { Image(systemName: "cube") }
+                        .toggleStyle(.button)
+                        .help("Show the board in 3D beside the layout")
+                        .accessibilityLabel("3D Beside the Layout")
                     ZoomControls(level: viewport.scale / Viewport.pcbBaseScale,
                                  zoomIn: { store.requestView(.zoomIn) }, zoomOut: { store.requestView(.zoomOut) },
                                  fit: { store.requestView(.fit) }, fitSelection: { store.requestView(.fitSelection) },
                                  setLevel: { store.requestView(.setLevel($0)) })
                 }
 
-                ZStack(alignment: .topTrailing) {
-                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
-                              tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
-                        .disabled(store.isBusy)  // the engine is busy autorouting
-                        .onChange(of: panMode || routeTool || tuneTool) { _, on in if on { store.pcbShapeTool = nil } }
-                    if let ghost = store.placementSession?.ghost {
-                        PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
-                    }
-                    if store.showNavigator, !store.snapshot.pads.isEmpty {
-                        navigator
-                            .canvasScrollShield()
-                            .padding(10)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    }
-                    if showLayersPanel {
-                        LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
-                                    visible: $visible, active: $activeLayer)
-                            .canvasScrollShield()
-                            .padding(10)
-                    }
-                    if !store.snapshot.pads.isEmpty, unplacedCount == 0, !store.isBusy, !store.snapshot.ratsnest.isEmpty {
-                        // Like "Place Now" for footprints: one click routes what is still a ratsnest line.
-                        let openCount = store.snapshot.ratsnest.count
-                        HStack(spacing: 8) {
-                            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(Theme.skyBlue)
-                            Text("\(openCount) connection\(openCount == 1 ? " is" : "s are") not routed yet")
-                                .foregroundStyle(Theme.textPrimary)
-                            Button("Auto Route") { Task { await store.autoRouteBoard() } }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                HStack(spacing: 0) {
+                    ZStack(alignment: .topTrailing) {
+                        PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
+                                  tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
+                            .disabled(store.isBusy)  // the engine is busy autorouting
+                            .onChange(of: panMode || routeTool || tuneTool) { _, on in if on { store.pcbShapeTool = nil } }
+                        if let ghost = store.placementSession?.ghost {
+                            PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
                         }
-                        .font(.callout)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
-                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
-                        .padding(10)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    }
-                    if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
-                        // Viewing the board never edits it; new parts are placed only on request.
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
-                            Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
-                                .foregroundStyle(Theme.textPrimary)
-                            Button("Place Now") { store.autoPlace(all: false) }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                        if store.showNavigator, !store.snapshot.pads.isEmpty {
+                            navigator
+                                .canvasScrollShield()
+                                .padding(10)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                         }
-                        .font(.callout)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
-                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
-                        .padding(10)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    }
-                    if let session = store.placementSession {
-                        PlaceNewPartsHUD(session: session)
-                            .canvasScrollShield()
+                        if showLayersPanel {
+                            LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
+                                        visible: $visible, active: $activeLayer)
+                                .canvasScrollShield()
+                                .padding(10)
+                        }
+                        if !store.snapshot.pads.isEmpty, unplacedCount == 0, !store.isBusy, !store.snapshot.ratsnest.isEmpty {
+                            // Like "Place Now" for footprints: one click routes what is still a ratsnest line.
+                            let openCount = store.snapshot.ratsnest.count
+                            HStack(spacing: 8) {
+                                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(Theme.skyBlue)
+                                Text("\(openCount) connection\(openCount == 1 ? " is" : "s are") not routed yet")
+                                    .foregroundStyle(Theme.textPrimary)
+                                Button("Auto Route") { Task { await store.autoRouteBoard() } }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            }
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
                             .padding(10)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        }
+                        if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
+                            // Viewing the board never edits it; new parts are placed only on request.
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
+                                Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
+                                    .foregroundStyle(Theme.textPrimary)
+                                Button("Place Now") { store.autoPlace(all: false) }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            }
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        }
+                        if let session = store.placementSession {
+                            PlaceNewPartsHUD(session: session)
+                                .canvasScrollShield()
+                                .padding(10)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        }
+                        if store.snapshot.pads.isEmpty {
+                            BlueEmptyState(systemImage: "square.grid.3x3.square",
+                                           title: "No footprints on the board",
+                                           message: "Place the schematic's footprints automatically, then Auto Route the board.",
+                                           actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
-                    if store.snapshot.pads.isEmpty {
-                        BlueEmptyState(systemImage: "square.grid.3x3.square",
-                                       title: "No footprints on the board",
-                                       message: "Place the schematic's footprints automatically, then Auto Route the board.",
-                                       actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if show3DBeside {  // the board in 3D beside the layout, following every edit
+                        Divider()
+                        BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
+                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""))
+                            .frame(minWidth: 240, maxWidth: .infinity)
                     }
                 }
 
@@ -630,6 +643,7 @@ struct LayersPanel: View {
     @AppStorage("pcb.colourByNet") private var colourByNet = true
     @AppStorage("pcb.pick.parts") private var pickParts = true
     @AppStorage("pcb.pick.copper") private var pickCopper = true
+    @AppStorage("pcb.pourClearance") private var pourClearance = false
 
     var body: some View {
         // Scrolls when the window is short (many layers): the panel never sets the workspace's minimum height.
@@ -670,6 +684,10 @@ struct LayersPanel: View {
             .toggleStyle(.checkbox)
             .controlSize(.small)
             .help("What a click or drag on the board can select")
+            Toggle("Pour Clearances", isOn: $pourClearance)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
+                .help("Show each pour's clearance round the other nets' pads and tracks in it, and mark the islands it left out")
             Divider().padding(.vertical, 4)
             HStack {
                 Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
@@ -790,6 +808,7 @@ struct PCBCanvas: View {
     /// Selection filters: what a click or drag can pick (layers panel).
     @AppStorage("pcb.pick.parts") private var pickParts = true
     @AppStorage("pcb.pick.copper") private var pickCopper = true
+    @AppStorage("pcb.pourClearance") private var pourClearance = false
 
     private enum DragMode {
         case move(Set<Int>)
@@ -1250,6 +1269,7 @@ struct PCBCanvas: View {
                 CanvasMenuItem(title: String(localized: "Split Track Here")) { store.splitTrack(hit.id, at: world) },
                 CanvasMenuItem(title: String(localized: "Merge Tracks")) { store.mergeTracks() },
                 CanvasMenuItem(title: String(localized: "Select Whole Route")) { store.selectTrackNets() },
+                CanvasMenuItem(title: String(localized: "Minimise Vias")) { store.minimizeVias() },
                 .separator,
                 CanvasMenuItem(title: String(localized: "Delete")) { store.deleteSelectedCopper() },
             ]
@@ -1293,6 +1313,7 @@ struct PCBCanvas: View {
         }
         return shapes + [
             CanvasMenuItem(title: String(localized: "Merge Tracks"), enabled: !store.snapshot.tracks.isEmpty) { store.mergeTracks() },
+            CanvasMenuItem(title: String(localized: "Minimise Vias"), enabled: !store.snapshot.vias.isEmpty) { store.minimizeVias() },
             CanvasMenuItem(title: String(localized: "Zoom to Fit")) { store.requestView(.fit) },
         ]
     }
@@ -1393,6 +1414,7 @@ struct PCBCanvas: View {
             let base = copper(fill.net, fill.layer)
             let highlight = hoveredNet == fill.net
             ctx.fill(path.applying(screen), with: .color(highlight ? Theme.iceBlue.opacity(0.35) : base.opacity(isActive ? 0.32 : 0.14)))
+            if pourClearance, isActive { drawPourClearance(fill, in: &ctx, screen: screen, view: view) }
         }
         for hole in snap.board.holes {
             let keep = CGRect(x: hole.x - hole.keepout / 2, y: hole.y - hole.keepout / 2, width: hole.keepout, height: hole.keepout)
@@ -1460,7 +1482,9 @@ struct PCBCanvas: View {
                 && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)
-                ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * (p.corner ?? 0.15)).applying(screen),
+                let shape = p.outline != nil ? p.shape(at: CGPoint(x: moved.midX, y: moved.midY))
+                    : Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * (p.corner ?? 0.15))
+                ctx.fill(shape.applying(screen),
                          with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : (isActive ? Theme.pad : Theme.pad.opacity(0.45))))
             }
         }
@@ -1578,6 +1602,7 @@ struct PCBCanvas: View {
             for cy in snap.courtyards where cy.rect.intersects(view) {
                 let body = cy.rect.insetBy(dx: min(0.25, cy.rect.width / 4), dy: min(0.25, cy.rect.height / 4))
                 ctx.stroke(Path(body).applying(screen), with: .color(Theme.warning.opacity(0.85)), lineWidth: 1)
+                Self.strokeFootprintLines(cy, fab: true, in: &ctx, screen: screen, k: k, colour: Theme.warning)
                 if let p = pin1[cy.component] {
                     ctx.fill(Path(ellipseIn: CGRect(x: p.x - 0.2, y: p.y - 0.2, width: 0.4, height: 0.4)).applying(screen),
                              with: .color(Theme.warning))
@@ -1613,6 +1638,7 @@ struct PCBCanvas: View {
             if let c = snap.component(cy.component), visible.contains(c.pcb.bottom ? .bottomSilk : .silkscreen) {
                 let inner = rect.insetBy(dx: 0.15, dy: 0.15)
                 ctx.stroke(Path(inner).applying(screen), with: .color(Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9)), lineWidth: max(0.6, 0.12 * k))
+                Self.strokeFootprintLines(cy, fab: false, in: &ctx, screen: screen, k: k, colour: Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9))
                 guard showDesignators else { continue }
                 // Designator above the part, like the silkscreen; the value inside it once there is room.
                 let fontSize = max(8, min(15, 1.0 * k))
@@ -1841,8 +1867,56 @@ struct BoardMenu: View {
 extension SnapPad {
     /// The pad's outline (circle, rectangle or rounded rectangle) around `centre`.
     func shape(at centre: CGPoint) -> Path {
+        if let outline, outline.count >= 6 {
+            let points = stride(from: 0, to: outline.count - 1, by: 2).map { CGPoint(x: centre.x + outline[$0], y: centre.y + outline[$0 + 1]) }
+            return Path { $0.addLines(points); $0.closeSubpath() }
+        }
         let r = CGRect(x: centre.x - w / 2, y: centre.y - h / 2, width: w, height: h)
         if round { return Path(ellipseIn: r) }
         return Path(roundedRect: r, cornerRadius: (corner ?? 0) * min(w, h))
+    }
+}
+
+extension PCBCanvas {
+    /// A footprint's drawn silk or fab lines (`SnapCourtyard.lines`).
+    static func strokeFootprintLines(_ cy: SnapCourtyard, fab: Bool, in ctx: inout GraphicsContext, screen: CGAffineTransform,
+                                     k: CGFloat, colour: Color) {
+        guard let v = cy.lines else { return }
+        for i in stride(from: 0, to: v.count - 5, by: 6) where (v[i + 5] != 0) == fab {
+            var line = Path()
+            line.move(to: CGPoint(x: v[i], y: v[i + 1]))
+            line.addLine(to: CGPoint(x: v[i + 2], y: v[i + 3]))
+            ctx.stroke(line.applying(screen), with: .color(colour), lineWidth: max(0.6, v[i + 4] * k))
+        }
+    }
+}
+
+extension PCBCanvas {
+    /// Pour clearance overlay: the pour's clearance as a halo round the other nets' pads and tracks on its layer, and an
+    /// X on each floating island the fill left out.
+    func drawPourClearance(_ fill: ZoneFillInfo, in ctx: inout GraphicsContext, screen: CGAffineTransform, view: CGRect) {
+        let snap = store.snapshot
+        guard snap.zones.indices.contains(fill.zone) else { return }
+        let gap = snap.zones[fill.zone].clearance
+        let halo = Color.orange.opacity(0.55)
+        for p in snap.pads where p.net != fill.net && (p.throughHole || (p.layer ?? 0) == fill.layer) && p.rect.intersects(view) {
+            let r = p.rect.insetBy(dx: -gap, dy: -gap)
+            ctx.stroke(Path(roundedRect: r, cornerRadius: gap).applying(screen), with: .color(halo), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+        }
+        for t in snap.tracks where t.net != fill.net && t.layer == fill.layer {
+            var line = Path()
+            line.move(to: CGPoint(x: t.ax, y: t.ay))
+            line.addLine(to: CGPoint(x: t.bx, y: t.by))
+            ctx.stroke(line.applying(screen), with: .color(halo.opacity(0.35)),
+                       style: StrokeStyle(lineWidth: (t.width + 2 * gap) * viewport.scale, lineCap: .round))
+        }
+        let v = fill.removedIslands ?? []
+        for i in stride(from: 0, to: v.count - 1, by: 2) {
+            let c = CGPoint(x: v[i], y: v[i + 1]).applying(screen)
+            var x = Path()
+            x.move(to: CGPoint(x: c.x - 5, y: c.y - 5)); x.addLine(to: CGPoint(x: c.x + 5, y: c.y + 5))
+            x.move(to: CGPoint(x: c.x - 5, y: c.y + 5)); x.addLine(to: CGPoint(x: c.x + 5, y: c.y - 5))
+            ctx.stroke(x, with: .color(Theme.warning), lineWidth: 2)
+        }
     }
 }

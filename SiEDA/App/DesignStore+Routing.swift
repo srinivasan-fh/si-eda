@@ -179,8 +179,27 @@ extension DesignStore {
             return
         }
         runBoardCommand("Gloss", failure: "Gloss: the routes are already as tight as the board allows") {
-            $0.gloss(tracks: tracks)
+            $0.gloss(tracks: tracks, moveVias: true)
         }
+    }
+
+    /// Via minimisation on the nets of the selected tracks (every net when none is selected): routed again with fewer
+    /// vias, kept only when it has fewer vias and leaves nothing more unrouted. One undo step.
+    func minimizeVias() {
+        let ids = Set(commandTracks)
+        let nets = Set(snapshot.tracks.filter { ids.contains($0.id) }.map(\.net)).compactMap { n in snapshot.nets.first { $0.index == n }?.name }
+        guard !nets.isEmpty else {
+            statusMessage = "Minimise Vias: there are no routed nets"
+            return
+        }
+        if routePreview != nil { cancelRoute() }
+        var outcome: EDAEngine.ViaMinimisation?
+        performChecked("Minimise vias", invalidatesAnalysis: false, failureMessage: "Minimise Vias: no via could be saved") {
+            outcome = $0.minimizeVias(nets: nets.sorted())
+            return outcome?.kept == true
+        }
+        if let o = outcome, o.kept { statusMessage = "Minimise Vias: \(o.viasBefore) → \(o.viasAfter) vias" }
+        if !drcResults.isEmpty { runDRC() }
     }
 
     /// Teardrops whose track end lies on one of `tracks` (a teardrop ends on the track it widens).

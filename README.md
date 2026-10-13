@@ -512,6 +512,7 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 | Help → Performance… | How long the last edits took (median, 95th percentile, slowest) split into undo state, engine and view refresh; edits also show as "edit" intervals in Instruments |
 | ⌘/ | Keyboard shortcuts: every menu command with its keys (read from the menus) and the canvas keys; **Help → Welcome Tour** replays the five-page first-run tour |
 | ⌘K | Command palette: type to find any menu command, part (designator or value) or net; Return runs it or shows the part / net on its sheet |
+| Settings → Shortcuts | Change the keys of the main commands (New, Open, Save, Save As, fabrication package, palette, Zoom to Fit, ERC, DC operating point, Auto Place, Auto Route, DRC) as `cmd+shift+k`; clashes are flagged, Reset restores a standard key |
 | Arrow keys (⇧ for half a screen) | Pan |
 | + / − (or ⌘= / ⌘−) | Zoom in / out at the cursor |
 | Home, 0 or ⌘0 | Zoom to fit (home view) |

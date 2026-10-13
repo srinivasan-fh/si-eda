@@ -406,6 +406,21 @@ int32_t sieda_connect(SiedaProject* project, int32_t ca, int32_t pa, int32_t cb,
     }
 }
 
+int32_t sieda_drag_wire_segment(SiedaProject* project, int32_t wire_id, double dx, double dy) {
+    if (!project || !std::isfinite(dx) || !std::isfinite(dy)) return 0;
+    if (!project->project.schematic.dragWireSegment(wire_id, {dx, dy})) return 0;
+    project->project.schematicChanged();
+    return 1;
+}
+
+int32_t sieda_move_wire_end(SiedaProject* project, int32_t wire_id, int32_t end_b, double x, double y, int32_t component,
+                            int32_t pin) {
+    if (!project || !std::isfinite(x) || !std::isfinite(y)) return 0;
+    if (!project->project.schematic.moveWireEnd(wire_id, end_b != 0, {x, y}, {component, pin})) return 0;
+    project->project.schematicChanged();
+    return 1;
+}
+
 int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y) {
     if (!project) return -1;
     try {
@@ -688,6 +703,47 @@ char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out) {
         if (error_out) *error_out = dup(e.what());
         return nullptr;
     }
+}
+
+char* sieda_footprint_library_json(const SiedaProject* project, const char* query) {
+    std::vector<std::string> words;
+    std::istringstream in(str(query));
+    for (std::string w; in >> w;) {
+        for (auto& ch : w) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        words.push_back(w);
+    }
+    Json out = Json::array();
+    auto add = [&](const std::string& name, const FootprintDef& fp) {
+        std::string text = name + " " + fp.label;
+        for (auto& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        for (const auto& w : words)
+            if (text.find(w) == std::string::npos) return;
+        if (out.size() >= 200) return;
+        Json j = Json::object();
+        j["name"] = name, j["label"] = fp.label.empty() ? fp.name : fp.label, j["pads"] = static_cast<int>(fp.pads.size());
+        j["width"] = fp.courtyardW, j["height"] = fp.courtyardH;
+        out.push(j);
+    };
+    for (const auto& fp : Library::instance().footprints()) add(fp.name, fp);
+    for (const auto& id : project ? project->project.customLibrary : std::vector<std::string>{})
+        if (const CustomPart* part = CustomPartRegistry::instance().find(id)) add("CUSTOM:" + id, part->footprint);
+    return dup(out.dump());
+}
+
+char* sieda_footprint_lands_json(const char* name) {
+    const FootprintDef* fp = Library::instance().footprint(str(name));
+    if (!fp) return nullptr;
+    Json lands = Json::array();
+    for (const PadDef& pad : fp->pads) {
+        Json l = Json::array();
+        for (double v : {pad.offset.x, pad.offset.y, pad.size.x, pad.size.y, pad.throughHole ? pad.drill : 0.0}) l.push(v);
+        l.push(pad.round ? 1 : 0);
+        l.push(std::string(pad.pinIndex < 0 ? "-" : ""));
+        lands.push(l);
+    }
+    Json j = Json::object();
+    j["lands"] = lands, j["bodySize"] = fp->body.width, j["bodyDepth"] = fp->body.depth;
+    return dup(j.dump());
 }
 
 char* sieda_check_land_pattern(const char* spec_json, double min_gap) {
@@ -1339,6 +1395,32 @@ int32_t sieda_router_strategy(void) { return static_cast<int32_t>(routerStrategy
 
 void sieda_router_set_threads(int32_t threads) { setRoutingThreads(threads); }
 
+char* sieda_pcb_minimize_vias(SiedaProject* project, const char* nets_json) {
+    if (!project) return nullptr;
+    try {
+        Project& p = project->project;
+        const PcbLayout before = p.pcb;
+        AutorouteOptions o;
+        const Json names = Json::parse(str(nets_json));
+        for (const Json& n : names.items()) o.nets.push_back(n.asString(""));
+        if (o.nets.empty()) return nullptr;
+        o.minimizeVias = true;
+        o.protectLocked = true;
+        std::swap(p.pcb.settings.autorouter, o);
+        p.autoRoute();
+        std::swap(p.pcb.settings.autorouter, o);
+        Json j = Json::object();
+        j["viasBefore"] = static_cast<int>(before.vias.size()), j["viasAfter"] = static_cast<int>(p.pcb.vias.size());
+        const bool kept = p.pcb.vias.size() < before.vias.size() &&
+                          p.pcb.ratsnest(p.schematic).size() <= before.ratsnest(p.schematic).size();
+        if (!kept) p.pcb = before;
+        j["kept"] = kept;
+        return dup(j.dump());
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
+
 void sieda_pcb_clear_routing(SiedaProject* project) {
     if (project) project->project.pcb.clearRouting();
 }
@@ -1958,6 +2040,18 @@ char* sieda_model3d_fit(const char* spec_json) {
         j["error"] = e.what();
         return dup(j.dump());
     }
+}
+
+int32_t sieda_pcb_set_part_model(SiedaProject* project, int32_t component_id, const char* model_id, const char* name,
+                                 double unit) {
+    if (!project || !project->project.schematic.find(component_id)) return 0;
+    auto& models = project->project.pcb.partModels;
+    if (str(model_id).empty()) return models.erase(component_id) > 0 ? 1 : 0;
+    if (!Model3DRegistry::instance().get(str(model_id)) || !std::isfinite(unit) || unit <= 0 || unit > 1000) return 0;
+    Model3DRef ref;
+    ref.id = str(model_id), ref.name = str(name), ref.unit = unit;
+    models[component_id] = model3dSeated(ref);  // centred on the footprint, standing on the board
+    return 1;
 }
 
 SiedaMesh* sieda_model3d_preview(const char* spec_json) {

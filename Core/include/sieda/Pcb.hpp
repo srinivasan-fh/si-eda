@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "sieda/CustomParts.hpp"
 #include "sieda/Geometry.hpp"
 #include "sieda/Schematic.hpp"
 
@@ -396,6 +397,9 @@ struct Pad {
     bool npth = false;
     double mask = -1, paste = -1;
     int pasteGrid = 1;
+    /// Polygon pad round `position` (board frame; empty = rectangle / circle) and the inner-layer diameter (0 = size).
+    std::vector<Vec2> outline{};
+    double inner = 0;
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
     bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };
@@ -480,6 +484,8 @@ struct ZoneFill {
     int cols = 0, rows = 0;
     std::vector<int> island;  // island index per cell, -1 = no copper
     int islands = 0;
+    /// Centres of the floating islands the fill left out (copper not touching the net), for island markers.
+    std::vector<Vec2> removedIslands{};
     std::vector<Rect> rects;  // the same copper as merged rectangles (drawing, Gerber regions, 3D)
     /// Island whose copper overlaps a disc of `radius` at `p`, or -1.
     int islandNear(Vec2 p, double radius) const;
@@ -604,6 +610,9 @@ public:
     std::vector<Track> tracks;
     std::vector<Via> vias;
     std::vector<CopperZone> zones;
+    /// Imported 3D models of placed parts by component id (any part, catalog ones too), over their generated
+    /// bodies; saved as "partModels" only when there are any.
+    std::map<int, Model3DRef> partModels;
     std::vector<TamperMesh> tamperMeshes;
     /// Which of the project's boards this layout is (Project::activeBoard; not saved with it). Parts of another board
     /// (PcbPlacement::board) are left alone: Auto Place, the unplaced-part checks and the part counts skip them.
@@ -624,6 +633,8 @@ public:
     /// Pads of every footprint currently placed on the board, with net assignments from the schematic.
     std::vector<Pad> pads(const Schematic& sch) const;
     Rect courtyard(const Component& c) const;
+    /// The footprint's drawn silk / fab lines on the board (mirrored on the bottom side).
+    std::vector<FootprintLine> footprintLines(const Component& c) const;
 
     /// Places any not-yet-placed footprints; with `all` re-places everything (connectivity-driven clustering).
     void autoPlace(Schematic& sch, bool all);
