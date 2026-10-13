@@ -391,6 +391,12 @@ What the agent gets back, so it can wire correctly without guessing:
 - `pcb_autoplace` `grouped` lines up the other passives of one kind in rows in designator order (C1 C2 C3, R1 R2 R3,
   D1 D2 D3), 1 mm between courtyards, near their connections (`groupedRows`); parts placed by their IC pins stay. A
   connector carrying power only goes to the left edge (the input side), signal connectors to the right.
+- `pcb_autoplace` `all` puts the main IC (most pins) at the board's middle before the rest, so its decoupling caps and
+  crystal find room on every side. `pcb_autoroute` keeps a pour pad's fan-out via clear of its SMD pad by a 0.1 mm
+  mask web (option `viasOffPads`, on by default over MCP; the board's saved strategy is untouched).
+- `schematic_build`: a pin name several pins share, given without a number (`J1.GND` on a USB-C), joins all of them
+  (pins stacked on one spot already are). `pcb_add_pour` gives the centres of islands that reach no pad
+  (`islandsWithoutPadsAt`).
 - `schematic_move_component` puts a tag naming a wire back at the wire's middle and lists `overlaps`; the ERC's
   `unconnectedPins` leaves out pins typed no-connect; `library_search` ranks parts whose name has the words first;
   each `pcb_drc` `unrouted` entry has both ends' coordinates (`at`).

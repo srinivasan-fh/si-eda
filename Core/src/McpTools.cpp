@@ -1708,10 +1708,35 @@ void schematicTools(Table& t) {
               // 2 – 3 pin signal net, to the two-pin parts of a bigger signal net, and to the capacitors of a supply.
               // Layout puts the linked parts beside that pin; a link that ends up as a straight, clear run facing
               // both pins is drawn as a wire, the rest of the net gets labels.
+              // A name several pins share, given without its number ("J1.GND" on a USB-C's A1 / A12 / B1 / B12),
+              // joins every one of them; pins stacked on one spot (a module's GND pads) need no more.
+              Json nets = Json::object();
+              for (const auto& [net, pins] : a.get("nets").fields()) {
+                  Json list = Json::array();
+                  for (const auto& pin : pins.items()) {
+                      list.push(pin);
+                      const std::string spec = pin.asString("");
+                      const size_t dot = spec.find('.');
+                      const Component* c = dot == std::string::npos || spec.find('(') != std::string::npos
+                                               ? nullptr : proj(s).schematic.findByRef(spec.substr(0, dot));
+                      if (!c) continue;
+                      const std::string name = spec.substr(dot + 1);
+                      std::vector<Vec2> seen;
+                      for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
+                          const PinDef& d = c->def().pins[static_cast<size_t>(i)];
+                          if (d.name != name || d.number.empty()) continue;
+                          const Vec2 at = proj(s).schematic.pinPosition({c->id, i});
+                          if (std::any_of(seen.begin(), seen.end(), [&](Vec2 v) { return (v - at).length() < 1e-6; })) continue;
+                          if (!seen.empty()) list.push(c->ref + "." + name + "(" + d.number + ")");
+                          seen.push_back(at);
+                      }
+                  }
+                  nets[net] = list;
+              }
               Json wires = a.get("wires").isArray() ? a.get("wires") : Json::array();
               struct Link { std::string net; Json from, to; PinAddress a, b; };
               std::vector<Link> links;
-              for (const auto& [net, pins] : a.get("nets").fields()) {
+              for (const auto& [net, pins] : nets.fields()) {
                   std::string up = net;
                   for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
                   if (up.empty() || up == "GND" || up == "0") continue;
@@ -1780,7 +1805,7 @@ void schematicTools(Table& t) {
                       }
                   return ok;
               };
-              for (const auto& [net, pins] : a.get("nets").fields()) {
+              for (const auto& [net, pins] : nets.fields()) {
                   // Neighbouring pins of one part on one side (an IC's VDD pins) share one label: a short wire
                   // joins their ends, so their labels do not stack on top of each other.
                   Json args = obj(), labelled = Json::array();
@@ -2862,6 +2887,25 @@ void pcbTools(Table& t) {
                       if (!c.pcb.locked && c.hasFootprint() && proj(s).pcb.onBoard(c)) lift.push_back(c.id);
                   for (int id : lift) P(s)->project.schematic.find(id)->pcb.placed = false;
                   edges = placeAtEdges(P(s), &held);
+                  // The main IC (most pins, at least 8) at the board's middle, so its capacitors and crystal find
+                  // room on every side and the rest spreads round it.
+                  const Component* main = nullptr;
+                  for (const auto& c : proj(s).schematic.components())
+                      if (!c.pcb.locked && !c.pcb.placed && c.hasFootprint() && proj(s).pcb.onBoard(c) && c.def().pins.size() >= 8 &&
+                          (!main || c.def().pins.size() > main->def().pins.size()))
+                          main = &c;
+                  if (main) {
+                      const auto& st = proj(s).pcb.settings;
+                      const Vec2 mid{st.width / 2, st.height / 2};
+                      bool put = false;
+                      for (double r = 0; r <= std::min(st.width, st.height) / 2 && !put; r += 0.5)
+                          for (int k = 0; k < (r > 0 ? 16 : 1) && !put; ++k) {
+                              const Vec2 at = mid + Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
+                              put = takeJson(sieda_pcb_place_footprint(P(s), main->id, at.x, at.y, main->pcb.rotation, 0, 0.25, 0))
+                                        .get("committed").asBool(false);
+                          }
+                      if (put) held.push_back(main->id);
+                  }
                   for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = true;
               }
               sieda_pcb_autoplace(P(s), argBool(a, "all", false) ? 1 : 0);
@@ -3022,7 +3066,8 @@ void pcbTools(Table& t) {
           "fanoutOnly, nets:[names], netClass, area:{x0,y0,x1,y1}, protectLocked, classLayers, pinSwap, "
           "improvePlacement (Auto Place's improvement pass), lengthAwareSearch (with lengthAware: nets with a length "
           "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
-          "(connections the grid leaves unrouted are routed by the gridless shape-based engine)}. A whole-board route "
+          "(connections the grid leaves unrouted are routed by the gridless shape-based engine), viasOffPads (a pour pad's "
+          "fan-out via clears its SMD pad; on by default here)}. A whole-board route "
           "on a small board that leaves connections open tries again (shape-based completion, two-pin parts turned "
           "round) and lists the repairs kept. A whole-board route re-routes every net, hand routing included: to keep "
           "hand-routed nets, route the others with preset nets. A preset or options given become the board's strategy, "
@@ -3055,9 +3100,14 @@ void pcbTools(Table& t) {
               }
               if (argBool(a, "clearFirst", false)) sieda_pcb_clear_routing(p);
               sieda_pcb_autoplace(p, 0);
+              // Over MCP a pour pad's fan-out via clears its SMD pad (no via in pad) unless options say otherwise;
+              // the board's saved strategy keeps its own setting.
+              const bool offPads = p->project.pcb.settings.autorouter.viasOffPads;
+              p->project.pcb.settings.autorouter.viasOffPads = a.get("options").get("viasOffPads").asBool(true);
               Json stats = takeJson(sieda_pcb_autoroute(p));
               Json j = obj();
               const Json repairs = finishRouting(p, &stats);
+              if (!a.get("options").has("viasOffPads")) p->project.pcb.settings.autorouter.viasOffPads = offPads;
               if (repairs.size()) j["repairs"] = repairs;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed
@@ -3223,7 +3273,8 @@ void pcbTools(Table& t) {
     t.add("pcb", "pcb_add_pour", "Copper pour", Kind::Edit, false,
           "Adds a copper pour of a net (usually GND) on a layer (0 = top, layers-1 = bottom); plane: true reserves "
           "the layer for the net. Pours fill around other copper at the clearance. Returns the filled area, its islands, "
-          "the net's pads it joins and islands that reach no pad (stitch them with vias or they float).",
+          "the net's pads it joins and islands that reach no pad, with their centres (stitch them with vias, or keep the "
+          "pour out of there, or they float).",
           Schema()
               .str("net", "Net name, e.g. \"GND\"", true)
               .integer("layer", "Copper layer (default 0 = top)")
@@ -3250,8 +3301,24 @@ void pcbTools(Table& t) {
                   j["islands"] = f.islands;
                   j["padsJoined"] = std::to_string(joined) + " of " + std::to_string(pads) + " " + requireStr(a, "net") +
                                     " pads on this layer";
-                  if (f.islands > static_cast<int>(fed.size()))
-                      j["islandsWithoutPads"] = f.islands - static_cast<int>(fed.size());  // stitch them or they float
+                  if (f.islands > static_cast<int>(fed.size())) {  // stitch them or they float: where each one is
+                      j["islandsWithoutPads"] = f.islands - static_cast<int>(fed.size());
+                      std::map<int, std::pair<Vec2, int>> sums;
+                      for (int r = 0; r < f.rows; ++r)
+                          for (int q = 0; q < f.cols; ++q)
+                              if (const int i = f.island[static_cast<size_t>(r * f.cols + q)]; i >= 0 && !fed.count(i)) {
+                                  auto& [sum, n] = sums[i];
+                                  sum = sum + Vec2{(q + 0.5) * f.cell, (r + 0.5) * f.cell}, ++n;
+                              }
+                      Json at = Json::array();
+                      for (const auto& [i, sn] : sums) {
+                          Json xy = Json::array();
+                          xy.push(std::round(sn.first.x / sn.second * 10) / 10);
+                          xy.push(std::round(sn.first.y / sn.second * 10) / 10);
+                          at.push(xy);
+                      }
+                      j["islandsWithoutPadsAt"] = at;
+                  }
               }
               return out(j);
           });

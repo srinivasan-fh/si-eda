@@ -3699,6 +3699,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 const int i = static_cast<int>(c % static_cast<size_t>(grid.cols())), j = static_cast<int>(c / static_cast<size_t>(grid.cols()));
                 if (std::abs(i - ci) > k || std::abs(j - cj) > k) return false;
                 if (!grid.inside(i, j) || (grid.pos(i, j) - pad.position).length() > reach) return false;
+                // Off the pad's own copper (a via in an SMD pad wicks the solder away): its ring clears the pad by a
+                // solder-mask web (0.1 mm).
+                const Vec2 at = grid.pos(i, j), half = pad.size * 0.5;
+                const double ring = settings.viaDiameter / 2 + 0.1;
+                if (ropt.viasOffPads && !pad.throughHole && std::fabs(at.x - pad.position.x) < half.x + ring &&
+                    std::fabs(at.y - pad.position.y) < half.y + ring)
+                    return false;
                 if (!grid.passable(layer, c, net) || !grid.viaAllowed(c, net)) return false;
                 if (const double vh = viaHalfFor(net); vh > 0)
                     for (int vl = 0; vl < grid.layers(); ++vl)
