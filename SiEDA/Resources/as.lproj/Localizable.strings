@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "নেট হাইলাইট আঁতৰাওক";
 "Clear Comparison" = "তুলনা আঁতৰাওক";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@ৰ সৈতে তুলনা: সেউজীয়া যোগ, ৰঙা আঁতৰোৱা, এম্বাৰ স্থানান্তৰিত · আঁতৰাবলৈ ৰাইট-ক্লিক";
+"Corner" = "চুক";
+"Corner radius as a share of the pad's short side" = "পেডৰ চুটি বাহুৰ অংশ হিচাপে চুকৰ ব্যাসাৰ্ধ";
+"Non-plated hole (no copper)" = "প্লেটিং নথকা ছিদ্ৰ (তাম নাই)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "পেডৰ ভিতৰত 1 mm গ্ৰিডত 0.3 mm প্লেটেড ভিয়া, ইয়াৰ পিনত";
+"Rounded" = "গোলাকাৰ চুক";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "পেডৰ চাৰিওফালে চল্ডাৰ মাস্ক খোলাৰ মাৰ্জিন (বৰ্ড ডিফল্ট 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "ডাঙৰ থাৰ্মেল পেডৰ পেষ্ট খিড়িকিৰ গ্ৰিডত বিভক্ত কৰক";
+"Stencil opening as a share of the pad's size" = "পেডৰ আকাৰৰ অংশ হিচাপে ষ্টেন্সিল খোলা";
+"Turn the selected pads 90° about their centre" = "বাছনি কৰা পেডবোৰ কেন্দ্ৰৰ চাৰিওফালে 90° ঘূৰাওক";
+"Paste windows %lld×%lld" = "পেষ্ট খিড়িকি %lld×%lld";

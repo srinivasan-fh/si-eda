@@ -314,6 +314,13 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     };
     auto circle = [&](double d) { return "C," + mm(d); };
     auto rect = [&](double w, double h) { return "R," + mm(w) + "X" + mm(h); };
+    // A pad's aperture: circle, rectangle or rounded rectangle (macro RR: width, height, corner radius).
+    auto padAperture = [&](const Pad& p, double grow) {
+        const double w = p.size.x + 2 * grow, h = p.size.y + 2 * grow;
+        if (p.round) return circle(w);
+        const double r = p.corner * std::min(p.size.x, p.size.y) + grow;
+        return p.corner > 0 && r > 1e-4 ? "RR," + mm(w) + "X" + mm(h) + "X" + mm(r) : rect(w, h);
+    };
 
     std::vector<std::pair<int, std::string>> ops;  // aperture, operation
     std::vector<std::string> regions;              // filled G36/G37 regions (drawn first)
@@ -324,11 +331,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     if (copperIndex >= 0) isCopper = true;
 
     if (isCopper || isMask) {
-        double grow = isMask ? 0.05 : 0.0;
         for (const auto& p : pcb.pads(sch)) {
-            if (!p.onLayer(cl)) continue;
-            int ap = aperture(p.round ? circle(p.size.x + 2 * grow) : rect(p.size.x + 2 * grow, p.size.y + 2 * grow));
-            ops.push_back({ap, coord(p.position) + "D03*"});
+            if (!p.onLayer(cl) || (p.npth && !isMask)) continue;  // a non-plated hole has no copper
+            const double grow = isMask ? (p.mask >= 0 ? p.mask : 0.05) : 0.0;
+            ops.push_back({aperture(padAperture(p, grow)), coord(p.position) + "D03*"});
         }
         for (const auto& v : pcb.vias) {
             if (isMask || !v.spans(cl)) continue;  // tented vias; a via lands on the copper layers it spans
@@ -363,10 +369,22 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         // area) so the part does not float on too much solder.
         int side = layer == GerberLayer::TopPaste ? kTopLayer : bottom;
         for (const auto& p : pcb.pads(sch)) {
-            if (p.throughHole || p.smdLayer != side) continue;
+            if (p.throughHole || p.smdLayer != side || p.paste == 0) continue;
             double w = p.size.x, h = p.size.y;
-            if (w >= 2.5 && h >= 2.5) w *= 0.8, h *= 0.8;
-            ops.push_back({aperture(p.round ? circle(w) : rect(w, h)), coord(p.position) + "D03*"});
+            if (p.paste > 0) {
+                w *= p.paste, h *= p.paste;
+            } else if (w >= 2.5 && h >= 2.5) {
+                w *= 0.8, h *= 0.8;
+            }
+            // pasteGrid > 1: the window split into n × n openings, each centred in its cell of the pad.
+            const int n = std::max(1, p.pasteGrid);
+            Pad cell = p;
+            cell.size = {w / n * (n > 1 ? 0.85 : 1), h / n * (n > 1 ? 0.85 : 1)};
+            for (int i = 0; i < n; ++i)
+                for (int j = 0; j < n; ++j) {
+                    const Vec2 at = p.position + Vec2{(i + 0.5 - n / 2.0) * p.size.x / n, (j + 0.5 - n / 2.0) * p.size.y / n};
+                    ops.push_back({aperture(padAperture(cell, 0)), coord(n > 1 ? at : p.position) + "D03*"});
+                }
         }
     } else if (layer == GerberLayer::TopSilk || layer == GerberLayer::BottomSilk) {
         const bool bottomSide = layer == GerberLayer::BottomSilk;
@@ -411,9 +429,13 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     // Aperture definitions sorted by D-code.
     std::map<int, std::string> byCode;
     for (const auto& [def, code] : apertures) byCode[code] = def;
+    if (std::any_of(apertures.begin(), apertures.end(), [](const auto& a) { return a.first.rfind("RR,", 0) == 0; }))
+        // Rounded rectangle: two crossing rectangles and a circle at each corner ($1 width, $2 height, $3 radius).
+        o << "%AMRR*\n21,1,$1,$2-$3x2,0,0,0*\n21,1,$1-$3x2,$2,0,0,0*\n1,1,$3x2,$1/2-$3,$2/2-$3*\n"
+             "1,1,$3x2,-$1/2+$3,$2/2-$3*\n1,1,$3x2,$1/2-$3,-$2/2+$3*\n1,1,$3x2,-$1/2+$3,-$2/2+$3*%\n";
     for (const auto& [code, def] : byCode) {
-        std::string type = def.substr(0, 1), params = def.substr(2);
-        o << "%ADD" << code << type << "," << params << "*%\n";
+        const size_t comma = def.find(',');
+        o << "%ADD" << code << def.substr(0, comma) << "," << def.substr(comma + 1) << "*%\n";
     }
     if (!regions.empty()) o << "G01*\n";
     for (const auto& r : regions) o << r << "\n";
@@ -479,11 +501,13 @@ std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool
     };
     if (plated) {
         for (const auto& p : pcb.pads(sch))
-            if (p.throughHole && p.drill > 0) holes[key(p.drill)].push_back(p.position);
+            if (p.throughHole && p.drill > 0 && !p.npth) holes[key(p.drill)].push_back(p.position);
         for (const auto& v : pcb.vias)
             if (v.isThrough()) holes[key(v.drill)].push_back(v.position);  // blind / buried: exportExcellonSpan
     } else {
         for (const auto& h : pcb.settings.holes) holes[key(h.drill)].push_back(h.position);
+        for (const auto& p : pcb.pads(sch))
+            if (p.npth) holes[key(p.drill)].push_back(p.position);
     }
 
     std::ostringstream o;

@@ -199,6 +199,19 @@ struct CustomPartSpec: Codable, Equatable {
         var round = false
         /// Pin number the pad connects to when it is not the pad's own number; "-" = mechanical (no pin).
         var pin = ""
+        /// Pad options, encoded as a trailing object like the core: rounded-rectangle corner ratio (0…0.5),
+        /// non-plated hole, solder mask margin (mm, nil = board default), paste fraction (nil = automatic, 0 = none)
+        /// and paste windows per side.
+        var options = Options()
+
+        struct Options: Codable, Equatable {
+            var corner: Double?
+            var npth: Bool?
+            var mask: Double?
+            var paste: Double?
+            var pasteGrid: Int?
+            var isEmpty: Bool { self == Options() }
+        }
 
         init(x: Double, y: Double, w: Double, h: Double, drill: Double = 0, round: Bool = false, pin: String = "") {
             self.x = x
@@ -221,6 +234,7 @@ struct CustomPartSpec: Codable, Equatable {
                 round = try c.decode(Double.self) != 0
             }
             if !c.isAtEnd { pin = try c.decode(String.self) }
+            if !c.isAtEnd { options = try c.decode(Options.self) }
         }
 
         func encode(to encoder: Encoder) throws {
@@ -229,11 +243,12 @@ struct CustomPartSpec: Codable, Equatable {
             try c.encode(y)
             try c.encode(w)
             try c.encode(h)
-            if drill > 0 || round || !pin.isEmpty {
+            if drill > 0 || round || !pin.isEmpty || !options.isEmpty {
                 try c.encode(drill)
                 try c.encode(round ? 1 : 0)
             }
-            if !pin.isEmpty { try c.encode(pin) }
+            if !pin.isEmpty || !options.isEmpty { try c.encode(pin) }
+            if !options.isEmpty { try c.encode(options) }
         }
     }
 

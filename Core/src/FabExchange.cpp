@@ -132,7 +132,7 @@ struct Board {
             Layer l{bottomSide ? "smb" : "smt", "SOLDER_MASK", "SOLDERMASK", bottomSide ? 'B' : 'T', "", "", {}};
             const int cl = bottomSide ? copper - 1 : 0;
             for (const auto& pad : pads)
-                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, 0.05));
+                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, pad.mask >= 0 ? pad.mask : 0.05));
             return l;
         };
 
@@ -167,7 +167,7 @@ struct Board {
                 l.features.push_back(f);
             }
             for (const auto& pad : pads)
-                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, 0));
+                if (pad.onLayer(cl) && !pad.npth) l.features.push_back(padFeature(pad, 0));
             for (const auto& v : pcb.vias) {
                 if (!v.spans(cl)) continue;
                 Feature f;
@@ -197,7 +197,7 @@ struct Board {
         const std::string top = copperName(0, copper), bottom = copperName(copper - 1, copper);
         Layer through{"drill", "DRILL", "DRILL", 'A', top, bottom, {}};
         for (const auto& pad : pads)
-            if (pad.throughHole && pad.drill > 0) through.features.push_back(hole(pad.position, pad.drill, pad.net, true));
+            if (pad.throughHole && pad.drill > 0) through.features.push_back(hole(pad.position, pad.drill, pad.net, !pad.npth));
         std::map<std::pair<int, int>, Layer> spans;
         for (const auto& v : pcb.vias) {
             if (v.isThrough()) {

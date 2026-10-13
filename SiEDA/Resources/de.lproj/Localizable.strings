@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "Netz-Hervorhebung aufheben";
 "Clear Comparison" = "Vergleich aufheben";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "Verglichen mit %@: grün hinzugefügt, rot entfernt, bernstein verschoben · Rechtsklick hebt auf";
+"Corner" = "Ecke";
+"Corner radius as a share of the pad's short side" = "Eckenradius als Anteil der kurzen Padseite";
+"Non-plated hole (no copper)" = "Nicht durchkontaktierte Bohrung (kein Kupfer)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Durchkontaktierte 0,3-mm-Vias im 1-mm-Raster im Pad, an seinem Pin";
+"Rounded" = "Abgerundet";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Lötstopplack-Freistellung um das Pad (Platinenstandard 0,05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "Paste eines großen Thermopads in ein Raster von Fenstern teilen";
+"Stencil opening as a share of the pad's size" = "Schablonenöffnung als Anteil der Padgröße";
+"Turn the selected pads 90° about their centre" = "Ausgewählte Pads um 90° um ihre Mitte drehen";
+"Paste windows %lld×%lld" = "Pastenfenster %lld×%lld";

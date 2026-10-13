@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "清除網路醒目提示";
 "Clear Comparison" = "清除比較";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "與 %@ 比較：綠色為新增、紅色為移除、琥珀色為移動 · 按右鍵清除";
+"Corner" = "圓角";
+"Corner radius as a share of the pad's short side" = "圓角半徑佔焊盤短邊的比例";
+"Non-plated hole (no copper)" = "非電鍍孔（無銅）";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "在焊盤內以 1 mm 間距放置 0.3 mm 電鍍導通孔，屬於其接腳";
+"Rounded" = "圓角矩形";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "焊盤周圍的防焊開窗邊距（電路板預設 0.05 mm）";
+"Split a large thermal pad's paste into a grid of windows" = "將大型散熱焊盤的錫膏分割成網格開窗";
+"Stencil opening as a share of the pad's size" = "鋼網開口佔焊盤尺寸的比例";
+"Turn the selected pads 90° about their centre" = "將所選焊盤繞其中心旋轉 90°";
+"Paste windows %lld×%lld" = "錫膏開窗 %lld×%lld";

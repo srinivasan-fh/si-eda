@@ -391,6 +391,16 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.drill = pd.drill;
             p.bottom = c.pcb.bottom;
             p.smdLayer = c.pcb.bottom ? settings.bottomLayer() : kTopLayer;
+            p.corner = pd.corner;
+            p.mask = pd.mask;
+            p.paste = pd.paste;
+            p.pasteGrid = pd.pasteGrid;
+            if (pd.npth) {  // a plain hole: no copper and no net, its keep-out the size of the drill
+                p.npth = true;
+                p.net = -1;
+                p.round = true;
+                p.size = {pd.drill, pd.drill};
+            }
             out.push_back(p);
         }
     }

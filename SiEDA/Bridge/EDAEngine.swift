@@ -196,7 +196,9 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Wires the part's pins to what they touch unconnected (a pin on the same spot, a wire running through).
     @discardableResult
-    func connectTouching(_ id: Int) -> Int { Int(withHandle { sieda_connect_touching($0, Int32(id)) }) }
+    /// Wires part `id`'s pins to pins on the same spot, and (`wires`) to wires running through them.
+    @discardableResult
+    func connectTouching(_ id: Int, wires: Bool = true) -> Int { Int(withHandle { sieda_connect_touching($0, Int32(id), wires ? 1 : 0) }) }
 
     /// Locks or unlocks a part on the schematic.
     @discardableResult

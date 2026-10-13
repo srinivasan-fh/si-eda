@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "నెట్ హైలైట్ తొలగించు";
 "Clear Comparison" = "పోలికను తొలగించు";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@తో పోలిక: ఆకుపచ్చ జోడించబడింది, ఎరుపు తొలగించబడింది, కాషాయం కదిలింది · తొలగించడానికి కుడి-క్లిక్";
+"Corner" = "మూల";
+"Corner radius as a share of the pad's short side" = "ప్యాడ్ చిన్న భుజంలో భాగంగా మూల వ్యాసార్ధం";
+"Non-plated hole (no copper)" = "ప్లేటింగ్ లేని రంధ్రం (రాగి లేదు)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "ప్యాడ్ లోపల 1 mm గ్రిడ్‌పై 0.3 mm ప్లేటెడ్ వయాలు, దాని పిన్‌పై";
+"Rounded" = "గుండ్రని మూలలు";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "ప్యాడ్ చుట్టూ సోల్డర్ మాస్క్ తెరుచుకునే అంచు (బోర్డ్ డిఫాల్ట్ 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "పెద్ద థర్మల్ ప్యాడ్ పేస్ట్‌ను కిటికీల గ్రిడ్‌గా విభజించు";
+"Stencil opening as a share of the pad's size" = "ప్యాడ్ పరిమాణంలో భాగంగా స్టెన్సిల్ తెరచుకోవడం";
+"Turn the selected pads 90° about their centre" = "ఎంచుకున్న ప్యాడ్‌లను వాటి కేంద్రం చుట్టూ 90° తిప్పు";
+"Paste windows %lld×%lld" = "పేస్ట్ కిటికీలు %lld×%lld";

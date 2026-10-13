@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "Kosongkan Serlahan Net";
 "Clear Comparison" = "Kosongkan Perbandingan";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "Dibandingkan dengan %@: hijau ditambah, merah dibuang, kuning dialih · klik kanan untuk kosongkan";
+"Corner" = "Bucu";
+"Corner radius as a share of the pad's short side" = "Jejari bucu sebagai bahagian sisi pendek pad";
+"Non-plated hole (no copper)" = "Lubang tidak bersadur (tiada kuprum)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Via bersadur 0.3 mm pada grid 1 mm di dalam pad, pada pinnya";
+"Rounded" = "Bulat bucu";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Margin bukaan topeng pateri sekitar pad (lalai papan 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "Bahagikan tampal pad terma besar kepada grid tingkap";
+"Stencil opening as a share of the pad's size" = "Bukaan stensil sebagai bahagian saiz pad";
+"Turn the selected pads 90° about their centre" = "Putar pad terpilih 90° pada pusatnya";
+"Paste windows %lld×%lld" = "Tingkap tampal %lld×%lld";

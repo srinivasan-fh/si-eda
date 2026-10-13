@@ -66,6 +66,11 @@ struct PadDef {
     bool throughHole = false;
     double drill = 0.0;
     bool round = false;
+    /// Land pattern pad options (PackageSpec::Land): corner ratio, non-plated, mask margin, paste ratio and grid.
+    double corner = 0;
+    bool npth = false;
+    double mask = -1, paste = -1;
+    int pasteGrid = 1;
 };
 
 struct BodyDef {

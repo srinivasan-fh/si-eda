@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "넷 강조 해제";
 "Clear Comparison" = "비교 지우기";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@과(와) 비교: 초록은 추가, 빨강은 제거, 주황은 이동 · 오른쪽 클릭으로 지우기";
+"Corner" = "모서리";
+"Corner radius as a share of the pad's short side" = "패드 짧은 변 대비 모서리 반경 비율";
+"Non-plated hole (no copper)" = "비도금 홀(구리 없음)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "패드 안에 1 mm 격자로 0.3 mm 도금 비아(해당 핀)";
+"Rounded" = "둥근 사각형";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "패드 주변 솔더 마스크 개구 여유(보드 기본 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "큰 서멀 패드의 페이스트를 격자 창으로 분할";
+"Stencil opening as a share of the pad's size" = "패드 크기 대비 스텐실 개구 비율";
+"Turn the selected pads 90° about their centre" = "선택한 패드를 중심 기준으로 90° 회전";
+"Paste windows %lld×%lld" = "페이스트 창 %lld×%lld";

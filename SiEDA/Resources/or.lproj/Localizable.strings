@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "ନେଟ୍ ହାଇଲାଇଟ୍ ହଟାନ୍ତୁ";
 "Clear Comparison" = "ତୁଳନା ହଟାନ୍ତୁ";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@ ସହ ତୁଳନା: ସବୁଜ ଯୋଡ଼ାଗଲା, ନାଲି ହଟାଗଲା, ଅମ୍ବର ଘୁଞ୍ଚାଗଲା · ହଟାଇବାକୁ ରାଇଟ୍-କ୍ଲିକ୍";
+"Corner" = "କୋଣ";
+"Corner radius as a share of the pad's short side" = "ପ୍ୟାଡ୍‌ର ଛୋଟ ପାର୍ଶ୍ୱର ଅଂଶ ଭାବେ କୋଣ ବ୍ୟାସାର୍ଦ୍ଧ";
+"Non-plated hole (no copper)" = "ପ୍ଲେଟିଂ ନଥିବା ଛିଦ୍ର (ତମ୍ବା ନାହିଁ)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "ପ୍ୟାଡ୍ ଭିତରେ 1 mm ଗ୍ରିଡ୍‌ରେ 0.3 mm ପ୍ଲେଟେଡ୍ ଭାୟା, ଏହାର ପିନ୍‌ରେ";
+"Rounded" = "ଗୋଲାକାର କୋଣ";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "ପ୍ୟାଡ୍ ଚାରିପାଖେ ସୋଲ୍ଡର୍ ମାସ୍କ ଖୋଲା ମାର୍ଜିନ୍ (ବୋର୍ଡ ଡିଫଲ୍ଟ 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "ବଡ଼ ଥର୍ମାଲ୍ ପ୍ୟାଡ୍‌ର ପେଷ୍ଟକୁ ୱିଣ୍ଡୋ ଗ୍ରିଡ୍‌ରେ ବିଭକ୍ତ କରନ୍ତୁ";
+"Stencil opening as a share of the pad's size" = "ପ୍ୟାଡ୍ ଆକାରର ଅଂଶ ଭାବେ ଷ୍ଟେନସିଲ୍ ଖୋଲା";
+"Turn the selected pads 90° about their centre" = "ବଛା ପ୍ୟାଡ୍‌ଗୁଡ଼ିକୁ ସେମାନଙ୍କ କେନ୍ଦ୍ର ଚାରିପାଖେ 90° ଘୁରାନ୍ତୁ";
+"Paste windows %lld×%lld" = "ପେଷ୍ଟ ୱିଣ୍ଡୋ %lld×%lld";

@@ -467,7 +467,7 @@ final class DesignStore: ObservableObject {
         let snapped = SchematicGrid.snap(point)
         perform("Placed \(kind.displayName)") {
             id = $0.addComponent(kind, at: snapped, rotation: rotation)
-            if id >= 0 { $0.connectTouching(id) }  // a pin dropped on a wire or another pin is wired to it
+            if id >= 0 { _ = $0.connectTouching(id, wires: false) }  // a pin placed on another pin is wired to it
         }
         if id >= 0 { selection = [id] }
         return id
@@ -820,7 +820,7 @@ final class DesignStore: ObservableObject {
         } else {
             perform("Placed \(name)") {
                 id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation)
-                if id >= 0 { $0.connectTouching(id) }
+                if id >= 0 { _ = $0.connectTouching(id, wires: false) }
             }
         }
         if id >= 0 { selection = [id] }

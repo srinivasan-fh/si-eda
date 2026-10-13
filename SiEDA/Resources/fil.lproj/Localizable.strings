@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "I-clear ang Net Highlight";
 "Clear Comparison" = "I-clear ang Paghahambing";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "Inihambing sa %@: berde ang idinagdag, pula ang inalis, amber ang inilipat · right-click para i-clear";
+"Corner" = "Sulok";
+"Corner radius as a share of the pad's short side" = "Radius ng sulok bilang bahagi ng maikling gilid ng pad";
+"Non-plated hole (no copper)" = "Butas na hindi plated (walang tanso)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Plated na 0.3 mm via sa 1 mm grid sa loob ng pad, sa pin nito";
+"Rounded" = "Bilugan";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Margin ng solder mask opening sa paligid ng pad (board default 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "Hatiin ang paste ng malaking thermal pad sa grid ng mga window";
+"Stencil opening as a share of the pad's size" = "Butas ng stencil bilang bahagi ng laki ng pad";
+"Turn the selected pads 90° about their centre" = "Ikutin ang mga napiling pad nang 90° sa gitna nila";
+"Paste windows %lld×%lld" = "Mga paste window %lld×%lld";

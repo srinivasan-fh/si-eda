@@ -308,9 +308,9 @@ int32_t sieda_mirror_component(SiedaProject* project, int32_t id, int32_t vertic
     return project->project.schematic.mirrorComponent(id, vertical != 0) ? 1 : 0;
 }
 
-int32_t sieda_connect_touching(SiedaProject* project, int32_t id) {
+int32_t sieda_connect_touching(SiedaProject* project, int32_t id, int32_t wires) {
     if (!project) return 0;
-    return guarded([&] { return project->project.schematic.connectTouching(id); });
+    return guarded([&] { return project->project.schematic.connectTouching(id, wires != 0); });
 }
 
 int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet) {
@@ -1553,6 +1553,7 @@ int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
     return 1;
 }
 
+extern "C++" {
 namespace {
 std::vector<Vec2> pointsFromJson(const char* json) {
     std::vector<Vec2> out;
@@ -1570,6 +1571,7 @@ std::vector<Vec2> pointsFromJson(const char* json) {
     return out.size() >= 3 && out.size() <= 4096 ? out : std::vector<Vec2>{};
 }
 }  // namespace
+}  // extern "C++"
 
 int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, int32_t layer, const char* points_json) {
     auto poly = pointsFromJson(points_json);

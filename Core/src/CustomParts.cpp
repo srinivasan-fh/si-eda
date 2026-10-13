@@ -170,11 +170,20 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         for (const auto& l : s.package.lands) {
             Json lj = Json::array();
             for (double v : {l.x, l.y, l.w, l.h}) lj.push(v);
-            if (l.drill > 0 || l.round || !l.pin.empty()) {  // [x, y, w, h, drill, round(, pin)]
+            if (l.drill > 0 || l.round || !l.pin.empty() || l.hasOptions()) {  // [x, y, w, h, drill, round(, pin(, {…}))]
                 lj.push(l.drill);
                 lj.push(l.round ? 1 : 0);
             }
-            if (!l.pin.empty()) lj.push(l.pin);
+            if (!l.pin.empty() || l.hasOptions()) lj.push(l.pin);
+            if (l.hasOptions()) {
+                Json o = Json::object();
+                if (l.corner > 0) o["corner"] = l.corner;
+                if (l.npth) o["npth"] = true;
+                if (l.mask >= 0) o["mask"] = l.mask;
+                if (l.paste >= 0) o["paste"] = l.paste;
+                if (l.pasteGrid > 1) o["pasteGrid"] = l.pasteGrid;
+                lj.push(o);
+            }
             lands.push(lj);
         }
         pkg["lands"] = lands;
@@ -375,14 +384,27 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         const double depth = pkg.get("bodyDepth").asNumber(0);
         s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
         for (const auto& lj : pkg.get("lands").items()) {
-            if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7))
-                throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin] in mm.");
+            if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7 && lj.size() != 8))
+                throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin(, options)] in mm.");
             PackageSpec::Land l{lj[0].asNumber(0), lj[1].asNumber(0), lj[2].asNumber(0), lj[3].asNumber(0)};
             if (lj.size() >= 6) {
                 l.drill = lj[4].asNumber(0);
                 l.round = lj[5].asNumber(0) != 0;
             }
-            if (lj.size() == 7) l.pin = trim(lj[6].asString(""));
+            if (lj.size() >= 7) l.pin = trim(lj[6].asString(""));
+            if (lj.size() == 8) {
+                const Json& o = lj[7];
+                auto num = [&](const char* k, double def, double lo, double hi) {
+                    const double v = o.get(k).asNumber(def);
+                    return std::isfinite(v) ? std::clamp(v, lo, hi) : def;
+                };
+                l.corner = num("corner", 0, 0, 0.5);
+                l.npth = o.get("npth").asBool(false);
+                l.mask = o.has("mask") ? num("mask", -1, 0, 2) : -1;
+                l.paste = o.has("paste") ? num("paste", -1, 0, 1) : -1;
+                l.pasteGrid = static_cast<int>(num("pasteGrid", 1, 1, 8));
+                if (l.npth && l.drill <= 0) throw JsonError("A non-plated pad needs a drill.");
+            }
             const bool ok = std::isfinite(l.x) && std::isfinite(l.y) && std::fabs(l.x) <= 60 && std::fabs(l.y) <= 60 &&
                             l.w > 0.05 && l.w <= 30 && l.h > 0.05 && l.h <= 30;
             if (!ok) throw JsonError("Land pattern pads must lie within 60 mm and be 0.05…30 mm in size.");
@@ -575,6 +597,7 @@ struct PadPlacement {
     Vec2 offset, size;
     bool tht = false, round = false;
     double drill = 0;
+    const PackageSpec::Land* land = nullptr;  // the land pattern pad it comes from (its options)
 };
 
 /// Pad positions for pad numbers 1..n of a package (index 0 = pad 1).
@@ -743,7 +766,7 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         double xMax = 0, yMax = 0;
         for (int i = 0; i < n && i < static_cast<int>(exact->lands.size()); ++i) {
             const auto& l = exact->lands[i];
-            pads.push_back({{l.x, l.y}, {l.w, l.h}, l.drill > 0, l.round, l.drill});
+            pads.push_back({{l.x, l.y}, {l.w, l.h}, l.drill > 0, l.round, l.drill, &l});
             xMax = std::max(xMax, std::fabs(l.x) + l.w / 2);
             yMax = std::max(yMax, std::fabs(l.y) + l.h / 2);
         }
@@ -952,6 +975,13 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         pad.throughHole = placements[i].tht;
         pad.round = placements[i].round;
         pad.drill = placements[i].drill;
+        if (const auto* l = placements[i].land) {
+            pad.corner = l->corner;
+            pad.npth = l->npth;
+            pad.mask = l->mask;
+            pad.paste = l->paste;
+            pad.pasteGrid = l->pasteGrid;
+        }
         std::string number = !ballNumbers.empty()         ? ballNumbers[i]
                              : spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc)
                                                           : std::to_string(i + 1);

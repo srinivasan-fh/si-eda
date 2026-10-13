@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "清除网络高亮";
 "Clear Comparison" = "清除比较";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "与 %@ 比较：绿色为新增、红色为删除、琥珀色为移动 · 右键清除";
+"Corner" = "圆角";
+"Corner radius as a share of the pad's short side" = "圆角半径占焊盘短边的比例";
+"Non-plated hole (no copper)" = "非电镀孔（无铜）";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "在焊盘内以 1 mm 间距放置 0.3 mm 电镀过孔，属于其引脚";
+"Rounded" = "圆角矩形";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "焊盘周围的阻焊开窗边距（电路板默认 0.05 mm）";
+"Split a large thermal pad's paste into a grid of windows" = "将大型散热焊盘的锡膏分割成网格开窗";
+"Stencil opening as a share of the pad's size" = "钢网开口占焊盘尺寸的比例";
+"Turn the selected pads 90° about their centre" = "将所选焊盘绕其中心旋转 90°";
+"Paste windows %lld×%lld" = "锡膏开窗 %lld×%lld";

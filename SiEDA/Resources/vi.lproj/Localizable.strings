@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "Bỏ tô sáng net";
 "Clear Comparison" = "Xóa so sánh";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "So sánh với %@: xanh lá là thêm, đỏ là xóa, hổ phách là di chuyển · bấm chuột phải để xóa";
+"Corner" = "Góc";
+"Corner radius as a share of the pad's short side" = "Bán kính góc theo tỷ lệ cạnh ngắn của pad";
+"Non-plated hole (no copper)" = "Lỗ không mạ (không đồng)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Via mạ 0,3 mm trên lưới 1 mm trong pad, cùng chân";
+"Rounded" = "Bo tròn";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Biên mở mặt nạ hàn quanh pad (mặc định bo mạch 0,05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "Chia kem hàn của pad tản nhiệt lớn thành lưới ô";
+"Stencil opening as a share of the pad's size" = "Lỗ khuôn in theo tỷ lệ kích thước pad";
+"Turn the selected pads 90° about their centre" = "Xoay các pad đã chọn 90° quanh tâm";
+"Paste windows %lld×%lld" = "Ô kem hàn %lld×%lld";

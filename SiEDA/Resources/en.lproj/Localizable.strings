@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "Clear Net Highlight";
 "Clear Comparison" = "Clear Comparison";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "Compared with %@: green added, red removed, amber moved · right-click to clear";
+"Corner" = "Corner";
+"Corner radius as a share of the pad's short side" = "Corner radius as a share of the pad's short side";
+"Non-plated hole (no copper)" = "Non-plated hole (no copper)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin";
+"Rounded" = "Rounded";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Solder mask opening margin around the pad (board default 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "Split a large thermal pad's paste into a grid of windows";
+"Stencil opening as a share of the pad's size" = "Stencil opening as a share of the pad's size";
+"Turn the selected pads 90° about their centre" = "Turn the selected pads 90° about their centre";
+"Paste windows %lld×%lld" = "Paste windows %lld×%lld";

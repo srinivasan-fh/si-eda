@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "Netmarkering wissen";
 "Clear Comparison" = "Vergelijking wissen";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "Vergeleken met %@: groen toegevoegd, rood verwijderd, oranje verplaatst · rechtsklik wist";
+"Corner" = "Hoek";
+"Corner radius as a share of the pad's short side" = "Hoekstraal als deel van de korte zijde van het pad";
+"Non-plated hole (no copper)" = "Niet-doorgemetalliseerd gat (geen koper)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "Doorgemetalliseerde via's van 0,3 mm op een raster van 1 mm in het pad, op zijn pin";
+"Rounded" = "Afgerond";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "Soldeermaskeropening rond het pad (printstandaard 0,05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "De pasta van een groot thermisch pad in een raster van vensters verdelen";
+"Stencil opening as a share of the pad's size" = "Stencilopening als deel van de padgrootte";
+"Turn the selected pads 90° about their centre" = "De geselecteerde pads 90° om hun midden draaien";
+"Paste windows %lld×%lld" = "Pastavensters %lld×%lld";

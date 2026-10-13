@@ -348,8 +348,8 @@ public:
     /// the two halves keep the connection and further wires can end on the junction. -1 for an unknown wire.
     int splitWire(int wireId, Vec2 position);
     /// Pins of part `id` that touch something without being wired to it — another part's pin on the same spot, or the
-    /// route of a wire running through — get wired to it (a T-junction on the wire). Returns the joins made.
-    int connectTouching(int id);
+    /// route of a wire running through (`wires`) — get wired to it (a T-junction on the wire). Returns the joins made.
+    int connectTouching(int id, bool wires = true);
     /// What touches `pin` on the sheet without a wire to it: other parts' pins on the same spot and wires whose route
     /// runs through it (not ending there).
     void touching(PinRef pin, std::vector<PinRef>* pins, std::vector<int>* wires) const;

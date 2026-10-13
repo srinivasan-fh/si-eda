@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "நெட் சிறப்பை அழி";
 "Clear Comparison" = "ஒப்பீட்டை அழி";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@ உடன் ஒப்பீடு: பச்சை சேர்க்கப்பட்டது, சிவப்பு நீக்கப்பட்டது, அம்பர் நகர்த்தப்பட்டது · அழிக்க வலது-கிளிக்";
+"Corner" = "மூலை";
+"Corner radius as a share of the pad's short side" = "பேடின் குறுகிய பக்கத்தின் பங்காக மூலை ஆரம்";
+"Non-plated hole (no copper)" = "முலாமிடாத துளை (செம்பு இல்லை)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "பேடிற்குள் 1 mm கட்டத்தில் 0.3 mm முலாமிட்ட வயாக்கள், அதன் பின்னில்";
+"Rounded" = "வட்டமான மூலை";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "பேடைச் சுற்றி சாலிடர் மாஸ்க் திறப்பு விளிம்பு (பலகை இயல்பு 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "பெரிய வெப்பப் பேடின் பேஸ்டை சாளரக் கட்டமாகப் பிரி";
+"Stencil opening as a share of the pad's size" = "பேட் அளவின் பங்காக ஸ்டென்சில் திறப்பு";
+"Turn the selected pads 90° about their centre" = "தேர்ந்த பேடுகளை அவற்றின் மையத்தைச் சுற்றி 90° சுழற்று";
+"Paste windows %lld×%lld" = "பேஸ்ட் சாளரங்கள் %lld×%lld";

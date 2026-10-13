@@ -84,6 +84,12 @@ struct FootprintEditorView: View {
             } label: { Label("Mirror", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right") }
                 .disabled(selection.isEmpty)
                 .help("Mirror the selected pads left ↔ right")
+            Button {
+                let ids = selection
+                edit { $0.rotate(ids) }
+            } label: { Label("Rotate", systemImage: "rotate.right") }
+                .disabled(selection.isEmpty)
+                .help("Turn the selected pads 90° about their centre")
             Button { edit { $0.centre() } } label: { Label("Centre", systemImage: "scope") }
                 .help("Move the footprint origin to the centre of the pads")
             Divider().frame(height: 18)
@@ -171,9 +177,13 @@ struct FootprintEditorView: View {
                         l.y = FootprintDraft.snap(l.y + preview.height, grid)
                     }
                     let r = CGRect(x: l.x - l.w / 2, y: l.y - l.h / 2, width: l.w, height: l.h)
-                    let shape = l.round ? Path(ellipseIn: r) : Path(roundedRect: r, cornerRadius: min(l.w, l.h) * 0.12)
+                    let shape = l.round ? Path(ellipseIn: r) : Path(roundedRect: r, cornerRadius: min(l.w, l.h) * (l.options.corner ?? 0.12))
                     let mechanical = l.pin == "-"
-                    ctx.fill(shape.applying(t), with: .color(mechanical ? Theme.via.opacity(0.6) : Theme.pad))
+                    if l.options.npth == true {  // a plain hole: outline only
+                        ctx.stroke(shape.applying(t), with: .color(Theme.via), lineWidth: 1)
+                    } else {
+                        ctx.fill(shape.applying(t), with: .color(mechanical ? Theme.via.opacity(0.6) : Theme.pad))
+                    }
                     if l.drill > 0 {
                         let d = l.drill
                         ctx.fill(Path(ellipseIn: CGRect(x: l.x - d / 2, y: l.y - d / 2, width: d, height: d)).applying(t),
@@ -309,11 +319,18 @@ struct FootprintEditorView: View {
             number("Width", landBinding(index, \.w, min: 0.06, max: 30), step: grid)
             number("Height", landBinding(index, \.h, min: 0.06, max: 30), step: grid)
             number("Drill", landBinding(index, \.drill, min: 0, max: 29), step: 0.05)
-            Picker("Shape", selection: Binding(get: { pad.land.round }, set: { round in edit { $0.pads[index].land.round = round } })) {
-                Text("Rectangle").tag(false)
-                Text(pad.land.w == pad.land.h ? "Circle" : "Oval").tag(true)
+            Picker("Shape", selection: Binding(get: { pad.land.round ? 2 : (pad.land.options.corner ?? 0) > 0 ? 1 : 0 }, set: { shape in
+                edit {
+                    $0.pads[index].land.round = shape == 2
+                    $0.pads[index].land.options.corner = shape == 1 ? 0.25 : nil
+                }
+            })) {
+                Text("Rectangle").tag(0)
+                Text("Rounded").tag(1)
+                Text(pad.land.w == pad.land.h ? "Circle" : "Oval").tag(2)
             }
             .pickerStyle(.segmented)
+            padOptions(index)
             Picker("Pin", selection: Binding(get: { pad.land.pin }, set: { pin in edit { $0.pads[index].land.pin = pin } })) {
                 Text("Pin \(index + 1) (its number)").tag("")
                 ForEach(spec.pins.filter { $0.number != String(index + 1) }, id: \.number) { pin in
@@ -329,6 +346,51 @@ struct FootprintEditorView: View {
             }), in: 1...max(1, draft.pads.count))
             .font(.caption)
             .help("Move the pad in the numbering; pads between shift by one")
+        }
+    }
+
+    /// Pad options: corner radius, non-plated hole, solder mask margin, paste and thermal vias.
+    private func padOptions(_ index: Int) -> some View {
+        let land = draft.pads[index].land
+        func set(_ change: @escaping (inout CustomPartSpec.Land.Options) -> Void) {
+            edit { change(&$0.pads[index].land.options) }
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            if (land.options.corner ?? 0) > 0 {
+                HStack {
+                    Text("Corner").font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
+                    Slider(value: Binding(get: { land.options.corner ?? 0.25 }, set: { v in set { $0.corner = v } }), in: 0.05...0.5)
+                    Text(verbatim: String(format: "%.0f %%", (land.options.corner ?? 0) * 100)).font(.caption2).monospacedDigit()
+                }
+                .help("Corner radius as a share of the pad's short side")
+            }
+            if land.drill > 0 {
+                Toggle("Non-plated hole (no copper)", isOn: Binding(get: { land.options.npth == true }, set: { on in set { $0.npth = on ? true : nil } }))
+                    .toggleStyle(.checkbox).font(.caption)
+            }
+            number("Mask", Binding(get: { land.options.mask ?? 0.05 }, set: { v in set { $0.mask = v.isFinite ? Swift.min(Swift.max(v, 0), 2) : nil } }),
+                   step: 0.01)
+                .help("Solder mask opening margin around the pad (board default 0.05 mm)")
+            if land.drill == 0 {
+                Picker("Paste", selection: Binding(get: { land.options.paste ?? -1 }, set: { v in set { $0.paste = v < 0 ? nil : v } })) {
+                    Text("Automatic").tag(-1.0)
+                    Text("None").tag(0.0)
+                    ForEach([0.5, 0.6, 0.7, 0.8, 0.9, 1.0], id: \.self) { Text(verbatim: String(format: "%.0f %%", $0 * 100)).tag($0) }
+                }
+                .font(.caption)
+                .help("Stencil opening as a share of the pad's size")
+                Stepper("Paste windows \(land.options.pasteGrid ?? 1)×\(land.options.pasteGrid ?? 1)",
+                        value: Binding(get: { land.options.pasteGrid ?? 1 }, set: { n in set { $0.pasteGrid = n > 1 ? n : nil } }), in: 1...4)
+                    .font(.caption)
+                    .help("Split a large thermal pad's paste into a grid of windows")
+                Button("Add Thermal Vias") {
+                    let id = draft.pads[index].id
+                    selection = editMaking { $0.addThermalVias(to: id) }.union([id])
+                }
+                .controlSize(.small)
+                .disabled(land.w < 0.6 || land.h < 0.6)
+                .help("Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin")
+            }
         }
     }
 

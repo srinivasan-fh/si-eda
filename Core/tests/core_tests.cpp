@@ -22599,3 +22599,43 @@ TEST(pcb_pair_rules_presets_and_delay_rules) {
     CHECK(sieda_pcb_set_pair_rule(c, R"({"pair":"USB_D"})") == 1 && c->project.pcb.settings.pairRules.empty());
     sieda_project_free(c);
 }
+
+TEST(footprint_pad_options_rounded_npth_mask_paste) {
+    // A land pattern with a rounded pad (mask 0.1, paste split 2 × 2 at 60 %) and a non-plated hole.
+    CustomPartSpec spec;
+    spec.name = "PADOPT";
+    spec.refPrefix = "U";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 3;
+    PackageSpec::Land a{-2, 0, 3, 3};
+    a.corner = 0.25, a.mask = 0.1, a.paste = 0.6, a.pasteGrid = 2;
+    PackageSpec::Land b{2, 0, 1.2, 1.2, 0.7, true, "2"};
+    PackageSpec::Land hole{0, 3, 1.6, 1.6, 1.0, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {a, b, hole};
+    // The options survive the part's JSON.
+    const CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.package.lands[0].corner == 0.25 && back.package.lands[0].pasteGrid == 2 && back.package.lands[2].npth);
+    Project p;
+    const std::string id = p.addCustomPart(back);
+    const int u = p.schematic.addCustomComponent(id, "", {0, 0});
+    CHECK(u > 0);
+    p.pcb.autoPlace(p.schematic, true);
+    const auto pads = p.pcb.pads(p.schematic);
+    CHECK(pads.size() == 3 && pads[0].corner == 0.25 && pads[2].npth && pads[2].net < 0);
+    // Copper: a rounded-rectangle macro aperture, and no copper for the plain hole; it drills in the NPTH file.
+    const std::string top = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(top.find("%AMRR*") != std::string::npos && top.find("ADD10RR,") != std::string::npos);
+    size_t flashes = 0;
+    for (size_t at = top.find("D03*"); at != std::string::npos; at = top.find("D03*", at + 1)) ++flashes;
+    CHECK(flashes == 2);
+    CHECK(exportExcellonDrill(p.schematic, p.pcb, false).find("T1C1.000") != std::string::npos);
+    CHECK(exportExcellonDrill(p.schematic, p.pcb, true).find("C1.000") == std::string::npos);
+    // Paste: four windows for the rounded pad; mask grows it by its own margin.
+    const std::string paste = exportGerber(p.schematic, p.pcb, GerberLayer::TopPaste);
+    size_t windows = 0;
+    for (size_t at = paste.find("D03*"); at != std::string::npos; at = paste.find("D03*", at + 1)) ++windows;
+    CHECK(windows == 4);
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::TopMask).find("RR,3.2000X3.2000X0.8500") != std::string::npos);
+}

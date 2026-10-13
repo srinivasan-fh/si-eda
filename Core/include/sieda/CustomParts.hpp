@@ -50,6 +50,15 @@ struct PackageSpec {
         double drill = 0;
         bool round = false;
         std::string pin;
+        /// Pad options (JSON: a trailing object, written only when one is set): corner radius as a fraction of the
+        /// short side (rounded rectangle, 0…0.5), a non-plated hole (no copper), the solder mask margin (mm, < 0 =
+        /// the board's 0.05) and the paste size as a fraction of the pad (< 0 = automatic, 0 = no paste) split into
+        /// pasteGrid × pasteGrid windows (thermal pads).
+        double corner = 0;
+        bool npth = false;
+        double mask = -1, paste = -1;
+        int pasteGrid = 1;
+        bool hasOptions() const { return corner > 0 || npth || mask >= 0 || paste >= 0 || pasteGrid > 1; }
         Land() = default;
         Land(double x_, double y_, double w_, double h_, double drill_ = 0, bool round_ = false, std::string pin_ = {})
             : x(x_), y(y_), w(w_), h(h_), drill(drill_), round(round_), pin(std::move(pin_)) {}

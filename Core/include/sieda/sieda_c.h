@@ -64,7 +64,7 @@ int32_t sieda_rotate_component(SiedaProject* project, int32_t component_id, int3
 int32_t sieda_mirror_component(SiedaProject* project, int32_t component_id, int32_t vertical);
 /* Wires the part's pins to whatever they touch unconnected (a pin on the same spot, a wire's route: T-junction).
  * Returns the number of joins. */
-int32_t sieda_connect_touching(SiedaProject* project, int32_t component_id);
+int32_t sieda_connect_touching(SiedaProject* project, int32_t component_id, int32_t wires);
 /* Removes wire bends lying on a straight run of `sheet` (the drawing stays the same). Returns the number removed. */
 int32_t sieda_cleanup_wires(SiedaProject* project, int32_t sheet);
 /* Locks (1) or unlocks (0) a part on the schematic: the editor leaves a locked part where it is. */

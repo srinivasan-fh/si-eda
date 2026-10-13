@@ -131,6 +131,43 @@ struct FootprintDraft: Equatable {
         for i in pads.indices where ids.contains(pads[i].id) { pads[i].land.x = -pads[i].land.x }
     }
 
+    /// Turns pads 90° clockwise about the centre of the selection (positions turn, width and height swap).
+    mutating func rotate(_ ids: Set<Pad.ID>) {
+        let chosen = pads.filter { ids.contains($0.id) }
+        guard !chosen.isEmpty else { return }
+        let cx = (chosen.map(\.land.x).min()! + chosen.map(\.land.x).max()!) / 2
+        let cy = (chosen.map(\.land.y).min()! + chosen.map(\.land.y).max()!) / 2
+        for i in pads.indices where ids.contains(pads[i].id) {
+            let l = pads[i].land
+            pads[i].land.x = cx - (l.y - cy)
+            pads[i].land.y = cy + (l.x - cx)
+            pads[i].land.w = l.h
+            pads[i].land.h = l.w
+        }
+    }
+
+    /// Thermal vias in a pad (an exposed / thermal pad): plated holes of `drill` on a `pitch` grid inside it, on the
+    /// pad's pin. Returns the new pads' ids (none when the pad is too small for one).
+    @discardableResult
+    mutating func addThermalVias(to id: Pad.ID, pitch: Double = 1.0, drill: Double = 0.3) -> Set<Pad.ID> {
+        guard let index = pads.firstIndex(where: { $0.id == id }), let pin = pinNumber(of: index), pitch > 0 else { return [] }
+        let l = pads[index].land, ring = drill + 0.3
+        let nx = Int(((l.w - ring) / pitch).rounded(.down)) + 1, ny = Int(((l.h - ring) / pitch).rounded(.down)) + 1
+        guard l.w >= ring, l.h >= ring, nx * ny <= 100 else { return [] }
+        var made = Set<Pad.ID>()
+        for i in 0..<nx {
+            for j in 0..<ny {
+                let via = CustomPartSpec.Land(x: l.x + (Double(i) - Double(nx - 1) / 2) * pitch,
+                                              y: l.y + (Double(j) - Double(ny - 1) / 2) * pitch,
+                                              w: ring, h: ring, drill: drill, round: true, pin: pin)
+                let pad = Pad(land: via)
+                pads.append(pad)
+                made.insert(pad.id)
+            }
+        }
+        return made
+    }
+
     /// Gives a pad a new number (1…N) by moving it in the order; the pads in between shift by one. Pads that follow
     /// their own number keep following it, so their pins move with the number.
     mutating func setNumber(of id: Pad.ID, to number: Int) {

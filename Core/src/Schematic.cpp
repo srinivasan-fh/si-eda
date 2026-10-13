@@ -853,11 +853,12 @@ std::vector<RuleViolation> Schematic::runERC() const {
             }
         }
         std::set<PinRef> reported;
-        auto report = [&](PinRef pin, const std::string& what) {
+        // A pin on another pin is a warning; a wire drawn across a pin (an L-route over it) is a note.
+        auto report = [&](PinRef pin, const std::string& what, Severity severity = Severity::Warning) {
             if (!reported.insert(pin).second) return;
             const Component* c = find(pin.component);
             const std::string name = c->kind == ComponentKind::Junction ? "A wire corner" : displayRef(*c) + "." + c->def().pins[static_cast<size_t>(pin.pin)].name;
-            add(Severity::Warning, "ERC_TOUCHING_UNCONNECTED", name + " touches " + what + " but is not connected to it: wire it, or move it clear.",
+            add(severity, "ERC_TOUCHING_UNCONNECTED", name + " touches " + what + " but is not connected to it: wire it, or move it clear.",
                 {pin.component}, pinPosition(pin));
         };
         for (const auto& [key, list] : spot) {
@@ -888,7 +889,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
                     const double t = vertical ? at.y : at.x;
                     if (t <= lo + 0.5 || t >= hi - 0.5) continue;  // the ends are pins of the wire itself or a stacked spot
                     if (pin == w.a || pin == w.b || (net >= 0 && netOf(pin) == net)) continue;
-                    report(pin, "a wire");
+                    report(pin, "a wire", Severity::Info);
                 }
             }
         }

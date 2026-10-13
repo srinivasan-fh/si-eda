@@ -101,16 +101,16 @@ void Schematic::touching(PinRef pin, std::vector<PinRef>* pins, std::vector<int>
         }
 }
 
-int Schematic::connectTouching(int id) {
+int Schematic::connectTouching(int id, bool wires) {
     const Component* c = find(id);
     if (!c || c->packageOnly) return 0;
     int joins = 0;
     for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i) {
         std::vector<PinRef> pins;
-        std::vector<int> wires;
-        touching({id, i}, &pins, &wires);
+        std::vector<int> onWires;
+        touching({id, i}, &pins, wires ? &onWires : nullptr);
         for (const PinRef& o : pins) joins += connect({id, i}, o) >= 0;
-        for (int w : wires) {
+        for (int w : onWires) {
             const int j = splitWire(w, pinPosition({id, i}));
             if (j >= 0) joins += connect({id, i}, {j, 0}) >= 0;
         }

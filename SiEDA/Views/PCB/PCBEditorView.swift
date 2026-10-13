@@ -632,6 +632,16 @@ struct LayersPanel: View {
     @AppStorage("pcb.pick.copper") private var pickCopper = true
 
     var body: some View {
+        // Scrolls when the window is short (many layers): the panel never sets the workspace's minimum height.
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+        .frame(width: 210)
+        .bluePanel()
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("COPPER COLOURS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 2)
             Picker("Copper colours", selection: $colourByNet) {
@@ -708,8 +718,6 @@ struct LayersPanel: View {
             }
         }
         .padding(10)
-        .frame(width: 210)
-        .bluePanel()
     }
 }
 
@@ -1452,7 +1460,7 @@ struct PCBCanvas: View {
                 && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)
-                ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * 0.15).applying(screen),
+                ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * (p.corner ?? 0.15)).applying(screen),
                          with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : (isActive ? Theme.pad : Theme.pad.opacity(0.45))))
             }
         }
@@ -1461,8 +1469,12 @@ struct PCBCanvas: View {
             for p in snap.pads where p.throughHole && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let c = shifted(p.component, CGPoint(x: p.x, y: p.y))
                 let r = CGRect(x: c.x - p.w / 2, y: c.y - p.h / 2, width: p.w, height: p.h)
-                let shape = p.round ? Path(ellipseIn: r) : Path(r)
-                ctx.fill(shape.applying(screen), with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : Theme.pad))
+                let shape = p.shape(at: c)
+                if p.npth == true {  // a plain hole: no copper ring
+                    ctx.stroke(Path(ellipseIn: r).applying(screen), with: .color(Theme.boardEdge), lineWidth: 1)
+                } else {
+                    ctx.fill(shape.applying(screen), with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : Theme.pad))
+                }
                 let hole = CGRect(x: c.x - p.drill / 2, y: c.y - p.drill / 2, width: p.drill, height: p.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }

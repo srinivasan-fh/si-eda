@@ -1449,6 +1449,8 @@ Json Project::snapshot() const {
         j["drill"] = p.drill;
         j["bottom"] = p.bottom;
         j["layer"] = p.throughHole ? -1 : p.smdLayer;
+        if (p.corner > 0) j["corner"] = p.corner;
+        if (p.npth) j["npth"] = true;
         pads.push(j);
     }
     root["pads"] = pads;

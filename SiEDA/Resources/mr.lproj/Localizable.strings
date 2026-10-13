@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "नेट हायलाइट काढा";
 "Clear Comparison" = "तुलना काढा";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@ शी तुलना: हिरवे जोडले, लाल काढले, अंबर हलवले · काढण्यासाठी राइट-क्लिक";
+"Corner" = "कोपरा";
+"Corner radius as a share of the pad's short side" = "पॅडच्या लहान बाजूचा भाग म्हणून कोपऱ्याची त्रिज्या";
+"Non-plated hole (no copper)" = "प्लेटिंग नसलेले छिद्र (तांबे नाही)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "पॅडमध्ये 1 mm ग्रिडवर 0.3 mm प्लेटेड व्हाया, त्याच्या पिनवर";
+"Rounded" = "गोलाकार कोपरे";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "पॅडभोवती सोल्डर मास्क उघडण्याचा मार्जिन (बोर्ड डीफॉल्ट 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "मोठ्या थर्मल पॅडची पेस्ट खिडक्यांच्या ग्रिडमध्ये विभागा";
+"Stencil opening as a share of the pad's size" = "पॅडच्या आकाराचा भाग म्हणून स्टेन्सिल छिद्र";
+"Turn the selected pads 90° about their centre" = "निवडलेले पॅड त्यांच्या केंद्राभोवती 90° फिरवा";
+"Paste windows %lld×%lld" = "पेस्ट खिडक्या %lld×%lld";

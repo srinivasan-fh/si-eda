@@ -1519,3 +1519,13 @@
 "Clear Net Highlight" = "ನೆಟ್ ಹೈಲೈಟ್ ತೆರವುಗೊಳಿಸಿ";
 "Clear Comparison" = "ಹೋಲಿಕೆ ತೆರವುಗೊಳಿಸಿ";
 "Compared with %@: green added, red removed, amber moved · right-click to clear" = "%@ ಜೊತೆ ಹೋಲಿಕೆ: ಹಸಿರು ಸೇರಿಸಲಾಗಿದೆ, ಕೆಂಪು ತೆಗೆದುಹಾಕಲಾಗಿದೆ, ಅಂಬರ್ ಸರಿಸಲಾಗಿದೆ · ತೆರವುಗೊಳಿಸಲು ಬಲ-ಕ್ಲಿಕ್";
+"Corner" = "ಮೂಲೆ";
+"Corner radius as a share of the pad's short side" = "ಪ್ಯಾಡ್‌ನ ಚಿಕ್ಕ ಬದಿಯ ಭಾಗವಾಗಿ ಮೂಲೆಯ ತ್ರಿಜ್ಯ";
+"Non-plated hole (no copper)" = "ಲೇಪನವಿಲ್ಲದ ರಂಧ್ರ (ತಾಮ್ರವಿಲ್ಲ)";
+"Plated 0.3 mm vias on a 1 mm grid inside the pad, on its pin" = "ಪ್ಯಾಡ್ ಒಳಗೆ 1 mm ಗ್ರಿಡ್‌ನಲ್ಲಿ 0.3 mm ಲೇಪಿತ ವಯಾಗಳು, ಅದರ ಪಿನ್‌ನಲ್ಲಿ";
+"Rounded" = "ದುಂಡಾದ ಮೂಲೆ";
+"Solder mask opening margin around the pad (board default 0.05 mm)" = "ಪ್ಯಾಡ್ ಸುತ್ತ ಸೋಲ್ಡರ್ ಮಾಸ್ಕ್ ತೆರೆಯುವ ಅಂಚು (ಬೋರ್ಡ್ ಡೀಫಾಲ್ಟ್ 0.05 mm)";
+"Split a large thermal pad's paste into a grid of windows" = "ದೊಡ್ಡ ಥರ್ಮಲ್ ಪ್ಯಾಡ್‌ನ ಪೇಸ್ಟ್ ಅನ್ನು ಕಿಟಕಿಗಳ ಗ್ರಿಡ್ ಆಗಿ ವಿಭಜಿಸಿ";
+"Stencil opening as a share of the pad's size" = "ಪ್ಯಾಡ್ ಗಾತ್ರದ ಭಾಗವಾಗಿ ಸ್ಟೆನ್ಸಿಲ್ ತೆರೆಯುವಿಕೆ";
+"Turn the selected pads 90° about their centre" = "ಆಯ್ದ ಪ್ಯಾಡ್‌ಗಳನ್ನು ಅವುಗಳ ಕೇಂದ್ರದ ಸುತ್ತ 90° ತಿರುಗಿಸಿ";
+"Paste windows %lld×%lld" = "ಪೇಸ್ಟ್ ಕಿಟಕಿಗಳು %lld×%lld";

@@ -388,6 +388,12 @@ struct Pad {
     double drill = 0;
     bool bottom = false;  // SMD pad side
     int smdLayer = 0;     // copper layer of an SMD pad (0 = top, bottomLayer() for parts on the bottom side)
+    /// Footprint pad options (PadDef): rounded-rectangle corner ratio, non-plated hole (no copper: a hole of `drill`,
+    /// no net), mask margin (< 0 = 0.05 mm) and paste ratio (< 0 = automatic) in pasteGrid² windows.
+    double corner = 0;
+    bool npth = false;
+    double mask = -1, paste = -1;
+    int pasteGrid = 1;
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
     bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };

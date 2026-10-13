@@ -71,6 +71,19 @@ a check finding are outlined in red; selected pads in white.
 The footer shows the pad and pin counts and the number of errors. **Apply Footprint** is disabled while there are
 errors or no pads.
 
+## Pad options
+
+The pad panel also sets, per pad:
+
+- **Shape**: Rectangle, **Rounded** (corner radius as a share of the short side, 5–50 %; a rounded-rectangle aperture
+  macro in the Gerbers) or Circle / Oval.
+- **Non-plated hole** (a pad with a drill): no copper and no net; the hole goes in the NPTH drill file.
+- **Mask**: the solder mask opening margin (board default 0.05 mm), in the Gerbers, IPC-2581 and ODB++.
+- **Paste**: automatic (80 % per side on pads of 2.5 mm and more), none, or 50–100 % of the pad, split into up to
+  4 × 4 windows for a large thermal pad.
+- **Add Thermal Vias**: 0.3 mm plated vias on a 1 mm grid inside the pad, on its pin.
+- **Rotate** (toolbar): the selected pads turn 90° about their centre.
+
 ## How pads map to pins
 
 Pads are numbered 1…N in order. A pad connects to:
@@ -131,7 +144,8 @@ A land-pattern part is a normal custom-part spec. Its package carries the lands:
       [-3.81, -1.27, 1.6, 1.6, 0.8, 1],
       …,
       [0, 9, 3, 3, 2.2, 1, "-"],
-      [0, 0, 2, 2, 0, 0, "8"]
+      [0, 0, 2, 2, 0, 0, "8"],
+      [0, 4, 3, 3, 0, 0, "", {"corner": 0.25, "mask": 0.1, "paste": 0.6, "pasteGrid": 2}]
     ]
   }
 }
