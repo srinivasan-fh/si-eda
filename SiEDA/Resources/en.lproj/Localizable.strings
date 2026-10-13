@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: Refill Pours";
 "Canvas Key Preset" = "Canvas Key Preset";
 "Import Board Outline (DXF)…" = "Import Board Outline (DXF)…";
+"Revisions" = "Revisions";
+"Rev" = "Rev";
+"By" = "By";
+"Remove this revision" = "Remove this revision";
+"Add Revision" = "Add Revision";
+"Add a drawing dimension: drag from one point to the other" = "Add a drawing dimension: drag from one point to the other";
+"Delete Dimension" = "Delete Dimension";
+"Dimension — drag from one point to the other · Esc ends" = "Dimension — drag from one point to the other · Esc ends";

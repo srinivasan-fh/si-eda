@@ -174,6 +174,15 @@ Json boardJson(const BoardSettings& s) {
         }
         b["cutouts"] = cuts;
     }
+    if (!s.dimensions.empty()) {
+        Json dims = Json::array();
+        for (const auto& d : s.dimensions) {
+            Json j = Json::object();
+            j["a"] = vec(d.a), j["b"] = vec(d.b), j["offset"] = d.offset;
+            dims.push(j);
+        }
+        b["dimensions"] = dims;
+    }
     Json holes = Json::array();
     for (const auto& h : s.holes) {
         Json j = vec(h.position);
@@ -741,6 +750,15 @@ Json Project::toJson() const {
         tb["drawnBy"] = titleBlock.drawnBy;
         root["titleBlock"] = tb;
     }
+    if (!revisions.empty()) {
+        Json revs = Json::array();
+        for (const auto& r : revisions) {
+            Json j = Json::object();
+            j["rev"] = r.rev, j["date"] = r.date, j["description"] = r.description, j["by"] = r.by;
+            revs.push(j);
+        }
+        root["revisions"] = revs;
+    }
     if (!(pcbSync == currentSync())) {  // the board's baseline, only while an Update PCB is pending
         Json sync = Json::object();
         Json parts = Json::array();
@@ -892,6 +910,12 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             std::vector<Vec2> cut;
             for (const auto& v : c.items()) cut.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
             if (cut.size() >= 3 && cut.size() <= 4096) s.cutouts.push_back(std::move(cut));
+        }
+        for (const auto& d : b.get("dimensions").items()) {
+            const Vec2 a{d.get("a").get("x").asNumber(), d.get("a").get("y").asNumber()};
+            const Vec2 e{d.get("b").get("x").asNumber(), d.get("b").get("y").asNumber()};
+            const double off = d.get("offset").asNumber(3);
+            if (std::isfinite(a.x + a.y + e.x + e.y + off) && s.dimensions.size() < 1000) s.dimensions.push_back({a, e, off});
         }
         for (const auto& j : b.get("holes").items()) {
             MountingHole m;
@@ -1172,6 +1196,10 @@ Project Project::fromJson(const Json& root) {
             return v.size() > 256 ? v.substr(0, 256) : v;
         };
         p.titleBlock = {field("title"), field("company"), field("revision"), field("date"), field("drawnBy")};
+        for (const auto& r : root.get("revisions").items()) {
+            auto text = [&](const char* key) { return r.get(key).asString("").substr(0, 256); };
+            if (p.revisions.size() < 200) p.revisions.push_back({text("rev"), text("date"), text("description"), text("by")});
+        }
     }
     if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
     if (const Json& b = root.get("boards"); b.isObject()) {
@@ -1427,6 +1455,15 @@ Json Project::snapshot() const {
         tb["revision"] = titleBlock.revision;
         tb["date"] = titleBlock.date;
         tb["drawnBy"] = titleBlock.drawnBy;
+        if (!revisions.empty()) {
+            Json revs = Json::array();
+            for (const auto& r : revisions) {
+                Json j = Json::object();
+                j["rev"] = r.rev, j["date"] = r.date, j["description"] = r.description, j["by"] = r.by;
+                revs.push(j);
+            }
+            tb["revisions"] = revs;
+        }
         root["titleBlock"] = tb;
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));

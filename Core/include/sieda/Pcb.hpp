@@ -181,6 +181,13 @@ struct MountingHole {
     double keepout = 6.4;  // keep-out diameter, mm
 };
 
+/// A linear dimension on the fabrication drawing: the distance a → b in mm, its line `offset` mm off a → b along the
+/// normal (−dy, dx) — on screen (y down) to the right of a → b; negative: to the left.
+struct BoardDimension {
+    Vec2 a, b;
+    double offset = 3;
+};
+
 /// Production panel (Panel.hpp): nx × ny copies of the board between two rails with fiducials and tooling holes,
 /// separated by V-score lines or by routed gaps with breakaway tabs and mouse bites. 1 × 1 = no panel (not saved).
 struct PanelSettings {
@@ -294,6 +301,8 @@ struct BoardSettings {
     /// Board cutouts: closed shapes routed out of the board (mm, board coordinates). Copper, parts and pours keep the
     /// edge clearance from them as from the outline. JSON "cutouts", written only when present.
     std::vector<std::vector<Vec2>> cutouts;
+    /// Dimensions drawn on the fabrication drawing, the DXF and the board view. JSON "dimensions", written only when present.
+    std::vector<BoardDimension> dimensions;
     /// Calls `edge(a, b)` for every edge of the outline polygon and of the cutouts.
     template <class F>
     void forEachEdge(F&& edge) const {

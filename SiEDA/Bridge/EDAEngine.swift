@@ -1494,6 +1494,12 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeCutout(at index: Int) -> Bool { withHandle { sieda_pcb_remove_cutout($0, Int32(index)) } == 1 }
 
+    /// Replaces the board's drawing dimensions.
+    func setDimensions(_ dims: [BoardDimensionInfo]) -> Bool {
+        guard let data = try? JSONEncoder().encode(dims) else { return false }
+        return withHandle { sieda_pcb_set_dimensions($0, String(decoding: data, as: UTF8.self)) } == 1
+    }
+
     @discardableResult
     func removeZone(at index: Int) -> Bool { withHandle { sieda_pcb_remove_zone($0, Int32(index)) } == 1 }
 
@@ -1604,6 +1610,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case testPoints = "testpoints"
     case htmlBom = "html_bom"
     case bringUp = "bringup"
+    case fabDrawing = "fab_drawing"
+    case netLengths = "net_lengths"
 
     var id: String { rawValue }
 
@@ -1642,6 +1650,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .testPoints: return "test_points.csv"
         case .htmlBom: return "interactive_bom.html"
         case .bringUp: return "bring_up_checklist.md"
+        case .fabDrawing: return "fab_drawing.pdf"
+        case .netLengths: return "net_lengths.csv"
         }
     }
 
@@ -1680,6 +1690,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .testPoints: return "Test-Point Report for Fixtures (CSV)"
         case .htmlBom: return "Interactive BOM and Board Viewer (HTML)"
         case .bringUp: return "Bring-Up Checklist (Markdown)"
+        case .fabDrawing: return "Fabrication Drawing — Dimensions, Drill Map, Stack-up (PDF)"
+        case .netLengths: return "Net-Length Report (CSV)"
         }
     }
 }

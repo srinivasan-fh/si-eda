@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: పోర్‌లను మళ్లీ నింపు";
 "Canvas Key Preset" = "కాన్వాస్ కీ ప్రీసెట్";
 "Import Board Outline (DXF)…" = "బోర్డు ఆకృతిని దిగుమతి చేయి (DXF)…";
+"Revisions" = "సవరణలు";
+"Rev" = "సవ.";
+"By" = "ద్వారా";
+"Remove this revision" = "ఈ సవరణను తొలగించండి";
+"Add Revision" = "సవరణను జోడించండి";
+"Add a drawing dimension: drag from one point to the other" = "డ్రాయింగ్ కొలతను జోడించండి: ఒక బిందువు నుండి మరొకదానికి లాగండి";
+"Delete Dimension" = "కొలతను తొలగించండి";
+"Dimension — drag from one point to the other · Esc ends" = "కొలత — ఒక బిందువు నుండి మరొకదానికి లాగండి · Esc ముగిస్తుంది";

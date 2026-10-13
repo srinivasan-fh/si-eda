@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: Đổ lại đồng";
 "Canvas Key Preset" = "Bộ phím canvas định sẵn";
 "Import Board Outline (DXF)…" = "Nhập đường viền bo mạch (DXF)…";
+"Revisions" = "Các phiên bản";
+"Rev" = "PB";
+"By" = "Bởi";
+"Remove this revision" = "Xóa phiên bản này";
+"Add Revision" = "Thêm phiên bản";
+"Add a drawing dimension: drag from one point to the other" = "Thêm kích thước bản vẽ: kéo từ điểm này đến điểm kia";
+"Delete Dimension" = "Xóa kích thước";
+"Dimension — drag from one point to the other · Esc ends" = "Kích thước — kéo từ điểm này đến điểm kia · Esc kết thúc";

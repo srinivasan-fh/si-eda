@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: Flächen neu füllen";
 "Canvas Key Preset" = "Voreinstellung der Zeichenflächentasten";
 "Import Board Outline (DXF)…" = "Platinenumriss importieren (DXF)…";
+"Revisions" = "Revisionen";
+"Rev" = "Rev";
+"By" = "Von";
+"Remove this revision" = "Diese Revision entfernen";
+"Add Revision" = "Revision hinzufügen";
+"Add a drawing dimension: drag from one point to the other" = "Zeichnungsmaß hinzufügen: von einem Punkt zum anderen ziehen";
+"Delete Dimension" = "Maß löschen";
+"Dimension — drag from one point to the other · Esc ends" = "Maß — von einem Punkt zum anderen ziehen · Esc beendet";

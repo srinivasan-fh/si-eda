@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: Isi Semula Tuangan";
 "Canvas Key Preset" = "Pratetap Kekunci Kanvas";
 "Import Board Outline (DXF)…" = "Import Garis Luar Papan (DXF)…";
+"Revisions" = "Semakan";
+"Rev" = "Sem";
+"By" = "Oleh";
+"Remove this revision" = "Buang semakan ini";
+"Add Revision" = "Tambah Semakan";
+"Add a drawing dimension: drag from one point to the other" = "Tambah dimensi lukisan: seret dari satu titik ke titik lain";
+"Delete Dimension" = "Padam Dimensi";
+"Dimension — drag from one point to the other · Esc ends" = "Dimensi — seret dari satu titik ke titik lain · Esc tamat";

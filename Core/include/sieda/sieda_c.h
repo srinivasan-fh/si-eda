@@ -453,6 +453,9 @@ int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, 
 /* Board cutouts (closed shapes routed out of the board, inside the outline). add returns 1 on success. */
 int32_t sieda_pcb_add_cutout(SiedaProject* project, const char* points_json);
 int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index);
+/* The board's drawing dimensions, replaced: [{"a":{x,y},"b":{x,y},"offset":mm}] (board mm; offset along (−dy, dx),
+ * default 3); [] removes them. Drawn on the fabrication drawing, the DXF and the board view. 0 on bad input. */
+int32_t sieda_pcb_set_dimensions(SiedaProject* project, const char* json);
 void sieda_pcb_clear_zones(SiedaProject* project);
 /** Active tamper mesh (PCI PTS): serpentines of net_a (horizontal stripes, inner layer_a) and net_b (vertical
  * stripes, inner layer_b) laid over component `ref` plus margin_mm by the autorouter; each net joins exactly two pins
@@ -630,7 +633,8 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
  *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
  *         "review" (design review, Markdown), "dxf" (R12 DXF: outline, holes, drills, silk / fab, courtyards),
  *         "testpoints" (probe points per net, CSV), "html_bom" (interactive BOM and board viewer), "bringup"
- *         (bring-up checklist, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
+ *         (bring-up checklist, Markdown), "fab_drawing" (fabrication drawing PDF: outline, dimensions, drill map
+ *         and table, stack-up, notes, title block and revisions), "net_lengths" (routed length per net, CSV). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
  *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* sieda_export written to a file, plus "glb" (glTF 2.0 binary of the 3D assembly, in metres). 1 on success. */
@@ -853,8 +857,9 @@ int32_t sieda_schematic_replace(SiedaProject* project, const char* request_json)
 /* Net navigator: {"net","name","places":[{"component","pin","sheet","x","y","kind":"pin"|"label"|"global"|"port"|
  * "entry"|"bus"|"ground","ref","name"}]}, in sheet order. */
 char* sieda_net_places(const SiedaProject* project, int32_t net);
-/* Title block fields (any of "title","company","revision","date","drawnBy"; up to 256 characters each). The
- * snapshot carries "titleBlock" (title defaults to the project name). 1 on success. */
+/* Title block fields (any of "title","company","revision","date","drawnBy"; up to 256 characters each) and the
+ * revision table "revisions": [{"rev","date","description","by"}] (oldest first; replaces it, [] clears it). The
+ * snapshot carries "titleBlock" (title defaults to the project name, "revisions" when present). 1 on success. */
 int32_t sieda_set_title_block(SiedaProject* project, const char* json);
 
 /* ---- SPICE model import (docs/SIMULATION.md) -------------------------------------------------------------------- */

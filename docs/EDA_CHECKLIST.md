@@ -54,7 +54,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Wire draw / drag / reroute keeping connections | ✅ | straight-wire drag, wire-end moves, touching pins |
 | P0 | Junctions, buses, labels, power symbols, net names | ✅ | |
 | P0 | ➕ No-connect flags, off-page connectors, net ties | 🟡 | no-connects and global / hierarchical labels ✅; a net-tie symbol ⏳ |
-| P0 | ➕ Title blocks, revision tables, sheet numbers, text / graphics | 🟡 | sheet templates, notes, drawings ✅; revision table ⏳ |
+| P0 | ➕ Title blocks, revision tables, sheet numbers, text / graphics | ✅ | sheet templates, notes, drawings; revision table on the schematic PDF and the fabrication drawing |
 | P0 | Annotation and renumbering | ✅ | `Sheets.cpp` |
 | P0 | Multi-sheet, hierarchical and flat | ✅ | |
 | P0 | Multi-unit parts and pin types | ✅ | `PartUnits.cpp` |
@@ -205,11 +205,11 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
-| P0 | Fabrication drawing with drill table, dimensions, stack-up | 🟡 | stack-up, notes and drill chart ✅; a drawn drill map with symbols ⏳ |
+| P0 | Fabrication drawing with drill table, dimensions, stack-up | ✅ | `<name>-fab_drawing.pdf`: drill map with a symbol per size, drill table, dimensions, stack-up, notes |
 | P0 | Assembly drawing with designators, polarity, variants | ✅ | assembly SVG |
-| P0 | Dimension tools | ⏳ | |
-| P0 | Title blocks, revision tables, templates; PDF of drawings | 🟡 | schematic PDF ✅; board drawing PDF ⏳ |
-| P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | 🟡 | change report (diff) ✅; others ⏳ |
+| P0 | Dimension tools | ✅ | ruler tool in the PCB editor; on the drawing, the DXF and the board view |
+| P0 | Title blocks, revision tables, templates; PDF of drawings | ✅ | schematic PDF and the board's fabrication drawing PDF, both with the revision table |
+| P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | 🟡 | change report, layer legend, net-length and test-point reports ✅; customer templates ⏳ |
 | P2 | Interactive HTML BOM / board viewer | ✅ | `exportHtmlBom` (one offline file, in the package) |
 | P2 | 3D / exploded / section views in drawings | ⏳ | |
 | P3 | Controlled drawing release, PLM numbering | ⏳ | |
@@ -382,12 +382,12 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 
 ## Pending (bigger — one by one)
 
-1. Drawn drill map with drill symbols on the fabrication drawing (§10 P0)
+1. ~~Drawn drill map with drill symbols on the fabrication drawing (§10 P0)~~ ✅
 2. Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)
 3. KiCad project import: schematic + board (§17 P1), then EasyEDA / Eagle projects, LTspice schematics
 4. Netlist import (§17 P0)
-5. Dimension tools and a board drawing PDF with title block and revision table (§10 P0)
-6. Schematic revision table and net-tie symbol / footprint (§2 P0)
+5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅
+6. ~~Schematic revision table~~ ✅ and net-tie symbol / footprint (§2 P0)
 7. Board test-point object and logo / image import to silk or copper (§4 P0)
 8. User-defined documentation layers (§4 P0)
 9. Panel DRC (§6 P1)

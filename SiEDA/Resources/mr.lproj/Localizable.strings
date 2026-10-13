@@ -1682,3 +1682,11 @@
 "PCB: Refill Pours" = "PCB: पोर पुन्हा भरा";
 "Canvas Key Preset" = "कॅनव्हास की प्रीसेट";
 "Import Board Outline (DXF)…" = "बोर्ड बाह्यरेषा आयात करा (DXF)…";
+"Revisions" = "सुधारणा";
+"Rev" = "सुधा.";
+"By" = "द्वारे";
+"Remove this revision" = "हा सुधारणा काढा";
+"Add Revision" = "सुधारणा जोडा";
+"Add a drawing dimension: drag from one point to the other" = "रेखाचित्र मोजमाप जोडा: एका बिंदूपासून दुसऱ्यापर्यंत ओढा";
+"Delete Dimension" = "मोजमाप हटवा";
+"Dimension — drag from one point to the other · Esc ends" = "मोजमाप — एका बिंदूपासून दुसऱ्यापर्यंत ओढा · Esc समाप्त";

@@ -1704,6 +1704,26 @@ int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index) {
     return 1;
 }
 
+int32_t sieda_pcb_set_dimensions(SiedaProject* project, const char* json) {
+    if (!project || !json) return 0;
+    try {
+        const Json j = Json::parse(json);
+        if (!j.isArray()) return 0;
+        std::vector<BoardDimension> dims;
+        for (const auto& d : j.items()) {
+            const Vec2 a{d.get("a").get("x").asNumber(NAN), d.get("a").get("y").asNumber(NAN)};
+            const Vec2 b{d.get("b").get("x").asNumber(NAN), d.get("b").get("y").asNumber(NAN)};
+            const double off = d.get("offset").asNumber(3);
+            if (!std::isfinite(a.x + a.y + b.x + b.y + off) || (b - a).length() < 1e-6 || dims.size() >= 1000) return 0;
+            dims.push_back({a, b, off});
+        }
+        project->project.pcb.settings.dimensions = std::move(dims);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
 }
@@ -1799,6 +1819,8 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "testpoints") return dup(exportTestPointReport(p.schematic, p.pcb));
         if (f == "html_bom") return dup(exportHtmlBom(p));
         if (f == "bringup") return dup(bringUpChecklist(p));
+        if (f == "fab_drawing") return dup(exportBoardDrawingPdf(p));
+        if (f == "net_lengths") return dup(exportNetLengthReport(p.schematic, p.pcb));
         return nullptr;
     } catch (...) {
         return nullptr;
@@ -3033,6 +3055,14 @@ int32_t sieda_set_title_block(SiedaProject* project, const char* json) {
         set("revision", tb.revision);
         set("date", tb.date);
         set("drawnBy", tb.drawnBy);
+        if (j.get("revisions").isArray()) {  // the whole revision table, oldest first
+            auto& revs = project->project.revisions;
+            revs.clear();
+            for (const auto& r : j.get("revisions").items()) {
+                auto text = [&](const char* key) { return r.get(key).asString("").substr(0, 256); };
+                if (r.isObject() && revs.size() < 200) revs.push_back({text("rev"), text("date"), text("description"), text("by")});
+            }
+        }
         return 1;
     } catch (...) {
         return 0;
