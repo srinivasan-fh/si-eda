@@ -681,18 +681,17 @@ Json placeDecoupling(SiedaProject* p) {
         const int net = n1 >= 0 && sch.netRole(n1) == NetRole::Ground && n0 >= 0 && sch.netRole(n0) == NetRole::Signal ? n0
                         : n0 >= 0 && sch.netRole(n0) == NetRole::Ground && n1 >= 0 && sch.netRole(n1) == NetRole::Signal ? n1 : -1;
         if (net < 0) continue;
-        const Pad* pin = nullptr;
+        Pad pin;
         int ics = 0;
         for (const auto& pad : p->project.pcb.pads(sch)) {
             const Component* o = sch.find(pad.componentId);
             if (pad.net != net || !o || o->id == c.id) continue;
             if (o->ref.size() > 1 && o->ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(o->ref[1]))) ics = 99;  // a load cap
-            if (o->def().pins.size() >= 3 && ++ics == 1) pin = &pad;
+            if (o->def().pins.size() >= 3 && ++ics == 1) pin = pad;
         }
-        if (ics != 1 || (sch.find(c.id)->pcb.position - pin->position).length() <= 3) continue;
-        const Vec2 at = pin->position;
-        const std::string label = pinLabel(*p, {pin->componentId, pin->pinIndex});
-        if (nearest(c.id, at, 1.5, 9)) moved.push(c.ref + " → " + label);
+        if (ics != 1 || (sch.find(c.id)->pcb.position - pin.position).length() <= 3) continue;
+        const std::string label = pinLabel(*p, {pin.componentId, pin.pinIndex});
+        if (nearest(c.id, pin.position, 1.5, 9)) moved.push(c.ref + " → " + label);
     }
     return moved;
 }
