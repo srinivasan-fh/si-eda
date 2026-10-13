@@ -106,7 +106,7 @@ Json model3dToJson(const std::string& id, const Model3DMesh& mesh);
 /// Reads and registers a mesh saved by model3dToJson (checked like a file); returns its id.
 std::string model3dFromJson(const Json& j);
 /// The meshes the given custom parts refer to, for the project file.
-Json models3dForParts(const std::vector<std::string>& customPartIds);
+Json models3dForParts(const std::vector<std::string>& customPartIds, const std::string& extraModel = {});
 /// Registers every mesh of a project's "models3d" array (bad entries are skipped).
 void registerModels3d(const Json& models);
 

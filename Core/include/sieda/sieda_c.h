@@ -340,7 +340,8 @@ char* sieda_pcb_route_report(const SiedaProject* project);
 char* sieda_pcb_keepouts(const SiedaProject* project);
 int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json);
 /* Enclosure limits for the 3D clearance DRC (MECH_HEIGHT, MECH_HEIGHT_ZONE; MECH_BODY_COLLISION is always on):
- * {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}]} (mm, 0 = no limit).
+ * {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}],"enclosure"} (mm,
+ * 0 = no limit; "enclosure" = a sieda_model3d_import id in the MCAD frame, checked as MECH_ENCLOSURE).
  * The getter returns {} without limits. Set returns 1 on success. */
 char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
@@ -600,12 +601,14 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
- *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
+ *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj", "vrml" (VRML 2.0, metres),
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn), "idx" (ProSTEP EDMD / IDX v4.5 baseline),
  *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
  *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
  *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
+/* sieda_export written to a file, plus "glb" (glTF 2.0 binary of the 3D assembly, in metres). 1 on success. */
+int32_t sieda_export_file(const SiedaProject* project, const char* format, const char* path);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],
  * "summary":{lines, placements, dnp, missingMpn, unpriced, costPerBoard}, "buildQuantity", "orderCost"}. */
@@ -729,6 +732,9 @@ char* sieda_review_command(SiedaProject* project, const char* request_json);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);
+/* sieda_mesh_build with options_json {"components": bool, "hidden": [component id], "standoffs": mm (hex standoffs and
+ * screws at the mounting holes), "enclosure": bool (the enclosure model, see-through)}; hidden parts are left out. */
+SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* options_json);
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);

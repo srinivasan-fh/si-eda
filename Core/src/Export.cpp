@@ -814,4 +814,64 @@ std::string exportObj(const Mesh& mesh, const std::string& name) {
     return o.str();
 }
 
+std::string exportGltf(const Mesh& mesh, const std::string& name) {
+    const size_t nv = mesh.vertexCount(), ni = mesh.indices.size();
+    if (nv == 0 || ni == 0) return {};
+    std::string bin;
+    auto put = [&](const void* p, size_t n) { bin.append(static_cast<const char*>(p), n); };
+    put(mesh.positions.data(), nv * 12), put(mesh.normals.data(), nv * 12), put(mesh.colors.data(), nv * 16);
+    put(mesh.indices.data(), ni * 4);
+    double lo[3] = {1e30, 1e30, 1e30}, hi[3] = {-1e30, -1e30, -1e30};
+    for (size_t i = 0; i < nv * 3; ++i) lo[i % 3] = std::min(lo[i % 3], double(mesh.positions[i])), hi[i % 3] = std::max(hi[i % 3], double(mesh.positions[i]));
+    // glTF 2.0 binary: one mesh with vertex colours, in metres (the mesh is in mm, Y up).
+    std::string safe = name.empty() ? std::string("board") : name.substr(0, 200);
+    for (char& ch : safe)
+        if (ch == '"' || ch == '\\' || static_cast<unsigned char>(ch) < 0x20) ch = '_';
+    char json[2048];
+    std::snprintf(json, sizeof json,
+        R"({"asset":{"version":"2.0","generator":"SiEDA"},"scene":0,"scenes":[{"nodes":[0]}],)"
+        R"("nodes":[{"name":"%s","mesh":0,"scale":[0.001,0.001,0.001]}],)"
+        R"("meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"COLOR_0":2},"indices":3,"material":0}]}],)"
+        R"("materials":[{"pbrMetallicRoughness":{"metallicFactor":0.1,"roughnessFactor":0.6},"doubleSided":true}],)"
+        R"("buffers":[{"byteLength":%zu}],"bufferViews":[{"buffer":0,"byteLength":%zu},{"buffer":0,"byteOffset":%zu,"byteLength":%zu},)"
+        R"({"buffer":0,"byteOffset":%zu,"byteLength":%zu},{"buffer":0,"byteOffset":%zu,"byteLength":%zu}],)"
+        R"("accessors":[{"bufferView":0,"componentType":5126,"count":%zu,"type":"VEC3","min":[%g,%g,%g],"max":[%g,%g,%g]},)"
+        R"({"bufferView":1,"componentType":5126,"count":%zu,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":%zu,"type":"VEC4"},)"
+        R"({"bufferView":3,"componentType":5125,"count":%zu,"type":"SCALAR"}]})",
+        safe.c_str(),
+        bin.size(), nv * 12, nv * 12, nv * 12, nv * 24, nv * 16, nv * 40, ni * 4, nv, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2],
+        nv, nv, ni);
+    std::string j = json;
+    while (j.size() % 4) j += ' ';
+    std::string out = "glTF";
+    auto u32 = [&](size_t v) { for (int k = 0; k < 4; ++k) out += static_cast<char>((v >> (8 * k)) & 0xFF); };
+    u32(2), u32(12 + 8 + j.size() + 8 + bin.size());
+    u32(j.size()), out += "JSON", out += j;
+    u32(bin.size()), out += std::string("BIN\0", 4), out += bin;
+    return out;
+}
+
+std::string exportVrml(const Mesh& mesh, const std::string& name) {
+    std::ostringstream o;
+    char buf[200];
+    // VRML 2.0 in metres (the mesh is in mm), vertex colours, one indexed face set.
+    o << "#VRML V2.0 utf8\n# SiEDA 3D export: " << name << "\nTransform { scale 0.001 0.001 0.001 children [\n"
+      << "Shape { appearance Appearance { material Material { diffuseColor 1 1 1 } }\n"
+      << "geometry IndexedFaceSet { solid FALSE colorPerVertex TRUE\ncoord Coordinate { point [\n";
+    for (size_t i = 0; i < mesh.vertexCount(); ++i) {
+        std::snprintf(buf, sizeof buf, "%g %g %g,\n", mesh.positions[i * 3], mesh.positions[i * 3 + 1], mesh.positions[i * 3 + 2]);
+        o << buf;
+    }
+    o << "] }\ncolor Color { color [\n";
+    for (size_t i = 0; i < mesh.vertexCount(); ++i) {
+        std::snprintf(buf, sizeof buf, "%.3f %.3f %.3f,\n", mesh.colors[i * 4], mesh.colors[i * 4 + 1], mesh.colors[i * 4 + 2]);
+        o << buf;
+    }
+    o << "] }\ncoordIndex [\n";
+    for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
+        o << mesh.indices[t] << ' ' << mesh.indices[t + 1] << ' ' << mesh.indices[t + 2] << " -1,\n";
+    o << "] } }\n] }\n";
+    return o.str();
+}
+
 }  // namespace sieda

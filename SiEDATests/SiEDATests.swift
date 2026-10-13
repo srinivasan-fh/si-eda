@@ -6549,6 +6549,26 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertGreaterThan(rule.target, 10)
     }
 
+    func testEnclosureStandoffsAnd3DExports() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        // A lid 50 mm above the board: shown see-through in the mesh, saved in the mechanical limits.
+        let stl = "solid lid\nfacet normal 0 0 1\nouter loop\nvertex 0 0 50\nvertex 10 0 50\nvertex 0 -10 50\nendloop\nendfacet\nendsolid lid\n"
+        let id = try XCTUnwrap(EDAEngine.importModel3D(name: "lid.stl", data: Data(stl.utf8)).id)
+        XCTAssertTrue(store.engine.setEnclosureModel(id))
+        XCTAssertEqual(store.engine.enclosureModel(), id)
+        let plain = try XCTUnwrap(store.engine.buildMesh(includeComponents: true))
+        let shown = try XCTUnwrap(store.engine.buildMesh(includeComponents: true, standoffs: 6, enclosure: true))
+        XCTAssertGreaterThan(shown.vertexCount, plain.vertexCount)
+        XCTAssertTrue(store.engine.setEnclosureModel(""))
+        XCTAssertEqual(store.engine.enclosureModel(), "")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-test.glb")
+        XCTAssertTrue(store.engine.exportFile("glb", to: url.path))
+        XCTAssertEqual(try Data(contentsOf: url).prefix(4), Data("glTF".utf8))
+        try? FileManager.default.removeItem(at: url)
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

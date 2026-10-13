@@ -265,6 +265,8 @@ struct BoardSettings {
     /// height zones. Saved only when set.
     double maxHeightTop = 0, maxHeightBottom = 0;
     std::vector<HeightZone> heightZones;
+    /// Enclosure model (Model3DRegistry id; mm in the MCAD frame of Mechanical.hpp) the parts must clear.
+    std::string enclosure;
     /// Production panel for the fabrication package (saved only when it has more than one board).
     PanelSettings panel;
     /// Manufacturer DFM / DFA rule pack (Dfm.hpp) the DRC checks against; empty = none (not saved).

@@ -76,7 +76,8 @@
   `parseStep`: Part 21 parser, B-rep faces triangulated in their surface's parameters with seams unwrapped so shells
   stay closed, assembly placements, units, colours; B-spline / unknown surfaces use their boundary and are counted in
   `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
-  mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. Tests:
+  mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. The 3D view's tools (camera presets, layers, hide / isolate =
+  `MeshOptions::hidden`, explode, section cut, measure, click to cross-probe) are in `SiEDA/Views/ThreeD/Board3DView.swift`. Tests:
   `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),
   `model3d_step_reader_solids_units_colours_assembly`; the STEP reader is in the `library` fuzz target. Generated bodies in
   `Core/src/Mesh.cpp` take the shape people know (`lookOf` / `drawLook`: USB-C / micro / A shells with a mouth, tact switch,
@@ -160,7 +161,10 @@
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
-  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
+  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits,
+  MECH_ENCLOSURE against `BoardSettings::enclosure` (a Model3DRegistry id in the MCAD frame, in the "mechanical" JSON,
+  its mesh saved in `models3d`), MECH_CONNECTOR_ACCESS info via `openEnd`); glTF / VRML exports (`exportGltf`,
+  `exportVrml`, `sieda_export_file`), MCP `render_3d` (`render3dPng`, a z-buffer rasteriser in `McpRender.cpp`);
   IDX / EDMD v4.5 baseline (with keep-outs / height zones), change file, import of placement, outline, thickness and
   keep-outs (`exportIdx`, `exportIdxChanges`, `importIdx`, `importIdxPlacement`), accept / reject `idxResponse`,
   namespace-agnostic XML reader, fuzzed in the `idf` target);

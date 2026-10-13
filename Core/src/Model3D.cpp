@@ -2219,9 +2219,11 @@ void Model3DRegistry::addAlias(const std::string& alias, const std::string& id) 
     if (it != meshes_.end() && !meshes_.count(alias)) meshes_[alias] = it->second;
 }
 
-Json models3dForParts(const std::vector<std::string>& customPartIds) {
+Json models3dForParts(const std::vector<std::string>& customPartIds, const std::string& extraModel) {
     Json out = Json::array();
     std::set<std::string> done;
+    if (auto mesh = extraModel.empty() ? nullptr : Model3DRegistry::instance().get(extraModel))
+        out.push(model3dToJson(extraModel, *mesh)), done.insert(extraModel);
     for (const auto& pid : customPartIds) {
         const CustomPart* part = CustomPartRegistry::instance().find(pid);
         if (!part || part->spec.model3d.empty() || !done.insert(part->spec.model3d.id).second) continue;

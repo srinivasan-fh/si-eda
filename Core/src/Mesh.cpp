@@ -597,12 +597,29 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         const double ring = std::max(h.drill / 2 + 0.3, std::min(h.keepout / 2, h.drill));
         m.addCylinder({h.position.x, 0.0, h.position.y}, ring, cu, gold, 32);
         if (layers > 1) m.addCylinder({h.position.x, -t - cu, h.position.y}, ring, cu, gold, 32);
+        if (opt.standoffs > 0) {  // brass hex standoff (six-sided cylinder) below, steel pan-head screw above
+            m.surface = Surface::Gold;
+            m.addCylinder({h.position.x, -t - cu - opt.standoffs, h.position.y}, h.drill, opt.standoffs, {0.78f, 0.62f, 0.32f, 1}, 6);
+            m.surface = Surface::Tin;
+            m.addCylinder({h.position.x, cu, h.position.y}, h.drill * 0.9, h.drill * 0.6, {0.55f, 0.56f, 0.58f, 1}, 24);
+        }
+    }
+    if (opt.enclosure && !s.enclosure.empty()) {  // MCAD frame (underside at Z = 0, Y = -board y), see-through
+        const size_t first = m.vertexCount();
+        Model3DRef ref;
+        ref.id = s.enclosure;
+        if (appendModel3D(m, ref, PcbPlacement{}, -t, -t))
+            for (size_t v = first; v < m.vertexCount(); ++v) {
+                m.surfaces[v] = static_cast<uint8_t>(Surface::Glass);
+                const float grey[4] = {0.80f, 0.82f, 0.86f, 0.25f};
+                std::copy(grey, grey + 4, m.colors.begin() + static_cast<std::ptrdiff_t>(v * 4));
+            }
     }
 
     auto ps = pcb.pads(sch);
     // Which components are drawn (their pads carry solder joints; bare pads show the copper finish).
     auto populated = [&](int componentId) {
-        if (!opt.components) return false;
+        if (!opt.components || opt.hidden.count(componentId)) return false;
         const Component* c = sch.find(componentId);
         return c && c->hasFootprint() && c->pcb.placed && !embeddedElement(*c, s);
     };
@@ -728,7 +745,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
 
     if (opt.components) {
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s)) continue;  // embedded: inside the board
+            if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s) || opt.hidden.count(c.id)) continue;  // embedded: inside the board
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (!fp) continue;
             // An imported 3D model (VRML / STL / OBJ) replaces the generated body, leads and pins.

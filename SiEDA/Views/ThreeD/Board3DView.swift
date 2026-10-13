@@ -21,8 +21,28 @@ struct Board3DWorkspace: View {
     @State private var resetCamera = 0
     @State private var stats = ""
     @State private var xray = XRaySettings()
+    @State private var look = AssemblyLook()
+    @State private var camera: CameraCommand?
+    @State private var measuring = false
+    @State private var measured: [SCNVector3] = []
+    @State private var picked: Int?
 
     private var mode: Mode { Mode(rawValue: modeRaw) ?? .assembly }
+
+    private static let surfaceToggles: [(title: String, surface: MeshSurface)] = [
+        ("Solder Mask", .mask), ("Silkscreen", .silk), ("Copper Finish", .finish), ("Solder", .solder), ("Markings", .marking),
+    ]
+
+    /// A parts / layer / cut setting of the assembly view.
+    struct AssemblyLook: Equatable {
+        var hiddenSurfaces: Set<MeshSurface> = []
+        var hiddenParts: Set<Int> = []
+        var explode = 0.0       // 0…1: parts lifted up to 8 mm off the board
+        var section: Double?    // cut plane across the board's width (0…1), nil = whole board
+        var standoffs = false   // hex standoffs and screws at the mounting holes
+        var enclosure = true    // the loaded enclosure, see-through
+        var clashes = true      // parts the 3D clearance DRC flags, boxed in red
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +70,7 @@ struct Board3DWorkspace: View {
                         .help("Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; "
                               + "4 and 6 layers show their inner copper on the board edge")
                     Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
+                    assemblyTools
                 }
                 Spacer()
                 Button { resetCamera += 1 } label: { Label("Reset View", systemImage: "camera.metering.center.weighted") }
@@ -80,7 +101,9 @@ struct Board3DWorkspace: View {
                 } else {
                     BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: showComponents,
                                    board: store.snapshot.board, resetToken: resetCamera,
-                                   finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats)
+                                   finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats,
+                                   look: look, camera: camera, clashes: clashBodies, onClick: clicked)
+                    pickInfo.padding(12)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -124,6 +147,119 @@ struct Board3DWorkspace: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
+    }
+
+    /// Views, layers, explode, cut, measure and part visibility of the assembly view.
+    private var assemblyTools: some View {
+        HStack(spacing: 8) {
+            Menu {
+                ForEach(ViewPreset.allCases) { preset in
+                    Button(LocalizedStringKey(preset.title)) { camera = CameraCommand(.preset(preset)) }
+                }
+                Divider()
+                Button("Focus Selection") {
+                    if let id = store.selection.first, let c = store.snapshot.component(id) {
+                        camera = CameraCommand(.focus(CGPoint(x: c.pcb.x, y: c.pcb.y)))
+                    }
+                }
+                .disabled(store.selection.isEmpty)
+                Button("Save View") { camera = CameraCommand(.save) }
+                Button("Restore Saved View") { camera = CameraCommand(.restore) }
+            } label: { Label("View", systemImage: "camera") }
+                .fixedSize()
+                .help("Top, bottom (flip), front, back, side and isometric views; focus the selected part; save a view")
+            Menu {
+                ForEach(Self.surfaceToggles, id: \.surface) { item in
+                    Toggle(LocalizedStringKey(item.title), isOn: Binding(get: { !look.hiddenSurfaces.contains(item.surface) }, set: { on in
+                        if on { look.hiddenSurfaces.remove(item.surface) } else { look.hiddenSurfaces.insert(item.surface) }
+                    }))
+                }
+                Divider()
+                Button("Hide Selected Parts") { look.hiddenParts.formUnion(store.selection) }
+                    .disabled(store.selection.isEmpty)
+                Button("Isolate Selected Parts") {
+                    look.hiddenParts = Set(store.snapshot.components.map(\.id)).subtracting(store.selection)
+                }
+                .disabled(store.selection.isEmpty)
+                Button("Show All Parts") { look.hiddenParts = [] }
+                    .disabled(look.hiddenParts.isEmpty)
+                Divider()
+                Toggle("Standoffs and Screws", isOn: $look.standoffs)
+                Toggle("Enclosure", isOn: $look.enclosure)
+                Toggle("Show Clashes", isOn: $look.clashes)
+            } label: { Label("Layers", systemImage: "square.3.layers.3d") }
+                .fixedSize()
+            Menu {
+                Button("Check 3D Clearances") { store.runDRC() }
+                Button("Load Enclosure…") { store.loadEnclosure() }
+                Button("Remove Enclosure") { store.removeEnclosure() }
+                Divider()
+                Button("Save Image…") { if let url = Self.saveURL("board.png") { camera = CameraCommand(.saveImage(url)) } }
+                Button("Export USDZ…") { if let url = Self.saveURL("board.usdz") { camera = CameraCommand(.saveUSDZ(url)) } }
+                Button("Export glTF (.glb)…") { Task { await store.export(.glb) } }
+                Button("Export VRML…") { Task { await store.export(.vrml) } }
+            } label: { Label("Mechanical", systemImage: "shippingbox") }
+                .fixedSize()
+                .help("Clearance check (collisions, heights, enclosure, connector access), enclosure model and 3D exports")
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.square").foregroundStyle(Theme.skyBlue)
+                Slider(value: $look.explode, in: 0...1).frame(width: 70)
+            }
+            .help("Explode: lift the parts off the board")
+            Toggle("Cut", isOn: Binding(get: { look.section != nil }, set: { look.section = $0 ? 0.5 : nil }))
+                .toggleStyle(.switch).controlSize(.mini)
+                .help("Section view: cut the board across its width")
+            if let section = look.section {
+                Slider(value: Binding(get: { section }, set: { look.section = $0 }), in: 0...1).frame(width: 70)
+            }
+            Toggle("Measure", isOn: $measuring).toggleStyle(.switch).controlSize(.mini)
+                .help("Click two points on the model to measure the distance between them")
+                .onChange(of: measuring) { _, _ in measured = [] }
+        }
+    }
+
+    /// Picked part (click) or the measured distance.
+    @ViewBuilder private var pickInfo: some View {
+        if measuring {
+            let text = measured.count == 2
+                ? String(format: "%.2f mm  (dx %.2f · dy %.2f · dz %.2f)", Self.distance(measured[0], measured[1]),
+                         abs(measured[1].x - measured[0].x), abs(measured[1].z - measured[0].z), abs(measured[1].y - measured[0].y))
+                : String(localized: "Click two points to measure")
+            Label(text, systemImage: "ruler").font(.caption.monospacedDigit()).padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.8)))
+        } else if let id = picked, let c = store.snapshot.component(id) {
+            let height = store.snapshot.bodies.first { $0.component == id }.map { String(format: " · %.2f mm", $0.h) } ?? ""
+            Label("\(c.ref) · \(c.value) · \(c.pcb.bottom ? "bottom" : "top")\(height)", systemImage: "cpu").font(.caption).padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.8)))
+        }
+    }
+
+    /// Bodies of the parts the last DRC flagged in 3D (collision, height, enclosure).
+    private var clashBodies: [SnapBody] {
+        guard look.clashes else { return [] }
+        let ids = Set(store.drcResults.filter { $0.code.hasPrefix("MECH_") && $0.severity != .info }.flatMap(\.components))
+        return store.snapshot.bodies.filter { ids.contains($0.component) }
+    }
+
+    static func saveURL(_ name: String) -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    static func distance(_ a: SCNVector3, _ b: SCNVector3) -> Double {
+        let dx = Double(a.x - b.x), dy = Double(a.y - b.y), dz = Double(a.z - b.z)
+        return (dx * dx + dy * dy + dz * dz).squareRoot()
+    }
+
+    /// A click on the model: a measure point, or the part under it (selected, so the editors cross-probe to it).
+    private func clicked(_ world: SCNVector3, _ boardPoint: CGPoint) {
+        if measuring {
+            measured = measured.count >= 2 ? [world] : measured + [world]
+            return
+        }
+        picked = store.snapshot.courtyards.last { $0.rect.contains(boardPoint) && !look.hiddenParts.contains($0.component) }?.component
+        store.select(component: picked)
     }
 
     /// SceneKit camera controls are invisible by default; spell them out.
@@ -193,6 +329,36 @@ struct Board3DWorkspace: View {
     }
 }
 
+/// Camera views of the 3D assembly.
+enum ViewPreset: String, CaseIterable, Identifiable {
+    case top, bottom, front, back, left, right, iso
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .top: return "Top"
+        case .bottom: return "Bottom (Flip)"
+        case .front: return "Front"
+        case .back: return "Back"
+        case .left: return "Left"
+        case .right: return "Right"
+        case .iso: return "Isometric"
+        }
+    }
+}
+
+/// A one-shot camera request to the 3D view (a new id runs it once).
+struct CameraCommand: Equatable {
+    enum Action: Equatable {
+        case preset(ViewPreset)
+        case focus(CGPoint)  // board millimetres
+        case save, restore
+        case saveImage(URL), saveUSDZ(URL)
+    }
+    let id = UUID()
+    let action: Action
+    init(_ action: Action) { self.action = action }
+}
+
 /// Surface finish of the exposed copper (pads, via lands, plated rings), as ordered from the fab.
 enum BoardFinish: String, CaseIterable, Identifiable {
     case enig, hasl, osp
@@ -225,15 +391,36 @@ struct BoardSceneView: NSViewRepresentable {
     let resetToken: Int
     var finish: BoardFinish = .enig
     @Binding var stats: String
+    var look = Board3DWorkspace.AssemblyLook()
+    var camera: CameraCommand?
+    var clashes: [SnapBody] = []
+    var onClick: (SCNVector3, CGPoint) -> Void = { _, _ in }
 
-    final class Coordinator {
+    final class Coordinator: NSObject {
         var lastRevision = -1
         var lastComponents = true
         var lastFinish: BoardFinish?
         var lastReset = 0
+        var lastMesh: [String] = []
+        var lastClashes: [SnapBody] = []
+        let clashNode = SCNNode()
+        var lastCamera: UUID?
+        var saved: (SCNVector3, SCNQuaternion)?
         let boardNode = SCNNode()
         let cameraNode = SCNNode()
         let floorNode = SCNNode()
+        weak var view: SCNView?
+        var board = BoardInfo()
+        var onClick: (SCNVector3, CGPoint) -> Void = { _, _ in }
+
+        @objc func clicked(_ recognizer: NSClickGestureRecognizer) {
+            guard let view else { return }
+            let options: [SCNHitTestOption: Any] = [.searchMode: SCNHitTestSearchMode.closest.rawValue]
+            guard let hit = view.hitTest(recognizer.location(in: view), options: options).first else { return }
+            let w = hit.worldCoordinates
+            // The board node is centred on the origin: board mm = world + half the board.
+            onClick(w, CGPoint(x: Double(w.x) + board.width / 2, y: Double(w.z) + board.height / 2))
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -314,15 +501,22 @@ struct BoardSceneView: NSViewRepresentable {
         scene.rootNode.addChildNode(context.coordinator.floorNode)
 
         scene.rootNode.addChildNode(context.coordinator.boardNode)
+        scene.rootNode.addChildNode(context.coordinator.clashNode)
+        context.coordinator.view = view
+        view.addGestureRecognizer(NSClickGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.clicked(_:))))
         return view
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
         let c = context.coordinator
-        if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish {
+        c.board = board
+        c.onClick = onClick
+        let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)"]
+        if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish || c.lastMesh != meshKey {
             c.lastRevision = revision
             c.lastComponents = includeComponents
             c.lastFinish = finish
+            c.lastMesh = meshKey
             rebuild(c)
             if c.lastReset == 0 { placeCamera(c, view: view) }
         }
@@ -330,13 +524,115 @@ struct BoardSceneView: NSViewRepresentable {
             c.lastReset = resetToken
             placeCamera(c, view: view)
         }
+        applyLook(c)
+        if c.lastClashes != clashes {
+            c.lastClashes = clashes
+            showClashes(c)
+        }
+        if let camera, camera.id != c.lastCamera {
+            c.lastCamera = camera.id
+            run(camera.action, c, view: view)
+        }
+    }
+
+    /// Surfaces hidden or shown, parts lifted (explode) and the section cut, without rebuilding the mesh.
+    private func applyLook(_ c: Coordinator) {
+        let partSurfaces: Set<String> = ["plastic", "ceramic", "glass", "marking", "tin", "gold"]
+        let cut = look.section.map { CGFloat(($0 - 0.5) * board.width) }
+        c.boardNode.enumerateChildNodes { node, _ in
+            guard let name = node.name, name.hasPrefix("surface.") else { return }
+            let surface = String(name.dropFirst("surface.".count))
+            node.isHidden = look.hiddenSurfaces.contains { "\($0)" == surface }
+            node.position.y = partSurfaces.contains(surface) ? CGFloat(look.explode * 8) : 0
+            for m in node.geometry?.materials ?? [] {
+                if let cut {
+                    if m.shaderModifiers == nil { m.shaderModifiers = [.fragment: Self.sectionShader] }
+                    m.setValue(NSNumber(value: Double(cut)), forKey: "sectionX")
+                } else if m.shaderModifiers != nil {
+                    m.shaderModifiers = nil
+                }
+            }
+        }
+    }
+
+    /// Red see-through boxes round the bodies the 3D clearance DRC flagged.
+    private func showClashes(_ c: Coordinator) {
+        c.clashNode.childNodes.forEach { $0.removeFromParentNode() }
+        let material = SCNMaterial()
+        material.diffuse.contents = NSColor.systemRed.withAlphaComponent(0.4)
+        material.emission.contents = NSColor.systemRed.withAlphaComponent(0.3)
+        material.isDoubleSided = true
+        for b in c.lastClashes {
+            let box = SCNBox(width: CGFloat(b.w) + 0.2, height: CGFloat(b.h) + 0.2, length: CGFloat(b.d) + 0.2, chamferRadius: 0)
+            box.materials = [material]
+            let node = SCNNode(geometry: box)
+            let y = b.bottom ? -board.thickness - b.h / 2 : b.h / 2
+            node.position = SCNVector3(CGFloat(b.x - board.width / 2), CGFloat(y), CGFloat(b.y - board.height / 2))
+            c.clashNode.addChildNode(node)
+        }
+    }
+
+    /// Section cut: fragments beyond world x = sectionX are not drawn.
+    static let sectionShader = """
+    #pragma arguments
+    float sectionX;
+    #pragma body
+    float4 world = scn_frame.inverseViewTransform * float4(_surface.position, 1.0);
+    if (world.x > sectionX) { discard_fragment(); }
+    """
+
+    private func run(_ action: CameraCommand.Action, _ c: Coordinator, view: SCNView) {
+        let span = CGFloat(max(board.width, board.height))
+        var target = SCNVector3(0, 0, 0)
+        switch action {
+        case .preset(let preset):
+            let d = span * 1.6
+            var position = SCNVector3(d * 0.6, d * 0.6, d * 0.6), up = SCNVector3(0, 1, 0)
+            switch preset {
+            case .top: position = SCNVector3(0, d, 0.001); up = SCNVector3(0, 0, -1)
+            case .bottom: position = SCNVector3(0, -d, 0.001); up = SCNVector3(0, 0, 1)
+            case .front: position = SCNVector3(0, 0.15 * d, d)
+            case .back: position = SCNVector3(0, 0.15 * d, -d)
+            case .left: position = SCNVector3(-d, 0.15 * d, 0)
+            case .right: position = SCNVector3(d, 0.15 * d, 0)
+            case .iso: break
+            }
+            c.cameraNode.position = position
+            c.cameraNode.look(at: target, up: up, localFront: SCNVector3(0, 0, -1))
+        case .focus(let p):
+            target = SCNVector3(CGFloat(p.x - board.width / 2), 0, CGFloat(p.y - board.height / 2))
+            c.cameraNode.position = SCNVector3(target.x, span * 0.35, target.z + span * 0.35)
+            c.cameraNode.look(at: target)
+        case .save:
+            c.saved = (c.cameraNode.position, c.cameraNode.orientation)
+            return
+        case .saveImage(let url):
+            if let tiff = view.snapshot().tiffRepresentation,
+               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: url)
+            }
+            return
+        case .saveUSDZ(let url):
+            let scene = SCNScene()
+            scene.rootNode.addChildNode(c.boardNode.clone())
+            scene.write(to: url, options: nil, delegate: nil, progressHandler: nil)
+            return
+        case .restore:
+            guard let saved = c.saved else { return }
+            c.cameraNode.position = saved.0
+            c.cameraNode.orientation = saved.1
+        }
+        view.pointOfView = c.cameraNode
+        view.defaultCameraController.pointOfView = c.cameraNode
+        view.defaultCameraController.target = target
     }
 
     private func rebuild(_ c: Coordinator) {
         c.boardNode.childNodes.forEach { $0.removeFromParentNode() }
         // Below the board and anything hanging under it (bottom-side parts, header tails).
         c.floorNode.position = SCNVector3(0, -CGFloat(board.thickness) - 9, 0)
-        guard let mesh = engine.buildMesh(includeComponents: includeComponents) else { return }
+        guard let mesh = engine.buildMesh(includeComponents: includeComponents, hidden: look.hiddenParts,
+                                          standoffs: look.standoffs ? 6 : 0, enclosure: look.enclosure) else { return }
         let node = Self.assemblyNode(from: mesh, finish: finish)
         // Centre the board on the origin (mesh is in board millimetres).
         node.position = SCNVector3(-board.width / 2, 0, -board.height / 2)

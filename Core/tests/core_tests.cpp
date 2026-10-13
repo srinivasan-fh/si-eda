@@ -22648,3 +22648,109 @@ TEST(footprint_pad_options_rounded_npth_mask_paste) {
     p.pcb.autoPlace(p.schematic, true);
     CHECK_NEAR(p.pcb.courtyard(*p.schematic.find(w)).width() - before, 1.0, 1e-6);
 }
+
+TEST(assembly_mesh_hides_parts) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    const Mesh all = buildAssemblyMesh(p.schematic, p.pcb);
+    MeshOptions opt;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) opt.hidden.insert(c.id);
+    const Mesh none = buildAssemblyMesh(p.schematic, p.pcb, opt);
+    CHECK(none.positions.size() < all.positions.size());
+    CHECK(none.surfaceVertices(Surface::Plastic) == 0 && all.surfaceVertices(Surface::Plastic) > 0);
+    CHECK(none.surfaceVertices(Surface::Solder) == 0);  // bare pads, no joints
+}
+
+TEST(mechanical_enclosure_connector_access_and_3d_exports) {
+    Project p = placedBenchBoard();
+    auto codes = [&](const std::string& code) {
+        int n = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code;
+        return n;
+    };
+    // Enclosure (MCAD frame: Y = -board y, underside at Z = 0): a rib 0.2 mm above the board through U1's body.
+    const Component* u1 = p.schematic.findByRef("U1");
+    auto rib = [&](double x, double y, double z) {
+        char stl[600];
+        std::snprintf(stl, sizeof stl, "solid rib\nfacet normal 0 0 1\nouter loop\nvertex %g %g %g\nvertex %g %g %g\n"
+                      "vertex %g %g %g\nendloop\nendfacet\nendsolid rib\n", x - 5, -y - 5, z, x + 5, -y - 5, z, x, -y + 5, z);
+        return Model3DRegistry::instance().add(parseStl(stl, "rib.stl"));
+    };
+    const double t = p.pcb.settings.thickness;
+    p.pcb.settings.enclosure = rib(u1->pcb.position.x, u1->pcb.position.y, t + 0.2);
+    CHECK(codes("MECH_ENCLOSURE") == 1);
+    const Project reloaded = Project::fromJson(p.toJson());  // saved with its mesh
+    CHECK(reloaded.pcb.settings.enclosure == p.pcb.settings.enclosure);
+    CHECK(p.toJson().get("models3d").size() >= 1);
+    MeshOptions shown;
+    shown.enclosure = true;
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb, shown).surfaceVertices(Surface::Glass) >
+          buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Glass));
+    p.pcb.settings.enclosure = rib(u1->pcb.position.x, u1->pcb.position.y, t + 60);  // well above every part
+    CHECK(codes("MECH_ENCLOSURE") == 0);
+    p.pcb.settings.enclosure.clear();
+    // Connector access: a part moved into the 3 mm in front of the USB-C's open end is a note.
+    {
+        mcp::McpServer m;
+        CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+        CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({
+            "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+            "nets": {"GND": ["J1.GND(A1)", "R1.1"]}, "pins": false})J"))));
+        CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+        Json all = Json::object();
+        all["all"] = true;
+        CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", all)));
+        Project& q = m.project()->project;
+        auto access = [&] {
+            std::vector<RuleViolation> found;
+            for (const auto& v : q.pcb.runDRC(q.schematic))
+                if (v.code == "MECH_CONNECTOR_ACCESS") found.push_back(v);
+            return found;
+        };
+        CHECK(access().empty());
+        const Component* j1 = q.schematic.findByRef("J1");
+        std::vector<Pad> own;
+        for (const auto& pad : q.pcb.pads(q.schematic))
+            if (pad.componentId == j1->id) own.push_back(pad);
+        double gap = 0;
+        Rect area;
+        const Rect cy = q.pcb.courtyard(*j1);
+        const int side = openEnd(cy, own, &gap, &area);
+        CHECK(gap >= 0.5);
+        const Vec2 front = side == 0 ? Vec2{cy.center().x, cy.y0 - 1.5} : side == 1 ? Vec2{cy.center().x, cy.y1 + 1.5}
+                         : side == 2 ? Vec2{cy.x0 - 1.5, cy.center().y} : Vec2{cy.x1 + 1.5, cy.center().y};
+        for (auto& r : q.schematic.mutableComponents())
+            if (r.ref == "R1") r.pcb.position = front, r.pcb.bottom = j1->pcb.bottom;
+        const auto blocked = access();
+        CHECK(blocked.size() == 1 && blocked[0].severity == Severity::Info);
+    }
+    // Standoffs and screws at the mounting holes.
+    p.pcb.settings.holes.push_back({{5, 5}});
+    MeshOptions standoffs;
+    standoffs.standoffs = 5;
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb, standoffs).surfaceVertices(Surface::Gold) >
+          buildAssemblyMesh(p.schematic, p.pcb).surfaceVertices(Surface::Gold));
+    // glTF binary, VRML (read back by the model reader), the MCP 3D render and the file export.
+    const Mesh mesh = buildAssemblyMesh(p.schematic, p.pcb);
+    const std::string glb = exportGltf(mesh, "bench \"board\"");
+    CHECK(glb.compare(0, 4, "glTF") == 0);
+    auto le32 = [&](size_t at) {
+        uint32_t v = 0;
+        for (int k = 3; k >= 0; --k) v = v * 256 + static_cast<uint8_t>(glb[at + k]);
+        return v;
+    };
+    CHECK(le32(8) == glb.size());
+    CHECK(Json::parse(glb.substr(20, le32(12))).get("accessors").size() == 4);
+    const Model3DMesh back = parseVrml(exportVrml(mesh, "bench"), "bench.wrl");
+    CHECK(back.triangleCount() > 0 && back.triangleCount() <= mesh.triangleCount());
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    const std::string png = mcp::render3dPng(*sp, "iso", 320);
+    CHECK(png.compare(0, 8, "\x89PNG\r\n\x1a\n") == 0);
+    CHECK(mcp::render3dPng(*sp, "top", 200).size() > 100);
+    const std::string path = (std::filesystem::temp_directory_path() / "sieda_board.glb").string();
+    CHECK(sieda_export_file(sp, "glb", path.c_str()) == 1);
+    CHECK(std::filesystem::file_size(path) == exportGltf(mesh, p.name).size());
+    std::filesystem::remove(path);
+    sieda_project_free(sp);
+}

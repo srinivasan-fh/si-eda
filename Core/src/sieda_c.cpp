@@ -1625,6 +1625,26 @@ int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {
     return project->project.pcb.settings.applyPreset(name) ? 1 : 0;
 }
 
+int32_t sieda_export_file(const SiedaProject* project, const char* format, const char* path) {
+    if (!project || !format || !path) return 0;
+    try {
+        const Project& p = project->project;
+        std::string content;
+        if (std::string(format) == "glb") {
+            content = exportGltf(buildAssemblyMesh(p.schematic, p.pcb), p.name);
+        } else if (char* text = sieda_export(project, format)) {
+            content = text;
+            sieda_string_free(text);
+        }
+        if (content.empty()) return 0;
+        std::ofstream f(path, std::ios::binary);
+        f << content;
+        return f.good() ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
 char* sieda_export(const SiedaProject* project, const char* format) {
     if (!project || !format) return nullptr;
     try {
@@ -1661,6 +1681,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         }
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
+        if (f == "vrml") return dup(exportVrml(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
         if (f == "ipc2581") return dup(exportIpc2581(p));
         if (f == "review") return dup(reviewMarkdown(p));
@@ -1882,6 +1903,23 @@ char* sieda_si_checks_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(Project::violationsToJson(signalPowerIntegrityChecks(project->project)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const Json j = Json::parse(options_json ? options_json : "{}");
+        MeshOptions opt;
+        opt.components = j.get("components").asBool(true);
+        for (const auto& id : j.get("hidden").items()) opt.hidden.insert(id.asInt(-1));
+        opt.standoffs = std::clamp(j.get("standoffs").asNumber(0), 0.0, 50.0);
+        opt.enclosure = j.get("enclosure").asBool(false);
+        auto* m = new SiedaMesh();
+        m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
+        return m;
     } catch (...) {
         return nullptr;
     }

@@ -2861,16 +2861,12 @@ final class DesignStore: ObservableObject {
         panel.nameFieldStringValue = format.fileName
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let engine = self.engine
-        guard let content = await runBusy("Exporting \(format.displayName)…", { engine.export(format) }) else {
-            alert = AlertItem(title: "Export failed", message: "The core could not produce \(format.displayName).")
+        let path = url.path
+        guard await runBusy("Exporting \(format.displayName)…", { engine.exportFile(format.rawValue, to: path) }) else {
+            alert = AlertItem(title: "Export failed", message: "The core could not write \(format.displayName).")
             return
         }
-        do {
-            try content.write(to: url, atomically: true, encoding: .utf8)
-            statusMessage = "Exported \(format.displayName)"
-        } catch {
-            present(error, title: "Export failed")
-        }
+        statusMessage = "Exported \(format.displayName)"
     }
 
     /// Files of the last fabrication package exported (for tests and the status line).

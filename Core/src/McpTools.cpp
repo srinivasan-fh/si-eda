@@ -19,6 +19,9 @@
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Validation.hpp"
+#include "sieda/Mechanical.hpp"
+#include "sieda/Export.hpp"
+#include "sieda/Mesh.hpp"
 
 namespace fs = std::filesystem;
 
@@ -491,27 +494,6 @@ std::string packageChoices(ComponentKind kind) {
 /// Decoupling capacitors (one pin on an IC's supply net, the other on ground) moved next to the IC supply pin they
 /// serve, one capacitor per pin in pin order: one further than 5 mm goes to the nearest legal spot 2.5–6 mm from the
 /// pin (room left for the pins' escape routes). Locked parts stay. Returns "C3 → U1.VDD" for each one moved.
-/// The open end of a footprint: the side its pads lean away from (an antenna, a connector's mouth) — 0 top,
-/// 1 bottom, 2 left, 3 right — with how far the pads' centre sits off the courtyard's, and the area past the pads.
-int openEnd(const Rect& cy, const std::vector<Pad>& pads, double* gap, Rect* area) {
-    double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    Vec2 sum{0, 0};
-    for (const auto& pad : pads) {
-        x0 = std::min(x0, pad.position.x - pad.size.x / 2), y0 = std::min(y0, pad.position.y - pad.size.y / 2);
-        x1 = std::max(x1, pad.position.x + pad.size.x / 2), y1 = std::max(y1, pad.position.y + pad.size.y / 2);
-        sum = sum + pad.position;
-    }
-    const Vec2 off = cy.center() - sum * (1.0 / std::max<size_t>(1, pads.size()));
-    const int side = std::fabs(off.y) >= std::fabs(off.x) ? (off.y < 0 ? 0 : 1) : (off.x < 0 ? 2 : 3);
-    *gap = std::max(std::fabs(off.x), std::fabs(off.y));
-    *area = cy;
-    if (side == 0) area->y1 = y0 - 0.5;
-    else if (side == 1) area->y0 = y1 + 0.5;
-    else if (side == 2) area->x1 = x0 - 0.5;
-    else area->x0 = x1 + 0.5;
-    return side;
-}
-
 bool hasAntenna(const Component& c) {
     const CustomPart* cp = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
     std::string text = cp ? cp->spec.description : "";
@@ -4374,12 +4356,15 @@ void outputTools(Table& t) {
     t.add("output", "output_3d_model", "3D / MCAD model", Kind::Files, false,
           "The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one "
           "named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a "
-          "mesh (STL, OBJ).",
+          "mesh (STL, OBJ, VRML 2.0, glTF 2.0 binary .glb).",
           Schema().str("path", "File to write, e.g. \"out/board.step\"", true)
-              .str("format", "step, idf_board, idf_library, idx, stl (default) or obj", false,
-                   {"step", "idf_board", "idf_library", "idx", "stl", "obj"}),
+              .str("format", "step, idf_board, idf_library, idx, stl (default), obj, vrml or glb", false,
+                   {"step", "idf_board", "idf_library", "idx", "stl", "obj", "vrml", "glb"}),
           [](McpServer& s, const Json& a) {
-              const std::string content = takeText(sieda_export(P(s), argStr(a, "format", "stl").c_str()));
+              const std::string format = argStr(a, "format", "stl");
+              const Project& pr = P(s)->project;
+              const std::string content = format == "glb" ? exportGltf(buildAssemblyMesh(pr.schematic, pr.pcb), pr.name)
+                                                          : takeText(sieda_export(P(s), format.c_str()));
               if (content.empty()) throw ToolError("Could not build the 3D model");
               Json j = obj();
               j["written"] = s.writeFile(requireStr(a, "path"), content);
@@ -4611,6 +4596,16 @@ void renderTools(Table& t) {
               const std::string f = argStr(a, "format", "png");
               const int w = argInt(a, "width", 1000);
               return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w) : renderPcbPng(*P(s), layers, w), "pcb");
+          });
+    t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
+          "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "
+          "part's body, seen from the given side.",
+          Schema()
+              .str("view", "iso (default), top, bottom, front, back, left or right", false,
+                   {"iso", "top", "bottom", "front", "back", "left", "right"})
+              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+          [](McpServer& s, const Json& a) {
+              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000)), "board3d");
           });
 }
 

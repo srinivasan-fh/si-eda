@@ -96,3 +96,33 @@ SiEDA round trip in the tests; they have not yet been checked against a commerci
 
 Code: `Core/src/Mechanical.cpp` (`exportStep`, `exportIdfBoard`, `exportIdfLibrary`, `importIdfPlacement`,
 `exportIdx`, `exportIdxChanges`, `importIdxPlacement` with a small namespace-agnostic XML reader).
+
+## The 3D view
+
+The 3D workspace (**Assembly**) has these tools in its options bar:
+
+- **View:** top, bottom (flip), front, back, left, right and isometric cameras; **Focus Selection** flies to the
+  selected part; **Save View** / **Restore Saved View**.
+- **Layers:** show or hide the solder mask, silkscreen, copper finish, solder and part markings; **Hide Selected
+  Parts**, **Isolate Selected Parts**, **Show All Parts**.
+- **Explode** (slider): lifts the parts up to 8 mm off the board.
+- **Cut:** a section plane across the board's width; its slider moves the plane.
+- **Measure:** click two points on the model for the distance and its X / Y / Z parts.
+
+Clicking a part selects it in the schematic and the board (cross-probe) and shows its designator, value, side and body
+height.
+
+The **Mechanical** menu:
+
+- **Check 3D Clearances** runs the DRC; with **Layers → Show Clashes** on, the parts it flags (collision, height,
+  enclosure) are boxed in red.
+- **Load Enclosure…** reads a STEP / STL / OBJ / VRML model in the board's MCAD frame (millimetres, underside at Z = 0,
+  as the STEP export writes it). It is saved with the project and drawn see-through (**Layers → Enclosure**). The DRC
+  reports `MECH_ENCLOSURE` for each part body that cuts into it. **Remove Enclosure** drops it.
+- **Save Image…** (PNG of the view), **Export USDZ…**, **Export glTF (.glb)…** and **Export VRML…** (metres, vertex
+  colours). **File → Export** has glTF and VRML too.
+
+**Layers → Standoffs and Screws** draws a 6 mm brass hex standoff under each mounting hole and a pan-head screw on top.
+
+`MECH_CONNECTOR_ACCESS` (a note) names a part standing in the 3 mm in front of a connector's open end, where the plug
+goes. AI clients get the same picture from MCP `render_3d` (`view` iso / top / bottom / front / back / left / right).

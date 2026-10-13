@@ -1514,14 +1514,22 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { Self.take(sieda_export($0, format.rawValue)) }
     }
 
+    /// Writes an export (text or binary, e.g. "glb") straight to a file.
+    func exportFile(_ format: String, to path: String) -> Bool { withHandle { sieda_export_file($0, format, path) } == 1 }
+
     /// Copper Gerber of layer `oneBasedLayer` (1 = top … layerCount = bottom).
     func exportCopperLayer(_ oneBasedLayer: Int) -> String? {
         withHandle { Self.take(sieda_export($0, "gerber_l\(oneBasedLayer)")) }
     }
 
-    func buildMesh(includeComponents: Bool) -> MeshData? {
+    /// The assembly mesh; `standoffs` (mm) adds hex standoffs and screws at the mounting holes, `enclosure` the
+    /// enclosure model (see-through).
+    func buildMesh(includeComponents: Bool, hidden: Set<Int> = [], standoffs: Double = 0, enclosure: Bool = false) -> MeshData? {
         withHandle { handle -> MeshData? in
-            Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0))
+            guard !hidden.isEmpty || standoffs > 0 || enclosure else { return Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0)) }
+            let json = "{\"components\":\(includeComponents),\"hidden\":[\(hidden.sorted().map(String.init).joined(separator: ","))],"
+                + "\"standoffs\":\(standoffs),\"enclosure\":\(enclosure)}"
+            return Self.copyMesh(sieda_mesh_build_options(handle, json))
         }
     }
 
@@ -1578,6 +1586,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case fabNotes = "fab_notes"
     case stl
     case obj
+    case vrml
+    case glb
     case step
     case idfBoard = "idf_board"
     case idfLibrary = "idf_library"
@@ -1611,6 +1621,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "board-NPTH.drl"
         case .stl: return "assembly.stl"
         case .obj: return "assembly.obj"
+        case .vrml: return "assembly.wrl"
+        case .glb: return "assembly.glb"
         case .step: return "board.step"
         case .idfBoard: return "board.emn"
         case .idfLibrary: return "board.emp"
@@ -1644,6 +1656,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "Excellon Drill — Mounting Holes (NPTH)"
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
+        case .vrml: return "3D Model (VRML 2.0)"
+        case .glb: return "3D Model (glTF 2.0 binary)"
         case .step: return "STEP AP214 — Board and Parts (MCAD)"
         case .idfBoard: return "IDF 3.0 Board (.emn)"
         case .idfLibrary: return "IDF 3.0 Library (.emp)"

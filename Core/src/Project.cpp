@@ -640,7 +640,7 @@ Json Project::toJson() const {
         }
     root["customParts"] = library;
     // Imported 3D models of the library parts (Model3D.hpp); only when there are any.
-    if (Json models = models3dForParts(customLibrary); models.size() > 0) root["models3d"] = models;
+    if (Json models = models3dForParts(customLibrary, pcb.settings.enclosure); models.size() > 0) root["models3d"] = models;
 
     Json comps = Json::array();
     comps.reserve(schematic.components().size());

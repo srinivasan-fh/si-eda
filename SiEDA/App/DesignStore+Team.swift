@@ -61,6 +61,26 @@ extension DesignStore {
         if !drcResults.isEmpty { runDRC() }
     }
 
+    /// Loads an enclosure (STEP / STL / OBJ / VRML, millimetres in the MCAD frame of the STEP export) the parts must
+    /// clear; the DRC reports MECH_ENCLOSURE and the 3D view shows it see-through. Undoable.
+    func loadEnclosure() {
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose the enclosure model (STEP, STL, OBJ or VRML) in the board's MCAD frame")
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        let result = EDAEngine.importModel3D(name: url.lastPathComponent, data: data)
+        guard result.ok, let id = result.id else {
+            alert = AlertItem(title: "Enclosure not loaded", message: result.error)
+            return
+        }
+        performChecked("Enclosure", invalidatesAnalysis: false) { $0.setEnclosureModel(id) }
+        runDRC()
+    }
+
+    func removeEnclosure() {
+        performChecked("Remove enclosure", invalidatesAnalysis: false) { $0.setEnclosureModel("") }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Manufacturer rule pack ("" = none): tightens the DRC minimums and adds the DFM / DFA checks. Undoable.
     /// Field-solved Z0 and Zdiff of each copper layer's impedance-controlled widths (from the stack-up report), keyed by
     /// layer name; solved off the main thread.
