@@ -52,6 +52,8 @@ The options bar shows the router settings while the Route tool is active:
 - **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)); **True arcs** (on by
   default) writes them as true arc tracks, off writes short straight chords.
 - **Bus** and its width: the next route is a bus (see [Bus routing](#bus-routing)).
+- **Track width** (and **Pair gap** for a pair): *Rule width* / *Rule gap* follow the net class; a fixed value
+  overrides it for the routes you lay now (router options `width` / `pairGap`).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
 if it is blocked. A blocked head is outlined in amber.
@@ -306,6 +308,42 @@ the moved end; an end on a pad or via gets a link to it. One undo step; shove an
 
 Core: `InteractiveRouter::beginMultiDrag(trackIds, grab)` (C: `sieda_router_begin_multi_drag`); preview kind
 `multidrag`.
+
+## Editing tracks and parts
+
+- **Delete** (⌫) deletes the selected tracks; right-click a via for **Delete Via**. One undo step.
+- Right-click a track: **Split Track Here** cuts a straight track in two at that point (a new corner to drag);
+  **Merge Tracks** joins tracks of one net, layer and width that continue each other in a straight line through a point
+  no via, pad or third track meets (the selected tracks, or every track from empty board).
+- **Dragging a footprint** drags the ends of the tracks on its pads along, so they stay connected (rubber band);
+  ⌥-drag moves it alone. While dragging, a courtyard that overlaps a part on the same side turns red.
+- **⇧-drag on empty board** selects the footprints and tracks inside the rectangle.
+- Right-click a footprint: **Rotate**, **Flip**, **Align** left / right / top / bottom / centres (courtyard edges, two
+  or more parts) and **Distribute** horizontally / vertically (equal gaps, three or more).
+
+Core: `PcbLayout::splitTrack`, `mergeTracks`, `moveFootprintWithTracks` (C: `sieda_pcb_split_track`,
+`sieda_pcb_merge_tracks`, `sieda_pcb_move_footprint_with_tracks`, with `sieda_pcb_remove_track` / `_via`).
+
+## Drawing pours, outline, cutouts and keep-outs
+
+The tool strip has four drawing tools (Esc leaves them; a second click on the button too):
+
+- **Pour**: click the corners on the active layer, double-click or Enter closes; the options bar picks the net
+  (*Ground* = the ground net). The pour fills only inside its shape (`CopperZone::polygon`, JSON `polygon`, written only
+  when drawn) and refills by itself whenever copper changes.
+- **Outline**: the board shape (the same as Board Setup → Outline).
+- **Cutout**: a closed shape inside the board, routed out of it (`BoardSettings::cutouts`, JSON `cutouts`, written only
+  when present). Copper, parts and pours keep the edge clearance from it as from the outline; it is a loop in the
+  Edge.Cuts Gerber, a `Cutout` in IPC-2581, a hole of the ODB++ profile and an opening in the 3D board.
+- **Keep-out**: drag a rectangle; no tracks or vias inside (`RouteKeepout`, shown dashed red on the Keep-Out / Outline
+  layer).
+
+Right-click a keep-out, cutout or drawn pour to delete it. C: `sieda_pcb_add_zone_polygon`, `sieda_pcb_add_cutout` /
+`_remove_cutout`, `sieda_pcb_set_keepouts`; MCP `pcb_add_pour` `polygon`, `pcb_set_outline` `cutouts`.
+
+The layers panel also shows **Bottom Overlay** (bottom parts' silkscreen), **Solder Mask** (openings 0.05 mm larger than
+the pads, as in the Gerbers), **Paste** (SMD pads) and **Fabrication** (part bodies, pin 1, designators), with presets
+(All Layers, Top Side, Bottom Side, Copper Only, Assembly).
 
 ## Multi-route
 

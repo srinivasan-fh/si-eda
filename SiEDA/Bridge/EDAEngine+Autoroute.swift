@@ -152,7 +152,10 @@ struct RouteKeepout: Codable, Equatable, Identifiable {
     var layer: Int
     var tracks: Bool
     var vias: Bool
+    /// No copper pour inside either (written only when on).
+    var pours: Bool?
     var id: String { "\(name)|\(x0)|\(y0)|\(x1)|\(y1)|\(layer)" }
+    var rect: CGRect { CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0) }
 }
 
 extension EDAEngine {

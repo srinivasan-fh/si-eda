@@ -399,10 +399,13 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         }
     } else {  // EdgeCuts: the outline polygon
         int ap = aperture(circle(0.1));
-        auto poly = s.outlinePolygon();
-        std::string path = coord(poly[0]) + "D02*";
-        for (size_t i = 1; i <= poly.size(); ++i) path += "\n" + coord(poly[i % poly.size()]) + "D01*";
-        ops.push_back({ap, path});
+        auto loops = s.cutouts;
+        loops.insert(loops.begin(), s.outlinePolygon());
+        for (const auto& poly : loops) {  // the outline, then each cutout
+            std::string path = coord(poly[0]) + "D02*";
+            for (size_t i = 1; i <= poly.size(); ++i) path += "\n" + coord(poly[i % poly.size()]) + "D01*";
+            ops.push_back({ap, path});
+        }
     }
 
     // Aperture definitions sorted by D-code.

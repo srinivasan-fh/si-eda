@@ -835,6 +835,9 @@ struct BoardInfo: Decodable, Equatable {
     var autoSizeNets = true
     /// Custom outline polygon (empty = width × height rectangle).
     var outline: [BoardPoint] = []
+    /// Board cutouts (inner holes of any shape, routed out) and routing keep-outs.
+    var cutouts: [[BoardPoint]] = []
+    var keepouts: [RouteKeepout] = []
     var holes: [MountingHoleInfo] = []
     /// Production panel (core `PanelSettings`); nil = a single board.
     var panel: PanelInfo?
@@ -884,6 +887,8 @@ struct BoardInfo: Decodable, Equatable {
         autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
         holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
+        cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
+        keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
         panel = try c.decodeIfPresent(PanelInfo.self, forKey: .panel)
         dfmPack = try c.decodeIfPresent(String.self, forKey: .dfmPack) ?? ""
     }
@@ -894,6 +899,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
+        case cutouts, keepouts
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -913,6 +919,16 @@ struct BoardInfo: Decodable, Equatable {
         return path
     }
 
+    /// The cutouts as closed subpaths (fill the board with the even-odd rule to leave them open).
+    var cutoutPath: CGPath {
+        let path = CGMutablePath()
+        for cut in cutouts where cut.count >= 3 {
+            path.addLines(between: cut.map(\.point))
+            path.closeSubpath()
+        }
+        return path
+    }
+
     /// "Top", "Inner 1", …, "Bottom"
     func layerName(_ layer: Int) -> String {
         if layer == 0 { return "Top" }
@@ -921,7 +937,7 @@ struct BoardInfo: Decodable, Equatable {
     }
 }
 
-struct BoardPoint: Codable, Equatable {
+struct BoardPoint: Codable, Equatable, Hashable {
     var x: Double
     var y: Double
     var point: CGPoint { CGPoint(x: x, y: y) }
@@ -954,6 +970,8 @@ struct CopperZoneInfo: Decodable, Equatable, Identifiable, Hashable {
     var layer: Int
     var plane: Bool
     var clearance: Double
+    /// Drawn pour shape (nil = the whole board).
+    var polygon: [BoardPoint]?
     var id: String { "\(net)|\(layer)|\(plane)" }
 }
 

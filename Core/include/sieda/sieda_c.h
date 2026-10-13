@@ -423,6 +423,11 @@ void sieda_pcb_clear_mounting_holes(SiedaProject* project);
  * only pass through with vias). clearance_mm ≤ 0 uses the board clearance. Returns the zone index or -1. */
 int32_t sieda_pcb_add_zone(SiedaProject* project, const char* net_name, int32_t layer, int32_t plane, double clearance_mm);
 int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index);
+/* A copper pour limited to a drawn shape: points_json = [{"x","y"}] (mm, ≥ 3). Returns the zone index or -1. */
+int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, int32_t layer, const char* points_json);
+/* Board cutouts (closed shapes routed out of the board, inside the outline). add returns 1 on success. */
+int32_t sieda_pcb_add_cutout(SiedaProject* project, const char* points_json);
+int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index);
 void sieda_pcb_clear_zones(SiedaProject* project);
 /** Active tamper mesh (PCI PTS): serpentines of net_a (horizontal stripes, inner layer_a) and net_b (vertical
  * stripes, inner layer_b) laid over component `ref` plus margin_mm by the autorouter; each net joins exactly two pins
@@ -496,6 +501,13 @@ int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t lo
 /* Deletes one track / via by id. Returns 1 on success. */
 int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id);
 int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id);
+/* Splits a straight track at the point nearest (x, y): the new track's id, or -1. */
+int32_t sieda_pcb_split_track(SiedaProject* project, int32_t track_id, double x, double y);
+/* Joins collinear tracks of one net / layer / width through a free point; ids_json = [track id] or NULL = all.
+ * Returns the number of joins. */
+int32_t sieda_pcb_merge_tracks(SiedaProject* project, const char* ids_json);
+/* Moves a footprint and drags the ends of the tracks on its pads with it. Returns 1 on success. */
+int32_t sieda_pcb_move_footprint_with_tracks(SiedaProject* project, int32_t component_id, double x, double y);
 
 /* ---- signal & power integrity --------------------------------------------------------------------------------------- */
 /* Parses an IBIS (.ibs, IBIS 4.x / 5.x) file for preview at corner "typ", "min" (weak / slow) or "max" (strong / fast):

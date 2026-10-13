@@ -6436,6 +6436,65 @@ final class ArcRoutingTests: XCTestCase {
             .contains("\"arcCorners\":false"))
     }
 
+    func testSplitMergeDeleteTracksDragAndAlign() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        twoResistors(engine)
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, width: 0.4).contains("\"width\":0.4"))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 32))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        let count = store.snapshot.tracks.count
+        // Split a straight track in the middle, then merge the halves back.
+        let track = try XCTUnwrap(store.snapshot.tracks.first { !$0.isArc && hypot($0.bx - $0.ax, $0.by - $0.ay) > 2 })
+        store.splitTrack(track.id, at: CGPoint(x: (track.ax + track.bx) / 2, y: (track.ay + track.by) / 2))
+        XCTAssertEqual(store.snapshot.tracks.count, count + 1)
+        XCTAssertEqual(store.selectedTracks.count, 2)
+        store.mergeTracks()
+        XCTAssertEqual(store.snapshot.tracks.count, count)
+        // Drag a part: its tracks stay connected.
+        let r2 = try XCTUnwrap(store.snapshot.components.last)
+        store.moveFootprints([(r2.id, CGPoint(x: r2.pcb.x + 3, y: r2.pcb.y + 2))])
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        // Delete the selected tracks: the connection is open again; undo brings them back.
+        store.selectTrack(track.id)
+        store.selectTrackNets()
+        store.deleteSelectedCopper()
+        XCTAssertTrue(store.snapshot.tracks.isEmpty)
+        XCTAssertFalse(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks.count, count)
+        // Align the two parts' courtyards on their top edge.
+        store.selection = Set(store.snapshot.components.map(\.id))
+        store.alignFootprints(.top)
+        let tops = store.snapshot.courtyards.map(\.y0)
+        XCTAssertEqual(tops.min() ?? 0, tops.max() ?? 1, accuracy: 1e-6)
+    }
+
+    func testDrawnPourCutoutAndKeepout() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        // A keep-out rectangle, a cutout and a GND-less pour (the first net) drawn as shapes; each one undo step.
+        store.addKeepout(CGRect(x: 2, y: 2, width: 4, height: 3), layer: -1)
+        XCTAssertEqual(store.snapshot.board.keepouts.count, 1)
+        let square = [CGPoint(x: 20, y: 5), CGPoint(x: 24, y: 5), CGPoint(x: 24, y: 9), CGPoint(x: 20, y: 9)]
+        store.finishShape(.cutout, points: square, layer: 0)
+        XCTAssertEqual(store.snapshot.board.cutouts.count, 1)
+        store.finishShape(.pour, points: square.map { CGPoint(x: $0.x + 10, y: $0.y + 10) }, layer: 0)
+        XCTAssertEqual(store.snapshot.zones.last?.polygon?.count, 4)
+        store.finishShape(.cutout, points: Array(square.prefix(2)), layer: 0)  // two corners: refused
+        XCTAssertEqual(store.snapshot.board.cutouts.count, 1)
+        store.undo()
+        XCTAssertTrue(store.snapshot.zones.isEmpty)
+        store.removeKeepout(try XCTUnwrap(store.snapshot.board.keepouts.first))
+        XCTAssertTrue(store.snapshot.board.keepouts.isEmpty)
+    }
+
     func testConvertCornersToArcsFromTheStore() throws {
         let store = DesignStore()
         let engine = store.engine

@@ -1553,6 +1553,48 @@ int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
     return 1;
 }
 
+namespace {
+std::vector<Vec2> pointsFromJson(const char* json) {
+    std::vector<Vec2> out;
+    if (!json) return out;
+    try {
+        const Json list = Json::parse(json);
+        for (const auto& v : list.items()) {
+            const Vec2 p{v.get("x").asNumber(NAN), v.get("y").asNumber(NAN)};
+            if (!std::isfinite(p.x) || !std::isfinite(p.y)) return {};
+            out.push_back(p);
+        }
+    } catch (const std::exception&) {
+        return {};
+    }
+    return out.size() >= 3 && out.size() <= 4096 ? out : std::vector<Vec2>{};
+}
+}  // namespace
+
+int32_t sieda_pcb_add_zone_polygon(SiedaProject* project, const char* net_name, int32_t layer, const char* points_json) {
+    auto poly = pointsFromJson(points_json);
+    if (poly.empty()) return -1;
+    const int32_t index = sieda_pcb_add_zone(project, net_name, layer, 0, 0);
+    if (index >= 0) project->project.pcb.zones[static_cast<size_t>(index)].polygon = std::move(poly);
+    return index;
+}
+
+int32_t sieda_pcb_add_cutout(SiedaProject* project, const char* points_json) {
+    if (!project) return 0;
+    auto poly = pointsFromJson(points_json);
+    auto& s = project->project.pcb.settings;
+    if (poly.empty() || !std::all_of(poly.begin(), poly.end(), [&](Vec2 p) { return s.contains(p); })) return 0;
+    s.cutouts.push_back(std::move(poly));
+    return 1;
+}
+
+int32_t sieda_pcb_remove_cutout(SiedaProject* project, int32_t index) {
+    if (!project || index < 0 || index >= static_cast<int32_t>(project->project.pcb.settings.cutouts.size())) return 0;
+    auto& cuts = project->project.pcb.settings.cutouts;
+    cuts.erase(cuts.begin() + index);
+    return 1;
+}
+
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
 }
@@ -2545,6 +2587,32 @@ int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
     const auto n = vias.size();
     vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& v) { return v.id == via_id; }), vias.end());
     return vias.size() < n ? 1 : 0;
+}
+
+int32_t sieda_pcb_split_track(SiedaProject* project, int32_t track_id, double x, double y) {
+    return project ? project->project.pcb.splitTrack(track_id, {x, y}) : -1;
+}
+
+int32_t sieda_pcb_merge_tracks(SiedaProject* project, const char* ids_json) {
+    if (!project) return 0;
+    std::vector<int> ids;
+    try {
+        const Json list = ids_json ? Json::parse(ids_json) : Json();
+        for (const auto& id : list.items()) ids.push_back(id.asInt(-1));
+    } catch (const std::exception&) {
+        return 0;
+    }
+    if (ids_json && ids.empty()) return 0;
+    return project->project.pcb.mergeTracks(project->project.schematic, ids);
+}
+
+int32_t sieda_pcb_move_footprint_with_tracks(SiedaProject* project, int32_t id, double x, double y) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || !c->hasFootprint()) return 0;
+    project->project.pcb.moveFootprintWithTracks(project->project.schematic, id, {x, y});
+    project->project.schematicChanged();
+    return 1;
 }
 
 }  // extern "C"

@@ -118,6 +118,8 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         };
         for (double v : {s.width, s.height, s.edgeClearance, cell}) add(v);
         for (const Vec2& v : s.outline) add(v.x), add(v.y);
+        for (const auto& c : s.cutouts)
+            for (const Vec2& v : c) add(v.x), add(v.y);
         for (const auto& h : s.holes) add(h.position.x), add(h.position.y), add(h.keepout);
     }
     if (maskKey != boardMaskKey_ || boardMask_.size() != n) {
@@ -164,6 +166,13 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         };
         std::vector<char> ok = board;
         auto block = [&](size_t c, Vec2) { ok[c] = 0; };
+        if (z.polygon.size() >= 3) {  // a drawn pour: only the cells inside its shape (by half a cell)
+            BoardSettings shape;
+            shape.outline = z.polygon;
+            for (int j = 0; j < rows; ++j)
+                for (int i = 0; i < cols; ++i)
+                    if (shape.edgeDistance({(i + 0.5) * cell, (j + 0.5) * cell}) < half) ok[static_cast<size_t>(j * cols + i)] = 0;
+        }
         for (const auto& ko : s.keepouts)  // copper keep-outs (an antenna's area): no pour inside
             if (ko.pours && (ko.layer < 0 || ko.layer == L))
                 forCells(cols, rows, cell, ko.area.inflated(half), block);
@@ -379,6 +388,8 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         hashD(h, p.x);
         hashD(h, p.y);
     }
+    for (const auto& c : s.cutouts)
+        for (const auto& p : c) hashD(h, p.x), hashD(h, p.y);
     for (const auto& m : s.holes) {
         hashD(h, m.position.x);
         hashD(h, m.position.y);
@@ -394,6 +405,7 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         hashI(h, z.layer);
         hashI(h, z.plane);
         hashD(h, z.clearance);
+        for (const Vec2& v : z.polygon) hashD(h, v.x), hashD(h, v.y);
     }
     for (const auto& net : sch.nets()) hashBytes(h, net.name.data(), net.name.size());
     for (const auto& p : ps) {

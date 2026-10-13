@@ -105,13 +105,13 @@ extension EDAEngine {
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
                                removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false,
                                teardropStyle: TeardropStyleChoice = .straight,
-                               tune: Bool = false) -> String {
+                               tune: Bool = false, width: Double = 0, pairGap: Double = 0) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
             + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug),"
             + "\"teardropStyle\":\"\(teardropStyle.rawValue)\","
-            + "\"tuneWhileRouting\":\(tune)}"
+            + "\"tuneWhileRouting\":\(tune),\"width\":\(width),\"pairGap\":\(pairGap)}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.

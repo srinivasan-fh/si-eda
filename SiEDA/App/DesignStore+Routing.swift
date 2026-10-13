@@ -18,6 +18,45 @@ extension DesignStore {
         selection = []
     }
 
+    /// Deletes the selected tracks, or the given `vias` instead. One undo step.
+    func deleteSelectedCopper(vias: [Int] = []) {
+        let tracks = vias.isEmpty ? Array(selectedTracks) : []
+        guard !tracks.isEmpty || !vias.isEmpty else { return }
+        if routePreview != nil { cancelRoute() }
+        perform(vias.isEmpty ? "Deleted \(tracks.count) track(s)" : "Deleted copper", invalidatesAnalysis: false) { engine in
+            tracks.forEach { engine.removeTrack($0) }
+            vias.forEach { engine.removeVia($0) }
+        }
+        if vias.isEmpty { selectedTracks = [] }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
+    /// Splits a straight track in two at the point nearest `point` (a new corner to drag).
+    func splitTrack(_ id: Int, at point: CGPoint) {
+        var new: Int?
+        performChecked("Split track", invalidatesAnalysis: false,
+                       failureMessage: "Split: only a straight track can be split, away from its ends") {
+            new = $0.splitTrack(id, at: point)
+            return new != nil
+        }
+        if let new { selectedTracks = [id, new] }
+    }
+
+    /// Joins the selected tracks (all when none is selected) that continue each other in a straight line.
+    func mergeTracks() {
+        let ids = selectedTracks.isEmpty ? nil : Array(selectedTracks).sorted()
+        var joins = 0
+        performChecked("Merged tracks", invalidatesAnalysis: false,
+                       failureMessage: "Merge: no straight joints between tracks of one net, layer and width") {
+            joins = $0.mergeTracks(ids)
+            return joins > 0
+        }
+        if joins > 0 {
+            selectedTracks = []
+            statusMessage = "Merged \(joins) joint(s)"
+        }
+    }
+
     /// Selects every track of the selected tracks' nets (the whole route), so a command covers it.
     func selectTrackNets() {
         let nets = Set(snapshot.tracks.filter { selectedTracks.contains($0.id) }.map(\.net))

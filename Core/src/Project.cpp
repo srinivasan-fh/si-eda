@@ -152,6 +152,15 @@ Json boardJson(const BoardSettings& s) {
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
     b["outline"] = outline;
+    if (!s.cutouts.empty()) {
+        Json cuts = Json::array();
+        for (const auto& c : s.cutouts) {
+            Json pts = Json::array();
+            for (const auto& v : c) pts.push(vec(v));
+            cuts.push(pts);
+        }
+        b["cutouts"] = cuts;
+    }
     Json holes = Json::array();
     for (const auto& h : s.holes) {
         Json j = vec(h.position);
@@ -349,6 +358,11 @@ Json zonesJson(const std::vector<CopperZone>& zones) {
         j["layer"] = z.layer;
         j["plane"] = z.plane;
         j["clearance"] = z.clearance;
+        if (!z.polygon.empty()) {
+            Json pts = Json::array();
+            for (const auto& v : z.polygon) pts.push(vec(v));
+            j["polygon"] = pts;
+        }
         arr.push(j);
     }
     return arr;
@@ -838,6 +852,11 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             s.width = std::max(s.width, w);  // keep the stored size (the outline may not touch every bound)
             s.height = std::max(s.height, h);
         }
+        for (const auto& c : b.get("cutouts").items()) {
+            std::vector<Vec2> cut;
+            for (const auto& v : c.items()) cut.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
+            if (cut.size() >= 3 && cut.size() <= 4096) s.cutouts.push_back(std::move(cut));
+        }
         for (const auto& j : b.get("holes").items()) {
             MountingHole m;
             m.position = {j.get("x").asNumber(), j.get("y").asNumber()};
@@ -852,6 +871,8 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
         z.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
         z.plane = j.get("plane").asBool(false);
         z.clearance = std::max(0.0, j.get("clearance").asNumber(0));
+        for (const auto& v : j.get("polygon").items()) z.polygon.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
+        if (z.polygon.size() < 3 || z.polygon.size() > 4096) z.polygon.clear();
         if (!z.net.empty()) pcb.zones.push_back(z);
     }
     for (const auto& j : root.get("tamperMeshes").items()) {

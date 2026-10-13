@@ -1096,6 +1096,29 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_pcb_move_footprint($0, Int32(id), Double(point.x), Double(point.y)) } == 1
     }
 
+    /// Moves a footprint and drags the ends of the tracks on its pads along (they stay connected).
+    func moveFootprintWithTracks(_ id: Int, to point: CGPoint) -> Bool {
+        withHandle { sieda_pcb_move_footprint_with_tracks($0, Int32(id), Double(point.x), Double(point.y)) } == 1
+    }
+
+    @discardableResult
+    func removeTrack(_ id: Int) -> Bool { withHandle { sieda_pcb_remove_track($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func removeVia(_ id: Int) -> Bool { withHandle { sieda_pcb_remove_via($0, Int32(id)) } == 1 }
+
+    /// Splits a straight track at the point nearest `point`: the new track's id, or nil.
+    func splitTrack(_ id: Int, at point: CGPoint) -> Int? {
+        let new = withHandle { sieda_pcb_split_track($0, Int32(id), Double(point.x), Double(point.y)) }
+        return new > 0 ? Int(new) : nil
+    }
+
+    /// Joins collinear tracks of one net, layer and width through free points (`ids` nil = every track): joins made.
+    func mergeTracks(_ ids: [Int]?) -> Int {
+        let json = ids.map { "[" + $0.map(String.init).joined(separator: ",") + "]" }
+        return Int(withHandle { sieda_pcb_merge_tracks($0, json) })
+    }
+
     /// Forms a resistor / capacitor inside the board on inner layer `layer` (0 = surface part again).
     @discardableResult
     func setEmbedded(_ id: Int, layer: Int) -> Bool {
@@ -1452,6 +1475,24 @@ final class EDAEngine: @unchecked Sendable {
         let index = withHandle { sieda_pcb_add_zone($0, net, Int32(layer), plane ? 1 : 0, clearance) }
         return index >= 0 ? Int(index) : nil
     }
+
+    /// Adds a copper pour limited to `polygon` (board mm); returns the zone index or nil.
+    @discardableResult
+    func addZone(net: String, layer: Int, polygon: [CGPoint]) -> Int? {
+        let json = "[" + polygon.map { "{\"x\":\($0.x),\"y\":\($0.y)}" }.joined(separator: ",") + "]"
+        let index = withHandle { sieda_pcb_add_zone_polygon($0, net, Int32(layer), json) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    /// Adds a board cutout (a closed shape routed out of the board); false when it is not inside the board.
+    @discardableResult
+    func addCutout(_ points: [CGPoint]) -> Bool {
+        let json = "[" + points.map { "{\"x\":\($0.x),\"y\":\($0.y)}" }.joined(separator: ",") + "]"
+        return withHandle { sieda_pcb_add_cutout($0, json) } == 1
+    }
+
+    @discardableResult
+    func removeCutout(at index: Int) -> Bool { withHandle { sieda_pcb_remove_cutout($0, Int32(index)) } == 1 }
 
     @discardableResult
     func removeZone(at index: Int) -> Bool { withHandle { sieda_pcb_remove_zone($0, Int32(index)) } == 1 }

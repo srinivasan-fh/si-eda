@@ -260,6 +260,21 @@ struct BoardSettings {
     /// Board outline polygon (mm, inside [0,width]×[0,height]); empty = the width × height rectangle.
     std::vector<Vec2> outline;
     std::vector<MountingHole> holes;
+    /// Board cutouts: closed shapes routed out of the board (mm, board coordinates). Copper, parts and pours keep the
+    /// edge clearance from them as from the outline. JSON "cutouts", written only when present.
+    std::vector<std::vector<Vec2>> cutouts;
+    /// Calls `edge(a, b)` for every edge of the outline polygon and of the cutouts.
+    template <class F>
+    void forEachEdge(F&& edge) const {
+        if (hasCustomOutline()) {
+            for (size_t i = 0, j = outline.size() - 1; i < outline.size(); j = i++) edge(outline[j], outline[i]);
+        } else {
+            const Vec2 r[4] = {{0, 0}, {width, 0}, {width, height}, {0, height}};
+            for (size_t i = 0, j = 3; i < 4; j = i++) edge(r[j], r[i]);
+        }
+        for (const auto& c : cutouts)
+            for (size_t i = 0, j = c.size() - 1; i < c.size(); j = i++) edge(c[j], c[i]);
+    }
 
     /// Outline as a polygon (the rectangle when no custom outline is set).
     std::vector<Vec2> outlinePolygon() const;
@@ -416,6 +431,8 @@ struct CopperZone {
     /// Plane layer: reserved for this net — other nets cross it only with vias (anti-pads are cut automatically).
     bool plane = false;
     double clearance = 0;  // 0 = board clearance
+    /// Drawn pour shape (mm, board coordinates); empty = the whole board. JSON "polygon", written only when set.
+    std::vector<Vec2> polygon;
 };
 
 /// Poured copper of one zone, as a raster of islands (cell centres at ((i+0.5)·cell, (j+0.5)·cell)).
@@ -618,6 +635,15 @@ public:
 
     int addTrack(Track t);
     int addVia(Via v);
+    /// Splits a straight track at the point of it nearest `at` into two tracks meeting there; the new one's id, or -1
+    /// (an arc, a teardrop, or `at` too close to an end).
+    int splitTrack(int id, Vec2 at);
+    /// Joins straight tracks of one net, layer and width that continue each other in a straight line through a point
+    /// nothing else meets (no third track, via or pad); `only` limits it to those tracks (empty = all). Returns joins.
+    int mergeTracks(const Schematic& sch, const std::vector<int>& only = {});
+    /// Moves a footprint to `to` and drags along the ends of the tracks on its pads (rubber band): they stay
+    /// connected. Returns the number of track ends moved.
+    int moveFootprintWithTracks(Schematic& sch, int componentId, Vec2 to);
 
 private:
     int nextId_ = 1;

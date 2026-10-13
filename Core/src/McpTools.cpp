@@ -2806,9 +2806,16 @@ void pcbTools(Table& t) {
               .str("preset", "Outline preset", false, {"rectangle", "rounded", "circle", "quad-x"})
               .num("width", "Preset width / diameter / span (mm)")
               .num("height", "Preset height (mm)")
-              .num("param", "Corner radius / arm width (mm)"),
+              .num("param", "Corner radius / arm width (mm)")
+              .any("cutouts", "Board cutouts: [[{x, y}, …], …] (closed shapes inside the board); [] removes them"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
+              if (a.get("cutouts").isArray()) {
+                  p->project.pcb.settings.cutouts.clear();
+                  for (const auto& c : a.get("cutouts").items())
+                      check(sieda_pcb_add_cutout(p, c.dump().c_str()) == 1, "A cutout needs 3 or more corners inside the board");
+                  if (!a.has("preset") && !a.has("points")) return out(pcbSummary(s).get("outline"));
+              }
               if (a.has("preset")) {
                   check(sieda_pcb_outline_preset(p, argStr(a, "preset").c_str(), argNum(a, "width", p->project.pcb.settings.width),
                                                  argNum(a, "height", p->project.pcb.settings.height), argNum(a, "param", 2)) == 1,
@@ -3314,11 +3321,18 @@ void pcbTools(Table& t) {
               .str("net", "Net name, e.g. \"GND\"", true)
               .integer("layer", "Copper layer (default 0 = top)")
               .boolean("plane", "Reserve the layer as a plane")
-              .num("clearance", "Clearance (mm, default board clearance)"),
+              .num("clearance", "Clearance (mm, default board clearance)")
+              .any("polygon", "Optional pour shape: [{x, y}] (mm, 3 or more corners); default the whole board"),
           [](McpServer& s, const Json& a) {
               netIndex(proj(s), requireStr(a, "net"));
-              const int z = sieda_pcb_add_zone(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), argBool(a, "plane", false) ? 1 : 0,
-                                               argNum(a, "clearance", 0));
+              const int z = a.has("polygon")
+                  ? sieda_pcb_add_zone_polygon(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), a.get("polygon").dump().c_str())
+                  : sieda_pcb_add_zone(P(s), argStr(a, "net").c_str(), argInt(a, "layer", 0), argBool(a, "plane", false) ? 1 : 0,
+                                       argNum(a, "clearance", 0));
+              if (z >= 0 && a.has("polygon")) {
+                  P(s)->project.pcb.zones[static_cast<size_t>(z)].plane = argBool(a, "plane", false);
+                  P(s)->project.pcb.zones[static_cast<size_t>(z)].clearance = std::max(0.0, argNum(a, "clearance", 0));
+              }
               check(z >= 0, "Could not add the pour (layer out of range?)");
               Json j = obj();
               j["zone"] = z;

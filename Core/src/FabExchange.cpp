@@ -224,6 +224,15 @@ struct Board {
         return poly;
     }
 
+    std::vector<std::vector<Vec2>> cutouts() const {
+        std::vector<std::vector<Vec2>> out;
+        for (const auto& c : pcb.settings.cutouts) {
+            out.emplace_back();
+            for (const auto& p : c) out.back().push_back(up(p));
+        }
+        return out;
+    }
+
     std::string netName(int net) const {
         const auto& nets = sch.nets();
         return net >= 0 && net < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(net)].name : "";
@@ -275,7 +284,12 @@ std::string exportIpc(const Board& board) {
 
     // Step body first: it fills the dictionaries the Content section lists.
     std::ostringstream step;
-    step << "<Step name=\"pcb\"><Datum x=\"0\" y=\"0\"/><Profile>" << polygon(board.profile()) << "</Profile>\n";
+    step << "<Step name=\"pcb\"><Datum x=\"0\" y=\"0\"/><Profile>" << polygon(board.profile());
+    for (const auto& c : board.cutouts()) {  // a Cutout has the Polygon's content
+        const std::string body = polygon(c);
+        step << "<Cutout>" << body.substr(9, body.size() - 19) << "</Cutout>";
+    }
+    step << "</Profile>\n";
     std::map<std::string, const Component*> packages;
     for (bool bottomSide : {false, true})
         for (const Component* c : board.placed(bottomSide)) packages.emplace(c->footprintName(), c);
@@ -517,7 +531,13 @@ std::string exportOdb(const Board& board) {
     const auto poly = board.profile();
     profile << "UNITS=MM\n#\n#Num Features\n#\nS P 0\nOB " << num(poly[0].x) << " " << num(poly[0].y) << " I\n";
     for (size_t i = 1; i <= poly.size(); ++i) profile << "OS " << num(poly[i % poly.size()].x) << " " << num(poly[i % poly.size()].y) << "\n";
-    profile << "OE\nSE\n";
+    profile << "OE\n";
+    for (const auto& c : board.cutouts()) {  // holes of the profile
+        profile << "OB " << num(c[0].x) << " " << num(c[0].y) << " H\n";
+        for (size_t i = 1; i <= c.size(); ++i) profile << "OS " << num(c[i % c.size()].x) << " " << num(c[i % c.size()].y) << "\n";
+        profile << "OE\n";
+    }
+    profile << "SE\n";
     files.push_back({step + "profile", profile.str()});
     for (const auto& l : board.layers) files.push_back({step + "layers/" + l.name + "/features", odbFeatures(l)});
 

@@ -1859,11 +1859,23 @@ final class DesignStore: ObservableObject {
         didSet { if routerTuneWhileRouting != oldValue { applyRouterOptions() } }
     }
 
+    /// The PCB drawing tool in use (nil = none) and the net a drawn pour takes ("" = the ground net).
+    @Published var pcbShapeTool: PCBShapeTool?
+    @Published var pourNet = ""
+
+    /// Route tool track width and differential pair gap in mm (0 = the board's net-class rules).
+    @Published var routerWidth = 0.0 {
+        didSet { if routerWidth != oldValue { applyRouterOptions() } }
+    }
+    @Published var routerPairGap = 0.0 {
+        didSet { if routerPairGap != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
                                  teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle,
-                                 tune: routerTuneWhileRouting)
+                                 tune: routerTuneWhileRouting, width: routerWidth, pairGap: routerPairGap)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -2227,6 +2239,59 @@ final class DesignStore: ObservableObject {
         if index == nil { alert = AlertItem(title: "Pour not added", message: "\(name) is not in the layer stack.") }
     }
 
+    /// PCB drawing tools: a pour, the board outline or a cutout (click corners, double-click or Enter closes) and a
+    /// routing keep-out (drag a rectangle).
+    enum PCBShapeTool: String, CaseIterable { case pour, outline, cutout, keepout }
+    /// Closes a drawn shape (≥ 3 corners) as `tool`; a pour takes `pourNet` (empty = the ground net) on `layer`.
+    func finishShape(_ tool: PCBShapeTool, points: [CGPoint], layer: Int) {
+        guard points.count >= 3 else {
+            statusMessage = "Draw at least three corners, then double-click or press Enter"
+            return
+        }
+        switch tool {
+        case .pour:
+            let net = pourNet.isEmpty
+                ? (snapshot.nets.first(where: { $0.ground })?.name ?? snapshot.nets.first?.name ?? "") : pourNet
+            guard !net.isEmpty else {
+                statusMessage = "Pour: the schematic has no nets yet"
+                return
+            }
+            performChecked("\(net) pour on \(snapshot.board.layerName(layer))", invalidatesAnalysis: false,
+                           failureMessage: "Pour: the shape needs three corners on a copper layer") {
+                $0.addZone(net: net, layer: layer, polygon: points) != nil
+            }
+        case .outline:
+            performChecked("Drew board outline", invalidatesAnalysis: false,
+                           failureMessage: "Outline: the shape must not cross itself") { $0.setOutline(points) }
+            fitToken &+= 1
+        case .cutout:
+            performChecked("Added board cutout", invalidatesAnalysis: false,
+                           failureMessage: "Cutout: draw it inside the board") { $0.addCutout(points) }
+        case .keepout:
+            break
+        }
+    }
+
+    /// Adds a routing keep-out (no tracks or vias; `pours` keeps copper pours out too) over `rect` on `layer`
+    /// (-1 = every copper layer).
+    func addKeepout(_ rect: CGRect, layer: Int, pours: Bool = false) {
+        guard rect.width > 0.1, rect.height > 0.1 else { return }
+        let r = rect.standardized
+        let keepout = RouteKeepout(name: "Keep-out \(snapshot.board.keepouts.count + 1)", x0: r.minX, y0: r.minY,
+                                   x1: r.maxX, y1: r.maxY, layer: layer, tracks: true, vias: true, pours: pours ? true : nil)
+        let all = snapshot.board.keepouts + [keepout]
+        perform("Added keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(all) }
+    }
+
+    func removeKeepout(_ keepout: RouteKeepout) {
+        let rest = snapshot.board.keepouts.filter { $0 != keepout }
+        perform("Removed keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(rest) }
+    }
+
+    func removeCutout(at index: Int) {
+        perform("Removed board cutout", invalidatesAnalysis: false) { $0.removeCutout(at: index) }
+    }
+
     func removeZone(at index: Int) {
         perform("Removed copper pour", invalidatesAnalysis: false) { $0.removeZone(at: index) }
     }
@@ -2298,16 +2363,57 @@ final class DesignStore: ObservableObject {
         moveFootprints([(id, point)])
     }
 
-    /// Moves several footprints as one undo step (snapped to the 0.25 mm placement grid).
-    func moveFootprints(_ moves: [(id: Int, point: CGPoint)]) {
+    /// Moves several footprints as one undo step (snapped to the 0.25 mm placement grid unless `snap` is false); the ends
+    /// of their tracks come along unless `withTracks` is false.
+    func moveFootprints(_ moves: [(id: Int, point: CGPoint)], withTracks: Bool = true, snap: Bool = true) {
         guard !isBusy, !moves.isEmpty else { return }
         performChecked(moves.count == 1 ? "Moved footprint" : "Moved \(moves.count) footprints", invalidatesAnalysis: false,
                        failureMessage: "Footprints could not be moved there") { engine in
             moves.reduce(false) { moved, move in
-                let snapped = CGPoint(x: (move.point.x / 0.25).rounded() * 0.25, y: (move.point.y / 0.25).rounded() * 0.25)
-                return engine.moveFootprint(move.id, to: snapped) || moved
+                let to = snap ? CGPoint(x: (move.point.x / 0.25).rounded() * 0.25, y: (move.point.y / 0.25).rounded() * 0.25)
+                    : move.point
+                return (withTracks ? engine.moveFootprintWithTracks(move.id, to: to) : engine.moveFootprint(move.id, to: to))
+                    || moved
             }
         }
+    }
+
+    enum FootprintAlignment { case left, right, top, bottom, centreX, centreY, distributeX, distributeY }
+
+    /// Lines the selected footprints' courtyards up on the outermost one's edge (or centre line), or spaces them
+    /// evenly between the outermost two. One undo step; their tracks come along.
+    func alignFootprints(_ how: FootprintAlignment) {
+        let boxes = snapshot.courtyards.filter { selection.contains($0.component) }
+        guard boxes.count >= (how == .distributeX || how == .distributeY ? 3 : 2) else {
+            statusMessage = "Align: select two or more footprints (three to distribute)"
+            return
+        }
+        let all = boxes.reduce(CGRect.null) { $0.union($1.rect) }
+        var shift: [Int: CGSize] = [:]
+        func spread(_ key: (CGRect) -> CGFloat, _ size: (CGRect) -> CGFloat, _ make: (CGFloat) -> CGSize) {
+            let sorted = boxes.sorted { key($0.rect) < key($1.rect) }
+            let gap = (sorted.map { size($0.rect) }.reduce(0, -) + size(all)) / CGFloat(sorted.count - 1)
+            var at = key(sorted[0].rect)
+            for box in sorted {
+                shift[box.component] = make(at - key(box.rect))
+                at += size(box.rect) + gap
+            }
+        }
+        switch how {
+        case .left: boxes.forEach { shift[$0.component] = CGSize(width: all.minX - $0.rect.minX, height: 0) }
+        case .right: boxes.forEach { shift[$0.component] = CGSize(width: all.maxX - $0.rect.maxX, height: 0) }
+        case .top: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.minY - $0.rect.minY) }
+        case .bottom: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.maxY - $0.rect.maxY) }
+        case .centreX: boxes.forEach { shift[$0.component] = CGSize(width: all.midX - $0.rect.midX, height: 0) }
+        case .centreY: boxes.forEach { shift[$0.component] = CGSize(width: 0, height: all.midY - $0.rect.midY) }
+        case .distributeX: spread(\.minX, \.width) { CGSize(width: $0, height: 0) }
+        case .distributeY: spread(\.minY, \.height) { CGSize(width: 0, height: $0) }
+        }
+        let moves = shift.compactMap { entry -> (id: Int, point: CGPoint)? in
+            guard let c = snapshot.component(entry.key), entry.value != .zero else { return nil }
+            return (entry.key, CGPoint(x: c.pcb.x + entry.value.width, y: c.pcb.y + entry.value.height))
+        }
+        if moves.isEmpty { statusMessage = "Align: the footprints are already lined up" } else { moveFootprints(moves, snap: false) }
     }
 
     func rotateFootprints() {

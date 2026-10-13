@@ -586,6 +586,10 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     if (layers > 1) slab(-t, underside, mask);
     // Mounting holes: dark bore through the board with a plated ring (twice the drill) for the screw head, both sides.
     const Rgba bore{0.02f, 0.03f, 0.05f, 1.0f};
+    for (const auto& c : s.cutouts) {  // cutouts: a dark opening through the board, like the holes
+        m.surface = Surface::Hole;
+        m.addPrism(c, -t - 0.02, 0.02, bore);
+    }
     for (const auto& h : s.holes) {
         m.surface = Surface::Hole;
         m.addCylinder({h.position.x, -t - 0.02, h.position.y}, h.drill / 2, t + 0.04, bore, 24);

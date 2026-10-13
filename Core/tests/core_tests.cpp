@@ -22501,3 +22501,67 @@ TEST(restored_ids_saturate_at_int_max) {
     CHECK(q.schematic.components().size() == 1);
     CHECK(nextIdAfter(2147483647) == 2147483647 && nextIdAfter(5) == 6);
 }
+
+TEST(pcb_split_merge_and_drag_tracks_with_footprint) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.autoRoute(p.schematic);
+    // Drag a part: the track ends on its pads come along by the same offset, so its pads stay connected.
+    const int id = p.schematic.components().front().id;
+    std::vector<Vec2> ends;
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == id)
+            for (const auto& t : p.pcb.tracks)
+                for (Vec2 e : {t.a, t.b})
+                    if (pad.bounds().contains(e) && pad.onLayer(t.layer)) ends.push_back(e);
+    CHECK(!ends.empty());
+    const Vec2 by{2, 1}, to = p.schematic.find(id)->pcb.position + by;
+    CHECK(p.pcb.moveFootprintWithTracks(p.schematic, id, to) == static_cast<int>(ends.size()));
+    for (Vec2 e : ends)
+        CHECK(std::any_of(p.pcb.tracks.begin(), p.pcb.tracks.end(), [&](const Track& t) {
+            return (t.a - (e + by)).length() < 1e-9 || (t.b - (e + by)).length() < 1e-9;
+        }));
+    // Split a straight track in the middle, then merge the halves back.
+    const auto t = std::find_if(p.pcb.tracks.begin(), p.pcb.tracks.end(),
+                                [](const Track& x) { return !x.arc && (x.b - x.a).length() > 1; });
+    CHECK(t != p.pcb.tracks.end());
+    const int tid = t->id;
+    const size_t count = p.pcb.tracks.size();
+    const int half = p.pcb.splitTrack(tid, (t->a + t->b) * 0.5);
+    CHECK(half > 0 && p.pcb.tracks.size() == count + 1);
+    CHECK(p.pcb.splitTrack(half, p.pcb.tracks.back().b) == -1);  // at an end
+    CHECK(p.pcb.mergeTracks(p.schematic, {tid, half}) == 1 && p.pcb.tracks.size() == count);
+}
+
+TEST(pcb_cutouts_and_drawn_pours) {
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    auto& s = p.pcb.settings;
+    // A 4 × 4 mm cutout in the middle: outside the board for copper, an edge to keep clear of, a loop in Edge.Cuts.
+    const Vec2 c{s.width / 2, s.height / 2};
+    s.cutouts.push_back({c + Vec2{-2, -2}, c + Vec2{2, -2}, c + Vec2{2, 2}, c + Vec2{-2, 2}});
+    CHECK(!s.contains(c));
+    CHECK_NEAR(s.edgeDistance(c + Vec2{3, 0}), 1, 1e-9);
+    CHECK(s.segmentEdgeDistance(c + Vec2{-3, 0}, c + Vec2{3, 0}) <= 0);  // straight across it
+    const std::string edge = exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts);
+    size_t loops = 0;
+    for (size_t at = edge.find("D02*"); at != std::string::npos; at = edge.find("D02*", at + 1)) ++loops;
+    CHECK(loops == 2);
+    // A pour drawn over the half with a GND pad fills only there, and never inside the cutout; both survive a save.
+    CopperZone z;
+    z.net = "GND";
+    int gnd = -1;
+    for (const auto& n : p.schematic.nets())
+        if (n.name == "GND") gnd = n.index;
+    double padX = 0;
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.net == gnd) padX = pad.position.x;
+    const double x0 = padX < s.width / 2 ? 0 : s.width / 2, x1 = x0 + s.width / 2;
+    z.polygon = {{x0, 0}, {x1, 0}, {x1, s.height}, {x0, s.height}};
+    p.pcb.zones.push_back(z);
+    const auto& fills = p.pcb.zoneFills(p.schematic);
+    CHECK(fills.size() == 1 && fills[0].area() > 0);
+    for (const auto& r : fills[0].rects) CHECK(r.x0 >= x0 - 1e-9 && r.x1 <= x1 + 1e-9 && !r.contains(c));
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.cutouts.size() == 1 && back.pcb.zones.size() == 1 && back.pcb.zones[0].polygon.size() == 4);
+}
