@@ -22934,6 +22934,7 @@ TEST(pcb_part_model_on_a_catalog_part) {
     CHECK(hasMesh);
     const Project back = Project::fromJson(saved);
     CHECK(back.pcb.partModels.count(led) == 1 && back.pcb.partModels.at(led).id == id);
+    CHECK(BoardSettings::normalizeLayerCount(2147483647) == BoardSettings::kMaxLayers);  // a hostile file's count
     CHECK(sieda_pcb_set_part_model(sp, led, "", "", 1) == 1);
     CHECK(sp->project.pcb.partModels.empty());
     sieda_project_free(sp);

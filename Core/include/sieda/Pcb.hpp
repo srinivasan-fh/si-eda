@@ -334,7 +334,7 @@ struct BoardSettings {
     static int normalizeLayerCount(int n) {
         if (n <= 1) return 1;
         if (n <= 2) return 2;
-        return std::min(kMaxLayers, n + (n % 2));
+        return n >= kMaxLayers ? kMaxLayers : n + (n % 2);  // no overflow for a huge count from a file
     }
 };
 
