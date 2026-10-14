@@ -586,7 +586,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_bus_connect` | edit | Wires bus members to a part: members named like pins join those pins (D0 → pin D0), else the part's open pins in order, each through a bus entry. |
 | `schematic_bus_labels` | edit | Puts one net label per bus member on the given pins of a part, in order (D[0..7] on 8 pins). |
 | `schematic_net_class` | edit | Defines (or removes) a net class with a track width and clearance (mm, 0 = board default); assign it to nets with schematic_add_directive. |
-| `schematic_add_directive` | edit | Attaches a rule to the net of a pin: a net class, a differential pair (with its X_P / X_N partner), or its own track width / clearance (mm). |
+| `schematic_add_directive` | edit | Attaches a rule to the net of a pin: a net class, a differential pair (with its X_P / X_N, X_DP / X_DN or X_DM partner), or its own track width / clearance (mm). |
 | `schematic_net_rules` | read | The net classes, differential pairs and per-net widths / clearances the schematic gives the board. |
 | `schematic_variants` | read | Assembly variants (fitted / DNP parts, value overrides) and the active one. |
 | `schematic_variant_matrix` | read | Variants side by side: every part a variant changes with its fitting and value in each variant, and per-variant totals (fitted, not fitted, value changes). |

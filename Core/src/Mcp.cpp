@@ -865,7 +865,8 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
 }
 
 // The undo history beside a saved project (".<file>.undo"): a client that starts a new server for each batch of calls
-// still steps back past its earlier batches. It is restored only onto the very state it was saved with.
+// still steps back past its earlier batches. It is restored only onto the very file it was saved with (its bytes: loading
+// may tidy the design, e.g. drop stale copper, so the state read back can differ from the one saved).
 namespace {
 fs::path undoFile(const std::string& project) {
     const fs::path p(project);
@@ -880,7 +881,11 @@ void McpServer::saveUndoHistory() const {
     size_t first = undo_.size();
     while (first > 0 && bytes + undo_[first - 1].size() < (32u << 20)) bytes += undo_[--first].size();
     for (size_t i = first; i < undo_.size(); ++i) steps.push(undo_[i]);
-    j["state"] = project_->project.toJson().dump();
+    try {
+        j["file"] = std::to_string(std::hash<std::string>{}(readTextFile(projectPath_)));
+    } catch (const std::exception&) {
+        return;
+    }
     j["steps"] = steps;
     std::error_code ec;
     if (steps.size() == 0) {
@@ -897,7 +902,7 @@ void McpServer::loadUndoHistory() {
     if (!fs::is_regular_file(f, ec) || fs::file_size(f, ec) > (64u << 20)) return;
     try {
         const Json j = Json::parse(readTextFile(f.string()));
-        if (j.get("state").asString("") != project_->project.toJson().dump()) return;  // the file changed since
+        if (j.get("file").asString("") != std::to_string(std::hash<std::string>{}(readTextFile(projectPath_)))) return;  // changed since
         for (const auto& step : j.get("steps").items()) undo_.push_back(step.asString(""));
         undoOf_ = project_;
     } catch (const std::exception&) {

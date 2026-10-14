@@ -542,6 +542,15 @@ Scene schematicScene(const Project& project, int sheet) {
                     grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
                     break;
                 }
+                if (r == 90 || r == 270) {  // an upright flag stays short, its name upright just past its end
+                    s.polygon({turn({0, 0}), turn({hh, -hh}), turn({20, -hh}), turn({20, hh}), turn({hh, hh})}, false, 1, labelC);
+                    const Vec2 at = turn({24, 0}) + Vec2{0, r == 90 ? 9.0 : 0.0};
+                    s.text(at, name, 9, labelC, true);
+                    grow(b, any, at + Vec2{textWidth(name, 9) / 2, -9});
+                    grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
+                    grow(b, any, c.position);
+                    break;
+                }
                 s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
                 const Vec2 mid = turn({(w + hh) / 2, 0});
                 s.text(mid + Vec2{0, 3.5}, name, 9, labelC, true);
@@ -656,7 +665,9 @@ Scene schematicScene(const Project& project, int sheet) {
                     else q.y = y1;
                     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) s.line(p, q, 1.2, pinC);
                     s.disc(p, 1.6, pinC);
-                    if (c.isNoConnect(static_cast<int>(i))) {  // a no-connect flag: an X on the pin end
+                    const int pinNet = sch.netOf({c.id, static_cast<int>(i)});  // a pin named NC on no other pin's net
+                    const bool ncPin = pins[i].name == "NC" && (pinNet < 0 || sch.nets()[static_cast<size_t>(pinNet)].pins.size() < 2);
+                    if (c.isNoConnect(static_cast<int>(i)) || ncPin) {  // a no-connect flag: an X on the pin end
                         // A pin without a lead ends on the body edge: its X stands just outside, clear of the name.
                         const Vec2 out = m == dl ? Vec2{-1, 0} : m == dr ? Vec2{1, 0} : m == dt ? Vec2{0, -1} : Vec2{0, 1};
                         const Vec2 x = (p - q).length() < 4 ? q + out * 5 : p;
@@ -674,9 +685,20 @@ Scene schematicScene(const Project& project, int sheet) {
                             s.text(q + Vec2{0, m == dt ? 8.0 + row[i] : -3.0 - row[i]}, label, 6, pinC, true);
                     }
                 }
+                // Ref and value centred over / under the body, or at its left corner when a pin lead runs through there.
+                auto clearAt = [&](const std::string& t, double h, double y, bool atTop) {
+                    for (size_t i = 0; i < pins.size(); ++i) {
+                        const Vec2 p = sch.pinPosition({c.id, static_cast<int>(i)});
+                        if ((atTop ? p.y < y0 : p.y > y1) && std::fabs(p.x - (x0 + x1) / 2) < textWidth(t, h) / 2 + 3) {
+                            s.text({x0, y}, t, h, textC, false);
+                            return;
+                        }
+                    }
+                    s.text({(x0 + x1) / 2, y}, t, h, textC, true);
+                };
                 const std::string ref = sch.displayRef(c);
-                s.text({(x0 + x1) / 2, top - 4}, ref, 8, textC, true);
-                if (!c.value.empty()) s.text({(x0 + x1) / 2, bottom + 10}, c.value, 7, textC, true);
+                clearAt(ref, 8, top - 4, true);
+                if (!c.value.empty()) clearAt(c.value, 7, bottom + 10, false);
                 grow(b, any, {(x0 + x1) / 2, top - 14});
                 grow(b, any, {(x0 + x1) / 2, bottom + 12});
                 break;

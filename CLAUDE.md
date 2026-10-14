@@ -159,7 +159,7 @@
   `unrouted[].cutOff` = the pads cut off with that end (`PcbLayout::padGroups`); hand repairs `pcb_add_via` / `pcb_add_track`
   (refused near other nets: `checkClearOfOtherNets`); `pcb_autoroute` presets apply to the call unless `keep`; undo history
   saved beside the project (`.<file>.undo`, `McpServer::saveUndoHistory` / `loadUndoHistory`, restored only onto the same
-  state); antenna keep-outs widened by `antennaKeepout`; open-ended connectors' mouths flush with the edge; library_search reads
+  saved file (its bytes)); antenna keep-outs widened by `antennaKeepout`; open-ended connectors' mouths flush with the edge; library_search reads
   "4 pin" as pins:4; a schematic rotation carries the part's own labels round with its pins (grounds stay upright) and
   `schematic_move_component` warns of its pins left on a wire they do not join (ERC_TOUCHING_UNCONNECTED stays info:
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
@@ -178,9 +178,12 @@
   part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
   part (layout-only link); after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
   runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
-  VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; REL_TOMBSTONE counts pour spokes only for a pour
-  on the pad's layer, and `neckTombstones` (after MCP routes and pours) necks wide tracks at small two-pad parts unless
-  that raises DRC_TRACK_CURRENT. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
+  VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; `neckTombstones` (after MCP routes and pours) necks wide tracks at
+  small two-pad parts unless that raises DRC_TRACK_CURRENT, else widens the light pad's lead-in (pour spokes) when the DRC
+  stays as good, and names only the parts balanced; `finishRouting` last stitches a cut-off pour-net pad to the pour by a
+  via; `pairsNotCoupled` names X_DP / X_DM nets (paired only by a directive: `differentialPairs` must not pair them, the
+  POS reference design would no longer route); `schematic_build` `pins: false` keys pins `name(number)`; renders mark
+  pins named NC with an X and keep ref / value off a centred top / bottom lead. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
   `placeAtEdges` (pcb_autoplace all: antenna parts top + keep-out, open-ended connectors bottom, by `openEnd`);
   undo is cleared by project_open / new / load_example; headers without an open end go to the left / right edges in turn, long side along it; crystals are placed before supply caps (small passives step aside, `stepAside`); edge parts largest first; `pcb_autoroute` re-lays stitching vias (`stitchingRestored`) and lists `pairsNotCoupled`; assembly spacing standard `standardGap` (passive 0.25 / passive-IC 0.5 / IC-IC and THT-SMD 1.0 / BGA 2.0 mm) kept by the MCP placement helpers and flagged as DRC_PART_SPACING; `placeGrouped` (pcb_autoplace grouped: rows of like passives); power-only connectors to the left edge; the main IC is centred before Auto Place; opt-in `AutorouteOptions::viasOffPads` (pour fan-out vias clear SMD pads; on for MCP `pcb_autoroute`); `schematic_build` expands a shared pin name to every unstacked pin; a package may be a bare size (`setPackage`: "0603" = R_0603); `noteBoardGrown` on Update PCB too; crystals within 6 mm of their pins first (stepAside); a regulator pin takes a small cap after the loads; a `schematic_build` tag with no clear standing spot lies along its wire, tags are re-placed once every label is down, grounds go last (a side pin's ground points outward when the pin below is used), and pins already on their named net get no second label. Catalog rows may name `PCM_Espressif` footprints, and
   `ALL_PADS` in `tools/fetch_catalog_parts.py` keeps every pad of a footprint. Tool failures are `isError` results, never crashes; file

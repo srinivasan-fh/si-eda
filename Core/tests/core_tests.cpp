@@ -20958,6 +20958,9 @@ TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
     Json bad = track;  // NB's copper runs into NA's pads
     bad["net"] = "NB";
     CHECK(mcpFailed(mcpTool(s, "pcb_add_track", bad)));
+    // Points are numbers (numeric strings read too); anything else is refused, never drawn at (0, 0).
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "NA", "layer": 0, "points": [["a", "4"], [3, 4]]})J"))));
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "NA", "layer": 0, "points": [[3], [3, 4]]})J"))));
     Json via = Json::parse(R"J({"net": "NA"})J");
     via["x"] = r1a.x, via["y"] = 4.0;
     CHECK(mcpData(mcpTool(s, "pcb_add_via", via)).get("id").asInt(-1) >= 0);

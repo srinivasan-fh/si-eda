@@ -2,6 +2,7 @@
 // Handlers drive the C API (sieda_c.h) on the server's project, so the stdio server and the app's live endpoint run
 // exactly what the app runs. Data-driven: mcpTools() is this table (docs/MCP.md lists it).
 #include <algorithm>
+#include <array>
 #include <regex>
 #include <cmath>
 #include <filesystem>
@@ -595,66 +596,87 @@ int squareEscapes(Project& pr) {
 }
 
 /// A wide track running into one pad of a small two-pad chip, with little copper on the other pad, is necked down over
-/// its first 0.5 mm out of the pad, so both pads heat alike (REL_TOMBSTONE). Kept only when no track then falls below
-/// its IPC-2221 current width (DRC_TRACK_CURRENT). Returns the parts necked.
+/// its first 0.5 mm out of the pad, so both pads heat alike (REL_TOMBSTONE); when the heavy pad's pour spokes alone
+/// outweigh the other pad, the light pad's lead-in is widened instead (kept only when the DRC gets no worse). Necks are
+/// kept only when no track then falls below its IPC-2221 current width (DRC_TRACK_CURRENT). Returns the parts balanced.
 Json neckTombstones(Project& pr) {
     Json done = Json::array();
     const auto pads = pr.pcb.pads(pr.schematic);
-    std::set<std::pair<int, int>> poured;  // (net, layer) of each pour: a pad there is reached by relief spokes
+    std::set<int> poured;  // nets with a pour: their chip pads count relief spokes, as the reliability check does
     for (const auto& z : pr.pcb.zones)
         for (const auto& n : pr.schematic.nets())
-            if (n.name == z.net) poured.insert({n.index, z.layer});
-    auto currentWarnings = [&] {
+            if (n.name == z.net) poured.insert(n.index);
+    auto drcCount = [&](bool currentOnly) {
         int n = 0;
-        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.code == "DRC_TRACK_CURRENT";
+        for (const auto& v : pr.pcb.runDRC(pr.schematic))
+            n += currentOnly ? v.code == "DRC_TRACK_CURRENT" : v.severity != Severity::Info;
         return n;
     };
-    const auto before = pr.pcb.tracks;
-    const int warned = currentWarnings();
-    std::map<int, std::vector<const Pad*>> byPart;
-    for (const auto& pad : pads) byPart[pad.componentId].push_back(&pad);
-    for (const auto& [id, two] : byPart) {
-        if (two.size() != 2 || two[0]->throughHole || two[1]->throughHole || two[0]->size.x * two[0]->size.y > 4.0) continue;
-        auto leaving = [&](const Pad& pad) {  // the tracks crossing the pad's edge, as the reliability check counts them
-            std::vector<int> ids;
-            for (const auto& t : pr.pcb.tracks)
-                if (t.net == pad.net && t.layer == pad.smdLayer && pad.bounds().contains(t.a) != pad.bounds().contains(t.b)) ids.push_back(t.id);
-            return ids;
-        };
-        double mass[2] = {0, 0}, spokes[2] = {0, 0};
-        for (int k = 0; k < 2; ++k) {
-            if (poured.count({two[k]->net, two[k]->smdLayer})) spokes[k] = 2 * pr.pcb.settings.trackWidth;
-            mass[k] = spokes[k];
-            for (int tid : leaving(*two[k]))
-                for (const auto& t : pr.pcb.tracks)
-                    if (t.id == tid) mass[k] += t.width;
-        }
-        const int heavy = mass[0] >= mass[1] ? 0 : 1;
-        const double hi = mass[heavy], lo = std::max(mass[1 - heavy], 0.05);
-        const auto wide = leaving(*two[heavy]);
-        if (hi < 0.6 || hi <= 3 * lo || wide.empty()) continue;
-        const double w = std::max(pr.pcb.settings.minTrackWidth, (3 * lo - spokes[heavy]) / static_cast<double>(wide.size()) - 0.01);
-        const Pad& pad = *two[heavy];
-        bool necked = false;
-        for (int tid : wide) {
+    auto leaving = [&](const Pad& pad) {  // the tracks crossing the pad's edge, as the reliability check counts them
+        std::vector<Track*> out;
+        for (auto& t : pr.pcb.tracks)
+            if (t.net == pad.net && t.layer == pad.smdLayer && pad.bounds().contains(t.a) != pad.bounds().contains(t.b)) out.push_back(&t);
+        return out;
+    };
+    auto mass = [&](const Pad& pad) {
+        double m = poured.count(pad.net) ? 2 * pr.pcb.settings.trackWidth : 0;
+        for (const Track* t : leaving(pad)) m += t->width;
+        return m;
+    };
+    // The first 0.5 mm of each track leaving the pad (split off) is narrowed (or widened) to w.
+    auto setLeadIn = [&](const Pad& pad, double w, bool widen) {
+        std::vector<int> ids;
+        for (const Track* t : leaving(pad))
+            if (!t->arc && !t->teardrop && (widen ? t->width < w : t->width > w + 1e-9)) ids.push_back(t->id);
+        for (int tid : ids) {
             const auto it = std::find_if(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& t) { return t.id == tid; });
-            if (it == pr.pcb.tracks.end() || it->arc || it->teardrop || it->width <= w + 1e-9) continue;
             const Vec2 in = pad.bounds().contains(it->a) ? it->a : it->b, far = pad.bounds().contains(it->a) ? it->b : it->a;
             const double len = (far - in).length();
             const Vec2 dir = (far - in) * (1 / len);
             double out = 0;  // where it leaves the pad, then 0.5 mm on
             while (out < len && pad.bounds().contains(in + dir * out)) out += 0.05;
-            if (out + 0.5 < len - 0.05 && pr.pcb.splitTrack(tid, in + dir * (out + 0.5)) < 0) continue;
-            for (auto& t : pr.pcb.tracks)  // the piece on the pad takes the narrow width
-                if (t.net == pad.net && t.layer == pad.smdLayer && pad.bounds().contains(t.a) != pad.bounds().contains(t.b) && t.width > w)
-                    t.width = w, necked = true;
+            if (out + 0.5 < len - 0.05) pr.pcb.splitTrack(tid, in + dir * (out + 0.5));
         }
-        if (necked) done.push(pr.schematic.find(id)->ref);
+        for (Track* t : leaving(pad))
+            if (!t->arc && !t->teardrop && (widen ? t->width < w : t->width > w + 1e-9)) t->width = w;
+    };
+    auto unbalanced = [&](const Pad& a, const Pad& b) {
+        const double hi = std::max(mass(a), mass(b)), lo = std::min(mass(a), mass(b));
+        return hi >= 0.6 && hi > 3 * std::max(lo, 0.05);
+    };
+    const auto before = pr.pcb.tracks;
+    const int warned = drcCount(true), errors = drcCount(false);
+    std::map<int, std::vector<const Pad*>> byPart;
+    for (const auto& pad : pads) byPart[pad.componentId].push_back(&pad);
+    std::vector<std::pair<int, std::array<const Pad*, 2>>> parts;
+    for (const auto& [id, two] : byPart)
+        if (two.size() == 2 && !two[0]->throughHole && !two[1]->throughHole && two[0]->size.x * two[0]->size.y <= 4.0 &&
+            unbalanced(*two[0], *two[1]))
+            parts.push_back({id, {two[0], two[1]}});
+    for (const auto& [id, two] : parts) {  // neck the heavy pad's tracks down to three times the light pad's copper
+        const int heavy = mass(*two[0]) >= mass(*two[1]) ? 0 : 1;
+        const Pad& h = *two[heavy];
+        const auto wide = leaving(h);
+        const double spokes = poured.count(h.net) ? 2 * pr.pcb.settings.trackWidth : 0;
+        if (!wide.empty())
+            setLeadIn(h, std::max(pr.pcb.settings.minTrackWidth,
+                                  (3 * std::max(mass(*two[1 - heavy]), 0.05) - spokes) / static_cast<double>(wide.size()) - 0.01), false);
     }
-    if (done.size() && currentWarnings() > warned) {  // a neck too thin for the current: leave the copper as routed
-        pr.pcb.tracks = before;
-        return Json::array();
+    if (drcCount(true) > warned) pr.pcb.tracks = before;  // a neck too thin for the current: leave the copper as routed
+    for (const auto& [id, two] : parts) {  // still unbalanced (spokes, the minimum width): widen the light pad's lead-in
+        if (!unbalanced(*two[0], *two[1])) continue;
+        const int light = mass(*two[0]) < mass(*two[1]) ? 0 : 1;
+        const Pad& l = *two[light];
+        const auto thin = leaving(l);
+        const double spokes = poured.count(l.net) ? 2 * pr.pcb.settings.trackWidth : 0;
+        const double w = (std::max(mass(*two[0]), mass(*two[1])) / 3 + 0.02 - spokes) / static_cast<double>(thin.size());
+        if (thin.empty() || w > std::min(l.size.x, l.size.y)) continue;
+        const auto kept = pr.pcb.tracks;
+        setLeadIn(l, w, true);
+        if (drcCount(false) > errors) pr.pcb.tracks = kept;
     }
+    for (const auto& [id, two] : parts)
+        if (!unbalanced(*two[0], *two[1])) done.push(pr.schematic.find(id)->ref);
     return done;
 }
 
@@ -729,6 +751,37 @@ Json finishRouting(SiedaProject* p, Json* stats) {
                 for (auto& t : p->project.pcb.tracks) t.locked = false;  // the stubs are ordinary copper again
                 p->project.pcb.settings.autorouter.protectLocked = chosen.protectLocked;
             }
+    // A pour-net pad still cut off: a short track to a via beside it, into the net's pour on the other layer (kept when
+    // the connection closes and the DRC gets no worse).
+    Project& pr = p->project;
+    auto problems = [&] {
+        int n = 0;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info && v.code != "DRC_UNROUTED";
+        return n;
+    };
+    auto rats = pr.pcb.ratsnest(pr.schematic);
+    for (const auto& pad : rats.empty() ? std::vector<Pad>{} : pr.pcb.pads(pr.schematic)) {
+        if (pad.throughHole || !pr.pcb.isZoneNet(pr.schematic, pad.net) ||
+            std::none_of(rats.begin(), rats.end(), [&](const auto& r) { return (r.first - pad.position).length() < 1e-3 || (r.second - pad.position).length() < 1e-3; }))
+            continue;
+        const int worst = problems();
+        const double r0 = std::max(pad.size.x, pad.size.y) / 2 + pr.pcb.settings.clearance + pr.pcb.settings.viaDiameter / 2;
+        bool joined = false;
+        for (double r : {r0, r0 + 0.5})
+            for (int k = 0; k < 8 && !joined; ++k) {
+                const Project before = pr;
+                Via v;
+                v.net = pad.net, v.diameter = pr.pcb.settings.viaDiameter, v.drill = pr.pcb.settings.viaDrill;
+                v.position = pad.position + Vec2{std::cos(k * M_PI / 4), std::sin(k * M_PI / 4)} * r;
+                Track t;
+                t.net = pad.net, t.layer = pad.smdLayer, t.width = pr.pcb.settings.trackWidth, t.a = pad.position, t.b = v.position;
+                if (!pr.pcb.settings.contains(v.position)) continue;
+                pr.pcb.addVia(v), pr.pcb.addTrack(t);
+                joined = pr.pcb.ratsnest(pr.schematic).size() < rats.size() && problems() <= worst;
+                if (!joined) pr = before;
+            }
+        if (joined) done.push(pr.schematic.find(pad.componentId)->ref + " stitched to the pour by a via"), rats = pr.pcb.ratsnest(pr.schematic);
+    }
     p->project.pcb.settings.autorouter.shapeCompletion = chosen.shapeCompletion;  // the board's strategy as chosen
     p->router.reset();
     return done;
@@ -2661,8 +2714,10 @@ void schematicTools(Table& t) {
                   Json part = componentJson(*P(s), id);
                   if (!a.get("pins").asBool(true)) {
                       Json nets = obj();
-                      for (const auto& pin : part.get("pins").items())
-                          nets[pin.get("number").asString(pin.get("name").asString(""))] = pin.get("net");
+                      for (const auto& pin : part.get("pins").items()) {  // "K(1)" when the name says more than the number
+                          const std::string num = pin.get("number").asString(""), name = pin.get("name").asString("");
+                          nets[num.empty() || name.empty() || name == num ? (num.empty() ? name : num) : name + "(" + num + ")"] = pin.get("net");
+                      }
                       part["pins"] = nets;
                   }
                   placed.push(part);
@@ -2948,12 +3003,12 @@ void schematicTools(Table& t) {
               return out(j);
           });
     t.add("schematic", "schematic_add_directive", "Net directive", Kind::Edit, false,
-          "Attaches a rule to the net of a pin: a net class, a differential pair (with its X_P / X_N partner), or "
+          "Attaches a rule to the net of a pin: a net class, a differential pair (with its X_P / X_N, X_DP / X_DN or X_DM partner), or "
           "its own track width / clearance (mm).",
           Schema()
               .pin("pin", "A pin on the net.", true)
               .str("netClass", "Net class name")
-              .boolean("diffPair", "Pair this net with its _P/_N partner")
+              .boolean("diffPair", "Pair this net with its _P/_N (or _DP/_DM) partner")
               .num("trackWidth", "Track width (mm)")
               .num("clearance", "Clearance (mm)"),
           [](McpServer& s, const Json& a) {
@@ -4030,7 +4085,22 @@ void pcbTools(Table& t) {
               for (const auto& pr : report.get("pairs").items())
                   if (!pr.get("coupled").asBool(false))
                       uncoupled.push(pr.get("positive").asString("") + " / " + pr.get("negative").asString("") + ": " +
-                                     pr.get("reason").asString("not coupled") + " (routed as two single nets)");
+                                     pr.get("reason").asString("not coupled") + " (routed as two single nets" +
+                                     (pr.get("reason").asString("").find("two pads") != std::string::npos
+                                          ? ", e.g. a USB-C receptacle's doubled D+ / D− pads: keep the two nets short and side by side)" : ")"));
+              std::set<int> paired;  // X_DP / X_DM (USB) pairs only by a directive: say how
+              for (const auto& [pn, nn] : differentialPairs(p->project.schematic)) paired.insert(pn), paired.insert(nn);
+              std::map<std::string, const Net*> byUpper;
+              for (const auto& n : p->project.schematic.nets()) {
+                  std::string u = n.name;
+                  for (auto& ch : u) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                  byUpper[u] = &n;
+              }
+              for (const auto& [u, n] : byUpper)
+                  if (u.size() > 3 && u.compare(u.size() - 3, 3, "_DP") == 0 && byUpper.count(u.substr(0, u.size() - 3) + "_DM") && !paired.count(n->index))
+                      uncoupled.push(n->name + " / " + byUpper[u.substr(0, u.size() - 3) + "_DM"]->name +
+                                     ": not paired by name; schematic_add_directive {\"pin\": a pin on " + n->name +
+                                     ", \"diffPair\": true} pairs them, then route again");
               if (uncoupled.size()) j["pairsNotCoupled"] = uncoupled;
               return out(j);
           });
@@ -4400,13 +4470,24 @@ void pcbTools(Table& t) {
           "track) — for repairs the router's pad-to-pad pcb_route cannot make. Refused when a segment would touch copper "
           "of another net. Returns the new track ids.",
           Schema().str("net", "Net name", true).integer("layer", "Copper layer (0 = top)", true)
-              .array("points", "[[x, y], [x, y], …] at least two", "array", true).num("width", "Width (mm, default the net's)"),
+              .array("points", "[[x, y], [x, y], …] at least two", "", true,
+                     Json::parse(R"({"type":"array","items":{"type":"number"},"minItems":2,"maxItems":2})")).num("width", "Width (mm, default the net's)"),
           [](McpServer& s, const Json& a) {
               Project& pr = P(s)->project;
               const int net = netIndex(pr, requireStr(a, "net")), layer = argInt(a, "layer", 0);
               if (layer < 0 || layer >= pr.pcb.settings.layerCount) throw ToolError("No copper layer " + std::to_string(layer));
               std::vector<Vec2> pts;
-              for (const auto& q : a.get("points").items()) pts.push_back({q[0].asNumber(0), q[1].asNumber(0)});
+              for (const auto& q : a.get("points").items()) {
+                  double xy[2];
+                  for (size_t k = 0; k < 2; ++k) {  // numbers (or numeric strings); anything else is refused, never read as 0
+                      const Json& v = q.isArray() && q.size() == 2 ? q[k] : Json();
+                      char* end = nullptr;
+                      const std::string text = v.isString() ? v.asString() : "";
+                      xy[k] = v.isNumber() ? v.asNumber(0) : std::strtod(text.c_str(), &end);
+                      if (!v.isNumber() && (text.empty() || *end)) throw ToolError("Each point is [x, y] in mm, e.g. [20.8, 24]");
+                  }
+                  pts.push_back({xy[0], xy[1]});
+              }
               if (pts.size() < 2) throw ToolError("points needs at least two [x, y]");
               const double width = argNum(a, "width", pr.pcb.settings.widthFor(pr.schematic.nets()[static_cast<size_t>(net)].name));
               for (size_t i = 1; i < pts.size(); ++i) {
