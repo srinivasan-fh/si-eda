@@ -20928,6 +20928,24 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
+    // A roomy board: pcb_autoplace says so, and pcb_fit_board compact re-places every part on a smaller board where
+    // they all still fit; it refuses once there is copper.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor"},
+        {"ref": "R2", "kind": "resistor"}, {"ref": "C1", "kind": "capacitor"}], "nets": {"NA": ["R1.1", "R2.1", "C1.1"],
+        "NB": ["R1.2", "R2.2", "C1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 60, "height": 50})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))).has("boardRoomy"));
+    const Json board = mcpData(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J")));
+    CHECK(board.get("width").asNumber() < 60 && board.get("height").asNumber() < 50);
+    CHECK(board.get("footprintsNotPlaced").asInt(-1) == 0);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::object())));
+    CHECK(mcpFailed(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J"))));
+}
+
 TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
     // An agent's manual repairs: pcb_drc names the pads cut off from the rest of their net; pcb_add_track joins them
     // on any points, pcb_add_via drops a via; both refuse copper that would touch another net. pcb_summary gives each

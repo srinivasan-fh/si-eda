@@ -595,6 +595,80 @@ int squareEscapes(Project& pr) {
     return done;
 }
 
+/// A via whose ring overlaps a pad of its net (its centre outside the pad: not a deliberate via-in-pad) draws solder
+/// down the barrel: it moves straight out from the pad, its tracks' ends with it, until 0.1 mm of mask separates them.
+/// A pour net's via with no room to move goes, with its stub, when the pours still join everything. Each change is kept
+/// only when the DRC finds no more problems and nothing comes unrouted. Returns the vias moved or dropped.
+int viasOffPads(Project& pr) {
+    if (pr.pcb.settings.viaInPad) return 0;
+    auto problems = [&] {
+        int n = 0;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info;
+        return n;
+    };
+    const auto pads = pr.pcb.pads(pr.schematic);
+    auto gap = [&](const Via& v, const Pad& p) {
+        const Rect r = p.bounds();
+        const double dx = std::max({r.x0 - v.position.x, 0.0, v.position.x - r.x1}), dy = std::max({r.y0 - v.position.y, 0.0, v.position.y - r.y1});
+        return std::hypot(dx, dy) - v.diameter / 2;
+    };
+    auto worst = [&](const Via& v) {  // the nearest SMD pad of its net, and how far its ring is from it
+        std::pair<double, const Pad*> w{1e9, nullptr};
+        for (const auto& p : pads)
+            if (!p.throughHole && p.net == v.net && !p.bounds().contains(v.position) && gap(v, p) < w.first) w = {gap(v, p), &p};
+        return w;
+    };
+    int was = -1, moved = 0;
+    for (size_t i = 0; i < pr.pcb.vias.size(); ++i) {
+        const auto [g, pad] = worst(pr.pcb.vias[i]);
+        if (!pad || g >= 0.1 - 1e-9) continue;
+        Vec2 out = pr.pcb.vias[i].position - pad->position;
+        if (out.length() < 1e-9) continue;
+        out = out * (1 / out.length());
+        std::vector<Vec2> dirs{out};  // straight out first, then each compass direction leading away from the pad
+        for (int k = 0; k < 8; ++k)
+            if (const Vec2 c{std::cos(k * M_PI / 4), std::sin(k * M_PI / 4)}; c.dot(out) > 0.1) dirs.push_back(c);
+        if (was < 0) was = problems();
+        const auto tracks = pr.pcb.tracks;
+        const Vec2 from = pr.pcb.vias[i].position;
+        const size_t open = pr.pcb.ratsnest(pr.schematic).size();
+        bool kept = false;
+        for (size_t k = 0; k < dirs.size() * 12 && !kept; ++k) {
+            const Vec2 dir = dirs[k / 12];
+            const double d = 0.05 * static_cast<double>(k % 12 + 1);
+            pr.pcb.tracks = tracks;
+            pr.pcb.vias[i].position = from + dir * d;
+            for (auto& t : pr.pcb.tracks)
+                if (t.net == pr.pcb.vias[i].net && !t.arc && !t.teardrop)
+                    for (Vec2* e : {&t.a, &t.b})
+                        if ((*e - from).length() < 1e-6) *e = pr.pcb.vias[i].position;
+            if (worst(pr.pcb.vias[i]).first < 0.1 - 1e-9) continue;
+            const int now = problems();
+            if (now <= was && pr.pcb.ratsnest(pr.schematic).size() <= open) was = now, kept = true, ++moved;
+        }
+        if (!kept) pr.pcb.tracks = tracks, pr.pcb.vias[i].position = from;
+        if (kept || !pr.pcb.isZoneNet(pr.schematic, pr.pcb.vias[i].net)) continue;
+        // No room to move a pour net's via: dropped with its stub to the pad when the pours still join everything.
+        const auto vias = pr.pcb.vias;
+        const int net = pr.pcb.vias[i].net;
+        auto& ts = pr.pcb.tracks;
+        ts.erase(std::remove_if(ts.begin(), ts.end(), [&](const Track& t) {
+                     return t.net == net && ((t.a - from).length() < 1e-6 || (t.b - from).length() < 1e-6) &&
+                            std::any_of(pads.begin(), pads.end(), [&](const Pad& p) {
+                                return p.net == net && (p.bounds().contains(t.a) || p.bounds().contains(t.b));
+                            });
+                 }),
+                 ts.end());
+        pr.pcb.vias.erase(pr.pcb.vias.begin() + static_cast<long>(i));
+        if (const int now = problems(); now <= was && pr.pcb.ratsnest(pr.schematic).size() <= open) {
+            was = now, ++moved, --i;
+            continue;
+        }
+        pr.pcb.tracks = tracks, pr.pcb.vias = vias;
+    }
+    return moved;
+}
+
 /// A wide track running into one pad of a small two-pad chip, with little copper on the other pad, is necked down over
 /// its first 0.5 mm out of the pad, so both pads heat alike (REL_TOMBSTONE); when the heavy pad's pour spokes alone
 /// outweigh the other pad, the light pad's lead-in is widened instead (kept only when the DRC gets no worse). Necks are
@@ -3536,6 +3610,63 @@ void noteBoardGrown(McpServer& s, double w0, double h0, Json& j) {
     j["boardGrown"] = std::string(note);
 }
 
+/// pcb_autoplace (also run by pcb_fit_board compact).
+ToolOutput autoplaceTool(McpServer& s, const Json& a) {
+    const double w0 = proj(s).pcb.settings.width, h0 = proj(s).pcb.settings.height;
+    std::vector<int> held;  // placed at an edge first, held while the rest is placed
+    Json edges;
+    // Once more when Auto Place grew the board: the edge parts go to the grown board's edges.
+    for (int pass = 0; pass < 2; ++pass) {
+        const double wPass = proj(s).pcb.settings.width, hPass = proj(s).pcb.settings.height;
+        held.clear();
+        if (argBool(a, "all", false) && argBool(a, "edges", true)) {
+            std::vector<int> lift;  // everything unlocked is placed again: the edge parts first
+            for (const auto& c : proj(s).schematic.components())
+                if (!c.pcb.locked && c.hasFootprint() && proj(s).pcb.onBoard(c)) lift.push_back(c.id);
+            for (int id : lift) P(s)->project.schematic.find(id)->pcb.placed = false;
+            edges = placeAtEdges(P(s), &held);
+            // The main IC (most pins, at least 8) at the board's middle, so its capacitors and crystal find
+            // room on every side and the rest spreads round it.
+            const Component* main = nullptr;
+            for (const auto& c : proj(s).schematic.components())
+                if (!c.pcb.locked && !c.pcb.placed && c.hasFootprint() && proj(s).pcb.onBoard(c) && c.def().pins.size() >= 8 &&
+                    (!main || c.def().pins.size() > main->def().pins.size()))
+                    main = &c;
+            if (main) {
+                const auto& st = proj(s).pcb.settings;
+                const Vec2 mid{st.width / 2, st.height / 2};
+                bool put = false;
+                for (double r = 0; r <= std::min(st.width, st.height) / 2 && !put; r += 0.5)
+                    for (int k = 0; k < (r > 0 ? 16 : 1) && !put; ++k) {
+                        const Vec2 at = mid + Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
+                        put = takeJson(sieda_pcb_place_footprint(P(s), main->id, at.x, at.y, main->pcb.rotation, 0, 0.25, 0))
+                                  .get("committed").asBool(false);
+                    }
+                if (put) held.push_back(main->id);
+            }
+            for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = true;
+        }
+        sieda_pcb_autoplace(P(s), argBool(a, "all", false) ? 1 : 0);
+        for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = false;
+        if (!edges.size() || (proj(s).pcb.settings.width == wPass && proj(s).pcb.settings.height == hPass)) break;
+    }
+    std::set<int> bound;  // placed by their IC pins: grouping leaves them
+    const Json moved = argBool(a, "decoupling", argBool(a, "all", false)) ? placeDecoupling(P(s), &bound) : Json();
+    const Json rows = argBool(a, "grouped", false) ? placeGrouped(P(s), bound) : Json();
+    Json j = pcbSummary(s);
+    if (moved.size()) j["decouplingPlaced"] = moved;
+    if (rows.size()) j["groupedRows"] = rows;
+    if (edges.size()) j["edgesPlaced"] = edges;
+    noteBoardGrown(s, w0, h0, j);
+    double used = 0;  // courtyards' share of the board: a roomy board can be made smaller before routing
+    for (const auto& c : proj(s).schematic.components())
+        if (c.hasFootprint() && c.pcb.placed && proj(s).pcb.onBoard(c)) used += [&] { const Rect r = proj(s).pcb.courtyard(c); return (r.x1 - r.x0) * (r.y1 - r.y0); }();
+    if (const auto& st = proj(s).pcb.settings; st.outline.empty() && used < 0.25 * st.width * st.height && used > 0)
+        j["boardRoomy"] = "Parts cover " + std::to_string(static_cast<int>(100 * used / (st.width * st.height))) +
+                          " % of the board: pcb_fit_board {\"compact\": true} re-places them on the smallest board that fits.";
+    return out(j);
+}
+
 void pcbTools(Table& t) {
     t.add("pcb", "pcb_summary", "Board summary", Kind::Read, true,
           "The board: size, outline, layers, rules, every footprint with position / rotation / side and courtyard "
@@ -3640,8 +3771,46 @@ void pcbTools(Table& t) {
               return out(pcbSummary(s).get("outline"));
           });
     t.add("pcb", "pcb_fit_board", "Fit board", Kind::Edit, true,
-          "Shrinks / grows the board to the placed footprints plus a margin (parts and copper move together).",
-          Schema().num("margin", "Margin around the parts (mm, default 3)"), [](McpServer& s, const Json& a) {
+          "Shrinks / grows the board to the placed footprints plus a margin (parts and copper move together). compact: "
+          "before routing, re-places every unlocked part (as pcb_autoplace all) on a board made smaller in 1 mm steps "
+          "while every part still fits with no new placement problems — for a board whose edge parts leave empty space.",
+          Schema().num("margin", "Margin around the parts (mm, default 3)")
+              .boolean("compact", "Re-place everything on the smallest board that still fits it (before routing; default false)"),
+          [](McpServer& s, const Json& a) {
+              Project& pr = P(s)->project;
+              if (argBool(a, "compact", false)) {
+                  check(pr.pcb.tracks.empty() && pr.pcb.vias.empty(), "compact re-places every part: run it before routing (pcb_clear_routing)");
+                  check(pr.pcb.settings.outline.empty(), "compact needs a rectangular board (this one has a drawn outline)");
+                  auto problems = [&] {
+                      int n = 0;
+                      for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info && v.code != "DRC_UNROUTED";
+                      for (const auto& c : pr.schematic.components()) n += c.hasFootprint() && pr.pcb.onBoard(c) && !c.pcb.placed;
+                      return n;
+                  };
+                  Json place = obj();
+                  place["all"] = true;
+                  autoplaceTool(s, place);
+                  const int allowed = problems();
+                  Project best = pr;
+                  for (int tries = 0, shrunk = 1; shrunk && tries < 80;) {  // the longer side first, 1 mm at a time
+                      shrunk = 0;
+                      const bool wide = pr.pcb.settings.width >= pr.pcb.settings.height;
+                      for (const bool cutWidth : {wide, !wide}) {
+                          const double w = pr.pcb.settings.width - (cutWidth ? 1 : 0), h = pr.pcb.settings.height - (cutWidth ? 0 : 1);
+                          if (w < 5 || h < 5 || ++tries > 80) continue;
+                          sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
+                          autoplaceTool(s, place);
+                          if (pr.pcb.settings.width == w && pr.pcb.settings.height == h && problems() <= allowed) {
+                              best = pr, shrunk = 1;
+                              break;
+                          }
+                          pr = best;
+                      }
+                  }
+                  pr = best;
+                  P(s)->router.reset();
+                  return out(projectSummary(s).get("board"));
+              }
               check(sieda_pcb_fit_board(P(s), argNum(a, "margin", 3)) == 1, "Nothing placed to fit to");
               return out(projectSummary(s).get("board"));
           });
@@ -3748,55 +3917,7 @@ void pcbTools(Table& t) {
                                      "(default: on with all)")
               .boolean("grouped", "Then line up the other passives of one kind in rows in designator order (C1 C2 C3, "
                                   "R1 R2 R3 …) near their connections (default false)"),
-          [](McpServer& s, const Json& a) {
-              const double w0 = proj(s).pcb.settings.width, h0 = proj(s).pcb.settings.height;
-              std::vector<int> held;  // placed at an edge first, held while the rest is placed
-              Json edges;
-              // Once more when Auto Place grew the board: the edge parts go to the grown board's edges.
-              for (int pass = 0; pass < 2; ++pass) {
-                  const double wPass = proj(s).pcb.settings.width, hPass = proj(s).pcb.settings.height;
-                  held.clear();
-                  if (argBool(a, "all", false) && argBool(a, "edges", true)) {
-                      std::vector<int> lift;  // everything unlocked is placed again: the edge parts first
-                      for (const auto& c : proj(s).schematic.components())
-                          if (!c.pcb.locked && c.hasFootprint() && proj(s).pcb.onBoard(c)) lift.push_back(c.id);
-                      for (int id : lift) P(s)->project.schematic.find(id)->pcb.placed = false;
-                      edges = placeAtEdges(P(s), &held);
-                      // The main IC (most pins, at least 8) at the board's middle, so its capacitors and crystal find
-                      // room on every side and the rest spreads round it.
-                      const Component* main = nullptr;
-                      for (const auto& c : proj(s).schematic.components())
-                          if (!c.pcb.locked && !c.pcb.placed && c.hasFootprint() && proj(s).pcb.onBoard(c) && c.def().pins.size() >= 8 &&
-                              (!main || c.def().pins.size() > main->def().pins.size()))
-                              main = &c;
-                      if (main) {
-                          const auto& st = proj(s).pcb.settings;
-                          const Vec2 mid{st.width / 2, st.height / 2};
-                          bool put = false;
-                          for (double r = 0; r <= std::min(st.width, st.height) / 2 && !put; r += 0.5)
-                              for (int k = 0; k < (r > 0 ? 16 : 1) && !put; ++k) {
-                                  const Vec2 at = mid + Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
-                                  put = takeJson(sieda_pcb_place_footprint(P(s), main->id, at.x, at.y, main->pcb.rotation, 0, 0.25, 0))
-                                            .get("committed").asBool(false);
-                              }
-                          if (put) held.push_back(main->id);
-                      }
-                      for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = true;
-                  }
-                  sieda_pcb_autoplace(P(s), argBool(a, "all", false) ? 1 : 0);
-                  for (int id : held) P(s)->project.schematic.find(id)->pcb.locked = false;
-                  if (!edges.size() || (proj(s).pcb.settings.width == wPass && proj(s).pcb.settings.height == hPass)) break;
-              }
-              std::set<int> bound;  // placed by their IC pins: grouping leaves them
-              const Json moved = argBool(a, "decoupling", argBool(a, "all", false)) ? placeDecoupling(P(s), &bound) : Json();
-              const Json rows = argBool(a, "grouped", false) ? placeGrouped(P(s), bound) : Json();
-              Json j = pcbSummary(s);
-              if (moved.size()) j["decouplingPlaced"] = moved;
-              if (rows.size()) j["groupedRows"] = rows;
-              if (edges.size()) j["edgesPlaced"] = edges;
-              noteBoardGrown(s, w0, h0, j);
-              return out(j);
-          });
+          autoplaceTool);
     t.add("pcb", "pcb_place_footprint", "Place footprint", Kind::Edit, true,
           "Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: "
           "[{ref, x, y, rotation, bottom, force}]). A pose that overlaps another part, leaves the board, hits a "
@@ -4018,6 +4139,7 @@ void pcbTools(Table& t) {
                   collapseJogs(p->project);
                   routequality::fixAcuteJoins(p->project.pcb, p->project.schematic);
                   squareEscapes(p->project);
+                  if (const int off = viasOffPads(p->project)) j["viasMovedOffPads"] = off;
               }
               if (const Json necked = neckTombstones(p->project); necked.size()) j["tombstoningPrevented"] = necked;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
