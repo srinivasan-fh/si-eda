@@ -632,10 +632,18 @@ int squareEscapes(Project& pr) {
             if (pad.net == net && pad.bounds().contains(v)) return true;
         return std::any_of(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& via) { return (via.position - v).length() < 1e-6; });
     };
+    std::map<int, double> partNeed;  // the board clearance, or the part's own tightest land gap where that is less
+    for (const auto& [part, list] : byPart) {
+        double need = pr.pcb.settings.clearance;
+        for (const Pad* x : list)
+            for (const Pad* y : list)
+                if (x != y && x->net != y->net) need = std::min(need, rectRectDistance(x->bounds(), y->bounds()) - 0.01);
+        partNeed[part] = std::max(need, clr);
+    }
     for (size_t i = 0; i < pr.pcb.tracks.size(); ++i)
         for (const auto& [part, list] : byPart) {
             const Track t = pr.pcb.tracks[i];
-            if (list.size() < 8 || t.arc || t.teardrop || gapTo(t, part) >= clr - 1e-6) continue;
+            if (list.size() < 8 || t.arc || t.teardrop || gapTo(t, part) >= partNeed[part] - 1e-6) continue;
             Vec2 away{0, 0};  // from the nearest other-net pad toward the segment's middle
             double near = 1e9;
             const Vec2 mid = (t.a + t.b) * 0.5;
@@ -655,7 +663,7 @@ int squareEscapes(Project& pr) {
                     for (Vec2* e : {&o.a, &o.b})
                         if ((moveA && (*e - t.a).length() < 1e-6) || (moveB && (*e - t.b).length() < 1e-6)) *e = *e + away * d;
                 }
-                if (gapTo(pr.pcb.tracks[i], part) < clr - 1e-6) continue;
+                if (gapTo(pr.pcb.tracks[i], part) < partNeed[part] - 1e-6) continue;
                 const int now = problems();
                 if (now <= was) was = now, kept = true, ++done;
             }
@@ -5012,9 +5020,26 @@ void pcbTools(Table& t) {
               return out(j);
           });
     t.add("pcb", "pcb_remove_copper", "Remove tracks / vias", Kind::Destructive, false,
-          "Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias).",
-          Schema().array("tracks", "Track ids", "integer").array("vias", "Via ids", "integer"), [](McpServer& s, const Json& a) {
+          "Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias), or every track and via "
+          "of a net (net: rip it up, then pcb_autoroute nets [it] routes it again).",
+          Schema().array("tracks", "Track ids", "integer").array("vias", "Via ids", "integer").str("net", "Rip up this net"),
+          [](McpServer& s, const Json& a) {
               int t = 0, v = 0;
+              if (a.has("net")) {
+                  const std::string net = argStr(a, "net");
+                  Project& pr = P(s)->project;
+                  int index = -1;
+                  for (const auto& n : pr.schematic.nets())
+                      if (n.name == net) index = n.index;
+                  check(index >= 0, "No net " + net);
+                  const size_t tracks = pr.pcb.tracks.size(), vias = pr.pcb.vias.size();
+                  pr.pcb.tracks.erase(std::remove_if(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& x) { return x.net == index; }),
+                                      pr.pcb.tracks.end());
+                  pr.pcb.vias.erase(std::remove_if(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& x) { return x.net == index; }),
+                                    pr.pcb.vias.end());
+                  t += static_cast<int>(tracks - pr.pcb.tracks.size()), v += static_cast<int>(vias - pr.pcb.vias.size());
+                  P(s)->router.reset();
+              }
               if (a.get("tracks").isArray())
                   for (const auto& id : a.get("tracks").items()) t += sieda_pcb_remove_track(P(s), id.asInt(-1)) == 1;
               if (a.get("vias").isArray())
