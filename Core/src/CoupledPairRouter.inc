@@ -112,8 +112,9 @@ PairLayout routeCoupledPair(const RoutingGrid& g, const std::vector<Pad>& ps, co
     auto escapeExtra = [&](int net) {
         return net == plan.netP || net == plan.netN ? std::max(0.0, plan.minGap - s.clearance) : extraOf(net);
     };
+    bool escape[2] = {false, false};  // an end with no room otherwise: its stubs keep the net-class clearance only
     auto stubClear = [&](int end, int l, Vec2 a, Vec2 b, int net) {
-        if (!plan.viaEnd[end]) return memberClear(l, a, b, net);
+        if (!plan.viaEnd[end] && !escape[end]) return memberClear(l, a, b, net);
         return g.trackClearExact(l, a, b, wl[static_cast<size_t>(l)] / 2, net, escapeExtra);
     };
     // Ends: for both directions away from the pads, a few distances out, the centre-line node and the two stubs.
@@ -199,13 +200,15 @@ PairLayout routeCoupledPair(const RoutingGrid& g, const std::vector<Pad>& ps, co
         return ends.empty() ? "no room to fan out from the pads" : "";
     };
     std::vector<PairEnd> starts, goals;
-    if (std::string why = makeEnds(0, false, starts); !why.empty()) {
-        out.reason = why;
-        return out;
-    }
-    if (std::string why = makeEnds(1, true, goals); !why.empty()) {
-        out.reason = why;
-        return out;
+    for (int end = 0; end < 2; ++end) {
+        auto& list = end ? goals : starts;
+        std::string why = makeEnds(end, end == 1, list);
+        // Fine-pitch pins (an IC's neighbours closer than the fast nets' spacing): the stubs leave as single nets do.
+        if (why == "no room to fan out from the pads" && !plan.viaEnd[end]) escape[end] = true, why = makeEnds(end, end == 1, list);
+        if (!why.empty()) {
+            out.reason = why;
+            return out;
+        }
     }
 
     // ---- search ----

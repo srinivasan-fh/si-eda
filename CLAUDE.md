@@ -128,7 +128,9 @@
   `AutorouteOptions::improvePlacement`); coupled pairs' P/N crossover (`Project::autoPairCrossovers` in
   `Core/src/PcbSwap.cpp`, a pin swap of a unit's pin-swap group, run by `Project::autoRoute` with `coupledPairs`);
   coupled pairs start from BGA balls' dog-bone vias (`PairPlan::viaEnd`) and use each layer's stack-up width / gap
-  (`PairPlan::layerWidth`);
+  (`PairPlan::layerWidth`); a receptacle's doubled pair pads (USB-C D+ / D− in both rows) are fanned out to one via per
+  member, either side of the row (`BgaFanout::hasKnee` / `sharedVia`), and the pair starts there; an end with no room
+  under the fast nets' spacing retries with escape clearance (`escape`); REL_CROSSTALK skips a pair's own partner;
   via minimisation tries every net (adaptive batches + one shared grid, serial, `setViaMinimisationGrids` for tests);
   opt-in shape-based completion `AutorouteOptions::shapeCompletion` (`routequality::shapeComplete`: what the grid
   leaves unrouted, routed by the interactive router on the exact shapes); corridor routes get `routequality::fixAcuteJoins` (no DRC_ACUTE_ANGLE; classic copper untouched); opt-in

@@ -20928,6 +20928,23 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_usb_c_doubled_pads_route_as_a_coupled_pair) {
+    // A USB-C receptacle's D+ / D− sit in both rows (interleaved): each member's two pads join one via, and the pair
+    // routes coupled from the vias to the module's pins.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"},
+        {"ref": "U1", "part": "ESP32-C3-MINI-1"}], "nets": {"USB_P": ["J1.D+", "U1.27"], "USB_N": ["J1.D-", "U1.26"]},
+        "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 40, "height": 35})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))));
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
+    CHECK(routed.get("unroutedConnections").asInt(-1) == 0);
+    const Json pairs = mcpData(mcpTool(s, "pcb_route_report", Json::object())).get("pairs");
+    CHECK(pairs.size() == 1 && pairs[0].get("coupled").asBool(false));
+}
+
 TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
     // A roomy board: pcb_autoplace says so, and pcb_fit_board compact re-places every part on a smaller board where
     // they all still fit; it refuses once there is copper.

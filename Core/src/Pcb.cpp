@@ -3243,6 +3243,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         Vec2 via;
         double viaDiameter, viaDrill, trackWidth;
         bool inPad;
+        bool hasKnee = false, sharedVia = false;  // doubled pads: pad → knee → a via another pad also reaches
+        Vec2 knee;
     };
     std::vector<BgaFanout> bgaFanouts;
     double bgaPitch = 0;
@@ -3305,6 +3307,68 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
         }
     }
+    // A receptacle's doubled differential pads (USB-C's D+ / D− in both rows, interleaved B7 A6 A7 B6): with coupled
+    // pairs, each member's two pads join one via, one either side of the row (no crossing), and the pair routes
+    // from the two vias as from BGA balls'.
+    if (settings.layerCount >= 2 && settings.autorouter.coupledPairs && !settings.autorouter.fanoutOnly)
+        for (auto [pNet, nNet] : differentialPairs(sch)) {
+            if (!netPads.count(pNet) || !netPads.count(nNet) || netPads[pNet].size() != 3 || netPads[nNet].size() != 3) continue;
+            std::vector<size_t> row;  // the four pads on one part
+            int part = -1;
+            Vec2 far{0, 0};
+            for (int net : {pNet, nNet}) {
+                std::map<int, std::vector<size_t>> byPart;
+                for (size_t pi : netPads[net]) byPart[ps[pi].componentId].push_back(pi);
+                for (const auto& [id, list] : byPart)
+                    if (list.size() == 2 && (part < 0 || part == id)) part = id, row.insert(row.end(), list.begin(), list.end());
+                    else if (list.size() == 1) far = far + ps[list[0]].position * 0.5;
+            }
+            if (row.size() != 4) continue;
+            const bool horizontal = std::fabs(ps[row[0]].position.y - ps[row[3]].position.y) < 0.01;
+            std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
+                return horizontal ? ps[a].position.x < ps[b].position.x : ps[a].position.y < ps[b].position.y;
+            });
+            const Vec2 across = horizontal ? Vec2{0, 1} : Vec2{1, 0};
+            bool alternating = true;  // P N P N (or N P N P), evenly spaced in a line
+            for (size_t k = 1; k < 4; ++k)
+                alternating = alternating && ps[row[k]].net != ps[row[k - 1]].net &&
+                              std::fabs((ps[row[k]].position - ps[row[0]].position).dot(across)) < 0.01;
+            if (!alternating) continue;
+            const Vec2 mid = (ps[row[1]].position + ps[row[2]].position) * 0.5;
+            const double side = (far - mid).dot(across) >= 0 ? 1.0 : -1.0;  // toward the pair's far ends
+            const double half = (horizontal ? ps[row[0]].size.y : ps[row[0]].size.x) / 2;
+            const double tw = std::min(settings.trackWidth, (ps[row[1]].position - ps[row[0]].position).length() - settings.clearance);
+            const double reach = half + settings.clearance + settings.viaDiameter / 2 + 0.05;
+            std::vector<BgaFanout> made;
+            bool clear = tw >= settings.minTrackWidth - 1e-9;
+            for (int net : {pNet, nNet}) {  // P's via inward, N's outward
+                const Vec2 via = mid + across * (side * (net == pNet ? reach : -reach));
+                clear = clear && settings.contains(via);
+                for (size_t pi : row) {
+                    if (ps[pi].net != net) continue;
+                    BgaFanout f;
+                    f.pad = pi, f.via = via, f.viaDiameter = settings.viaDiameter, f.viaDrill = settings.viaDrill;
+                    f.trackWidth = tw, f.inPad = false, f.hasKnee = true, f.knee = ps[pi].position + across * (via - ps[pi].position).dot(across);
+                    f.sharedVia = std::any_of(made.begin(), made.end(), [&](const BgaFanout& o) { return o.via == via; });
+                    made.push_back(f);
+                }
+            }
+            // Clear of every other net's pad (sampled along the stubs, the via's ring).
+            for (const BgaFanout& f : made)
+                for (const Pad& o : ps) {
+                    if (o.net == ps[f.pad].net) continue;
+                    const Rect r = o.bounds();
+                    auto gap = [&](Vec2 q, double radius) {
+                        const double dx = std::max({r.x0 - q.x, 0.0, q.x - r.x1}), dy = std::max({r.y0 - q.y, 0.0, q.y - r.y1});
+                        return std::hypot(dx, dy) - radius;
+                    };
+                    clear = clear && gap(f.via, f.viaDiameter / 2) >= settings.clearance - 1e-9;
+                    for (const auto& [a, b] : {std::pair{ps[f.pad].position, f.knee}, std::pair{f.knee, f.via}})
+                        for (int k = 0; k <= 20; ++k)
+                            clear = clear && (!o.onLayer(ps[f.pad].smdLayer) || gap(a + (b - a) * (k / 20.0), tw / 2) >= settings.clearance - 1e-9);
+                }
+            if (clear) bgaFanouts.insert(bgaFanouts.end(), made.begin(), made.end());
+        }
     // The fan-out vias leave channels about one track wide between them: route BGA boards on a grid fine enough
     // to find those channels (eight cells per ball pitch).
     struct RestoreGrid {
@@ -3568,8 +3632,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             PairRouteReport rep;
             rep.positive = nets[static_cast<size_t>(pNet)].name;
             rep.negative = nets[static_cast<size_t>(nNet)].name;
-            const auto& lp = netPads[pNet];
-            const auto& ln = netPads[nNet];
+            std::vector<size_t> lp = netPads[pNet], ln = netPads[nNet];
+            for (auto* l : {&lp, &ln})  // doubled pads fanned out to one via: the pair starts from one of them
+                if (l->size() == 3) {
+                    std::vector<size_t> fanned, other;
+                    for (size_t pi : *l) (fanoutOfPad.count(pi) ? fanned : other).push_back(pi);
+                    if (fanned.size() == 2 && other.size() == 1) *l = {fanned[0], other[0]};
+                }
             if (isZoneNet(sch, pNet) || isZoneNet(sch, nNet) || isMeshNet(pNet) || isMeshNet(nNet)) rep.reason = "pour or mesh net";
             else if (spacing.gap > 0) rep.reason = "isolation barrier board";
             else if (lp.size() != 2 || ln.size() != 2) rep.reason = "members need exactly two pads each";
@@ -4121,18 +4190,28 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         for (const BgaFanout& f : bgaFanouts) {
             const Pad& pad = ps[f.pad];
             const int net = pad.net;
-            if (!f.inPad) {
-                Track t;
-                t.net = net;
-                t.layer = pad.smdLayer;
-                t.width = f.trackWidth;
-                t.a = pad.position;
-                t.b = f.via;
-                outT.push_back(t);
-                grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + extra(net) + w / 2, net);
-                grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, net);
-                grid.addCopper(t.a, t.b, t.width / 2, net, t.layer);
-                grid.fenceCopper(t.a, t.b, t.width / 2, net, t.layer);
+            if (!f.inPad)
+                for (const auto& [from, to] : f.hasKnee ? std::vector<std::pair<Vec2, Vec2>>{{pad.position, f.knee}, {f.knee, f.via}}
+                                                        : std::vector<std::pair<Vec2, Vec2>>{{pad.position, f.via}}) {
+                    if ((to - from).length() < 1e-9) continue;
+                    Track t;
+                    t.net = net;
+                    t.layer = pad.smdLayer;
+                    t.width = f.trackWidth;
+                    t.a = from;
+                    t.b = to;
+                    outT.push_back(t);
+                    // Doubled pads' stubs between fine-pitch pins keep the plain clearance (no fast-net spacing).
+                    grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + (f.hasKnee ? 0 : extra(net)) + w / 2, net);
+                    grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, net);
+                    grid.addCopper(t.a, t.b, t.width / 2, net, t.layer);
+                    grid.fenceCopper(t.a, t.b, t.width / 2, net, t.layer);
+                }
+            if (f.sharedVia) {  // the via is laid with the other pad's stub
+                fanoutCells[f.pad] = fanoutCells[std::find_if(bgaFanouts.begin(), bgaFanouts.end(), [&](const BgaFanout& o) {
+                                                    return !o.sharedVia && o.via == f.via;
+                                                })->pad];
+                continue;
             }
             Via v;
             v.net = net;

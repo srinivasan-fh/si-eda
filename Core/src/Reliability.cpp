@@ -730,16 +730,21 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 {c->id}, c->pcb.position, true);
         }
     }
-    // Crosstalk: fast nets running parallel and close to other signals (3W rule).
+    // Crosstalk: fast nets running parallel and close to other signals (3W rule); a differential pair's own members
+    // run close on purpose.
     {
         int count = 0;
+        std::set<std::pair<int, int>> partners;
+        for (const auto& [p, n] : differentialPairs(sch)) partners.insert({p, n}), partners.insert({n, p});
         for (const auto& a : pcb.tracks) {
             if (!cls.fast.count(a.net) || count >= 20 || a.arc) continue;
             Vec2 da = a.b - a.a;
             double la = da.length();
             if (la < 1.0) continue;
             for (const auto& b : pcb.tracks) {
-                if (b.layer != a.layer || b.net == a.net || sch.netRole(b.net) != NetRole::Signal || b.arc) continue;
+                if (b.layer != a.layer || b.net == a.net || sch.netRole(b.net) != NetRole::Signal || b.arc ||
+                    partners.count({a.net, b.net}))
+                    continue;
                 Vec2 db = b.b - b.a;
                 double lb = db.length();
                 if (lb < 1.0 || std::fabs((da.x * db.x + da.y * db.y) / (la * lb)) < 0.98) continue;
