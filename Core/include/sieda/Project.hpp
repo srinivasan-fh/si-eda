@@ -25,6 +25,9 @@ struct ReferenceLayer {
 };
 
 /// One line of the revision table (title blocks of the schematic PDF and of the board drawing).
+/// Project file format version (JSON "version"): raised only when an older SiEDA would misread a newer file.
+constexpr int kProjectFormatVersion = 1;
+
 struct Revision {
     std::string rev, date, description, by;
 };
@@ -200,6 +203,8 @@ public:
     TitleBlock titleBlock;
     /// Revision history, oldest first. JSON "revisions", written only when present.
     std::vector<Revision> revisions;
+    /// What loading the file noticed (not saved): a file from a newer SiEDA, settings this version would drop on save.
+    std::vector<std::string> loadNotes;
     /// Reference layers (Gerber / Excellon). JSON "referenceLayers", written only when present.
     std::vector<ReferenceLayer> referenceLayers;
 

@@ -23686,3 +23686,69 @@ TEST(library_update_notices_and_apply) {
     CHECK(sp->project.schematic.findByRef("U1")->customPart == CustomPartRegistry::instance().registerPart(cat->spec)->id);
     CHECK(mcpTool(m, "library_updates", Json::object()).dump().find("NE555") == std::string::npos);
 }
+
+TEST(project_load_notes_newer_file_and_unknown_fields) {
+    // A file from this version loads without notes (every example, with a routed board, and the features that are
+    // written only when used); a newer format and fields this version would drop are reported.
+    for (const auto& e : mcp::mcpExamples()) {
+        mcp::McpServer m;
+        Json id = Json::object();
+        id["id"] = e.id;
+        CHECK(!mcpFailed(mcpTool(m, "project_load_example", id)));
+        Project& p = m.project()->project;
+        p.pcb.autoPlace(p.schematic, true);
+        const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+        if (!q.loadNotes.empty()) std::printf("    %s: %s\n", e.id.c_str(), q.loadNotes[0].c_str());
+        CHECK(q.loadNotes.empty());
+    }
+    Json j = Project().toJson();
+    j["version"] = 99;
+    j["futureFeature"] = Json::parse(R"({"on": true})");
+    j["board"]["laserEtch"] = 3;
+    j["board"]["unusedZero"] = 0;  // empty / zero / false values carry nothing and are not reported
+    const Project p = Project::fromJson(j);
+    CHECK(p.loadNotes.size() == 2 && p.loadNotes[0].find("format 99") != std::string::npos);
+    CHECK(p.loadNotes[1].find("futureFeature") != std::string::npos && p.loadNotes[1].find("board.laserEtch") != std::string::npos);
+    CHECK(p.loadNotes[1].find("unusedZero") == std::string::npos);
+}
+
+TEST(pin_map_export_and_cubemx_xdc_qsf_assignments) {
+    // Assignments from a CubeMX .ioc name the MCU's pins' nets; the header gives each signal net's pin (CubeMX-style
+    // for STM32 pins); XDC / QSF / CSV assignments parse; unknown pins are reported.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "schematic_build", Json::parse(R"J({"parts": [{"ref": "U1", "part": "STM32F103C8T6"}], "pins": false})J"))));
+    Json a = Json::object();
+    a["ref"] = "U1";
+    a["assign"] = "#MicroXplorer Configuration settings\nPA5.GPIOParameters=GPIO_Label\nPA5.GPIO_Label=LED_GREEN\n"
+                  "PA5.Signal=GPIO_Output\nPA9.Mode=Asynchronous\nPA9.Signal=USART1_TX\nPZ9.GPIO_Label=NOPE\n";
+    const Json r = mcpTool(m, "schematic_pin_map", a);
+    CHECK(!mcpFailed(r) && r.dump().find("\"assigned\":2") != std::string::npos && r.dump().find("PZ9") != std::string::npos);
+    const std::string h = exportPinMap(m.project()->project.schematic, "U1", "header");
+    CHECK(h.find("#define LED_GREEN_PIN \"PA5\"") != std::string::npos && h.find("#define LED_GREEN_Pin GPIO_PIN_5") != std::string::npos);
+    CHECK(h.find("#define LED_GREEN_GPIO_Port GPIOA") != std::string::npos && h.find("USART1_TX_PIN \"PA9\"") != std::string::npos);
+    CHECK(exportPinMap(m.project()->project.schematic, "U1", "xdc").find("[get_ports {LED_GREEN}]") != std::string::npos);
+    CHECK(exportPinMap(m.project()->project.schematic, "U9", "xdc").empty());
+    const auto x = parsePinAssignments("set_property -dict { PACKAGE_PIN E3 IOSTANDARD LVCMOS33 } [get_ports { CLK100MHZ }];\n"
+                                       "set_property PACKAGE_PIN H17 [get_ports {led[0]}]\n"
+                                       "set_location_assignment PIN_Y2 -to CLOCK_50\npin,net\n12,SDA\n");
+    CHECK(x.size() == 4 && x[0] == std::make_pair(std::string("E3"), std::string("CLK100MHZ")) && x[1].second == "led[0]");
+    CHECK(x[2] == std::make_pair(std::string("Y2"), std::string("CLOCK_50")) && x[3].second == "SDA");
+}
+
+TEST(bom_custom_columns_and_multi_board) {
+    // Chosen columns in order; a consolidated BOM names each line's boards, and a board index keeps that board's parts.
+    Project p;
+    const int r1 = p.schematic.addComponent(ComponentKind::Resistor, "10k", {0, 0});
+    const int r2 = p.schematic.addComponent(ComponentKind::Resistor, "10k", {40, 0});
+    p.schematic.addComponent(ComponentKind::Capacitor, "100n", {80, 0});
+    p.boardNames = {"Main", "Front panel"};
+    p.schematic.find(r2)->pcb.board = 1;
+    (void)r1;
+    const std::string all = exportBomColumns(p, {"quantity", "value", "boards", "nonsense"});
+    CHECK(all.rfind("Quantity,Value,Boards\n", 0) == 0);
+    CHECK(all.find("2,10k,Main; Front panel") != std::string::npos && all.find("1,100n,Main") != std::string::npos);
+    const std::string front = exportBomColumns(p, {"designators", "quantity"}, 1);
+    CHECK(front == "Designators,Quantity\nR2,1\n");
+    CHECK(exportBomColumns(p, {}).rfind("Item,Designators,Quantity,Value,Footprint,Manufacturer,Manufacturer Part #,DNP\n", 0) == 0);
+}

@@ -638,7 +638,7 @@ static PcbPlacement placementFromJson(const Json& pc) {
 Json Project::toJson() const {
     Json root = Json::object();
     root["format"] = "sieda-project";
-    root["version"] = 1;
+    root["version"] = kProjectFormatVersion;
     root["name"] = name;
     root["requirements"] = requirements;
     root["industry"] = industry;
@@ -1262,6 +1262,28 @@ Project Project::fromJson(const Json& root) {
             for (const auto& [name, pins] : nets.fields()) p.pcbSync.nets[name] = pins.asString("");
     } else {
         p.pcbSync = p.currentSync();
+    }
+    // Forward compatibility: a newer file, and settings (two levels deep) this version would not write back.
+    if (const int v = root.get("version").asInt(1); v > kProjectFormatVersion)
+        p.loadNotes.push_back("Saved by a newer SiEDA (file format " + std::to_string(v) + ", this version reads " +
+                              std::to_string(kProjectFormatVersion) + "): save a copy rather than overwrite it.");
+    auto used = [](const Json& v) {
+        return !(v.isNull() || (v.isArray() && v.size() == 0) || (v.isObject() && v.size() == 0) || (v.type() == Json::Type::Bool && !v.asBool(false)) ||
+                 (v.isString() && v.asString("").empty()) || (v.isNumber() && v.asNumber(0) == 0));
+    };
+    const Json again = p.toJson();
+    std::vector<std::string> dropped;
+    for (const auto& [k, v] : root.fields()) {
+        if (!used(v)) continue;
+        if (!again.has(k)) dropped.push_back(k);
+        else if (v.isObject() && again.get(k).isObject())
+            for (const auto& [k2, v2] : v.fields())
+                if (used(v2) && !again.get(k).has(k2)) dropped.push_back(k + "." + k2);
+    }
+    if (!dropped.empty()) {
+        std::string list;
+        for (const auto& d : dropped) list += (list.empty() ? "" : ", ") + d;
+        p.loadNotes.push_back("This version does not know " + list + ": saving would drop them.");
     }
     return p;
 }

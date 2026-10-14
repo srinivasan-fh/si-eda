@@ -1817,7 +1817,7 @@ struct PCBCanvas: View {
                                   : String(localized: "Click the corners; double-click or Enter closes the shape · Esc cancels"),
                                   in: &ctx, size: size)
         } else if let route {
-            var length = String(format: "%.2f mm", route.length)
+            var length = Theme.length(route.length)
             if let net = route.netLength, let target = route.targetLength, target > 0 {
                 length += String(format: " · net %.2f / %.2f mm", net, target)
             }
@@ -1859,7 +1859,7 @@ struct PCBCanvas: View {
         // Cursor read-out
         if let h = hover {
             let w = viewport.toWorld(h)
-            var text = String(format: "X %.2f  Y %.2f mm", w.x, w.y)
+            var text = "X \(Theme.length(w.x, unit: false))  Y \(Theme.length(w.y))"
             if let net = hoveredNet, let n = snap.net(net) { text += "  ·  \(n.name)" }
             ctx.draw(Text(text).font(.system(size: 11, design: .monospaced)).foregroundColor(Theme.skyBlue),
                      at: CGPoint(x: 12, y: size.height - 12), anchor: .bottomLeading)

@@ -21,23 +21,23 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Unified database: schematic, PCB, footprints, parts, constraints, BOM, 3D | ✅ | `Project` (one JSON document) |
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
-| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core with mil display; inch display and a fixed-point (nm) database ⏳ |
+| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / mil / inch read-outs), footprint editor mil; a fixed-point (nm) database ⏳ |
 | P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | core, CLI and MCP server build on Linux / macOS; the app is macOS only |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
-| P0 | Human-readable, documented project file | 🟡 | indented JSON; a written format reference ⏳ |
+| P0 | Human-readable, documented project file | ✅ | indented JSON; `docs/FILE_FORMAT.md` |
 | P0 | ➕ Text-based, diff-friendly file that merges | ✅ | sorted-key JSON, Git diff driver (`sieda-mcp --git-diff`), three-way merge |
-| P0 | ➕ Forward / backward compatibility policy | 🟡 | new fields written only when used (older files load and save identically); a "newer file, read-only" warning ⏳ |
+| P0 | ➕ Forward / backward compatibility policy | ✅ | new fields written only when used; on open, a newer format or settings this version would drop are reported (`loadNotes`) |
 | P0 | Bidirectional schematic ↔ PCB sync | ✅ | Update PCB (forward ECO), back-annotation ECO |
 | P0 | Stable object IDs and references | ✅ | |
 | P0 | ➕ Grids, snapping, origin per editor | ✅ | schematic grid / snap, PCB grid, footprint grid and origin |
 | P0 | ➕ Object locking | ✅ | schematic `locked`, locked tracks kept by the router |
 | P1 | Offline-first, optional cloud sync | 🟡 | fully offline; cloud sync ⏳ (shared-folder live co-editing exists) |
-| P1 | Project templates and reusable settings | 🟡 | reference designs, rule presets, DFM packs; user project templates ⏳ |
+| P1 | Project templates and reusable settings | ✅ | reference designs, rule presets, DFM packs; File → Save as Template… / New from Template |
 | P1 | Versioned database and migration tools | 🟡 | tolerant reader; explicit format versions + migrator ⏳ |
 | P1 | Custom shortcuts and command palette | ✅ | ⌘K palette, Settings → Shortcuts (menus and canvas tool keys) |
 | P1 | Incremental updates | ✅ | delta snapshots, cached pours / board mask |
-| P1 | ➕ Settings export / import (rules, colours, shortcuts) | ⏳ | |
+| P1 | ➕ Settings export / import (rules, colours, shortcuts) | ✅ | Settings → Appearance → Export / Import Settings… (rules travel in templates) |
 | P1 | ➕ Multi-monitor, detachable editor windows | ⏳ | |
 | P2 | Multi-board system projects | ✅ | `Project::boardNames`, parked boards |
 | P2 | Harness and connector system design | ✅ | `Harnesses.cpp` |
@@ -219,22 +219,22 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
 | P0 | Live BOM, MPNs, quantities, CSV, DNP / variants | ✅ | |
-| P0 | ➕ Custom columns, grouping, templates | 🟡 | grouping ✅; user columns / templates ⏳ |
+| P0 | ➕ Custom columns, grouping, templates | ✅ | grouping; MCP `output_bom` columns in any order (`exportBomColumns`); BOM layout travels in project templates |
 | P1 | Supplier catalogs, price breaks, INR / USD, stock / lead time, EOL, alternates | ✅ | Nexar, DigiKey, Mouser |
 | P1 | ➕ MOQ, packaging, attrition | ✅ | |
 | P2 | Build cost, layer / material cost, second sources, risk scores, alerts | 🟡 | cost roll-up ✅; alerts ⏳ |
 | P2 | Indian suppliers, ➕ duty / GST / landed cost | ✅ | |
-| P2 | ➕ Consolidated BOM across boards | ⏳ | |
+| P2 | ➕ Consolidated BOM across boards | ✅ | `exportBomColumns`: one BOM across every board with a Boards column, or one board's |
 | P3 | AVL, procurement rules, RoHS / REACH, origin, ERP | 🟡 | compliance fields ✅; ERP ⏳ |
 
 ## 12. Pin planning and firmware co-design
 
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
-| P1 | MCU / FPGA pin-planning view | ⏳ | |
+| P1 | MCU / FPGA pin-planning view | 🟡 | pin map export / import (MCP `schematic_pin_map`); a graphical planner ⏳ |
 | P1 | Pin swap within groups with back-annotation | ✅ | |
-| P1 | Import CubeMX / XDC / QSF pin assignments | ⏳ | |
-| P2 | Export firmware headers / constraint files | ⏳ | |
+| P1 | Import CubeMX / XDC / QSF pin assignments | ✅ | `parsePinAssignments`: .ioc labels / signals, XDC, QSF, CSV → net labels on the part's pins |
+| P2 | Export firmware headers / constraint files | ✅ | `exportPinMap`: C header (CubeMX-style for STM32), XDC, QSF, CSV |
 | P2 | Bank-voltage checks while swapping, mating connector pin-outs | 🟡 | harness pin-outs ✅ |
 | P3 | Controlled pin-map releases | ⏳ | |
 
@@ -278,12 +278,12 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 |---|---|---|---|
 | P0 | First-project tour, palette, shortcuts, searchable libraries, snapping | ✅ | |
 | P0 | Dark / light themes | ✅ | three app themes, 14 canvas schemes |
-| P0 | High-contrast, colour-blind-friendly layer colours | ⏳ | |
+| P0 | High-contrast, colour-blind-friendly layer colours | ✅ | Settings → Appearance → Layer Colours: Okabe–Ito palette |
 | P0 | Context help, offline docs, actionable errors, ➕ hover details | ✅ | |
 | P1 | Beginner / pro modes | ⏳ | |
-| P1 | Keyboard presets for KiCad / Altium / Eagle users | 🟡 | KiCad canvas preset ✅; Altium key sequences ⏳ |
+| P1 | Keyboard presets for KiCad / Altium / Eagle users | 🟡 | KiCad and Altium canvas presets ✅; two-key sequences ⏳ |
 | P1 | Tutorials, pre-manufacturing checklist, examples, layouts, accessibility | ✅ | |
-| P1 | ➕ Migration guides, ➕ pen / trackpad gestures | 🟡 | trackpad ✅; guides ⏳ |
+| P1 | ➕ Migration guides, ➕ pen / trackpad gestures | ✅ | trackpad; `docs/MIGRATING.md` |
 | P2–P3 | Personalised shortcuts, lessons, org training | ⏳ | |
 
 ## 17. Import, export, interoperability
@@ -308,10 +308,10 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
 | P0 | Stable APIs, headless validation and export | ✅ | C API, `sieda-cli`, `sieda-mcp` |
-| P0 | ➕ API semantic versioning | 🟡 | MCP protocol version; C API version policy ⏳ |
-| P1 | Python API | ⏳ | |
+| P0 | ➕ API semantic versioning | ✅ | MCP protocol version; C API `SIEDA_API_VERSION_*` and `sieda_api_version()` with a written semver policy |
+| P1 | Python API | ✅ | `python/sieda.py`: every MCP tool as a method (standard library only; CTest `sieda_python_api`) |
 | P1 | CLI ERC / DRC, automated outputs | ✅ | |
-| P1 | CI templates (GitHub Actions / GitLab) | 🟡 | GitHub Actions `docs/ci/sieda-check.yml` ✅; GitLab ⏳ |
+| P1 | CI templates (GitHub Actions / GitLab) | ✅ | `docs/ci/sieda-check.yml` (GitHub Actions), `docs/ci/sieda-check.gitlab-ci.yml` (GitLab) |
 | P1 | ➕ Event hooks | ⏳ | |
 | P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface ✅ |
 | P3 | REST, PLM / ERP, plug-in governance | ⏳ | |
@@ -391,15 +391,15 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 7. ~~Board test-point object and logo / image import to silk or copper (§4 P0)~~ ✅
 8. ~~User-defined documentation layers (§4 P0)~~ ✅
 9. ~~Panel DRC (§6 P1)~~ ✅
-10. Python API over the C API, event hooks (§18 P1)
-11. Settings export / import, user project templates (§1 P1)
-12. High-contrast / colour-blind layer palette; beginner / pro modes (§16)
-13. MCU / FPGA pin planner with CubeMX / XDC / QSF import and firmware header export (§12)
+10. ~~Python API~~ ✅ (over MCP), event hooks (§18 P1)
+11. ~~Settings export / import, user project templates (§1 P1)~~ ✅
+12. ~~High-contrast / colour-blind layer palette~~ ✅; beginner / pro modes (§16)
+13. MCU / FPGA pin planner (graphical) with ~~CubeMX / XDC / QSF import and firmware header export~~ ✅ (§12)
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
 15. ~~Library update notices~~, library versions, ~~tags / favourites, CSV pin-table wizard, IPC zero-orientation check~~ (§3)
-16. Consolidated multi-board BOM, custom BOM columns / templates, price alerts (§11)
+16. ~~Consolidated multi-board BOM, custom BOM columns~~ ✅, price alerts (§11)
 17. In-app Git, browser viewer, file locking, approvals (§15)
-18. Fixed-point (nm) geometry database, inch units, file-format reference and migrator (§1)
+18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and migrator (§1)
 19. Rigid-flex folding in 3D, native MCAD connectors (§8)
 20. Fab quote / order APIs, Gerber-level package comparison (§9 P2)
 21. Windows / Linux app (§1 P0) — the core already builds there; the app is SwiftUI

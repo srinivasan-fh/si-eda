@@ -308,6 +308,13 @@ struct SiEDACommands: Commands {
                     }
                 }
             }
+            Menu("New from Template") {
+                let templates = store.templateURLs()
+                if templates.isEmpty { Text("No templates yet: File → Save as Template…") }
+                ForEach(templates, id: \.self) { url in
+                    Button(url.deletingPathExtension().lastPathComponent) { store.newFromTemplate(url) }
+                }
+            }
             Button("Open…") { store.openProject() }
                 .keyboardShortcut(shortcuts.shortcut("open"))
             Menu("Open Recent") {
@@ -328,6 +335,7 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut(shortcuts.shortcut("save"))
             Button("Save As…") { store.saveAs() }
                 .keyboardShortcut(shortcuts.shortcut("saveAs"))
+            Button("Save as Template…") { store.saveAsTemplate() }
             Divider()
             Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
                 .keyboardShortcut(shortcuts.shortcut("fabPackage"))

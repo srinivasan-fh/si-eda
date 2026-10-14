@@ -63,7 +63,29 @@ enum Theme {
     }
 
     /// Copper layer colours (Layer colour mode, layer tabs, X-Ray stack): standard CAD colours per layer.
+    /// User default for board read-outs (cursor, route length): "mm" (default), "mil" or "in"; the design stays in mm.
+    static let displayUnitKey = "pcb.displayUnit"
+
+    /// A board length (mm) in the display unit, with its unit name unless `unit` is false.
+    static func length(_ mm: Double, unit: Bool = true) -> String {
+        switch UserDefaults.standard.string(forKey: displayUnitKey) {
+        case "mil": return String(format: "%.1f", mm / 0.0254) + (unit ? " mil" : "")
+        case "in": return String(format: "%.4f", mm / 25.4) + (unit ? " in" : "")
+        default: return String(format: "%.2f", mm) + (unit ? " mm" : "")
+        }
+    }
+
+    /// User default: "" = standard layer colours, "colourblind" = the Okabe–Ito palette (no red / green pairs).
+    static let layerPaletteKey = "pcb.layerPalette"
+
     static func copperColor(_ layer: Int, layerCount: Int) -> Color {
+        if UserDefaults.standard.string(forKey: layerPaletteKey) == "colourblind" {
+            let okabeIto: [Color] = [Color(red: 0.94, green: 0.89, blue: 0.26), Color(red: 0.00, green: 0.62, blue: 0.45),
+                                     Color(red: 0.84, green: 0.37, blue: 0.00), Color(red: 0.80, green: 0.47, blue: 0.65)]
+            if layer == 0 { return Color(red: 0.90, green: 0.62, blue: 0.00) }
+            if layer == max(1, layerCount) - 1 { return Color(red: 0.34, green: 0.71, blue: 0.91) }
+            return okabeIto[max(0, layer - 1) % okabeIto.count]
+        }
         if layer == 0 { return topCopper }
         if layer == max(1, layerCount) - 1 { return bottomCopper }
         // Inner layers: yellow, green, orange, magenta (Altium's mid-layer order).

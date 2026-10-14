@@ -294,9 +294,13 @@ struct SchematicCanvas: View {
                     store.workspace = .library
                 }]
             } ?? []
+            let pinMap: [CanvasMenuItem] = c.pins.count >= 8 ? [  // MCU / FPGA: firmware and constraint files
+                CanvasMenuItem(title: String(localized: "Export Pin Map…")) { store.exportPinMap(ref: c.ref) },
+                CanvasMenuItem(title: String(localized: "Assign Pins from File…")) { store.assignPins(ref: c.ref) },
+            ] : []
             return [
                 CanvasMenuItem(title: String(localized: "Edit Properties…")) { store.quickEdit = id },
-            ] + editSymbol + [
+            ] + editSymbol + pinMap + [
                 .separator,
                 CanvasMenuItem(title: String(localized: "Rotate"), key: "r") { store.rotate(ids) },
                 CanvasMenuItem(title: String(localized: "Mirror Horizontally"), key: "x") { store.mirror(ids, vertical: false) },

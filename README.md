@@ -76,7 +76,7 @@ and the tool reference are in [docs/MCP.md](docs/MCP.md).
   - **When a limit is set:** parts taller than the enclosure allows on their side (**Board Setup → Tallest part**).
   - **Height zones:** rectangles with their own maximum height, set over MCP or the C API.
 
-Guides: [docs/MCAD.md](docs/MCAD.md) and [docs/TEAM.md](docs/TEAM.md).
+Guides: [docs/MCAD.md](docs/MCAD.md), [docs/TEAM.md](docs/TEAM.md), [docs/FILE_FORMAT.md](docs/FILE_FORMAT.md) (the project file) and [docs/MIGRATING.md](docs/MIGRATING.md) (coming from KiCad, Altium or Eagle).
 
 ## Features
 

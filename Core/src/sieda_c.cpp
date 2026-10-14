@@ -131,7 +131,11 @@ bool assemblyExport(const Project& p, const Schematic& sch, const std::string& f
 
 extern "C" {
 
-const char* sieda_version(void) { return "1.0.0"; }
+const char* sieda_version(void) { return "1.1.0"; }
+
+int32_t sieda_api_version(void) {
+    return SIEDA_API_VERSION_MAJOR * 10000 + SIEDA_API_VERSION_MINOR * 100 + SIEDA_API_VERSION_PATCH;
+}
 
 SiedaProject* sieda_project_new(const char* name) {
     try {

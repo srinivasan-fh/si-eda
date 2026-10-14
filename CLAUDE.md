@@ -187,6 +187,14 @@
   MCP `pcb_graphics` / `pcb_copper_thieving`; `TESTPOINT` / `NETTIE` packages (net-tie DRC exemption `tied` in
   `runDRC`); flex regions (`FlexRegion`, FLEX_* in `mechanicalChecks`); barrier keep-outs (`RouteKeepout::barrier`);
   panel DRC `panelChecks`; grounded CPW `FieldGeometry::cpw`.
+- Platform: file format `docs/FILE_FORMAT.md` (`kProjectFormatVersion`; `Project::loadNotes` = newer format / fields
+  this version would drop, shown on open), project templates (`DesignStore.saveTemplate` / `newFromTemplate`, Application
+  Support/SiEDA/Templates), settings export / import `SettingsTransfer`, colour-blind layer palette
+  (`Theme.layerPaletteKey`), Altium canvas preset; migration guide `docs/MIGRATING.md`.
+- Integration: pin maps `exportPinMap` / `parsePinAssignments` (`Documents.cpp`, MCP `schematic_pin_map`: header /
+  XDC / QSF / CSV out, CubeMX .ioc / XDC / QSF / CSV in); Python client `python/sieda.py` over `sieda-mcp` (CTest
+  `sieda_python_api`); C API semver `SIEDA_API_VERSION_*` / `sieda_api_version()` (bump MINOR when adding functions);
+  CI templates `docs/ci/` (GitHub, GitLab); BOM with chosen columns / per board `exportBomColumns` (MCP `output_bom`).
 - Library extras: CSV / TSV / CubeMX pin tables `parsePinTable` (`CustomParts.cpp`, MCP `library_create_part`
   `pinTable`, library fuzz target), LAND_ZERO_ORIENTATION (pad 1 on the right; quiet on every catalog part), library
   update notices `sieda_library_updates` (MCP `library_updates`), favourites / tags `LibraryMarks` (Standards.swift,

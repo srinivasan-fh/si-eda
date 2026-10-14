@@ -160,6 +160,9 @@ if(SIEDA_BUILD_TESTS)
         add_test(NAME sieda_mcp_stdio
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_stdio_test.py
                          $<TARGET_FILE:sieda-mcp> ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures/mcp/transcript.jsonl)
+        # The Python API (python/sieda.py) drives sieda-mcp end to end.
+        add_test(NAME sieda_python_api
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_sieda.py $<TARGET_FILE:sieda-mcp>)
         # sieda-mcp --connect (stdio to the app's live HTTP endpoint) against a small in-process HTTP server.
         if(NOT WIN32)
             add_test(NAME sieda_mcp_connect
