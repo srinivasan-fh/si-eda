@@ -312,10 +312,16 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         for (size_t i = 1; i < chain.size(); ++i) try {
                 links.push_back({pinAddress(*p, chain.items()[i - 1]), pinAddress(*p, chain.items()[i])});
             } catch (const std::exception&) {}
+    // Crystals (and their load capacitors) first: they stand by the IC's pins before its other parts take the room.
+    auto isCrystal = [&](int id) {
+        const std::string& r = sch.find(id)->ref;
+        return r.size() > 1 && r[0] == 'Y' && std::isdigit(static_cast<unsigned char>(r[1]));
+    };
+    std::stable_partition(links.begin(), links.end(), [&](const auto& l) { return isCrystal(l.first.component) || isCrystal(l.second.component); });
     std::set<int> mine(ids.begin(), ids.end()), done;
-    auto moveBy = [&](int id, Vec2 d) {
+    auto moveBy = [&](int id, Vec2 d, double grid = 10) {
         const Vec2 at = sch.find(id)->position;
-        sieda_move_component(p, id, std::round((at.x + d.x) / 10) * 10, std::round((at.y + d.y) / 10) * 10);
+        sieda_move_component(p, id, std::round((at.x + d.x) / grid) * grid, std::round((at.y + d.y) / grid) * grid);
     };
     auto room = [&](int id) {  // the outline with room for a net label beside each side that has pins
         const Component& c = *sch.find(id);
@@ -383,10 +389,12 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         if (done.count(root)) continue;
         std::vector<int> group{root};
         done.insert(root);
-        for (size_t g = 0; g < group.size(); ++g)
+        // Lays out the parts linked to `hub` beside its pins; a crystal's load capacitors go right after the crystal,
+        // before the IC's other parts take the room below it.
+        std::function<void(int)> expand = [&](int hub) {
             for (const auto& [a0, b0] : links)
                 for (const auto& [a, b] : {std::pair{a0, b0}, std::pair{b0, a0}}) {
-                    if (a.component != group[g] || !mine.count(b.component) || done.count(b.component)) continue;
+                    if (a.component != hub || !mine.count(b.component) || done.count(b.component)) continue;
                     // A crystal's load capacitor hangs below its pin (ground at the bottom), clear of the IC beside it.
                     const std::string& hubRef = sch.find(a.component)->ref;
                     const bool loadCap = hubRef.size() > 1 && hubRef[0] == 'Y' && std::isdigit(static_cast<unsigned char>(hubRef[1])) &&
@@ -409,9 +417,13 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         }
                     const Vec2 from = sch.pinPosition({a.component, a.pin}), to = sch.pinPosition({b.component, b.pin});
                     // Clear of the labels on an IC's other pins; close up between two-pin parts.
-                    const double run = upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : 120;
+                    // A crystal stands further out from its IC, so its load capacitors hang clear of the IC's labels.
+                    const std::string& ref = sch.find(b.component)->ref;
+                    const bool crystal = ref.size() > 1 && ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(ref[1]));
+                    const double run = upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
                     moveBy(b.component, upright ? Vec2{from.x + 80 - to.x, from.y - 140 - to.y}
-                                                : Vec2{from.x + d.x * run - to.x, from.y + d.y * run - to.y});
+                                                : Vec2{from.x + d.x * run - to.x, from.y + d.y * run - to.y},
+                           loadCap ? 5 : 10);  // in line with the crystal's pin (5 off the 10 grid)
                     // Two parts on one pin (or a chain folding back): step sideways until it is clear of the group (a
                     // crystal's load capacitor either side of its pin, so it stays under the crystal).
                     double along = 0;
@@ -430,12 +442,15 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         // A step down clears the designator above and the value below as well.
                         const double w = std::fabs(d.x) > 0.5 ? o[3] - o[1] + 60 : o[2] - o[0] + 40;
                         const double next = loadCap ? (step / 2 + 1) * w * (step % 2 ? -1 : 1) : along + w;
-                        moveBy(b.component, std::fabs(d.x) > 0.5 ? Vec2{0, next - along} : Vec2{next - along, 0});
+                        moveBy(b.component, std::fabs(d.x) > 0.5 ? Vec2{0, next - along} : Vec2{next - along, 0}, loadCap ? 5 : 10);
                         along = next;
                     }
                     done.insert(b.component);
                     group.push_back(b.component);
+                    if (crystal) expand(b.component);
                 }
+        };
+        for (size_t g = 0; g < group.size(); ++g) expand(group[g]);
         if (anchor(group)) continue;
         double x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
         for (int id : group) {
@@ -2593,8 +2608,12 @@ void schematicTools(Table& t) {
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l.a.component, l.a.pin}), p1 = sch.pinPosition({l.b.component, l.b.pin});
                   const Vec2 d0 = pinOutward(proj(s), l.a), d1 = pinOutward(proj(s), l.b), run = p1 - p0;
+                  // A crystal's load capacitor hangs straight down from the crystal's pin (a junction with the IC's wire).
+                  const std::string& hub = sch.find(l.a.component)->ref;
+                  const bool fromCrystal = hub.size() > 1 && hub[0] == 'Y' && std::isdigit(static_cast<unsigned char>(hub[1]));
+                  const double out0 = run.x * d0.x + run.y * d0.y;
                   if ((std::fabs(run.x) > 0.5 && std::fabs(run.y) > 0.5) || run.length() < 1 ||
-                      run.x * d0.x + run.y * d0.y <= 0 || run.x * d1.x + run.y * d1.y >= 0)
+                      (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= 0)
                       return false;
                   for (const auto& c : sch.components()) {  // nothing in the way: a body, or a label drawn before
                       if (c.kind == ComponentKind::Junction || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;

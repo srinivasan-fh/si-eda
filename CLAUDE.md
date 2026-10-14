@@ -175,8 +175,8 @@
   with the parts and keeps a part nearer an edge than the margin there; PLACE_KEEPOUT is an error (and DRC_PLACE_KEEPOUT)
   for a pour / barrier keep-out; a bulk cap goes by its rail's series entry (diode / fuse / ferrite), else a connector,
   or by a load on a regulated rail; `placeDecoupling` pairs caps with the pin they are drawn by (`drawnApart`); grounds
-  always point down (out beyond the labels below); a crystal's load caps hang below its pins, a 4-pad crystal is mirrored
-  to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
+  always point down (out beyond the labels below); a crystal's load caps hang below its pins (laid out right after the crystal, which stands 300 out from its IC, on
+  a 5 grid in line with its pins, wired down from them), a 4-pad crystal is mirrored to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
   part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
   part (layout-only link); after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
   runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
