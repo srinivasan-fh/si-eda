@@ -903,8 +903,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
             }
         }
         std::set<PinRef> reported;
-        // A pin on another pin or wire corner without a connection is a note (a drawing to tidy); a wire drawn across a
-        // pin it does not join (an L-route over it, a part turned under its wires) is a warning: it reads as joined.
+        // A note: a pin on another pin or wire corner, or a wire drawn across a pin (an L-route over it), without a
+        // connection — the netlist follows the wires, so this is a drawing to tidy, not a fault.
         auto report = [&](PinRef pin, const std::string& what, Severity severity = Severity::Info) {
             if (!reported.insert(pin).second) return;
             const Component* c = find(pin.component);
@@ -940,7 +940,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
                     const double t = vertical ? at.y : at.x;
                     if (t <= lo + 0.5 || t >= hi - 0.5) continue;  // the ends are pins of the wire itself or a stacked spot
                     if (pin == w.a || pin == w.b || (net >= 0 && netOf(pin) == net)) continue;
-                    report(pin, "a wire", Severity::Warning);
+                    report(pin, "a wire", Severity::Info);
                 }
             }
         }

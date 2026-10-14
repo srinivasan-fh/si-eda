@@ -559,7 +559,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_set_value` | edit | Sets a part's value ("4k7", "100n", "Blue", a source's "3.3" or "SIN(0 1 50)"). |
 | `schematic_set_package` | edit | Sets the package variant of a passive / diode ("R_0603", "C_1206", "CP_Tant_B", "D_DO41_THT"; "" = default). |
 | `schematic_rename` | edit | Changes a part's designator. |
-| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees; its own labels / grounds turn with it). |
+| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees; its own labels turn with it, its grounds stay upright). |
 | `schematic_connect` | edit | Draws wires between pins. |
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
 | `schematic_pin_map` | edit | A part's pin map for firmware and FPGA tools. |

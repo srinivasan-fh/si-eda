@@ -461,6 +461,70 @@ std::vector<int> ownNetSymbols(const Schematic& sch, int id) {
     return out;
 }
 
+/// A wide track running into one pad of a small two-pad chip, with little copper on the other pad, is necked down over
+/// its first 0.5 mm out of the pad, so both pads heat alike (REL_TOMBSTONE). Kept only when no track then falls below
+/// its IPC-2221 current width (DRC_TRACK_CURRENT). Returns the parts necked.
+Json neckTombstones(Project& pr) {
+    Json done = Json::array();
+    const auto pads = pr.pcb.pads(pr.schematic);
+    std::set<std::pair<int, int>> poured;  // (net, layer) of each pour: a pad there is reached by relief spokes
+    for (const auto& z : pr.pcb.zones)
+        for (const auto& n : pr.schematic.nets())
+            if (n.name == z.net) poured.insert({n.index, z.layer});
+    auto currentWarnings = [&] {
+        int n = 0;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.code == "DRC_TRACK_CURRENT";
+        return n;
+    };
+    const auto before = pr.pcb.tracks;
+    const int warned = currentWarnings();
+    std::map<int, std::vector<const Pad*>> byPart;
+    for (const auto& pad : pads) byPart[pad.componentId].push_back(&pad);
+    for (const auto& [id, two] : byPart) {
+        if (two.size() != 2 || two[0]->throughHole || two[1]->throughHole || two[0]->size.x * two[0]->size.y > 4.0) continue;
+        auto leaving = [&](const Pad& pad) {  // the tracks crossing the pad's edge, as the reliability check counts them
+            std::vector<int> ids;
+            for (const auto& t : pr.pcb.tracks)
+                if (t.net == pad.net && t.layer == pad.smdLayer && pad.bounds().contains(t.a) != pad.bounds().contains(t.b)) ids.push_back(t.id);
+            return ids;
+        };
+        double mass[2] = {0, 0}, spokes[2] = {0, 0};
+        for (int k = 0; k < 2; ++k) {
+            if (poured.count({two[k]->net, two[k]->smdLayer})) spokes[k] = 2 * pr.pcb.settings.trackWidth;
+            mass[k] = spokes[k];
+            for (int tid : leaving(*two[k]))
+                for (const auto& t : pr.pcb.tracks)
+                    if (t.id == tid) mass[k] += t.width;
+        }
+        const int heavy = mass[0] >= mass[1] ? 0 : 1;
+        const double hi = mass[heavy], lo = std::max(mass[1 - heavy], 0.05);
+        const auto wide = leaving(*two[heavy]);
+        if (hi < 0.6 || hi <= 3 * lo || wide.empty()) continue;
+        const double w = std::max(pr.pcb.settings.minTrackWidth, (3 * lo - spokes[heavy]) / static_cast<double>(wide.size()) - 0.01);
+        const Pad& pad = *two[heavy];
+        bool necked = false;
+        for (int tid : wide) {
+            const auto it = std::find_if(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& t) { return t.id == tid; });
+            if (it == pr.pcb.tracks.end() || it->arc || it->teardrop || it->width <= w + 1e-9) continue;
+            const Vec2 in = pad.bounds().contains(it->a) ? it->a : it->b, far = pad.bounds().contains(it->a) ? it->b : it->a;
+            const double len = (far - in).length();
+            const Vec2 dir = (far - in) * (1 / len);
+            double out = 0;  // where it leaves the pad, then 0.5 mm on
+            while (out < len && pad.bounds().contains(in + dir * out)) out += 0.05;
+            if (out + 0.5 < len - 0.05 && pr.pcb.splitTrack(tid, in + dir * (out + 0.5)) < 0) continue;
+            for (auto& t : pr.pcb.tracks)  // the piece on the pad takes the narrow width
+                if (t.net == pad.net && t.layer == pad.smdLayer && pad.bounds().contains(t.a) != pad.bounds().contains(t.b) && t.width > w)
+                    t.width = w, necked = true;
+        }
+        if (necked) done.push(pr.schematic.find(id)->ref);
+    }
+    if (done.size() && currentWarnings() > warned) {  // a neck too thin for the current: leave the copper as routed
+        pr.pcb.tracks = before;
+        return Json::array();
+    }
+    return done;
+}
+
 /// What a whole-board autoroute leaves unrouted on a small board gets a second try, each kept only when fewer
 /// connections stay open: the shape-based engine, then each two-pin part on an open connection turned round (its far
 /// pad faced the other end, so its own other pad stood in the way). Returns what was changed.
@@ -1567,7 +1631,8 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_move_component", "Move component", Kind::Edit, true,
           "Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, "
           "a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; "
-          "rotate: relative degrees; its own labels / grounds turn with it). overlaps lists symbols it now sits on. Net "
+          "rotate: relative degrees; its own labels turn with it, its grounds stay upright). overlaps lists symbols it now "
+          "sits on, warnings its pins left on a wire or pin they do not join. Net "
           "labels / grounds (#NL…, #GND…) move by "
           "their own ref (schematic_list_components netSymbols: true lists them).",
           Schema()
@@ -1620,6 +1685,14 @@ void schematicTools(Table& t) {
                       int turn = delta;  // the quarter turn that took the pin where it is now (y down: either sense)
                       for (int t : {delta, (360 - delta) % 360})
                           if ((rotate90(was, t) - now).length() < 1e-6) turn = t;
+                      if (after.find(h.sym)->kind == ComponentKind::Ground) {  // a ground stays upright, out from the pin
+                          const Vec2 d = pinOutward(p->project, {id, h.pin.pin});
+                          const Vec2 at = after.pinPosition(h.pin) + d * 30;
+                          sieda_move_component(p, h.sym, std::round(at.x / 10) * 10, std::round(at.y / 10) * 10);
+                          const int want = d.y < -0.5 ? 180 : 0, by = ((want - after.find(h.sym)->rotation) % 360 + 360) % 360;
+                          if (by) sieda_rotate_component(p, h.sym, by);
+                          continue;
+                      }
                       const Vec2 at = after.pinPosition(h.pin) + rotate90(h.offset, turn);
                       sieda_move_component(p, h.sym, std::round(at.x / 10) * 10, std::round(at.y / 10) * 10);
                       sieda_rotate_component(p, h.sym, turn);
@@ -1646,6 +1719,14 @@ void schematicTools(Table& t) {
                       if (o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3]) overlaps.push(other.ref);
                   }
               if (overlaps.size()) j["overlaps"] = overlaps;
+              // Its pins (or its labels' / grounds') now lying on a wire or pin they do not join: they read as joined.
+              Json touching = Json::array();
+              const auto own = ownNetSymbols(sch, id);
+              for (const auto& v : sch.runERC())
+                  if (v.code == "ERC_TOUCHING_UNCONNECTED" && !v.components.empty() &&
+                      (v.components.front() == id || std::find(own.begin(), own.end(), v.components.front()) != own.end()))
+                      touching.push(v.message);
+              if (touching.size()) j["warnings"] = touching;
               return out(j);
           });
     t.add("schematic", "schematic_connect", "Connect pins", Kind::Edit, false,
@@ -2184,13 +2265,24 @@ void schematicTools(Table& t) {
                       const std::string& r = proj(s).schematic.find(x.second.component)->ref;
                       return r.size() > 1 && r[0] == 'Y' && std::isdigit(static_cast<unsigned char>(r[1]));
                   });
+                  // On a rail with a regulator, its first bulk capacitor (≥ 1 µF) stands by the regulator's pin.
+                  const auto regulatorPin = std::find_if(at.begin(), at.end(), [&](const auto& x) {
+                      for (const auto& pin : proj(s).schematic.find(x.second.component)->def().pins)
+                          if (static_cast<PinType>(pin.type) == PinType::PowerOut) return true;
+                      return false;
+                  });
+                  bool bulkTaken = regulatorPin == at.end() || regulatorPin == at.begin();
                   for (size_t i = 1; i < at.size(); ++i) {
                       const Component* c = proj(s).schematic.find(at[i].second.component);
                       // A net of two pins always joins them (a connector to its input diode on VIN).
                       if (c->id == at[0].second.component || (at.size() > 2 && (supply ? c->kind != ComponentKind::Capacitor || pinCount(at[i].second) != 2
                                                                                        : at.size() > 3 && pinCount(at[i].second) != 2)))
                           continue;
-                      const auto& hub = crystal != at.end() && c->kind == ComponentKind::Capacitor ? *crystal : at[0];
+                      const auto v = parseEngineeringValue(c->value);
+                      const bool bulk = !bulkTaken && c->kind == ComponentKind::Capacitor && v && *v >= 0.99e-6;
+                      bulkTaken = bulkTaken || bulk;
+                      const auto& hub = crystal != at.end() && c->kind == ComponentKind::Capacitor ? *crystal
+                                        : bulk                                                     ? *regulatorPin : at[0];
                       links.push_back({net, hub.first, at[i].first, hub.second, at[i].second});
                   }
               }
@@ -3652,7 +3744,8 @@ void pcbTools(Table& t) {
           "round) and lists the repairs kept. A whole-board route re-routes every net, hand routing included: to keep "
           "hand-routed nets, route the others with preset nets. A preset or options apply to this call only; keep: true "
           "saves a whole-board one as the board's strategy (the app's Auto Route uses it). Returns "
-          "routed / failed connections, vias and track length.",
+          "routed / failed connections, vias and track length; wide tracks into small two-pad parts are necked down at the "
+          "pad (neckedDown) to keep them from tombstoning.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")
               .object("options", "Strategy options (see description)")
@@ -3695,6 +3788,7 @@ void pcbTools(Table& t) {
               const Json repairs = finishRouting(p, &stats);
               if (!a.get("options").has("viasOffPads")) p->project.pcb.settings.autorouter.viasOffPads = offPads;
               if (repairs.size()) j["repairs"] = repairs;
+              if (const Json necked = neckTombstones(p->project); necked.size()) j["neckedDown"] = necked;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed
               const AutorouteOptions used = p->project.pcb.settings.autorouter;
@@ -3862,7 +3956,8 @@ void pcbTools(Table& t) {
           "Adds a copper pour of a net (usually GND) on a layer (0 = top, layers-1 = bottom); plane: true reserves "
           "the layer for the net. Pours fill around other copper at the clearance. Returns the filled area, its islands, "
           "the net's pads it joins and islands that reach no pad, with their centres (stitch them with vias, or keep the "
-          "pour out of there, or they float).",
+          "pour out of there, or they float). Tracks into small two-pad parts the pour now outweighs are necked down at "
+          "the pad (neckedDown: tombstoning).",
           Schema()
               .str("net", "Net name, e.g. \"GND\"", true)
               .integer("layer", "Copper layer (default 0 = top)")
@@ -3884,6 +3979,7 @@ void pcbTools(Table& t) {
               Json j = obj();
               j["zone"] = z;
               // The pour joins its net's pads itself: those connections no longer need a track.
+              if (const Json necked = neckTombstones(P(s)->project); necked.size()) j["neckedDown"] = necked;  // spokes added copper
               if (const size_t now = proj(s).pcb.ratsnest(proj(s).schematic).size(); now != openBefore)
                   j["unroutedConnections"] = std::to_string(openBefore) + " → " + std::to_string(now) + " (the pour joins " +
                                              requireStr(a, "net") + " pads, so those connections need no track)";

@@ -160,8 +160,9 @@
   (refused near other nets: `checkClearOfOtherNets`); `pcb_autoroute` presets apply to the call unless `keep`; undo history
   saved beside the project (`.<file>.undo`, `McpServer::saveUndoHistory` / `loadUndoHistory`, restored only onto the same
   state); antenna keep-outs widened by `antennaKeepout`; open-ended connectors' mouths flush with the edge; library_search reads
-  "4 pin" as pins:4; a schematic rotation carries the part's own labels / grounds round with its pins; a wire across a
-  pin it does not join is an ERC_TOUCHING_UNCONNECTED warning; snapshot tracks / vias carry `netName`; `pcb_eco_preview`
+  "4 pin" as pins:4; a schematic rotation carries the part's own labels round with its pins (grounds stay upright) and
+  `schematic_move_component` warns of its pins left on a wire they do not join (ERC_TOUCHING_UNCONNECTED stays info:
+  reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
   counts single-pin nets (`singlePinNets`); `pcb_autoplace` re-places the edge parts once when Auto Place grew the board;
   `stitchingVias` skips vias by a part (the router's pour fan-out); route results give `viasOnBoard`; MCP whole-board
   routes without a preset gloss and minimise vias (≤ 300 parts); a later `schematic_build` anchors new parts by the pin
@@ -173,7 +174,9 @@
   for a pour / barrier keep-out; a bulk cap goes by its rail's series entry (diode / fuse / ferrite), else a connector,
   or by a load on a regulated rail; `placeDecoupling` pairs caps with the pin they are drawn by (`drawnApart`); grounds
   always point down (out beyond the labels below); a crystal's load caps hang below its pins, a 4-pad crystal is mirrored
-  to face its IC; REL_TOMBSTONE counts pour spokes only for a pour on the pad's layer. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
+  to face its IC; a rail's first bulk cap links to its regulator's pin; REL_TOMBSTONE counts pour spokes only for a pour
+  on the pad's layer, and `neckTombstones` (after MCP routes and pours) necks wide tracks at small two-pad parts unless
+  that raises DRC_TRACK_CURRENT. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
   `placeAtEdges` (pcb_autoplace all: antenna parts top + keep-out, open-ended connectors bottom, by `openEnd`);
   undo is cleared by project_open / new / load_example; headers without an open end go to the left / right edges in turn, long side along it; crystals are placed before supply caps (small passives step aside, `stepAside`); edge parts largest first; `pcb_autoroute` re-lays stitching vias (`stitchingRestored`) and lists `pairsNotCoupled`; assembly spacing standard `standardGap` (passive 0.25 / passive-IC 0.5 / IC-IC and THT-SMD 1.0 / BGA 2.0 mm) kept by the MCP placement helpers and flagged as DRC_PART_SPACING; `placeGrouped` (pcb_autoplace grouped: rows of like passives); power-only connectors to the left edge; the main IC is centred before Auto Place; opt-in `AutorouteOptions::viasOffPads` (pour fan-out vias clear SMD pads; on for MCP `pcb_autoroute`); `schematic_build` expands a shared pin name to every unstacked pin; a package may be a bare size (`setPackage`: "0603" = R_0603); `noteBoardGrown` on Update PCB too; crystals within 6 mm of their pins first (stepAside); a regulator pin takes a small cap after the loads; a `schematic_build` tag with no clear standing spot lies along its wire, tags are re-placed once every label is down, grounds go last (a side pin's ground points outward when the pin below is used), and pins already on their named net get no second label. Catalog rows may name `PCM_Espressif` footprints, and
   `ALL_PADS` in `tools/fetch_catalog_parts.py` keeps every pad of a footprint. Tool failures are `isError` results, never crashes; file

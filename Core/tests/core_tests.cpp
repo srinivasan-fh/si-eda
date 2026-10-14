@@ -20971,21 +20971,19 @@ TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
     // Snapshot copper names its net.
     const Json copper = mcpData(mcpTool(s, "project_snapshot", Json::parse(R"J({"sections": ["tracks", "vias"]})J")));
     CHECK(copper.get("tracks")[0].get("netName").asString("") == "NA" && copper.get("vias")[0].has("netName"));
-    // A part turned under its wires: its labels follow (ERC stays clean); a wire drawn across a pin it does not join
-    // is a warning.
+    // A part turned under its wires: its labels follow (ERC stays clean); turned onto a wire it does not join, the
+    // move warns (the ERC keeps it a note: reference designs draw L-routes over pins).
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "C1", "kind": "capacitor"}],
         "nets": {"NA": ["C1.1"], "GND": ["C1.2"]}, "pins": false})J"))));
     CHECK(!mcpFailed(mcpTool(s, "schematic_move_component", Json::parse(R"J({"ref": "C1", "rotation": 90})J"))));
     CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("warnings").asInt(-1) == 0);
     Schematic& sch = s.project()->project.schematic;
     const int a = sch.addComponent(ComponentKind::Resistor, "1k", {2000, 0}), b = sch.addComponent(ComponentKind::Resistor, "1k", {2200, 0});
-    const int c = sch.addComponent(ComponentKind::Resistor, "1k", {2100, 30});  // turned: its pin 1 on that wire
-    sch.rotateComponent(c, 90);
-    sch.moveComponent(c, {2100, 30});
+    const int c = sch.addComponent(ComponentKind::Resistor, "1k", {2100, 300});
     sch.connect({a, 1}, {b, 0});
-    bool warned = false;
-    for (const auto& v : sch.runERC()) warned |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.severity == Severity::Warning;
-    CHECK(warned);
+    Json turn = Json::parse(R"J({"x": 2100, "y": 30, "rotation": 90})J");  // its pin 1 onto that wire
+    turn["ref"] = sch.find(c)->ref;
+    CHECK(mcpData(mcpTool(s, "schematic_move_component", turn)).get("warnings").size() == 1);
     // The update preview counts single-pin nets instead of listing them.
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor", "package": "0805"}],
         "nets": {"NA": ["R9.1"]}, "pins": false})J"))));
