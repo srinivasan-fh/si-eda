@@ -3773,7 +3773,8 @@ void pcbTools(Table& t) {
     t.add("pcb", "pcb_fit_board", "Fit board", Kind::Edit, true,
           "Shrinks / grows the board to the placed footprints plus a margin (parts and copper move together). compact: "
           "before routing, re-places every unlocked part (as pcb_autoplace all) on a board made smaller in 1 mm steps "
-          "while every part still fits with no new placement problems — for a board whose edge parts leave empty space.",
+          "while every part still fits with no new placement problems and every capacitor / crystal stays by its pins — "
+          "for a board whose edge parts leave empty space.",
           Schema().num("margin", "Margin around the parts (mm, default 3)")
               .boolean("compact", "Re-place everything on the smallest board that still fits it (before routing; default false)"),
           [](McpServer& s, const Json& a) {
@@ -3789,7 +3790,11 @@ void pcbTools(Table& t) {
                   };
                   Json place = obj();
                   place["all"] = true;
-                  autoplaceTool(s, place);
+                  // Each smaller board keeps every capacitor / crystal Auto Place set by its pins at the start.
+                  Json placed, bestPlaced;  // the capacitors / crystals by their pins, as Auto Place reports them
+                  auto paired = [&] { return (placed = autoplaceTool(s, place).data.get("decouplingPlaced")).size(); };
+                  const size_t pairs = paired();
+                  bestPlaced = placed;
                   const int allowed = problems();
                   Project best = pr;
                   for (int tries = 0, shrunk = 1; shrunk && tries < 80;) {  // the longer side first, 1 mm at a time
@@ -3799,9 +3804,8 @@ void pcbTools(Table& t) {
                           const double w = pr.pcb.settings.width - (cutWidth ? 1 : 0), h = pr.pcb.settings.height - (cutWidth ? 0 : 1);
                           if (w < 5 || h < 5 || ++tries > 80) continue;
                           sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
-                          autoplaceTool(s, place);
-                          if (pr.pcb.settings.width == w && pr.pcb.settings.height == h && problems() <= allowed) {
-                              best = pr, shrunk = 1;
+                          if (paired() >= pairs && pr.pcb.settings.width == w && pr.pcb.settings.height == h && problems() <= allowed) {
+                              best = pr, bestPlaced = placed, shrunk = 1;
                               break;
                           }
                           pr = best;
@@ -3809,7 +3813,9 @@ void pcbTools(Table& t) {
                   }
                   pr = best;
                   P(s)->router.reset();
-                  return out(projectSummary(s).get("board"));
+                  Json board = projectSummary(s).get("board");
+                  if (bestPlaced.size()) board["decouplingPlaced"] = bestPlaced;
+                  return out(board);
               }
               check(sieda_pcb_fit_board(P(s), argNum(a, "margin", 3)) == 1, "Nothing placed to fit to");
               return out(projectSummary(s).get("board"));
