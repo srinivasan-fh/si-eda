@@ -21763,7 +21763,7 @@ TEST(mcp_end_to_end_board) {
     const Json drc = mcpData(mcpTool(s, "pcb_drc"));
     if (drc.get("errors").asInt(1) != 0) std::printf("    DRC: %s\n", drc.dump().c_str());
     CHECK(drc.get("errors").asInt(1) == 0);
-    CHECK(drc.get("clean").asBool(false));
+    CHECK(drc.get("passes").asBool(false));
     // Outputs inside the root.
     Json fab = Json::object();
     fab["dir"] = "out/gerbers";

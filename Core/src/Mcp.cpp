@@ -489,7 +489,8 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
     out["errors"] = errors;
     out["warnings"] = warnings;
     out["infos"] = infos;
-    out["clean"] = errors == 0;
+    out["clean"] = errors == 0 && warnings == 0;  // nothing left to read; "passes": no errors (warnings may stay)
+    out["passes"] = errors == 0;
     out["status"] = errors ? "errors" : warnings ? "warnings" : "clean";
     out["violations"] = list;
     if (static_cast<size_t>(errors + warnings + infos) > limit) out["truncated"] = true;

@@ -305,7 +305,8 @@ Json projectSummary(McpServer& s) {
 
 /// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
 /// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
-void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {}) {
+void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {},
+                 const std::map<std::pair<int, int>, std::string>& pinNet = {}) {
     const Schematic& sch = p->project.schematic;
     std::vector<std::pair<PinAddress, PinAddress>> links;
     for (const auto& chain : wires.items())
@@ -329,15 +330,19 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         const auto body = o;
         for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) {
             const Vec2 q = sch.pinPosition({id, i});
-            if (q.x <= body[0] + 0.5) o[0] = std::min(o[0], body[0] - 60);
-            if (q.x >= body[2] - 0.5) o[2] = std::max(o[2], body[2] + 60);
+            // A side pin's label as long as its net's name; a grounded side pin's symbol stands beyond the labels.
+            const auto net = pinNet.find({id, i});
+            const double side = grounded.count({id, i}) ? 140.0
+                                : net != pinNet.end() ? std::max(60.0, 10.0 * static_cast<double>(net->second.size()) + 30) : 60.0;
+            if (q.x <= body[0] + 0.5) o[0] = std::min(o[0], body[0] - side);
+            if (q.x >= body[2] - 0.5) o[2] = std::max(o[2], body[2] + side);
             if (q.y <= body[1] + 0.5) o[1] = std::min(o[1], body[1] - 60);
             if (q.y >= body[3] - 0.5) o[3] = std::max(o[3], body[3] + 60);
         }
         o[1] = std::min(o[1], body[1] - 14), o[3] = std::max(o[3], body[3] + 14);  // its designator above, value below
         return o;
     };
-    double x = 0, y = 0, rowHeight = 0;
+    double x = 0, y = 0, rowHeight = 0, rowWidth = 1200;
     auto drawnBefore = [&](const Component& c) { return !mine.count(c.id) && !c.packageOnly && !isNetSymbolKind(c.kind); };
     for (const auto& c : sch.components())  // a later build: rows start below what is drawn already
         if (drawnBefore(c)) y = std::max(y, room(c.id)[3] + 120);
@@ -424,10 +429,10 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     moveBy(b.component, upright ? Vec2{from.x + 80 - to.x, from.y - 140 - to.y}
                                                 : Vec2{from.x + d.x * run - to.x, from.y + d.y * run - to.y},
                            loadCap ? 5 : 10);  // in line with the crystal's pin (5 off the 10 grid)
-                    // Two parts on one pin (or a chain folding back): step sideways until it is clear of the group (a
-                    // crystal's load capacitor either side of its pin, so it stays under the crystal).
-                    double along = 0;
-                    for (int step = 0; step < 20; ++step) {
+                    // Two parts on one pin (or a chain folding back): the nearest clear spot, along the pin's side either
+                    // way or further out (its pin then gets a label), clear of the group (a crystal's load capacitor
+                    // either side of its pin, so it stays under the crystal).
+                    auto hitAt = [&](bool labelled) {  // labelled: joined to its pin by labels (their room counts too)
                         const auto o = sch.symbolOutline(*sch.find(b.component)), ro = room(b.component);
                         bool hit = false;
                         for (int other : group) {  // the part it is wired to: bodies apart; any other: label room too
@@ -436,14 +441,34 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                             const double g = 20;
                             hit |= m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g;
                         }
-                        if (!hit) break;
-                        // Off the pin's line its own pin gets a label too: further out, clear of the IC's labels.
-                        if (!step && run > 40 && !loadCap) moveBy(b.component, d * 80);
-                        // A step down clears the designator above and the value below as well.
+                        // Nor over the labels on the hub's other pins.
+                        const Component& h = *sch.find(a.component);
+                        for (int j = 0; j < static_cast<int>(h.def().pins.size()) && !hit; ++j) {
+                            const auto net = pinNet.find({h.id, j});
+                            if ((j == a.pin && !labelled) || net == pinNet.end()) continue;
+                            const Vec2 q = sch.pinPosition({h.id, j}), e = pinOutward(p->project, {h.id, j});
+                            const Vec2 r = q + e * (std::fabs(e.x) > 0.5 ? 12.0 * static_cast<double>(net->second.size()) + 40 : 80);
+                            const std::array<double, 4> m = labelled ? ro : std::array<double, 4>{o[0], o[1] - 14, o[2], o[3] + 14};
+                            hit = m[0] < std::max(q.x, r.x) + 12 && std::min(q.x, r.x) - 12 < m[2] &&
+                                  m[1] < std::max(q.y, r.y) + 12 && std::min(q.y, r.y) - 12 < m[3];
+                        }
+                        return hit;
+                    };
+                    if (hitAt(upright)) {
+                        const Vec2 home = sch.find(b.component)->position;
+                        const auto o = sch.symbolOutline(*sch.find(b.component));
+                        // A step clears the designator above and the value below as well.
                         const double w = std::fabs(d.x) > 0.5 ? o[3] - o[1] + 60 : o[2] - o[0] + 40;
-                        const double next = loadCap ? (step / 2 + 1) * w * (step % 2 ? -1 : 1) : along + w;
-                        moveBy(b.component, std::fabs(d.x) > 0.5 ? Vec2{0, next - along} : Vec2{next - along, 0}, loadCap ? 5 : 10);
-                        along = next;
+                        const Vec2 side = std::fabs(d.x) > 0.5 ? Vec2{0, 1} : Vec2{1, 0};
+                        std::vector<std::pair<double, Vec2>> spots;
+                        for (double out : loadCap ? std::vector<double>{0} : std::vector<double>{0, 80, 200, 340})
+                            for (int k = -10; k <= 10; ++k)
+                                if (k || out > 0) spots.push_back({std::abs(k) * w + out * 1.5, d * out + side * (k * w)});
+                        std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+                        for (const auto& [cost, off] : spots) {
+                            moveBy(b.component, home + off - sch.find(b.component)->position, loadCap ? 5 : 10);
+                            if (!hitAt(true)) break;
+                        }
                     }
                     done.insert(b.component);
                     group.push_back(b.component);
@@ -457,7 +482,8 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
             const auto o = sch.symbolOutline(*sch.find(id));
             x0 = std::min(x0, o[0]), y0 = std::min(y0, o[1]), x1 = std::max(x1, o[2]), y1 = std::max(y1, o[3]);
         }
-        if (x > 0 && x + (x1 - x0) > 1200) x = 0, y += rowHeight + 120, rowHeight = 0;
+        rowWidth = std::max(rowWidth, x1 - x0 + 100);  // rows as wide as the widest group: small groups sit side by side
+        if (x > 0 && x + (x1 - x0) > rowWidth) x = 0, y += rowHeight + 120, rowHeight = 0;
         for (int id : group) moveBy(id, {x + 100 - x0, y - y0});
         x += x1 - x0 + 200;
         rowHeight = std::max(rowHeight, y1 - y0);
@@ -2513,7 +2539,12 @@ void schematicTools(Table& t) {
               struct Link { std::string net; Json from, to; PinAddress a, b; };
               std::vector<Link> links;
               std::set<std::pair<int, int>> grounded;  // pins on a ground net: their parts stand ground side down
+              std::map<std::pair<int, int>, std::string> pinNet;  // each pin's net (its label's length)
               for (const auto& [net, pins] : nets.fields()) {
+                  for (const auto& pin : pins.items()) try {
+                          const PinAddress pa = pinAddress(*P(s), pin);
+                          pinNet[{pa.component, pa.pin}] = net;
+                      } catch (const std::exception&) {}
                   std::string up = net;
                   for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
                   if (up == "GND" || up == "0" || up == "AGND" || up == "DGND" || up == "PGND")
@@ -2603,7 +2634,7 @@ void schematicTools(Table& t) {
                   chain.push(l.to);
                   layoutWires.push(chain);
               }
-              layoutBuilt(P(s), unplaced, layoutWires, grounded);
+              layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet);
               auto straight = [&](const Link& l) {  // facing pins in line, nothing in between
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l.a.component, l.a.pin}), p1 = sch.pinPosition({l.b.component, l.b.pin});
@@ -3261,6 +3292,11 @@ void libraryTools(Table& t) {
                   e["package"] = !p.footprint.empty() ? p.footprint  // the footprint its pads follow
                                                       : p.spec.package.type + "-" + std::to_string(p.spec.package.pinCount ? p.spec.package.pinCount : pins);
                   e["pins"] = pins;
+                  if (pins <= 8) {  // a small part's pins by name (number), as schematic_build takes them
+                      Json names = Json::array();
+                      for (const auto& pin : p.spec.pins) names.push(pin.name + "(" + pin.number + ")");
+                      e["pinNames"] = names;
+                  }
                   return e;
               };
               std::vector<std::pair<size_t, const StandardPart*>> partial, ranked;  // some of the words / all of them
