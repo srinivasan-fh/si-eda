@@ -342,7 +342,13 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
     // --- An LED (or a series string of them) needs something that sets its current.
     std::set<int> seenLeds;
     for (const auto& c : sch.components()) {
-        if (c.kind != ComponentKind::LED || seenLeds.count(c.id)) continue;
+        if (c.kind != ComponentKind::LED) continue;
+        for (int p = 0; p < 2; ++p)  // an open end: it never lights (ERC names the pin; the review says what it means)
+            if (const int n = sch.netOf({c.id, p}); !c.isNoConnect(p) && (n < 0 || nets[static_cast<size_t>(n)].pins.size() < 2))
+                add(Severity::Warning, "VAL_LED_OPEN",
+                    c.ref + "'s " + c.def().pins[static_cast<size_t>(p)].name + " pin joins nothing, so it never lights: wire it "
+                            "(cathode to ground or its driver, anode to its resistor).", c);
+        if (seenLeds.count(c.id)) continue;
         std::vector<const Component*> group{&c};
         seenLeds.insert(c.id);
         bool limited = false;
@@ -408,6 +414,24 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         }
     }
 
+    // ESP32-C3 strapping pins GPIO2 / GPIO8 (GPIO9 = BOOT is a control above) read at reset: left open, the boot mode
+    // rests on the chip's weak defaults.
+    for (const auto& c : sch.components()) {
+        std::string part = c.def().name;
+        for (auto& ch : part) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        if (part.rfind("ESP32-C3", 0) != 0 && part.rfind("ESP32_C3", 0) != 0) continue;
+        const auto& pins = c.def().pins;
+        for (size_t i = 0; i < pins.size(); ++i) {
+            const std::string head = pins[i].name.substr(0, pins[i].name.find('/'));
+            if (head != "GPIO2" && head != "IO2" && head != "GPIO8" && head != "IO8") continue;
+            const int n = c.isNoConnect(static_cast<int>(i)) ? -1 : sch.netOf({c.id, static_cast<int>(i)});
+            if (n < 0 || nets[static_cast<size_t>(n)].pins.size() < 2)
+                add(Severity::Info, "VAL_STRAPPING_PIN",
+                    c.ref + "." + pins[i].name + " is a strapping pin left open: its level at reset picks the boot mode; "
+                                                   "tie it as the datasheet's strapping table says (often a 10k pull-up).", c);
+        }
+    }
+
     // Capacitors on `net` whose other pin is on ground (`highFrequency`: 1 µF or less, not bulk).
     auto capToGround = [&](int net, bool highFrequency = false) {
         int n = 0;
@@ -424,20 +448,26 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
     };
     // --- One decoupling capacitor per supply pin: a rail feeding VCC and AVCC needs two, each at its pin.
     std::map<int, std::vector<std::string>> supplyPins;  // net → "U1.VCC" … (one per part and pin name)
+    std::map<int, int> regulatorPins;  // net → a regulator's input pins on it: any capacitor serves those
     for (const auto& c : sch.components()) {
         if (c.kind != ComponentKind::Custom && c.kind != ComponentKind::PartUnit) continue;
         std::set<std::string> seen;
         const auto& pins = c.def().pins;
+        const bool regulator = std::any_of(pins.begin(), pins.end(), [](const PinDef& p) { return static_cast<PinType>(p.type) == PinType::PowerOut; });
         for (size_t i = 0; i < pins.size(); ++i) {
             const int n = sch.netOf({c.id, static_cast<int>(i)});
             if (static_cast<PinType>(pins[i].type) == PinType::PowerIn && n >= 0 && sch.netRole(n) == NetRole::Power &&
-                seen.insert(pins[i].name).second)
+                seen.insert(pins[i].name).second) {
                 supplyPins[n].push_back(c.ref + "." + pins[i].name);
+                regulatorPins[n] += regulator;
+            }
         }
     }
     for (const auto& [n, list] : supplyPins) {
-        const int caps = capToGround(n, true);  // a bulk capacitor does not decouple a pin
-        if (capToGround(n) > 0 && caps < static_cast<int>(list.size())) {
+        // A bulk capacitor does not decouple a load's pin; a regulator's input takes the 1–10 µF its datasheet asks.
+        const int loads = static_cast<int>(list.size()) - regulatorPins[n];
+        const int caps = capToGround(n, true);
+        if (capToGround(n) > 0 && (caps < loads || capToGround(n) < static_cast<int>(list.size()))) {
             std::string names;
             for (const auto& x : list) names += (names.empty() ? "" : ", ") + x;
             RuleViolation v;

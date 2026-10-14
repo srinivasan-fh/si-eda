@@ -133,6 +133,10 @@ public:
     /// Puts the project back as it was before the last tool call that changed it (up to kUndoSteps back). False
     /// when there is nothing to undo.
     bool undo();
+    /// The undo history kept beside a saved project file (".<file>.undo"), restored by project_open when the file is
+    /// still the state it was saved with.
+    void saveUndoHistory() const;
+    void loadUndoHistory();
     size_t undoSteps() const { return undo_.size(); }
 
 private:

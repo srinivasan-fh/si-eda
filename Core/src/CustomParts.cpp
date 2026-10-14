@@ -982,7 +982,8 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
             return numericOrder(spec.pins[a].number) < numericOrder(spec.pins[b].number);
         });
-        const size_t leftCount = (n + 1) / 2;
+        // A single-row header reads as its connector: every pin down one side, pin 1 at the top.
+        const size_t leftCount = upper(spec.package.type) == "HEADER" ? n : (n + 1) / 2;
         for (size_t k = 0; k < n; ++k) {
             const bool left = k < leftCount;
             placement[order[k]] = {spec.pins[order[k]].number, left ? 'L' : 'R', static_cast<int>(left ? k : n - 1 - k)};

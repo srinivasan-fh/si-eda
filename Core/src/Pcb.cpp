@@ -541,11 +541,15 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
                    std::max(box.y1, h.position.y + r));
     }
     margin = std::max(margin, settings.edgeClearance + 0.5);
-    auto roundUp = [](double v) { return std::ceil(v * 2.0) / 2.0; };
-    double width = std::max(10.0, roundUp(box.width() + 2 * margin));
-    double height = std::max(10.0, roundUp(box.height() + 2 * margin));
-    // Centre the parts in the new outline, snapped to the 0.25 mm placement grid.
-    Vec2 shift{std::round(((width - box.width()) / 2 - box.x0) * 4) / 4, std::round(((height - box.height()) / 2 - box.y0) * 4) / 4};
+    // A side a part already stands nearer to than the margin (a connector's mouth, an antenna at the edge) keeps its
+    // distance; the others get the margin.
+    const double left = std::clamp(box.x0, 0.0, margin), top = std::clamp(box.y0, 0.0, margin);
+    const double right = std::clamp(settings.width - box.x1, 0.0, margin), bottom = std::clamp(settings.height - box.y1, 0.0, margin);
+    auto roundUp = [](double v) { return std::ceil(v * 4.0) / 4.0; };
+    double width = std::max(10.0, roundUp(box.width() + left + right));
+    double height = std::max(10.0, roundUp(box.height() + top + bottom));
+    // Snapped to the 0.25 mm placement grid.
+    const Vec2 shift{std::round((left - box.x0) * 4) / 4, std::round((top - box.y0) * 4) / 4};
     for (auto& c : sch.mutableComponents())
         if (c.hasFootprint() && c.pcb.placed) c.pcb.position = c.pcb.position + shift;
     for (auto& t : tracks) {
@@ -554,7 +558,21 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
         t.mid = t.mid + shift;
     }
     for (auto& v : vias) v.position = v.position + shift;
+    // Everything else drawn in board coordinates moves with the parts.
+    auto move = [&](Rect& r) { r = Rect(r.x0 + shift.x, r.y0 + shift.y, r.x1 + shift.x, r.y1 + shift.y); };
     for (auto& h : settings.holes) h.position = h.position + shift;
+    for (auto& k : settings.keepouts) move(k.area);
+    for (auto& z : settings.heightZones) move(z.area);
+    for (auto& f : settings.flexRegions) move(f.area);
+    for (auto& d : settings.dimensions) d.a = d.a + shift, d.b = d.b + shift;
+    for (auto& g : settings.graphics) {
+        for (auto& r : g.rects) move(r);
+        for (auto& [a, b] : g.lines) a = a + shift, b = b + shift;
+    }
+    for (auto& cut : settings.cutouts)
+        for (auto& v : cut) v = v + shift;
+    for (auto& z : zones)
+        for (auto& v : z.polygon) v = v + shift;
     settings.width = width;
     settings.height = height;
     return true;
@@ -1218,10 +1236,13 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
             if (k > cnt) { best = n; cnt = k; }
         return best;
     };
-    std::vector<Track> keptT;
+    std::vector<Track> keptT, aloneT;
     for (size_t t = 0; t < nt; ++t) {
         int n = netFor(np + t);
-        if (n < 0) continue;
+        if (n < 0) {
+            aloneT.push_back(tracks[t]);
+            continue;
+        }
         Track tr = tracks[t];
         tr.net = n;
         keptT.push_back(tr);
@@ -1239,10 +1260,17 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
     }
     tracks = std::move(keptT);
     vias = std::move(keptV);
-    // A via reaching no pad through tracks may join pours (stitching the GND pours of two layers): it stays, on the
-    // net of the pour it stands in, filled without it.
-    if (alone.empty() || zones.empty()) return;
+    // A via reaching no pad through tracks may join pours (stitching the GND pours of two layers), and a track may
+    // join two islands of one pour: each stays, on the net of the pour it stands in, filled without it.
+    if ((alone.empty() && aloneT.empty()) || zones.empty()) return;
     const std::vector<ZoneFill> fills = zoneFills(sch);
+    for (Track t : aloneT)
+        for (const auto& f : fills)
+            if (f.layer == t.layer && f.islandNear(t.a, t.width / 2) >= 0 && f.islandNear(t.b, t.width / 2) >= 0) {
+                t.net = f.net;
+                tracks.push_back(t);
+                break;
+            }
     for (Via via : alone)
         for (const auto& f : fills)
             if (via.spans(f.layer) && f.islandNear(via.position, via.diameter / 2) >= 0) {
@@ -1250,6 +1278,14 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
                 vias.push_back(via);
                 break;
             }
+}
+
+std::vector<size_t> PcbLayout::padGroups(const Schematic& sch) const {
+    const auto ps = pads(sch);
+    DSU d = copperClusters(ps, tracks, vias, &zoneFills(sch));
+    std::vector<size_t> out(ps.size());
+    for (size_t i = 0; i < ps.size(); ++i) out[i] = d.find(i);
+    return out;
 }
 
 std::vector<std::pair<Vec2, Vec2>> PcbLayout::ratsnest(const Schematic& sch) const {
@@ -3217,6 +3253,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         Vec2 via;
         double viaDiameter, viaDrill, trackWidth;
         bool inPad;
+        bool hasKnee = false, sharedVia = false;  // doubled pads: pad → knee → a via another pad also reaches
+        Vec2 knee;
     };
     std::vector<BgaFanout> bgaFanouts;
     double bgaPitch = 0;
@@ -3279,6 +3317,68 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
         }
     }
+    // A receptacle's doubled differential pads (USB-C's D+ / D− in both rows, interleaved B7 A6 A7 B6): with coupled
+    // pairs, each member's two pads join one via, one either side of the row (no crossing), and the pair routes
+    // from the two vias as from BGA balls'.
+    if (settings.layerCount >= 2 && settings.autorouter.coupledPairs && !settings.autorouter.fanoutOnly)
+        for (auto [pNet, nNet] : differentialPairs(sch)) {
+            if (!netPads.count(pNet) || !netPads.count(nNet) || netPads[pNet].size() != 3 || netPads[nNet].size() != 3) continue;
+            std::vector<size_t> row;  // the four pads on one part
+            int part = -1;
+            Vec2 far{0, 0};
+            for (int net : {pNet, nNet}) {
+                std::map<int, std::vector<size_t>> byPart;
+                for (size_t pi : netPads[net]) byPart[ps[pi].componentId].push_back(pi);
+                for (const auto& [id, list] : byPart)
+                    if (list.size() == 2 && (part < 0 || part == id)) part = id, row.insert(row.end(), list.begin(), list.end());
+                    else if (list.size() == 1) far = far + ps[list[0]].position * 0.5;
+            }
+            if (row.size() != 4) continue;
+            const bool horizontal = std::fabs(ps[row[0]].position.y - ps[row[3]].position.y) < 0.01;
+            std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
+                return horizontal ? ps[a].position.x < ps[b].position.x : ps[a].position.y < ps[b].position.y;
+            });
+            const Vec2 across = horizontal ? Vec2{0, 1} : Vec2{1, 0};
+            bool alternating = true;  // P N P N (or N P N P), evenly spaced in a line
+            for (size_t k = 1; k < 4; ++k)
+                alternating = alternating && ps[row[k]].net != ps[row[k - 1]].net &&
+                              std::fabs((ps[row[k]].position - ps[row[0]].position).dot(across)) < 0.01;
+            if (!alternating) continue;
+            const Vec2 mid = (ps[row[1]].position + ps[row[2]].position) * 0.5;
+            const double side = (far - mid).dot(across) >= 0 ? 1.0 : -1.0;  // toward the pair's far ends
+            const double half = (horizontal ? ps[row[0]].size.y : ps[row[0]].size.x) / 2;
+            const double tw = std::min(settings.trackWidth, (ps[row[1]].position - ps[row[0]].position).length() - settings.clearance);
+            const double reach = half + settings.clearance + settings.viaDiameter / 2 + 0.05;
+            std::vector<BgaFanout> made;
+            bool clear = tw >= settings.minTrackWidth - 1e-9;
+            for (int net : {pNet, nNet}) {  // P's via inward, N's outward
+                const Vec2 via = mid + across * (side * (net == pNet ? reach : -reach));
+                clear = clear && settings.contains(via);
+                for (size_t pi : row) {
+                    if (ps[pi].net != net) continue;
+                    BgaFanout f;
+                    f.pad = pi, f.via = via, f.viaDiameter = settings.viaDiameter, f.viaDrill = settings.viaDrill;
+                    f.trackWidth = tw, f.inPad = false, f.hasKnee = true, f.knee = ps[pi].position + across * (via - ps[pi].position).dot(across);
+                    f.sharedVia = std::any_of(made.begin(), made.end(), [&](const BgaFanout& o) { return o.via == via; });
+                    made.push_back(f);
+                }
+            }
+            // Clear of every other net's pad (sampled along the stubs, the via's ring).
+            for (const BgaFanout& f : made)
+                for (const Pad& o : ps) {
+                    if (o.net == ps[f.pad].net) continue;
+                    const Rect r = o.bounds();
+                    auto gap = [&](Vec2 q, double radius) {
+                        const double dx = std::max({r.x0 - q.x, 0.0, q.x - r.x1}), dy = std::max({r.y0 - q.y, 0.0, q.y - r.y1});
+                        return std::hypot(dx, dy) - radius;
+                    };
+                    clear = clear && gap(f.via, f.viaDiameter / 2) >= settings.clearance - 1e-9;
+                    for (const auto& [a, b] : {std::pair{ps[f.pad].position, f.knee}, std::pair{f.knee, f.via}})
+                        for (int k = 0; k <= 20; ++k)
+                            clear = clear && (!o.onLayer(ps[f.pad].smdLayer) || gap(a + (b - a) * (k / 20.0), tw / 2) >= settings.clearance - 1e-9);
+                }
+            if (clear) bgaFanouts.insert(bgaFanouts.end(), made.begin(), made.end());
+        }
     // The fan-out vias leave channels about one track wide between them: route BGA boards on a grid fine enough
     // to find those channels (eight cells per ball pitch).
     struct RestoreGrid {
@@ -3542,8 +3642,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             PairRouteReport rep;
             rep.positive = nets[static_cast<size_t>(pNet)].name;
             rep.negative = nets[static_cast<size_t>(nNet)].name;
-            const auto& lp = netPads[pNet];
-            const auto& ln = netPads[nNet];
+            std::vector<size_t> lp = netPads[pNet], ln = netPads[nNet];
+            for (auto* l : {&lp, &ln})  // doubled pads fanned out to one via: the pair starts from one of them
+                if (l->size() == 3) {
+                    std::vector<size_t> fanned, other;
+                    for (size_t pi : *l) (fanoutOfPad.count(pi) ? fanned : other).push_back(pi);
+                    if (fanned.size() == 2 && other.size() == 1) *l = {fanned[0], other[0]};
+                }
             if (isZoneNet(sch, pNet) || isZoneNet(sch, nNet) || isMeshNet(pNet) || isMeshNet(nNet)) rep.reason = "pour or mesh net";
             else if (spacing.gap > 0) rep.reason = "isolation barrier board";
             else if (lp.size() != 2 || ln.size() != 2) rep.reason = "members need exactly two pads each";
@@ -4095,18 +4200,28 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         for (const BgaFanout& f : bgaFanouts) {
             const Pad& pad = ps[f.pad];
             const int net = pad.net;
-            if (!f.inPad) {
-                Track t;
-                t.net = net;
-                t.layer = pad.smdLayer;
-                t.width = f.trackWidth;
-                t.a = pad.position;
-                t.b = f.via;
-                outT.push_back(t);
-                grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + extra(net) + w / 2, net);
-                grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, net);
-                grid.addCopper(t.a, t.b, t.width / 2, net, t.layer);
-                grid.fenceCopper(t.a, t.b, t.width / 2, net, t.layer);
+            if (!f.inPad)
+                for (const auto& [from, to] : f.hasKnee ? std::vector<std::pair<Vec2, Vec2>>{{pad.position, f.knee}, {f.knee, f.via}}
+                                                        : std::vector<std::pair<Vec2, Vec2>>{{pad.position, f.via}}) {
+                    if ((to - from).length() < 1e-9) continue;
+                    Track t;
+                    t.net = net;
+                    t.layer = pad.smdLayer;
+                    t.width = f.trackWidth;
+                    t.a = from;
+                    t.b = to;
+                    outT.push_back(t);
+                    // Doubled pads' stubs between fine-pitch pins keep the plain clearance (no fast-net spacing).
+                    grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + (f.hasKnee ? 0 : extra(net)) + w / 2, net);
+                    grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, net);
+                    grid.addCopper(t.a, t.b, t.width / 2, net, t.layer);
+                    grid.fenceCopper(t.a, t.b, t.width / 2, net, t.layer);
+                }
+            if (f.sharedVia) {  // the via is laid with the other pad's stub
+                fanoutCells[f.pad] = fanoutCells[std::find_if(bgaFanouts.begin(), bgaFanouts.end(), [&](const BgaFanout& o) {
+                                                    return !o.sharedVia && o.via == f.via;
+                                                })->pad];
+                continue;
             }
             Via v;
             v.net = net;
@@ -5902,8 +6017,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             bool inOwnPad = false;
             for (size_t oi : padsOfComponent.at(p.componentId)) {
                 const Pad& own = ps[oi];
+                // ... unless the track leaves it nearer the other pad than the land pattern's own gap (a 45° exit
+                // past the neighbour's corner): then it is routing, held to the board's clearance.
                 if (own.net == tr.net && own.componentId == p.componentId && own.onLayer(tr.layer) &&
-                    padDistance(own, closest) <= 0)
+                    padDistance(own, closest) <= 0 && (own.round || p.round || d >= rectRectDistance(own.bounds(), p.bounds()) - 0.01))
                     inOwnPad = true;
             }
             if (inOwnPad) {

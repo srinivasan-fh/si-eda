@@ -96,11 +96,12 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
         const bool hit = std::any_of(out.pads.begin(), out.pads.end(), [&](const Pad& pad) {
             return (k.layer < 0 || pad.onLayer(k.layer)) && pad.bounds().intersects(k.area);
         });
+        // A keep-out that bars pours too (an antenna's area, an isolation barrier) wants no part in it at all.
         if (hit)
             out.issues.push_back({"PLACE_KEEPOUT",
                                   "Pads of " + cand.ref + " would lie inside the keep-out" + (k.name.empty() ? "" : " " + k.name) +
-                                      ": no track can reach them.",
-                                  -1, false});
+                                      (k.pours || k.barrier ? ": parts stay out of it." : ": no track can reach them."),
+                                  -1, k.pours || k.barrier});
     }
     out.legal = std::none_of(out.issues.begin(), out.issues.end(), [](const PlacementIssue& i) { return i.error; });
 }
@@ -166,10 +167,13 @@ PlacementCheck Project::suggestPlacement(int componentId, double grid, const std
     const std::vector<int> ignore = sortedIds(ignoreIds);
     const Component* c = schematic.find(componentId);
     if (!c || !c->hasFootprint() || isNetSymbolKind(c->kind)) return {};
-    // The centroid of the pads it connects to on other placed parts, each net counting once.
-    std::set<int> nets;
+    // The centroid of the pads it connects to on other placed parts, each net counting once; ground (everywhere on the
+    // board) only when it is all the part connects to, so a decoupling capacitor goes by its supply pin.
+    std::set<int> nets, grounds;
     for (size_t i = 0; i < c->def().pins.size(); ++i)
-        if (const int n = schematic.netOf({c->id, static_cast<int>(i)}); n >= 0) nets.insert(n);
+        if (const int n = schematic.netOf({c->id, static_cast<int>(i)}); n >= 0)
+            (schematic.netRole(n) == NetRole::Ground ? grounds : nets).insert(n);
+    if (nets.empty()) nets = grounds;
     std::map<int, std::pair<Vec2, int>> perNet;  // net → sum of pad positions, count
     if (!nets.empty())
         for (const Pad& pad : pcb.pads(schematic)) {

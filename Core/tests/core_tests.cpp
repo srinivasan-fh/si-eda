@@ -790,7 +790,31 @@ TEST(pcb_fit_board_keeps_design_valid) {
     p.pcb.autoPlace(p.schematic, true);
     p.pcb.autoRoute(p.schematic);
     size_t tracks = p.pcb.tracks.size();
+    // A keep-out and a drawn pour over the first part move with it; a part nearer an edge than the margin stays there.
+    const Component* first0 = nullptr;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && !first0) first0 = &c;
+    const Rect cy0 = p.pcb.courtyard(*first0);
+    RouteKeepout k;
+    k.area = cy0;
+    p.pcb.settings.keepouts.push_back(k);
+    CopperZone z;
+    z.net = "GND";
+    z.polygon = {{cy0.x0, cy0.y0}, {cy0.x1, cy0.y0}, {cy0.x1, cy0.y1}};
+    p.pcb.zones.push_back(z);
+    double nearest = 1e9;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) nearest = std::min(nearest, p.pcb.courtyard(c).x0);
     CHECK(p.pcb.fitBoardToComponents(p.schematic, 2.0));
+    const Rect cy1 = p.pcb.courtyard(*p.schematic.find(first0->id));
+    CHECK_NEAR(p.pcb.settings.keepouts.back().area.x0, cy1.x0, 1e-9);
+    CHECK_NEAR(p.pcb.zones.back().polygon[0].y, cy1.y0, 1e-9);
+    double after = 1e9;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) after = std::min(after, p.pcb.courtyard(c).x0);
+    CHECK(after <= std::max(nearest, 2.0) + 0.25);
+    p.pcb.settings.keepouts.pop_back();
+    p.pcb.zones.pop_back();
     CHECK(p.pcb.settings.width < 80);
     CHECK(p.pcb.settings.height < 60);
     CHECK(p.pcb.tracks.size() == tracks);
@@ -8247,6 +8271,7 @@ Project messyBoard(uint32_t seed) {
     p.pcb.settings.height = 35;
     p.pcb.settings.layerCount = seed % 2 ? 2 : 4;
     if (seed % 3 == 0) p.pcb.settings.isolationGap = 2.0;
+    if (seed % 3 == 1) p.pcb.settings.clearance = p.pcb.settings.minClearance = 0.25;  // the QFN's own 0.2 mm gaps: fine pitch
     if (seed % 2 == 0) p.pcb.zones.push_back({"GND", 0, false, 0});
     p.pcb.settings.holes.push_back({{6, 6}, 3.2, 6.4});
     p.pcb.autoPlace(s, true);
@@ -20788,6 +20813,9 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     CHECK(flagged(R"({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "D1", "kind": "led"},
                                 {"ref": "R1", "kind": "resistor"}],
                       "nets": {"VCC": ["V1.+", "D1.A", "R1.1"], "GND": ["V1.-", "D1.K"]}})", "VAL_LED_NO_RESISTOR"));
+    // An LED whose cathode joins nothing never lights.
+    CHECK(flagged(R"({"parts": [{"ref": "R1", "kind": "resistor"}, {"ref": "D1", "kind": "led"}],
+                      "nets": {"LED": ["R1.2", "D1.A"]}})", "VAL_LED_OPEN"));
     // A multi-function reset pin (the ATmega328P's PC6/RST) is checked too.
     CHECK(flagged(R"({"parts": [{"ref": "U1", "part": "ATMEGA328P-PU"}], "nets": {}})"));
     CHECK(floating(R"({"parts": [{"ref": "U1", "part": "NE555"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"}],
@@ -20878,17 +20906,164 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     undo["steps"] = 10;
     CHECK(!mcpFailed(mcpTool(s, "project_undo", undo)));
     CHECK(state().schematic.components().empty() && mcpFailed(mcpTool(s, "project_undo", undo)));
-    // Undo never steps back past an open: the opened design stays.
+    // A saved file keeps its undo history: a new server opening it steps back past the earlier session's calls; a
+    // file changed since (or a project_new) starts afresh.
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor"}]})J"))));
     CHECK(!mcpFailed(mcpTool(s, "project_save_as", Json::parse(R"J({"path": "u.siedaproj"})J"))));
-    CHECK(!mcpFailed(mcpTool(s, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
-    CHECK(mcpFailed(mcpTool(s, "project_undo", Json::object())) && state().schematic.findByRef("R9"));
+    {
+        mcp::McpServer later(mcpOptions(root));
+        CHECK(!mcpFailed(mcpTool(later, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+        CHECK(!mcpFailed(mcpTool(later, "project_undo", Json::object())) && !later.project()->project.schematic.findByRef("R9"));
+        std::ofstream(root / "u.siedaproj", std::ios::app) << "\n";  // still the same design …
+        { std::ifstream in(root / "u.siedaproj"); std::stringstream ss; ss << in.rdbuf();
+          Project changed = Project::fromJson(Json::parse(ss.str())); changed.name = "changed";
+          std::ofstream(root / "u.siedaproj") << changed.toJson().dump(true); }  // … now not
+        CHECK(!mcpFailed(mcpTool(later, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+        CHECK(mcpFailed(mcpTool(later, "project_undo", Json::object())));
+    }
     // Catalog: the ESP32-C3 modules, a 40 MHz crystal and the chip antenna.
     for (const char* name : {"ESP32-C3-MINI-1", "ESP32-C3-WROOM-02", "Crystal_40MHz_3225", "ANTENNA-2450AT18A100"}) {
         Json add = Json::object();
         add["name"] = name;
         CHECK(!mcpFailed(mcpTool(s, "library_add_part", add)));
     }
+}
+
+TEST(mcp_usb_c_doubled_pads_route_as_a_coupled_pair) {
+    // A USB-C receptacle's D+ / D− sit in both rows (interleaved): each member's two pads join one via, and the pair
+    // routes coupled from the vias to the module's pins.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"},
+        {"ref": "U1", "part": "ESP32-C3-MINI-1"}], "nets": {"USB_P": ["J1.D+", "U1.27"], "USB_N": ["J1.D-", "U1.26"]},
+        "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 40, "height": 35})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))));
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
+    CHECK(routed.get("unroutedConnections").asInt(-1) == 0);
+    const Json pairs = mcpData(mcpTool(s, "pcb_route_report", Json::object())).get("pairs");
+    CHECK(pairs.size() == 1 && pairs[0].get("coupled").asBool(false));
+}
+
+TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
+    // A roomy board: pcb_autoplace says so, and pcb_fit_board compact re-places every part on a smaller board where
+    // they all still fit; it refuses once there is copper.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor"},
+        {"ref": "R2", "kind": "resistor"}, {"ref": "C1", "kind": "capacitor"}], "nets": {"NA": ["R1.1", "R2.1", "C1.1"],
+        "NB": ["R1.2", "R2.2", "C1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 60, "height": 50})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))).has("boardRoomy"));
+    const Json board = mcpData(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J")));
+    CHECK(board.get("width").asNumber() < 60 && board.get("height").asNumber() < 50);
+    CHECK(board.get("footprintsNotPlaced").asInt(-1) == 0);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::object())));
+    CHECK(mcpFailed(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J"))));
+}
+
+TEST(pour_joining_track_survives_reload) {
+    // A track that reaches no pad but joins two islands of its pour keeps its net on reload (pruneStaleRouting), so
+    // a board clean before saving is clean after reopening.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor"},
+        {"ref": "R2", "kind": "resistor"}], "nets": {"GND": ["R1.2", "R2.2"], "A": ["R1.1", "R2.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 30, "height": 20})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", Json::parse(R"J({"net": "GND", "layer": 0})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "GND", "layer": 0, "points": [[3, 17], [8, 17]]})J"))));
+    Project& pr = s.project()->project;
+    const size_t tracks = pr.pcb.tracks.size();
+    CHECK(tracks >= 1);
+    pr.schematicChanged();  // as on load
+    CHECK(pr.pcb.tracks.size() == tracks);
+}
+
+TEST(mcp_single_row_header_reads_down_one_side) {
+    // A 1 × N header's pins all leave one side of its symbol (labels side by side, not stacked up); a search lists a
+    // small part's pin names.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "J1", "part": "PinHeader_1x04_P2.54mm"},
+        {"ref": "R1", "kind": "resistor"}], "nets": {"A": ["J1.1", "R1.1"], "B": ["J1.2", "R1.2"], "C": ["J1.3"], "D": ["J1.4"]}})J"))));
+    const auto& sch = s.project()->project.schematic;
+    const Component* j1 = sch.findByRef("J1");
+    CHECK(j1 != nullptr);
+    if (j1)
+        for (int i = 0; i < 4; ++i) CHECK(std::fabs(sch.pinPosition({j1->id, i}).x - sch.pinPosition({j1->id, 0}).x) < 1e-6);
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "AMS1117-3.3"})J")));
+    CHECK(found.get("parts").size() >= 1 && found.get("parts")[0].get("pinNames").size() == 3);
+}
+
+TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
+    // An agent's manual repairs: pcb_drc names the pads cut off from the rest of their net; pcb_add_track joins them
+    // on any points, pcb_add_via drops a via; both refuse copper that would touch another net. pcb_summary gives each
+    // footprint's courtyard size; "4 pin" in a search is a pin count.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor", "package": "0805"},
+        {"ref": "R2", "kind": "resistor", "package": "0805"}], "nets": {"NA": ["R1.1", "R2.1"], "NB": ["R1.2", "R2.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 30, "height": 20})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(R"J({"placements": [{"ref": "R1", "x": 8, "y": 10, "rotation": 0},
+        {"ref": "R2", "x": 22, "y": 10, "rotation": 0}]})J"))));
+    const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    CHECK(drc.get("unrouted").size() == 2 && drc.get("unrouted")[0].get("cutOff").size() == 1);
+    const Json summary = mcpData(mcpTool(s, "pcb_summary", Json::parse(R"J({"pads": ["R1", "R2"]})J")));
+    CHECK(summary.get("footprints")[0].get("courtyard")[0].asNumber() > 2);
+    Vec2 r1a, r2a, r1b;
+    for (const auto& pad : summary.get("pads").get("R1").items())
+        (pad.get("net").asString("") == "NA" ? r1a : r1b) = Vec2{pad.get("x").asNumber(), pad.get("y").asNumber()};
+    for (const auto& pad : summary.get("pads").get("R2").items())
+        if (pad.get("net").asString("") == "NA") r2a = Vec2{pad.get("x").asNumber(), pad.get("y").asNumber()};
+    Json track = Json::parse(R"J({"net": "NA", "layer": 0})J"), pts = Json::array();
+    for (Vec2 v : {r1a, Vec2{r1a.x, 4}, Vec2{r2a.x, 4}, r2a}) {
+        Json q = Json::array();
+        q.push(v.x), q.push(v.y);
+        pts.push(q);
+    }
+    track["points"] = pts;
+    CHECK(mcpData(mcpTool(s, "pcb_add_track", track)).get("ids").size() == 3);
+    CHECK(mcpData(mcpTool(s, "pcb_drc", Json::object())).get("unrouted").size() == 1);
+    Json bad = track;  // NB's copper runs into NA's pads
+    bad["net"] = "NB";
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", bad)));
+    // Points are numbers (numeric strings read too); anything else is refused, never drawn at (0, 0).
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "NA", "layer": 0, "points": [["a", "4"], [3, 4]]})J"))));
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "NA", "layer": 0, "points": [[3], [3, 4]]})J"))));
+    Json via = Json::parse(R"J({"net": "NA"})J");
+    via["x"] = r1a.x, via["y"] = 4.0;
+    CHECK(mcpData(mcpTool(s, "pcb_add_via", via)).get("id").asInt(-1) >= 0);
+    via["net"] = "NB", via["x"] = r1b.x, via["y"] = r1b.y;  // a via on its own net's pad is fine …
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_via", via)));
+    via["x"] = r1a.x, via["y"] = r1a.y;  // … on NA's pad is not
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_via", via)));
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "header 4 pin"})J")));
+    CHECK(found.get("total").asInt(0) > 0);
+    for (const auto& part : found.get("parts").items()) CHECK(part.get("pins").asInt(0) == 4);
+    // Snapshot copper names its net.
+    const Json copper = mcpData(mcpTool(s, "project_snapshot", Json::parse(R"J({"sections": ["tracks", "vias"]})J")));
+    CHECK(copper.get("tracks")[0].get("netName").asString("") == "NA" && copper.get("vias")[0].has("netName"));
+    // A part turned under its wires: its labels follow (ERC stays clean); turned onto a wire it does not join, the
+    // move warns (the ERC keeps it a note: reference designs draw L-routes over pins).
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "C1", "kind": "capacitor"}],
+        "nets": {"NA": ["C1.1"], "GND": ["C1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_move_component", Json::parse(R"J({"ref": "C1", "rotation": 90})J"))));
+    CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("warnings").asInt(-1) == 0);
+    Schematic& sch = s.project()->project.schematic;
+    const int a = sch.addComponent(ComponentKind::Resistor, "1k", {2000, 0}), b = sch.addComponent(ComponentKind::Resistor, "1k", {2200, 0});
+    const int c = sch.addComponent(ComponentKind::Resistor, "1k", {2100, 300});
+    sch.connect({a, 1}, {b, 0});
+    Json turn = Json::parse(R"J({"x": 2100, "y": 30, "rotation": 90})J");  // its pin 1 onto that wire
+    turn["ref"] = sch.find(c)->ref;
+    CHECK(mcpData(mcpTool(s, "schematic_move_component", turn)).get("warnings").size() == 1);
+    // The update preview counts single-pin nets instead of listing them.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor", "package": "0805"}],
+        "nets": {"NA": ["R9.1"]}, "pins": false})J"))));
+    CHECK(mcpData(mcpTool(s, "pcb_eco_preview", Json::object())).get("singlePinNets").asInt(0) >= 1);
 }
 
 TEST(mcp_decoupling_board_checks_and_consistent_reports) {
@@ -20915,8 +21090,12 @@ TEST(mcp_decoupling_board_checks_and_consistent_reports) {
     all["decoupling"] = true;
     const Json placed = mcpData(mcpTool(s, "pcb_autoplace", all));
     std::set<std::string> served;
-    for (const auto& m : placed.get("decouplingPlaced").items()) served.insert(m.asString("").substr(0, 2));
-    CHECK(!served.count("C1"));
+    bool bulkAtEntry = false;  // the 10 µF bulk one serves no pin: it goes where the supply comes in
+    for (const auto& m : placed.get("decouplingPlaced").items()) {
+        served.insert(m.asString("").substr(0, 2));
+        bulkAtEntry |= m.asString("").rfind("C1 → J1", 0) == 0;
+    }
+    CHECK(!served.count("C1") || bulkAtEntry);
     Json pads = Json::object();
     pads["pads"] = Json::parse(R"(["U1", "C2", "C3", "C4"])");
     const Json board = mcpData(mcpTool(s, "pcb_summary", pads));
@@ -20999,7 +21178,7 @@ TEST(mcp_edges_stitching_and_tags) {
         if (f.get("ref").asString("") == "J1") CHECK(f.get("y").asNumber() > h / 2);
     }
     CHECK(board.get("keepouts").size() == 1 && board.get("keepouts")[0].get("pours").asBool(false));
-    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"J({"pour": false})J"))).get("unroutedConnections").asInt(-1) == 0);
     std::set<std::string> drc;
     const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : drcResult.get("violations").items()) drc.insert(v.get("code").asString(""));
@@ -21062,22 +21241,22 @@ TEST(mcp_build_tags_and_grounds_stay_clear_of_labels) {
         if (c.kind == ComponentKind::NetLabel && c.rotation % 180 != 0) o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
         return o;
     };
-    int labels = 0, sideways = 0;
+    int labels = 0, upright = 0;
     std::set<std::string> refs;
     const Component* u2 = sch.findByRef("U2");  // its GND pin: the middle left one, between VIN and EN
     for (const auto& a : sch.components()) {
         if (!isNetSymbolKind(a.kind)) continue;
         ++labels;
         CHECK(refs.insert(a.ref).second);
-        if (a.kind == ComponentKind::Ground && a.position.x < u2->position.x && std::fabs(a.position.y - u2->position.y) < 15)
-            sideways += a.rotation == 90;
-        for (const auto& b : sch.components()) {
-            if (b.id == a.id || a.kind != ComponentKind::NetLabel || b.kind != ComponentKind::NetLabel) continue;
+        const bool u2Ground = a.kind == ComponentKind::Ground && a.position.x < u2->position.x && std::fabs(a.position.y - u2->position.y) < 15;
+        upright += u2Ground && a.rotation == 0;
+        for (const auto& b : sch.components()) {  // labels apart; the ground out beyond the labels below it
+            if (b.id == a.id || (a.kind != ComponentKind::NetLabel && !u2Ground) || b.kind != ComponentKind::NetLabel) continue;
             const auto o = box(a), q = box(b);
             CHECK(!(o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3]));
         }
     }
-    CHECK(sideways == 1);
+    CHECK(upright == 1);  // pointing down, not turned sideways
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [], "nets": {"STRAP8": ["U1.GPIO8", "R8.2"]}})"))));
     int again = 0;
     for (const auto& c : sch.components()) again += isNetSymbolKind(c.kind);
@@ -21296,14 +21475,16 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     // R2 put just clear of R1 (closer than the 0.25 mm passive spacing): the move and the DRC both say so.
     CHECK(mcpData(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"ref": "R1", "x": 30, "y": 26, "rotation": 0, "force": true})")))
               .get("committed").asBool(false));
-    Json near;
+    Json near, refused;
     for (double x = 31; x < 36 && !near.isObject(); x += 0.1) {
         Json mv = Json::parse(R"({"ref": "R2", "y": 26, "rotation": 0})");
         mv["x"] = x;
         const Json r = mcpData(mcpTool(s, "pcb_place_footprint", mv));
-        if (r.get("committed").asBool(false)) near = r;
+        if (r.has("tooClose") && !refused.isObject()) refused = r;  // nearer than the standard: refused …
+        mv["force"] = true;
+        if (r.has("tooClose") && mcpData(mcpTool(s, "pcb_place_footprint", mv)).get("committed").asBool(false)) near = r;  // … unless forced
     }
-    CHECK(near.get("tooClose").size() == 1);
+    CHECK(near.get("tooClose").size() == 1 && !refused.get("committed").asBool(true));
     bool flagged = false;
     const Json spacingDrc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : spacingDrc.get("violations").items()) flagged = flagged || v.get("code").asString("") == "DRC_PART_SPACING";
@@ -21617,7 +21798,7 @@ TEST(mcp_end_to_end_board) {
     const Json drc = mcpData(mcpTool(s, "pcb_drc"));
     if (drc.get("errors").asInt(1) != 0) std::printf("    DRC: %s\n", drc.dump().c_str());
     CHECK(drc.get("errors").asInt(1) == 0);
-    CHECK(drc.get("clean").asBool(false));
+    CHECK(drc.get("passes").asBool(false));
     // Outputs inside the root.
     Json fab = Json::object();
     fab["dir"] = "out/gerbers";

@@ -340,6 +340,10 @@ Vec2 pinOutward(const Project& p, PinAddress a) {
         x0 = std::min(x0, q.x), x1 = std::max(x1, q.x), y0 = std::min(y0, q.y), y1 = std::max(y1, q.y);
     }
     const double eps = 1e-6;
+    // Every pin in one column (or row) beside the body (a 1 × N header): they leave away from the body's centre.
+    const bool row = c->def().pins.size() >= 3;
+    if (row && x1 - x0 <= eps && y1 - y0 > eps && std::fabs(pin.x - c->position.x) > eps) return {pin.x < c->position.x ? -1.0 : 1.0, 0};
+    if (row && y1 - y0 <= eps && x1 - x0 > eps && std::fabs(pin.y - c->position.y) > eps) return {0, pin.y < c->position.y ? -1.0 : 1.0};
     const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
     const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
     const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);
@@ -489,7 +493,8 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
     out["errors"] = errors;
     out["warnings"] = warnings;
     out["infos"] = infos;
-    out["clean"] = errors == 0;
+    out["clean"] = errors == 0 && warnings == 0;  // nothing left to read; "passes": no errors (warnings may stay)
+    out["passes"] = errors == 0;
     out["status"] = errors ? "errors" : warnings ? "warnings" : "clean";
     out["violations"] = list;
     if (static_cast<size_t>(errors + warnings + infos) > limit) out["truncated"] = true;
@@ -845,11 +850,13 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
     if (name == "project_open" || name == "project_new" || name == "project_load_example") {
-        undo_.clear();  // a fresh design: undo never steps back past it
+        undo_.clear();  // a fresh design: undo never steps back past it …
+        if (name == "project_open") loadUndoHistory();  // … unless this file was saved with its history
     } else if (!before.empty() && project_ == undoOf_) {
         undo_.push_back(std::move(before));
         if (undo_.size() > kUndoSteps) undo_.erase(undo_.begin());
     }
+    if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
     if (tool->mutates && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
@@ -860,6 +867,52 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     if (out.data.isObject() && protocol_ >= std::string("2025-06-18")) r["structuredContent"] = out.data;
     r["isError"] = false;
     return r;
+}
+
+// The undo history beside a saved project (".<file>.undo"): a client that starts a new server for each batch of calls
+// still steps back past its earlier batches. It is restored only onto the very file it was saved with (its bytes: loading
+// may tidy the design, e.g. drop stale copper, so the state read back can differ from the one saved).
+namespace {
+fs::path undoFile(const std::string& project) {
+    const fs::path p(project);
+    return p.parent_path() / ("." + p.filename().string() + ".undo");
+}
+}  // namespace
+
+void McpServer::saveUndoHistory() const {
+    if (projectPath_.empty() || !project_) return;
+    Json j = Json::object(), steps = Json::array();
+    size_t bytes = 0;  // the newest steps, up to 32 MB
+    size_t first = undo_.size();
+    while (first > 0 && bytes + undo_[first - 1].size() < (32u << 20)) bytes += undo_[--first].size();
+    for (size_t i = first; i < undo_.size(); ++i) steps.push(undo_[i]);
+    try {
+        j["file"] = std::to_string(std::hash<std::string>{}(readTextFile(projectPath_)));
+    } catch (const std::exception&) {
+        return;
+    }
+    j["steps"] = steps;
+    std::error_code ec;
+    if (steps.size() == 0) {
+        fs::remove(undoFile(projectPath_), ec);
+        return;
+    }
+    std::ofstream(undoFile(projectPath_), std::ios::binary | std::ios::trunc) << j.dump();
+}
+
+void McpServer::loadUndoHistory() {
+    if (projectPath_.empty() || !project_) return;
+    std::error_code ec;
+    const fs::path f = undoFile(projectPath_);
+    if (!fs::is_regular_file(f, ec) || fs::file_size(f, ec) > (64u << 20)) return;
+    try {
+        const Json j = Json::parse(readTextFile(f.string()));
+        if (j.get("file").asString("") != std::to_string(std::hash<std::string>{}(readTextFile(projectPath_)))) return;  // changed since
+        for (const auto& step : j.get("steps").items()) undo_.push_back(step.asString(""));
+        undoOf_ = project_;
+    } catch (const std::exception&) {
+        undo_.clear();
+    }
 }
 
 bool McpServer::undo() {
@@ -1077,7 +1130,7 @@ Json McpServer::getPrompt(const std::string& name, const Json& arguments) const 
                "5. schematic_erc until it has no errors; sim_dc_op to check supply voltages and LED current.\n"
                "6. pcb_set_board (a compact size, " + layers + " layers, rule preset) then pcb_update_from_schematic; "
                "move the decoupling capacitors next to their pins with pcb_place_footprint; pcb_fit_board.\n"
-               "7. pcb_add_pour for GND, pcb_autoroute (preset \"quality\"), pcb_drc until clean.\n"
+               "7. pcb_autoroute (pours GND on the bottom first when there is no pour), pcb_drc until clean.\n"
                "8. verify_design, render_pcb to look at the result, then summarise what you built and any open "
                "warnings.";
     } else if (name == "review_design") {

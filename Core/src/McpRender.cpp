@@ -518,6 +518,19 @@ Scene schematicScene(const Project& project, int sheet) {
                     return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
                 };
                 const double w = textWidth(name, 9) + 16, hh = 7;
+                // A label splitting a wire (a wire on each side of its pin) names that wire: its text lies along the
+                // wire just above it (beside a vertical one), as a local label does, with no flag over the line.
+                std::vector<Vec2> ends;
+                for (const auto& wire : sch.wires())
+                    for (const auto& [mine, other] : {std::pair{wire.a, wire.b}, std::pair{wire.b, wire.a}})
+                        if (mine.component == c.id) ends.push_back(sch.pinPosition(other));
+                if (!c.power && ends.size() >= 2) {
+                    const bool vertical = std::fabs(ends[0].x - c.position.x) < 0.5 && std::fabs(ends[1].x - c.position.x) < 0.5;
+                    const Vec2 at = vertical ? c.position + Vec2{4, 3} : c.position + Vec2{0, -4};
+                    s.text(at, name, 8, labelC, !vertical);
+                    grow(b, any, at + Vec2{textWidth(name, 8), -9});
+                    break;
+                }
                 if (c.power) {  // a power symbol: a stem from the pin to a bar, the rail's name beyond it
                     s.line(turn({0, 0}), turn({12, 0}), 1.5, body);
                     s.line(turn({12, -9}), turn({12, 9}), 2, body);
@@ -527,6 +540,15 @@ Scene schematicScene(const Project& project, int sheet) {
                     grow(b, any, turn({12, 9}));
                     grow(b, any, at + Vec2{textWidth(name, 9) / 2, 0});
                     grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
+                    break;
+                }
+                if (r == 90 || r == 270) {  // an upright flag stays short, its name upright just past its end
+                    s.polygon({turn({0, 0}), turn({hh, -hh}), turn({20, -hh}), turn({20, hh}), turn({hh, hh})}, false, 1, labelC);
+                    const Vec2 at = turn({24, 0}) + Vec2{0, r == 90 ? 9.0 : 0.0};
+                    s.text(at, name, 9, labelC, true);
+                    grow(b, any, at + Vec2{textWidth(name, 9) / 2, -9});
+                    grow(b, any, at - Vec2{textWidth(name, 9) / 2, 0});
+                    grow(b, any, c.position);
                     break;
                 }
                 s.polygon({turn({0, 0}), turn({hh, -hh}), turn({w, -hh}), turn({w, hh}), turn({hh, hh})}, false, 1, labelC);
@@ -546,9 +568,16 @@ Scene schematicScene(const Project& project, int sheet) {
                     if (y1 - y0 > 30) y0 += 10, y1 -= 10;
                 }
                 // Op-amps, capacitors, diodes / LEDs and switches get their usual glyph, laid along their pins.
-                const auto at = [&](int i) { return sch.pinPosition({c.id, i}); };
-                const bool twoPin = pins.size() == 2 && (c.kind == ComponentKind::Capacitor || c.kind == ComponentKind::Diode ||
-                                                         c.kind == ComponentKind::LED || c.kind == ComponentKind::Switch);
+                // A catalog part reads as the device its designator names: a diode (D), switch (SW) or crystal (Y).
+                const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+                const bool custom = c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit;
+                const ComponentKind look = !custom ? c.kind : prefix == "D" ? ComponentKind::Diode : prefix == "SW" ? ComponentKind::Switch : c.kind;
+                const bool crystal = custom && prefix == "Y";
+                int first = 0;  // a diode's anode
+                if (look == ComponentKind::Diode && pins.size() == 2 && pins[1].name == "A") first = 1;
+                const auto at = [&](int i) { return sch.pinPosition({c.id, pins.size() == 2 && first ? 1 - i : i}); };
+                const bool twoPin = pins.size() == 2 && (look == ComponentKind::Capacitor || look == ComponentKind::Diode ||
+                                                         look == ComponentKind::LED || look == ComponentKind::Switch || crystal);
                 if (twoPin || (c.kind == ComponentKind::OpAmp && pins.size() == 3)) {
                     const Vec2 a = twoPin ? at(0) : (at(0) + at(1)) * 0.5, e = twoPin ? at(1) : at(2);
                     const double len = std::hypot(e.x - a.x, e.y - a.y);
@@ -562,12 +591,19 @@ Scene schematicScene(const Project& project, int sheet) {
                             s.line(p, q, 1.2, pinC);
                             s.text(q + u * 6 + Vec2{0, 3}, i == 0 ? "+" : "-", 9, body, true);
                         }
-                    } else if (c.kind == ComponentKind::Capacitor) {
+                    } else if (crystal) {  // plates either side of the quartz
+                        s.line(a, m - u * 6, 1.2, pinC);
+                        s.line(e, m + u * 6, 1.2, pinC);
+                        for (double k : {-6.0, 6.0}) s.line(m + u * k + n * 9, m + u * k - n * 9, 2, body);
+                        s.box(Rect(std::min((m - u * 3 + n * 7).x, (m + u * 3 - n * 7).x), std::min((m - u * 3 + n * 7).y, (m + u * 3 - n * 7).y),
+                                   std::max((m - u * 3 + n * 7).x, (m + u * 3 - n * 7).x), std::max((m - u * 3 + n * 7).y, (m + u * 3 - n * 7).y)),
+                              false, 1.5, body);
+                    } else if (look == ComponentKind::Capacitor) {
                         s.line(a, m - u * 3, 1.2, pinC);
                         s.line(e, m + u * 3, 1.2, pinC);
                         s.line(m - u * 3 + n * 10, m - u * 3 - n * 10, 2, body);
                         s.line(m + u * 3 + n * 10, m + u * 3 - n * 10, 2, body);
-                    } else if (c.kind == ComponentKind::Switch) {
+                    } else if (look == ComponentKind::Switch) {
                         s.line(a, m - u * 10, 1.2, pinC);
                         s.line(e, m + u * 10, 1.2, pinC);
                         s.disc(m - u * 10, 2, body);
@@ -576,12 +612,19 @@ Scene schematicScene(const Project& project, int sheet) {
                     } else {  // anode → cathode: triangle and bar
                         s.line(a, m - u * 6, 1.2, pinC);
                         s.line(e, m + u * 6, 1.2, pinC);
-                        s.polygon({m - u * 6 + n * 7, m - u * 6 - n * 7, m + u * 6}, c.kind == ComponentKind::LED, 1.5, body);
+                        s.polygon({m - u * 6 + n * 7, m - u * 6 - n * 7, m + u * 6}, look == ComponentKind::LED, 1.5, body);
                         s.line(m + u * 6 + n * 7, m + u * 6 - n * 7, 1.5, body);
                         if (c.kind == ComponentKind::LED)
                             for (double k : {-2.0, 3.0}) s.line(m + u * k + n * 9, m + u * (k + 4) + n * 15, 1, body);
                     }
                     for (int i = 0; i < static_cast<int>(pins.size()); ++i) s.disc(at(i), 1.6, pinC);
+                    if (std::fabs(u.y) > 0.5) {  // standing up: ref and value beside the body, off its leads
+                        const double tx = m.x + 13;
+                        s.text({tx, m.y - 3}, sch.displayRef(c), 8, textC, false);
+                        if (!c.value.empty()) s.text({tx, m.y + 9}, c.value, 7, textC, false);
+                        grow(b, any, {tx + textWidth(std::max(sch.displayRef(c), c.value, [](const auto& l, const auto& r) { return l.size() < r.size(); }), 8), m.y});
+                        break;
+                    }
                     s.text({(x0 + x1) / 2, y0 - 4}, sch.displayRef(c), 8, textC, true);
                     if (!c.value.empty()) s.text({(x0 + x1) / 2, y1 + 10}, c.value, 7, textC, true);
                     grow(b, any, {(x0 + x1) / 2, y0 - 14});
@@ -590,6 +633,11 @@ Scene schematicScene(const Project& project, int sheet) {
                 }
                 s.box(Rect(x0, y0, x1, y1), true, 0, "#fff7e6");
                 s.box(Rect(x0, y0, x1, y1), false, 1.5, body);
+                if (crystal) {  // a crystal with ground pads too: its quartz glyph in the middle of the box
+                    const Vec2 m{(x0 + x1) / 2, (y0 + y1) / 2};
+                    for (double k : {-6.0, 6.0}) s.line(m + Vec2{k, -8}, m + Vec2{k, 8}, 2, body);
+                    s.box(Rect(m.x - 3, m.y - 6, m.x + 3, m.y + 6), false, 1.5, body);
+                }
                 // Top / bottom pin names that would touch the one before go one row further in; a name already
                 // written at that spot (stacked pins) is written once. Ref and value clear the pin ends.
                 std::map<size_t, double> row;
@@ -624,22 +672,40 @@ Scene schematicScene(const Project& project, int sheet) {
                     else q.y = y1;
                     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) s.line(p, q, 1.2, pinC);
                     s.disc(p, 1.6, pinC);
-                    if (c.isNoConnect(static_cast<int>(i))) {  // a no-connect flag: an X on the pin end
-                        s.line(p + Vec2{-4, -4}, p + Vec2{4, 4}, 1.5, "#1f4f9f");
-                        s.line(p + Vec2{-4, 4}, p + Vec2{4, -4}, 1.5, "#1f4f9f");
+                    const int pinNet = sch.netOf({c.id, static_cast<int>(i)});  // a pin named NC on no other pin's net
+                    const bool ncPin = pins[i].name == "NC" && (pinNet < 0 || sch.nets()[static_cast<size_t>(pinNet)].pins.size() < 2);
+                    if (c.isNoConnect(static_cast<int>(i)) || ncPin) {  // a no-connect flag: an X on the pin end
+                        // A pin without a lead ends on the body edge: its X stands just outside, clear of the name.
+                        const Vec2 out = m == dl ? Vec2{-1, 0} : m == dr ? Vec2{1, 0} : m == dt ? Vec2{0, -1} : Vec2{0, 1};
+                        const Vec2 x = (p - q).length() < 4 ? q + out * 5 : p;
+                        s.line(x + Vec2{-4, -4}, x + Vec2{4, 4}, 1.5, "#1f4f9f");
+                        s.line(x + Vec2{-4, 4}, x + Vec2{4, -4}, 1.5, "#1f4f9f");
                     }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
                         const std::string& label = pins[i].name;
                         const bool left = m == dl, right = m == dr;
-                        if (left) s.text(q + Vec2{2, 2.5}, label, 6, pinC, false);
-                        else if (right) s.text(q + Vec2{-2 - 4.8 * static_cast<double>(label.size()), 2.5}, label, 6, pinC, false);
+                        // A side name keeps to its half of the body (smaller text when it is long).
+                        const double h = std::max(4.0, std::min(6.0, 6 * ((x1 - x0) / 2 - 6) / std::max(1.0, textWidth(label, 6))));
+                        if (left) s.text(q + Vec2{2, 2.5}, label, h, pinC, false);
+                        else if (right) s.text(q + Vec2{-2 - textWidth(label, h), 2.5}, label, h, pinC, false);
                         else if (written.insert({std::lround(q.x * 10) * (m == dt ? 1 : -1), label}).second)
                             s.text(q + Vec2{0, m == dt ? 8.0 + row[i] : -3.0 - row[i]}, label, 6, pinC, true);
                     }
                 }
+                // Ref and value centred over / under the body, or at its left corner when a pin lead runs through there.
+                auto clearAt = [&](const std::string& t, double h, double y, bool atTop) {
+                    for (size_t i = 0; i < pins.size(); ++i) {
+                        const Vec2 p = sch.pinPosition({c.id, static_cast<int>(i)});
+                        if ((atTop ? p.y < y0 : p.y > y1) && std::fabs(p.x - (x0 + x1) / 2) < textWidth(t, h) / 2 + 3) {
+                            s.text({x0, y}, t, h, textC, false);
+                            return;
+                        }
+                    }
+                    s.text({(x0 + x1) / 2, y}, t, h, textC, true);
+                };
                 const std::string ref = sch.displayRef(c);
-                s.text({(x0 + x1) / 2, top - 4}, ref, 8, textC, true);
-                if (!c.value.empty()) s.text({(x0 + x1) / 2, bottom + 10}, c.value, 7, textC, true);
+                clearAt(ref, 8, top - 4, true);
+                if (!c.value.empty()) clearAt(c.value, 7, bottom + 10, false);
                 grow(b, any, {(x0 + x1) / 2, top - 14});
                 grow(b, any, {(x0 + x1) / 2, bottom + 12});
                 break;
@@ -675,12 +741,24 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
     const auto fills = copperFills(sch, pcb);
-    for (int l : order) {
-        const std::string col = layerColour(l, n);
+    for (int l : order) {  // every pour under every track: a top pour does not hide the bottom layer's tracks
         const std::string dim = l == 0 ? "#5a2020" : (l == n - 1 ? "#20305a" : "#4a4020");
+        // A pour over another layer's pour is hatched (0.3 mm bands), so the one below shows through.
+        const bool hatch = std::any_of(fills.begin(), fills.end(), [&](const ZoneFill& f) { return f.layer > l && shown(f.layer); });
         for (const auto& f : fills)
             if (f.layer == l)
-                for (const auto& r : f.rects) s.box(r, true, 0, dim);
+                for (const auto& r : f.rects) {
+                    if (!hatch) {
+                        s.box(r, true, 0, dim);
+                        continue;
+                    }
+                    for (double y = std::floor(r.y0 / 0.6) * 0.6; y < r.y1; y += 0.6)
+                        if (const double y0 = std::max(r.y0, y), y1 = std::min(r.y1, y + 0.3); y1 > y0)
+                            s.box(Rect(r.x0, y0, r.x1, y1), true, 0, dim);
+                }
+    }
+    for (int l : order) {
+        const std::string col = layerColour(l, n);
         for (const auto& t : pcb.tracks) {
             if (t.layer != l) continue;
             if (t.arc) {
