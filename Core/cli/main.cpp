@@ -6,6 +6,8 @@
 //   sieda-cli design.siedaproj out/ write Gerbers, drill, BOM, netlist, STL into out/
 //   sieda-cli --chat model.gguf "question"   ask the built-in language model (docs/AI.md), the answer streamed
 //   sieda-cli --circuit model.gguf "request"  SiEDA's circuit model: its plan with the request's values computed
+//   sieda-cli --upgrade a.siedaproj …          rewrite project files in this version's format (docs/FILE_FORMAT.md);
+//                                              a file that would lose settings (newer, unknown fields) is left alone
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -79,6 +81,26 @@ int main(int argc, char** argv) {
             return 1;
         }
         return 0;
+    }
+    if (argc >= 3 && std::string(argv[1]) == "--upgrade") {
+        int failed = 0;
+        for (int i = 2; i < argc; ++i) {
+            std::ifstream in(argv[i], std::ios::binary);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            try {
+                if (!in) throw std::runtime_error("cannot open the file");
+                const Project p = Project::fromJson(Json::parse(ss.str()));
+                if (!p.loadNotes.empty()) throw std::runtime_error(p.loadNotes.front() + " Left as it is.");
+                const std::string text = p.toJson().dump(true);
+                if (text != ss.str()) std::ofstream(argv[i], std::ios::binary) << text;
+                std::printf("%s: %s\n", argv[i], text == ss.str() ? "already current" : "upgraded");
+            } catch (const std::exception& e) {
+                std::fprintf(stderr, "%s: %s\n", argv[i], e.what());
+                ++failed;
+            }
+        }
+        return failed ? 1 : 0;
     }
     if (argc >= 4 && std::string(argv[1]) == "--chat") {
         LocalModel model;

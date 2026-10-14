@@ -322,6 +322,8 @@ private struct AppearanceSettings: View {
                 Button("Import Settings…") { SettingsTransfer.importWithPanel() }
             }
             .help("Shortcuts, themes, colours, library favourites and tags, and other preferences as one file (keys and passwords stay in the Keychain)")
+            Button("Open Event Hooks Folder") { ProjectHooks.openFolder() }
+                .help("Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set")
             Toggle("Save projects automatically", isOn: $autosave)
             Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                 .font(.caption)

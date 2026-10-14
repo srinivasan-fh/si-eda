@@ -6774,6 +6774,45 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(r.text.contains("LED_Pin GPIO_PIN_5"), r.text)
     }
 
+    func testProjectLockEventHooksAndKicadBoard() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-lock-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // Our own lock never stops us; another Mac's live one does; a stale one does not; release leaves others' locks.
+        let project = dir.appendingPathComponent("p.siedaproj")
+        ProjectLock.take(project)
+        XCTAssertNil(ProjectLock.holder(of: project))
+        ProjectLock.release(project)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: ProjectLock.url(for: project).path))
+        let other = ProjectLock.Holder(user: "ana", host: "other-mac", pid: 1, since: Date())
+        try JSONEncoder().encode(other).write(to: ProjectLock.url(for: project))
+        XCTAssertEqual(ProjectLock.holder(of: project), other)
+        ProjectLock.release(project)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: ProjectLock.url(for: project).path))
+        var stale = other
+        stale.since = Date().addingTimeInterval(-13 * 3600)
+        try JSONEncoder().encode(stale).write(to: ProjectLock.url(for: project))
+        XCTAssertNil(ProjectLock.holder(of: project))
+        // A hook runs with the event and project in its environment; an event without a script runs nothing.
+        let script = dir.appendingPathComponent("after-save")
+        try "#!/bin/sh\necho \"$SIEDA_EVENT $SIEDA_PROJECT\" > \"$(dirname \"$0\")/ran.txt\"\n".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let process = try XCTUnwrap(ProjectHooks.run("after-save", project: project, in: dir))
+        process.waitUntilExit()
+        XCTAssertEqual(try String(contentsOf: dir.appendingPathComponent("ran.txt"), encoding: .utf8), "after-save \(project.path)\n")
+        XCTAssertNil(ProjectHooks.run("after-open", project: project, in: dir))
+        // A KiCad board through the core tool: both parts placed on KiCad's pads.
+        let board = "(kicad_pcb (version 20240108) (net 0 \"\") (net 1 \"A\") (net 2 \"B\")"
+            + " (footprint \"R:R\" (layer \"F.Cu\") (at 10 10) (property \"Reference\" \"R1\")"
+            + " (pad \"1\" thru_hole circle (at 0 0) (size 1.6 1.6) (drill 0.8) (layers \"*.Cu\") (net 1 \"A\"))"
+            + " (pad \"2\" thru_hole circle (at 7.62 0) (size 1.6 1.6) (drill 0.8) (layers \"*.Cu\") (net 2 \"B\")))"
+            + " (segment (start 10 10) (end 10 15) (width 0.3) (layer \"F.Cu\") (net 1)))"
+        let store = DesignStore()
+        let r = store.runTool("pcb_import_kicad", arguments: ["text": board])
+        XCTAssertFalse(r.isError, r.text)
+        XCTAssertTrue(r.text.contains("\"misfit\":[]") && r.text.contains("\"tracks\":1"), r.text)
+    }
+
     func testPinTableImport() {
         let pins = EDAEngine.parsePinTable("Position,Name,Type,Signal\n1,VBAT,Power,\n30,PA9,I/O,USART1_TX\n")
         XCTAssertEqual(pins.map(\.number), ["1", "30"])

@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "Đơn vị hiển thị con trỏ PCB và độ dài đường đi (thiết kế vẫn tính bằng milimét)";
 "Export Pin Map…" = "Xuất sơ đồ chân…";
 "Assign Pins from File…" = "Gán chân từ tệp…";
+"Import KiCad Board…" = "Nhập bo mạch KiCad…";
+"Open Event Hooks Folder" = "Mở thư mục hook sự kiện";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "Các script tên after-open, after-save, after-verify hoặc after-export trong thư mục này chạy sau sự kiện đó, với SIEDA_PROJECT và SIEDA_OUTPUT được đặt";
+"This project is open elsewhere" = "Dự án này đang mở ở nơi khác";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ đã mở nó trên %2$@ từ %3$@. Chỉnh sửa ở cả hai nơi sẽ xung đột.";
+"Open Anyway" = "Vẫn mở";

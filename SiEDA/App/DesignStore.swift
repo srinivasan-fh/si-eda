@@ -150,7 +150,10 @@ final class DesignStore: ObservableObject {
     /// Live co-editing through the shared project file (File → Live Collaboration).
     lazy var collaboration = LiveCollaboration(store: self)
     @Published var liveCollaboration = false {
-        didSet { collaboration.setEnabled(liveCollaboration) }
+        didSet {
+            collaboration.setEnabled(liveCollaboration)
+            if liveCollaboration { ProjectLock.release(documentURL) } else if let url = documentURL { ProjectLock.take(url) }
+        }
     }
     @Published private(set) var isDirty = false {
         didSet {
@@ -1436,6 +1439,7 @@ final class DesignStore: ObservableObject {
         validationResults = engine.runCircuitValidation()
         if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
         if let report {
+            ProjectHooks.run("after-verify", project: documentURL)
             statusMessage = "Verification: \(report.verdict.title) — \(report.errors) error(s), \(report.warnings) warning(s)"
         } else {
             statusMessage = "Verification could not run"
@@ -2859,6 +2863,7 @@ final class DesignStore: ObservableObject {
     func newFromTemplate(_ url: URL) {
         guard confirmDiscardChanges() else { return }
         open(url: url)
+        ProjectLock.release(url)
         documentURL = nil
         isDirty = false
         statusMessage = "New project from template \(url.deletingPathExtension().lastPathComponent)"
@@ -2875,10 +2880,22 @@ final class DesignStore: ObservableObject {
 
     func open(url: URL) {
         CrashReporter.note("Open \(url.lastPathComponent)")
+        if !liveCollaboration, url != documentURL, let holder = ProjectLock.holder(of: url) {  // checked out on another Mac
+            let alert = NSAlert()
+            alert.messageText = String(localized: "This project is open elsewhere")
+            alert.informativeText = String(format: String(localized: "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash."),
+                                           holder.user, holder.host, holder.since.formatted(date: .abbreviated, time: .shortened))
+            alert.addButton(withTitle: String(localized: "Open Anyway"))
+            alert.addButton(withTitle: String(localized: "Cancel"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
         do {
             let json = try String(contentsOf: url, encoding: .utf8)
             try engine.load(json: json)
+            if documentURL != url { ProjectLock.release(documentURL) }
             documentURL = url
+            if !liveCollaboration { ProjectLock.take(url) }
+            ProjectHooks.run("after-open", project: url)
             collaboration.documentChanged(url: url, json: json)
             undoStack.removeAll()
             redoStack.removeAll()
@@ -2930,7 +2947,12 @@ final class DesignStore: ObservableObject {
         do {
             let json = engine.saveJSON()
             try json.write(to: url, atomically: true, encoding: .utf8)
+            if documentURL != url {
+                ProjectLock.release(documentURL)
+                if !liveCollaboration { ProjectLock.take(url) }
+            }
             documentURL = url
+            ProjectHooks.run("after-save", project: url)
             collaboration.documentChanged(url: url, json: json)
             isDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
@@ -3008,6 +3030,7 @@ final class DesignStore: ObservableObject {
             lastFabricationPackage = package.files.map { target.appendingPathComponent($0) }
             statusMessage = "Exported the fabrication package (\(package.files.count + 2) files): upload the Gerber zip to the fab"
             let zip = package.files.first { $0.hasSuffix("-gerbers.zip") }.map { target.appendingPathComponent($0) }
+            ProjectHooks.run("after-export", project: documentURL, output: target)
             NSWorkspace.shared.activateFileViewerSelecting([zip ?? target])
         } catch {
             present(error, title: "Export failed")

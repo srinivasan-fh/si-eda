@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "PCB 커서와 배선 길이 표시의 단위 (설계 자체는 밀리미터로 유지)";
 "Export Pin Map…" = "핀 맵 내보내기…";
 "Assign Pins from File…" = "파일에서 핀 지정…";
+"Import KiCad Board…" = "KiCad 보드 가져오기…";
+"Open Event Hooks Folder" = "이벤트 후크 폴더 열기";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "이 폴더에서 after-open, after-save, after-verify 또는 after-export라는 이름의 스크립트가 해당 이벤트 후 SIEDA_PROJECT와 SIEDA_OUTPUT이 설정된 상태로 실행됩니다";
+"This project is open elsewhere" = "이 프로젝트는 다른 곳에서 열려 있습니다";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ 님이 %3$@부터 %2$@에서 열어 두었습니다. 양쪽에서 편집하면 충돌합니다.";
+"Open Anyway" = "그래도 열기";

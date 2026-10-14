@@ -23151,6 +23151,68 @@ TEST(netlist_import_kicad_protel_csv) {
     CHECK(mcpFailed(mcpTool(m, "schematic_import_netlist", Json::parse(R"({"text": "not a netlist"})"))));
 }
 
+TEST(kicad_board_import_places_parts_and_copper) {
+    // A board written by hand in KiCad 8's format: a through-hole resistor turned 90° on top, a two-pin header on
+    // the bottom (its pads stored flipped, as KiCad writes them), a straight track, a track to a via and an arc on
+    // the bottom layer, a ground zone, an Edge.Cuts rectangle with a round cutout. Every pad lands where KiCad has
+    // it (the board's lower-left corner at the origin) and every track end sits on a pad or via of its net.
+    const KicadBoard kb = parseKicadPcb(readFixture("two_parts.kicad_pcb"));
+    CHECK(kb.footprints.size() == 2 && kb.tracks.size() == 3 && kb.vias.size() == 1 && kb.zones.size() == 1);
+    CHECK(kb.layerCount == 2 && std::fabs(kb.thickness - 1.2) < 1e-9 && !kb.outlineDxf.empty());
+    CHECK(std::fabs(kb.edgeMin.x - 110) < 1e-9 && std::fabs(kb.edgeMin.y - 90) < 1e-9);
+    CHECK(kb.footprints[1].bottom && kb.tracks[2].arc && kb.tracks[2].layer == 1 && kb.zones[0].net == "GND");
+    CHECK((kb.footprints[0].pads[1].at - Vec2{120, 94.92}).length() < 1e-9);  // turned 90° counter-clockwise
+    CHECK((kb.footprints[1].pads[1].at - Vec2{130, 97.46}).length() < 1e-9);
+    CHECK(kb.netlist.nets.size() == 2 && kb.netlist.parts[0].package.lands.size() == 2 &&
+          std::fabs(kb.netlist.parts[0].package.bodySize - 3.6) < 1e-9);  // the fab outline
+    // KiCad 10 names nets where 6 – 9 number them.
+    const KicadBoard v10 = parseKicadPcb(R"((kicad_pcb (version 20260206) (footprint "X:Y" (layer "F.Cu") (at 1 2)
+        (property "Reference" "TP1") (pad "1" smd circle (at 0 0) (size 1 1) (layers "F.Cu") (net "SIG")))))");
+    CHECK(v10.footprints[0].pads[0].net == "SIG" && v10.outlineDxf.empty());
+    for (const char* bad : {"", "(kicad_sch)", "(kicad_pcb (version 1))"}) {
+        bool threw = false;
+        try {
+            (void)parseKicadPcb(bad);
+        } catch (const ImportError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+
+    const auto root = std::filesystem::temp_directory_path() / "sieda_kicad_board";
+    std::filesystem::create_directories(root);
+    { std::ofstream(root / "b.kicad_pcb") << readFixture("two_parts.kicad_pcb"); }
+    mcp::McpServer m(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    const Json r = mcpData(mcpTool(m, "pcb_import_kicad", Json::parse(R"({"path": "b.kicad_pcb"})")));
+    CHECK(r.get("parts").asInt(0) == 2 && r.get("tracks").asInt(0) == 3 && r.get("vias").asInt(0) == 1 && r.get("zones").asInt(0) == 1);
+    CHECK(r.get("outline").asBool(false) && r.get("fidelity").get("misfit").size() == 0 && r.get("fidelity").get("copperDropped").asInt(-1) == 0);
+    const Project& p = m.project()->project;
+    CHECK(std::fabs(p.pcb.settings.width - 30) < 1e-6 && std::fabs(p.pcb.settings.height - 20) < 1e-6);
+    CHECK(p.pcb.settings.cutouts.size() == 1 && std::fabs(p.pcb.settings.thickness - 1.2) < 1e-9);
+    const Component* j1 = p.schematic.findByRef("J1");
+    CHECK(j1 && j1->pcb.bottom);
+    const auto pads = p.pcb.pads(p.schematic);
+    std::map<std::string, Vec2> want{{"R1.1", {10, 10}}, {"R1.2", {10, 4.92}}, {"J1.1", {20, 10}}, {"J1.2", {20, 7.46}}};
+    int found = 0;
+    for (const Pad& pad : pads) {
+        const std::string key = p.schematic.find(pad.componentId)->ref + "." + std::to_string(pad.padNumber);
+        if (want.count(key)) found += (pad.position - want[key]).length() < 1e-3;
+    }
+    CHECK(found == 4);
+    for (const Track& t : p.pcb.tracks)
+        for (Vec2 end : {t.a, t.b}) {
+            bool on = false;
+            for (const Pad& pad : pads) on = on || (pad.net == t.net && (pad.position - end).length() < 1e-3);
+            for (const Via& v : p.pcb.vias) on = on || (v.net == t.net && (v.position - end).length() < 1e-3);
+            CHECK(on);
+        }
+    const auto drc = p.pcb.runDRC(p.schematic);
+    for (const auto& v : drc) CHECK(v.code != "DRC_SHORT" && v.code != "DRC_UNROUTED" && v.code != "DRC_DANGLING_TRACK");
+    CHECK(mcpFailed(mcpTool(m, "pcb_import_kicad", Json::parse(R"J({"text": "(kicad_pcb)"})J"))));
+    std::filesystem::remove_all(root);
+}
+
 TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
     // Our own Gerbers and drill file read back: the outline spans the board, every hole is a drill flash, copper has
     // strokes / flashes / pour regions. A hand-written file with arcs, a region, a macro aperture and clear polarity
@@ -23207,6 +23269,23 @@ TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
     CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 0, 0) == 1 && !p.referenceLayers[0].visible);
     CHECK(sieda_pcb_set_reference_layer(m.project(), 0, 1, 1) == 1 && p.referenceLayers.empty());
     CHECK(Project().toJson().dump().find("referenceLayers") == std::string::npos);
+    // ODB++ features: our own top copper read back out of the archive (stored blocks keep it verbatim), and a
+    // hand-written inch file with every record kind; both make reference layers.
+    const std::string odb = exportOdbArchive(p);
+    const size_t at = odb.find("UNITS=MM\n#\n#Feature symbol names");
+    CHECK(at != std::string::npos);
+    const GerberImage o = parseGerber(odb.substr(at, odb.find('\0', at) - at));
+    CHECK(o.kind == "odb" && o.error.empty() && o.shapes.size() > 5);
+    CHECK(o.x0 >= -1 && o.y0 >= -1 && o.x1 <= p.pcb.settings.width + 1 && o.y1 <= p.pcb.settings.height + 1);
+    const GerberImage f = parseGerber("UNITS=INCH\n$0 r10\n$1 rect50x20\n$2 oval40x20\n$3 moire1x2\nP 1 1 1 P 0 0\nP 2 1 2 N 0 0\n"
+                                      "L 0 0 1 0 0 P 0\nA 1 0 0 1 0 0 0 P 0 N\nP 0 2 3 P 0 0\nS P 0\nOB 0 0 I\nOS 1 0\nOC 0 1 1 1 N\n"
+                                      "OE\nOB 0.2 0.2 H\nOS 0.4 0.2\nOS 0.4 0.4\nOE\nSE\n");
+    int pads = 0, lines = 0, surfaces = 0, clears = 0;
+    for (const auto& sh : f.shapes)
+        pads += sh.kind == GerberShape::Flash, lines += sh.kind == GerberShape::Stroke, surfaces += sh.kind == GerberShape::Region, clears += sh.clear;
+    CHECK(pads == 3 && lines > 5 && surfaces == 2 && clears == 2 && f.warnings.size() == 1);  // moiré: a circle
+    CHECK(std::fabs(f.shapes[0].width - 1.27) < 1e-9 && std::fabs(f.shapes[0].a.x - 25.4) < 1e-9);  // mils / inches
+    CHECK(sieda_pcb_add_reference_layer(m.project(), "fab data", odb.substr(at, odb.find('\0', at) - at).c_str()) == 0);
 }
 
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {

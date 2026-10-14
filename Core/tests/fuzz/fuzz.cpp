@@ -33,15 +33,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         static const char* names[] = {"f.kicad_mod", "f.kicad_sym", "f.lbr", "f.SchLib", "f.PcbLib", "f.IntLib",
                                       "f.wrl", "f.stl", "f.obj", "f.step"};
         if (size == 0) return 0;
-        if (data[0] % 12 == 10) {  // netlists from other tools (KiCad, Protel / Tango, CSV)
+        if (data[0] % 13 == 10) {  // netlists from other tools (KiCad, Protel / Tango, CSV)
             (void)parseNetlist(text.substr(1));
             return 0;
         }
-        if (data[0] % 12 == 11) {  // pin tables (CSV / TSV, CubeMX)
+        if (data[0] % 13 == 11) {  // pin tables (CSV / TSV, CubeMX)
             (void)parsePinTable(text.substr(1));
             return 0;
         }
-        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 12], text.substr(1)}})).dump();
+        if (data[0] % 13 == 12) {  // KiCad boards
+            (void)parseKicadPcb(text.substr(1));
+            return 0;
+        }
+        (void)libraryImportToJson(importLibraryFiles({{names[data[0] % 13], text.substr(1)}})).dump();
 #elif defined(SIEDA_FUZZ_IDF)
         Schematic sch;
         sch.addComponent(ComponentKind::Resistor, "10k", {0, 0});

@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "PCB ಕರ್ಸರ್ ಮತ್ತು ಮಾರ್ಗ-ಉದ್ದ ಪ್ರದರ್ಶನದ ಘಟಕಗಳು (ವಿನ್ಯಾಸ ಮಿಲಿಮೀಟರ್‌ನಲ್ಲೇ ಇರುತ್ತದೆ)";
 "Export Pin Map…" = "ಪಿನ್ ನಕ್ಷೆ ರಫ್ತು ಮಾಡಿ…";
 "Assign Pins from File…" = "ಫೈಲ್‌ನಿಂದ ಪಿನ್‌ಗಳನ್ನು ನಿಯೋಜಿಸಿ…";
+"Import KiCad Board…" = "KiCad ಬೋರ್ಡ್ ಆಮದು ಮಾಡಿ…";
+"Open Event Hooks Folder" = "ಈವೆಂಟ್ ಹುಕ್ ಫೋಲ್ಡರ್ ತೆರೆಯಿರಿ";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "ಈ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ after-open, after-save, after-verify ಅಥವಾ after-export ಹೆಸರಿನ ಸ್ಕ್ರಿಪ್ಟ್‌ಗಳು ಆ ಘಟನೆಯ ನಂತರ SIEDA_PROJECT ಮತ್ತು SIEDA_OUTPUT ಹೊಂದಿಸಿ ಚಲಿಸುತ್ತವೆ";
+"This project is open elsewhere" = "ಈ ಯೋಜನೆ ಬೇರೆಡೆ ತೆರೆದಿದೆ";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ ಅವರು ಇದನ್ನು %3$@ ರಿಂದ %2$@ ನಲ್ಲಿ ತೆರೆದಿದ್ದಾರೆ. ಎರಡೂ ಕಡೆ ಮಾಡಿದ ಬದಲಾವಣೆಗಳು ಘರ್ಷಿಸುತ್ತವೆ.";
+"Open Anyway" = "ಆದರೂ ತೆರೆಯಿರಿ";

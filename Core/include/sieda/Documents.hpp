@@ -52,7 +52,8 @@ std::string bringUpChecklist(const Project& project);
 /// the revision table (Project::revisions).
 std::string exportBoardDrawingPdf(const Project& project);
 
-/// A Gerber (RS-274X / X2) or Excellon file read for viewing: strokes, flashes and regions in mm, Y up as in the file.
+/// A Gerber (RS-274X / X2), Excellon or ODB++ layer features file (kind "odb") read for viewing: strokes, flashes and
+/// regions in mm, Y up as in the file.
 /// Apertures C / R / O / P draw as such; macro apertures as a circle of their first size (counted in `warnings`).
 /// Clear polarity (%LPC) shapes are kept with `clear`. Excellon holes are flashes of their tool's diameter.
 struct GerberShape {
@@ -64,7 +65,7 @@ struct GerberShape {
     bool clear = false;
 };
 struct GerberImage {
-    std::string kind;  // "gerber" or "drill"
+    std::string kind;  // "gerber", "drill" or "odb"
     std::vector<GerberShape> shapes;
     double x0 = 0, y0 = 0, x1 = 0, y1 = 0;  // bounds (mm)
     std::vector<std::string> warnings;

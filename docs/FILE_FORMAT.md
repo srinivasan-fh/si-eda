@@ -17,6 +17,9 @@ order, so files diff cleanly in Git (`docs/TEAM.md` covers the merge drivers).
   - the file has non-empty settings, at the top level or one level down, that this build would drop on save.
 
   Save a copy instead of overwriting the file.
+- **Upgrading files.** `sieda-cli --upgrade a.siedaproj b.siedaproj …` rewrites files in this version's format,
+  for example a folder of older projects before they go into Git. It reports `already current` or `upgraded`.
+  A file that load notes say would lose settings is left alone, and the exit status is 1.
 
 ## Top level
 

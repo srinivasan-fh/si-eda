@@ -641,12 +641,103 @@ void excellon(const std::string& text, GerberImage& img) {
     }
 }
 
+/// An ODB++ layer's features file (the text of steps/<step>/layers/<layer>/features): symbols r / s / rect / oval,
+/// pads (P), lines (L), arcs (A), surfaces (S … OB / OS / OC / OE … SE; holes clear). UNITS=INCH: inches, mil symbols.
+void odbFeatures(const std::string& text, GerberImage& img) {
+    img.kind = "odb";
+    double scale = 1, symScale = 0.001;  // mm per coordinate unit, per symbol unit (microns / mils)
+    std::map<int, std::pair<char, Vec2>> syms;
+    std::vector<Vec2> contour;
+    bool surfaceClear = false, hole = false;
+    int unknown = 0;
+    auto arc = [&](Vec2 s, Vec2 e, Vec2 c, bool cw, std::vector<Vec2>& out) {
+        const double r = (s - c).length(), a0 = std::atan2(s.y - c.y, s.x - c.x);
+        double sweep = std::atan2(e.y - c.y, e.x - c.x) - a0;
+        if (cw && sweep >= 0) sweep -= 2 * kPi;
+        if (!cw && sweep <= 0) sweep += 2 * kPi;
+        const int n = std::clamp(static_cast<int>(std::fabs(sweep) / (kPi / 24)) + 1, 2, 96);
+        for (int i = 1; i <= n; ++i) out.push_back(i == n ? e : c + Vec2{r * std::cos(a0 + sweep * i / n), r * std::sin(a0 + sweep * i / n)});
+    };
+    std::istringstream in(text);
+    std::string line;
+    while (std::getline(in, line) && img.shapes.size() < 2000000) {
+        std::istringstream ls(line);
+        std::string op, pol;
+        ls >> op;
+        if (op.empty() || op[0] == '#') continue;
+        auto pt = [&] {
+            double x = 0, y = 0;
+            ls >> x >> y;
+            return Vec2{x * scale, y * scale};
+        };
+        if (op.rfind("UNITS=", 0) == 0) {
+            if (op.compare(6, 4, "INCH") == 0) scale = 25.4, symScale = 0.0254;
+        } else if (op[0] == '$') {
+            std::string name;
+            ls >> name;
+            double w = 0, h = 0;
+            char shape = 'C';
+            if (std::sscanf(name.c_str(), "rect%lfx%lf", &w, &h) == 2) shape = 'R';
+            else if (std::sscanf(name.c_str(), "oval%lfx%lf", &w, &h) == 2) shape = 'O';
+            else if (std::sscanf(name.c_str(), "s%lf", &w) == 1) shape = 'R', h = w;
+            else if (std::sscanf(name.c_str(), "r%lf", &w) == 1) h = w;
+            else ++unknown, w = h = 100;
+            syms[std::atoi(op.c_str() + 1)] = {shape, Vec2{w, h} * symScale};
+        } else if (op == "P" || op == "L" || op == "A") {
+            GerberShape sh;
+            sh.kind = op == "P" ? GerberShape::Flash : GerberShape::Stroke;
+            sh.a = pt();
+            Vec2 c;
+            if (op != "P") sh.b = pt();
+            if (op == "A") c = pt();
+            int sym = -1;
+            ls >> sym >> pol;
+            const auto it = syms.find(sym);
+            const std::pair<char, Vec2> ap = it == syms.end() ? std::make_pair('C', Vec2{0.1, 0.1}) : it->second;
+            sh.aperture = ap.first, sh.width = ap.second.x, sh.height = ap.second.y, sh.clear = pol == "N";
+            if (op != "A") {
+                img.shapes.push_back(sh);
+                continue;
+            }
+            std::string dcode, cw;
+            ls >> dcode >> cw;
+            std::vector<Vec2> pts{sh.a};
+            arc(sh.a, sh.b, c, cw == "Y", pts);
+            for (size_t i = 1; i < pts.size(); ++i) sh.a = pts[i - 1], sh.b = pts[i], img.shapes.push_back(sh);
+        } else if (op == "S") {
+            ls >> pol;
+            surfaceClear = pol == "N";
+        } else if (op == "OB") {
+            contour = {pt()};
+            std::string type;
+            ls >> type;
+            hole = type == "H";
+        } else if (op == "OS") {
+            contour.push_back(pt());
+        } else if (op == "OC" && !contour.empty()) {
+            const Vec2 e = pt(), c = pt();
+            std::string cw;
+            ls >> cw;
+            arc(contour.back(), e, c, cw == "Y", contour);
+        } else if (op == "OE" && contour.size() >= 3) {
+            GerberShape r;
+            r.kind = GerberShape::Region, r.points = contour, r.clear = surfaceClear != hole;
+            img.shapes.push_back(std::move(r));
+            contour.clear();
+        }
+    }
+    if (unknown) img.warnings.push_back(std::to_string(unknown) + " special symbol(s) drawn as 0.1 mm circles.");
+}
+
 }  // namespace
 
 GerberImage parseGerber(const std::string& text) {
     GerberImage img;
     img.kind = "gerber";
-    if (text.find("M48") != std::string::npos && text.find("%FS") == std::string::npos) {
+    if (text.find("%FS") == std::string::npos && (text.rfind("UNITS=", 0) == 0 || text.find("\nUNITS=") != std::string::npos ||
+                                                  text.find("\n$0 ") != std::string::npos)) {
+        odbFeatures(text, img);
+    } else if (text.find("M48") != std::string::npos && text.find("%FS") == std::string::npos) {
         excellon(text, img);
     } else {
         struct Aperture { char shape = 'C'; double w = 0.1, h = 0.1; };

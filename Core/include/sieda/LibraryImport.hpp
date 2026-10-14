@@ -125,6 +125,9 @@ Json importLibraryRequest(const Json& request);
 struct NetlistPart {
     std::string ref, value, footprint, part;
     std::map<std::string, std::string> pinNames;
+    /// A board import's exact land pattern (type CUSTOM, top view, centred like an imported footprint; land `pin` =
+    /// pad number, "-" = none) and body; no lands otherwise.
+    PackageSpec package;
 };
 /// A netlist read from another tool: its parts and its nets, each a list of (designator, pin number).
 struct ParsedNetlist {
@@ -147,5 +150,29 @@ ParsedNetlist parseKicadSchematic(const std::string& text);
 /// as "kind:<resistor|capacitor|inductor|voltage_source|current_source|diode|led>"; other symbols are listed in
 /// warnings. parseNetlist reads these too.
 ParsedNetlist parseLtspiceSchematic(const std::string& text);
+
+/// A KiCad board (.kicad_pcb, KiCad 6 – 10) read for placement and copper, in KiCad's page coordinates (mm, y down):
+/// each footprint's designator, position, angle (degrees, counter-clockwise as drawn) and side with its pads where
+/// they stand on the board; tracks (straight and arcs), vias, copper zones and the Edge.Cuts outline as a DXF that
+/// importDxfOutline reads (`edgeMin` = the top-left corner of its extent, where the board's origin goes).
+/// `netlist` holds the parts (value, footprint, exact land pattern) and the nets their pads name. Copper layers:
+/// 0 = F.Cu, n = In<n>.Cu, layerCount - 1 = B.Cu.
+struct KicadBoard {
+    struct Pad { std::string number, net; Vec2 at; };
+    struct Footprint { std::string ref; Vec2 at; double angle = 0; bool bottom = false; std::vector<Pad> pads; };
+    struct Copper { std::string net; int layer = 0; double width = 0; Vec2 a, b, mid; bool arc = false; };
+    struct Hole { std::string net; Vec2 at; double diameter = 0, drill = 0; int from = 0, to = -1; };
+    struct Zone { std::string net; int layer = 0; std::vector<Vec2> polygon; };
+    ParsedNetlist netlist;
+    std::vector<Footprint> footprints;
+    std::vector<Copper> tracks;
+    std::vector<Hole> vias;
+    std::vector<Zone> zones;
+    std::string outlineDxf;
+    Vec2 edgeMin;
+    int layerCount = 2;
+    double thickness = 1.6;
+};
+KicadBoard parseKicadPcb(const std::string& text);
 
 }  // namespace sieda

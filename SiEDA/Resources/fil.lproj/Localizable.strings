@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "Mga unit ng read-out ng PCB cursor at haba ng route (nananatili sa milimetro ang disenyo)";
 "Export Pin Map…" = "I-export ang Pin Map…";
 "Assign Pins from File…" = "Mag-assign ng Pin mula sa File…";
+"Import KiCad Board…" = "I-import ang KiCad Board…";
+"Open Event Hooks Folder" = "Buksan ang Folder ng Event Hooks";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "Tumatakbo ang mga script na may pangalang after-open, after-save, after-verify o after-export sa folder na ito pagkatapos ng event na iyon, may nakatakdang SIEDA_PROJECT at SIEDA_OUTPUT";
+"This project is open elsewhere" = "Bukas ang proyektong ito sa ibang lugar";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "Bukas ito ni %1$@ sa %2$@ mula %3$@. Magsasalungat ang mga pag-edit sa dalawang lugar.";
+"Open Anyway" = "Buksan Pa Rin";

@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "PCB कर्सर और रूट-लंबाई प्रदर्शन की इकाइयाँ (डिज़ाइन मिलीमीटर में ही रहता है)";
 "Export Pin Map…" = "पिन मैप निर्यात करें…";
 "Assign Pins from File…" = "फ़ाइल से पिन निर्धारित करें…";
+"Import KiCad Board…" = "KiCad बोर्ड आयात करें…";
+"Open Event Hooks Folder" = "इवेंट हुक फ़ोल्डर खोलें";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "इस फ़ोल्डर में after-open, after-save, after-verify या after-export नाम की स्क्रिप्ट उस घटना के बाद SIEDA_PROJECT और SIEDA_OUTPUT सेट करके चलती हैं";
+"This project is open elsewhere" = "यह प्रोजेक्ट कहीं और खुला है";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ ने इसे %3$@ से %2$@ पर खोल रखा है। दोनों जगह किए गए बदलाव टकराएँगे।";
+"Open Anyway" = "फिर भी खोलें";
