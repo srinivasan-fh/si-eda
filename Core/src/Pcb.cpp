@@ -1236,10 +1236,13 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
             if (k > cnt) { best = n; cnt = k; }
         return best;
     };
-    std::vector<Track> keptT;
+    std::vector<Track> keptT, aloneT;
     for (size_t t = 0; t < nt; ++t) {
         int n = netFor(np + t);
-        if (n < 0) continue;
+        if (n < 0) {
+            aloneT.push_back(tracks[t]);
+            continue;
+        }
         Track tr = tracks[t];
         tr.net = n;
         keptT.push_back(tr);
@@ -1257,10 +1260,17 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
     }
     tracks = std::move(keptT);
     vias = std::move(keptV);
-    // A via reaching no pad through tracks may join pours (stitching the GND pours of two layers): it stays, on the
-    // net of the pour it stands in, filled without it.
-    if (alone.empty() || zones.empty()) return;
+    // A via reaching no pad through tracks may join pours (stitching the GND pours of two layers), and a track may
+    // join two islands of one pour: each stays, on the net of the pour it stands in, filled without it.
+    if ((alone.empty() && aloneT.empty()) || zones.empty()) return;
     const std::vector<ZoneFill> fills = zoneFills(sch);
+    for (Track t : aloneT)
+        for (const auto& f : fills)
+            if (f.layer == t.layer && f.islandNear(t.a, t.width / 2) >= 0 && f.islandNear(t.b, t.width / 2) >= 0) {
+                t.net = f.net;
+                tracks.push_back(t);
+                break;
+            }
     for (Via via : alone)
         for (const auto& f : fills)
             if (via.spans(f.layer) && f.islandNear(via.position, via.diameter / 2) >= 0) {

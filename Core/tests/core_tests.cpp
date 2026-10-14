@@ -20964,6 +20964,24 @@ TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
     CHECK(mcpFailed(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J"))));
 }
 
+TEST(pour_joining_track_survives_reload) {
+    // A track that reaches no pad but joins two islands of its pour keeps its net on reload (pruneStaleRouting), so
+    // a board clean before saving is clean after reopening.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor"},
+        {"ref": "R2", "kind": "resistor"}], "nets": {"GND": ["R1.2", "R2.2"], "A": ["R1.1", "R2.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 30, "height": 20})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_pour", Json::parse(R"J({"net": "GND", "layer": 0})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_track", Json::parse(R"J({"net": "GND", "layer": 0, "points": [[3, 17], [8, 17]]})J"))));
+    Project& pr = s.project()->project;
+    const size_t tracks = pr.pcb.tracks.size();
+    CHECK(tracks >= 1);
+    pr.schematicChanged();  // as on load
+    CHECK(pr.pcb.tracks.size() == tracks);
+}
+
 TEST(mcp_single_row_header_reads_down_one_side) {
     // A 1 × N header's pins all leave one side of its symbol (labels side by side, not stacked up); a search lists a
     // small part's pin names.

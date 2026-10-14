@@ -3548,7 +3548,16 @@ void libraryTools(Table& t) {
               Vec2 at = freeSpot(p->project);
               if (a.has("x")) at.x = argNum(a, "x", at.x);
               if (a.has("y")) at.y = argNum(a, "y", at.y);
-              const std::string value = argStr(a, "value", sp->spec.defaultValue.empty() ? sp->spec.name : sp->spec.defaultValue);
+              std::string fallback = sp->spec.defaultValue.empty() ? sp->spec.name : sp->spec.defaultValue;
+              if (fallback == sp->spec.name)  // a crystal / oscillator reads as its frequency ("Crystal_16MHz" → 16MHz)
+                  for (const char* unit : {"MHz", "kHz"})
+                      if (const size_t u = sp->spec.name.find(unit); u != std::string::npos) {
+                          size_t b0 = u;
+                          while (b0 > 0 && (std::isdigit(static_cast<unsigned char>(sp->spec.name[b0 - 1])) || sp->spec.name[b0 - 1] == '.')) --b0;
+                          if (b0 < u) fallback = sp->spec.name.substr(b0, u - b0) + unit;
+                          break;
+                      }
+              const std::string value = argStr(a, "value", fallback);
               const std::string ref = argStr(a, "ref", "");
               const int id = argBool(a, "units", false) && !sp->spec.units.empty()
                                  ? sieda_add_custom_units(p, partId.c_str(), value.c_str(), at.x, at.y, argInt(a, "rotation", 0),
@@ -3999,6 +4008,12 @@ void pcbTools(Table& t) {
                       return mm;
                   };
                   const double reach = spread() * 1.15 + 1;
+                  auto pairings = [&] {  // "C1 → D1.K": which capacitor / crystal serves which pin
+                      std::set<std::string> keys;
+                      for (const auto& m : placed.items()) keys.insert(m.asString("").substr(0, m.asString("").rfind(" (")));
+                      return keys;
+                  };
+                  const std::set<std::string> served = pairings();
                   bestPlaced = placed;
                   const int allowed = problems();
                   Project best = pr;
@@ -4010,7 +4025,10 @@ void pcbTools(Table& t) {
                           const double w = pr.pcb.settings.width - (cutWidth ? 1 : 0), h = pr.pcb.settings.height - (cutWidth ? 0 : 1);
                           if (w < 5 || h < 5 || ++tries > 80) continue;
                           sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
-                          const bool fewer = paired() < pairs, further = !fewer && spread() > reach,
+                          bool fewer = paired() < pairs;
+                          const auto now = pairings();  // and each one Auto Place made at the start
+                          fewer = fewer || !std::includes(now.begin(), now.end(), served.begin(), served.end());
+                          const bool further = !fewer && spread() > reach,
                                      resized = pr.pcb.settings.width == w && pr.pcb.settings.height == h, worse = resized && problems() > allowed;
                           if (!fewer && !further && resized && !worse) {
                               best = pr, bestPlaced = placed, shrunk = 1;
@@ -4495,6 +4513,13 @@ void pcbTools(Table& t) {
                                      ", \"diffPair\": true} pairs them, then route again");
               if (uncoupled.size()) j["pairsNotCoupled"] = uncoupled;
               if (pairedByName.size()) j["pairedByName"] = pairedByName;  // schematic_net_rules lists the directives
+              if (p->project.pcb.zones.empty() && !ar.scoped())
+                  for (const auto& n : p->project.schematic.nets())
+                      if (p->project.schematic.netRole(n.index) == NetRole::Ground && !n.name.empty()) {
+                          j["groundPour"] = n.name + " was routed as tracks (no pour yet): pcb_add_pour {\"net\": \"" + n.name +
+                                            "\", \"layer\": 1} then pcb_autoroute {\"clearFirst\": true} gives it a plane and fewer tracks / vias.";
+                          break;
+                      }
               return out(j);
           });
     t.add("pcb", "pcb_autoroute_presets", "Autoroute presets", Kind::Read, true,
