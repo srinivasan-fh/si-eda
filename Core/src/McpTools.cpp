@@ -4119,7 +4119,8 @@ void pcbTools(Table& t) {
               .str("preset", "Strategy preset (pcb_autoroute_presets)")
               .object("options", "Strategy options (see description)")
               .boolean("keep", "Save the preset / options as the board's strategy (default false)")
-              .boolean("clearFirst", "Remove the existing routing first"),
+              .boolean("clearFirst", "Remove the existing routing first")
+              .boolean("powerWidths", "Route power / ground nets without a width of their own 0.4 mm wide (default true)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const auto stitched = stitchingVias(p->project);  // re-laid after a whole-board route clears them
@@ -4154,9 +4155,31 @@ void pcbTools(Table& t) {
               // the board's saved strategy keeps its own setting.
               const bool offPads = p->project.pcb.settings.autorouter.viasOffPads;
               p->project.pcb.settings.autorouter.viasOffPads = a.get("options").get("viasOffPads").asBool(true);
+              // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
+              // the current sizing no source to measure); again at the board's width if that leaves anything open.
+              std::vector<std::string> widened;
+              if (!ar.scoped() && !ar.fanoutOnly && p->project.pcb.settings.trackWidth < 0.4 && argBool(a, "powerWidths", true))
+                  for (const auto& n : p->project.schematic.nets())
+                      if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() &&
+                          !p->project.pcb.settings.netWidths.count(n.name) && !p->project.pcb.isZoneNet(p->project.schematic, n.index))
+                          widened.push_back(n.name);
+              const Project unrouted = p->project;
+              for (const auto& n : widened) p->project.pcb.settings.netWidths[n] = 0.4;
               Json stats = takeJson(sieda_pcb_autoroute(p));
               Json j = obj();
-              const Json repairs = finishRouting(p, &stats);
+              Json repairs = finishRouting(p, &stats);
+              if (!widened.empty() && !p->project.pcb.ratsnest(p->project.schematic).empty()) {
+                  p->project = unrouted;
+                  p->router.reset();
+                  stats = takeJson(sieda_pcb_autoroute(p));
+                  repairs = finishRouting(p, &stats);
+                  widened.clear();
+              }
+              if (!widened.empty()) {
+                  std::string list;
+                  for (const auto& n : widened) list += (list.empty() ? "" : ", ") + n;
+                  j["powerWidths"] = list + " routed 0.4 mm wide (power / ground; pcb_set_net_width changes it, powerWidths: false skips it)";
+              }
               if (!a.get("options").has("viasOffPads")) p->project.pcb.settings.autorouter.viasOffPads = offPads;
               if (repairs.size()) j["repairs"] = repairs;
               // No acute joins left by gloss / via minimisation (a branch meeting its net's track at 45° joins square).
