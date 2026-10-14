@@ -37,6 +37,12 @@ PanelSettings fitPanel(const BoardSettings& s, double maxWidth, double maxHeight
 /// The layout as JSON for previews (with "utilisation": boards' area ÷ panel area): settings, sizes, boards, fiducials, tooling holes, tabs, mouse bites, V-scores.
 Json panelLayoutJson(const BoardSettings& s);
 
+/// Panel DRC (in runDRC when the board has a panel): PANEL_VSCORE_COPPER (copper within 0.5 mm of a V-scored edge),
+/// PANEL_VSCORE_OUTLINE (V-score on a shaped outline), PANEL_BITE_COPPER (copper within 1 mm of a mouse-bite hole),
+/// PANEL_TAB_PART (a part within 2 mm of a breakaway tab: ceramic capacitors crack when it snaps), PANEL_OVERHANG (a
+/// part over the board edge into the V-score blade or past the routed gap).
+std::vector<RuleViolation> panelChecks(const Schematic& sch, const PcbLayout& pcb);
+
 /// Panel files under panel/ (Gerbers, drills, outline, V-score layer, zip) from the board package `boardFiles` (the
 /// gerbers/ entries of fabricationPackage). Empty when the board has no panel.
 std::vector<FabFile> panelFiles(const PcbLayout& pcb, const std::string& base, const std::vector<FabFile>& boardFiles);

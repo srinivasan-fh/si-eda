@@ -183,6 +183,12 @@ Json boardJson(const BoardSettings& s) {
         }
         b["dimensions"] = dims;
     }
+    if (!s.graphics.empty()) b["graphics"] = boardGraphicsToJson(s.graphics);
+    if (s.thieving.pitch > 0) {
+        Json t = Json::object();
+        t["pitch"] = s.thieving.pitch, t["size"] = s.thieving.size, t["clearance"] = s.thieving.clearance;
+        b["thieving"] = t;
+    }
     Json holes = Json::array();
     for (const auto& h : s.holes) {
         Json j = vec(h.position);
@@ -927,6 +933,12 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             const double off = d.get("offset").asNumber(3);
             if (std::isfinite(a.x + a.y + e.x + e.y + off) && s.dimensions.size() < 1000) s.dimensions.push_back({a, e, off});
         }
+        s.graphics = boardGraphicsFromJson(b.get("graphics"));
+        if (b.has("thieving")) {
+            const Json& t = b.get("thieving");
+            s.thieving = {std::clamp(t.get("pitch").asNumber(0), 0.0, 50.0), std::clamp(t.get("size").asNumber(1), 0.1, 10.0),
+                          std::clamp(t.get("clearance").asNumber(1), 0.0, 10.0)};
+        }
         for (const auto& j : b.get("holes").items()) {
             MountingHole m;
             m.position = {j.get("x").asNumber(), j.get("y").asNumber()};
@@ -1583,7 +1595,7 @@ Json Project::snapshot() const {
     root["zones"] = zonesJson(pcb.zones);
     root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
     Json fills = Json::array();
-    for (const auto& f : pcb.zoneFills(schematic)) {
+    for (const auto& f : copperFills(schematic, pcb)) {  // the thieving dots last, zone and net -1
         Json j = Json::object();
         j["zone"] = f.zone;
         j["net"] = f.net;

@@ -301,7 +301,7 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
     const Rgba trace{0.35f, 0.75f, 1.0f, 1.0f};
     const Rgba pad{0.80f, 0.92f, 1.0f, 1.0f};
     const Rgba pour{0.22f, 0.55f, 0.90f, 1.0f};
-    for (const auto& f : pcb.zoneFills(sch))
+    for (const auto& f : copperFills(sch, pcb))
         if (f.layer == layer)
             for (const auto& r : f.rects) m.addBox({r.x0, 0.0, r.y0}, {r.x1, cu * 0.9, r.y1}, pour);
     for (const auto& tr : pcb.tracks)
@@ -629,7 +629,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         const Rgba pourColor{(mask.r + trackColor.r) / 2, (mask.g + trackColor.g) / 2, (mask.b + trackColor.b) / 2, 1.0f};
         // Tracks and pours lie under the mask: they read as raised, slightly lighter mask.
         m.surface = Surface::Mask;
-        for (const auto& f : pcb.zoneFills(sch)) {
+        for (const auto& f : copperFills(sch, pcb)) {
             double y0 = copperLayerBase(f.layer, s.layerCount, t, cu);
             for (const auto& r : f.rects) m.addBox({r.x0, y0, r.y0}, {r.x1, y0 + cu * 0.9, r.y1}, pourColor);
         }

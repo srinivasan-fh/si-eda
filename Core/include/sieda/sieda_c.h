@@ -377,13 +377,29 @@ int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, dou
  * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
 char* sieda_dfm_report_json(const SiedaProject* project);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
- * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth).
+ * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth); `cpw` > 0 adds
+ * coplanar ground copper on the same layer that far from the track edges (grounded coplanar waveguide).
  * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
  * "dielectricDbPerIn","totalDbPerIn"}], pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for bad input. */
-char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um);
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um,
+                        double cpw);
 /* Goal seek: the width (mm) whose field-solved Z0 (gap > 0: Zdiff) on `layer` is `ohms`; 0 when none reaches it. */
-double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap);
+double sieda_field_solve_width(const SiedaProject* project, int32_t layer, double ohms, double gap, double cpw);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
+/* Copper thieving (BoardSettings::thieving): `settings_json` {"pitch","size","clearance"} (mm; pitch 0 = off) replaces
+ * the settings, NULL keeps them. Returns {"pitch","size","clearance","layers":[{"layer","dots","coverage"}]} (coverage =
+ * copper share of the board with the dots), or NULL on bad input. Caller frees. */
+char* sieda_pcb_thieving(SiedaProject* project, const char* settings_json);
+/* Board artwork (BoardSettings::graphics: logos, silk / copper / user-layer drawings): `graphics_json` replaces them
+ * (see boardGraphicsToJson / boardGraphicsFromJson; an item may be a "raster" image), NULL keeps them. Returns the
+ * graphics as JSON, or NULL on bad input. Caller frees. */
+char* sieda_pcb_graphics(SiedaProject* project, const char* graphics_json);
+/* Pins from a CSV / TSV pin table (sieda::parsePinTable): [{"number","name","type","description"}]. Caller frees. */
+char* sieda_parse_pin_table(const char* text);
+/* Library update notices: project parts whose catalog part (same name) has changed since it was added.
+ * {"updates":[{"name","oldId","newId","instances","changes":[…]}],"updated":n}; `apply_json` ["NAME",…] or ["*"]
+ * swaps those parts' instances to the catalog's current part first (pins kept by number), NULL lists only. */
+char* sieda_library_updates(SiedaProject* project, const char* apply_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 /* Interactive via minimisation: the named nets (JSON array of names) are routed again with via minimisation; the
  * result is kept only when it has fewer vias and no more unrouted connections. {"viasBefore","viasAfter","kept"}.

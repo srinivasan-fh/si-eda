@@ -281,6 +281,11 @@ CustomPartSpec customPartSpecFromJson(const Json& j);  // throws JsonError on in
 /// Full description including the generated symbol and footprint geometry (for previews and the UI).
 Json customPartToJson(const CustomPart& part);
 std::vector<std::string> supportedPackages();
+/// Pins from a pasted or exported pin table: CSV, TSV or semicolon-separated, quoted cells allowed. With a header the
+/// columns are found by name (number / pin / position / ball, name / pin name / signal, type / direction, description /
+/// function); STM32CubeMX pin lists (Position, Name, Type, Signal) work as they are. Without one the columns are
+/// number, name, type, description. At most 4096 rows; rows without a number (or with a space in it) are skipped.
+std::vector<CustomPin> parsePinTable(const std::string& text);
 /// Package type for a package name ("SOIC-8", "QFN-24", "TO-220", "PinHeader 1x04"…) and the pin count it names
 /// (0 if none); "" when the name is not a package SiEDA can generate.
 std::string packageTypeFromName(const std::string& name, int& pinCount);

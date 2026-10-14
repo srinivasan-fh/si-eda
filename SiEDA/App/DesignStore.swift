@@ -2355,6 +2355,25 @@ final class DesignStore: ObservableObject {
         perform("Added keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(all) }
     }
 
+    /// Copper thieving on (with these dots) or off (nil); one undo step through the core tool.
+    func setThieving(_ t: ThievingInfo?) {
+        let args: [String: Any] = t.map { ["pitch": $0.pitch, "size": $0.size, "clearance": $0.clearance] } ?? ["pitch": 0]
+        _ = runTool("pcb_copper_thieving", arguments: args)
+    }
+
+    /// Turns a keep-out into an isolation barrier (no copper of any kind on any layer, checked against the isolation
+    /// gap) or back.
+    func setKeepoutBarrier(_ keepout: RouteKeepout, _ on: Bool) {
+        let all = snapshot.board.keepouts.map { k -> RouteKeepout in
+            guard k == keepout else { return k }
+            var b = k
+            b.barrier = on ? true : nil
+            if on { (b.tracks, b.vias, b.pours, b.layer) = (true, true, true, -1) }
+            return b
+        }
+        perform(on ? "Made isolation barrier" : "Made plain keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(all) }
+    }
+
     func removeKeepout(_ keepout: RouteKeepout) {
         let rest = snapshot.board.keepouts.filter { $0 != keepout }
         perform("Removed keep-out", invalidatesAnalysis: false) { _ = $0.setKeepouts(rest) }

@@ -674,7 +674,7 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     // Bottom layer first, the top layer last.
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
-    const auto& fills = pcb.zoneFills(sch);
+    const auto fills = copperFills(sch, pcb);
     for (int l : order) {
         const std::string col = layerColour(l, n);
         const std::string dim = l == 0 ? "#5a2020" : (l == n - 1 ? "#20305a" : "#4a4020");

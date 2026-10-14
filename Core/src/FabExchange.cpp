@@ -140,7 +140,7 @@ struct Board {
         layers.push_back(mask(false));
         for (int cl = 0; cl < copper; ++cl) {
             Layer l{copperName(cl, copper), "SIGNAL", "SIGNAL", cl == 0 ? 'T' : cl == copper - 1 ? 'B' : 'I', "", "", {}};
-            for (const auto& fill : pcb.zoneFills(sch)) {
+            for (const auto& fill : copperFills(sch, pcb)) {
                 if (fill.layer != cl) continue;
                 for (const auto& r : fill.rects) {
                     Feature f;

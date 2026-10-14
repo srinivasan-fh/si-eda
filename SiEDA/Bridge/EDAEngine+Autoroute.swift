@@ -154,6 +154,8 @@ struct RouteKeepout: Codable, Equatable, Identifiable {
     var vias: Bool
     /// No copper pour inside either (written only when on).
     var pours: Bool?
+    /// Isolation barrier between galvanic domains: no copper of any kind, at least the isolation gap across.
+    var barrier: Bool?
     var id: String { "\(name)|\(x0)|\(y0)|\(x1)|\(y1)|\(layer)" }
     var rect: CGRect { CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0) }
 }

@@ -100,6 +100,9 @@ enum ESeries: Int, CaseIterable, Identifiable {
 /// All terms must match.
 struct PartQuery: Equatable {
     var words: [String] = []
+    /// `fav:` — only the user's favourite parts; `tag:x` — parts the user tagged x (`LibraryMarks`).
+    var favouritesOnly = false
+    var tags: [String] = []
     var categories: [String] = []
     var packages: [String] = []
     var manufacturers: [String] = []
@@ -112,11 +115,13 @@ struct PartQuery: Equatable {
                 continue
             }
             let key = String(raw[..<colon]), value = String(raw[raw.index(after: colon)...])
+            if key == "fav" || key == "favourites" || key == "favorites" { favouritesOnly = true; continue }
             guard !value.isEmpty else { continue }
             switch key {
             case "cat", "category": categories.append(value)
             case "pkg", "package": packages.append(Self.compact(value))
             case "mfr", "maker", "manufacturer": manufacturers.append(value)
+            case "tag": tags.append(value)
             case "pins", "pin":
                 if let range = Self.range(value) { pinRange = range } else { words.append(raw) }
             default: words.append(raw)
@@ -124,7 +129,9 @@ struct PartQuery: Equatable {
         }
     }
 
-    var isEmpty: Bool { words.isEmpty && categories.isEmpty && packages.isEmpty && manufacturers.isEmpty && pinRange == nil }
+    var isEmpty: Bool {
+        words.isEmpty && categories.isEmpty && packages.isEmpty && manufacturers.isEmpty && pinRange == nil && !favouritesOnly && tags.isEmpty
+    }
 
     /// Lower case without separators, so "SOT-23-5", "sot23 5" and "SOT23" compare alike.
     static func compact(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
@@ -171,7 +178,10 @@ struct PartQuery: Equatable {
     }
 
     func matches(_ part: StandardPart) -> Bool {
-        matches(name: part.spec.name, description: part.spec.description, category: part.category,
+        let marks = LibraryMarks.tags[part.spec.name] ?? []
+        if favouritesOnly && !LibraryMarks.favourites.contains(part.spec.name) { return false }
+        if !tags.allSatisfy({ t in marks.contains { $0.lowercased().contains(t) } }) { return false }
+        return matches(name: part.spec.name, description: ([part.spec.description] + marks).joined(separator: " "), category: part.category,
                 manufacturer: part.spec.manufacturer, package: "\(part.spec.package.type)-\(part.spec.package.pinCount)",
                 pinCount: part.spec.pins.count)
     }
@@ -295,4 +305,25 @@ struct VerificationReport: Decodable, Equatable {
     var infos: Int
     var stages: [VerificationStage]
     var markdown: String
+}
+
+/// The user's own library marks, kept in user defaults across projects: favourite parts and free tags (by part name).
+/// The library search finds them with `fav:` and `tag:x`, and plain words match tags too.
+enum LibraryMarks {
+    static var favourites: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "library.favourites") ?? []) }
+        set { UserDefaults.standard.set(newValue.sorted(), forKey: "library.favourites") }
+    }
+    static var tags: [String: [String]] {
+        get { UserDefaults.standard.dictionary(forKey: "library.tags") as? [String: [String]] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "library.tags") }
+    }
+    static func toggleFavourite(_ name: String) {
+        if favourites.contains(name) { favourites.remove(name) } else { favourites.insert(name) }
+    }
+    /// Tags from comma-separated text ("" removes them).
+    static func setTags(_ name: String, _ text: String) {
+        let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        tags[name] = list.isEmpty ? nil : list
+    }
 }

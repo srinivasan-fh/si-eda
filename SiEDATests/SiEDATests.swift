@@ -6717,6 +6717,33 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.snapshot.referenceLayers.isEmpty)
     }
 
+    func testLibraryFavouritesTagsAndUpdates() {
+        let saved = (LibraryMarks.favourites, LibraryMarks.tags)
+        defer { (LibraryMarks.favourites, LibraryMarks.tags) = saved }
+        LibraryMarks.favourites = []
+        LibraryMarks.tags = [:]
+        let parts = StandardLibrary.parts
+        let name = parts[0].spec.name
+        LibraryMarks.toggleFavourite(name)
+        LibraryMarks.setTags(name, "robot, arm ")
+        XCTAssertEqual(ComponentLibraryView.filterStandard(parts, search: "fav:", kit: nil).map(\.spec.name), [name])
+        XCTAssertEqual(ComponentLibraryView.filterStandard(parts, search: "tag:arm", kit: nil).map(\.spec.name), [name])
+        XCTAssertEqual(LibraryMarks.tags[name], ["robot", "arm"])
+        LibraryMarks.toggleFavourite(name)
+        XCTAssertTrue(ComponentLibraryView.filterStandard(parts, search: "fav:", kit: nil).isEmpty)
+        // No catalog part in a fresh design is out of date.
+        let store = DesignStore()
+        XCTAssertTrue(store.runTool("library_updates", arguments: [:]).text.contains("\"updates\":[]"))
+    }
+
+    func testPinTableImport() {
+        let pins = EDAEngine.parsePinTable("Position,Name,Type,Signal\n1,VBAT,Power,\n30,PA9,I/O,USART1_TX\n")
+        XCTAssertEqual(pins.map(\.number), ["1", "30"])
+        XCTAssertEqual(pins.first?.type, .powerIn)
+        XCTAssertEqual(pins.last?.type, .bidirectional)
+        XCTAssertEqual(pins.last?.description, "USART1_TX")
+    }
+
     func testNetlistImportThroughTheCoreTool() throws {
         let store = DesignStore()
         let csv = "Net,Designator,Pin\nVCC,R1,1\nVCC,C1,1\nGND,R1,2\nGND,C1,2\n"
@@ -6744,6 +6771,37 @@ final class ArcRoutingTests: XCTestCase {
         let pdf = try XCTUnwrap(store.engine.export(.fabDrawing))
         XCTAssertTrue(pdf.hasPrefix("%PDF-1.4") && pdf.contains("(First release)") && pdf.contains("(DRILL TABLE)"))
         XCTAssertTrue((store.engine.export(.netLengths) ?? "").hasPrefix("Net,Length (mm)"))
+    }
+
+    func testCopperThievingAndIsolationBarrierFromTheStore() throws {
+        let store = DesignStore()
+        twoResistors(store.engine)
+        store.refresh()
+        store.setThieving(ThievingInfo(pitch: 2, size: 1, clearance: 1))
+        XCTAssertEqual(store.snapshot.board.thieving?.pitch, 2)
+        XCTAssertTrue(store.snapshot.zoneFills.contains { $0.zone == -1 && !$0.rects.isEmpty })  // the dots, drawn as fills
+        store.setThieving(nil)
+        XCTAssertNil(store.snapshot.board.thieving)
+        store.addKeepout(CGRect(x: 2, y: 2, width: 3, height: 20), layer: 0)
+        let ko = try XCTUnwrap(store.snapshot.board.keepouts.first)
+        store.setKeepoutBarrier(ko, true)
+        let barrier = try XCTUnwrap(store.snapshot.board.keepouts.first)
+        XCTAssertEqual(barrier.barrier, true)
+        XCTAssertEqual(barrier.layer, -1)
+        XCTAssertEqual(barrier.pours, true)
+        // A logo: a black square on white, thresholded and placed on the top silkscreen.
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 32,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1)); ctx.fill(CGRect(x: 2, y: 2, width: 4, height: 4))
+        let rows = DesignStore.logoRows(try XCTUnwrap(ctx.makeImage()))
+        XCTAssertEqual(rows.count, 8)
+        XCTAssertEqual(rows.joined().filter { $0 == "1" }.count, 16)
+        store.addLogo(name: "logo", rows: rows, width: 8)
+        XCTAssertEqual(store.snapshot.board.graphics.first?.layer, "silk-top")
+        XCTAssertEqual(store.snapshot.board.graphics.first?.rects.count, 4)  // one merged 4 × 4 mm square
+        store.removeGraphic(at: 0)
+        XCTAssertTrue(store.snapshot.board.graphics.isEmpty)
     }
 
     func testConvertCornersToArcsFromTheStore() throws {

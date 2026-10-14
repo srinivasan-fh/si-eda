@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <sstream>
 
@@ -273,6 +274,81 @@ Json panelLayoutJson(const BoardSettings& s) {
     for (const auto& [a, b] : l.vscores) vs.push(points({a, b}));
     j["vscores"] = vs;
     return j;
+}
+
+std::vector<RuleViolation> panelChecks(const Schematic& sch, const PcbLayout& pcb) {
+    std::vector<RuleViolation> out;
+    const BoardSettings& s = pcb.settings;
+    if (s.panel.nx * s.panel.ny <= 1) return out;
+    const PanelLayout l = panelLayout(s);
+    const double W = l.boardWidth, H = l.boardHeight;
+    auto add = [&](Severity sev, const char* code, const std::string& msg, Vec2 at, int comp = -1) {
+        RuleViolation v;
+        v.severity = sev, v.code = code, v.message = msg, v.location = at, v.hasLocation = true;
+        if (comp >= 0) v.components.push_back(comp);
+        out.push_back(std::move(v));
+    };
+    const auto pads = pcb.pads(sch);
+    // The nearest copper to a point set or an edge: pads, tracks and vias by their outlines, pours by their cells.
+    auto copperNear = [&](const std::function<double(Vec2)>& dist, double within, Vec2& at) {
+        for (const auto& p : pads)
+            for (Vec2 c : {Vec2{p.bounds().x0, p.bounds().y0}, Vec2{p.bounds().x1, p.bounds().y0}, Vec2{p.bounds().x0, p.bounds().y1},
+                           Vec2{p.bounds().x1, p.bounds().y1}, p.position})
+                if (!p.npth && dist(c) < within) return at = c, true;
+        for (const auto& t : pcb.tracks)
+            for (Vec2 c : trackPolyline(t, 0.05))
+                if (dist(c) < within + t.width / 2) return at = c, true;
+        for (const auto& v : pcb.vias)
+            if (dist(v.position) < within + v.diameter / 2) return at = v.position, true;
+        for (const auto& f : copperFills(sch, pcb))
+            for (const Rect& r : f.rects)
+                for (Vec2 c : {Vec2{r.x0, r.y0}, Vec2{r.x1, r.y0}, Vec2{r.x0, r.y1}, Vec2{r.x1, r.y1}})
+                    if (dist(c) < within) return at = c, true;
+        return false;
+    };
+    Vec2 at;
+    if (s.panel.vscore) {
+        if (s.hasCustomOutline())
+            add(Severity::Warning, "PANEL_VSCORE_OUTLINE",
+                "V-score cuts straight lines across the panel; a shaped outline needs a routed panel with tabs", {0, 0});
+        auto edge = [&](Vec2 c) { return std::min({c.x, W - c.x, c.y, H - c.y}); };
+        if (copperNear(edge, 0.5, at))
+            add(Severity::Error, "PANEL_VSCORE_COPPER", "Copper within 0.5 mm of a V-scored edge: the scoring blade exposes or cuts it", at);
+    }
+    // Mouse bites on this board's edges, in board coordinates (the panel's Y is up).
+    std::vector<Vec2> bites;
+    for (Vec2 b : l.mouseBites)
+        for (Vec2 o : l.boards) {
+            const Vec2 q{b.x - o.x, H - (b.y - o.y)};
+            const bool onEdge = q.x > -1e-6 && q.x < W + 1e-6 && q.y > -1e-6 && q.y < H + 1e-6;
+            if (onEdge && std::none_of(bites.begin(), bites.end(), [&](Vec2 e) { return (e - q).length() < 1e-6; })) bites.push_back(q);
+        }
+    auto nearestBite = [&](Vec2 c) {
+        double d = 1e9;
+        for (Vec2 b : bites) d = std::min(d, (c - b).length());
+        return d;
+    };
+    if (!bites.empty() && copperNear(nearestBite, 1.0 + kBite / 2, at))
+        add(Severity::Error, "PANEL_BITE_COPPER", "Copper within 1 mm of a mouse-bite hole: breaking the tab tears it", at);
+    const Rect board(0, 0, W, H);
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || !pcb.onBoard(c) || c.pcb.embedded()) continue;
+        const Rect r = pcb.courtyard(c);
+        const double over = std::max({board.x0 - r.x0, r.x1 - board.x1, board.y0 - r.y0, r.y1 - board.y1});
+        if (over > (s.panel.vscore ? 0.0 : s.panel.gap) + 1e-6)
+            add(Severity::Error, "PANEL_OVERHANG",
+                c.ref + " overhangs the board edge by " + fmt("%.2f", over) + " mm: " +
+                    (s.panel.vscore ? "the V-score blade runs there" : "more than the routed gap, into the neighbour"),
+                c.pcb.position, c.id);
+        for (Vec2 b : bites)
+            if (pointRectDistance(b, r) < 2.0) {
+                add(Severity::Warning, "PANEL_TAB_PART",
+                    c.ref + " is within 2 mm of a breakaway tab: the board flexes there when the tab snaps (ceramic capacitors crack)",
+                    c.pcb.position, c.id);
+                break;
+            }
+    }
+    return out;
 }
 
 std::vector<FabFile> panelFiles(const PcbLayout& pcb, const std::string& base, const std::vector<FabFile>& boardFiles) {

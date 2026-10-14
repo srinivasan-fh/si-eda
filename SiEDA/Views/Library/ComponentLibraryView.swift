@@ -22,6 +22,7 @@ struct ComponentLibraryView: View {
     @State private var previewTask: Task<Void, Never>?
     @State private var confirmDelete = false
     @State private var standardSearch = ""
+    @State private var marksVersion = 0  // bumped when a favourite or tag changes (they live in user defaults)
     @State private var kitFilter = ""
     @State private var robotKits: [RobotPlatformInfo] = []
     @State private var footprintSource: CustomPartSpec?
@@ -186,7 +187,7 @@ struct ComponentLibraryView: View {
                 TextField("Search parts", text: $standardSearch)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Search the standard library")
-                    .help("Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti")
+                    .help("Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti fav: tag:robot")
                 Picker("", selection: $kitFilter) {
                     Text("All").tag("")
                     ForEach(robotKits) { Text($0.name).tag($0.id) }
@@ -223,6 +224,15 @@ struct ComponentLibraryView: View {
                                         .font(.caption).foregroundStyle(Theme.textMuted)
                                 }
                                 Spacer()
+                                let favourite = marksVersion >= 0 && LibraryMarks.favourites.contains(part.spec.name)
+                                Button {
+                                    LibraryMarks.toggleFavourite(part.spec.name)
+                                    marksVersion += 1
+                                } label: { Image(systemName: favourite ? "star.fill" : "star") }
+                                    .buttonStyle(.borderless)
+                                    .foregroundStyle(favourite ? Color.yellow : Theme.textMuted)
+                                    .help("Favourite (search fav:)")
+                                    .accessibilityLabel(favourite ? "Remove from favourites" : "Add to favourites")
                                 Button {
                                     if let id = store.addStandardPartToLibrary(part) { selectedId = id }
                                 } label: { Image(systemName: "plus.circle") }
@@ -232,6 +242,9 @@ struct ComponentLibraryView: View {
                                     .accessibilityLabel("Add \(part.spec.name) to the project library")
                             }
                             .help(part.spec.description)
+                            .contextMenu {
+                                Button("Edit Tags…") { editTags(part.spec.name) }
+                            }
                             .tag(Self.standardTag + part.id)
                         }
                     }
@@ -389,6 +402,8 @@ struct ComponentLibraryView: View {
                 Text("PINS (\(draft.pins.count))").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
                 Spacer()
                 Button { addPin() } label: { Label("Add Pin", systemImage: "plus") }
+                Button { importPinTable() } label: { Label("Import Pin Table…", systemImage: "tablecells") }
+                    .help("Pins from a CSV / TSV pin table (number, name, type, description) or an STM32CubeMX pin list")
                 Button { renumber() } label: { Label("Renumber", systemImage: "number") }
                     .disabled(draft.pins.isEmpty)
                 Button { inferTypes() } label: { Label("Infer Types", systemImage: "wand.and.stars") }
@@ -624,6 +639,29 @@ struct ComponentLibraryView: View {
     private func removePin(_ id: CustomPartSpec.Pin.ID) {
         NSApp.keyWindow?.makeFirstResponder(nil)  // commit (or drop) the edit in progress first
         DispatchQueue.main.async { draft.pins.removeAll { $0.id == id } }
+    }
+
+    /// Free tags for a library part (comma separated), found again with `tag:`.
+    private func editTags(_ name: String) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Tags for \(name)")
+        alert.informativeText = String(localized: "Comma-separated words; search them with tag:word.")
+        let field = NSTextField(string: (LibraryMarks.tags[name] ?? []).joined(separator: ", "))
+        field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        LibraryMarks.setTags(name, field.stringValue)
+        marksVersion += 1
+    }
+
+    private func importPinTable() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText, .tabSeparatedText, .plainText]
+        guard panel.runModal() == .OK, let url = panel.url, let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+        let pins = EDAEngine.parsePinTable(text)
+        if !pins.isEmpty { draft.pins = pins }
     }
 
     private func addPin() {

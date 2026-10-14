@@ -164,6 +164,7 @@ The core checks the land pattern on every edit (`checkLandPattern`), with a mini
 | `LAND_NUMBERING` | warning | Pads without ball names are numbered across the footprint (more than 4, or one in 8, steps of over three times the usual pitch). |
 | `LAND_COURTYARD` | info | A silk or fab line runs outside the courtyard. |
 | `LAND_MASK_SLIVER` | info | The mask openings of two pads overlap (their gap is less than the two margins). |
+| `LAND_ZERO_ORIENTATION` | warning | Pad 1 is on the right half. IPC-7351 zero orientation puts pin 1 at the top left, so the pattern was probably drawn from the bottom view or turned around, and pick-and-place rotations come out wrong. SiEDA's SOT-23 / SOT-223 / D2PAK lands use the datasheet view with the leads at the bottom and pad 1 at the bottom left, so the check looks only at left and right. |
 
 The added checks are quiet on every catalog footprint.
 

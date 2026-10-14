@@ -326,6 +326,56 @@ std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayou
                         (z.name.empty() ? std::string("(unnamed)") : z.name) + ", which allows " + mm(z.maxHeight) + ".",
                     {c.id}, c.pcb.position);
     }
+    // Rigid-flex bend areas (IPC-2223): bend radius against the flex build, no vias or parts in the bend, curved tracks.
+    for (const FlexRegion& f : s.flexRegions) {
+        const std::string name = f.name.empty() ? std::string("flex region") : "flex region " + f.name;
+        const Vec2 mid{(f.area.x0 + f.area.x1) / 2, (f.area.y0 + f.area.y1) / 2};
+        auto warn = [&](const char* code, const std::string& msg, Vec2 at) {
+            add(code, msg, {}, at);
+            out.back().severity = Severity::Warning;
+        };
+        const double ratio = f.dynamic ? 100 : f.layers <= 1 ? 6 : f.layers == 2 ? 12 : 24, least = ratio * f.thickness;
+        if (f.bendRadius > 0 && f.bendRadius < least - 1e-9)
+            add("FLEX_BEND_RADIUS", "The " + name + " bends at " + mm(f.bendRadius) + "; IPC-2223 asks for at least " + mm(least) +
+                    " (" + num(ratio) + " × its " + mm(f.thickness) + " " + (f.dynamic ? "dynamic" : std::to_string(f.layers) + "-layer") + " flex)",
+                {}, mid);
+        if (f.dynamic && f.layers > 2)
+            warn("FLEX_DYNAMIC_LAYERS", "The " + name + " flexes in service with " + std::to_string(f.layers) +
+                     " copper layers; dynamic flex should have one (at most two)", mid);
+        if (s.construction != "rigid-flex")
+            warn("FLEX_CONSTRUCTION", "The board has a " + name + " but its construction is " + s.construction +
+                     " (Board Setup → Stack-up: rigid-flex)", mid);
+        for (const Via& v : pcb.vias)
+            if (f.area.contains(v.position)) {
+                add("FLEX_VIA", "A via stands in the " + name + ": plated holes crack where the board bends", {}, v.position);
+                break;
+            }
+        for (const auto& c : sch.components())
+            if (c.hasFootprint() && c.pcb.placed && pcb.onBoard(c) && !c.pcb.embedded()) {
+                const Rect r = pcb.courtyard(c);
+                if (r.x0 < f.area.x1 && f.area.x0 < r.x1 && r.y0 < f.area.y1 && f.area.y0 < r.y1)
+                    add("FLEX_PART", c.ref + " stands in the " + name + ": keep parts on the rigid sections or stiffen the flex",
+                        {c.id}, c.pcb.position);
+            }
+        // Sharp corners: two straight tracks of a net meeting inside the area at an angle.
+        bool corner = false;
+        for (size_t i = 0; i < pcb.tracks.size() && !corner; ++i)
+            for (size_t j = i + 1; j < pcb.tracks.size() && !corner; ++j) {
+                const Track &a = pcb.tracks[i], &b = pcb.tracks[j];
+                if (a.arc || b.arc || a.layer != b.layer || a.net != b.net) continue;
+                for (Vec2 p : {a.a, a.b})
+                    for (Vec2 q : {b.a, b.b})
+                        if ((p - q).length() < 1e-6 && f.area.contains(p)) {
+                            const Vec2 u = (p - a.a).length() > 1e-9 ? p - a.a : p - a.b, w = (q - b.a).length() < 1e-9 ? b.b - q : b.a - q;
+                            const double cosT = (u.x * w.x + u.y * w.y) / std::max(1e-12, u.length() * w.length());
+                            if (cosT < 0.9998) {  // u runs into the joint, w out of it: straight on = parallel
+                                warn("FLEX_TRACK_CORNER", "A track turns a corner in the " + name +
+                                         ": route straight across the bend or round the corners with arcs", p);
+                                corner = true;
+                            }
+                        }
+            }
+    }
     // Sweep along X: only bodies whose X ranges overlap are compared.
     std::vector<Rect> boxes;
     std::vector<size_t> order(bodies.size());
@@ -403,7 +453,8 @@ std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayou
 }
 
 Json mechanicalLimitsToJson(const BoardSettings& s) {
-    if (s.maxHeightTop <= 0 && s.maxHeightBottom <= 0 && s.heightZones.empty() && s.enclosure.empty()) return Json();
+    if (s.maxHeightTop <= 0 && s.maxHeightBottom <= 0 && s.heightZones.empty() && s.enclosure.empty() && s.flexRegions.empty())
+        return Json();
     Json j = Json::object(), zones = Json::array();
     if (!s.enclosure.empty()) j["enclosure"] = s.enclosure;
     j["maxHeightTop"] = s.maxHeightTop;
@@ -415,6 +466,16 @@ Json mechanicalLimitsToJson(const BoardSettings& s) {
         zones.push(e);
     }
     j["zones"] = zones;
+    if (!s.flexRegions.empty()) {
+        Json flex = Json::array();
+        for (const FlexRegion& f : s.flexRegions) {
+            Json e = Json::object();
+            e["name"] = f.name, e["x0"] = f.area.x0, e["y0"] = f.area.y0, e["x1"] = f.area.x1, e["y1"] = f.area.y1;
+            e["bendRadius"] = f.bendRadius, e["thickness"] = f.thickness, e["layers"] = f.layers, e["dynamic"] = f.dynamic;
+            flex.push(e);
+        }
+        j["flex"] = flex;
+    }
     return j;
 }
 
@@ -426,7 +487,21 @@ void mechanicalLimitsFromJson(const Json& j, BoardSettings& s) {
     s.maxHeightTop = len(j.get("maxHeightTop"));
     s.maxHeightBottom = len(j.get("maxHeightBottom"));
     s.heightZones.clear();
+    s.flexRegions.clear();
     s.enclosure = j.get("enclosure").asString("");
+    for (const Json& e : j.get("flex").items()) {
+        FlexRegion f;
+        f.name = e.get("name").asString("");
+        const double x0 = e.get("x0").asNumber(0), y0 = e.get("y0").asNumber(0), x1 = e.get("x1").asNumber(0), y1 = e.get("y1").asNumber(0);
+        f.area = Rect(std::min(x0, x1), std::min(y0, y1), std::max(x0, x1), std::max(y0, y1));
+        f.bendRadius = std::clamp(e.get("bendRadius").asNumber(0), 0.0, 1000.0);
+        f.thickness = std::clamp(e.get("thickness").asNumber(0.11), 0.01, 5.0);
+        f.layers = std::clamp(static_cast<int>(e.get("layers").asNumber(2)), 1, 32);
+        f.dynamic = e.get("dynamic").asBool(false);
+        if (std::isfinite(x0 + y0 + x1 + y1 + f.bendRadius + f.thickness) && f.area.width() > 0 && f.area.height() > 0 &&
+            s.flexRegions.size() < 1000)
+            s.flexRegions.push_back(f);
+    }
     if (!j.get("zones").isArray()) return;
     for (const Json& e : j.get("zones").items()) {
         HeightZone z;

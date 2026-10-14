@@ -446,6 +446,71 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
     return fillCache_;
 }
 
+std::vector<ZoneFill> copperThieving(const Schematic& sch, const PcbLayout& pcb) {
+    const BoardSettings& s = pcb.settings;
+    const CopperThieving& th = s.thieving;
+    std::vector<ZoneFill> out;
+    if (!(th.pitch > 0) || !(th.size > 0) || s.width <= 0 || s.height <= 0) return out;
+    const double pitch = std::max(th.pitch, th.size + 0.1), half = th.size / 2, reach = std::max(0.0, th.clearance) + half * 1.4143;
+    if (s.width * s.height / (pitch * pitch) > 2e6) return out;  // far too fine a grid: no dots rather than a stall
+    const auto ps = pcb.pads(sch);
+    const auto& fills = pcb.zoneFills(sch);
+    // Obstacles of a layer by bins of 4 pitches: an index into pads (p), tracks (t) or vias (v) with its reach box.
+    const double bin = 4 * pitch;
+    const int bc = static_cast<int>(std::ceil(s.width / bin)) + 1, br = static_cast<int>(std::ceil(s.height / bin)) + 1;
+    for (int L = 0; L < std::max(1, s.layerCount); ++L) {
+        std::vector<std::vector<std::pair<char, size_t>>> bins(static_cast<size_t>(bc * br));
+        auto put = [&](Rect r, char kind, size_t i) {
+            r = r.inflated(reach);
+            for (int y = std::max(0, int(r.y0 / bin)); y <= std::min(br - 1, int(r.y1 / bin)); ++y)
+                for (int x = std::max(0, int(r.x0 / bin)); x <= std::min(bc - 1, int(r.x1 / bin)); ++x)
+                    bins[static_cast<size_t>(y * bc + x)].push_back({kind, i});
+        };
+        for (size_t i = 0; i < ps.size(); ++i)
+            if (ps[i].onLayer(L)) put(ps[i].bounds(), 'p', i);
+        for (size_t i = 0; i < pcb.tracks.size(); ++i)
+            if (pcb.tracks[i].layer == L) put(trackBox(pcb.tracks[i], pcb.tracks[i].width / 2), 't', i);
+        for (size_t i = 0; i < pcb.vias.size(); ++i)
+            if (pcb.vias[i].spans(L)) put(segmentBox(pcb.vias[i].position, pcb.vias[i].position, pcb.vias[i].diameter / 2), 'v', i);
+        std::vector<Rect> courts;  // parts on this outer layer: no dots under them
+        if (L == 0 || L == s.bottomLayer())
+            for (const auto& c : sch.components())
+                if (c.hasFootprint() && c.pcb.placed && pcb.onBoard(c) && (c.pcb.bottom ? s.bottomLayer() : 0) == L)
+                    courts.push_back(pcb.courtyard(c).inflated(reach));
+        ZoneFill f;
+        f.layer = L;
+        for (int row = 0; (row + 0.5) * pitch < s.height; ++row)
+            for (double x = (row % 2 ? 1.0 : 0.5) * pitch; x < s.width; x += pitch) {
+                const Vec2 c{x, (row + 0.5) * pitch};
+                if (s.edgeDistance(c) < s.edgeClearance + half * 1.4143 || s.holeDistance(c) < reach) continue;
+                bool clear = true;
+                for (const auto& ko : s.keepouts)
+                    clear &= !((ko.layer < 0 || ko.layer == L) && ko.area.inflated(reach).contains(c));
+                for (const Rect& r : courts) clear &= !r.contains(c);
+                for (const auto& z : fills) clear &= !(clear && z.layer == L && z.islandNear(c, reach) >= 0);
+                if (!clear) continue;
+                for (const auto& [kind, i] : bins[static_cast<size_t>(std::min(br - 1, int(c.y / bin)) * bc + std::min(bc - 1, int(c.x / bin)))]) {
+                    const double d = kind == 'p' ? padCopperDistance(ps[i], c)
+                                     : kind == 't' ? trackPointDistance(pcb.tracks[i], c) - pcb.tracks[i].width / 2
+                                                   : (c - pcb.vias[i].position).length() - pcb.vias[i].diameter / 2;
+                    if (d < reach) {
+                        clear = false;
+                        break;
+                    }
+                }
+                if (clear) f.rects.push_back(Rect(c.x - half, c.y - half, c.x + half, c.y + half));
+            }
+        if (!f.rects.empty()) out.push_back(std::move(f));
+    }
+    return out;
+}
+
+std::vector<ZoneFill> copperFills(const Schematic& sch, const PcbLayout& pcb) {
+    std::vector<ZoneFill> all = pcb.zoneFills(sch);
+    for (auto& f : copperThieving(sch, pcb)) all.push_back(std::move(f));
+    return all;
+}
+
 bool PcbLayout::isZoneNet(const Schematic& sch, int net) const {
     if (net < 0 || net >= static_cast<int>(sch.nets().size())) return false;
     const std::string& name = sch.nets()[static_cast<size_t>(net)].name;

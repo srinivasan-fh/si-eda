@@ -1318,8 +1318,14 @@ struct PCBCanvas: View {
             ]
         }
         let board = store.snapshot.board
-        var shapes: [CanvasMenuItem] = board.keepouts.filter { $0.rect.contains(world) }.map { ko in
-            CanvasMenuItem(title: String(localized: "Delete Keep-out")) { store.removeKeepout(ko) }
+        var shapes: [CanvasMenuItem] = board.keepouts.filter { $0.rect.contains(world) }.flatMap { ko in
+            [CanvasMenuItem(title: String(localized: "Delete Keep-out")) { store.removeKeepout(ko) },
+             CanvasMenuItem(title: ko.barrier == true ? String(localized: "Make Plain Keep-out") : String(localized: "Make Isolation Barrier")) {
+                 store.setKeepoutBarrier(ko, ko.barrier != true)
+             }]
+        }
+        for (index, g) in board.graphics.enumerated() where g.bounds.contains(world) {
+            shapes.append(CanvasMenuItem(title: String(localized: "Delete Graphic")) { store.removeGraphic(at: index) })
         }
         for (index, dim) in board.dimensions.enumerated() {
             let n = CGPoint(x: -(dim.b.y - dim.a.y) / max(dim.length, 1e-9), y: (dim.b.x - dim.a.x) / max(dim.length, 1e-9))
@@ -1450,11 +1456,24 @@ struct PCBCanvas: View {
             }
         }
         if visible.contains(.boardOutline) {
+            for g in snap.board.graphics where g.bounds.intersects(view) {  // logos and user-layer drawings
+                let colour: Color
+                if g.layer == "silk-top" { guard visible.contains(.silkscreen) else { continue }; colour = Theme.silkscreen }
+                else if g.layer == "silk-bottom" { guard visible.contains(.bottomSilk) else { continue }; colour = Theme.silkscreen.opacity(0.5) }
+                else if g.layer.hasPrefix("copper-"), let l = Int(g.layer.dropFirst(7)) {
+                    guard visible.contains(.copper(l)) else { continue }
+                    colour = Theme.copperColor(l, layerCount: max(1, snap.board.layerCount))
+                } else { colour = Theme.textSecondary }
+                ctx.fill(Path(g.fillPath).applying(screen), with: .color(colour))
+                ctx.stroke(Path(g.linePath).applying(screen), with: .color(colour),
+                           style: StrokeStyle(lineWidth: max(1, g.width * viewport.scale), lineCap: .round))
+            }
             for ko in snap.board.keepouts where ko.rect.intersects(view) {
                 let r = Path(ko.rect).applying(screen)
-                ctx.fill(r, with: .color(Theme.error.opacity(0.08)))
-                ctx.stroke(r, with: .color(Theme.error.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [6, 3]))
-                ctx.draw(Text(ko.name).font(.caption2).foregroundColor(Theme.error),
+                let tint = ko.barrier == true ? Color.orange : Theme.error  // isolation barriers: hatched orange band
+                ctx.fill(r, with: .color(tint.opacity(ko.barrier == true ? 0.18 : 0.08)))
+                ctx.stroke(r, with: .color(tint.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [6, 3]))
+                ctx.draw(Text(ko.name).font(.caption2).foregroundColor(tint),
                          at: CGPoint(x: ko.rect.minX, y: ko.rect.minY).applying(screen), anchor: .bottomLeading)
             }
             for dim in snap.board.dimensions where dim.length > 1e-6 {  // drawing dimensions: extension lines, line, value

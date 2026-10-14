@@ -134,6 +134,17 @@ struct BoardSetupPanel: View {
                         Button("Add Pour") { store.addZone(net: pourNet, layer: pourLayer, plane: pourPlane) }
                             .disabled(!netChoices.contains(pourNet))
                     }
+                    HStack {
+                        Toggle("Copper thieving", isOn: Binding(get: { board.thieving != nil },
+                                                                set: { store.setThieving($0 ? ThievingInfo() : nil) }))
+                            .help("Square copper dots in the free board area even out plating and the layers' copper (bow and twist)")
+                        if let t = board.thieving {
+                            Stepper(value: Binding(get: { t.pitch }, set: { v in var n = t; n.pitch = v; store.setThieving(n) }),
+                                    in: 1.2...10, step: 0.5) {
+                                Text(verbatim: String(format: "%@ %.1f mm", String(localized: "Pitch"), t.pitch))
+                            }
+                        }
+                    }
                 }
 
                 stackupSection(board)

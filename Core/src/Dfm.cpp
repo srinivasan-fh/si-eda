@@ -345,7 +345,7 @@ std::vector<double> copperCoverage(const Schematic& sch, const PcbLayout& pcb) {
     for (const auto& pad : pcb.pads(sch))
         for (int l = 0; l < n; ++l)
             if (pad.onLayer(l)) area[static_cast<size_t>(l)] += pad.size.x * pad.size.y;
-    for (const auto& f : pcb.zoneFills(sch))
+    for (const auto& f : copperFills(sch, pcb))
         if (f.layer >= 0 && f.layer < n) area[static_cast<size_t>(f.layer)] += f.area();
     double board = 0;
     const auto poly = s.outlinePolygon();

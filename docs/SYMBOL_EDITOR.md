@@ -149,6 +149,22 @@ The core also refuses to register a part whose layout has errors, so a broken sy
 If you later add or remove pins in the pin table, an arranged symbol follows: removed pins leave it and new pins go
 to the end of the shorter side.
 
+## Pins from a pin table
+
+Component Library → Import Pin Table… (MCP `library_create_part` `pinTable`) reads a CSV, TSV or semicolon file.
+- **With a header,** the columns are found by name: number / pin / position / ball, name / pin name / signal, type /
+  direction, and description / function.
+- **Without one,** the columns are number, name, type, description.
+- **STM32CubeMX pin lists** (Position, Name, Type, Signal) work as exported. Reset and Boot pins become inputs, and the
+  assigned signal goes in the description.
+
+The library browser also has favourites (the star; search `fav:`) and your own tags (right-click → Edit Tags…;
+search `tag:word`). Both are kept for your user account across projects.
+
+File → Check Library Updates… (MCP `library_updates`) lists project parts whose catalog part has changed since they
+were added. For each it shows what changed (pins, package, footprint) and how many are placed. Update All switches
+them to the current part.
+
 ## Library symbols
 
 Standard-library parts with 16 or more pins are auto-arranged with stacking: MCUs, the FPGA, the RF modules, motor

@@ -156,3 +156,54 @@ the layout, following every edit.
 
 `MECH_CONNECTOR_ACCESS` (a note) names a part standing in the 3 mm in front of a connector's open end, where the plug
 goes. AI clients get the same picture from MCP `render_3d` (`view` iso / top / bottom / front / back / left / right).
+
+## Board artwork, copper thieving and manufacturing checks
+
+- **Logos and user layers.** File → Import Logo… turns an image into top-silkscreen artwork 10 mm wide in the middle
+  of the board: dark, opaque pixels print, and runs of them merge into rectangles. MCP `pcb_graphics` adds, lists and
+  removes artwork:
+  - filled rectangles and lines on `silk-top`, `silk-bottom`, `copper-<n>` or `user-1` … `user-4`;
+  - a raster image in place of the shapes.
+
+  Copper artwork has no net; `DRC_GRAPHIC_COPPER` reports it within the clearance of other copper. Each user layer
+  that has artwork gets its own Gerber, `<name>-User_<n>.gbr` (FileFunction `Other,User<n>`). Right-click artwork on
+  the board to delete it.
+- **Copper thieving.** Board Setup → Copper Pours & Planes → Copper thieving (MCP `pcb_copper_thieving`) fills the
+  free area of every copper layer with a staggered grid of square dots. Defaults: 1 mm dots at a 2 mm pitch, kept
+  1 mm from the following:
+  - other copper and holes;
+  - keep-outs;
+  - on the outer layers, the parts' courtyards.
+
+  The dots are generated from the settings, never stored. They reach the copper Gerbers, IPC-2581 / ODB++, the 3D
+  view and the copper coverage that `DFM_COPPER_BALANCE` compares.
+- **Test points and net ties.** `TestPoint` is a 1.5 mm round SMD probe pad (ref TP, listed in the test-point
+  report). `NetTie-2` has two touching 0.6 mm pads that join two nets at one place, such as AGND to GND under an ADC.
+  The DRC accepts the short between its own two nets within 1 mm of its courtyard.
+- **Rigid-flex bend areas.** MCP `pcb_mechanical_limits` `flex` takes a rectangle with its bend radius, flex
+  thickness, copper layers and whether it flexes in service. The checks:
+
+  | Code | Kind | Finds |
+  |---|---|---|
+  | `FLEX_BEND_RADIUS` | error | a bend tighter than IPC-2223's guide: 6 / 12 / 24 × the thickness for 1 / 2 / more copper layers, 100 × when dynamic |
+  | `FLEX_VIA` | error | vias in the bend |
+  | `FLEX_PART` | error | parts in the bend |
+  | `FLEX_TRACK_CORNER` | warning | sharp track corners in the bend |
+  | `FLEX_DYNAMIC_LAYERS` | warning | a dynamic flex with more than two copper layers |
+  | `FLEX_CONSTRUCTION` | warning | a flex area on a board whose construction is not rigid-flex |
+
+- **Isolation barriers.** Right-click a keep-out → Make Isolation Barrier. A barrier keeps tracks, vias and pours out
+  on every layer, and has two checks:
+  - `DRC_BARRIER_WIDTH`: the barrier is narrower across than the board's isolation gap;
+  - `DRC_BARRIER_PAD`: a pad stands in it.
+- **Panel DRC.** With a production panel, the DRC adds these checks:
+
+  | Code | Finds |
+  |---|---|
+  | `PANEL_VSCORE_COPPER` | copper within 0.5 mm of a V-scored edge |
+  | `PANEL_VSCORE_OUTLINE` | V-score on a shaped outline |
+  | `PANEL_BITE_COPPER` | copper within 1 mm of a mouse-bite hole |
+  | `PANEL_TAB_PART` | a part within 2 mm of a breakaway tab (MLCCs crack when it snaps) |
+  | `PANEL_OVERHANG` | a part over the edge, into the V-score blade or past the routed gap |
+- **Coplanar waveguide.** MCP `si_field_solver` `cpwGap` puts ground copper beside the track on the same layer
+  (grounded CPW). The test holds it within 2 % of the conformal-map formulas.
