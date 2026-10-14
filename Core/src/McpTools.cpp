@@ -4018,38 +4018,49 @@ void pcbTools(Table& t) {
                       return mm;
                   };
                   const double reach = spread() * 1.15 + 1;
-                  auto pairings = [&] {  // "C1 → D1.K": which capacitor / crystal serves which pin
-                      std::set<std::string> keys;
-                      for (const auto& m : placed.items()) keys.insert(m.asString("").substr(0, m.asString("").rfind(" (")));
+                  auto pairings = [&] {  // "C1 → D1.K" → its distance (mm; 0 when not given)
+                      std::map<std::string, double> keys;
+                      for (const auto& m : placed.items()) {
+                          const std::string line = m.asString("");
+                          const size_t at = line.rfind(" (");
+                          keys[line.substr(0, at)] = at == std::string::npos ? 0 : std::atof(line.c_str() + at + 2);
+                      }
                       return keys;
                   };
-                  const std::set<std::string> served = pairings();
+                  const std::map<std::string, double> served = pairings();
                   bestPlaced = placed;
                   const int allowed = problems();
                   Project best = pr;
                   std::string held;  // why the first size tried was refused
-                  for (int tries = 0, shrunk = 1; shrunk && tries < 80;) {  // the longer side first, 1 mm at a time
-                      shrunk = 0;
-                      const bool wide = pr.pcb.settings.width >= pr.pcb.settings.height;
-                      for (const bool cutWidth : {wide, !wide}) {
-                          const double w = pr.pcb.settings.width - (cutWidth ? 1 : 0), h = pr.pcb.settings.height - (cutWidth ? 0 : 1);
-                          if (w < 5 || h < 5 || ++tries > 80) continue;
+                  // One side at a time, the longer first, 1 mm at a time; a refused size does not end that side's search
+                  // (Auto Place may do better on a smaller board still) until four in a row are refused. Twice over.
+                  int tries = 0;
+                  auto shrink = [&](bool width) {
+                      double cut = 0;
+                      for (int refused = 0; refused < 4 && tries < 80; ++tries) {
+                          cut += 1;
+                          const double w = best.pcb.settings.width - (width ? cut : 0), h = best.pcb.settings.height - (width ? 0 : cut);
+                          if (w < 5 || h < 5) break;
                           sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
                           bool fewer = paired() < pairs;
-                          const auto now = pairings();  // and each one Auto Place made at the start
-                          fewer = fewer || !std::includes(now.begin(), now.end(), served.begin(), served.end());
+                          const auto now = pairings();  // and each one Auto Place made at the start, no more than 1 mm further
+                          for (const auto& [key, mm] : served)
+                              fewer = fewer || !now.count(key) || now.at(key) > mm + 1.0;
                           const bool further = !fewer && spread() > reach,
                                      resized = pr.pcb.settings.width == w && pr.pcb.settings.height == h, worse = resized && problems() > allowed;
                           if (!fewer && !further && resized && !worse) {
-                              best = pr, bestPlaced = placed, shrunk = 1;
-                              break;
+                              best = pr, bestPlaced = placed, refused = 0, cut = 0;
+                              continue;
                           }
                           if (held.empty())
                               held = fewer ? "fewer capacitors / crystals ended by their pins" : further ? "capacitors ended further from their pins"
                                      : !resized ? "the parts no longer fitted" : "the DRC found more problems";
+                          ++refused;
                           pr = best;
                       }
-                  }
+                  };
+                  const bool wide = pr.pcb.settings.width >= pr.pcb.settings.height;
+                  for (int pass = 0; pass < 2; ++pass) shrink(wide), shrink(!wide);
                   pr = best;
                   P(s)->router.reset();
                   Json board = projectSummary(s).get("board");
@@ -4344,7 +4355,7 @@ void pcbTools(Table& t) {
               .boolean("keep", "Save the preset / options as the board's strategy (default false)")
               .boolean("clearFirst", "Remove the existing routing first")
               .boolean("powerWidths", "Route power / ground nets without a width of their own 0.4 mm wide (default true)")
-              .boolean("pour", "A whole-board route on a board with no pour pours the ground net on the bottom layer first (default true)"),
+              .boolean("pour", "A whole-board route on a board with no pour pours the ground net first: both layers of a 2-layer board, else the bottom (default true)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const auto stitched = stitchingVias(p->project);  // re-laid after a whole-board route clears them
@@ -4381,11 +4392,16 @@ void pcbTools(Table& t) {
               p->project.pcb.settings.autorouter.viasOffPads = a.get("options").get("viasOffPads").asBool(true);
               // A whole-board route with no pour yet pours the ground net on the bottom layer first: a plane, not tracks.
               std::string poured;
+              int topPour = -1;
               if (p->project.pcb.zones.empty() && !ar.scoped() && !ar.fanoutOnly && argBool(a, "pour", true))
                   for (const auto& n : p->project.schematic.nets())
                       if (p->project.schematic.netRole(n.index) == NetRole::Ground && !n.name.empty()) {
-                          if (sieda_pcb_add_zone(p, n.name.c_str(), p->project.pcb.settings.layerCount - 1, 0, 0) >= 0)
+                          // On two layers the top too: a module's ground pads join it directly, not each by a via.
+                          const int layers = p->project.pcb.settings.layerCount;
+                          if (sieda_pcb_add_zone(p, n.name.c_str(), layers - 1, 0, 0) >= 0)
                               poured = n.name + " poured on the bottom layer before routing (pour: false skips; pcb_remove_pour removes it)";
+                          if (layers == 2 && (topPour = sieda_pcb_add_zone(p, n.name.c_str(), 0, 0, 0)) >= 0)
+                              poured = n.name + " poured on both layers before routing (pour: false skips; pcb_remove_pour removes them)";
                           break;
                       }
               // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
@@ -4434,6 +4450,28 @@ void pcbTools(Table& t) {
                   stats = takeJson(sieda_pcb_autoroute(p));
                   repairs = finishRouting(p, &stats);
                   widened.clear();
+              }
+              // A pair the top pour left uncoupled: routed again with the bottom pour only, kept if more pairs couple.
+              auto uncoupledPairs = [&] {
+                  int n = 0;
+                  const Json report = takeJson(sieda_pcb_route_report(p));
+                  for (const auto& pr : report.get("pairs").items()) n += !pr.get("coupled").asBool(false);
+                  return n;
+              };
+              if (const int was = topPour >= 0 ? uncoupledPairs() : 0; was > 0) {
+                  const Project withTop = p->project;
+                  const Json statsTop = stats, repairsTop = repairs;
+                  p->project = unrouted;
+                  p->project.pcb.zones.erase(p->project.pcb.zones.begin() + topPour);
+                  for (const auto& n : widened) p->project.pcb.settings.netWidths[n] = 0.4;
+                  p->router.reset();
+                  stats = takeJson(sieda_pcb_autoroute(p));
+                  repairs = finishRouting(p, &stats);
+                  if (uncoupledPairs() < was && p->project.pcb.ratsnest(p->project.schematic).size() <= withTop.pcb.ratsnest(withTop.schematic).size())
+                      poured = poured.substr(0, poured.find(" poured")) + " poured on the bottom layer before routing (a top pour left a "
+                               "differential pair uncoupled; pour: false skips; pcb_remove_pour removes it)";
+                  else
+                      p->project = withTop, p->router.reset(), stats = statsTop, repairs = repairsTop;
               }
               if (!widened.empty()) {
                   std::string list;

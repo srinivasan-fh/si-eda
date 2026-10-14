@@ -21178,7 +21178,7 @@ TEST(mcp_edges_stitching_and_tags) {
         if (f.get("ref").asString("") == "J1") CHECK(f.get("y").asNumber() > h / 2);
     }
     CHECK(board.get("keepouts").size() == 1 && board.get("keepouts")[0].get("pours").asBool(false));
-    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::object())).get("unroutedConnections").asInt(-1) == 0);
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"J({"pour": false})J"))).get("unroutedConnections").asInt(-1) == 0);
     std::set<std::string> drc;
     const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : drcResult.get("violations").items()) drc.insert(v.get("code").asString(""));
