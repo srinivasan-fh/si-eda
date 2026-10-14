@@ -618,6 +618,13 @@ Scene schematicScene(const Project& project, int sheet) {
                             for (double k : {-2.0, 3.0}) s.line(m + u * k + n * 9, m + u * (k + 4) + n * 15, 1, body);
                     }
                     for (int i = 0; i < static_cast<int>(pins.size()); ++i) s.disc(at(i), 1.6, pinC);
+                    if (std::fabs(u.y) > 0.5) {  // standing up: ref and value beside the body, off its leads
+                        const double tx = m.x + 13;
+                        s.text({tx, m.y - 3}, sch.displayRef(c), 8, textC, false);
+                        if (!c.value.empty()) s.text({tx, m.y + 9}, c.value, 7, textC, false);
+                        grow(b, any, {tx + textWidth(std::max(sch.displayRef(c), c.value, [](const auto& l, const auto& r) { return l.size() < r.size(); }), 8), m.y});
+                        break;
+                    }
                     s.text({(x0 + x1) / 2, y0 - 4}, sch.displayRef(c), 8, textC, true);
                     if (!c.value.empty()) s.text({(x0 + x1) / 2, y1 + 10}, c.value, 7, textC, true);
                     grow(b, any, {(x0 + x1) / 2, y0 - 14});

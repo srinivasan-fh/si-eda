@@ -20963,6 +20963,22 @@ TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
     CHECK(mcpFailed(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J"))));
 }
 
+TEST(mcp_single_row_header_reads_down_one_side) {
+    // A 1 × N header's pins all leave one side of its symbol (labels side by side, not stacked up); a search lists a
+    // small part's pin names.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "J1", "part": "PinHeader_1x04_P2.54mm"},
+        {"ref": "R1", "kind": "resistor"}], "nets": {"A": ["J1.1", "R1.1"], "B": ["J1.2", "R1.2"], "C": ["J1.3"], "D": ["J1.4"]}})J"))));
+    const auto& sch = s.project()->project.schematic;
+    const Component* j1 = sch.findByRef("J1");
+    CHECK(j1 != nullptr);
+    if (j1)
+        for (int i = 0; i < 4; ++i) CHECK(std::fabs(sch.pinPosition({j1->id, i}).x - sch.pinPosition({j1->id, 0}).x) < 1e-6);
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "AMS1117-3.3"})J")));
+    CHECK(found.get("parts").size() >= 1 && found.get("parts")[0].get("pinNames").size() == 3);
+}
+
 TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
     // An agent's manual repairs: pcb_drc names the pads cut off from the rest of their net; pcb_add_track joins them
     // on any points, pcb_add_via drops a via; both refuse copper that would touch another net. pcb_summary gives each

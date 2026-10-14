@@ -1209,6 +1209,17 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
                 }
         return false;
     };
+    // How far the capacitor's pad on the pin's net ended from the pin (pad centres), for the result.
+    auto gap = [&](int cap, int comp, int pinIndex) {
+        const auto pads = p->project.pcb.pads(sch);
+        const auto pin = std::find_if(pads.begin(), pads.end(), [&](const Pad& q) { return q.componentId == comp && q.pinIndex == pinIndex; });
+        double best = 1e9;
+        for (const auto& q : pads)
+            if (pin != pads.end() && q.componentId == cap && q.net == pin->net) best = std::min(best, (q.position - pin->position).length());
+        char text[32] = "";
+        if (best < 1e8) std::snprintf(text, sizeof text, " (%.1f mm)", best);
+        return std::string(text);
+    };
     std::set<int> settled;  // placed here: they do not step aside for a later part
     auto stepAside = [&](Vec2 at, double radius, const std::function<bool()>& place) {  // small parts by `at` make room
         std::vector<std::pair<int, Vec2>> aside;
@@ -1226,6 +1237,8 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             if (!nearest(id, was, 0, 15)) p->project.schematic.find(id)->pcb.placed = true;  // back where it was
         return ok;
     };
+    struct Crystal { int id; Vec2 pins; std::vector<std::pair<int, int>> loads; };  // load capacitors with their nets
+    std::vector<Crystal> crystals;
     for (const auto& y : sch.components()) {
         if (y.ref.size() < 2 || y.ref[0] != 'Y' || !std::isdigit(static_cast<unsigned char>(y.ref[1])) || y.pcb.locked || !y.pcb.placed)
             continue;
@@ -1247,6 +1260,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
                           nearest(y.id, pins, 6.5, 9);
         if (near && !close)
             moved.push(y.ref + " → " + sch.find(icId)->ref + " " + std::to_string(count) + " pins");
+        crystals.push_back({y.id, pins, {}});
         for (const auto& c : sch.components()) {
             if (c.kind != ComponentKind::Capacitor || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2) continue;
             const int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
@@ -1255,6 +1269,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             if (net < 0) continue;
             for (const auto& pad : p->project.pcb.pads(sch))
                 if (pad.componentId == y.id && pad.net == net) {
+                    crystals.back().loads.push_back({c.id, net});
                     if ((sch.find(c.id)->pcb.position - pad.position).length() > 3 && nearest(c.id, pad.position, 1.5, 6))
                         moved.push(c.ref + " → " + y.ref);
                     settled.insert(c.id);
@@ -1307,8 +1322,29 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             return false;
         };
         // Close by the pin, if need be with the small parts there stepping aside; else the nearest free spot.
-        if (within(1.5, 4) || stepAside(pr.pad->position, 7, [&] { return within(1.5, 4); }) || within(4.5, 9))
-            moved.push(sch.find(pr.cap)->ref + " → " + pinLabel(*p, {ic->id, pr.pad->pinIndex}));
+        if (!within(1.5, 4) && !stepAside(pr.pad->position, 7, [&] { return within(1.5, 4); }) && !within(4.5, 9)) continue;
+        // Still far, with a crystal taking the room by the pin: the capacitor first, then the crystal (and its load
+        // capacitors) again further out; kept only when all of them find a spot.
+        for (const auto& xt : crystals) {
+            const auto pads2 = p->project.pcb.pads(sch);
+            const auto mine = std::find_if(pads2.begin(), pads2.end(), [&](const Pad& q) { return q.componentId == pr.cap && q.net == pr.pad->net; });
+            if (mine == pads2.end() || (mine->position - pr.pad->position).length() <= 3.5 ||
+                (sch.find(xt.id)->pcb.position - pr.pad->position).length() > 10)
+                continue;
+            const Project before = p->project;
+            p->project.schematic.find(xt.id)->pcb.placed = false;
+            for (const auto& [load, net] : xt.loads) p->project.schematic.find(load)->pcb.placed = false;
+            bool ok = within(1.5, 3.5) && nearest(xt.id, xt.pins, 2.5, 9);
+            for (const auto& [load, net] : xt.loads)
+                for (const auto& q : p->project.pcb.pads(sch))
+                    if (ok && q.componentId == xt.id && q.net == net) {
+                        ok = nearest(load, q.position, 1.5, 6);
+                        break;
+                    }
+            if (!ok) p->project = before, p->router.reset();
+            break;
+        }
+        moved.push(sch.find(pr.cap)->ref + " → " + pinLabel(*p, {ic->id, pr.pad->pinIndex}) + gap(pr.cap, ic->id, pr.pad->pinIndex));
     }
     // A bulk capacitor no regulator pin took: on a rail a regulator drives, by the nearest load supply pin; on a rail
     // fed from outside, where the supply comes in (a connector, input diode, fuse, ferrite or inductor on its net);
@@ -1338,7 +1374,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
         if (!best || (best->position - at).length() <= 6) continue;
         settled.insert(c.id);
         if (nearest(c.id, best->position, 2, 9))
-            moved.push(sch.find(c.id)->ref + " → " + pinLabel(*p, {best->componentId, best->pinIndex}));
+            moved.push(sch.find(c.id)->ref + " → " + pinLabel(*p, {best->componentId, best->pinIndex}) + gap(c.id, best->componentId, best->pinIndex));
     }
     // A capacitor from ground to a signal net with one IC pin (AREF, EN, a reference or filter pin) goes beside it.
     for (const auto& c : sch.components()) {
@@ -1358,7 +1394,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
         if (ics == 1) settled.insert(c.id);
         if (ics != 1 || (sch.find(c.id)->pcb.position - pin.position).length() <= 3) continue;
         const std::string label = pinLabel(*p, {pin.componentId, pin.pinIndex});
-        if (nearest(c.id, pin.position, 1.5, 9)) moved.push(c.ref + " → " + label);
+        if (nearest(c.id, pin.position, 1.5, 9)) moved.push(c.ref + " → " + label + gap(c.id, pin.componentId, pin.pinIndex));
     }
     if (bound) bound->insert(settled.begin(), settled.end());  // placed by their pins: grouping leaves them there
     return moved;
@@ -3853,6 +3889,13 @@ void pcbTools(Table& t) {
                   Json placed, bestPlaced;  // the capacitors / crystals by their pins, as Auto Place reports them
                   auto paired = [&] { return (placed = autoplaceTool(s, place).data.get("decouplingPlaced")).size(); };
                   const size_t pairs = paired();
+                  auto spread = [&] {  // the capacitors' distances to their pins, summed ("C2 → U1.VCC (2.7 mm)")
+                      double mm = 0;
+                      for (const auto& m : placed.items())
+                          if (const auto at = m.asString("").rfind(" ("); at != std::string::npos) mm += std::atof(m.asString("").c_str() + at + 2);
+                      return mm;
+                  };
+                  const double reach = spread() + 1;
                   bestPlaced = placed;
                   const int allowed = problems();
                   Project best = pr;
@@ -3863,7 +3906,7 @@ void pcbTools(Table& t) {
                           const double w = pr.pcb.settings.width - (cutWidth ? 1 : 0), h = pr.pcb.settings.height - (cutWidth ? 0 : 1);
                           if (w < 5 || h < 5 || ++tries > 80) continue;
                           sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
-                          if (paired() >= pairs && pr.pcb.settings.width == w && pr.pcb.settings.height == h && problems() <= allowed) {
+                          if (paired() >= pairs && spread() <= reach && pr.pcb.settings.width == w && pr.pcb.settings.height == h && problems() <= allowed) {
                               best = pr, bestPlaced = placed, shrunk = 1;
                               break;
                           }
@@ -4203,6 +4246,33 @@ void pcbTools(Table& t) {
                       if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() &&
                           !p->project.pcb.settings.netWidths.count(n.name) && !p->project.pcb.isZoneNet(p->project.schematic, n.index))
                           widened.push_back(n.name);
+              // A route with coupled pairs pairs X_DP / X_DM (USB) nets by a directive, as a designer would.
+              Json pairedByName = Json::array();
+              if (ar.coupledPairs && !ar.scoped() && !ar.fanoutOnly) {
+                  std::set<int> paired;
+                  for (const auto& [pn, nn] : differentialPairs(p->project.schematic)) paired.insert(pn), paired.insert(nn);
+                  std::map<std::string, const Net*> byUpper;
+                  for (const auto& n : p->project.schematic.nets()) {
+                      std::string u = n.name;
+                      for (auto& ch : u) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                      byUpper[u] = &n;
+                  }
+                  std::vector<std::pair<PinRef, std::string>> add;
+                  for (const auto& [u, n] : byUpper)
+                      if (u.size() > 3 && u.compare(u.size() - 3, 3, "_DP") == 0 && byUpper.count(u.substr(0, u.size() - 3) + "_DM") && !paired.count(n->index))
+                          for (const auto& pin : n->pins)
+                              if (const Component* c = p->project.schematic.find(pin.component); c && !isNetSymbolKind(c->kind)) {
+                                  add.push_back({pin, n->name + " / " + byUpper[u.substr(0, u.size() - 3) + "_DM"]->name});
+                                  break;
+                              }
+                  for (const auto& [pin, name] : add) {
+                      Json d = obj();
+                      d["component"] = pin.component;
+                      d["pin"] = pin.pin;
+                      d["diffPair"] = true;
+                      if (sieda_add_directive(p, d.dump().c_str()) >= 0) pairedByName.push(name);
+                  }
+              }
               const Project unrouted = p->project;
               for (const auto& n : widened) p->project.pcb.settings.netWidths[n] = 0.4;
               Json stats = takeJson(sieda_pcb_autoroute(p));
@@ -4312,6 +4382,7 @@ void pcbTools(Table& t) {
                                      ": not paired by name; schematic_add_directive {\"pin\": a pin on " + n->name +
                                      ", \"diffPair\": true} pairs them, then route again");
               if (uncoupled.size()) j["pairsNotCoupled"] = uncoupled;
+              if (pairedByName.size()) j["pairedByName"] = pairedByName;  // schematic_net_rules lists the directives
               return out(j);
           });
     t.add("pcb", "pcb_autoroute_presets", "Autoroute presets", Kind::Read, true,

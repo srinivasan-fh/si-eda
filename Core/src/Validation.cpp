@@ -414,6 +414,24 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         }
     }
 
+    // ESP32-C3 strapping pins GPIO2 / GPIO8 (GPIO9 = BOOT is a control above) read at reset: left open, the boot mode
+    // rests on the chip's weak defaults.
+    for (const auto& c : sch.components()) {
+        std::string part = c.def().name;
+        for (auto& ch : part) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        if (part.rfind("ESP32-C3", 0) != 0 && part.rfind("ESP32_C3", 0) != 0) continue;
+        const auto& pins = c.def().pins;
+        for (size_t i = 0; i < pins.size(); ++i) {
+            const std::string head = pins[i].name.substr(0, pins[i].name.find('/'));
+            if (head != "GPIO2" && head != "IO2" && head != "GPIO8" && head != "IO8") continue;
+            const int n = c.isNoConnect(static_cast<int>(i)) ? -1 : sch.netOf({c.id, static_cast<int>(i)});
+            if (n < 0 || nets[static_cast<size_t>(n)].pins.size() < 2)
+                add(Severity::Info, "VAL_STRAPPING_PIN",
+                    c.ref + "." + pins[i].name + " is a strapping pin left open: its level at reset picks the boot mode; "
+                                                   "tie it as the datasheet's strapping table says (often a 10k pull-up).", c);
+        }
+    }
+
     // Capacitors on `net` whose other pin is on ground (`highFrequency`: 1 µF or less, not bulk).
     auto capToGround = [&](int net, bool highFrequency = false) {
         int n = 0;
