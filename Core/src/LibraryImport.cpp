@@ -2683,7 +2683,7 @@ KicadBoard parseKicadPcb(const std::string& text) {
             part.part = part.footprint.substr(part.footprint.find(':') == std::string::npos ? 0 : part.footprint.find(':') + 1);
             const SNode* at = k.child("at");
             fp.at = xy(at);
-            fp.angle = num(at, 3);
+            fp.angle = std::fmod(num(at, 3), 360.0);
             const SNode* layer = k.child("layer");
             fp.bottom = layer && layer->atom(1) == "B.Cu";
             for (const auto& f : k.kids) {

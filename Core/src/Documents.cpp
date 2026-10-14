@@ -591,7 +591,8 @@ std::vector<Vec2> gerberArc(Vec2 a, Vec2 b, Vec2 c, bool ccw) {
     double t0 = std::atan2(a.y - c.y, a.x - c.x), t1 = std::atan2(b.y - c.y, b.x - c.x);
     if (ccw && t1 <= t0 + 1e-12) t1 += 2 * M_PI;
     if (!ccw && t1 >= t0 - 1e-12) t1 -= 2 * M_PI;
-    const int steps = std::clamp(static_cast<int>(std::fabs(t1 - t0) * std::max(r, 0.05) / 0.1), 4, 360);
+    const double n = std::fabs(t1 - t0) * std::max(r, 0.05) / 0.1;  // clamped before the cast: huge or NaN radii
+    const int steps = static_cast<int>(std::clamp(std::isfinite(n) ? n : 4.0, 4.0, 360.0));
     std::vector<Vec2> pts;
     for (int i = 1; i <= steps; ++i) {
         const double t = t0 + (t1 - t0) * i / steps;
@@ -655,7 +656,8 @@ void odbFeatures(const std::string& text, GerberImage& img) {
         double sweep = std::atan2(e.y - c.y, e.x - c.x) - a0;
         if (cw && sweep >= 0) sweep -= 2 * kPi;
         if (!cw && sweep <= 0) sweep += 2 * kPi;
-        const int n = std::clamp(static_cast<int>(std::fabs(sweep) / (kPi / 24)) + 1, 2, 96);
+        const double steps = std::fabs(sweep) / (kPi / 24) + 1;
+        const int n = static_cast<int>(std::clamp(std::isfinite(steps) ? steps : 2.0, 2.0, 96.0));
         for (int i = 1; i <= n; ++i) out.push_back(i == n ? e : c + Vec2{r * std::cos(a0 + sweep * i / n), r * std::sin(a0 + sweep * i / n)});
     };
     std::istringstream in(text);
