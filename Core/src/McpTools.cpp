@@ -369,19 +369,22 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                 const Vec2 shift = sch.pinPosition({a.component, a.pin}) + d * (labelled ? 220 : 120) - sch.pinPosition({b.component, b.pin});
                 for (int id : group) moveBy(id, shift);
                 const Vec2 side = std::fabs(d.x) > 0.5 ? Vec2{0, 1} : Vec2{1, 0};
-                double along = 0;
-                for (int step = 0; step < 40; ++step) {
-                    bool hit = false;
-                    for (int id : group)
-                        for (const auto& c : sch.components()) {
-                            if (in.count(c.id) || c.packageOnly || isNetSymbolKind(c.kind) || c.sheet != sch.find(id)->sheet) continue;
-                            const auto m = room(id), q = room(c.id);
-                            hit |= m[0] < q[2] && q[0] < m[2] && m[1] < q[3] && q[1] < m[3];
-                        }
-                    if (!hit) return true;
-                    const double next = (step / 2 + 1) * 40.0 * (step % 2 ? -1 : 1);  // either side, further each time
-                    for (int id : group) moveBy(id, side * (next - along));
-                    along = next;
+                for (double out = 0; out <= 300; out += 100) {  // further out when its labels need the room
+                    double along = 0;
+                    for (int step = 0; step < 40; ++step) {
+                        bool hit = false;
+                        for (int id : group)
+                            for (const auto& c : sch.components()) {
+                                if (in.count(c.id) || c.packageOnly || isNetSymbolKind(c.kind) || c.sheet != sch.find(id)->sheet) continue;
+                                const auto m = room(id), q = room(c.id);
+                                hit |= m[0] < q[2] && q[0] < m[2] && m[1] < q[3] && q[1] < m[3];
+                            }
+                        if (!hit) return true;
+                        const double next = (step / 2 + 1) * 40.0 * (step % 2 ? -1 : 1);  // either side, further each time
+                        for (int id : group) moveBy(id, side * (next - along));
+                        along = next;
+                    }
+                    for (int id : group) moveBy(id, d * 100 - side * along);
                 }
                 return false;
             }
@@ -2654,6 +2657,13 @@ void schematicTools(Table& t) {
                   }
               }
               Json layoutWires = wires;
+              // The build's own links first: a part anchors by its signal (a pull-up by its pin) before its supply.
+              for (const Link& l : links) {
+                  Json chain = Json::array();
+                  chain.push(l.from);
+                  chain.push(l.to);
+                  layoutWires.push(chain);
+              }
               // A net this build names only on new parts, already on parts drawn before (a later build adding a cap
               // on VBUS): the new part is laid out by a pin of the net from before (a regulator's first), not wired.
               {
@@ -2688,12 +2698,6 @@ void schematicTools(Table& t) {
                       chain.push(first);
                       layoutWires.push(chain);
                   }
-              }
-              for (const Link& l : links) {
-                  Json chain = Json::array();
-                  chain.push(l.from);
-                  chain.push(l.to);
-                  layoutWires.push(chain);
               }
               layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet);
               auto straight = [&](const Link& l) {  // facing pins in line, nothing in between
@@ -2812,6 +2816,16 @@ void schematicTools(Table& t) {
                   Json args = obj();
                   args["chain"] = chain;
                   run("schematic_connect", args, "wire " + chain.dump());
+              }
+              Json noConnectCleared = Json::array();  // a pin marked unused before that this build joined to a net
+              for (const auto& c : proj(s).schematic.components())
+                  for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i)
+                      if (const int n = proj(s).schematic.netOf({c.id, i});
+                          c.isNoConnect(i) && n >= 0 && proj(s).schematic.nets()[static_cast<size_t>(n)].pins.size() > 1)
+                          noConnectCleared.push(pinLabel(*P(s), {c.id, i}));
+              for (const auto& pin : noConnectCleared.items()) {
+                  const PinAddress pa = pinAddress(*P(s), pin);
+                  sieda_set_pin_no_connect(P(s), pa.component, pa.pin, 0);
               }
               Json args = obj();
               args["pins"] = valid(a.get("noConnect"), "noConnect");
@@ -2952,7 +2966,8 @@ void schematicTools(Table& t) {
                       }
               }
               Json j = obj();
-              if (labelOverlaps.size()) j["labelOverlaps"] = labelOverlaps;  // schematic_move_component clears them
+              if (labelOverlaps.size()) j["labelOverlaps"] = labelOverlaps;
+              if (noConnectCleared.size()) j["noConnectCleared"] = noConnectCleared;  // schematic_move_component clears them
               for (int id : ids) {  // with the nets they joined; pins: false keeps the reply short
                   Json part = componentJson(*P(s), id);
                   if (!a.get("pins").asBool(true)) {
@@ -3442,7 +3457,15 @@ void libraryTools(Table& t) {
               std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
               for (const auto& [n, part] : ranked)
                   if (static_cast<int>(list.size()) < limit) list.push(entry(*part));
-              if (!total && !partial.empty()) {  // nothing has every word: the parts with the most of them
+              std::string kindWord;  // a built-in kind ("led 0805"): partial matches would only be noise
+              for (const auto& w : words)
+                  for (const char* k : {"led", "leds", "resistor", "resistors", "capacitor", "capacitors", "inductor"})
+                      if (w == k) kindWord = w;
+              if (!total && !kindWord.empty())
+                  j["builtin"] = "\"" + kindWord + "\" is a built-in kind, not a catalog part: schematic_build parts [{\"ref\": \"D1\", \"kind\": "
+                                 "\"led\", \"value\": \"Green\", \"package\": \"0805\"}] (kinds: resistor, capacitor, inductor, led; "
+                                 "library_builtin_kinds lists them with packages).";
+              if (!total && !partial.empty() && kindWord.empty()) {  // nothing has every word: the parts with the most of them
                   size_t best = 0;
                   for (const auto& [n, p] : partial) best = std::max(best, n);
                   for (const auto& [n, p] : partial)
@@ -4105,7 +4128,7 @@ void pcbTools(Table& t) {
           "an open end first, at the top / bottom edge facing out; edges: false skips that); false places only those "
           "not on the board yet. decoupling (default on with all) gives each IC supply pin the nearest small capacitor (≤ 1 µF; a regulator's "
           "input / output also a bulk one) between its net and ground, one per pin, moves one further than 3 mm to the "
-          "nearest free spot by the pin, and puts a crystal (Y…) by the pins it drives with its load capacitors beside "
+          "nearest free spot by the pin (as near as the room there allows: decouplingPlaced gives each distance), and puts a crystal (Y…) by the pins it drives with its load capacitors beside "
           "it (shorter loops; on a dense 2-layer board it leaves the router less room around the IC).",
           Schema().boolean("all", "Re-place everything (default false)")
               .boolean("edges", "With all: antenna parts to the top edge (with a keep-out), USB / connectors with an open "
