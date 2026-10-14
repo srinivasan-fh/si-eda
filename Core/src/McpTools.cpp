@@ -433,20 +433,20 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // Two parts on one pin (or a chain folding back): the nearest clear spot, along the pin's side either
                     // way or further out (its pin then gets a label), clear of the group (a crystal's load capacitor
                     // either side of its pin, so it stays under the crystal).
-                    auto hitAt = [&](bool labelled) {  // labelled: joined to its pin by labels (their room counts too)
-                        const auto o = sch.symbolOutline(*sch.find(b.component)), ro = room(b.component);
+                    auto hitAt = [&, hub = a, part = b](bool labelled) {  // labelled: joined to its pin by labels (their room counts too)
+                        const auto o = sch.symbolOutline(*sch.find(part.component)), ro = room(part.component);
                         bool hit = false;
                         for (int other : group) {  // the part it is wired to: bodies apart; any other: label room too
-                            const auto q = other == a.component ? sch.symbolOutline(*sch.find(other)) : room(other);
-                            const auto& m = other == a.component ? o : ro;
+                            const auto q = other == hub.component ? sch.symbolOutline(*sch.find(other)) : room(other);
+                            const auto& m = other == hub.component ? o : ro;
                             const double g = 20;
                             hit |= m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g;
                         }
                         // Nor over the labels on the hub's other pins.
-                        const Component& h = *sch.find(a.component);
+                        const Component& h = *sch.find(hub.component);
                         for (int j = 0; j < static_cast<int>(h.def().pins.size()) && !hit; ++j) {
                             const auto net = pinNet.find({h.id, j});
-                            if ((j == a.pin && !labelled) || net == pinNet.end()) continue;
+                            if ((j == hub.pin && !labelled) || net == pinNet.end()) continue;
                             const Vec2 q = sch.pinPosition({h.id, j}), e = pinOutward(p->project, {h.id, j});
                             const Vec2 r = q + e * (std::fabs(e.x) > 0.5 ? 12.0 * static_cast<double>(net->second.size()) + 40 : 80);
                             const std::array<double, 4> m = labelled ? ro : std::array<double, 4>{o[0], o[1] - 14, o[2], o[3] + 14};
