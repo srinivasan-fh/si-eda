@@ -342,7 +342,13 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
     // --- An LED (or a series string of them) needs something that sets its current.
     std::set<int> seenLeds;
     for (const auto& c : sch.components()) {
-        if (c.kind != ComponentKind::LED || seenLeds.count(c.id)) continue;
+        if (c.kind != ComponentKind::LED) continue;
+        for (int p = 0; p < 2; ++p)  // an open end: it never lights (ERC names the pin; the review says what it means)
+            if (const int n = sch.netOf({c.id, p}); !c.isNoConnect(p) && (n < 0 || nets[static_cast<size_t>(n)].pins.size() < 2))
+                add(Severity::Warning, "VAL_LED_OPEN",
+                    c.ref + "'s " + c.def().pins[static_cast<size_t>(p)].name + " pin joins nothing, so it never lights: wire it "
+                            "(cathode to ground or its driver, anode to its resistor).", c);
+        if (seenLeds.count(c.id)) continue;
         std::vector<const Component*> group{&c};
         seenLeds.insert(c.id);
         bool limited = false;

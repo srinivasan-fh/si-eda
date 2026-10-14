@@ -20812,6 +20812,9 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     CHECK(flagged(R"({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "D1", "kind": "led"},
                                 {"ref": "R1", "kind": "resistor"}],
                       "nets": {"VCC": ["V1.+", "D1.A", "R1.1"], "GND": ["V1.-", "D1.K"]}})", "VAL_LED_NO_RESISTOR"));
+    // An LED whose cathode joins nothing never lights.
+    CHECK(flagged(R"({"parts": [{"ref": "R1", "kind": "resistor"}, {"ref": "D1", "kind": "led"}],
+                      "nets": {"LED": ["R1.2", "D1.A"]}})", "VAL_LED_OPEN"));
     // A multi-function reset pin (the ATmega328P's PC6/RST) is checked too.
     CHECK(flagged(R"({"parts": [{"ref": "U1", "part": "ATMEGA328P-PU"}], "nets": {}})"));
     CHECK(floating(R"({"parts": [{"ref": "U1", "part": "NE555"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"}],

@@ -3967,8 +3967,8 @@ void pcbTools(Table& t) {
           "round) and lists the repairs kept. A whole-board route re-routes every net, hand routing included: to keep "
           "hand-routed nets, route the others with preset nets. A preset or options apply to this call only; keep: true "
           "saves a whole-board one as the board's strategy (the app's Auto Route uses it). Returns "
-          "routed / failed connections, vias and track length; wide tracks into small two-pad parts are necked down at the "
-          "pad (neckedDown) to keep them from tombstoning.",
+          "routed / failed connections, vias and track length; small two-pad parts get even copper at both pads "
+          "(tombstoningPrevented lists them) so they do not stand on end.",
           Schema()
               .str("preset", "Strategy preset (pcb_autoroute_presets)")
               .object("options", "Strategy options (see description)")
@@ -4019,7 +4019,7 @@ void pcbTools(Table& t) {
                   routequality::fixAcuteJoins(p->project.pcb, p->project.schematic);
                   squareEscapes(p->project);
               }
-              if (const Json necked = neckTombstones(p->project); necked.size()) j["neckedDown"] = necked;
+              if (const Json necked = neckTombstones(p->project); necked.size()) j["tombstoningPrevented"] = necked;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed
               const AutorouteOptions used = p->project.pcb.settings.autorouter;
@@ -4225,7 +4225,7 @@ void pcbTools(Table& t) {
               Json j = obj();
               j["zone"] = z;
               // The pour joins its net's pads itself: those connections no longer need a track.
-              if (const Json necked = neckTombstones(P(s)->project); necked.size()) j["neckedDown"] = necked;  // spokes added copper
+              if (const Json necked = neckTombstones(P(s)->project); necked.size()) j["tombstoningPrevented"] = necked;  // spokes added copper
               if (const size_t now = proj(s).pcb.ratsnest(proj(s).schematic).size(); now != openBefore)
                   j["unroutedConnections"] = std::to_string(openBefore) + " → " + std::to_string(now) + " (the pour joins " +
                                              requireStr(a, "net") + " pads, so those connections need no track)";
