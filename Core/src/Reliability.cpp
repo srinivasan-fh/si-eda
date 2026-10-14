@@ -522,10 +522,9 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     // ------------------------------------------------------------------ PCB layout reliability
     const double eps = 1e-6;
     std::set<int> zoneNets;
-    std::set<std::pair<int, int>> zoneNetLayers;  // (net, layer) of each pour
     for (const auto& z : pcb.zones)
         for (const auto& n : nets)
-            if (n.name == z.net) zoneNets.insert(n.index), zoneNetLayers.insert({n.index, z.layer});
+            if (n.name == z.net) zoneNets.insert(n.index);
 
     // Acid traps: two pieces of one track meeting at an acute angle.
     {
@@ -616,7 +615,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         double mass[2] = {0, 0};
         for (int k = 0; k < 2; ++k) {
             const Pad& p = *mine[static_cast<size_t>(k)];
-            if (zoneNetLayers.count({p.net, p.smdLayer})) mass[k] += 2 * s.trackWidth;  // a pour on its layer: thermal-relief spokes
+            if (zoneNets.count(p.net)) mass[k] += 2 * s.trackWidth;  // pours reach chip pads through thermal-relief spokes
             for (const auto& t : pcb.tracks)
                 // Copper that leaves the pad conducts heat away; pieces lying wholly on the pad (neck-down, the
                 // lead-in of a serpentine) do not.
