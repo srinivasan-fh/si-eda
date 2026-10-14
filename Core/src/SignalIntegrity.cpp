@@ -1385,6 +1385,12 @@ SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads,
         } else if (matched < 5) {
             r.recommendation = "The driver (" + ohms(d.rOut) + ") already matches the " + ohms(r.z0Trunk) +
                                " line; shorten stubs or terminate the far end (R ≈ " + ohms(r.z0Trunk) + " to VTT).";
+        } else if (const auto pairs = differentialPairs(sch); std::any_of(pairs.begin(), pairs.end(), [&](const auto& pr) {
+                       return pr.first == r.net || pr.second == r.net;
+                   })) {
+            // A pair member: the interface's drivers and receivers terminate the pair (USB, LVDS…), not a series R.
+            r.recommendation = "A differential pair member: route the pair coupled at its differential impedance (" +
+                               ohms(s.differentialImpedance) + "; pair rules set it per pair), not terminated alone.";
         } else {
             r.recommendedSeriesR = nearestStandardValue(matched, ESeries::E24);
             r.recommendation = "Add a " + ohms(r.recommendedSeriesR) + " series resistor at " + r.driverRef + " (Z0 " +
