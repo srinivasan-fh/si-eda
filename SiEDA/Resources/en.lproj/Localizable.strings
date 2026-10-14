@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)";
 "Export Pin Map…" = "Export Pin Map…";
 "Assign Pins from File…" = "Assign Pins from File…";
+"Import KiCad Board…" = "Import KiCad Board…";
+"Open Event Hooks Folder" = "Open Event Hooks Folder";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set";
+"This project is open elsewhere" = "This project is open elsewhere";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash.";
+"Open Anyway" = "Open Anyway";

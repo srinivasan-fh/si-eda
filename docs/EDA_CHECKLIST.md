@@ -34,7 +34,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Object locking | ✅ | schematic `locked`, locked tracks kept by the router |
 | P1 | Offline-first, optional cloud sync | 🟡 | fully offline; cloud sync ⏳ (shared-folder live co-editing exists) |
 | P1 | Project templates and reusable settings | ✅ | reference designs, rule presets, DFM packs; File → Save as Template… / New from Template |
-| P1 | Versioned database and migration tools | 🟡 | tolerant reader; explicit format versions + migrator ⏳ |
+| P1 | Versioned database and migration tools | ✅ | format version, load notes for newer files, `sieda-cli --upgrade` rewrites files in the current format |
 | P1 | Custom shortcuts and command palette | ✅ | ⌘K palette, Settings → Shortcuts (menus and canvas tool keys) |
 | P1 | Incremental updates | ✅ | delta snapshots, cached pours / board mask |
 | P1 | ➕ Settings export / import (rules, colours, shortcuts) | ✅ | Settings → Appearance → Export / Import Settings… (rules travel in templates) |
@@ -268,7 +268,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ In-app Git: clone, commit, branch, tag | ⏳ | Git drivers exist |
 | P1 | Named revisions, visual diff, comments, review summaries | ✅ | |
 | P1 | Browser read-only viewer, cloud sync, share links | ⏳ | |
-| P1 | ➕ File locking / check-out | ⏳ | |
+| P1 | ➕ File locking / check-out | ✅ | `<file>.lock` beside an open project: who has it open, where, since when (Live Collaboration does not lock) |
 | P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | 🟡 | three-way merge and co-editing ✅ |
 | P3 | Permissions, sign-off, audit, identity | ⏳ | |
 
@@ -294,11 +294,11 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | PDF / SVG / PNG documentation | ✅ | |
 | P0 | DXF import of outlines, ➕ DXF export | ✅ | `Documents.cpp`; File → Import Board Outline (DXF)…, Export → DXF |
 | P0 | STEP in / out, BOM and fab files | ✅ | |
-| P1 | KiCad project import (schematic + board) | 🟡 | KiCad libraries and schematic sheets (.kicad_sch) ✅; board (.kicad_pcb) ⏳ |
+| P1 | KiCad project import (schematic + board) | 🟡 | libraries, schematic sheets and boards (.kicad_pcb: placement fitted to the pads, tracks, arcs, vias, zones, outline, fidelity report) ✅; hierarchical sub-sheets ⏳ |
 | P1 | EasyEDA / Eagle projects | 🟡 | Eagle libraries ✅ |
 | P1 | Import-fidelity report, library mapping | 🟡 | library import notes ✅ |
 | P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
-| P1 | ➕ Gerber / ODB++ import as a reference layer | 🟡 | Gerber and drill reference layers ✅ (saved with the project); ODB++ ⏳ |
+| P1 | ➕ Gerber / ODB++ import as a reference layer | ✅ | Gerber, drill and ODB++ layer features files (saved with the project) |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
 | P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ⏳ | |
 | P3 | Enterprise migration, PLM / ERP, archival | ⏳ | |
@@ -312,7 +312,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Python API | ✅ | `python/sieda.py`: every MCP tool as a method (standard library only; CTest `sieda_python_api`) |
 | P1 | CLI ERC / DRC, automated outputs | ✅ | |
 | P1 | CI templates (GitHub Actions / GitLab) | ✅ | `docs/ci/sieda-check.yml` (GitHub Actions), `docs/ci/sieda-check.gitlab-ci.yml` (GitLab) |
-| P1 | ➕ Event hooks | ⏳ | |
+| P1 | ➕ Event hooks | ✅ | after-open / save / verify / export scripts in Application Support/SiEDA/Hooks |
 | P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface ✅ |
 | P3 | REST, PLM / ERP, plug-in governance | ⏳ | |
 
@@ -384,22 +384,22 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 
 1. ~~Drawn drill map with drill symbols on the fabrication drawing (§10 P0)~~ ✅
 2. ~~Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)~~ ✅
-3. KiCad project import: ~~schematic~~ ✅ + board (§17 P1), then EasyEDA / Eagle projects; ~~LTspice schematics~~ ✅
+3. KiCad project import: ~~schematic~~ ✅ + ~~board~~ ✅ (§17 P1), sub-sheets, then EasyEDA / Eagle projects; ~~LTspice schematics~~ ✅
 4. ~~Netlist import (§17 P0)~~ ✅
 5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅
 6. ~~Schematic revision table and net-tie symbol / footprint (§2 P0)~~ ✅
 7. ~~Board test-point object and logo / image import to silk or copper (§4 P0)~~ ✅
 8. ~~User-defined documentation layers (§4 P0)~~ ✅
 9. ~~Panel DRC (§6 P1)~~ ✅
-10. ~~Python API~~ ✅ (over MCP), event hooks (§18 P1)
+10. ~~Python API~~ ✅ (over MCP), ~~event hooks~~ ✅ (§18 P1)
 11. ~~Settings export / import, user project templates (§1 P1)~~ ✅
 12. ~~High-contrast / colour-blind layer palette~~ ✅; beginner / pro modes (§16)
 13. MCU / FPGA pin planner (graphical) with ~~CubeMX / XDC / QSF import and firmware header export~~ ✅ (§12)
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
 15. ~~Library update notices~~, library versions, ~~tags / favourites, CSV pin-table wizard, IPC zero-orientation check~~ (§3)
 16. ~~Consolidated multi-board BOM, custom BOM columns~~ ✅, price alerts (§11)
-17. In-app Git, browser viewer, file locking, approvals (§15)
-18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and migrator (§1)
+17. In-app Git, browser viewer, ~~file locking~~ ✅, approvals (§15)
+18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
 19. Rigid-flex folding in 3D, native MCAD connectors (§8)
 20. Fab quote / order APIs, Gerber-level package comparison (§9 P2)
 21. Windows / Linux app (§1 P0) — the core already builds there; the app is SwiftUI

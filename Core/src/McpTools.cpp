@@ -984,6 +984,153 @@ Json readFileArg(McpServer& s, const std::string& path) {
     return Json(ss.str());
 }
 
+/// schematic_import_netlist's work on a read netlist (also the start of pcb_import_kicad): the schematic_build result
+/// with "imported" (what each designator became).
+Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
+    auto upper = [](std::string v) {
+        for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        return v;
+    };
+    std::map<std::string, std::vector<std::string>> pinsOf;  // designator → its pin numbers, in netlist order
+    for (const auto& [net, members] : nl.nets)
+        for (const auto& [ref, pin] : members)
+            if (std::find(pinsOf[ref].begin(), pinsOf[ref].end(), pin) == pinsOf[ref].end()) pinsOf[ref].push_back(pin);
+    auto tool = [&](const char* name, const Json& args) {
+        for (const auto& t : mcpTools())
+            if (t.name == name) return t.handler(s, args).data;
+        throw ToolError(std::string("missing tool ") + name);
+    };
+    Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
+    std::set<std::string> made;
+    for (const auto& np : nl.parts) {
+        const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
+        const auto& pins = pinsOf[ref];
+        const std::string fp = np.footprint.substr(np.footprint.find(':') == std::string::npos ? 0 : np.footprint.find(':') + 1);
+        Json part = obj();
+        part["ref"] = ref;
+        std::string size;
+        for (const char* sz : {"0201", "0402", "0603", "0805", "1206", "1210", "1812", "2010", "2512"})
+            if (size.empty() && fp.find(sz) != std::string::npos) size = sz;
+        const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
+        const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
+                         : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
+        if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+            part["kind"] = np.part.substr(5);
+            static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
+            if (std::regex_match(np.value, plain)) part["value"] = np.value;
+        } else if (kind && (np.package.lands.empty() || !size.empty())) {  // a board's THT passive keeps its exact pads
+            part["kind"] = kind;
+            if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
+            if (!size.empty()) part["package"] = size;
+        } else if (const StandardPart* sp = !np.package.lands.empty() ? nullptr : findStandardPart(np.part) ? findStandardPart(np.part)
+                                                                                                         : findStandardPart(np.value)) {
+            part["part"] = sp->spec.name;
+        } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
+            skipped.push(ref);
+            continue;
+        } else {  // a library part with the netlist's pins
+            std::string name = !np.part.empty() && np.part != "~" ? np.part : !np.value.empty() ? np.value : prefix + "_PART";
+            int named = 0;  // the package and pin count the footprint names, its pitch and body sizes left out
+            static const std::regex sizes(R"(_P\d+(\.\d+)?mm|_?\d+(\.\d+)?x\d+(\.\d+)?(x\d+(\.\d+)?)?mm)");
+            std::string pkg = packageTypeFromName(std::regex_replace(fp, sizes, ""), named);
+            bool numeric = !pins.empty();
+            int top = 0;
+            for (const auto& pin : pins) {
+                numeric = numeric && pin.size() <= 3 && std::all_of(pin.begin(), pin.end(), ::isdigit);
+                if (numeric) top = std::max(top, std::stoi(pin));
+            }
+            std::vector<std::string> numbers = pins;
+            if (named < top || named > 4 * top + 8 || top <= 1) named = 0;  // not a pin count ("M3_DIN965", "45-Degree")
+            const int count = numeric ? std::max(top, named) : static_cast<int>(pins.size());
+            if (numeric) {
+                numbers.clear();
+                for (int i = 1; i <= count; ++i) numbers.push_back(std::to_string(i));
+            }
+            if (pkg.empty() || (named && named != count)) pkg = "HEADER";
+            const bool exact = !np.package.lands.empty();  // a board import: the footprint's own pads
+            if (exact) {
+                numbers.clear();
+                for (const auto& l : np.package.lands)
+                    if (l.pin != "-" && std::find(numbers.begin(), numbers.end(), l.pin) == numbers.end()) numbers.push_back(l.pin);
+            }
+            name += "-" + std::to_string(exact ? static_cast<int>(numbers.size()) : count);
+            if (!made.count(name)) {
+                Json spec = obj(), package = obj(), pinList = Json::array();
+                if (exact) {
+                    CustomPartSpec cs;
+                    cs.package = np.package;
+                    package = customPartSpecToJson(cs).get("package");
+                }
+                package["type"] = exact ? "CUSTOM" : pkg, package["pinCount"] = exact ? static_cast<int>(numbers.size()) : count;
+                for (const auto& n : numbers) {
+                    Json pin = obj();
+                    pin["number"] = n;
+                    const auto it = np.pinNames.find(n);
+                    pin["name"] = it == np.pinNames.end() ? n : it->second;
+                    pin["type"] = "passive";
+                    pinList.push(pin);
+                }
+                spec["name"] = name, spec["package"] = package, spec["pins"] = pinList;
+                spec["refPrefix"] = prefix.empty() ? "U" : prefix;
+                if (!np.value.empty()) spec["defaultValue"] = np.value;
+                if (!np.footprint.empty()) spec["description"] = "Imported from a netlist: " + np.footprint;
+                try {
+                    tool("library_create_part", spec);
+                } catch (const std::exception&) {  // a package that will not draw: a header of the pins used
+                    Json header = obj();
+                    header["type"] = "HEADER", header["pinCount"] = static_cast<int>(pinList.size());
+                    spec["package"] = header;
+                    tool("library_create_part", spec);
+                }
+                made.insert(name);
+                created.push(name);
+            }
+            part["part"] = name;
+            if (!np.value.empty()) part["value"] = np.value;
+        }
+        mapped[ref] = part.has("part") ? part.get("part") : part.get("kind");
+        parts.push(part);
+    }
+    Json nets = obj(), open = Json::array(), wires = Json::array();
+    int unnamed = 0;
+    for (const auto& [name, members] : nl.nets) {
+        if (members.size() == 1 && name.rfind("unconnected-", 0) == 0)  // KiCad's pins left open on purpose
+            open.push(members[0].first + "." + members[0].second);
+        if (members.size() < 2) continue;  // one pin: nothing to join
+        if (members.size() == 2 && (name.empty() || name.rfind("Net-(", 0) == 0)) {  // unnamed: a plain wire
+            Json chain = Json::array();
+            for (const auto& [ref, pin] : members) chain.push(ref + "." + pin);
+            wires.push(chain);
+            continue;
+        }
+        std::string n = name.size() > 1 && name[0] == '/' ? name.substr(1) : name;
+        if (n.rfind("Net-(", 0) == 0 && n.back() == ')') n = n.substr(5, n.size() - 6);  // KiCad's unnamed nets
+        if (n.empty()) n = "N$" + std::to_string(++unnamed);
+        Json list = Json::array();
+        for (const auto& [ref, pin] : members) list.push(ref + "." + pin);
+        nets[n] = list;
+    }
+    Json build = obj();
+    build["parts"] = parts, build["nets"] = nets, build["pins"] = false;
+    if (open.size()) build["noConnect"] = open;
+    if (wires.size()) build["wires"] = wires;
+    Json j = tool("schematic_build", build);
+    Json info = obj();
+    info["format"] = nl.format;
+    info["parts"] = static_cast<int>(nl.parts.size());
+    info["nets"] = static_cast<int>(nets.fields().size());
+    info["as"] = mapped;
+    info["created"] = created;
+    if (skipped.size()) info["skipped"] = skipped;
+    if (!nl.warnings.empty()) {
+        Json w = Json::array();
+        for (const auto& x : nl.warnings) w.push(x);
+        info["warnings"] = w;
+    }
+    j["imported"] = info;
+    return j;
+}
+
 Json writeOrInline(McpServer& s, const Json& a, const std::string& content, const std::string& what) {
     Json j = obj();
     const std::string path = argStr(a, "path", "");
@@ -2068,136 +2215,7 @@ void schematicTools(Table& t) {
               } catch (const std::exception& e) {
                   throw ToolError(std::string("Netlist not read: ") + e.what());
               }
-              auto upper = [](std::string v) {
-                  for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-                  return v;
-              };
-              std::map<std::string, std::vector<std::string>> pinsOf;  // designator → its pin numbers, in netlist order
-              for (const auto& [net, members] : nl.nets)
-                  for (const auto& [ref, pin] : members)
-                      if (std::find(pinsOf[ref].begin(), pinsOf[ref].end(), pin) == pinsOf[ref].end()) pinsOf[ref].push_back(pin);
-              auto tool = [&](const char* name, const Json& args) {
-                  for (const auto& t : mcpTools())
-                      if (t.name == name) return t.handler(s, args).data;
-                  throw ToolError(std::string("missing tool ") + name);
-              };
-              Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
-              std::set<std::string> made;
-              for (const auto& np : nl.parts) {
-                  const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
-                  const auto& pins = pinsOf[ref];
-                  const std::string fp = np.footprint.substr(np.footprint.find(':') == std::string::npos ? 0 : np.footprint.find(':') + 1);
-                  Json part = obj();
-                  part["ref"] = ref;
-                  std::string size;
-                  for (const char* sz : {"0201", "0402", "0603", "0805", "1206", "1210", "1812", "2010", "2512"})
-                      if (size.empty() && fp.find(sz) != std::string::npos) size = sz;
-                  const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
-                  const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
-                                   : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
-                  if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
-                      part["kind"] = np.part.substr(5);
-                      static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
-                      if (std::regex_match(np.value, plain)) part["value"] = np.value;
-                  } else if (kind) {
-                      part["kind"] = kind;
-                      if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
-                      if (!size.empty()) part["package"] = size;
-                  } else if (const StandardPart* sp = findStandardPart(np.part) ? findStandardPart(np.part) : findStandardPart(np.value)) {
-                      part["part"] = sp->spec.name;
-                  } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
-                      skipped.push(ref);
-                      continue;
-                  } else {  // a library part with the netlist's pins
-                      std::string name = !np.part.empty() && np.part != "~" ? np.part : !np.value.empty() ? np.value : prefix + "_PART";
-                      int named = 0;  // the package and pin count the footprint names, its pitch and body sizes left out
-                      static const std::regex sizes(R"(_P\d+(\.\d+)?mm|_?\d+(\.\d+)?x\d+(\.\d+)?(x\d+(\.\d+)?)?mm)");
-                      std::string pkg = packageTypeFromName(std::regex_replace(fp, sizes, ""), named);
-                      bool numeric = !pins.empty();
-                      int top = 0;
-                      for (const auto& pin : pins) {
-                          numeric = numeric && pin.size() <= 3 && std::all_of(pin.begin(), pin.end(), ::isdigit);
-                          if (numeric) top = std::max(top, std::stoi(pin));
-                      }
-                      std::vector<std::string> numbers = pins;
-                      if (named < top || named > 4 * top + 8 || top <= 1) named = 0;  // not a pin count ("M3_DIN965", "45-Degree")
-                      const int count = numeric ? std::max(top, named) : static_cast<int>(pins.size());
-                      if (numeric) {
-                          numbers.clear();
-                          for (int i = 1; i <= count; ++i) numbers.push_back(std::to_string(i));
-                      }
-                      if (pkg.empty() || (named && named != count)) pkg = "HEADER";
-                      name += "-" + std::to_string(count);
-                      if (!made.count(name)) {
-                          Json spec = obj(), package = obj(), pinList = Json::array();
-                          package["type"] = pkg, package["pinCount"] = count;
-                          for (const auto& n : numbers) {
-                              Json pin = obj();
-                              pin["number"] = n;
-                              const auto it = np.pinNames.find(n);
-                              pin["name"] = it == np.pinNames.end() ? n : it->second;
-                              pin["type"] = "passive";
-                              pinList.push(pin);
-                          }
-                          spec["name"] = name, spec["package"] = package, spec["pins"] = pinList;
-                          spec["refPrefix"] = prefix.empty() ? "U" : prefix;
-                          if (!np.value.empty()) spec["defaultValue"] = np.value;
-                          if (!np.footprint.empty()) spec["description"] = "Imported from a netlist: " + np.footprint;
-                          try {
-                              tool("library_create_part", spec);
-                          } catch (const std::exception&) {  // a package that will not draw: a header of the pins used
-                              Json header = obj();
-                              header["type"] = "HEADER", header["pinCount"] = static_cast<int>(pinList.size());
-                              spec["package"] = header;
-                              tool("library_create_part", spec);
-                          }
-                          made.insert(name);
-                          created.push(name);
-                      }
-                      part["part"] = name;
-                      if (!np.value.empty()) part["value"] = np.value;
-                  }
-                  mapped[ref] = part.has("part") ? part.get("part") : part.get("kind");
-                  parts.push(part);
-              }
-              Json nets = obj(), open = Json::array(), wires = Json::array();
-              int unnamed = 0;
-              for (const auto& [name, members] : nl.nets) {
-                  if (members.size() == 1 && name.rfind("unconnected-", 0) == 0)  // KiCad's pins left open on purpose
-                      open.push(members[0].first + "." + members[0].second);
-                  if (members.size() < 2) continue;  // one pin: nothing to join
-                  if (members.size() == 2 && (name.empty() || name.rfind("Net-(", 0) == 0)) {  // unnamed: a plain wire
-                      Json chain = Json::array();
-                      for (const auto& [ref, pin] : members) chain.push(ref + "." + pin);
-                      wires.push(chain);
-                      continue;
-                  }
-                  std::string n = name.size() > 1 && name[0] == '/' ? name.substr(1) : name;
-                  if (n.rfind("Net-(", 0) == 0 && n.back() == ')') n = n.substr(5, n.size() - 6);  // KiCad's unnamed nets
-                  if (n.empty()) n = "N$" + std::to_string(++unnamed);
-                  Json list = Json::array();
-                  for (const auto& [ref, pin] : members) list.push(ref + "." + pin);
-                  nets[n] = list;
-              }
-              Json build = obj();
-              build["parts"] = parts, build["nets"] = nets, build["pins"] = false;
-              if (open.size()) build["noConnect"] = open;
-              if (wires.size()) build["wires"] = wires;
-              Json j = tool("schematic_build", build);
-              Json info = obj();
-              info["format"] = nl.format;
-              info["parts"] = static_cast<int>(nl.parts.size());
-              info["nets"] = static_cast<int>(nets.fields().size());
-              info["as"] = mapped;
-              info["created"] = created;
-              if (skipped.size()) info["skipped"] = skipped;
-              if (!nl.warnings.empty()) {
-                  Json w = Json::array();
-                  for (const auto& x : nl.warnings) w.push(x);
-                  info["warnings"] = w;
-              }
-              j["imported"] = info;
-              return out(j);
+              return out(importNetlist(s, nl));
           });
     t.add("schematic", "schematic_set_erc_severity", "ERC severity", Kind::Edit, true,
           "Reports an ERC rule as error, warning, info or off (\"default\" restores it).",
@@ -4839,6 +4857,180 @@ void teamTools(Table& t) {
               const std::string dxf = readFileArg(s, requireStr(a, "path")).asString();
               Json j = takeJson(sieda_pcb_import_dxf(P(s), dxf.c_str()));
               if (!j.get("ok").asBool(false)) throw ToolError("DXF not imported: " + j.get("error").asString("unreadable"));
+              return out(j);
+          });
+    t.add("pcb", "pcb_import_kicad", "Import a KiCad board", Kind::Edit, false,
+          "Brings a KiCad board (.kicad_pcb, KiCad 6 – 10) into the project. On an empty schematic it first builds the "
+          "circuit, from the project's .kicad_sch when schematic names it, else from the pads' nets (as "
+          "schematic_import_netlist, but every part on a board footprint other than an SMD chip passive becomes a "
+          "library part with that footprint's exact pads). "
+          "Then every part whose designator the schematic has is placed where KiCad has it (side and quarter turn "
+          "fitted to its pads), and the board takes KiCad's copper layers, Edge.Cuts outline, tracks, arcs, vias and "
+          "copper zones (replacing its own routing). fidelity lists parts whose pads stand more than 0.05 mm from "
+          "KiCad's (offBy, mm), designators the schematic lacks and copper whose net could not be matched.",
+          Schema().str("path", "The .kicad_pcb file inside the root").str("text", "Or the board's text")
+              .str("schematic", "The project's .kicad_sch (inside the root): the circuit comes from it, each part with its board footprint")
+              .str("schematicText", "Or that schematic's text"),
+          [](McpServer& s, const Json& a) {
+              const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
+              KicadBoard kb;
+              ParsedNetlist nl;
+              try {
+                  kb = parseKicadPcb(text);
+                  nl = a.has("schematicText") ? parseNetlist(argStr(a, "schematicText"))
+                     : a.has("schematic")     ? parseNetlist(readFileArg(s, argStr(a, "schematic")).asString())
+                                              : kb.netlist;
+              } catch (const std::exception& e) {
+                  throw ToolError(std::string("Not read: ") + e.what());
+              }
+              for (auto& np : nl.parts)  // the schematic's parts take their footprint's exact pads from the board
+                  for (const auto& bp : kb.netlist.parts)
+                      if (bp.ref == np.ref) np.package = bp.package, np.footprint = np.footprint.empty() ? bp.footprint : np.footprint;
+              Json j = obj();
+              if (proj(s).schematic.components().empty()) j["built"] = importNetlist(s, nl);
+              Project& pr = P(s)->project;
+              Schematic& sch = pr.schematic;
+              PcbLayout& pcb = pr.pcb;
+              sieda_pcb_set_layer_count(P(s), kb.layerCount);
+              const int bottom = pcb.settings.bottomLayer();
+              auto layer = [&](int k) { return k == kb.layerCount - 1 ? bottom : k < bottom ? k : -1; };
+              Vec2 origin = kb.edgeMin;
+              const bool outline = !kb.outlineDxf.empty() && applyDxfOutline(pcb, importDxfOutline(kb.outlineDxf));
+              if (!outline) {  // the parts' extent and 5 mm
+                  double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+                  for (const auto& f : kb.footprints)
+                      for (const auto& p : f.pads)
+                          x0 = std::min(x0, p.at.x), y0 = std::min(y0, p.at.y), x1 = std::max(x1, p.at.x), y1 = std::max(y1, p.at.y);
+                  origin = {x0 - 5, y0 - 5};
+                  pcb.settings.outline.clear();
+                  pcb.settings.width = std::max(10.0, x1 - x0 + 10);
+                  pcb.settings.height = std::max(10.0, y1 - y0 + 10);
+              }
+              pcb.settings.thickness = kb.thickness;
+              Json misfit = Json::array(), missing = Json::array();
+              int placed = 0;
+              for (const auto& f : kb.footprints) {
+                  const Component* found = sch.findByRef(f.ref);
+                  const FootprintDef* def = found && found->hasFootprint() ? Library::instance().footprint(found->footprintName()) : nullptr;
+                  if (!def || def->pads.empty() || f.pads.empty()) {
+                      missing.push(f.ref);
+                      continue;
+                  }
+                  Component& c = *sch.find(found->id);
+                  auto numberOf = [&](const PadDef& pd) {
+                      if (pd.pinIndex < 0 || pd.pinIndex >= static_cast<int>(c.def().pins.size())) return std::string("-");
+                      const std::string& n = c.def().pins[static_cast<size_t>(pd.pinIndex)].number;
+                      return n.empty() ? std::to_string(pd.pinIndex + 1) : n;
+                  };
+                  // The quarter turn (and the offset of SiEDA's centred land pattern) that puts its pads on KiCad's.
+                  const int pref = (360 - 90 * ((static_cast<int>(std::lround(f.angle / 90.0)) % 4 + 4) % 4)) % 360;
+                  double bestErr = 1e300;
+                  for (int i = 0; i < 4; ++i) {
+                      PcbPlacement pl = c.pcb;
+                      pl.rotation = (pref + 90 * i) % 360;
+                      pl.bottom = f.bottom;
+                      auto at = [&](const PadDef& pd) {
+                          Vec2 q = pd.offset;
+                          if (pl.bottom) q.x = -q.x;
+                          return pl.position + rotate90(q, pl.rotation);
+                      };
+                      pl.position = {};
+                      Vec2 kc, sc;
+                      for (const auto& p : f.pads) kc = kc + (p.at - origin) * (1.0 / f.pads.size());
+                      for (const auto& pd : def->pads) sc = sc + at(pd) * (1.0 / def->pads.size());
+                      pl.position = kc - sc;
+                      double err = 0;
+                      for (int pass = 0; pass < 2; ++pass) {  // match each KiCad pad to its own number's nearest pad
+                          Vec2 shift;
+                          err = 0;
+                          for (const auto& p : f.pads) {
+                              const Vec2 k = p.at - origin;
+                              double dBest = 1e300;
+                              Vec2 dv;
+                              for (bool any : {false, true}) {
+                                  for (const auto& pd : def->pads)
+                                      if (any || numberOf(pd) == p.number) {
+                                          const Vec2 d = k - at(pd);
+                                          if (d.length() < dBest) dBest = d.length(), dv = d;
+                                      }
+                                  if (dBest < 1e299) break;
+                              }
+                              shift = shift + dv * (1.0 / f.pads.size());
+                              err = std::max(err, dBest);
+                          }
+                          if (pass == 0) pl.position = pl.position + shift;
+                      }
+                      if (err < bestErr - 1e-6) {
+                          bestErr = err;
+                          c.pcb.position = pl.position, c.pcb.rotation = pl.rotation, c.pcb.bottom = pl.bottom;
+                      }
+                  }
+                  c.pcb.placed = true;
+                  c.pcb.board = pcb.board;
+                  ++placed;
+                  if (bestErr > 0.05) {
+                      Json m = obj();
+                      m["ref"] = f.ref, m["offBy"] = std::round(bestErr * 1000) / 1000;
+                      misfit.push(m);
+                  }
+              }
+              // KiCad nets → the schematic's, by the pads they reach (else by name).
+              std::map<std::string, int> netOf;
+              const auto pads = pcb.pads(sch);
+              for (const auto& f : kb.footprints) {
+                  const Component* c = sch.findByRef(f.ref);
+                  for (const auto& p : f.pads) {
+                      if (!c || p.net.empty() || netOf.count(p.net)) continue;
+                      for (const Pad& sp : pads)
+                          if (sp.componentId == c->id && sp.net >= 0 && (sp.position - (p.at - origin)).length() < 0.3) netOf[p.net] = sp.net;
+                  }
+              }
+              const auto& nets = sch.nets();
+              auto net = [&](const std::string& name) {
+                  if (auto it = netOf.find(name); it != netOf.end()) return it->second;
+                  const std::string bare = name.size() > 1 && name[0] == '/' ? name.substr(1) : name;
+                  for (size_t i = 0; i < nets.size(); ++i)
+                      if (nets[i].name == bare) return static_cast<int>(i);
+                  return -1;
+              };
+              pcb.clearRouting();
+              pcb.zones.clear();
+              int dropped = 0;
+              for (const auto& t : kb.tracks) {
+                  Track tr;
+                  tr.net = net(t.net), tr.layer = layer(t.layer), tr.width = t.width;
+                  tr.a = t.a - origin, tr.b = t.b - origin, tr.arc = t.arc, tr.mid = t.mid - origin;
+                  if (tr.net < 0 || tr.layer < 0) ++dropped;
+                  else pcb.addTrack(tr);
+              }
+              for (const auto& v : kb.vias) {
+                  Via via;
+                  via.net = net(v.net), via.position = v.at - origin, via.diameter = v.diameter, via.drill = v.drill;
+                  via.fromLayer = layer(v.from), via.toLayer = v.to < 0 ? -1 : layer(v.to);
+                  if (via.net < 0 || via.fromLayer < 0 || (v.to >= 0 && via.toLayer < 0)) ++dropped;
+                  else pcb.addVia(via);
+              }
+              for (const auto& z : kb.zones) {
+                  const int n = net(z.net);
+                  if (n < 0 || layer(z.layer) < 0) {
+                      ++dropped;
+                      continue;
+                  }
+                  CopperZone cz;
+                  cz.net = nets[static_cast<size_t>(n)].name, cz.layer = layer(z.layer);
+                  for (const Vec2& q : z.polygon) cz.polygon.push_back(q - origin);
+                  pcb.zones.push_back(cz);
+              }
+              j["parts"] = placed, j["tracks"] = static_cast<int>(pcb.tracks.size()), j["vias"] = static_cast<int>(pcb.vias.size());
+              j["zones"] = static_cast<int>(pcb.zones.size()), j["layers"] = pcb.settings.layerCount, j["outline"] = outline;
+              Json size = Json::array();
+              size.push(pcb.settings.width), size.push(pcb.settings.height);
+              j["board"] = size;
+              Json fidelity = obj(), warnings = Json::array();
+              fidelity["misfit"] = misfit, fidelity["missing"] = missing, fidelity["copperDropped"] = dropped;
+              j["fidelity"] = fidelity;
+              for (const auto& w : kb.netlist.warnings) warnings.push(w);
+              if (warnings.size()) j["warnings"] = warnings;
               return out(j);
           });
     t.add("pcb", "pcb_reference_layer", "Reference layer (Gerber)", Kind::Edit, false,

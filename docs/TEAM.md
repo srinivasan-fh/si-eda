@@ -93,6 +93,20 @@ Turn it off to go back to saving by hand. Code: `SiEDA/App/LiveCollaboration.swi
 `LiveCollaborationIndicator`), merge `EDAEngine.mergeProjects` → `sieda_merge_projects`. Test:
 `LiveCollaborationTests.testTwoWindowsMergeEachOthersSaves`.
 
+## Check-out lock and event hooks
+
+- **Lock:** while a project is open, SiEDA keeps `<name>.siedaproj.lock` beside it, saying who has it open, on which
+  Mac and since when. Opening a file someone else has locked asks first: "This project is open elsewhere".
+  - A lock is ignored when its app on this Mac has quit, or when it is older than 12 hours.
+  - Live Collaboration does not lock, because co-editing is its point.
+- **Event hooks:** Settings → Open Event Hooks Folder opens Application Support/SiEDA/Hooks.
+  - An executable there named `after-open`, `after-save`, `after-verify` or `after-export` runs in the background
+    after that event, with `SIEDA_EVENT`, `SIEDA_PROJECT` and `SIEDA_OUTPUT` (the fabrication folder) set.
+  - Typical uses: commit to Git, copy the fabrication package to a share, post to a chat.
+  - Output goes to `hooks.log`, and a hook is stopped after a minute.
+  - Only that folder is used, so a project never brings scripts of its own.
+- **Code:** `SiEDA/App/ProjectHooks.swift` (`ProjectLock`, `ProjectHooks`).
+
 ## Design review
 
 **File → Design Review…** lists comments pinned to a part (or to a place on the board or a sheet). Open comments are

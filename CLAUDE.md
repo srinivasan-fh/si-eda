@@ -79,14 +79,19 @@
   schema, price breaks, BOM roll-up, catalog match), app in `SiEDA/Suppliers/` (URLSession clients, Keychain keys,
   offline cache), `SupplierSearchView`, `BomLivePricingView`; guide in `docs/SUPPLIERS.md`. Tests never use the
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
-- Gerber viewer / reference layers: `parseGerber` + `gerberImageJson` in `Documents.cpp` (Gerber X2 / RS-274X and
-  Excellon; `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
+- Gerber viewer / reference layers: `parseGerber` + `gerberImageJson` in `Documents.cpp` (Gerber X2 / RS-274X,
+  Excellon and ODB++ layer `features` files (kind "odb"); `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
   C `sieda_gerber_parse` / `sieda_pcb_*reference_layer*`, MCP `pcb_reference_layer`, app `GerberViewerView.swift` and
   the PCB canvas overlay (`DesignStore.referenceArtwork`).
 - Netlist / schematic import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV, and through it
   `parseKicadSchematic` (.kicad_sch: counter-clockwise turns, mirror after the turn, PWR_FLAG names nothing) and
   `parseLtspiceSchematic` (.asc, built-in symbols' pin offsets); in the `library` fuzz target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
-  then `schematic_build`), app File → Import Netlist… through `DesignStore.runTool`.
+  then `schematic_build`; its work is `importNetlist` in `McpTools.cpp`), app File → Import Netlist… through `DesignStore.runTool`.
+  KiCad boards: `parseKicadPcb` (`KicadBoard`: pads at KiCad's board positions, bottom footprints' stored-flipped pads
+  turned back to a top view, lands centred on the courtyard; `library` fuzz target, fixture `two_parts.kicad_pcb`), MCP
+  `pcb_import_kicad` (circuit from `schematic` / `schematicText` or the pads, then placement fitted to the pads per
+  quarter turn, copper nets matched through the pads, `fidelity` report), app File → Import KiCad Board…; the DRC
+  measures round pads as circles (diagonal neighbours).
 - Altium libraries: `Core/src/AltiumLibrary.cpp` (MS-CFB `CompoundFile`, SchLib / PcbLib records), converted in
   `LibraryImport.cpp` (`importAltium`); fixtures written by `tools/make_altium_fixtures.py` (don't edit the binaries).
 - 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers and the STEP AP203 / AP214 reader
@@ -190,7 +195,10 @@
 - Platform: file format `docs/FILE_FORMAT.md` (`kProjectFormatVersion`; `Project::loadNotes` = newer format / fields
   this version would drop, shown on open), project templates (`DesignStore.saveTemplate` / `newFromTemplate`, Application
   Support/SiEDA/Templates), settings export / import `SettingsTransfer`, colour-blind layer palette
-  (`Theme.layerPaletteKey`), Altium canvas preset; migration guide `docs/MIGRATING.md`.
+  (`Theme.layerPaletteKey`), Altium canvas preset; migration guide `docs/MIGRATING.md`; `sieda-cli --upgrade` rewrites
+  files in the current format (left alone when load notes say settings would be lost); check-out lock
+  `<file>.lock` and event hooks (Application Support/SiEDA/Hooks: after-open / save / verify / export) in
+  `SiEDA/App/ProjectHooks.swift` — hooks only from that folder, never from a project.
 - Integration: pin maps `exportPinMap` / `parsePinAssignments` (`Documents.cpp`, MCP `schematic_pin_map`: header /
   XDC / QSF / CSV out, CubeMX .ioc / XDC / QSF / CSV in); Python client `python/sieda.py` over `sieda-mcp` (CTest
   `sieda_python_api`); C API semver `SIEDA_API_VERSION_*` / `sieda_api_version()` (bump MINOR when adding functions);

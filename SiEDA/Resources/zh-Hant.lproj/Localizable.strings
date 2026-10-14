@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "PCB 游標與走線長度顯示的單位（設計本身仍以毫米為單位）";
 "Export Pin Map…" = "匯出接腳對應…";
 "Assign Pins from File…" = "從檔案指派接腳…";
+"Import KiCad Board…" = "匯入 KiCad 電路板…";
+"Open Event Hooks Folder" = "開啟事件掛鉤資料夾";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "此資料夾中名為 after-open、after-save、after-verify 或 after-export 的指令碼會在該事件後執行，並設定 SIEDA_PROJECT 與 SIEDA_OUTPUT";
+"This project is open elsewhere" = "此專案已在別處開啟";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ 自 %3$@ 起已在 %2$@ 上開啟它。兩處所做的編輯會互相衝突。";
+"Open Anyway" = "仍要開啟";

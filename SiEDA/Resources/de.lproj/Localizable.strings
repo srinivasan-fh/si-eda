@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "Einheiten der PCB-Cursor- und Leiterbahnlängenanzeige (der Entwurf bleibt in Millimetern)";
 "Export Pin Map…" = "Pinbelegung exportieren…";
 "Assign Pins from File…" = "Pins aus Datei zuweisen…";
+"Import KiCad Board…" = "KiCad-Platine importieren…";
+"Open Event Hooks Folder" = "Ordner für Ereignis-Hooks öffnen";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "Skripte namens after-open, after-save, after-verify oder after-export in diesem Ordner laufen nach diesem Ereignis, mit gesetztem SIEDA_PROJECT und SIEDA_OUTPUT";
+"This project is open elsewhere" = "Dieses Projekt ist anderswo geöffnet";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ hat es seit %3$@ auf %2$@ geöffnet. Änderungen an beiden Stellen kollidieren.";
+"Open Anyway" = "Trotzdem öffnen";

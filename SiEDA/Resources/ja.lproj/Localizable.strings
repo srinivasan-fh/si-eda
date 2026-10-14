@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "PCB カーソルと配線長の表示単位（設計自体はミリメートルのまま）";
 "Export Pin Map…" = "ピンマップを書き出す…";
 "Assign Pins from File…" = "ファイルからピンを割り当てる…";
+"Import KiCad Board…" = "KiCad ボードを読み込む…";
+"Open Event Hooks Folder" = "イベントフックのフォルダを開く";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "このフォルダの after-open、after-save、after-verify、after-export という名前のスクリプトが、そのイベントの後に SIEDA_PROJECT と SIEDA_OUTPUT を設定して実行されます";
+"This project is open elsewhere" = "このプロジェクトは別の場所で開かれています";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ が %3$@ から %2$@ で開いています。両方で編集すると衝突します。";
+"Open Anyway" = "このまま開く";

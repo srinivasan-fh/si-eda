@@ -1738,3 +1738,9 @@
 "Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)" = "Unit bacaan kursor PCB dan panjang laluan (reka bentuk kekal dalam milimeter)";
 "Export Pin Map…" = "Eksport Peta Pin…";
 "Assign Pins from File…" = "Tetapkan Pin daripada Fail…";
+"Import KiCad Board…" = "Import Papan KiCad…";
+"Open Event Hooks Folder" = "Buka Folder Cangkuk Peristiwa";
+"Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set" = "Skrip bernama after-open, after-save, after-verify atau after-export dalam folder ini dijalankan selepas peristiwa itu, dengan SIEDA_PROJECT dan SIEDA_OUTPUT ditetapkan";
+"This project is open elsewhere" = "Projek ini dibuka di tempat lain";
+"%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ telah membukanya pada %2$@ sejak %3$@. Suntingan di kedua-dua tempat akan bercanggah.";
+"Open Anyway" = "Buka Juga";

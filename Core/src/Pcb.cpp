@@ -5860,7 +5860,12 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             bool share = false;
             for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
             if (!share) continue;
-            double d = rectRectDistance(ps[i].bounds(), ps[j].bounds());
+            const Pad &pi = ps[i], &pj = ps[j];  // round pads as circles (diagonal neighbours: staggered TO-92)
+            const double d = pi.round && pj.round ? std::max(0.0, (pi.position - pj.position).length() - std::min(pi.size.x, pi.size.y) / 2 -
+                                                                       std::min(pj.size.x, pj.size.y) / 2)
+                           : pi.round || pj.round ? std::max(0.0, padDistance(pi.round ? pj : pi, (pi.round ? pi : pj).position) -
+                                                                      std::min((pi.round ? pi : pj).size.x, (pi.round ? pi : pj).size.y) / 2)
+                                                  : rectRectDistance(pi.bounds(), pj.bounds());
             if (ps[i].componentId == ps[j].componentId) {
                 footprintCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net),
                                (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId}, ps[i].net, ps[j].net);

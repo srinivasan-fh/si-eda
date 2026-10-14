@@ -73,9 +73,31 @@ extension DesignStore {
         requestView(.fit)
     }
 
-    /// Keeps a Gerber or drill file over the board as a reference layer (never fabricated), one undo step.
+    /// Brings a KiCad board in through the core's pcb_import_kicad tool, one undo step: on an empty project the
+    /// circuit comes from the .kicad_sch of the same name beside the board when there is one, else from its pads.
+    func importKicadBoard() {
+        guard let (url, text) = chooseText("Choose a KiCad board (.kicad_pcb). A .kicad_sch of the same name beside it brings the "
+                                           + "schematic too.", extensions: ["kicad_pcb"]) else { return }
+        var arguments: [String: Any] = ["text": text]
+        if let sch = try? String(contentsOf: url.deletingPathExtension().appendingPathExtension("kicad_sch"), encoding: .utf8) {
+            arguments["schematicText"] = sch
+        }
+        let r = runTool("pcb_import_kicad", arguments: arguments)
+        guard !r.isError, let data = r.text.data(using: .utf8),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            statusMessage = "\(url.lastPathComponent): \(r.text)"
+            return
+        }
+        let fidelity = j["fidelity"] as? [String: Any] ?? [:]
+        statusMessage = "\(url.lastPathComponent): \(j["parts"] as? Int ?? 0) parts, \(j["tracks"] as? Int ?? 0) tracks, "
+            + "\(j["vias"] as? Int ?? 0) vias; \((fidelity["misfit"] as? [Any])?.count ?? 0) part(s) off KiCad's pads, "
+            + "\((fidelity["missing"] as? [Any])?.count ?? 0) not in the schematic"
+        requestView(.fit)
+    }
+
+    /// Keeps a Gerber, drill or ODB++ features file over the board as a reference layer (never fabricated), one undo step.
     func importReferenceLayer() {
-        guard let picked = chooseText("Choose a Gerber or drill file to show over the board.",
+        guard let picked = chooseText("Choose a Gerber, drill or ODB++ layer features file to show over the board.",
                                       extensions: ["gbr", "gtl", "gbl", "gto", "gbo", "gko", "gm1", "drl", "xln", "txt"]) else { return }
         addReferenceLayer(name: picked.0.lastPathComponent, text: picked.1)
     }

@@ -2184,7 +2184,7 @@ ParsedNetlist parseNetlist(const std::string& text) {
                     const SNode* k = n.child(key);
                     return k ? k->atom(1) : std::string();
                 };
-                NetlistPart part{field(c, "ref"), field(c, "value"), field(c, "footprint"), "", {}};
+                NetlistPart part{field(c, "ref"), field(c, "value"), field(c, "footprint"), "", {}, {}};
                 if (const SNode* lib = c.child("libsource")) part.part = field(*lib, "part");
                 if (!part.ref.empty()) out.parts.push_back(part);
             }
@@ -2221,7 +2221,7 @@ ParsedNetlist parseNetlist(const std::string& text) {
                 ++lineNo;
                 if (fields.empty() || fields[0].empty()) continue;
                 if (out.parts.size() >= kMaxParts) throw ImportError("too many parts");
-                out.parts.push_back({fields[0], fields.size() > 2 ? fields[2] : "", fields.size() > 1 ? fields[1] : "", "", {}});
+                out.parts.push_back({fields[0], fields.size() > 2 ? fields[2] : "", fields.size() > 1 ? fields[1] : "", "", {}, {}});
             } else if (line == "(") {
                 std::string name;
                 std::vector<std::pair<std::string, std::string>> members;
@@ -2293,7 +2293,7 @@ ParsedNetlist parseNetlist(const std::string& text) {
         for (const auto& [ref, pin] : members)
             if (known.insert(ref).second) {
                 if (out.parts.size() >= kMaxParts) throw ImportError("too many parts");
-                out.parts.push_back({ref, "", "", "", {}});
+                out.parts.push_back({ref, "", "", "", {}, {}});
             }
     if (out.parts.empty()) throw ImportError("the netlist names no parts");
     return out;
@@ -2437,7 +2437,7 @@ ParsedNetlist parseKicadSchematic(const std::string& text) {
             if (power || ref.empty()) continue;
             if (!parts.count(ref)) {
                 order.push_back(ref);
-                NetlistPart np{ref, value, footprint, id->atom(1).substr(id->atom(1).find(':') == std::string::npos ? 0 : id->atom(1).find(':') + 1), {}};
+                NetlistPart np{ref, value, footprint, id->atom(1).substr(id->atom(1).find(':') == std::string::npos ? 0 : id->atom(1).find(':') + 1), {}, {}};
                 for (const auto& pin : ls->pins)
                     if (!pin.name.empty() && pin.name != "~") np.pinNames[pin.number] = pin.name;
                 parts[ref] = std::move(np);
@@ -2624,6 +2624,246 @@ ParsedNetlist parseLtspiceSchematic(const std::string& text) {
     }
     if (lonely) out.warnings.push_back(std::to_string(lonely) + " pins connect to nothing");
     if (out.parts.empty()) throw ImportError("the schematic has no parts SiEDA can import");
+    return out;
+}
+
+
+// ------------------------------------------------------------------ KiCad boards (.kicad_pcb)
+
+KicadBoard parseKicadPcb(const std::string& text) {
+    constexpr double pi = 3.14159265358979323846;
+    if (text.size() > kMaxFileBytes) throw ImportError("the file is larger than 32 MB");
+    const SNode root = SexprParser(text).parse();
+    if (root.head() != "kicad_pcb") throw ImportError("not a KiCad board: the file starts with (" + clean(root.head(), 40) + ")");
+    KicadBoard out;
+    out.netlist.format = "kicad_pcb";
+    std::vector<std::string> inner;  // In1.Cu … in order
+    if (const SNode* layers = root.child("layers"))
+        for (const auto& l : layers->kids) {
+            const std::string n = l.atom(1);
+            if (n.size() > 5 && n.rfind("In", 0) == 0 && n.compare(n.size() - 3, 3, ".Cu") == 0) inner.push_back(n);
+        }
+    out.layerCount = static_cast<int>(inner.size()) + 2;
+    if (const SNode* g = root.child("general")) out.thickness = num(g->child("thickness"), 1, 1.6);
+    auto layerOf = [&](const std::string& n) {
+        if (n == "F.Cu") return 0;
+        if (n == "B.Cu") return out.layerCount - 1;
+        for (size_t i = 0; i < inner.size(); ++i)
+            if (inner[i] == n) return static_cast<int>(i) + 1;
+        return -1;
+    };
+    std::map<std::string, std::string> netName;  // KiCad 6 – 9 number the nets; KiCad 10 names them
+    for (const auto& k : root.kids)
+        if (k.head() == "net") netName[k.atom(1)] = clean(k.atom(2), 120);
+    auto netOf = [&](const SNode& n) {
+        const SNode* net = n.child("net");
+        if (!net) return std::string();
+        if (!net->atom(2).empty()) return clean(net->atom(2), 120);
+        const auto it = netName.find(net->atom(1));
+        return it != netName.end() ? it->second : clean(net->atom(1), 120);
+    };
+    auto xy = [](const SNode* n) { return Vec2{num(n, 1), num(n, 2)}; };
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> nets;
+    std::ostringstream dxf;
+    dxf.precision(10);
+    Box edge;
+    int oblique = 0, offGrid = 0, holes = 0, keepouts = 0;
+    auto line = [&](Vec2 a, Vec2 b) {  // DXF is y up
+        dxf << "0\nLINE\n8\nEdge.Cuts\n10\n" << a.x << "\n20\n" << -a.y << "\n11\n" << b.x << "\n21\n" << -b.y << "\n";
+        edge.add(a.x, a.y);
+        edge.add(b.x, b.y);
+    };
+    for (const auto& k : root.kids) {
+        const std::string h = k.head();
+        if (h == "footprint" || h == "module") {
+            if (out.footprints.size() >= kMaxParts) throw ImportError("too many footprints");
+            KicadBoard::Footprint fp;
+            NetlistPart part;
+            part.footprint = clean(k.atom(1), 120);
+            part.part = part.footprint.substr(part.footprint.find(':') == std::string::npos ? 0 : part.footprint.find(':') + 1);
+            const SNode* at = k.child("at");
+            fp.at = xy(at);
+            fp.angle = std::fmod(num(at, 3), 360.0);
+            const SNode* layer = k.child("layer");
+            fp.bottom = layer && layer->atom(1) == "B.Cu";
+            for (const auto& f : k.kids) {
+                if (f.head() == "property" || f.head() == "fp_text") {
+                    const std::string key = f.atom(1);
+                    if (key == "Reference" || key == "reference") fp.ref = clean(f.atom(2), 40);
+                    if (key == "Value" || key == "value") part.value = clean(f.atom(2), 80);
+                }
+            }
+            if (fp.ref.empty()) fp.ref = "REF" + std::to_string(out.footprints.size() + 1);
+            if (std::fabs(std::remainder(fp.angle, 90.0)) > 0.01) ++offGrid;
+            const double turnRad = fp.angle * pi / 180, c = std::cos(turnRad), sn = std::sin(turnRad);
+            for (const auto& pd : k.kids) {
+                if (pd.head() != "pad") continue;
+                const std::string type = pd.atom(2), shape = pd.atom(3);
+                const SNode* pat = pd.child("at");
+                const SNode* size = pd.child("size");
+                bool front = false, back = false, copper = false;
+                if (const SNode* ls = pd.child("layers"))
+                    for (size_t i = 1; i < ls->kids.size(); ++i) copper |= copperLayer(ls->atom(i), front, back);
+                if (type == "np_thru_hole" || !copper || !pat || !size) {
+                    holes += type == "np_thru_hole";
+                    continue;
+                }
+                KicadBoard::Pad pad;
+                pad.number = clean(pd.atom(1), 16);
+                pad.net = netOf(pd);
+                Vec2 local = xy(pat);
+                pad.at = fp.at + Vec2{local.x * c + local.y * sn, -local.x * sn + local.y * c};
+                PackageSpec::Land l;
+                l.w = num(size, 1);
+                l.h = num(size, 2, l.w);
+                double turn = num(pat, 3) - fp.angle;
+                if (fp.bottom) {  // KiCad flips a bottom footprint top to bottom: its top view
+                    local.y = -local.y;
+                    turn = -turn;
+                }
+                bool obl = false;
+                rotateSize(turn, l.w, l.h, obl);
+                oblique += obl;
+                l.x = tidy(local.x), l.y = tidy(local.y), l.w = tidy(l.w), l.h = tidy(l.h);
+                l.round = shape == "circle" || shape == "oval";
+                if (shape == "roundrect") l.corner = std::clamp(num(pd.child("roundrect_rratio"), 1), 0.0, 0.5);
+                if (const SNode* d = pd.child("drill")) l.drill = tidy(num(d, 1) > 0 ? num(d, 1) : num(d, 2));
+                l.pin = pad.number.empty() ? "-" : pad.number;
+                if (part.package.lands.size() < kMaxLands) part.package.lands.push_back(l);
+                if (!pad.number.empty() && !pad.net.empty()) {
+                    auto& members = nets[pad.net];
+                    if (std::find(members.begin(), members.end(), std::make_pair(fp.ref, pad.number)) == members.end())
+                        members.push_back({fp.ref, pad.number});
+                }
+                fp.pads.push_back(pad);
+            }
+            // Centred on the courtyard (else the pads and body) with the fab outline as the body, as parseKicadFootprint.
+            Box court, fab, padBox;
+            for (const auto& g : k.kids) {
+                const SNode* gl = g.list && g.head().rfind("fp_", 0) == 0 ? g.child("layer") : nullptr;
+                const std::string ln = gl ? gl->atom(1) : std::string();
+                if (ln.size() < 2 || (ln.substr(1) != ".CrtYd" && ln.substr(1) != ".Fab")) continue;
+                Box b;
+                graphicBox(g, b);
+                Box& into = ln.substr(1) == ".CrtYd" ? court : fab;
+                if (!b.empty()) into.add(b.x0, fp.bottom ? -b.y1 : b.y0), into.add(b.x1, fp.bottom ? -b.y0 : b.y1);
+            }
+            PackageSpec& pkg = part.package;
+            if (!pkg.lands.empty()) {
+                pkg.type = "CUSTOM";
+                for (const auto& l : pkg.lands) padBox.add(l.x - l.w / 2, l.y - l.h / 2), padBox.add(l.x + l.w / 2, l.y + l.h / 2);
+                Box centre = court;
+                if (centre.empty()) centre = padBox, centre.add(fab);
+                const double cx = (centre.x0 + centre.x1) / 2, cy = (centre.y0 + centre.y1) / 2;
+                for (auto& l : pkg.lands) l.x = tidy(l.x - cx), l.y = tidy(l.y - cy);
+                double bw = fab.empty() ? 0 : fab.w(), bd = fab.empty() ? 0 : fab.h();
+                if ((bw <= 0.5 || bd <= 0.5) && !court.empty()) bw = court.w() - 0.5, bd = court.h() - 0.5;
+                if (bw > 0.5 && bw <= 60 && bd > 0.5 && bd <= 60) pkg.bodySize = tidy(bw), pkg.bodyDepth = tidy(bd);
+            }
+            part.ref = fp.ref;
+            out.netlist.parts.push_back(std::move(part));
+            out.footprints.push_back(std::move(fp));
+        } else if (h == "segment" || h == "arc") {
+            KicadBoard::Copper t;
+            t.layer = layerOf(k.child("layer") ? k.child("layer")->atom(1) : "");
+            if (t.layer < 0) continue;
+            t.net = netOf(k);
+            t.a = xy(k.child("start"));
+            t.b = xy(k.child("end"));
+            t.width = num(k.child("width"), 1, 0.25);
+            if ((t.arc = h == "arc" && k.child("mid"))) t.mid = xy(k.child("mid"));
+            out.tracks.push_back(t);
+        } else if (h == "via") {
+            KicadBoard::Hole v;
+            v.net = netOf(k);
+            v.at = xy(k.child("at"));
+            v.diameter = num(k.child("size"), 1, 0.6);
+            v.drill = num(k.child("drill"), 1, 0.3);
+            if (const SNode* ls = k.child("layers")) {
+                const int a = layerOf(ls->atom(1)), b = layerOf(ls->atom(2));
+                if (a >= 0 && b >= 0) {
+                    v.from = std::min(a, b);
+                    v.to = std::max(a, b) == out.layerCount - 1 ? -1 : std::max(a, b);
+                }
+            }
+            out.vias.push_back(v);
+        } else if (h == "zone") {
+            if (k.child("keepout")) {
+                ++keepouts;
+                continue;
+            }
+            const SNode* poly = k.child("polygon");
+            const SNode* pts = poly ? poly->child("pts") : nullptr;
+            if (!pts) continue;
+            KicadBoard::Zone z;
+            z.net = netOf(k);
+            if (const SNode* nn = k.child("net_name")) z.net = clean(nn->atom(1), 120);
+            for (const auto& p : pts->kids)
+                if (p.head() == "xy") z.polygon.push_back(xy(&p));
+            std::vector<std::string> names;
+            if (const SNode* l = k.child("layer")) names.push_back(l->atom(1));
+            if (const SNode* ls = k.child("layers"))
+                for (size_t i = 1; i < ls->kids.size(); ++i) names.push_back(ls->atom(i));
+            for (const auto& n : names)
+                if ((z.layer = layerOf(n)) >= 0 && z.polygon.size() >= 3) out.zones.push_back(z);
+        } else if (h.rfind("gr_", 0) == 0 && k.child("layer") && k.child("layer")->atom(1) == "Edge.Cuts") {
+            if (h == "gr_line") {
+                line(xy(k.child("start")), xy(k.child("end")));
+            } else if (h == "gr_rect") {
+                const Vec2 a = xy(k.child("start")), b = xy(k.child("end"));
+                line(a, {b.x, a.y}), line({b.x, a.y}, b), line(b, {a.x, b.y}), line({a.x, b.y}, a);
+            } else if (h == "gr_circle") {
+                const Vec2 c0 = xy(k.child("center")), e = xy(k.child("end"));
+                const double r = std::hypot(e.x - c0.x, e.y - c0.y);
+                dxf << "0\nCIRCLE\n8\nEdge.Cuts\n10\n" << c0.x << "\n20\n" << -c0.y << "\n40\n" << r << "\n";
+                edge.add(c0.x - r, c0.y - r);
+                edge.add(c0.x + r, c0.y + r);
+            } else if (h == "gr_poly") {
+                std::vector<Vec2> ps;
+                if (const SNode* pts = k.child("pts"))
+                    for (const auto& p : pts->kids)
+                        if (p.head() == "xy") ps.push_back(xy(&p));
+                for (size_t i = 0; ps.size() > 2 && i < ps.size(); ++i) line(ps[i], ps[(i + 1) % ps.size()]);
+            } else if (h == "gr_arc" && k.child("mid")) {  // through three points, drawn as 32 lines
+                const Vec2 a = xy(k.child("start")), m = xy(k.child("mid")), b = xy(k.child("end"));
+                const double d = 2 * (a.x * (m.y - b.y) + m.x * (b.y - a.y) + b.x * (a.y - m.y));
+                if (std::fabs(d) < 1e-12) {
+                    line(a, b);
+                    continue;
+                }
+                auto sq = [](Vec2 p) { return p.x * p.x + p.y * p.y; };
+                const Vec2 o{(sq(a) * (m.y - b.y) + sq(m) * (b.y - a.y) + sq(b) * (a.y - m.y)) / d,
+                             (sq(a) * (b.x - m.x) + sq(m) * (a.x - b.x) + sq(b) * (m.x - a.x)) / d};
+                const double r = std::hypot(a.x - o.x, a.y - o.y), a0 = std::atan2(a.y - o.y, a.x - o.x);
+                auto sweep = [&](Vec2 p) {
+                    double s = std::atan2(p.y - o.y, p.x - o.x) - a0;
+                    while (s < 0) s += 2 * pi;
+                    return s;
+                };
+                double total = sweep(b);
+                if (sweep(m) > total) total -= 2 * pi;  // the other way round
+                Vec2 prev = a;
+                for (int i = 1; i <= 32; ++i) {
+                    const double t2 = a0 + total * i / 32;
+                    const Vec2 p = i == 32 ? b : Vec2{o.x + r * std::cos(t2), o.y + r * std::sin(t2)};
+                    line(prev, p);
+                    prev = p;
+                }
+            }
+        }
+    }
+    if (out.footprints.empty()) throw ImportError("the board has no footprints");
+    for (auto& [name, members] : nets) out.netlist.nets.push_back({name, members});
+    if (!edge.empty()) {
+        out.outlineDxf = "0\nSECTION\n2\nENTITIES\n" + dxf.str() + "0\nENDSEC\n0\nEOF\n";
+        out.edgeMin = {edge.x0, edge.y0};
+    }
+    auto& w = out.netlist.warnings;
+    if (offGrid) w.push_back(std::to_string(offGrid) + " footprint(s) at an angle that is not a multiple of 90° (turned to the nearest).");
+    if (oblique) w.push_back(std::to_string(oblique) + " pad(s) at an angle imported as their bounding box.");
+    if (holes) w.push_back(std::to_string(holes) + " non-plated hole(s) not imported (add mounting holes on the board).");
+    if (keepouts) w.push_back(std::to_string(keepouts) + " keep-out zone(s) not imported.");
+    if (out.outlineDxf.empty()) w.push_back("No Edge.Cuts outline: the board is sized to the parts.");
     return out;
 }
 

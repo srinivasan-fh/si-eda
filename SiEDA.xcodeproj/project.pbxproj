@@ -47,6 +47,7 @@
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
 		35954DE64FBA969FB21C0A44 = {isa = PBXBuildFile; fileRef = 5F5DB8E65C9D2B5442BD2886; };
 		37BD21DBF119615DF2A75BF7 = {isa = PBXBuildFile; fileRef = 6AAB6F1355AA4B30013134F8; };
+		37F9EA5B4DA9AC6A5949BE03 = {isa = PBXBuildFile; fileRef = 9D3FEE3DF2AB401E23FD7EF3; };
 		38C7757A6EC0C2A1C2BDA96E = {isa = PBXBuildFile; fileRef = 88C2002B0D092ECD340FA1F5; };
 		39E82F038A0777A2DD3C329A = {isa = PBXBuildFile; fileRef = 27476DDBA2D0F9C1BF663B95; };
 		3AFDE0646E696F06BE941AB6 = {isa = PBXBuildFile; fileRef = 8B60433746E06C0C40FBDCB3; };
@@ -422,6 +423,7 @@
 		9A5200FC23BD8C0414FD7D75 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Automotive.hpp; sourceTree = "<group>"; };
 		9B648A12291572B1CDBF83AD = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Embedded.hpp; sourceTree = "<group>"; };
 		9B780D9F59521D3BDF902353 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasheetImporter.swift; sourceTree = "<group>"; };
+		9D3FEE3DF2AB401E23FD7EF3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHooks.swift; sourceTree = "<group>"; };
 		9ED8EACAFA77375D35C88B94 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bom.hpp; sourceTree = "<group>"; };
 		A2EDE2F8A06002C18CF33658 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PcbSwap.cpp; sourceTree = "<group>"; };
 		A2F99F3A480C92D82686F84B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamViews.swift; sourceTree = "<group>"; };
@@ -1068,6 +1070,7 @@
 				4533D44269C1AABB8D3D3A3C,
 				DCA642B6ED42847C57E4E461,
 				8B60433746E06C0C40FBDCB3,
+				9D3FEE3DF2AB401E23FD7EF3,
 				EBECAAA7807D81B9EA1B4E2D,
 				A933E8C328957019A2A82CCD,
 			);
@@ -1236,6 +1239,7 @@
 				4F0947ED7434B781B976D1D7,
 				C33B3E4901A01AAF4FDEEE96,
 				3AFDE0646E696F06BE941AB6,
+				37F9EA5B4DA9AC6A5949BE03,
 				53EA1E9ED727F5F22BF6D1BF,
 				C6480DA995967BBF248D0B2F,
 				45D9A2131C48A567A8323A0B,

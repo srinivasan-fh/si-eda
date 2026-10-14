@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         watchdog.stop()
         memoryMonitor.stop()
+        ProjectLock.release(store?.documentURL)
         // A clean quit: unsaved changes were saved or deliberately discarded, so there is nothing to recover.
         if let recovery = store?.recovery {
             recovery.clear()
@@ -348,6 +349,7 @@ struct SiEDACommands: Commands {
             Button("Import MCAD Changes (IDX)…") { store.importIDX() }
             Button("Import Board Outline (DXF)…") { store.importDXFOutline() }
             Button("Import Netlist…") { store.importNetlist() }
+            Button("Import KiCad Board…") { store.importKicadBoard() }
             Button("Import Gerber as Reference Layer…") { store.importReferenceLayer() }
             Button("Import Logo…") { store.importLogo() }
             Button("Check Library Updates…") { store.checkLibraryUpdates() }
