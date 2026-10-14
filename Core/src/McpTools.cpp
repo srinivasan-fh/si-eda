@@ -27,6 +27,7 @@
 #include "sieda/Mechanical.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/Autoroute.hpp"
 
 namespace fs = std::filesystem;
 
@@ -379,6 +380,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                                 const auto m = room(id), q = room(c.id);
                                 hit |= m[0] < q[2] && q[0] < m[2] && m[1] < q[3] && q[1] < m[3];
                             }
+                        for (int id : group) hit |= room(id)[0] < 0 || room(id)[1] < 0;  // on the sheet, not above or left of it
                         if (!hit) return true;
                         const double next = (step / 2 + 1) * 40.0 * (step % 2 ? -1 : 1);  // either side, further each time
                         for (int id : group) moveBy(id, side * (next - along));
@@ -3875,7 +3877,7 @@ ToolOutput autoplaceTool(McpServer& s, const Json& a) {
     double used = 0;  // courtyards' share of the board: a roomy board can be made smaller before routing
     for (const auto& c : proj(s).schematic.components())
         if (c.hasFootprint() && c.pcb.placed && proj(s).pcb.onBoard(c)) used += [&] { const Rect r = proj(s).pcb.courtyard(c); return (r.x1 - r.x0) * (r.y1 - r.y0); }();
-    if (const auto& st = proj(s).pcb.settings; st.outline.empty() && used < 0.25 * st.width * st.height && used > 0)
+    if (const auto& st = proj(s).pcb.settings; st.outline.empty() && used < 0.35 * st.width * st.height && used > 0)
         j["boardRoomy"] = "Parts cover " + std::to_string(static_cast<int>(100 * used / (st.width * st.height))) +
                           " % of the board: pcb_fit_board {\"compact\": true} re-places them on the smallest board that fits.";
     return out(j);
@@ -4341,7 +4343,8 @@ void pcbTools(Table& t) {
               .object("options", "Strategy options (see description)")
               .boolean("keep", "Save the preset / options as the board's strategy (default false)")
               .boolean("clearFirst", "Remove the existing routing first")
-              .boolean("powerWidths", "Route power / ground nets without a width of their own 0.4 mm wide (default true)"),
+              .boolean("powerWidths", "Route power / ground nets without a width of their own 0.4 mm wide (default true)")
+              .boolean("pour", "A whole-board route on a board with no pour pours the ground net on the bottom layer first (default true)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               const auto stitched = stitchingVias(p->project);  // re-laid after a whole-board route clears them
@@ -4376,6 +4379,15 @@ void pcbTools(Table& t) {
               // the board's saved strategy keeps its own setting.
               const bool offPads = p->project.pcb.settings.autorouter.viasOffPads;
               p->project.pcb.settings.autorouter.viasOffPads = a.get("options").get("viasOffPads").asBool(true);
+              // A whole-board route with no pour yet pours the ground net on the bottom layer first: a plane, not tracks.
+              std::string poured;
+              if (p->project.pcb.zones.empty() && !ar.scoped() && !ar.fanoutOnly && argBool(a, "pour", true))
+                  for (const auto& n : p->project.schematic.nets())
+                      if (p->project.schematic.netRole(n.index) == NetRole::Ground && !n.name.empty()) {
+                          if (sieda_pcb_add_zone(p, n.name.c_str(), p->project.pcb.settings.layerCount - 1, 0, 0) >= 0)
+                              poured = n.name + " poured on the bottom layer before routing (pour: false skips; pcb_remove_pour removes it)";
+                          break;
+                      }
               // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
               // the current sizing no source to measure); again at the board's width if that leaves anything open.
               std::vector<std::string> widened;
@@ -4499,9 +4511,10 @@ void pcbTools(Table& t) {
               // stats.vias counts the router's own; the board also has fan-out vias into pours and stitching
               if (static_cast<int>(p->project.pcb.vias.size()) != stats.get("vias").asInt(0))
                   j["viasOnBoard"] = static_cast<int>(p->project.pcb.vias.size());
-              Json uncoupled = Json::array();  // a differential pair routed as two single nets, and why
+              Json uncoupled = Json::array(), coupled = Json::array();  // a differential pair routed as two single nets, and why
               for (const auto& pr : report.get("pairs").items())
-                  if (!pr.get("coupled").asBool(false))
+                  if (pr.get("coupled").asBool(false)) coupled.push(pr.get("positive").asString("") + " / " + pr.get("negative").asString(""));
+                  else
                       uncoupled.push(pr.get("positive").asString("") + " / " + pr.get("negative").asString("") + ": " +
                                      pr.get("reason").asString("not coupled") + " (routed as two single nets" +
                                      (pr.get("reason").asString("").find("two pads") != std::string::npos
@@ -4520,14 +4533,9 @@ void pcbTools(Table& t) {
                                      ": not paired by name; schematic_add_directive {\"pin\": a pin on " + n->name +
                                      ", \"diffPair\": true} pairs them, then route again");
               if (uncoupled.size()) j["pairsNotCoupled"] = uncoupled;
+              if (coupled.size()) j["pairsCoupled"] = coupled;
               if (pairedByName.size()) j["pairedByName"] = pairedByName;  // schematic_net_rules lists the directives
-              if (p->project.pcb.zones.empty() && !ar.scoped())
-                  for (const auto& n : p->project.schematic.nets())
-                      if (p->project.schematic.netRole(n.index) == NetRole::Ground && !n.name.empty()) {
-                          j["groundPour"] = n.name + " was routed as tracks (no pour yet): pcb_add_pour {\"net\": \"" + n.name +
-                                            "\", \"layer\": 1} then pcb_autoroute {\"clearFirst\": true} gives it a plane and fewer tracks / vias.";
-                          break;
-                      }
+              if (!poured.empty()) j["groundPour"] = poured;
               return out(j);
           });
     t.add("pcb", "pcb_autoroute_presets", "Autoroute presets", Kind::Read, true,
@@ -4541,6 +4549,15 @@ void pcbTools(Table& t) {
     t.add("pcb", "pcb_route_report", "Route report", Kind::Read, true,
           "The last autoroute's report: differential pairs, lengths against their rules, quality metrics.", Schema(),
           [](McpServer& s, const Json&) {
+              const PcbLayout& pcb = P(s)->project.pcb;
+              if (pcb.lastRouteReport.metrics.segments == 0 && !pcb.tracks.empty()) {  // reopened: measure the copper now
+                  RouteReport report = pcb.lastRouteReport;
+                  routequality::measure(pcb, P(s)->project.schematic, report.metrics);
+                  Json r = routeReportJson(report);
+                  r["note"] = "Measured from the board as it is (the route's own pair / length report is not saved with the "
+                              "project: pcb_drc and si_length_report check them).";
+                  return out(r);
+              }
               Json r = takeJson(sieda_pcb_route_report(P(s)));
               if (r.isNull()) throw ToolError("No autoroute has run yet");
               return out(r);

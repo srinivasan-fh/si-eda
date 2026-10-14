@@ -1130,7 +1130,7 @@ Json McpServer::getPrompt(const std::string& name, const Json& arguments) const 
                "5. schematic_erc until it has no errors; sim_dc_op to check supply voltages and LED current.\n"
                "6. pcb_set_board (a compact size, " + layers + " layers, rule preset) then pcb_update_from_schematic; "
                "move the decoupling capacitors next to their pins with pcb_place_footprint; pcb_fit_board.\n"
-               "7. pcb_add_pour for GND, pcb_autoroute (preset \"quality\"), pcb_drc until clean.\n"
+               "7. pcb_autoroute (pours GND on the bottom first when there is no pour), pcb_drc until clean.\n"
                "8. verify_design, render_pcb to look at the result, then summarise what you built and any open "
                "warnings.";
     } else if (name == "review_design") {
