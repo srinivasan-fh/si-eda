@@ -518,6 +518,19 @@ Scene schematicScene(const Project& project, int sheet) {
                     return c.position + (r == 90 ? Vec2{-v.y, v.x} : r == 180 ? Vec2{-v.x, -v.y} : r == 270 ? Vec2{v.y, -v.x} : v);
                 };
                 const double w = textWidth(name, 9) + 16, hh = 7;
+                // A label splitting a wire (a wire on each side of its pin) names that wire: its text lies along the
+                // wire just above it (beside a vertical one), as a local label does, with no flag over the line.
+                std::vector<Vec2> ends;
+                for (const auto& wire : sch.wires())
+                    for (const auto& [mine, other] : {std::pair{wire.a, wire.b}, std::pair{wire.b, wire.a}})
+                        if (mine.component == c.id) ends.push_back(sch.pinPosition(other));
+                if (!c.power && ends.size() >= 2) {
+                    const bool vertical = std::fabs(ends[0].x - c.position.x) < 0.5 && std::fabs(ends[1].x - c.position.x) < 0.5;
+                    const Vec2 at = vertical ? c.position + Vec2{4, 3} : c.position + Vec2{0, -4};
+                    s.text(at, name, 8, labelC, !vertical);
+                    grow(b, any, at + Vec2{textWidth(name, 8), -9});
+                    break;
+                }
                 if (c.power) {  // a power symbol: a stem from the pin to a bar, the rail's name beyond it
                     s.line(turn({0, 0}), turn({12, 0}), 1.5, body);
                     s.line(turn({12, -9}), turn({12, 9}), 2, body);
@@ -546,9 +559,16 @@ Scene schematicScene(const Project& project, int sheet) {
                     if (y1 - y0 > 30) y0 += 10, y1 -= 10;
                 }
                 // Op-amps, capacitors, diodes / LEDs and switches get their usual glyph, laid along their pins.
-                const auto at = [&](int i) { return sch.pinPosition({c.id, i}); };
-                const bool twoPin = pins.size() == 2 && (c.kind == ComponentKind::Capacitor || c.kind == ComponentKind::Diode ||
-                                                         c.kind == ComponentKind::LED || c.kind == ComponentKind::Switch);
+                // A catalog part reads as the device its designator names: a diode (D), switch (SW) or crystal (Y).
+                const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+                const bool custom = c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit;
+                const ComponentKind look = !custom ? c.kind : prefix == "D" ? ComponentKind::Diode : prefix == "SW" ? ComponentKind::Switch : c.kind;
+                const bool crystal = custom && prefix == "Y";
+                int first = 0;  // a diode's anode
+                if (look == ComponentKind::Diode && pins.size() == 2 && pins[1].name == "A") first = 1;
+                const auto at = [&](int i) { return sch.pinPosition({c.id, pins.size() == 2 && first ? 1 - i : i}); };
+                const bool twoPin = pins.size() == 2 && (look == ComponentKind::Capacitor || look == ComponentKind::Diode ||
+                                                         look == ComponentKind::LED || look == ComponentKind::Switch || crystal);
                 if (twoPin || (c.kind == ComponentKind::OpAmp && pins.size() == 3)) {
                     const Vec2 a = twoPin ? at(0) : (at(0) + at(1)) * 0.5, e = twoPin ? at(1) : at(2);
                     const double len = std::hypot(e.x - a.x, e.y - a.y);
@@ -562,12 +582,19 @@ Scene schematicScene(const Project& project, int sheet) {
                             s.line(p, q, 1.2, pinC);
                             s.text(q + u * 6 + Vec2{0, 3}, i == 0 ? "+" : "-", 9, body, true);
                         }
-                    } else if (c.kind == ComponentKind::Capacitor) {
+                    } else if (crystal) {  // plates either side of the quartz
+                        s.line(a, m - u * 6, 1.2, pinC);
+                        s.line(e, m + u * 6, 1.2, pinC);
+                        for (double k : {-6.0, 6.0}) s.line(m + u * k + n * 9, m + u * k - n * 9, 2, body);
+                        s.box(Rect(std::min((m - u * 3 + n * 7).x, (m + u * 3 - n * 7).x), std::min((m - u * 3 + n * 7).y, (m + u * 3 - n * 7).y),
+                                   std::max((m - u * 3 + n * 7).x, (m + u * 3 - n * 7).x), std::max((m - u * 3 + n * 7).y, (m + u * 3 - n * 7).y)),
+                              false, 1.5, body);
+                    } else if (look == ComponentKind::Capacitor) {
                         s.line(a, m - u * 3, 1.2, pinC);
                         s.line(e, m + u * 3, 1.2, pinC);
                         s.line(m - u * 3 + n * 10, m - u * 3 - n * 10, 2, body);
                         s.line(m + u * 3 + n * 10, m + u * 3 - n * 10, 2, body);
-                    } else if (c.kind == ComponentKind::Switch) {
+                    } else if (look == ComponentKind::Switch) {
                         s.line(a, m - u * 10, 1.2, pinC);
                         s.line(e, m + u * 10, 1.2, pinC);
                         s.disc(m - u * 10, 2, body);
@@ -576,7 +603,7 @@ Scene schematicScene(const Project& project, int sheet) {
                     } else {  // anode → cathode: triangle and bar
                         s.line(a, m - u * 6, 1.2, pinC);
                         s.line(e, m + u * 6, 1.2, pinC);
-                        s.polygon({m - u * 6 + n * 7, m - u * 6 - n * 7, m + u * 6}, c.kind == ComponentKind::LED, 1.5, body);
+                        s.polygon({m - u * 6 + n * 7, m - u * 6 - n * 7, m + u * 6}, look == ComponentKind::LED, 1.5, body);
                         s.line(m + u * 6 + n * 7, m + u * 6 - n * 7, 1.5, body);
                         if (c.kind == ComponentKind::LED)
                             for (double k : {-2.0, 3.0}) s.line(m + u * k + n * 9, m + u * (k + 4) + n * 15, 1, body);
@@ -590,6 +617,11 @@ Scene schematicScene(const Project& project, int sheet) {
                 }
                 s.box(Rect(x0, y0, x1, y1), true, 0, "#fff7e6");
                 s.box(Rect(x0, y0, x1, y1), false, 1.5, body);
+                if (crystal) {  // a crystal with ground pads too: its quartz glyph in the middle of the box
+                    const Vec2 m{(x0 + x1) / 2, (y0 + y1) / 2};
+                    for (double k : {-6.0, 6.0}) s.line(m + Vec2{k, -8}, m + Vec2{k, 8}, 2, body);
+                    s.box(Rect(m.x - 3, m.y - 6, m.x + 3, m.y + 6), false, 1.5, body);
+                }
                 // Top / bottom pin names that would touch the one before go one row further in; a name already
                 // written at that spot (stacked pins) is written once. Ref and value clear the pin ends.
                 std::map<size_t, double> row;

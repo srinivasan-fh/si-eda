@@ -790,7 +790,31 @@ TEST(pcb_fit_board_keeps_design_valid) {
     p.pcb.autoPlace(p.schematic, true);
     p.pcb.autoRoute(p.schematic);
     size_t tracks = p.pcb.tracks.size();
+    // A keep-out and a drawn pour over the first part move with it; a part nearer an edge than the margin stays there.
+    const Component* first0 = nullptr;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && !first0) first0 = &c;
+    const Rect cy0 = p.pcb.courtyard(*first0);
+    RouteKeepout k;
+    k.area = cy0;
+    p.pcb.settings.keepouts.push_back(k);
+    CopperZone z;
+    z.net = "GND";
+    z.polygon = {{cy0.x0, cy0.y0}, {cy0.x1, cy0.y0}, {cy0.x1, cy0.y1}};
+    p.pcb.zones.push_back(z);
+    double nearest = 1e9;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) nearest = std::min(nearest, p.pcb.courtyard(c).x0);
     CHECK(p.pcb.fitBoardToComponents(p.schematic, 2.0));
+    const Rect cy1 = p.pcb.courtyard(*p.schematic.find(first0->id));
+    CHECK_NEAR(p.pcb.settings.keepouts.back().area.x0, cy1.x0, 1e-9);
+    CHECK_NEAR(p.pcb.zones.back().polygon[0].y, cy1.y0, 1e-9);
+    double after = 1e9;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) after = std::min(after, p.pcb.courtyard(c).x0);
+    CHECK(after <= std::max(nearest, 2.0) + 0.25);
+    p.pcb.settings.keepouts.pop_back();
+    p.pcb.zones.pop_back();
     CHECK(p.pcb.settings.width < 80);
     CHECK(p.pcb.settings.height < 60);
     CHECK(p.pcb.tracks.size() == tracks);
@@ -20992,8 +21016,12 @@ TEST(mcp_decoupling_board_checks_and_consistent_reports) {
     all["decoupling"] = true;
     const Json placed = mcpData(mcpTool(s, "pcb_autoplace", all));
     std::set<std::string> served;
-    for (const auto& m : placed.get("decouplingPlaced").items()) served.insert(m.asString("").substr(0, 2));
-    CHECK(!served.count("C1"));
+    bool bulkAtEntry = false;  // the 10 µF bulk one serves no pin: it goes where the supply comes in
+    for (const auto& m : placed.get("decouplingPlaced").items()) {
+        served.insert(m.asString("").substr(0, 2));
+        bulkAtEntry |= m.asString("").rfind("C1 → J1", 0) == 0;
+    }
+    CHECK(!served.count("C1") || bulkAtEntry);
     Json pads = Json::object();
     pads["pads"] = Json::parse(R"(["U1", "C2", "C3", "C4"])");
     const Json board = mcpData(mcpTool(s, "pcb_summary", pads));
@@ -21139,22 +21167,22 @@ TEST(mcp_build_tags_and_grounds_stay_clear_of_labels) {
         if (c.kind == ComponentKind::NetLabel && c.rotation % 180 != 0) o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
         return o;
     };
-    int labels = 0, sideways = 0;
+    int labels = 0, upright = 0;
     std::set<std::string> refs;
     const Component* u2 = sch.findByRef("U2");  // its GND pin: the middle left one, between VIN and EN
     for (const auto& a : sch.components()) {
         if (!isNetSymbolKind(a.kind)) continue;
         ++labels;
         CHECK(refs.insert(a.ref).second);
-        if (a.kind == ComponentKind::Ground && a.position.x < u2->position.x && std::fabs(a.position.y - u2->position.y) < 15)
-            sideways += a.rotation == 90;
-        for (const auto& b : sch.components()) {
-            if (b.id == a.id || a.kind != ComponentKind::NetLabel || b.kind != ComponentKind::NetLabel) continue;
+        const bool u2Ground = a.kind == ComponentKind::Ground && a.position.x < u2->position.x && std::fabs(a.position.y - u2->position.y) < 15;
+        upright += u2Ground && a.rotation == 0;
+        for (const auto& b : sch.components()) {  // labels apart; the ground out beyond the labels below it
+            if (b.id == a.id || (a.kind != ComponentKind::NetLabel && !u2Ground) || b.kind != ComponentKind::NetLabel) continue;
             const auto o = box(a), q = box(b);
             CHECK(!(o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3]));
         }
     }
-    CHECK(sideways == 1);
+    CHECK(upright == 1);  // pointing down, not turned sideways
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [], "nets": {"STRAP8": ["U1.GPIO8", "R8.2"]}})"))));
     int again = 0;
     for (const auto& c : sch.components()) again += isNetSymbolKind(c.kind);

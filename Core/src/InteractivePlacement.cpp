@@ -96,11 +96,12 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
         const bool hit = std::any_of(out.pads.begin(), out.pads.end(), [&](const Pad& pad) {
             return (k.layer < 0 || pad.onLayer(k.layer)) && pad.bounds().intersects(k.area);
         });
+        // A keep-out that bars pours too (an antenna's area, an isolation barrier) wants no part in it at all.
         if (hit)
             out.issues.push_back({"PLACE_KEEPOUT",
                                   "Pads of " + cand.ref + " would lie inside the keep-out" + (k.name.empty() ? "" : " " + k.name) +
-                                      ": no track can reach them.",
-                                  -1, false});
+                                      (k.pours || k.barrier ? ": parts stay out of it." : ": no track can reach them."),
+                                  -1, k.pours || k.barrier});
     }
     out.legal = std::none_of(out.issues.begin(), out.issues.end(), [](const PlacementIssue& i) { return i.error; });
 }

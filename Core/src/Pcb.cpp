@@ -541,11 +541,15 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
                    std::max(box.y1, h.position.y + r));
     }
     margin = std::max(margin, settings.edgeClearance + 0.5);
-    auto roundUp = [](double v) { return std::ceil(v * 2.0) / 2.0; };
-    double width = std::max(10.0, roundUp(box.width() + 2 * margin));
-    double height = std::max(10.0, roundUp(box.height() + 2 * margin));
-    // Centre the parts in the new outline, snapped to the 0.25 mm placement grid.
-    Vec2 shift{std::round(((width - box.width()) / 2 - box.x0) * 4) / 4, std::round(((height - box.height()) / 2 - box.y0) * 4) / 4};
+    // A side a part already stands nearer to than the margin (a connector's mouth, an antenna at the edge) keeps its
+    // distance; the others get the margin.
+    const double left = std::clamp(box.x0, 0.0, margin), top = std::clamp(box.y0, 0.0, margin);
+    const double right = std::clamp(settings.width - box.x1, 0.0, margin), bottom = std::clamp(settings.height - box.y1, 0.0, margin);
+    auto roundUp = [](double v) { return std::ceil(v * 4.0) / 4.0; };
+    double width = std::max(10.0, roundUp(box.width() + left + right));
+    double height = std::max(10.0, roundUp(box.height() + top + bottom));
+    // Snapped to the 0.25 mm placement grid.
+    const Vec2 shift{std::round((left - box.x0) * 4) / 4, std::round((top - box.y0) * 4) / 4};
     for (auto& c : sch.mutableComponents())
         if (c.hasFootprint() && c.pcb.placed) c.pcb.position = c.pcb.position + shift;
     for (auto& t : tracks) {
@@ -554,7 +558,21 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
         t.mid = t.mid + shift;
     }
     for (auto& v : vias) v.position = v.position + shift;
+    // Everything else drawn in board coordinates moves with the parts.
+    auto move = [&](Rect& r) { r = Rect(r.x0 + shift.x, r.y0 + shift.y, r.x1 + shift.x, r.y1 + shift.y); };
     for (auto& h : settings.holes) h.position = h.position + shift;
+    for (auto& k : settings.keepouts) move(k.area);
+    for (auto& z : settings.heightZones) move(z.area);
+    for (auto& f : settings.flexRegions) move(f.area);
+    for (auto& d : settings.dimensions) d.a = d.a + shift, d.b = d.b + shift;
+    for (auto& g : settings.graphics) {
+        for (auto& r : g.rects) move(r);
+        for (auto& [a, b] : g.lines) a = a + shift, b = b + shift;
+    }
+    for (auto& cut : settings.cutouts)
+        for (auto& v : cut) v = v + shift;
+    for (auto& z : zones)
+        for (auto& v : z.polygon) v = v + shift;
     settings.width = width;
     settings.height = height;
     return true;
