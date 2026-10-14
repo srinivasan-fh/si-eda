@@ -166,10 +166,13 @@ PlacementCheck Project::suggestPlacement(int componentId, double grid, const std
     const std::vector<int> ignore = sortedIds(ignoreIds);
     const Component* c = schematic.find(componentId);
     if (!c || !c->hasFootprint() || isNetSymbolKind(c->kind)) return {};
-    // The centroid of the pads it connects to on other placed parts, each net counting once.
-    std::set<int> nets;
+    // The centroid of the pads it connects to on other placed parts, each net counting once; ground (everywhere on the
+    // board) only when it is all the part connects to, so a decoupling capacitor goes by its supply pin.
+    std::set<int> nets, grounds;
     for (size_t i = 0; i < c->def().pins.size(); ++i)
-        if (const int n = schematic.netOf({c->id, static_cast<int>(i)}); n >= 0) nets.insert(n);
+        if (const int n = schematic.netOf({c->id, static_cast<int>(i)}); n >= 0)
+            (schematic.netRole(n) == NetRole::Ground ? grounds : nets).insert(n);
+    if (nets.empty()) nets = grounds;
     std::map<int, std::pair<Vec2, int>> perNet;  // net → sum of pad positions, count
     if (!nets.empty())
         for (const Pad& pad : pcb.pads(schematic)) {

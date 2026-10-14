@@ -625,14 +625,19 @@ Scene schematicScene(const Project& project, int sheet) {
                     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) s.line(p, q, 1.2, pinC);
                     s.disc(p, 1.6, pinC);
                     if (c.isNoConnect(static_cast<int>(i))) {  // a no-connect flag: an X on the pin end
-                        s.line(p + Vec2{-4, -4}, p + Vec2{4, 4}, 1.5, "#1f4f9f");
-                        s.line(p + Vec2{-4, 4}, p + Vec2{4, -4}, 1.5, "#1f4f9f");
+                        // A pin without a lead ends on the body edge: its X stands just outside, clear of the name.
+                        const Vec2 out = m == dl ? Vec2{-1, 0} : m == dr ? Vec2{1, 0} : m == dt ? Vec2{0, -1} : Vec2{0, 1};
+                        const Vec2 x = (p - q).length() < 4 ? q + out * 5 : p;
+                        s.line(x + Vec2{-4, -4}, x + Vec2{4, 4}, 1.5, "#1f4f9f");
+                        s.line(x + Vec2{-4, 4}, x + Vec2{4, -4}, 1.5, "#1f4f9f");
                     }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
                         const std::string& label = pins[i].name;
                         const bool left = m == dl, right = m == dr;
-                        if (left) s.text(q + Vec2{2, 2.5}, label, 6, pinC, false);
-                        else if (right) s.text(q + Vec2{-2 - 4.8 * static_cast<double>(label.size()), 2.5}, label, 6, pinC, false);
+                        // A side name keeps to its half of the body (smaller text when it is long).
+                        const double h = std::max(4.0, std::min(6.0, 6 * ((x1 - x0) / 2 - 6) / std::max(1.0, textWidth(label, 6))));
+                        if (left) s.text(q + Vec2{2, 2.5}, label, h, pinC, false);
+                        else if (right) s.text(q + Vec2{-2 - textWidth(label, h), 2.5}, label, h, pinC, false);
                         else if (written.insert({std::lround(q.x * 10) * (m == dt ? 1 : -1), label}).second)
                             s.text(q + Vec2{0, m == dt ? 8.0 + row[i] : -3.0 - row[i]}, label, 6, pinC, true);
                     }
@@ -675,12 +680,14 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
     const auto fills = copperFills(sch, pcb);
-    for (int l : order) {
-        const std::string col = layerColour(l, n);
+    for (int l : order) {  // every pour under every track: a top pour does not hide the bottom layer's tracks
         const std::string dim = l == 0 ? "#5a2020" : (l == n - 1 ? "#20305a" : "#4a4020");
         for (const auto& f : fills)
             if (f.layer == l)
                 for (const auto& r : f.rects) s.box(r, true, 0, dim);
+    }
+    for (int l : order) {
+        const std::string col = layerColour(l, n);
         for (const auto& t : pcb.tracks) {
             if (t.layer != l) continue;
             if (t.arc) {

@@ -1252,6 +1252,14 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
             }
 }
 
+std::vector<size_t> PcbLayout::padGroups(const Schematic& sch) const {
+    const auto ps = pads(sch);
+    DSU d = copperClusters(ps, tracks, vias, &zoneFills(sch));
+    std::vector<size_t> out(ps.size());
+    for (size_t i = 0; i < ps.size(); ++i) out[i] = d.find(i);
+    return out;
+}
+
 std::vector<std::pair<Vec2, Vec2>> PcbLayout::ratsnest(const Schematic& sch) const {
     std::vector<std::pair<Vec2, Vec2>> lines;
     auto ps = pads(sch);

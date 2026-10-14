@@ -20878,17 +20878,94 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     undo["steps"] = 10;
     CHECK(!mcpFailed(mcpTool(s, "project_undo", undo)));
     CHECK(state().schematic.components().empty() && mcpFailed(mcpTool(s, "project_undo", undo)));
-    // Undo never steps back past an open: the opened design stays.
+    // A saved file keeps its undo history: a new server opening it steps back past the earlier session's calls; a
+    // file changed since (or a project_new) starts afresh.
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor"}]})J"))));
     CHECK(!mcpFailed(mcpTool(s, "project_save_as", Json::parse(R"J({"path": "u.siedaproj"})J"))));
-    CHECK(!mcpFailed(mcpTool(s, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
-    CHECK(mcpFailed(mcpTool(s, "project_undo", Json::object())) && state().schematic.findByRef("R9"));
+    {
+        mcp::McpServer later(mcpOptions(root));
+        CHECK(!mcpFailed(mcpTool(later, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+        CHECK(!mcpFailed(mcpTool(later, "project_undo", Json::object())) && !later.project()->project.schematic.findByRef("R9"));
+        std::ofstream(root / "u.siedaproj", std::ios::app) << "\n";  // still the same design …
+        { std::ifstream in(root / "u.siedaproj"); std::stringstream ss; ss << in.rdbuf();
+          Project changed = Project::fromJson(Json::parse(ss.str())); changed.name = "changed";
+          std::ofstream(root / "u.siedaproj") << changed.toJson().dump(true); }  // … now not
+        CHECK(!mcpFailed(mcpTool(later, "project_open", Json::parse(R"J({"path": "u.siedaproj"})J"))));
+        CHECK(mcpFailed(mcpTool(later, "project_undo", Json::object())));
+    }
     // Catalog: the ESP32-C3 modules, a 40 MHz crystal and the chip antenna.
     for (const char* name : {"ESP32-C3-MINI-1", "ESP32-C3-WROOM-02", "Crystal_40MHz_3225", "ANTENNA-2450AT18A100"}) {
         Json add = Json::object();
         add["name"] = name;
         CHECK(!mcpFailed(mcpTool(s, "library_add_part", add)));
     }
+}
+
+TEST(mcp_repair_tools_cut_off_pads_courtyards_and_pin_count_search) {
+    // An agent's manual repairs: pcb_drc names the pads cut off from the rest of their net; pcb_add_track joins them
+    // on any points, pcb_add_via drops a via; both refuse copper that would touch another net. pcb_summary gives each
+    // footprint's courtyard size; "4 pin" in a search is a pin count.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor", "package": "0805"},
+        {"ref": "R2", "kind": "resistor", "package": "0805"}], "nets": {"NA": ["R1.1", "R2.1"], "NB": ["R1.2", "R2.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 30, "height": 20})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(R"J({"placements": [{"ref": "R1", "x": 8, "y": 10, "rotation": 0},
+        {"ref": "R2", "x": 22, "y": 10, "rotation": 0}]})J"))));
+    const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    CHECK(drc.get("unrouted").size() == 2 && drc.get("unrouted")[0].get("cutOff").size() == 1);
+    const Json summary = mcpData(mcpTool(s, "pcb_summary", Json::parse(R"J({"pads": ["R1", "R2"]})J")));
+    CHECK(summary.get("footprints")[0].get("courtyard")[0].asNumber() > 2);
+    Vec2 r1a, r2a, r1b;
+    for (const auto& pad : summary.get("pads").get("R1").items())
+        (pad.get("net").asString("") == "NA" ? r1a : r1b) = Vec2{pad.get("x").asNumber(), pad.get("y").asNumber()};
+    for (const auto& pad : summary.get("pads").get("R2").items())
+        if (pad.get("net").asString("") == "NA") r2a = Vec2{pad.get("x").asNumber(), pad.get("y").asNumber()};
+    Json track = Json::parse(R"J({"net": "NA", "layer": 0})J"), pts = Json::array();
+    for (Vec2 v : {r1a, Vec2{r1a.x, 4}, Vec2{r2a.x, 4}, r2a}) {
+        Json q = Json::array();
+        q.push(v.x), q.push(v.y);
+        pts.push(q);
+    }
+    track["points"] = pts;
+    CHECK(mcpData(mcpTool(s, "pcb_add_track", track)).get("ids").size() == 3);
+    CHECK(mcpData(mcpTool(s, "pcb_drc", Json::object())).get("unrouted").size() == 1);
+    Json bad = track;  // NB's copper runs into NA's pads
+    bad["net"] = "NB";
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_track", bad)));
+    Json via = Json::parse(R"J({"net": "NA"})J");
+    via["x"] = r1a.x, via["y"] = 4.0;
+    CHECK(mcpData(mcpTool(s, "pcb_add_via", via)).get("id").asInt(-1) >= 0);
+    via["net"] = "NB", via["x"] = r1b.x, via["y"] = r1b.y;  // a via on its own net's pad is fine …
+    CHECK(!mcpFailed(mcpTool(s, "pcb_add_via", via)));
+    via["x"] = r1a.x, via["y"] = r1a.y;  // … on NA's pad is not
+    CHECK(mcpFailed(mcpTool(s, "pcb_add_via", via)));
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "header 4 pin"})J")));
+    CHECK(found.get("total").asInt(0) > 0);
+    for (const auto& part : found.get("parts").items()) CHECK(part.get("pins").asInt(0) == 4);
+    // Snapshot copper names its net.
+    const Json copper = mcpData(mcpTool(s, "project_snapshot", Json::parse(R"J({"sections": ["tracks", "vias"]})J")));
+    CHECK(copper.get("tracks")[0].get("netName").asString("") == "NA" && copper.get("vias")[0].has("netName"));
+    // A part turned under its wires: its labels follow (ERC stays clean); a wire drawn across a pin it does not join
+    // is a warning.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "C1", "kind": "capacitor"}],
+        "nets": {"NA": ["C1.1"], "GND": ["C1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_move_component", Json::parse(R"J({"ref": "C1", "rotation": 90})J"))));
+    CHECK(mcpData(mcpTool(s, "schematic_erc", Json::object())).get("warnings").asInt(-1) == 0);
+    Schematic& sch = s.project()->project.schematic;
+    const int a = sch.addComponent(ComponentKind::Resistor, "1k", {2000, 0}), b = sch.addComponent(ComponentKind::Resistor, "1k", {2200, 0});
+    const int c = sch.addComponent(ComponentKind::Resistor, "1k", {2100, 30});  // turned: its pin 1 on that wire
+    sch.rotateComponent(c, 90);
+    sch.moveComponent(c, {2100, 30});
+    sch.connect({a, 1}, {b, 0});
+    bool warned = false;
+    for (const auto& v : sch.runERC()) warned |= v.code == "ERC_TOUCHING_UNCONNECTED" && v.severity == Severity::Warning;
+    CHECK(warned);
+    // The update preview counts single-pin nets instead of listing them.
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R9", "kind": "resistor", "package": "0805"}],
+        "nets": {"NA": ["R9.1"]}, "pins": false})J"))));
+    CHECK(mcpData(mcpTool(s, "pcb_eco_preview", Json::object())).get("singlePinNets").asInt(0) >= 1);
 }
 
 TEST(mcp_decoupling_board_checks_and_consistent_reports) {
@@ -21296,14 +21373,16 @@ TEST(mcp_pairs_stackup_and_stitching_kept) {
     // R2 put just clear of R1 (closer than the 0.25 mm passive spacing): the move and the DRC both say so.
     CHECK(mcpData(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"ref": "R1", "x": 30, "y": 26, "rotation": 0, "force": true})")))
               .get("committed").asBool(false));
-    Json near;
+    Json near, refused;
     for (double x = 31; x < 36 && !near.isObject(); x += 0.1) {
         Json mv = Json::parse(R"({"ref": "R2", "y": 26, "rotation": 0})");
         mv["x"] = x;
         const Json r = mcpData(mcpTool(s, "pcb_place_footprint", mv));
-        if (r.get("committed").asBool(false)) near = r;
+        if (r.has("tooClose") && !refused.isObject()) refused = r;  // nearer than the standard: refused …
+        mv["force"] = true;
+        if (r.has("tooClose") && mcpData(mcpTool(s, "pcb_place_footprint", mv)).get("committed").asBool(false)) near = r;  // … unless forced
     }
-    CHECK(near.get("tooClose").size() == 1);
+    CHECK(near.get("tooClose").size() == 1 && !refused.get("committed").asBool(true));
     bool flagged = false;
     const Json spacingDrc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : spacingDrc.get("violations").items()) flagged = flagged || v.get("code").asString("") == "DRC_PART_SPACING";

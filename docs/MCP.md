@@ -559,7 +559,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_set_value` | edit | Sets a part's value ("4k7", "100n", "Blue", a source's "3.3" or "SIN(0 1 50)"). |
 | `schematic_set_package` | edit | Sets the package variant of a passive / diode ("R_0603", "C_1206", "CP_Tant_B", "D_DO41_THT"; "" = default). |
 | `schematic_rename` | edit | Changes a part's designator. |
-| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees). |
+| `schematic_move_component` | edit | Moves a part on the schematic (x, y in grid units; the net labels and grounds wired to it alone move with it, a tag naming a wire from it goes back to the wire's middle) and/or turns it (rotation: absolute degrees; rotate: relative degrees; its own labels / grounds turn with it). |
 | `schematic_connect` | edit | Draws wires between pins. |
 | `schematic_disconnect` | edit (destructive) | Removes the wires between two pins (from, to), every wire at one pin (from only), or a wire by id. |
 | `schematic_pin_map` | edit | A part's pin map for firmware and FPGA tools. |
@@ -610,25 +610,25 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (44)
+### pcb (46)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
 | Tool | Kind | What it does |
 |---|---|---|
 | `pcb_boards` | edit | Several boards in one project (one schematic): list, add (name, activate), activate (board: the pcb_* tools work on it), assign (refs, board: the parts move there unplaced; place them with pcb_update_from_schematic or pcb_autoplace), rename (board, name), remove (board). |
-| `pcb_summary` | read | The board: size, outline, layers, rules, every footprint with position / rotation / side, routing progress (tracks, vias, unrouted connections), pours, keep-outs and mounting holes. |
+| `pcb_summary` | read | The board: size, outline, layers, rules, every footprint with position / rotation / side and courtyard size [w, h] (mm, as turned), routing progress (tracks, vias, unrouted connections), pours, keep-outs and mounting holes. |
 | `pcb_set_board` | edit | Sets the board size (mm), copper layers (1, 2, 4, 6), default track width and clearance, a rule preset (pcb_rule_presets), thickness, solder mask colour and conformal coating. |
 | `pcb_set_outline` | edit | Board shape: a polygon (points in mm, ≥ 3; [] = the plain rectangle) or a preset: rectangle (w × h), rounded (corner radius param), circle (diameter w), quad-x (quadcopter frame: span w, body h, arm param). |
 | `pcb_fit_board` | edit | Shrinks / grows the board to the placed footprints plus a margin (parts and copper move together). |
 | `pcb_set_stackup` | edit | Laminate (fr4, fr4-hightg, isola-370hr, rogers-4350b, megtron-6, polyimide, ims-aluminium), construction (rigid, rigid-flex, metal-core), impedance targets (Ω) and backdrilling. |
 | `pcb_rule_presets` | read | Standard design-rule presets (track, clearance, via, annular ring, hole limits) for pcb_set_board. |
 | `pcb_set_net_width` | edit | Routes one net with its own track width (mm; 0 removes it). |
-| `pcb_eco_preview` | read | What "Update PCB from schematic" would change: footprints to add / remove, nets, pours, rules. |
+| `pcb_eco_preview` | read | What "Update PCB from schematic" would change: footprints to add / remove, nets, pours, rules (nets of a single pin are only counted: singlePinNets). |
 | `pcb_update_from_schematic` | edit | Forward annotation: places the footprints of new parts (Auto Place spots), removes parts that are gone, carries net rules, records the baseline. |
 | `pcb_autoplace` | edit | Automatic placement: all = true re-places every unlocked footprint (antenna parts and USB / connectors with an open end first, at the top / bottom edge facing out; edges: false skips that); false places only those not on the board yet. |
 | `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
-| `pcb_suggest_placement` | read | The nearest free legal spot for a footprint, close to the pads it connects to. |
+| `pcb_suggest_placement` | read | The nearest free legal spot for a footprint that keeps the assembly spacing, close to the pads it connects to (ground counts only for a part on ground alone). |
 | `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
 | `pcb_autoroute` | edit | Routes the board. |
 | `pcb_autoroute_presets` | read | The autorouter strategy presets with their options, and the board's current strategy. |
@@ -643,6 +643,8 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_drc` | read | Runs the DRC (clearances, widths, drills, annular rings, unrouted nets, board edge) and the design-for-reliability checks, and flags a part whose courtyard leaves the board or overlaps another part (DRC_PLACE_*, a forced pose) or stands closer to one than the assembly spacing standard (DRC_PART_SPACING: courtyard gaps of 0.25 mm passive-passive, 0.5 passive-IC, 1.0 IC-IC and through-hole-SMD, 0.5 between through-hole parts, 2.0 round a BGA). |
 | `pcb_fanout` | edit | Fans out a component: an escape track and a via on every SMD pad whose net has other pins. |
 | `pcb_stitch_vias` | edit | Stitches vias where a net's pours overlap on two or more layers (default the ground net, 5 mm pitch), optionally inside an area; none under a part's courtyard. |
+| `pcb_add_via` | edit | Drops a via of a net at a point (mm), e.g. |
+| `pcb_add_track` | edit | Draws a track of a net through points (mm) on one copper layer, ends anywhere (a pad, a via, a pour, another track) — for repairs the router's pad-to-pad pcb_route cannot make. |
 | `pcb_length_rules` | edit | Length / phase matching: enable serpentine tuning and tolerances, set per-net length rules [{net, target, tolerance}] (target 0 removes), match groups [{name, nets:[…], tolerance}], and tune now. |
 | `pcb_pair_rules` | edit | Differential pair rules by the pair's stem (USB_D for USB_D_P / USB_D_N): an interface preset (usb2, usb3, pcie, ethernet, hdmi, lvds, ddr, can: typical impedance and skew) and / or impedance (Ω), width, gap (mm) and skew tolerance (mm); a rule with no values removes it. |
 | `pcb_set_hdi` | edit | HDI (IPC-2226): blind / buried vias and laser microvias (drill / pad mm), via-in-pad. |

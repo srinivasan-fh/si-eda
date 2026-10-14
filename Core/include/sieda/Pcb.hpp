@@ -733,6 +733,9 @@ public:
     std::vector<RuleViolation> runDRC(const Schematic& sch) const;
     /// Number of unrouted pad-to-pad connections (ratsnest lines) — also returns them for display.
     std::vector<std::pair<Vec2, Vec2>> ratsnest(const Schematic& sch) const;
+    /// Which piece of connected copper (pads, tracks, vias, pours) each pad of `pads(sch)` belongs to: equal numbers =
+    /// joined. A net split over several groups is unrouted; the groups say which pads are cut off.
+    std::vector<size_t> padGroups(const Schematic& sch) const;
 
     int addTrack(Track t);
     int addVia(Via v);

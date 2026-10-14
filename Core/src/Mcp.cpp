@@ -845,11 +845,13 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
     if (name == "project_open" || name == "project_new" || name == "project_load_example") {
-        undo_.clear();  // a fresh design: undo never steps back past it
+        undo_.clear();  // a fresh design: undo never steps back past it …
+        if (name == "project_open") loadUndoHistory();  // … unless this file was saved with its history
     } else if (!before.empty() && project_ == undoOf_) {
         undo_.push_back(std::move(before));
         if (undo_.size() > kUndoSteps) undo_.erase(undo_.begin());
     }
+    if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
     if (tool->mutates && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
@@ -860,6 +862,47 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     if (out.data.isObject() && protocol_ >= std::string("2025-06-18")) r["structuredContent"] = out.data;
     r["isError"] = false;
     return r;
+}
+
+// The undo history beside a saved project (".<file>.undo"): a client that starts a new server for each batch of calls
+// still steps back past its earlier batches. It is restored only onto the very state it was saved with.
+namespace {
+fs::path undoFile(const std::string& project) {
+    const fs::path p(project);
+    return p.parent_path() / ("." + p.filename().string() + ".undo");
+}
+}  // namespace
+
+void McpServer::saveUndoHistory() const {
+    if (projectPath_.empty() || !project_) return;
+    Json j = Json::object(), steps = Json::array();
+    size_t bytes = 0;  // the newest steps, up to 32 MB
+    size_t first = undo_.size();
+    while (first > 0 && bytes + undo_[first - 1].size() < (32u << 20)) bytes += undo_[--first].size();
+    for (size_t i = first; i < undo_.size(); ++i) steps.push(undo_[i]);
+    j["state"] = project_->project.toJson().dump();
+    j["steps"] = steps;
+    std::error_code ec;
+    if (steps.size() == 0) {
+        fs::remove(undoFile(projectPath_), ec);
+        return;
+    }
+    std::ofstream(undoFile(projectPath_), std::ios::binary | std::ios::trunc) << j.dump();
+}
+
+void McpServer::loadUndoHistory() {
+    if (projectPath_.empty() || !project_) return;
+    std::error_code ec;
+    const fs::path f = undoFile(projectPath_);
+    if (!fs::is_regular_file(f, ec) || fs::file_size(f, ec) > (64u << 20)) return;
+    try {
+        const Json j = Json::parse(readTextFile(f.string()));
+        if (j.get("state").asString("") != project_->project.toJson().dump()) return;  // the file changed since
+        for (const auto& step : j.get("steps").items()) undo_.push_back(step.asString(""));
+        undoOf_ = project_;
+    } catch (const std::exception&) {
+        undo_.clear();
+    }
 }
 
 bool McpServer::undo() {
