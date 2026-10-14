@@ -5,12 +5,6 @@ You describe a product in plain language or paste a PRD. A team of AI agents (Cl
 model you choose) then turns it into a verified schematic, a simulated circuit, an autorouted two-layer
 PCB, a 3D assembly and fabrication-ready Gerber files.
 
-The interface combines conventions from three tools:
-
-- **Altium Designer:** docked Properties and Projects panels, coloured layer tabs, a Messages-style check panel with cross-probing.
-- **Photoshop:** a vertical tool strip, a tool-options bar and a layers panel with visibility toggles.
-- **Proteus:** a device picker with symbol preview, simulation transport controls and live voltage probes on the schematic.
-
 The app defaults to dark mode with a blue palette. At launch, a five-second splash screen preloads the design engine, the component library, the industry profiles, the memory & system design kits and the reference designs, then opens the main window. Once loading is done, a click or Esc skips the rest. **Settings → Appearance → Show splash screen at launch** turns it off (or launch with `-showSplashScreen NO`).
 
 ## Use it with or without AI
