@@ -2615,8 +2615,12 @@ void schematicTools(Table& t) {
                   if ((std::fabs(run.x) > 0.5 && std::fabs(run.y) > 0.5) || run.length() < 1 ||
                       (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= 0)
                       return false;
-                  for (const auto& c : sch.components()) {  // nothing in the way: a body, or a label drawn before
+                  for (const auto& c : sch.components()) {  // nothing in the way: a body, a label drawn before or another pin
                       if (c.kind == ComponentKind::Junction || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
+                      for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) {
+                          const Vec2 q = sch.pinPosition({c.id, i});
+                          if ((q - p0).length() > 1 && (q - p1).length() > 1 && pointSegmentDistance(q, p0, p1) < 1) return false;
+                      }
                       const auto o = sch.symbolOutline(c);
                       for (int k = 1; k < 20; ++k) {
                           const Vec2 q = p0 + run * (k / 20.0);
@@ -4413,8 +4417,8 @@ void pcbTools(Table& t) {
                   j["islands"] = f.islands;
                   j["padsJoined"] = std::to_string(joined) + " of " + std::to_string(pads) + " " + requireStr(a, "net") +
                                     " pads on this layer";
+                  j["islandsWithoutPads"] = f.islands - static_cast<int>(fed.size());  // 0: every island reaches a pad
                   if (f.islands > static_cast<int>(fed.size())) {  // stitch them or they float: where each one is
-                      j["islandsWithoutPads"] = f.islands - static_cast<int>(fed.size());
                       std::map<int, std::pair<Vec2, int>> sums;
                       for (int r = 0; r < f.rows; ++r)
                           for (int q = 0; q < f.cols; ++q)
@@ -4710,7 +4714,24 @@ void pcbTools(Table& t) {
           "and skew tolerance (mm); a rule with no values removes it. The routers use the pair's impedance, width and "
           "gap; length tuning and DRC its skew. Returns the board's pairs, their rules and the presets.",
           Schema().array("rules", "[{pair, preset, impedance, width, gap, skew}]", "object"), [](McpServer& s, const Json& a) {
-              for (const auto& r : a.get("rules").items()) check(sieda_pcb_set_pair_rule(P(s), r.dump().c_str()) == 1, "Invalid pair rule");
+              std::vector<std::string> stems;  // the board's pairs; a rule names one (or the start of just one)
+              for (auto [pn, nn] : differentialPairs(proj(s).schematic))
+                  stems.push_back(pairStem(proj(s).schematic.nets()[static_cast<size_t>(pn)].name, proj(s).schematic.nets()[static_cast<size_t>(nn)].name));
+              for (Json r : a.get("rules").items()) {
+                  const std::string want = r.get("pair").asString("");
+                  if (std::find(stems.begin(), stems.end(), want) == stems.end()) {
+                      std::vector<std::string> starts;
+                      for (const auto& st : stems)
+                          if (st.rfind(want, 0) == 0) starts.push_back(st);
+                      std::string list;
+                      for (const auto& st : stems) list += (list.empty() ? "" : ", ") + st;
+                      if (starts.size() != 1)
+                          throw ToolError("No differential pair \"" + want + "\" on this board (its pairs: " + (list.empty() ? "none" : list) +
+                                          "; pair nets X_P / X_N, or schematic_add_directive diffPair)");
+                      r["pair"] = starts[0];
+                  }
+                  check(sieda_pcb_set_pair_rule(P(s), r.dump().c_str()) == 1, "Invalid pair rule");
+              }
               const Project& pr = proj(s);
               Json j = obj(), pairs = Json::array();
               for (auto [pn, nn] : differentialPairs(pr.schematic)) {
