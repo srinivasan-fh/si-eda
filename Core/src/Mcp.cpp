@@ -341,8 +341,9 @@ Vec2 pinOutward(const Project& p, PinAddress a) {
     }
     const double eps = 1e-6;
     // Every pin in one column (or row) beside the body (a 1 × N header): they leave away from the body's centre.
-    if (x1 - x0 <= eps && y1 - y0 > eps && std::fabs(pin.x - c->position.x) > eps) return {pin.x < c->position.x ? -1.0 : 1.0, 0};
-    if (y1 - y0 <= eps && x1 - x0 > eps && std::fabs(pin.y - c->position.y) > eps) return {0, pin.y < c->position.y ? -1.0 : 1.0};
+    const bool row = c->def().pins.size() >= 3;
+    if (row && x1 - x0 <= eps && y1 - y0 > eps && std::fabs(pin.x - c->position.x) > eps) return {pin.x < c->position.x ? -1.0 : 1.0, 0};
+    if (row && y1 - y0 <= eps && x1 - x0 > eps && std::fabs(pin.y - c->position.y) > eps) return {0, pin.y < c->position.y ? -1.0 : 1.0};
     const Vec2 off = pin - Vec2{(x0 + x1) / 2, (y0 + y1) / 2};
     const bool atX = x1 - x0 > eps && (pin.x <= x0 + eps || pin.x >= x1 - eps);
     const bool atY = y1 - y0 > eps && (pin.y <= y0 + eps || pin.y >= y1 - eps);

@@ -8271,6 +8271,7 @@ Project messyBoard(uint32_t seed) {
     p.pcb.settings.height = 35;
     p.pcb.settings.layerCount = seed % 2 ? 2 : 4;
     if (seed % 3 == 0) p.pcb.settings.isolationGap = 2.0;
+    if (seed % 3 == 1) p.pcb.settings.clearance = p.pcb.settings.minClearance = 0.25;  // the QFN's own 0.2 mm gaps: fine pitch
     if (seed % 2 == 0) p.pcb.zones.push_back({"GND", 0, false, 0});
     p.pcb.settings.holes.push_back({{6, 6}, 3.2, 6.4});
     p.pcb.autoPlace(s, true);

@@ -6007,8 +6007,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             bool inOwnPad = false;
             for (size_t oi : padsOfComponent.at(p.componentId)) {
                 const Pad& own = ps[oi];
+                // ... unless the track leaves it nearer the other pad than the land pattern's own gap (a 45° exit
+                // past the neighbour's corner): then it is routing, held to the board's clearance.
                 if (own.net == tr.net && own.componentId == p.componentId && own.onLayer(tr.layer) &&
-                    padDistance(own, closest) <= 0)
+                    padDistance(own, closest) <= 0 && (own.round || p.round || d >= rectRectDistance(own.bounds(), p.bounds()) - 0.01))
                     inOwnPad = true;
             }
             if (inOwnPad) {
