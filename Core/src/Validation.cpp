@@ -424,20 +424,26 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
     };
     // --- One decoupling capacitor per supply pin: a rail feeding VCC and AVCC needs two, each at its pin.
     std::map<int, std::vector<std::string>> supplyPins;  // net → "U1.VCC" … (one per part and pin name)
+    std::map<int, int> regulatorPins;  // net → a regulator's input pins on it: any capacitor serves those
     for (const auto& c : sch.components()) {
         if (c.kind != ComponentKind::Custom && c.kind != ComponentKind::PartUnit) continue;
         std::set<std::string> seen;
         const auto& pins = c.def().pins;
+        const bool regulator = std::any_of(pins.begin(), pins.end(), [](const PinDef& p) { return static_cast<PinType>(p.type) == PinType::PowerOut; });
         for (size_t i = 0; i < pins.size(); ++i) {
             const int n = sch.netOf({c.id, static_cast<int>(i)});
             if (static_cast<PinType>(pins[i].type) == PinType::PowerIn && n >= 0 && sch.netRole(n) == NetRole::Power &&
-                seen.insert(pins[i].name).second)
+                seen.insert(pins[i].name).second) {
                 supplyPins[n].push_back(c.ref + "." + pins[i].name);
+                regulatorPins[n] += regulator;
+            }
         }
     }
     for (const auto& [n, list] : supplyPins) {
-        const int caps = capToGround(n, true);  // a bulk capacitor does not decouple a pin
-        if (capToGround(n) > 0 && caps < static_cast<int>(list.size())) {
+        // A bulk capacitor does not decouple a load's pin; a regulator's input takes the 1–10 µF its datasheet asks.
+        const int loads = static_cast<int>(list.size()) - regulatorPins[n];
+        const int caps = capToGround(n, true);
+        if (capToGround(n) > 0 && (caps < loads || capToGround(n) < static_cast<int>(list.size()))) {
             std::string names;
             for (const auto& x : list) names += (names.empty() ? "" : ", ") + x;
             RuleViolation v;

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "RouteQuality.hpp"
 #include "McpInternal.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
@@ -461,6 +462,136 @@ std::vector<int> ownNetSymbols(const Schematic& sch, int id) {
     for (const auto& [sym, only] : alone)
         if (only) out.push_back(sym);
     return out;
+}
+
+/// A jog shorter than 0.1 mm between two tracks (left by gloss / via minimisation) folds into one corner: the tracks
+/// meeting its one end move to the other, so no acute sliver remains. Kept only when the DRC finds no more problems.
+int collapseJogs(Project& pr) {
+    auto problems = [&] {
+        int n = 0;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info;
+        return n;
+    };
+    const auto before = pr.pcb.tracks;
+    const int was = problems();
+    int folded = 0;
+    for (bool again = true; again;) {
+        again = false;
+        for (size_t i = 0; i < pr.pcb.tracks.size(); ++i) {
+            const Track t = pr.pcb.tracks[i];
+            if (t.arc || t.teardrop || (t.b - t.a).length() >= 0.1) continue;
+            const bool viaAtA = std::any_of(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& v) { return (v.position - t.a).length() < 1e-6; });
+            const Vec2 from = viaAtA ? t.b : t.a, to = viaAtA ? t.a : t.b;  // a via end stays where it is
+            for (auto& o : pr.pcb.tracks) {
+                if (o.id == t.id || o.net != t.net || o.layer != t.layer || o.arc || o.teardrop) continue;
+                if ((o.a - from).length() < 1e-6) o.a = to;
+                if ((o.b - from).length() < 1e-6) o.b = to;
+            }
+            pr.pcb.tracks.erase(pr.pcb.tracks.begin() + static_cast<long>(i));
+            ++folded;
+            again = true;
+            break;
+        }
+    }
+    if (folded && problems() > was) {
+        pr.pcb.tracks = before;
+        return 0;
+    }
+    return folded;
+}
+
+/// A track leaving an IC pad at an angle can bulge past the pad's edge toward the next pin (DRC_FINE_PITCH_PADS): it
+/// leaves straight along the pad's long axis first, then turns. Each change is kept only when both new pieces keep the
+/// clearance to the part's other pads and the DRC finds no more errors or warnings. Returns the tracks straightened.
+int squareEscapes(Project& pr) {
+    auto problems = [&] {
+        int n = 0;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info;
+        return n;
+    };
+    const auto pads = pr.pcb.pads(pr.schematic);
+    std::map<int, std::vector<const Pad*>> byPart;
+    for (const auto& pad : pads) byPart[pad.componentId].push_back(&pad);
+    // Gap from a track's edge to the other-net pads of a part (sampled along it).
+    auto gapTo = [&](const Track& t, int part) {
+        double best = 1e9;
+        for (int k = 0; k <= 40; ++k) {
+            const Vec2 q = t.a + (t.b - t.a) * (k / 40.0);
+            for (const Pad* o : byPart[part]) {
+                if (o->net == t.net || !o->onLayer(t.layer)) continue;
+                const Rect r = o->bounds();
+                const double dx = std::max({r.x0 - q.x, 0.0, q.x - r.x1}), dy = std::max({r.y0 - q.y, 0.0, q.y - r.y1});
+                best = std::min(best, std::hypot(dx, dy) - t.width / 2);
+            }
+        }
+        return best;
+    };
+    // The fabrication minimum DRC_FINE_PITCH_PADS measures against inside a footprint.
+    const double clr = std::min(pr.pcb.settings.minClearance, pr.pcb.settings.clearance);
+    int was = -1, done = 0;
+    for (const Pad& pad : pads) {
+        if (byPart[pad.componentId].size() < 8 || pad.round || pad.throughHole) continue;
+        const Component* c = pr.schematic.find(pad.componentId);
+        const bool tall = pad.size.y > pad.size.x;  // the long axis, pointing away from the part's centre
+        const double side = tall ? (pad.position.y >= c->pcb.position.y ? 1 : -1) : (pad.position.x >= c->pcb.position.x ? 1 : -1);
+        const Vec2 axis = tall ? Vec2{0, side} : Vec2{side, 0};
+        const Vec2 out = pad.position + axis * ((tall ? pad.size.y : pad.size.x) / 2 + 0.25);
+        for (size_t i = 0; i < pr.pcb.tracks.size(); ++i) {
+            const Track t = pr.pcb.tracks[i];
+            if (t.net != pad.net || t.layer != pad.smdLayer || t.arc || t.teardrop || gapTo(t, pad.componentId) >= clr - 1e-6) continue;
+            const bool aIn = pad.bounds().contains(t.a), bIn = pad.bounds().contains(t.b);
+            if (aIn == bIn) continue;
+            const Vec2 far = aIn ? t.b : t.a;
+            if ((far - out).dot(axis) < 0) continue;  // turning back past the pad's end: left as routed
+            if (was < 0) was = problems();
+            const auto before = pr.pcb.tracks;
+            Track in = t, on = t;
+            in.a = pad.position, in.b = out;
+            on.a = out, on.b = far, on.id = -1;
+            pr.pcb.tracks[i] = in;
+            pr.pcb.addTrack(on);
+            const int now = problems();
+            if (now <= was && gapTo(in, pad.componentId) >= clr - 1e-6 && gapTo(on, pad.componentId) >= clr - 1e-6) was = now, ++done;
+            else pr.pcb.tracks = before;
+        }
+    }
+    // A segment still too close to a pin of the part moves away from it in 0.05 mm steps, its free ends (not on a pad
+    // or via) taking the tracks joined there along.
+    auto anchored = [&](Vec2 v, int net) {
+        for (const auto& pad : pads)
+            if (pad.net == net && pad.bounds().contains(v)) return true;
+        return std::any_of(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& via) { return (via.position - v).length() < 1e-6; });
+    };
+    for (size_t i = 0; i < pr.pcb.tracks.size(); ++i)
+        for (const auto& [part, list] : byPart) {
+            const Track t = pr.pcb.tracks[i];
+            if (list.size() < 8 || t.arc || t.teardrop || gapTo(t, part) >= clr - 1e-6) continue;
+            Vec2 away{0, 0};  // from the nearest other-net pad toward the segment's middle
+            double near = 1e9;
+            const Vec2 mid = (t.a + t.b) * 0.5;
+            for (const Pad* o : list)
+                if (o->net != t.net && (o->position - mid).length() < near) near = (o->position - mid).length(), away = mid - o->position;
+            if (away.length() < 1e-9) continue;
+            away = away * (1 / away.length());
+            const bool moveA = !anchored(t.a, t.net), moveB = !anchored(t.b, t.net);
+            if (!moveA && !moveB) continue;
+            if (was < 0) was = problems();
+            const auto before = pr.pcb.tracks;
+            bool kept = false;
+            for (double d = 0.05; d <= 0.25 + 1e-9 && !kept; d += 0.05) {
+                pr.pcb.tracks = before;
+                for (auto& o : pr.pcb.tracks) {
+                    if (o.net != t.net || o.layer != t.layer) continue;
+                    for (Vec2* e : {&o.a, &o.b})
+                        if ((moveA && (*e - t.a).length() < 1e-6) || (moveB && (*e - t.b).length() < 1e-6)) *e = *e + away * d;
+                }
+                if (gapTo(pr.pcb.tracks[i], part) < clr - 1e-6) continue;
+                const int now = problems();
+                if (now <= was) was = now, kept = true, ++done;
+            }
+            if (!kept) pr.pcb.tracks = before;
+        }
+    return done;
 }
 
 /// A wide track running into one pad of a small two-pad chip, with little copper on the other pad, is necked down over
@@ -2289,6 +2420,41 @@ void schematicTools(Table& t) {
                   }
               }
               Json layoutWires = wires;
+              // A net this build names only on new parts, already on parts drawn before (a later build adding a cap
+              // on VBUS): the new part is laid out by a pin of the net from before (a regulator's first), not wired.
+              {
+                  const Schematic& sch = proj(s).schematic;
+                  const std::set<int> fresh(unplaced.begin(), unplaced.end());
+                  for (const auto& [net, pins] : nets.fields()) {
+                      Json first;
+                      bool old = false;
+                      for (const auto& pin : pins.items()) try {
+                              const PinAddress pa = pinAddress(*P(s), pin);
+                              if (!fresh.count(pa.component)) old = true;
+                              else if (first.isNull()) first = pin;
+                          } catch (const std::exception&) {}
+                      if (old || first.isNull()) continue;
+                      const Component* best = nullptr;
+                      int bestPin = -1, bestScore = -1;
+                      for (const auto& c : sch.components()) {
+                          if (fresh.count(c.id) || isNetSymbolKind(c.kind) || c.packageOnly) continue;
+                          bool regulator = false;
+                          for (const auto& d : c.def().pins) regulator |= static_cast<PinType>(d.type) == PinType::PowerOut;
+                          for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) {
+                              const int n = sch.netOf({c.id, i});
+                              const int score = (regulator ? 10000 : 0) + static_cast<int>(c.def().pins.size());
+                              if (n >= 0 && sch.nets()[static_cast<size_t>(n)].name == net && score > bestScore)
+                                  best = &c, bestPin = i, bestScore = score;
+                          }
+                      }
+                      if (!best) continue;
+                      const PinDef& d = best->def().pins[static_cast<size_t>(bestPin)];
+                      Json chain = Json::array();
+                      chain.push(best->ref + "." + (d.number.empty() ? d.name : d.number));
+                      chain.push(first);
+                      layoutWires.push(chain);
+                  }
+              }
               for (const Link& l : links) {
                   Json chain = Json::array();
                   chain.push(l.from);
@@ -3792,6 +3958,12 @@ void pcbTools(Table& t) {
               const Json repairs = finishRouting(p, &stats);
               if (!a.get("options").has("viasOffPads")) p->project.pcb.settings.autorouter.viasOffPads = offPads;
               if (repairs.size()) j["repairs"] = repairs;
+              // No acute joins left by gloss / via minimisation (a branch meeting its net's track at 45° joins square).
+              if (!p->project.pcb.settings.autorouter.scoped()) {
+                  collapseJogs(p->project);
+                  routequality::fixAcuteJoins(p->project.pcb, p->project.schematic);
+                  squareEscapes(p->project);
+              }
               if (const Json necked = neckTombstones(p->project); necked.size()) j["neckedDown"] = necked;
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed

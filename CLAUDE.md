@@ -175,7 +175,10 @@
   or by a load on a regulated rail; `placeDecoupling` pairs caps with the pin they are drawn by (`drawnApart`); grounds
   always point down (out beyond the labels below); a crystal's load caps hang below its pins, a 4-pad crystal is mirrored
   to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
-  part's designator and value; REL_TOMBSTONE counts pour spokes only for a pour
+  part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
+  part (layout-only link); after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
+  runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
+  VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; REL_TOMBSTONE counts pour spokes only for a pour
   on the pad's layer, and `neckTombstones` (after MCP routes and pours) necks wide tracks at small two-pad parts unless
   that raises DRC_TRACK_CURRENT. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
   `placeAtEdges` (pcb_autoplace all: antenna parts top + keep-out, open-ended connectors bottom, by `openEnd`);
