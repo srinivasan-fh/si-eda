@@ -165,7 +165,7 @@
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
   counts single-pin nets (`singlePinNets`); `pcb_autoplace` re-places the edge parts once when Auto Place grew the board;
   `stitchingVias` skips vias by a part (the router's pour fan-out); route results give `viasOnBoard`; MCP whole-board
-  routes without a preset gloss and minimise vias (≤ 300 parts); a later `schematic_build` anchors new parts by the pin
+  routes without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
   of a part drawn before (`layoutBuilt` `anchor`), a grounded two-pin part above an upward pin stands upright with labels
   (`grounded`); McpRender keeps side pin names inside their half of the body, a lead-less pin's no-connect X outside it,
   and draws every pour under every track; a label splitting a wire is drawn as text along it, catalog D / SW / Y parts
@@ -174,7 +174,8 @@
   for a pour / barrier keep-out; a bulk cap goes by its rail's series entry (diode / fuse / ferrite), else a connector,
   or by a load on a regulated rail; `placeDecoupling` pairs caps with the pin they are drawn by (`drawnApart`); grounds
   always point down (out beyond the labels below); a crystal's load caps hang below its pins, a 4-pad crystal is mirrored
-  to face its IC; a rail's first bulk cap links to its regulator's pin; REL_TOMBSTONE counts pour spokes only for a pour
+  to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
+  part's designator and value; REL_TOMBSTONE counts pour spokes only for a pour
   on the pad's layer, and `neckTombstones` (after MCP routes and pours) necks wide tracks at small two-pad parts unless
   that raises DRC_TRACK_CURRENT. `PcbLayout::pruneStaleRouting` keeps a via reaching no pad when it stands in a pour (stitching);
   `placeAtEdges` (pcb_autoplace all: antenna parts top + keep-out, open-ended connectors bottom, by `openEnd`);

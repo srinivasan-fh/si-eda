@@ -326,6 +326,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
             if (q.y <= body[1] + 0.5) o[1] = std::min(o[1], body[1] - 60);
             if (q.y >= body[3] - 0.5) o[3] = std::max(o[3], body[3] + 60);
         }
+        o[1] = std::min(o[1], body[1] - 14), o[3] = std::max(o[3], body[3] + 14);  // its designator above, value below
         return o;
     };
     double x = 0, y = 0, rowHeight = 0;
@@ -424,7 +425,8 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         if (!hit) break;
                         // Off the pin's line its own pin gets a label too: further out, clear of the IC's labels.
                         if (!step && run > 40 && !loadCap) moveBy(b.component, d * 80);
-                        const double w = std::fabs(d.x) > 0.5 ? o[3] - o[1] + 40 : o[2] - o[0] + 40;
+                        // A step down clears the designator above and the value below as well.
+                        const double w = std::fabs(d.x) > 0.5 ? o[3] - o[1] + 60 : o[2] - o[0] + 40;
                         const double next = loadCap ? (step / 2 + 1) * w * (step % 2 ? -1 : 1) : along + w;
                         moveBy(b.component, std::fabs(d.x) > 0.5 ? Vec2{0, next - along} : Vec2{next - along, 0});
                         along = next;
@@ -3738,7 +3740,7 @@ void pcbTools(Table& t) {
           "improvePlacement (Auto Place's improvement pass), lengthAwareSearch (with lengthAware: nets with a length "
           "target are routed again toward it, shorter or through a waypoint, before meandering), shapeCompletion "
           "(connections the grid leaves unrouted are routed by the gridless shape-based engine), viasOffPads (a pour pad's "
-          "fan-out via clears its SMD pad; on by default here)}. Without a preset, gloss and minimizeVias are on (boards up to "
+          "fan-out via clears its SMD pad; on by default here)}. Without a preset, the quality preset's options are on (boards up to "
           "300 parts; not on a partial route). A whole-board route "
           "on a small board that leaves connections open tries again (shape-based completion, two-pin parts turned "
           "round) and lists the repairs kept. A whole-board route re-routes every net, hand routing included: to keep "
@@ -3772,11 +3774,13 @@ void pcbTools(Table& t) {
                       for (const auto& [k, v] : a.get("options").fields()) o[k] = v;
                   check(sieda_pcb_set_autoroute_options(p, o.dump().c_str()) == 1, "Invalid autoroute options");
               }
-              // Over MCP a route on a small board is tidied too (gloss, fewer vias) unless a preset or options choose.
+              // Over MCP a route on a small board is the quality preset (gloss, fewer vias, coupled pairs, lengths) unless a
+              // preset or options choose.
               auto& ar = p->project.pcb.settings.autorouter;
-              if (!a.has("preset") && !a.get("options").has("gloss") && !a.get("options").has("minimizeVias") && !ar.scoped() &&
-                  !ar.fanoutOnly && p->project.schematic.components().size() <= 300)
-                  ar.gloss = ar.minimizeVias = true;
+              if (!a.has("preset") && !ar.scoped() && !ar.fanoutOnly && p->project.schematic.components().size() <= 300)
+                  for (auto [key, on] : {std::pair{"gloss", &ar.gloss}, {"minimizeVias", &ar.minimizeVias},
+                                         {"coupledPairs", &ar.coupledPairs}, {"lengthAware", &ar.lengthAware}})
+                      if (!a.get("options").has(key)) *on = true;
               if (argBool(a, "clearFirst", false)) sieda_pcb_clear_routing(p);
               sieda_pcb_autoplace(p, 0);
               // Over MCP a pour pad's fan-out via clears its SMD pad (no via in pad) unless options say otherwise;
