@@ -2996,9 +2996,9 @@ void schematicTools(Table& t) {
                                   at = PinAddress{y.component, y.pin}, ++n;
                       return n == 1 ? at : PinAddress{-1, 0};
                   };
-                  auto overlap = [&](int a0, int b0) {
+                  auto overlap = [&](int a0, int b0, double gap = 0) {  // gap: how far apart they must stand to read
                       const auto o = textBox(*sch.find(a0)), q = textBox(*sch.find(b0));
-                      return o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
+                      return o[0] < q[2] + gap && q[0] < o[2] + gap && o[1] < q[3] + gap && q[1] < o[3] + gap;
                   };
                   std::vector<int> symbols;
                   for (const auto& c : sch.components())
@@ -3013,8 +3013,37 @@ void schematicTools(Table& t) {
                   for (size_t i = 0; i < symbols.size(); ++i)
                       for (size_t k = i + 1; k < symbols.size(); ++k) {
                           const int l = symbols[i], o = symbols[k];
-                          if (!overlap(l, o)) continue;
                           const PinAddress pl = pinOf(l), po = pinOf(o);
+                          if (!overlap(l, o, (pl.component < 0) != (po.component < 0) ? 6 : 0)) continue;
+                          if ((pl.component < 0) != (po.component < 0)) {  // a wire's tag on a pin's label: the tag slides along its wire
+                              const int tag = pl.component < 0 ? l : o, label = tag == l ? o : l;
+                              std::vector<Vec2> ends;
+                              for (const auto& w : sch.wires())
+                                  for (const auto& [x, y] : {std::pair{w.a, w.b}, std::pair{w.b, w.a}})
+                                      if (x.component == tag && sch.find(y.component)) ends.push_back(sch.pinPosition(y));
+                              const Vec2 was = sch.find(tag)->position;
+                              bool clear = false;
+                              if (ends.size() == 2 && (std::fabs(ends[0].x - ends[1].x) < 0.5 || std::fabs(ends[0].y - ends[1].y) < 0.5)) {
+                                  const Vec2 lo{std::min(ends[0].x, ends[1].x), std::min(ends[0].y, ends[1].y)},
+                                             hi{std::max(ends[0].x, ends[1].x), std::max(ends[0].y, ends[1].y)};
+                                  const Vec2 along = std::fabs(ends[0].x - ends[1].x) < 0.5 ? Vec2{0, 10} : Vec2{10, 0};
+                                  for (int step = 1; step < 40 && !clear; ++step)  // either way, nearest first, 20 clear of the ends
+                                      for (const int sign : {1, -1}) {
+                                          const Vec2 at = was + along * (sign * ((step + 1) / 2));
+                                          if (at.x < lo.x + (along.x ? 20 : 0) || at.x > hi.x - (along.x ? 20 : 0) ||
+                                              at.y < lo.y + (along.y ? 20 : 0) || at.y > hi.y - (along.y ? 20 : 0))
+                                              continue;
+                                          sieda_move_component(P(s), tag, at.x, at.y);
+                                          if ((clear = !overlap(tag, label, 6))) break;
+                                      }
+                              }
+                              if (!clear) {
+                                  sieda_move_component(P(s), tag, was.x, was.y);
+                                  labelOverlaps.push(sch.find(tag)->value + " (wire tag) overlaps " + sch.find(label)->value + " at " +
+                                                     pinLabel(*P(s), tag == l ? po : pl));
+                              }
+                              continue;
+                          }
                           if (pl.component < 0 || po.component < 0 || pl.component == po.component) continue;
                           const bool lSmall = sch.find(pl.component)->def().pins.size() < sch.find(po.component)->def().pins.size();
                           const PinAddress small = lSmall ? pl : po;
@@ -3840,6 +3869,8 @@ Json pcbSummary(McpServer& s) {
         Json f = obj();
         f["ref"] = c.ref;
         f["footprint"] = c.footprintName();
+        if (const StandardPart* sp = findStandardPart(c.def().name); sp && !sp->footprint.empty())
+            f["kicadFootprint"] = sp->footprint;  // the library footprint its pads follow (the id above is the project's copy)
         f["placed"] = c.pcb.placed;
         {  // its courtyard (w, h mm as it is turned now): what a hand placement must leave room for
             const Rect cy = p.checkPlacement(c.id, c.pcb.position, c.pcb.rotation, c.pcb.bottom, 0).courtyard;
@@ -3939,7 +3970,8 @@ ToolOutput autoplaceTool(McpServer& s, const Json& a) {
         if (c.hasFootprint() && c.pcb.placed && proj(s).pcb.onBoard(c)) used += [&] { const Rect r = proj(s).pcb.courtyard(c); return (r.x1 - r.x0) * (r.y1 - r.y0); }();
     if (const auto& st = proj(s).pcb.settings; st.outline.empty() && used < 0.35 * st.width * st.height && used > 0)
         j["boardRoomy"] = "Parts cover " + std::to_string(static_cast<int>(100 * used / (st.width * st.height))) +
-                          " % of the board: pcb_fit_board {\"compact\": true} re-places them on the smallest board that fits.";
+                          " % of the board: pcb_fit_board {\"compact\": true} tries smaller boards (it keeps this size, and says why, "
+                          "when a smaller one would move a capacitor / crystal further from its pins).";
     return out(j);
 }
 
@@ -4048,15 +4080,17 @@ void pcbTools(Table& t) {
           });
     t.add("pcb", "pcb_fit_board", "Fit board", Kind::Edit, true,
           "Shrinks / grows the board to the placed footprints plus a margin (parts and copper move together). compact: "
-          "before routing, re-places every unlocked part (as pcb_autoplace all) on a board made smaller in 1 mm steps "
+          "re-places every unlocked part (as pcb_autoplace all) on a board made smaller in 1 mm steps "
           "while every part still fits with no new placement problems and every capacitor / crystal stays by its pins — "
           "for a board whose edge parts leave empty space.",
           Schema().num("margin", "Margin around the parts (mm, default 3)")
-              .boolean("compact", "Re-place everything on the smallest board that still fits it (before routing; default false)"),
+              .boolean("compact", "Re-place everything on the smallest board that still fits it (clears any routing; default false)"),
           [](McpServer& s, const Json& a) {
               Project& pr = P(s)->project;
               if (argBool(a, "compact", false)) {
-                  check(pr.pcb.tracks.empty() && pr.pcb.vias.empty(), "compact re-places every part: run it before routing (pcb_clear_routing)");
+                  // Compact re-places every part: routing done before it is cleared (and said so), to route again after.
+                  const size_t clearedTracks = pr.pcb.tracks.size(), clearedVias = pr.pcb.vias.size();
+                  pr.pcb.tracks.clear(), pr.pcb.vias.clear();
                   check(pr.pcb.settings.outline.empty(), "compact needs a rectangular board (this one has a drawn outline)");
                   auto problems = [&] {
                       int n = 0;
@@ -4125,6 +4159,9 @@ void pcbTools(Table& t) {
                   P(s)->router.reset();
                   Json board = projectSummary(s).get("board");
                   if (bestPlaced.size()) board["decouplingPlaced"] = bestPlaced;
+                  if (clearedTracks || clearedVias)
+                      board["routingCleared"] = std::to_string(clearedTracks) + " tracks and " + std::to_string(clearedVias) +
+                                                " vias removed (compact re-places every part): run pcb_autoroute again.";
                   if (best.pcb.settings.width != widthWas || best.pcb.settings.height != heightWas) {
                       if (!last.empty()) board["stopped"] = "1 mm smaller on either side: " + last + "; pcb_set_board with a size and pcb_autoplace all try one anyway.";
                   } else

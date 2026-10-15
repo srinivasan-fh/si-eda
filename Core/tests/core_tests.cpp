@@ -20961,7 +20961,9 @@ TEST(mcp_fit_board_compact_replaces_on_the_smallest_board) {
     CHECK(board.get("width").asNumber() < 60 && board.get("height").asNumber() < 50);
     CHECK(board.get("footprintsNotPlaced").asInt(-1) == 0);
     CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::object())));
-    CHECK(mcpFailed(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J"))));
+    // After routing, compact clears the routing (it re-places every part) and says so.
+    const Json again = mcpData(mcpTool(s, "pcb_fit_board", Json::parse(R"J({"compact": true})J")));
+    CHECK(again.has("routingCleared") && mcpData(mcpTool(s, "pcb_summary", Json::object())).get("board").get("tracks").asInt(-1) == 0);
 }
 
 TEST(pour_joining_track_survives_reload) {
