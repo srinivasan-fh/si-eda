@@ -1390,7 +1390,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             for (const auto& [load, net] : xt.loads)
                 for (const auto& q : p->project.pcb.pads(sch))
                     if (ok && q.componentId == xt.id && q.net == net) {
-                        ok = nearest(load, q.position, 1.5, 6) || stepAside(q.position, 7, [&] { return nearest(load, q.position, 1.5, 6); });
+                        ok = nearest(load, q.position, 1.5, 6) || stepAside(q.position, 7, [&, id = load] { return nearest(id, q.position, 1.5, 6); });
                         break;
                     }
             if (!ok) p->project = before, p->router.reset();
