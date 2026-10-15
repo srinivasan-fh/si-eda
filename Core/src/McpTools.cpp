@@ -554,10 +554,16 @@ int collapseJogs(Project& pr) {
 /// leaves straight along the pad's long axis first, then turns. Each change is kept only when both new pieces keep the
 /// clearance to the part's other pads and the DRC finds no more errors or warnings. Returns the tracks straightened.
 int squareEscapes(Project& pr) {
+    // The problems the DRC finds; a change is kept only when it adds none (it may only take some away): a fix that
+    // trades a pin's fabrication-minimum gap for a design-rule gap to another part's pad is not one.
     auto problems = [&] {
-        int n = 0;
-        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n += v.severity != Severity::Info;
+        std::multiset<std::string> n;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic))
+            if (v.severity != Severity::Info) n.insert(v.code + " " + v.message);
         return n;
+    };
+    auto noWorse = [](const std::multiset<std::string>& now, const std::multiset<std::string>& was) {
+        return std::includes(was.begin(), was.end(), now.begin(), now.end());
     };
     const auto pads = pr.pcb.pads(pr.schematic);
     std::map<int, std::vector<const Pad*>> byPart;
@@ -578,7 +584,9 @@ int squareEscapes(Project& pr) {
     };
     // The fabrication minimum DRC_FINE_PITCH_PADS measures against inside a footprint.
     const double clr = std::min(pr.pcb.settings.minClearance, pr.pcb.settings.clearance);
-    int was = -1, done = 0;
+    std::multiset<std::string> was;
+    bool counted = false;
+    int done = 0;
     for (const Pad& pad : pads) {
         if (byPart[pad.componentId].size() < 8 || pad.round || pad.throughHole) continue;
         const Component* c = pr.schematic.find(pad.componentId);
@@ -598,13 +606,16 @@ int squareEscapes(Project& pr) {
             const Vec2 far = aIn ? t.b : t.a;
             // Out of the pad's end the track heads for: its outer end, or its inner one (under the part's body).
             const Vec2 ax = (far - pad.position).dot(axis) < 0 ? axis * -1 : axis;
-            if (was < 0) was = problems();
+            if (!counted) was = problems(), counted = true;
             const auto before = pr.pcb.tracks;
             // Straight out of the pad's end, then on to the far end directly or square (along the pad's axis, then
             // across), the stub longer each time until one is clear.
             bool kept = false;
+            // Then the same shapes necked (a narrower lead out of a fine-pitch pin), never below the minimum width.
+            for (const double neck : {0.0, 0.02, 0.05})
             for (double ext = 0; ext <= 1.5 + 1e-9 && !kept; ext += 0.25)
                 for (int square = 0; square < 2 && !kept; ++square) {
+                    if (neck > 0 && t.width - neck < pr.pcb.settings.minTrackWidth - 1e-9) continue;
                     pr.pcb.tracks = before;
                     const Vec2 o2 = pad.position + ax * ((tall ? pad.size.y : pad.size.x) / 2 + ext);
                     if ((far - o2).dot(ax) < 0) continue;
@@ -615,14 +626,14 @@ int squareEscapes(Project& pr) {
                     for (size_t k = 1; k < path.size(); ++k)
                         if ((path[k] - path[k - 1]).length() > 1e-6) {
                             Track seg = t;
-                            seg.a = path[k - 1], seg.b = path[k], seg.id = segs.empty() ? t.id : -1;
+                            seg.a = path[k - 1], seg.b = path[k], seg.id = segs.empty() ? t.id : -1, seg.width = t.width - neck;
                             segs.push_back(seg);
                         }
                     if (segs.size() < 2) continue;
                     pr.pcb.tracks[i] = segs[0];
                     for (size_t k = 1; k < segs.size(); ++k) pr.pcb.addTrack(segs[k]);
-                    const int now = problems();
-                    kept = now <= was && std::all_of(segs.begin(), segs.end(), [&](const Track& seg) { return gapTo(seg, pad.componentId) >= need - 1e-6; });
+                    const auto now = problems();
+                    kept = noWorse(now, was) && std::all_of(segs.begin(), segs.end(), [&](const Track& seg) { return gapTo(seg, pad.componentId) >= need - 1e-6; });
                     if (kept) was = now, ++done;
                 }
             if (!kept) pr.pcb.tracks = before;
@@ -656,7 +667,7 @@ int squareEscapes(Project& pr) {
             away = away * (1 / away.length());
             const bool moveA = !anchored(t.a, t.net), moveB = !anchored(t.b, t.net);
             if (!moveA && !moveB) continue;
-            if (was < 0) was = problems();
+            if (!counted) was = problems(), counted = true;
             const auto before = pr.pcb.tracks;
             bool kept = false;
             for (double d = 0.05; d <= 0.25 + 1e-9 && !kept; d += 0.05) {
@@ -667,8 +678,8 @@ int squareEscapes(Project& pr) {
                         if ((moveA && (*e - t.a).length() < 1e-6) || (moveB && (*e - t.b).length() < 1e-6)) *e = *e + away * d;
                 }
                 if (gapTo(pr.pcb.tracks[i], part) < partNeed[part] - 1e-6) continue;
-                const int now = problems();
-                if (now <= was) was = now, kept = true, ++done;
+                const auto now = problems();
+                if (noWorse(now, was)) was = now, kept = true, ++done;
             }
             if (!kept) pr.pcb.tracks = before;
         }
