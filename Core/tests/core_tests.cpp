@@ -20929,6 +20929,36 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_wire_to_ground_stub_trim_and_track_ids) {
+    // A wire chain naming GND grounds its pins; a dangling track is named by id and gone after the next route.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "R1", "kind": "resistor", "value": "1k"},
+        {"ref": "R2", "kind": "resistor", "value": "1k"}], "nets": {"A": ["R1.1", "R2.1"], "B": ["R1.2", "R2.2"]},
+        "wires": [["R2.2", "GND"]]})J"))));
+    const Schematic& sch = s.project()->project.schematic;
+    const int b = sch.netOf({sch.findByRef("R2")->id, 1});
+    CHECK(b >= 0 && sch.nets()[static_cast<size_t>(b)].name == "GND");
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 30, "height": 20})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::object())));
+    CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"J({"pour": false})J"))).get("unroutedConnections").asInt(-1) == 0);
+    PcbLayout& pcb = s.project()->project.pcb;
+    Track stub = pcb.tracks.front();  // a 1 mm spur off the first track's end, touching nothing at its far end
+    const Vec2 dir = (stub.b - stub.a) * (1.0 / (stub.b - stub.a).length());
+    stub.id = 9999, stub.a = stub.b, stub.b = stub.b + Vec2{-dir.y, dir.x} * 1.0;
+    pcb.tracks.push_back(stub);
+    bool named = false;
+    const Json before = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    for (const auto& v : before.get("violations").items())
+        named = named || (v.get("code").asString("") == "DRC_DANGLING_TRACK" && v.get("trackIds").size() == 1 && v.get("trackIds")[0].asInt(-1) == 9999);
+    CHECK(named);
+    const Json again = mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"J({"pour": false})J")));
+    CHECK(again.has("undo"));  // a re-route points at project_undo
+    const Json after = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    for (const auto& v : after.get("violations").items()) CHECK(v.get("code").asString("") != "DRC_DANGLING_TRACK");
+}
+
 TEST(mcp_build_wires_decoupling_rail_and_supply_entry) {
     // Decoupling caps above the IC's supply pin share one rail wire with the pin; the input diode is wired into it.
     mcp::McpServer s;

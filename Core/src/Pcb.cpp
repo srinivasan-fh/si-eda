@@ -4310,6 +4310,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             if (!pairsRouted) {
                 for (const PairPlan& plan : pairPlans) {
                     pairLayouts.push_back(routeCoupledPair(grid, ps, plan, extraOf, size_t{400000}));
+                    if (settings.autorouter.widerPairSearch && !pairLayouts.back().ok && pairLayouts.back().reason == "search budget exhausted")
+                        pairLayouts.back() = routeCoupledPair(grid, ps, plan, extraOf, size_t{3200000});
                     if (pairLayouts.back().ok) lay(pairLayouts.back());
                 }
                 pairsRouted = true;
