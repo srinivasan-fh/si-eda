@@ -553,6 +553,59 @@ int collapseJogs(Project& pr) {
 /// A track leaving an IC pad at an angle can bulge past the pad's edge toward the next pin (DRC_FINE_PITCH_PADS): it
 /// leaves straight along the pad's long axis first, then turns. Each change is kept only when both new pieces keep the
 /// clearance to the part's other pads and the DRC finds no more errors or warnings. Returns the tracks straightened.
+/// A track end the router left touching nothing (DRC_DANGLING_TRACK, e.g. 0.25 mm past the track it tees into): the
+/// track goes when that adds no DRC problem, else its end comes back along it to the first point on copper of its net.
+/// Returns the stubs fixed.
+int trimStubs(Project& pr) {
+    auto problems = [&] {
+        std::multiset<std::string> n;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic))
+            if (v.severity != Severity::Info) n.insert(v.code + " " + v.message);
+        return n;
+    };
+    int fixed = 0;
+    for (int pass = 0; pass < 20; ++pass) {
+        const auto was = problems();
+        Vec2 at;
+        bool found = false;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic))
+            if (v.code == "DRC_DANGLING_TRACK" && !found) at = v.location, found = true;
+        if (!found) break;
+        size_t t = pr.pcb.tracks.size();
+        for (size_t i = 0; i < pr.pcb.tracks.size(); ++i) {
+            const Track& k = pr.pcb.tracks[i];
+            if (!k.arc && !k.teardrop && ((k.a - at).length() < 1e-6 || (k.b - at).length() < 1e-6)) t = i;
+        }
+        if (t == pr.pcb.tracks.size()) break;
+        const Track old = pr.pcb.tracks[t];
+        const bool atB = (old.b - at).length() < 1e-6;
+        const Vec2 other = atB ? old.a : old.b;
+        auto better = [&] {
+            const auto now = problems();
+            return now.size() < was.size() && std::includes(was.begin(), was.end(), now.begin(), now.end());
+        };
+        pr.pcb.tracks.erase(pr.pcb.tracks.begin() + static_cast<long>(t));
+        if (better()) { ++fixed; continue; }
+        pr.pcb.tracks.insert(pr.pcb.tracks.begin() + static_cast<long>(t), old);
+        bool done = false;
+        const double len = (other - at).length();
+        for (double d = 0.02; d < len - 0.02 && !done; d += 0.02) {
+            const Vec2 end = at + (other - at) * (d / len);
+            bool onCopper = false;  // the new end on another track of its net, on its layer
+            for (size_t k = 0; k < pr.pcb.tracks.size() && !onCopper; ++k)
+                onCopper = k != t && pr.pcb.tracks[k].net == old.net && pr.pcb.tracks[k].layer == old.layer &&
+                           trackPointDistance(pr.pcb.tracks[k], end) <= (pr.pcb.tracks[k].width + old.width) / 4;
+            if (!onCopper) continue;
+            (atB ? pr.pcb.tracks[t].b : pr.pcb.tracks[t].a) = end;
+            if ((done = better())) ++fixed;
+            else pr.pcb.tracks[t] = old;
+            break;
+        }
+        if (!done) break;  // this stub stays: the DRC lists it
+    }
+    return fixed;
+}
+
 int squareEscapes(Project& pr) {
     // The problems the DRC finds; a change is kept only when it adds none (it may only take some away): a fix that
     // trades a pin's fabrication-minimum gap for a design-rule gap to another part's pad is not one.
@@ -1134,7 +1187,8 @@ Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
             const double x0 = right ? st.width - st.edgeClearance - cy.width() / 2 - 1 : st.edgeClearance + cy.width() / 2 + 1;
             const double step = (k % 2 ? 1 : -1) * 0.5 * ((k + 1) / 2);
             const double x = side ? x0 : st.width / 2 + step,
-                         y = !side ? y0 : attempt < 2 ? st.height / 2 + step : st.edgeClearance + cy.height() / 2 + 1 + 0.5 * k;
+                         y = !side ? (edge == 1 ? std::floor(y0 / 0.25) : std::ceil(y0 / 0.25)) * 0.25  // on the 0.25 grid, inside
+                                   : attempt < 2 ? st.height / 2 + step : st.edgeClearance + cy.height() / 2 + 1 + 0.5 * k;
             if (!spaced(pr, classes, c.id, {x, y}, rotation, c.pcb.bottom) ||
                 !takeJson(sieda_pcb_place_footprint(p, c.id, x, y, rotation, c.pcb.bottom ? 1 : 0, 0.25, 0)).get("committed").asBool(false))
                 continue;
@@ -2650,7 +2704,7 @@ void schematicTools(Table& t) {
                               "\"value\":\"10k\"}]: part = catalog or project-library name, kind = built-in kind; also value, package, "
                               "x, y, rotation", "object", true)
               .object("nets", "{\"VCC\": [\"U1.VCC\", \"R1.1\"], \"GND\": [\"U1.GND\"]}")
-              .array("wires", "Pins wired one after the other: [[\"R1.2\", \"D1.A\"], …]", "array")
+              .array("wires", "Pins wired one after the other: [[\"R1.2\", \"D1.A\"], …]; a chain naming GND grounds its pins", "array")
               .array("noConnect", "Pins left open on purpose", "string")
               .boolean("pins", "Each part's full pin detail (default true); false gives pin number → net only"),
           [](McpServer& s, const Json& a) {
@@ -3046,9 +3100,13 @@ void schematicTools(Table& t) {
                   }
               }
               for (const auto& chain : wires.items()) {
-                  Json args = obj();
-                  args["chain"] = chain;
-                  run("schematic_connect", args, "wire " + chain.dump());
+                  Json args = obj(), pins = Json::array();
+                  bool toGround = false;  // ["R6.2", "GND"]: the other pins to ground
+                  for (const auto& pin : chain.items())
+                      if (isGround(pin.asString(""))) toGround = true;
+                      else pins.push(pin);
+                  args[toGround ? "pins" : "chain"] = toGround ? pins : chain;
+                  run(toGround ? "schematic_connect_to_ground" : "schematic_connect", args, "wire " + chain.dump());
               }
               Json noConnectCleared = Json::array();  // a pin marked unused before that this build joined to a net
               for (const auto& c : proj(s).schematic.components())
@@ -4647,12 +4705,14 @@ void pcbTools(Table& t) {
                   for (auto [key, on] : {std::pair{"gloss", &ar.gloss}, {"minimizeVias", &ar.minimizeVias},
                                          {"coupledPairs", &ar.coupledPairs}, {"lengthAware", &ar.lengthAware}})
                       if (!a.get("options").has(key)) *on = true;
+              const bool reroute = !p->project.pcb.tracks.empty();  // a route over one before: project_undo brings it back
               if (argBool(a, "clearFirst", false)) sieda_pcb_clear_routing(p);
               sieda_pcb_autoplace(p, 0);
               // Over MCP a pour pad's fan-out via clears its SMD pad (no via in pad) unless options say otherwise;
               // the board's saved strategy keeps its own setting.
               const bool offPads = p->project.pcb.settings.autorouter.viasOffPads;
               p->project.pcb.settings.autorouter.viasOffPads = a.get("options").get("viasOffPads").asBool(true);
+              p->project.pcb.settings.autorouter.widerPairSearch = true;  // a USB pair is worth a longer search
               // A whole-board route with no pour yet pours the ground net on the bottom layer first: a plane, not tracks.
               std::string poured;
               int topPour = -1;
@@ -4752,6 +4812,7 @@ void pcbTools(Table& t) {
                   j["powerWidths"] = list + " routed 0.4 mm wide (power / ground; pcb_set_net_width changes it, powerWidths: false skips it)";
               }
               if (!a.get("options").has("viasOffPads")) p->project.pcb.settings.autorouter.viasOffPads = offPads;
+              p->project.pcb.settings.autorouter.widerPairSearch = false;
               if (repairs.size()) j["repairs"] = repairs;
               // No acute joins left by gloss / via minimisation (a branch meeting its net's track at 45° joins square).
               if (!p->project.pcb.settings.autorouter.scoped()) {
@@ -4759,8 +4820,10 @@ void pcbTools(Table& t) {
                   routequality::fixAcuteJoins(p->project.pcb, p->project.schematic);
                   squareEscapes(p->project);
                   if (const int off = viasOffPads(p->project)) j["viasMovedOffPads"] = off;
+                  if (const int stubs = trimStubs(p->project)) j["stubsTrimmed"] = stubs;
               }
               if (const Json necked = neckTombstones(p->project); necked.size()) j["tombstoningPrevented"] = necked;
+              if (reroute) j["undo"] = "project_undo puts back the routing from before this call (compare and keep the better)";
               // A partial route (some nets, an area, fanout only) is for this call: the board keeps its strategy.
               j["options"] = takeJson(sieda_pcb_autoroute_options(p));  // as routed
               const AutorouteOptions used = p->project.pcb.settings.autorouter;

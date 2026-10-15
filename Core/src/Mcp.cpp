@@ -476,6 +476,13 @@ Json summariseViolations(const SiedaProject& p, const Json& violations, size_t l
             if (v->get("hasLocation").asBool(false)) {
                 j["x"] = v->get("x");
                 j["y"] = v->get("y");
+                // A board check at a track's end (a stub): the track's id, for pcb_remove_copper.
+                const Vec2 at{v->get("x").asNumber(), v->get("y").asNumber()};
+                Json tracks = Json::array();
+                for (const auto& t : p.project.pcb.tracks)
+                    if (v->get("code").asString("").rfind("DRC_", 0) == 0 && ((t.a - at).length() < 1e-4 || (t.b - at).length() < 1e-4))
+                        tracks.push(t.id);
+                if (tracks.size()) j["trackIds"] = tracks;
             }
             list.push(j);
         }

@@ -133,6 +133,8 @@ struct AutorouteOptions {
     /// A pour net's pad fan-out via clears its SMD pad (no via in the pad to wick the solder away). JSON "viasOffPads",
     /// written only when on.
     bool viasOffPads = false;
+    /// A coupled pair whose search ran out of budget searches once more, 8 × further (MCP routes; not saved).
+    bool widerPairSearch = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
