@@ -743,19 +743,12 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     const auto fills = copperFills(sch, pcb);
     for (int l : order) {  // every pour under every track: a top pour does not hide the bottom layer's tracks
         const std::string dim = l == 0 ? "#5a2020" : (l == n - 1 ? "#20305a" : "#4a4020");
-        // A pour over another layer's pour is hatched (0.3 mm bands), so the one below shows through.
-        const bool hatch = std::any_of(fills.begin(), fills.end(), [&](const ZoneFill& f) { return f.layer > l && shown(f.layer); });
+        // A pour over another layer's pour is drawn in a dark blend of both (stripes hid the tracks): the tracks
+        // on top stay readable and the colour still tells a both-layer pour from a one-layer one.
+        const bool over = std::any_of(fills.begin(), fills.end(), [&](const ZoneFill& f) { return f.layer > l && shown(f.layer); });
         for (const auto& f : fills)
             if (f.layer == l)
-                for (const auto& r : f.rects) {
-                    if (!hatch) {
-                        s.box(r, true, 0, dim);
-                        continue;
-                    }
-                    for (double y = std::floor(r.y0 / 0.6) * 0.6; y < r.y1; y += 0.6)
-                        if (const double y0 = std::max(r.y0, y), y1 = std::min(r.y1, y + 0.3); y1 > y0)
-                            s.box(Rect(r.x0, y0, r.x1, y1), true, 0, dim);
-                }
+                for (const auto& r : f.rects) s.box(r, true, 0, over ? "#3a2638" : dim);
     }
     for (int l : order) {
         const std::string col = layerColour(l, n);
