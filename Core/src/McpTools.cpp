@@ -485,12 +485,13 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         for (size_t g = 0; g < group.size(); ++g) expand(group[g]);
         if (anchor(group)) continue;
         double x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
-        for (int id : group) {
-            const auto o = sch.symbolOutline(*sch.find(id));
-            x0 = std::min(x0, o[0]), y0 = std::min(y0, o[1]), x1 = std::max(x1, o[2]), y1 = std::max(y1, o[3]);
+        for (int id : group) {  // the bodies, but the top-left with each part's labels and designator: all on the sheet
+            const auto o = sch.symbolOutline(*sch.find(id)), r = room(id);
+            x0 = std::min(x0, r[0] + 100), y0 = std::min(y0, r[1]), x1 = std::max(x1, o[2]), y1 = std::max(y1, o[3]);
         }
         rowWidth = std::max(rowWidth, x1 - x0 + 100);  // rows as wide as the widest group: small groups sit side by side
-        if (x > 0 && x + (x1 - x0) > rowWidth) x = 0, y += rowHeight + 120, rowHeight = 0;
+        // A row may run as wide as a landscape sheet beside its tallest group (a small group beside the IC's).
+        if (x > 0 && x + (x1 - x0) > std::max(rowWidth, rowHeight * 1.8)) x = 0, y += rowHeight + 120, rowHeight = 0;
         for (int id : group) moveBy(id, {x + 100 - x0, y - y0});
         x += x1 - x0 + 200;
         rowHeight = std::max(rowHeight, y1 - y0);
@@ -4031,7 +4032,7 @@ void pcbTools(Table& t) {
                   bestPlaced = placed;
                   const int allowed = problems();
                   Project best = pr;
-                  std::string held;  // why the first size tried was refused
+                  std::string held, last;  // why the first / the last size tried was refused
                   // One side at a time, the longer first, 1 mm at a time; a refused size does not end that side's search
                   // (Auto Place may do better on a smaller board still) until four in a row are refused. Twice over.
                   int tries = 0;
@@ -4052,9 +4053,9 @@ void pcbTools(Table& t) {
                               best = pr, bestPlaced = placed, refused = 0, cut = 0;
                               continue;
                           }
-                          if (held.empty())
-                              held = fewer ? "fewer capacitors / crystals ended by their pins" : further ? "capacitors ended further from their pins"
-                                     : !resized ? "the parts no longer fitted" : "the DRC found more problems";
+                          last = fewer ? "fewer capacitors / crystals ended by their pins" : further ? "capacitors ended further from their pins"
+                                 : !resized ? "the parts no longer fitted" : "the DRC found more problems";
+                          if (held.empty()) held = last;
                           ++refused;
                           pr = best;
                       }
@@ -4065,7 +4066,9 @@ void pcbTools(Table& t) {
                   P(s)->router.reset();
                   Json board = projectSummary(s).get("board");
                   if (bestPlaced.size()) board["decouplingPlaced"] = bestPlaced;
-                  if (best.pcb.settings.width == widthWas && best.pcb.settings.height == heightWas)
+                  if (best.pcb.settings.width != widthWas || best.pcb.settings.height != heightWas) {
+                      if (!last.empty()) board["stopped"] = "1 mm smaller on either side: " + last + "; pcb_set_board with a size and pcb_autoplace all try one anyway.";
+                  } else
                       board["unchanged"] = "No smaller board kept the placement as good (" + held + " 1 mm smaller); pcb_set_board with "
                                            "a size and pcb_autoplace all try one anyway.";
                   return out(board);
