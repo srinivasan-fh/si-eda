@@ -1045,7 +1045,8 @@ Rect antennaKeepout(Rect area, int side, const BoardSettings& st) {
 }
 
 /// The under-module keep-out "under REF" cut back past each of the module's pads a track must reach inside it: one on
-/// a signal net, and (once the pours are known, `zonesKnown`) one whose net has no pour on the keep-out's layer.
+/// a signal net, and (once the pours are known, `zonesKnown`) one whose net has no pour on the keep-out's layer; 1 mm more
+/// on a board with a differential pair, so the coupled pair fits.
 void carveUnder(const Project& pr, RouteKeepout& k, bool zonesKnown) {
     const BoardSettings& st = pr.pcb.settings;
     double reach = 0;
@@ -1053,7 +1054,8 @@ void carveUnder(const Project& pr, RouteKeepout& k, bool zonesKnown) {
     for (const auto& pad : pr.pcb.pads(pr.schematic))
         if (const Component* c = pr.schematic.find(pad.componentId); c && "under " + c->ref == k.name)
             pads.push_back(pad), reach = std::max(reach, std::max(pad.size.x, pad.size.y) / 2);
-    const double m = reach + st.trackWidth + st.clearance;
+    const auto paired = differentialPairs(pr.schematic);
+    const double m = reach + st.trackWidth + st.clearance + (paired.empty() ? 0.0 : 1.0);
     for (const auto& pad : pads) {
         if (pad.net < 0) continue;
         bool poured = false;
@@ -1292,15 +1294,21 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
     }
     // A crystal (Y…) goes beside the IC pins it drives, and each load capacitor (its net to ground) beside it; first,
     // being the biggest, so the supply capacitors take the room around it.
-    auto nearest = [&](int id, Vec2 target, double from, double to) {
+    // The free spot nearest `target` (rings of 0.5 mm); with `toward`, the spots ranked by their distance to `target`
+    // plus half that to `target + toward` (a load capacitor between its crystal pad and the IC).
+    auto nearest = [&](int id, Vec2 target, double from, double to, Vec2 toward = Vec2{0, 0}) {
+        std::vector<std::pair<double, Vec2>> spots;
         for (double r = from; r <= to; r += 0.5)
-            for (int k = 0; k < 16; ++k)
-                for (int rot : {0, 90}) {
-                    const Vec2 at = target + Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
-                    if (spaced(p->project, classes, id, at, rot, false) &&
-                        takeJson(sieda_pcb_place_footprint(p, id, at.x, at.y, rot, 0, 0.25, 0)).get("committed").asBool(false))
-                        return true;
-                }
+            for (int k = 0; k < 16; ++k) {
+                const Vec2 d = Vec2{std::cos(k * kPi / 8), std::sin(k * kPi / 8)} * r;
+                spots.push_back({toward.length() > 1e-9 ? r + 0.5 * (d - toward).length() : 0.0, target + d});
+            }
+        std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+        for (const auto& spot : spots)
+            for (int rot : {0, 90})
+                if (const Vec2 at = spot.second; spaced(p->project, classes, id, at, rot, false) &&
+                    takeJson(sieda_pcb_place_footprint(p, id, at.x, at.y, rot, 0, 0.25, 0)).get("committed").asBool(false))
+                    return true;
         return false;
     };
     // How far the capacitor's pad on the pin's net ended from the pin (pad centres), for the result.
@@ -1364,7 +1372,8 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             for (const auto& pad : p->project.pcb.pads(sch))
                 if (pad.componentId == y.id && pad.net == net) {
                     crystals.back().loads.push_back({c.id, net});
-                    if ((sch.find(c.id)->pcb.position - pad.position).length() > 3 && nearest(c.id, pad.position, 1.5, 6))
+                    // On the IC's side of the crystal: a short loop from the pins through the caps.
+                    if ((sch.find(c.id)->pcb.position - pad.position).length() > 3 && nearest(c.id, pad.position, 1.5, 6, pins - pad.position))
                         moved.push(c.ref + " → " + y.ref);
                     settled.insert(c.id);
                     break;
@@ -1445,7 +1454,8 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             for (const auto& [load, net] : xt.loads)
                 for (const auto& q : p->project.pcb.pads(sch))
                     if (ok && q.componentId == xt.id && q.net == net) {
-                        ok = nearest(load, q.position, 1.5, 6) || stepAside(q.position, 7, [&, id = load] { return nearest(id, q.position, 1.5, 6); });
+                        ok = nearest(load, q.position, 1.5, 6, xt.pins - q.position) ||
+                             stepAside(q.position, 7, [&, id = load] { return nearest(id, q.position, 1.5, 6, xt.pins - q.position); });
                         break;
                     }
             if (!ok) p->project = before, p->router.reset();
@@ -1467,8 +1477,9 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
             return static_cast<PinType>(sch.find(pad->componentId)->def().pins[static_cast<size_t>(pad->pinIndex)].type) == PinType::PowerOut;
         };
         const bool regulated = std::any_of(supply.begin(), supply.end(), [&](const Pad* pad) { return pad->net == c.net && output(pad); });
+        const auto now = p->project.pcb.pads(sch);  // where the parts are now (small ones may have stepped aside)
         for (bool series : {true, false}) {  // a series part (an input diode, a fuse) before a connector on the rail
-            for (const auto& pad : pads) {
+            for (const auto& pad : now) {
                 const Component* o = sch.find(pad.componentId);
                 const std::string prefix = o ? o->ref.substr(0, o->ref.find_first_of("0123456789")) : "";
                 const bool entry = series ? prefix == "D" || prefix == "F" || prefix == "FB" || prefix == "L"
@@ -1480,7 +1491,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
         if (!best)
             for (const Pad* pad : supply)
                 if (pad->net == c.net && !output(pad) && closer(pad)) best = pad;
-        if (!best || (best->position - at).length() <= 6) continue;
+        if (!best || (best->position - at).length() <= 3.5) continue;
         settled.insert(c.id);
         if (nearest(c.id, best->position, 2, 9))
             moved.push(sch.find(c.id)->ref + " → " + pinLabel(*p, {best->componentId, best->pinIndex}) + gap(c.id, best->componentId, best->pinIndex));
@@ -1505,6 +1516,34 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
         const std::string label = pinLabel(*p, {pin.componentId, pin.pinIndex});
         if (nearest(c.id, pin.position, 1.5, 9)) moved.push(c.ref + " → " + label + gap(c.id, pin.componentId, pin.pinIndex));
     }
+    // A two-pin part (a pull-up, an LED's resistor, the LED, a ferrite) on a signal net with one other pad goes beside
+    // that pad: first those on an IC pin, then the ones they lead to (an LED after its resistor).
+    for (int pass = 0; pass < 2; ++pass)
+        for (const auto& c : sch.components()) {
+            const std::string prefix = c.ref.substr(0, c.ref.find_first_of("0123456789"));
+            if (settled.count(c.id) || c.pcb.locked || !c.pcb.placed || c.def().pins.size() != 2 ||
+                (prefix != "R" && prefix != "D" && prefix != "LED" && prefix != "L" && prefix != "FB"))
+                continue;
+            for (int i = 0; i < 2; ++i) {
+                const int net = sch.netOf({c.id, i});
+                if (net < 0 || sch.netRole(net) != NetRole::Signal) continue;
+                const Pad* other = nullptr;
+                int others = 0;
+                for (const auto& pad : pads)
+                    if (pad.net == net && pad.componentId != c.id) other = &pad, ++others;
+                if (others != 1) continue;
+                const Component* o = sch.find(other->componentId);
+                if (!o || (o->def().pins.size() >= 3) != (pass == 0) || (pass == 1 && !settled.count(o->id))) continue;
+                settled.insert(c.id);
+                const auto now = p->project.pcb.pads(sch);
+                const Pad* to = nullptr;  // where that pad is now (its part may have moved in this pass)
+                for (const auto& q : now)
+                    if (q.componentId == other->componentId && q.pinIndex == other->pinIndex) to = &q;
+                if (to && (c.pcb.position - to->position).length() > 4 && nearest(c.id, to->position, 1.5, 8))
+                    moved.push(c.ref + " → " + pinLabel(*p, {to->componentId, to->pinIndex}) + gap(c.id, to->componentId, to->pinIndex));
+                break;
+            }
+        }
     if (bound) bound->insert(settled.begin(), settled.end());  // placed by their pins: grouping leaves them there
     return moved;
 }

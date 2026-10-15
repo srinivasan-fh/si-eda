@@ -1167,6 +1167,9 @@ bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Tr
         if (trackPointDistance(seg, s.holes[k].position) - hw < s.holes[k].keepout / 2 - kTol &&
             hit(HitKind::Hole, k, true))
             return true;
+    for (const auto& k : s.keepouts)  // route keep-outs, as the autorouter's grid blocks them
+        if (k.tracks && (k.layer < 0 || k.layer == layer) && trackRectDistance(seg, k.area) - hw < -kTol && hit(HitKind::Edge, 0, true))
+            return true;
     if (layer >= 0 && layer < static_cast<int>(B.planeNet.size())) {
         const int pn = B.planeNet[static_cast<size_t>(layer)];
         if (pn >= 0 && !inNets(nets, pn) && hit(HitKind::Plane, static_cast<size_t>(layer), true)) return true;
@@ -1243,6 +1246,8 @@ bool viaHits(const World& w, const Via& v, size_t self, std::vector<Hit>* out) {
             hit(HitKind::Hole, k, true))
             return true;
     }
+    for (const auto& k : s.keepouts)
+        if (k.vias && pointRectDistance(v.position, k.area) < r - kTol && hit(HitKind::Edge, 0, true)) return true;
     for (size_t k = 0; k < B.meshes.size(); ++k) {
         const auto& m = B.meshes[k];
         if (v.net != m.netA && v.net != m.netB && (v.spans(m.layerA) || v.spans(m.layerB)) &&
