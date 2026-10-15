@@ -1033,6 +1033,31 @@ Rect antennaKeepout(Rect area, int side, const BoardSettings& st) {
     return area;
 }
 
+/// The under-module keep-out "under REF" cut back past each of the module's pads a track must reach inside it: one on
+/// a signal net, and (once the pours are known, `zonesKnown`) one whose net has no pour on the keep-out's layer.
+void carveUnder(const Project& pr, RouteKeepout& k, bool zonesKnown) {
+    const BoardSettings& st = pr.pcb.settings;
+    double reach = 0;
+    std::vector<Pad> pads;
+    for (const auto& pad : pr.pcb.pads(pr.schematic))
+        if (const Component* c = pr.schematic.find(pad.componentId); c && "under " + c->ref == k.name)
+            pads.push_back(pad), reach = std::max(reach, std::max(pad.size.x, pad.size.y) / 2);
+    const double m = reach + st.trackWidth + st.clearance;
+    for (const auto& pad : pads) {
+        if (pad.net < 0) continue;
+        bool poured = false;
+        for (const auto& z : pr.pcb.zones)
+            poured = poured || (z.layer == k.layer && z.net == pr.schematic.nets()[static_cast<size_t>(pad.net)].name);
+        if (pr.schematic.netRole(pad.net) != NetRole::Signal && (!zonesKnown || poured)) continue;
+        Rect& a = k.area;
+        const Vec2 q = pad.position;
+        if (q.x < a.x0 - m || q.x > a.x1 + m || q.y < a.y0 - m || q.y > a.y1 + m) continue;
+        const double cut[4] = {q.x + m - a.x0, a.x1 - (q.x - m), q.y + m - a.y0, a.y1 - (q.y - m)};
+        const int side = static_cast<int>(std::min_element(cut, cut + 4) - cut);
+        (side == 0 ? a.x0 : side == 1 ? a.x1 : side == 2 ? a.y0 : a.y1) = side == 0 ? q.x + m : side == 1 ? q.x - m : side == 2 ? q.y + m : q.y - m;
+    }
+}
+
 /// Auto Place's edge pass (before the others are placed): a part with an antenna goes to the top edge with its
 /// antenna end outwards and a keep-out (tracks, vias, pours) over that end; a USB / connector part (J…, P…, CN…,
 /// USB…) with an open end (its mouth) goes to the bottom edge facing out, one without (a pin header) to the left edge
@@ -1134,17 +1159,7 @@ Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
                 under.vias = false;
                 under.area = {ring.x0 + reach + st.clearance, ring.y0 + reach + st.clearance, ring.x1 - reach - st.clearance,
                               ring.y1 - reach - st.clearance};
-                for (const auto& pad : pads) {  // a pad on a signal net inside (an inner row): the side nearest it cut back past it
-                    Rect& a = under.area;
-                    const Vec2 q = pad.position;
-                    const double m = reach + st.clearance;
-                    if (pad.net < 0 || pr.schematic.netRole(pad.net) != NetRole::Signal || q.x < a.x0 - m || q.x > a.x1 + m ||
-                        q.y < a.y0 - m || q.y > a.y1 + m)
-                        continue;
-                    const double cut[4] = {q.x + m - a.x0, a.x1 - (q.x - m), q.y + m - a.y0, a.y1 - (q.y - m)};
-                    const int k = static_cast<int>(std::min_element(cut, cut + 4) - cut);
-                    (k == 0 ? a.x0 : k == 1 ? a.x1 : k == 2 ? a.y0 : a.y1) = k == 0 ? q.x + m : k == 1 ? q.x - m : k == 2 ? q.y + m : q.y - m;
-                }
+                carveUnder(pr, under, false);
                 kos.erase(std::remove_if(kos.begin(), kos.end(), [&](const RouteKeepout& o) { return o.name == under.name; }), kos.end());
                 if (under.area.width() > 1 && under.area.height() > 1) kos.push_back(under);
             }
@@ -4451,6 +4466,16 @@ void pcbTools(Table& t) {
                               poured = n.name + " poured on both layers before routing (pour: false skips; pcb_remove_pour removes them)";
                           break;
                       }
+              // A track keep-out under a module stays clear of the pads a track must still reach (no pour of their net there).
+              {
+                  auto& kos = p->project.pcb.settings.keepouts;
+                  for (auto& k : kos)
+                      if (k.name.rfind("under ", 0) == 0) carveUnder(p->project, k, true);
+                  kos.erase(std::remove_if(kos.begin(), kos.end(), [](const RouteKeepout& k) {
+                                return k.name.rfind("under ", 0) == 0 && (k.area.width() <= 1 || k.area.height() <= 1);
+                            }),
+                            kos.end());
+              }
               // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
               // the current sizing no source to measure); again at the board's width if that leaves anything open.
               std::vector<std::string> widened;
@@ -4604,22 +4629,6 @@ void pcbTools(Table& t) {
                   }
               }
               if (restitched) j["stitchingRestored"] = restitched;
-              {  // the under-module keep-out Auto Place drew is advice: one a track still crosses (a pair's pad escape) goes
-                  auto& kos = p->project.pcb.settings.keepouts;
-                  kos.erase(std::remove_if(kos.begin(), kos.end(), [&](const RouteKeepout& k) {
-                                if (k.name.rfind("under ", 0) != 0) return false;
-                                for (const auto& t : p->project.pcb.tracks)
-                                    if (k.layer < 0 || t.layer == k.layer)
-                                        for (int i = 0; i <= 20; ++i) {
-                                            const Vec2 q = trackPointAt(t, i / 20.0);
-                                            if (q.x > k.area.x0 - t.width / 2 && q.x < k.area.x1 + t.width / 2 &&
-                                                q.y > k.area.y0 - t.width / 2 && q.y < k.area.y1 + t.width / 2)
-                                                return true;
-                                        }
-                                return false;
-                            }),
-                            kos.end());
-              }
               // stats.vias counts the router's own; the board also has fan-out vias into pours and stitching
               if (static_cast<int>(p->project.pcb.vias.size()) != stats.get("vias").asInt(0))
                   j["viasOnBoard"] = static_cast<int>(p->project.pcb.vias.size());

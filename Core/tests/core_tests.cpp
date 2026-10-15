@@ -21184,7 +21184,9 @@ TEST(mcp_edges_stitching_and_tags) {
     std::set<std::string> drc;
     const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : drcResult.get("violations").items()) drc.insert(v.get("code").asString(""));
-    CHECK(!drc.count("DRC_ANTENNA_KEEPOUT") && !drc.count("DRC_PLACE_OUTSIDE"));
+    CHECK(!drc.count("DRC_ANTENNA_KEEPOUT") && !drc.count("DRC_PLACE_OUTSIDE") && !drc.count("DRC_KEEPOUT"));
+    // The router keeps every track out of the under-module keep-out (the pair router's exact checks too): it stays.
+    CHECK(mcpData(mcpTool(s, "pcb_summary", Json::object())).get("keepouts").size() == 2);
     Json pour = Json::object();
     pour["net"] = "GND";
     for (int layer : {0, 1}) {
