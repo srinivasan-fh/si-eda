@@ -20929,6 +20929,19 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_autoplace_puts_a_pin_chain_by_its_pin) {
+    // An LED's resistor goes beside the IC pin it hangs on, then the LED beside the resistor.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"parts": [{"ref": "U1", "part": "ESP32-C3-MINI-1"},
+        {"ref": "R1", "kind": "resistor", "value": "1k"}, {"ref": "D1", "kind": "led", "value": "red"}],
+        "nets": {"LED_A": ["U1.13", "R1.1"], "LED_K": ["R1.2", "D1.1"], "GND": ["D1.2", "U1.1"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"J({"layers": 2, "width": 60, "height": 50})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    const std::string placed = mcpData(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))).get("decouplingPlaced").dump();
+    CHECK(placed.find("R1 → U1.") != std::string::npos && placed.find("D1 → R1.") != std::string::npos);
+}
+
 TEST(mcp_usb_c_doubled_pads_route_as_a_coupled_pair) {
     // A USB-C receptacle's D+ / D− sit in both rows (interleaved): each member's two pads join one via, and the pair
     // routes coupled from the vias to the module's pins.
