@@ -1355,35 +1355,50 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
                     for (int rot : {0, 90}) {
                         const Vec2 at = pr.pad->position + dirs[k] * r;
                         if (spaced(p->project, classes, pr.cap, at, rot, false) &&
-                            takeJson(sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot, 0, 0.25, 0)).get("committed").asBool(false))
+                            takeJson(sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot, 0, 0.25, 0)).get("committed").asBool(false)) {
+                            // Turned half round when that brings its pad on the pin's net nearer the pin (no acute joins).
+                            auto mm = [&] {
+                                const std::string t = gap(pr.cap, pr.pad->componentId, pr.pad->pinIndex);
+                                return t.size() > 2 ? std::atof(t.c_str() + 2) : 1e9;
+                            };
+                            const double was = mm();
+                            if (!takeJson(sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot + 180, 0, 0.25, 0)).get("committed").asBool(false) ||
+                                mm() > was)
+                                sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot, 0, 0.25, 0);
                             return true;
+                        }
                     }
             return false;
         };
         // Close by the pin, if need be with the small parts there stepping aside; else the nearest free spot.
-        if (!within(1.5, 4) && !stepAside(pr.pad->position, 7, [&] { return within(1.5, 4); }) && !within(4.5, 9)) continue;
-        // Still far, with a crystal taking the room by the pin: the capacitor first, then the crystal (and its load
+        const bool put = within(1.5, 4) || stepAside(pr.pad->position, 7, [&] { return within(1.5, 4); }) || within(4.5, 9);
+        // Still far (or nowhere), with a crystal taking the room by the pin: the capacitor first, then the crystal (and its load
         // capacitors) again further out; kept only when all of them find a spot.
+        bool swapped = false;
         for (const auto& xt : crystals) {
             const auto pads2 = p->project.pcb.pads(sch);
             const auto mine = std::find_if(pads2.begin(), pads2.end(), [&](const Pad& q) { return q.componentId == pr.cap && q.net == pr.pad->net; });
-            if (mine == pads2.end() || (mine->position - pr.pad->position).length() <= 3.5 ||
+            if ((put && (mine == pads2.end() || (mine->position - pr.pad->position).length() <= 3.5)) ||
                 (sch.find(xt.id)->pcb.position - pr.pad->position).length() > 10)
                 continue;
             const Project before = p->project;
             p->project.schematic.find(xt.id)->pcb.placed = false;
             for (const auto& [load, net] : xt.loads) p->project.schematic.find(load)->pcb.placed = false;
-            bool ok = within(1.5, 3.5) && nearest(xt.id, xt.pins, 2.5, 9);
+            settled.insert(pr.cap);  // the crystal again: small parts by its pins step aside, as at the start
+            const bool capOk = within(1.5, 3.5);
+            bool ok = capOk && (nearest(xt.id, xt.pins, 2.5, 9) || stepAside(xt.pins, 10, [&] { return nearest(xt.id, xt.pins, 2.5, 9); }));
             for (const auto& [load, net] : xt.loads)
                 for (const auto& q : p->project.pcb.pads(sch))
                     if (ok && q.componentId == xt.id && q.net == net) {
-                        ok = nearest(load, q.position, 1.5, 6);
+                        ok = nearest(load, q.position, 1.5, 6) || stepAside(q.position, 7, [&] { return nearest(load, q.position, 1.5, 6); });
                         break;
                     }
             if (!ok) p->project = before, p->router.reset();
+            swapped = ok;
             break;
         }
-        moved.push(sch.find(pr.cap)->ref + " → " + pinLabel(*p, {ic->id, pr.pad->pinIndex}) + gap(pr.cap, ic->id, pr.pad->pinIndex));
+        if (put || swapped)
+            moved.push(sch.find(pr.cap)->ref + " → " + pinLabel(*p, {ic->id, pr.pad->pinIndex}) + gap(pr.cap, ic->id, pr.pad->pinIndex));
     }
     // A bulk capacitor no regulator pin took: on a rail a regulator drives, by the nearest load supply pin; on a rail
     // fed from outside, where the supply comes in (a connector, input diode, fuse, ferrite or inductor on its net);
@@ -4547,6 +4562,17 @@ void pcbTools(Table& t) {
                   o["net"] = p->project.schematic.nets()[static_cast<size_t>(net)].name;
                   o["pitch"] = pitch < 1e8 ? std::round(pitch * 10) / 10 : 5.0;
                   restitched += stitchVias(p, o).get("added").asInt(0);
+              }
+              {  // a pour left with no copper (nothing of its net on that layer) joins the net through stitching vias
+                  std::set<int> floating;
+                  for (const auto& f : p->project.pcb.zoneFills(p->project.schematic))
+                      if (f.net >= 0 && f.islands == 0 && !f.removedIslands.empty()) floating.insert(f.net);
+                  for (int net : floating) {
+                      Json o = obj();
+                      o["net"] = p->project.schematic.nets()[static_cast<size_t>(net)].name;
+                      o["pitch"] = 5.0;
+                      restitched += stitchVias(p, o).get("added").asInt(0);
+                  }
               }
               if (restitched) j["stitchingRestored"] = restitched;
               // stats.vias counts the router's own; the board also has fan-out vias into pours and stitching

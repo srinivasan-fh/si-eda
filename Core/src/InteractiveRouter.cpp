@@ -7466,12 +7466,23 @@ BoardEditResult stitchVias(PcbLayout& pcb, const Schematic& sch, const ViaPatter
         return r;
     }
     const auto& fills = pcb.zoneFills(sch);
-    std::vector<const ZoneFill*> own;
+    std::vector<const ZoneFill*> own, floating;  // floating: a pour left with no copper (nothing of the net on its layer yet)
     for (const auto& f : fills)
         if (f.net == net && f.islands > 0) own.push_back(&f);
+        else if (f.net == net && !f.removedIslands.empty() && f.zone >= 0 && f.zone < static_cast<int>(pcb.zones.size())) floating.push_back(&f);
     std::set<int> layers;
     for (const ZoneFill* f : own) layers.insert(f->layer);
-    if (layers.size() < 2) {
+    for (const ZoneFill* f : floating) layers.insert(f->layer);
+    auto inside = [&](const ZoneFill* f, Vec2 q) {  // within that pour's drawn shape (none: the whole board), even-odd
+        const auto& poly = pcb.zones[static_cast<size_t>(f->zone)].polygon;
+        bool in = poly.empty();
+        for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++)
+            if ((poly[i].y > q.y) != (poly[j].y > q.y) &&
+                q.x < (poly[j].x - poly[i].x) * (q.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
+                in = !in;
+        return in;
+    };
+    if (layers.size() < 2 || own.empty()) {
         r.message = "Stitching needs pours or planes of the net on two layers";
         return r;
     }
@@ -7493,6 +7504,9 @@ BoardEditResult stitchVias(PcbLayout& pcb, const Schematic& sch, const ViaPatter
             std::set<int> on;
             for (const ZoneFill* f : own)
                 if (f->islandNear(v.position, v.diameter / 2) >= 0 && f->islandAt(v.position) >= 0) on.insert(f->layer);
+            if (on.empty()) continue;  // a floating pour joins through the via: the refill keeps the copper round it
+            for (const ZoneFill* f : floating)
+                if (inside(f, v.position)) on.insert(f->layer);
             if (on.size() < 2) continue;
             if (viaHits(w, v, SIZE_MAX, nullptr)) {
                 ++r.skipped;
