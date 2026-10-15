@@ -171,7 +171,7 @@
   width if that leaves anything open) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
   of a part drawn before (`layoutBuilt` `anchor`), a grounded two-pin part above an upward pin stands upright with labels
   (`grounded`); McpRender keeps side pin names inside their half of the body, a lead-less pin's no-connect X outside it,
-  and draws every pour under every track (a both-layer pour in one dark blend, no stripes); `pcb_summary` footprints carry `kicadFootprint` (the catalog's library name); a label splitting a wire is drawn as text along it, catalog D / SW / Y parts
+  and draws every pour under every track (bottom first, each in a light tint of its layer colour; no blend) with light spokes from each pad joined to a pour of its net; `pcb_summary` footprints carry `kicadFootprint` (the catalog's library name); a label splitting a wire is drawn as text along it, catalog D / SW / Y parts
   as a diode / switch / crystal glyph. `fitBoardToComponents` moves keep-outs, pours, graphics, dimensions and cutouts
   with the parts and keeps a part nearer an edge than the margin there; PLACE_KEEPOUT is an error (and DRC_PLACE_KEEPOUT)
   for a pour / barrier keep-out; a bulk cap goes by its rail's series entry (diode / fuse / ferrite), else a connector,

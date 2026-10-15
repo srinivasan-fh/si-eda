@@ -741,14 +741,12 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
     const auto fills = copperFills(sch, pcb);
-    for (int l : order) {  // every pour under every track: a top pour does not hide the bottom layer's tracks
-        const std::string dim = l == 0 ? "#5a2020" : (l == n - 1 ? "#20305a" : "#4a4020");
-        // A pour over another layer's pour is drawn in a dark blend of both (stripes hid the tracks): the tracks
-        // on top stay readable and the colour still tells a both-layer pour from a one-layer one.
-        const bool over = std::any_of(fills.begin(), fills.end(), [&](const ZoneFill& f) { return f.layer > l && shown(f.layer); });
+    for (int l : order) {  // every pour under every track (bottom first): a top pour does not hide the bottom layer's tracks
+        // A lighter tint of the layer's colour: the clearance gaps and thermal spokes round pads stand out on it.
+        const std::string tint = l == 0 ? "#7a3434" : (l == n - 1 ? "#34487a" : "#6a5a30");
         for (const auto& f : fills)
             if (f.layer == l)
-                for (const auto& r : f.rects) s.box(r, true, 0, over ? "#3a2638" : dim);
+                for (const auto& r : f.rects) s.box(r, true, 0, tint);
     }
     for (int l : order) {
         const std::string col = layerColour(l, n);
@@ -767,6 +765,15 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
             s.line(t.a, t.b, t.width, col);
         }
     }
+    // A pad joined to a pour of its net: light spokes out into the pour show the connection.
+    for (const auto& p : pcb.pads(sch))
+        for (const auto& f : fills)
+            if (f.net >= 0 && f.net == p.net && shown(f.layer) && p.onLayer(f.layer) && f.islandNear(p.position, std::max(p.size.x, p.size.y) / 2 + 0.3) >= 0) {
+                const double rx = p.size.x / 2 + 0.5, ry = p.size.y / 2 + 0.5;
+                const std::string c = f.layer == 0 ? "#ff9a9a" : (f.layer == n - 1 ? "#9ab4ff" : "#e8d080");
+                s.line(p.position - Vec2{rx, 0}, p.position + Vec2{rx, 0}, 0.25, c);
+                s.line(p.position - Vec2{0, ry}, p.position + Vec2{0, ry}, 0.25, c);
+            }
     const std::string padC = "#d4af37";
     for (const auto& p : pcb.pads(sch)) {
         if (!p.throughHole && !shown(p.smdLayer)) continue;
