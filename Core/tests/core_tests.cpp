@@ -21177,7 +21177,9 @@ TEST(mcp_edges_stitching_and_tags) {
         if (f.get("ref").asString("") == "U1") CHECK(f.get("y").asNumber() < h / 2);
         if (f.get("ref").asString("") == "J1") CHECK(f.get("y").asNumber() > h / 2);
     }
-    CHECK(board.get("keepouts").size() == 1 && board.get("keepouts")[0].get("pours").asBool(false));
+    // The antenna's pour keep-out and a top-layer track keep-out under the module, inside its pad ring.
+    CHECK(board.get("keepouts").size() == 2 && board.get("keepouts")[0].get("pours").asBool(false) &&
+          board.get("keepouts")[1].get("name").asString("").rfind("under ", 0) == 0 && board.get("keepouts")[1].get("layer").asInt(-1) == 0);
     CHECK(mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"J({"pour": false})J"))).get("unroutedConnections").asInt(-1) == 0);
     std::set<std::string> drc;
     const Json drcResult = mcpData(mcpTool(s, "pcb_drc", Json::object()));
