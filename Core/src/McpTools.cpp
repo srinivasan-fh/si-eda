@@ -2924,12 +2924,13 @@ void schematicTools(Table& t) {
                       for (const Link* l : caps) chain.push(l->to);
                       args["chain"] = chain;
                       run("schematic_connect", args, key.first);
-                      int junction = -1;
+                      int over = -1;  // the rail wire over the pin (split after the scan: splitting adds wires)
                       for (const auto& w : sch.wires()) {
                           const Vec2 a = sch.pinPosition(w.a), b = sch.pinPosition(w.b);
-                          if (junction < 0 && std::fabs(a.y - y) < 0.5 && std::fabs(b.y - y) < 0.5 && std::min(a.x, b.x) < hub.x && std::max(a.x, b.x) > hub.x)
-                              junction = sieda_split_wire(P(s), w.id, hub.x, y);
+                          if (over < 0 && std::fabs(a.y - y) < 0.5 && std::fabs(b.y - y) < 0.5 && std::min(a.x, b.x) < hub.x && std::max(a.x, b.x) > hub.x)
+                              over = w.id;
                       }
+                      const int junction = over < 0 ? -1 : sieda_split_wire(P(s), over, hub.x, y);
                       for (const Link* l : caps)
                           if (l != caps.front()) wiredPins.insert(key.first + "|" + l->to.dump());
                       if (junction >= 0 && sieda_connect(P(s), key.second.first, key.second.second, junction, 0) >= 0)
