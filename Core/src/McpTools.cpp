@@ -1393,7 +1393,7 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
                             const double was = mm();
                             if (!takeJson(sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot + 180, 0, 0.25, 0)).get("committed").asBool(false) ||
                                 mm() > was)
-                                sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot, 0, 0.25, 0);
+                                takeJson(sieda_pcb_place_footprint(p, pr.cap, at.x, at.y, rot, 0, 0.25, 0));
                             return true;
                         }
                     }
