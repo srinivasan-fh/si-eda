@@ -161,7 +161,7 @@
   `unrouted[].cutOff` = the pads cut off with that end (`PcbLayout::padGroups`); hand repairs `pcb_add_via` / `pcb_add_track`
   (refused near other nets: `checkClearOfOtherNets`); `pcb_autoroute` presets apply to the call unless `keep`; undo history
   saved beside the project (`.<file>.undo`, `McpServer::saveUndoHistory` / `loadUndoHistory`, restored only onto the same
-  saved file (its bytes)); antenna keep-outs widened by `antennaKeepout`; open-ended connectors' mouths flush with the edge; library_search reads
+  saved file (its bytes)); antenna keep-outs widened by `antennaKeepout` (15 mm, at least the antenna's depth, either side), and a top-layer track keep-out "under REF" inside the module's pad ring, cut back from its signal pads, dropped after an MCP route when a track still crosses it (a pair's pad escape); open-ended connectors' mouths flush with the edge; library_search reads
   "4 pin" as pins:4; a schematic rotation carries the part's own labels round with its pins (grounds stay upright) and
   `schematic_move_component` warns of its pins left on a wire they do not join (ERC_TOUCHING_UNCONNECTED stays info:
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
