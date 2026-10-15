@@ -1666,6 +1666,8 @@ public:
         if (s_.segmentEdgeDistance(a, b) < s_.edgeClearance + half - 1e-9) return false;
         for (const auto& h : s_.holes)
             if (pointSegmentDistance(h.position, a, b) < h.keepout / 2 + half - 1e-9) return false;
+        for (const auto& k : s_.keepouts)  // as the grid blocks them (blockKeepout)
+            if (k.tracks && (k.layer < 0 || k.layer == l) && segmentRectDistance(a, b, k.area) < half - 1e-9) return false;
         const double own = extraOf(net);
         const double reach = s_.clearance + own + half + maxExtra_ + 1e-6;
         Rect box = Rect(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)).inflated(reach + maxHalf_);
@@ -1699,6 +1701,8 @@ public:
         if (layers_ < 2) return false;
         if (s_.edgeDistance(at) < s_.edgeClearance + diameter / 2 - 1e-9) return false;
         if (s_.holeDistance(at) < s_.clearance + diameter / 2 - 1e-9) return false;
+        for (const auto& k : s_.keepouts)
+            if (k.vias && pointRectDistance(at, k.area) < diameter / 2 - 1e-9) return false;
         const double own = extraOf(net);
         const double q = diameter / 2 + s_.clearance + own + maxExtra_ + std::max(maxPadReach_, drill + s_.minHoleToHole) + 1e-6;
         bool clash = false;
