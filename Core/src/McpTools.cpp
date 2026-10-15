@@ -2868,6 +2868,119 @@ void schematicTools(Table& t) {
                   for (auto& ch : n) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
                   return n == "GND" || n == "0";
               };
+              // Capacitors standing upright in a row above an IC's upward supply pin (decoupling): one rail wire joins
+              // their tops (the row shifted, when clear, to have the pin under it) and the pin runs straight up to it; the
+              // net's label stays on the rail's first capacitor. The supply's entry stands at the rail's left end: a series
+              // diode / fuse / ferrite with the connector feeding it, wired in, or the regulator with the parts by it.
+              {
+                  const Schematic& sch = proj(s).schematic;
+                  auto prefix = [&](int id) { const std::string& r = sch.find(id)->ref; return r.substr(0, r.find_first_of("0123456789")); };
+                  auto clearBy = [&](const std::vector<int>& group, Vec2 d) {  // the group moved by d keeps off every other part
+                      for (int g : group)
+                          for (const auto& c : sch.components()) {
+                              if (std::find(group.begin(), group.end(), c.id) != group.end() || isNetSymbolKind(c.kind) || c.kind == ComponentKind::Junction) continue;
+                              const auto o = sch.symbolOutline(c), m = sch.symbolOutline(*sch.find(g));
+                              if (!(m[2] + d.x + 80 < o[0] || m[0] + d.x - 80 > o[2] || m[3] + d.y + 40 < o[1] || m[1] + d.y - 40 > o[3])) return false;
+                          }
+                      return true;
+                  };
+                  auto moveAll = [&](const std::vector<int>& group, Vec2 d) {
+                      for (int g : group) sieda_move_component(P(s), g, sch.find(g)->position.x + d.x, sch.find(g)->position.y + d.y);
+                  };
+                  std::map<std::pair<std::string, std::pair<int, int>>, std::vector<const Link*>> rails;
+                  for (const Link& l : links) {
+                      const Component* c = sch.find(l.b.component);
+                      if (isGround(l.net) || c->kind != ComponentKind::Capacitor || c->def().pins.size() != 2 ||
+                          wiredPins.count(l.net + "|" + l.to.dump()) || pinOutward(proj(s), l.a).y > -0.5 || pinOutward(proj(s), l.b).y > -0.5 ||
+                          sch.pinPosition({l.b.component, l.b.pin}).y > sch.pinPosition({l.a.component, l.a.pin}).y - 1)
+                          continue;
+                      rails[{l.net, {l.a.component, l.a.pin}}].push_back(&l);
+                  }
+                  for (auto& [key, caps] : rails) {
+                      auto at = [&](const Link* l) { return sch.pinPosition({l->b.component, l->b.pin}); };
+                      const Vec2 hub = sch.pinPosition({key.second.first, key.second.second});
+                      const double y = at(caps.front()).y;
+                      caps.erase(std::remove_if(caps.begin(), caps.end(), [&](const Link* l) { return std::fabs(at(l).y - y) > 0.5; }), caps.end());
+                      std::sort(caps.begin(), caps.end(), [&](const Link* l, const Link* r) { return at(l).x < at(r).x; });
+                      if (caps.size() < 2) continue;
+                      std::vector<int> row;
+                      for (const Link* l : caps) row.push_back(l->b.component);
+                      if (hub.x <= at(caps.front()).x || hub.x >= at(caps.back()).x) {  // the row slid to have the pin after its first cap
+                          const Vec2 d{std::round((hub.x - 30 - at(caps.front()).x) / 10) * 10, 0};
+                          if (!clearBy(row, d)) continue;
+                          moveAll(row, d);
+                      }
+                      bool clear = true;  // the drop from the pin to the rail crosses no body
+                      for (const auto& c : sch.components()) {
+                          if (isNetSymbolKind(c.kind) || c.kind == ComponentKind::Junction) continue;
+                          const auto o = sch.symbolOutline(c);
+                          for (int k = 1; k < 20 && clear; ++k) {
+                              const Vec2 q{hub.x, hub.y + (y - hub.y) * k / 20.0};
+                              clear = !(q.x > o[0] - 1 && q.x < o[2] + 1 && q.y > o[1] - 1 && q.y < o[3] + 1);
+                          }
+                      }
+                      if (!clear) continue;
+                      Json chain = Json::array(), args = obj();
+                      for (const Link* l : caps) chain.push(l->to);
+                      args["chain"] = chain;
+                      run("schematic_connect", args, key.first);
+                      int over = -1;  // the rail wire over the pin (split after the scan: splitting adds wires)
+                      for (const auto& w : sch.wires()) {
+                          const Vec2 a = sch.pinPosition(w.a), b = sch.pinPosition(w.b);
+                          if (over < 0 && std::fabs(a.y - y) < 0.5 && std::fabs(b.y - y) < 0.5 && std::min(a.x, b.x) < hub.x && std::max(a.x, b.x) > hub.x)
+                              over = w.id;
+                      }
+                      const int junction = over < 0 ? -1 : sieda_split_wire(P(s), over, hub.x, y);
+                      for (const Link* l : caps)
+                          if (l != caps.front()) wiredPins.insert(key.first + "|" + l->to.dump());
+                      if (junction >= 0 && sieda_connect(P(s), key.second.first, key.second.second, junction, 0) >= 0)
+                          wiredPins.insert(key.first + "|" + caps.front()->from.dump());
+                      // The entry: a series part on the rail fed from a connector, else the rail's regulator.
+                      const Vec2 first = at(caps.front());
+                      for (const auto& pin : nets.get(key.first).items()) try {
+                              const PinAddress e = pinAddress(*P(s), pin);
+                              const Component& ec = *sch.find(e.component);
+                              const std::string pre = prefix(e.component);
+                              const bool series = ec.def().pins.size() == 2 && (pre == "D" || pre == "F" || pre == "FB" || pre == "L");
+                              const bool regulator = static_cast<PinType>(ec.def().pins[static_cast<size_t>(e.pin)].type) == PinType::PowerOut;
+                              if (!series && !regulator) continue;
+                              std::vector<int> group{e.component};
+                              for (int i = 0; i < static_cast<int>(ec.def().pins.size()); ++i) {
+                                  if (series && i == e.pin) continue;
+                                  for (const auto& q : nets.get(pinNet[{e.component, i}]).items()) try {
+                                          const int c = pinAddress(*P(s), q).component;
+                                          const std::string cp = prefix(c);
+                                          const bool near = (sch.find(c)->position - ec.position).length() < 250 && sch.find(c)->def().pins.size() == 2 &&
+                                                            std::find(row.begin(), row.end(), c) == row.end();
+                                          if (c != e.component && std::find(group.begin(), group.end(), c) == group.end() &&
+                                              (series ? cp == "J" || cp == "P" || cp == "CN" || cp == "USB" : near && !isGround(pinNet[{e.component, i}]) ))
+                                              group.push_back(c);
+                                      } catch (const std::exception&) {}
+                              }
+                              if (series && group.size() < 2) break;
+                              double right = -1e9, top = 1e9;  // a regulator's group: its right / top edge
+                              for (int g : group) right = std::max(right, sch.symbolOutline(*sch.find(g))[2]), top = std::min(top, sch.symbolOutline(*sch.find(g))[1]);
+                              const Vec2 from = series ? sch.pinPosition({e.component, e.pin}) : Vec2{right, top};
+                              // The nearest clear spot left of the rail's start (a series part's pin on the rail's line).
+                              std::vector<std::pair<double, Vec2>> spots;
+                              for (int k = 0; k < 30; ++k)
+                                  for (int j = series ? 0 : -6; j <= (series ? 0 : 6); ++j)
+                                      spots.push_back({std::hypot(20.0 * k, 30.0 * j), Vec2{first.x - (series ? 80 : 60) - 20.0 * k, (series ? y : y + 20) + 30.0 * j}});
+                              std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+                              bool placed = false;
+                              for (const auto& spot : spots) {
+                                  const Vec2 d = spot.second - from, g{std::round(d.x / 10) * 10, std::round(d.y / 10) * 10};
+                                  if ((placed = clearBy(group, g))) {
+                                      moveAll(group, g);
+                                      break;
+                                  }
+                              }
+                              if (placed && series && sieda_connect(P(s), e.component, e.pin, caps.front()->b.component, caps.front()->b.pin) >= 0)
+                                  wiredPins.insert(key.first + "|" + pin.dump());
+                              break;
+                          } catch (const std::exception&) {}
+                  }
+              }
               // Grounds last: a ground symbol turns off the labels already on the pins next to its own.
               auto ordered = nets.fields();
               std::stable_partition(ordered.begin(), ordered.end(), [&](const auto& f) { return !isGround(f.first); });
@@ -3706,8 +3819,9 @@ void libraryTools(Table& t) {
                           if (b0 < u) fallback = sp->spec.name.substr(b0, u - b0) + unit;
                           break;
                       }
-              const std::string value = argStr(a, "value", fallback);
               const std::string ref = argStr(a, "ref", "");
+              if (fallback == sp->spec.name && ref.rfind("SW", 0) == 0) fallback = "SW_Push";  // a switch, not its catalog name
+              const std::string value = argStr(a, "value", fallback);
               const int id = argBool(a, "units", false) && !sp->spec.units.empty()
                                  ? sieda_add_custom_units(p, partId.c_str(), value.c_str(), at.x, at.y, argInt(a, "rotation", 0),
                                                           ref.empty() ? nullptr : ref.c_str())
