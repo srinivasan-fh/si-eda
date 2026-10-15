@@ -20929,6 +20929,30 @@ TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {
     }
 }
 
+TEST(mcp_build_wires_decoupling_rail_and_supply_entry) {
+    // Decoupling caps above the IC's supply pin share one rail wire with the pin; the input diode is wired into it.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"pins": false, "parts": [{"ref": "U1", "part": "ATMEGA328P-AU"},
+        {"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "D1", "part": "SS14"}, {"ref": "C1", "kind": "capacitor", "value": "100n"},
+        {"ref": "C2", "kind": "capacitor", "value": "100n"}, {"ref": "C3", "kind": "capacitor", "value": "10u"}, {"ref": "SW1", "part": "TACTILE-SWITCH-6MM"}],
+        "nets": {"VIN": ["J1.1", "D1.A"], "+5V": ["D1.K", "U1.VCC(4)", "U1.VCC(6)", "U1.AVCC", "C1.1", "C2.1", "C3.1"],
+        "GND": ["J1.2", "U1.GND(3)", "U1.GND(5)", "U1.GND(21)", "C1.2", "C2.2", "C3.2", "SW1.2"], "BTN": ["U1.PD2", "SW1.1"]}})J"))));
+    const Schematic& sch = s.project()->project.schematic;
+    CHECK(sch.findByRef("SW1")->value == "SW_Push");
+    auto wired = [&](const char* ref, int pin) {
+        const Component* c = sch.findByRef(ref);
+        return std::any_of(sch.wires().begin(), sch.wires().end(), [&](const Wire& w) {
+            return (w.a.component == c->id && w.a.pin == pin) || (w.b.component == c->id && w.b.pin == pin);
+        });
+    };
+    const Component* d1 = sch.findByRef("D1");
+    int k = -1;
+    for (int i = 0; i < 2; ++i)
+        if (d1->def().pins[static_cast<size_t>(i)].name == "K") k = i;
+    CHECK(k >= 0 && wired("C1", 0) && wired("C2", 0) && wired("C3", 0) && wired("D1", k));
+}
+
 TEST(mcp_autoplace_puts_a_pin_chain_by_its_pin) {
     // An LED's resistor goes beside the IC pin it hangs on, then the LED beside the resistor.
     mcp::McpServer s;
