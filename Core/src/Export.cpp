@@ -541,8 +541,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 ops.push_back({aperture(circle(0.3)), coord(mark) + "D03*"});
             }
             // Reference designator by the part, clear of the others (designatorBoxes).
-            const double textH = 1.0;
             const Rect box = designators.count(c.id) ? designators.at(c.id) : Rect{r.x0, r.y0 - 1.45, r.x1, r.y0 - 0.45};
+            const double textH = box.y1 - box.y0;  // (0.8 mm where full size had no clear spot)
             Vec2 origin{bottomSide ? box.x1 : box.x0, box.y1};
             for (const auto& stroke : silkscreenText(c.ref, origin, textH, bottomSide)) {
                 std::string path = coord(stroke[0]) + "D02*";
@@ -732,41 +732,45 @@ std::map<int, Rect> designatorBoxes(const Schematic& sch, const PcbLayout& pcb, 
     };
     for (const auto& [id, cy, bottom] : parts) {
         const Rect r = cy.inflated(-0.15);
-        const double w = silkscreenTextWidth(sch.find(id)->ref, height), cx = (r.x0 + r.x1) / 2, cyy = (r.y0 + r.y1) / 2;
-        const double far = 0.45 + height + 0.2;  // a row further out
-        const std::array<Rect, 12> spots{Rect{cx - w / 2, r.y0 - 0.45 - height, cx + w / 2, r.y0 - 0.45},
-                                         Rect{cx - w / 2, r.y1 + 0.45, cx + w / 2, r.y1 + 0.45 + height},
-                                         Rect{r.x1 + 0.45, cyy - height / 2, r.x1 + 0.45 + w, cyy + height / 2},
-                                         Rect{r.x0 - 0.45 - w, cyy - height / 2, r.x0 - 0.45, cyy + height / 2},
-                                         Rect{r.x0, r.y0 - 0.45 - height, r.x0 + w, r.y0 - 0.45},  // corners
-                                         Rect{r.x1 - w, r.y0 - 0.45 - height, r.x1, r.y0 - 0.45},
-                                         Rect{r.x0, r.y1 + 0.45, r.x0 + w, r.y1 + 0.45 + height},
-                                         Rect{r.x1 - w, r.y1 + 0.45, r.x1, r.y1 + 0.45 + height},
-                                         Rect{cx - w / 2, r.y0 - far - height, cx + w / 2, r.y0 - far},
-                                         Rect{cx - w / 2, r.y1 + far, cx + w / 2, r.y1 + far + height},
-                                         Rect{r.x1 + far, cyy - height / 2, r.x1 + far + w, cyy + height / 2},
-                                         Rect{r.x0 - far - w, cyy - height / 2, r.x0 - far, cyy + height / 2}};
-        // The clearest spot: on the board, then off other designators, pads, then other parts' courtyards (the first
-        // of equals, so a clear spot above stays the usual one).
-        auto cost = [&, id = id, bottom = bottom](const Rect& t) {
-            int c = onBoard(t) ? 0 : 10000;
-            for (const auto& [o, side] : taken)
-                c += 100 * (side == bottom && t.x0 < o.x1 + 0.1 && o.x0 < t.x1 + 0.1 && t.y0 < o.y1 + 0.1 && o.y0 < t.y1 + 0.1);
-            for (const auto& [oid, ocy, oside] : parts)  // (its own courtyard too, when slid in from an edge)
-                c += (oid == id ? 50 : 1) * (oside == bottom && t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1);
-            for (const auto& [pr, side] : padRects)  // silk on a pad is clipped away: worse than over a courtyard
-                c += 20 * ((side == 2 || side == (bottom ? 1 : 0)) && t.x0 < pr.x1 && pr.x0 < t.x1 && t.y0 < pr.y1 && pr.y0 < t.y1);
-            return c;
-        };
         auto inside = [&](Rect t) {  // slid in from an edge it overhangs
             const double dx = std::max(0.0, s.edgeClearance - t.x0) - std::max(0.0, t.x1 - (s.width - s.edgeClearance));
             const double dy = std::max(0.0, s.edgeClearance - t.y0) - std::max(0.0, t.y1 - (s.height - s.edgeClearance));
             return Rect{t.x0 + dx, t.y0 + dy, t.x1 + dx, t.y1 + dy};
         };
-        Rect pick = spots[0];
-        int least = cost(pick);
-        for (const Rect& t0 : spots)
-            if (const Rect t = inside(t0); cost(t) < least) pick = t, least = cost(t);
+        // Full-size text where some spot is clear, else 0.8 mm text (most fabs' smallest legible) at its clearest spot.
+        Rect pick;
+        int least = 1 << 30;
+        for (const double hgt : {height, 0.8 * height}) {
+            const double w = silkscreenTextWidth(sch.find(id)->ref, hgt), cx = (r.x0 + r.x1) / 2, cyy = (r.y0 + r.y1) / 2;
+            const double far = 0.45 + hgt + 0.2;  // a row further out
+            const std::array<Rect, 12> spots{Rect{cx - w / 2, r.y0 - 0.45 - hgt, cx + w / 2, r.y0 - 0.45},
+                                             Rect{cx - w / 2, r.y1 + 0.45, cx + w / 2, r.y1 + 0.45 + hgt},
+                                             Rect{r.x1 + 0.45, cyy - hgt / 2, r.x1 + 0.45 + w, cyy + hgt / 2},
+                                             Rect{r.x0 - 0.45 - w, cyy - hgt / 2, r.x0 - 0.45, cyy + hgt / 2},
+                                             Rect{r.x0, r.y0 - 0.45 - hgt, r.x0 + w, r.y0 - 0.45},  // corners
+                                             Rect{r.x1 - w, r.y0 - 0.45 - hgt, r.x1, r.y0 - 0.45},
+                                             Rect{r.x0, r.y1 + 0.45, r.x0 + w, r.y1 + 0.45 + hgt},
+                                             Rect{r.x1 - w, r.y1 + 0.45, r.x1, r.y1 + 0.45 + hgt},
+                                             Rect{cx - w / 2, r.y0 - far - hgt, cx + w / 2, r.y0 - far},
+                                             Rect{cx - w / 2, r.y1 + far, cx + w / 2, r.y1 + far + hgt},
+                                             Rect{r.x1 + far, cyy - hgt / 2, r.x1 + far + w, cyy + hgt / 2},
+                                             Rect{r.x0 - far - w, cyy - hgt / 2, r.x0 - far, cyy + hgt / 2}};
+            // The clearest spot: on the board, then off other designators, pads, then other parts' courtyards (the first
+            // of equals, so a clear spot above stays the usual one).
+            auto cost = [&, id = id, bottom = bottom](const Rect& t) {
+                int c = onBoard(t) ? 0 : 10000;
+                for (const auto& [o, side] : taken)
+                    c += 100 * (side == bottom && t.x0 < o.x1 + 0.1 && o.x0 < t.x1 + 0.1 && t.y0 < o.y1 + 0.1 && o.y0 < t.y1 + 0.1);
+                for (const auto& [oid, ocy, oside] : parts)  // (its own courtyard too, when slid in from an edge)
+                    c += (oid == id ? 50 : 1) * (oside == bottom && t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1);
+                for (const auto& [pr, side] : padRects)  // silk on a pad is clipped away: worse than over a courtyard
+                    c += 20 * ((side == 2 || side == (bottom ? 1 : 0)) && t.x0 < pr.x1 && pr.x0 < t.x1 && t.y0 < pr.y1 && pr.y0 < t.y1);
+                return c;
+            };
+            for (const Rect& t0 : spots)
+                if (const Rect t = inside(t0); cost(t) < least) pick = t, least = cost(t);
+            if (!least) break;
+        }
         taken.push_back({pick, bottom});
         out[id] = pick;
     }

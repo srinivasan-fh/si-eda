@@ -495,10 +495,24 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         const auto o = sch.symbolOutline(*sch.find(part.component)), ro = room(part.component);
                         bool hit = false;
                         for (int other : group) {  // the part it is wired to: bodies apart; any other: label room too
-                            const auto q = other == hub.component ? sch.symbolOutline(*sch.find(other)) : room(other);
                             const auto& m = other == hub.component ? o : ro;
                             const double g = 20;
-                            hit |= m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g;
+                            auto near = [&](const std::array<double, 4>& q) { return m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g; };
+                            if (other == hub.component || sch.find(other)->def().pins.size() <= 4) {  // (a small part: its whole room)
+                                hit |= near(other == hub.component ? sch.symbolOutline(*sch.find(other)) : room(other));
+                                continue;
+                            }
+                            // A larger part: its body and the label strip at each pin with a net, not the box round them all.
+                            auto body = sch.symbolOutline(*sch.find(other));
+                            hit |= near({body[0], body[1] - 14, body[2], body[3] + 14});
+                            for (int j = 0; j < static_cast<int>(sch.find(other)->def().pins.size()) && !hit; ++j) {
+                                const auto net = pinNet.find({other, j});
+                                if (net == pinNet.end() && !grounded.count({other, j})) continue;
+                                const Vec2 q = sch.pinPosition({other, j}), e = pinOutward(p->project, {other, j});
+                                const double len = grounded.count({other, j}) ? 140.0 : std::max(60.0, 10.0 * static_cast<double>(net->second.size()) + 30);
+                                const Vec2 r = q + e * len;
+                                hit |= near({std::min(q.x, r.x) - 12, std::min(q.y, r.y) - 12, std::max(q.x, r.x) + 12, std::max(q.y, r.y) + 12});
+                            }
                         }
                         // Nor over the labels on the hub's other pins.
                         const Component& h = *sch.find(hub.component);
@@ -3228,6 +3242,12 @@ void schematicTools(Table& t) {
                       const auto q = textBox(c);
                       hits += o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
                   }
+                  for (const auto& w : sch.wires()) {  // nor across another wire (a tag standing off its own into the next)
+                      if (w.a.component == id || w.b.component == id) continue;
+                      const Vec2 a0 = sch.pinPosition(w.a), b0 = sch.pinPosition(w.b);
+                      hits += std::max(a0.x, b0.x) > o[0] + 1 && std::min(a0.x, b0.x) < o[2] - 1 && std::max(a0.y, b0.y) > o[1] + 1 &&
+                              std::min(a0.y, b0.y) < o[3] - 1 && (std::fabs(a0.x - b0.x) < 0.5 || std::fabs(a0.y - b0.y) < 0.5);
+                  }
                   return hits;
               };
               // The clearest spot for a net's tag on wire l: {pose index, overlaps}, poses filled in.
@@ -3283,7 +3303,8 @@ void schematicTools(Table& t) {
                           int least = 1 << 30;
                           for (int k = -6; k <= 6; ++k) {
                               const Vec2 at = along.first + dir * (10.0 * k);
-                              if ((at - p0).length() < 20 || (at - p1).length() < 20) continue;
+                              const double t = (at.x - p0.x) * dir.x + (at.y - p0.y) * dir.y;  // on the wire, not past its ends
+                              if (t < 20 || t > (p1 - p0).length() - 20) continue;
                               const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, along.second, nullptr);
                               if (id < 0) continue;
                               const int hits = hitsOf(id);
@@ -7011,3 +7032,5 @@ std::vector<McpTool> buildTools() {
 }
 
 }  // namespace sieda::mcp
+
+

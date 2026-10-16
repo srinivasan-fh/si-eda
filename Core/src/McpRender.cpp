@@ -814,7 +814,7 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
         s.box(cy, false, 0.08, "#e0e0e0");
         const auto d = designators.find(c.id);
         const Rect t = d != designators.end() ? d->second : Rect{cy.x0, cy.y0 - 1.3, cy.x1, cy.y0 - 0.3};
-        s.text({t.center().x, t.y1}, c.ref, 1.0, "#f0f0f0", true);
+        s.text({t.center().x, t.y1}, c.ref, t.y1 - t.y0, "#f0f0f0", true);
         b.x0 = std::min({b.x0, cy.x0, t.x0});
         b.y0 = std::min({b.y0, cy.y0, t.y0 - 0.5});
         b.x1 = std::max({b.x1, cy.x1, t.x1});

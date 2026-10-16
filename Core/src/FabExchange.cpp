@@ -120,8 +120,8 @@ struct Board {
                 line({r.x1, r.y0}, {r.x1, r.y1});
                 line({r.x1, r.y1}, {r.x0, r.y1});
                 line({r.x0, r.y1}, {r.x0, r.y0});
-                const double textH = 1.0;
                 const Rect box = designators.count(c.id) ? designators.at(c.id) : Rect{r.x0, r.y0 - 1.45, r.x1, r.y0 - 0.45};
+                const double textH = box.y1 - box.y0;
                 Vec2 origin{bottomSide ? box.x1 : box.x0, box.y1};
                 for (const auto& stroke : silkscreenText(c.ref, origin, textH, bottomSide))
                     for (size_t i = 1; i < stroke.size(); ++i) line(stroke[i - 1], stroke[i]);
