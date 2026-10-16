@@ -971,6 +971,7 @@ final class DesignFlowTests: XCTestCase {
         XCTAssertEqual(store.snapshot.component(a.id)?.pcb.x ?? 0, a.pcb.x, accuracy: 0.001)
         XCTAssertEqual(store.snapshot.component(b.id)?.pcb.x ?? 0, b.pcb.x, accuracy: 0.001)
         store.runDRC()
+        await store.drcSettled()  // the DRC runs off the main thread
         XCTAssertTrue(store.drcIsCurrent)
 
         // Rotate and flip the selection.
@@ -7160,10 +7161,11 @@ final class BoardCommandTests: XCTestCase {
         XCTAssertNil(old.tuneStatus)
     }
 
-    func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
+    func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() async {
         let store = routedStore()
         let tracks = store.snapshot.tracks
-        store.glossTracks()  // a fresh route is already tight
+        await store.glossTracks()  // a fresh route is already tight (runs off the main thread)
+        XCTAssertFalse(store.isBusy)
         XCTAssertEqual(store.snapshot.tracks, tracks)
         store.stitchVias()  // no ground pours
         XCTAssertTrue(store.snapshot.vias.isEmpty)
@@ -7298,7 +7300,7 @@ final class PlaceNewPartsTests: XCTestCase {
             XCTAssertEqual(try XCTUnwrap(store.snapshot.component(second.id)).pcb.x, before.x, accuracy: 1e-9)
             XCTAssertEqual(store.placementSession?.ghost?.issues.first?.code, "PLACE_OVERLAP")
             // R turns the ghost, F flips it.
-            store.movePlacementGhost(to: CGPoint(x: r1Spot.x + 20, y: r1Spot.y))
+            store.movePlacementGhostNow(to: CGPoint(x: r1Spot.x + 20, y: r1Spot.y))
             let rotation = try XCTUnwrap(store.placementSession?.rotation)
             store.rotatePlacement()
             XCTAssertEqual(store.placementSession?.rotation, (rotation + 90) % 360)
@@ -7375,7 +7377,7 @@ final class PlaceNewPartsTests: XCTestCase {
             let autoA = try spot(store, a)
             let autoB = try spot(store, b)
             // Over B's automatic spot the ghost is green: B still waits, so it is no obstacle.
-            store.movePlacementGhost(to: autoB)
+            store.movePlacementGhostNow(to: autoB)
             let ghost = try XCTUnwrap(store.placementSession?.ghost)
             XCTAssertTrue(ghost.legal)
             XCTAssertFalse(ghost.issues.contains { $0.code == "PLACE_OVERLAP" })
@@ -8562,7 +8564,7 @@ final class LiveCollaborationTests: XCTestCase {
 
 @MainActor
 final class DfmPackTests: XCTestCase {
-    func testPackTightensRulesAndAddsChecks() throws {
+    func testPackTightensRulesAndAddsChecks() async throws {
         let store = DesignStore()
         store.loadExample(OfflineProvider.templates[0].industryPlan)
         store.autoPlace(all: true)
@@ -8572,6 +8574,7 @@ final class DfmPackTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(store.snapshot.board.minDrill, 0.254 - 1e-9)
         store.setMechanical(thickness: 2.4)
         store.runDRC()
+        await store.drcSettled()  // the DRC runs off the main thread
         XCTAssertTrue(store.drcResults.contains { $0.code == "DFM_THICKNESS" })
         store.setDfmPack("")
         XCTAssertEqual(store.snapshot.board.dfmPack, "")

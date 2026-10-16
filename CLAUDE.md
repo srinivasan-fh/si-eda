@@ -284,7 +284,14 @@
     layer, and must stay identical to the sequential fill; the board mask (cells inside the outline, clear of holes)
     is kept between fills while its inputs are unchanged (`boardMask_`).
   - **MCP:** file reads are capped at 128 MB.
-  - **Live endpoint:** at most 16 connections.
+  - **Live endpoint:** at most 16 connections, answered one request at a time (`MCPLiveServer.waitForTurn`); tool
+    calls run the core in the background (`MCPStoreBridge.handleLive`, `DesignStore.performExternalEditInBackground`:
+    one undo step as before).
+  - **Main thread:** heavy core calls stay off it. `runDRC` runs in the background (one at a time plus one queued
+    re-run, results tagged with the revision they checked; `drcSettled()` awaits it); verification and the DRC after
+    Auto Route run inside `runBusy`; Auto Place (`autoPlaceInBackground`), Gloss and Minimise Vias go through
+    `performInBackground` (one undo step); the placement ghost's check is coalesced like `moveRoute`
+    (`movePlacementGhostNow` checks synchronously).
   - **`sieda-mcp --connect`:** only connects to 127.0.0.1 / localhost / ::1 and caps replies at 64 MB.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from

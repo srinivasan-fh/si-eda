@@ -184,7 +184,7 @@ struct PCBEditorView: View {
                 }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "square.grid.3x3.topleft.filled", help: "Auto-place all footprints") {
-                    store.autoPlace(all: true)
+                    Task { await store.autoPlaceInBackground(all: true) }
                 }
                 ToolStripButton(systemImage: "arrow.down.right.and.arrow.up.left.rectangle", help: "Fit board to components") {
                     store.fitBoard()
@@ -206,7 +206,7 @@ struct PCBEditorView: View {
                 }
                 ToolStripButton(systemImage: "wand.and.stars",
                                 help: "Gloss: pull the selected routes (or every route) tight and retrace them shorter") {
-                    store.glossTracks()
+                    Task { await store.glossTracks() }
                 }
                 ToolStripButton(systemImage: "circle.grid.3x3",
                                 help: "Via stitching: ground vias wherever ground pours or planes overlap on two layers") {
@@ -476,7 +476,7 @@ struct PCBEditorView: View {
                                 Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
                                 Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
                                     .foregroundStyle(Theme.textPrimary)
-                                Button("Place Now") { store.autoPlace(all: false) }
+                                Button("Place Now") { Task { await store.autoPlaceInBackground(all: false) } }
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.small)
                             }
@@ -514,7 +514,7 @@ struct PCBEditorView: View {
                             BlueEmptyState(systemImage: "square.grid.3x3.square",
                                            title: "No footprints on the board",
                                            message: "Place the schematic's footprints automatically, then Auto Route the board.",
-                                           actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
+                                           actionTitle: "Auto-Place Footprints") { Task { await store.autoPlaceInBackground(all: true) } }
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
@@ -1295,7 +1295,7 @@ struct PCBCanvas: View {
                 CanvasMenuItem(title: String(localized: "Split Track Here")) { store.splitTrack(hit.id, at: world) },
                 CanvasMenuItem(title: String(localized: "Merge Tracks")) { store.mergeTracks() },
                 CanvasMenuItem(title: String(localized: "Select Whole Route")) { store.selectTrackNets() },
-                CanvasMenuItem(title: String(localized: "Minimise Vias")) { store.minimizeVias() },
+                CanvasMenuItem(title: String(localized: "Minimise Vias")) { Task { await store.minimizeVias() } },
                 .separator,
                 CanvasMenuItem(title: String(localized: "Delete")) { store.deleteSelectedCopper() },
             ]
@@ -1364,7 +1364,7 @@ struct PCBCanvas: View {
         }
         return shapes + [
             CanvasMenuItem(title: String(localized: "Merge Tracks"), enabled: !store.snapshot.tracks.isEmpty) { store.mergeTracks() },
-            CanvasMenuItem(title: String(localized: "Minimise Vias"), enabled: !store.snapshot.vias.isEmpty) { store.minimizeVias() },
+            CanvasMenuItem(title: String(localized: "Minimise Vias"), enabled: !store.snapshot.vias.isEmpty) { Task { await store.minimizeVias() } },
             CanvasMenuItem(title: String(localized: "Refill Pours"), key: "b", enabled: !store.snapshot.zones.isEmpty) { store.refillPours() },
             CanvasMenuItem(title: store.holdPours ? String(localized: "Refill Pours After Every Edit") : String(localized: "Refill Pours Only on Demand")) {
                 store.holdPours.toggle()
