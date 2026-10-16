@@ -604,16 +604,29 @@ std::vector<Vec2> gerberArc(Vec2 a, Vec2 b, Vec2 c, bool ccw) {
 void excellon(const std::string& text, GerberImage& img) {
     img.kind = "drill";
     double scale = 1;  // mm per unit
-    bool metric = true;
+    bool metric = true, lz = false;  // LZ: leading zeros kept, trailing ones suppressed (TZ: the reverse)
+    int ints = 3, decs = 3;          // digits of a decimal-less coordinate (METRIC 3:3, INCH 2:4 unless the file says)
+    bool digitsGiven = false;
     std::map<int, double> tools;
     double dia = 0;
+    Vec2 last;
     std::istringstream in(text);
     std::string line;
     while (std::getline(in, line)) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
+        int a = 0, b = 0;
+        if (std::sscanf(line.c_str(), ";FILE_FORMAT=%d:%d", &a, &b) == 2) ints = std::clamp(a, 0, 9), decs = std::clamp(b, 0, 9), digitsGiven = true;
         if (line.empty() || line[0] == ';') continue;
-        if (line.rfind("INCH", 0) == 0 || line.rfind("M72", 0) == 0) metric = false, scale = 25.4;
-        if (line.rfind("METRIC", 0) == 0 || line.rfind("M71", 0) == 0) metric = true, scale = 1;
+        const bool inch = line.rfind("INCH", 0) == 0 || line.rfind("M72", 0) == 0;
+        if (inch || line.rfind("METRIC", 0) == 0 || line.rfind("M71", 0) == 0) {
+            metric = !inch, scale = inch ? 25.4 : 1;
+            if (line.find(",LZ") != std::string::npos) lz = true;
+            if (line.find(",TZ") != std::string::npos) lz = false;
+            const size_t dot = line.find('.'), comma = line.rfind(',', dot);
+            if (dot != std::string::npos && comma != std::string::npos)  // INCH,LZ,00.0000: the digits
+                ints = static_cast<int>(std::min<size_t>(dot - comma - 1, 9)), decs = static_cast<int>(std::min<size_t>(line.size() - dot - 1, 9)), digitsGiven = true;
+            else if (!digitsGiven) ints = metric ? 3 : 2, decs = metric ? 3 : 4;
+        }
         if (line[0] == 'T' && line.size() > 1 && std::isdigit(static_cast<unsigned char>(line[1]))) {
             const int t = std::atoi(line.c_str() + 1);
             const size_t c = line.find('C');
@@ -622,16 +635,19 @@ void excellon(const std::string& text, GerberImage& img) {
             continue;
         }
         if (line[0] != 'X' && line[0] != 'Y') continue;
-        static Vec2 last;
         auto coord = [&](char axis, double prev) {
             const size_t at = line.find(axis);
             if (at == std::string::npos) return prev;
             size_t end = at + 1;
             while (end < line.size() && (std::isdigit(static_cast<unsigned char>(line[end])) || line[end] == '.' || line[end] == '-' || line[end] == '+')) ++end;
-            const std::string v = line.substr(at + 1, end - at - 1);
+            std::string v = line.substr(at + 1, end - at - 1);
             if (v.empty()) return prev;
-            const double n = std::atof(v.c_str());
-            return (v.find('.') != std::string::npos ? n : n / (metric ? 1000.0 : 10000.0)) * scale;
+            if (v.find('.') != std::string::npos) return std::atof(v.c_str()) * scale;
+            const bool neg = v[0] == '-';
+            if (v[0] == '-' || v[0] == '+') v.erase(0, 1);
+            if (lz && static_cast<int>(v.size()) < ints + decs) v.resize(static_cast<size_t>(ints + decs), '0');
+            const double n = std::atof(v.c_str()) / std::pow(10.0, decs) * scale;
+            return neg ? -n : n;
         };
         last = {coord('X', last.x), coord('Y', last.y)};
         if (std::isfinite(last.x) && std::isfinite(last.y) && img.shapes.size() < 2000000) {
@@ -745,8 +761,27 @@ GerberImage parseGerber(const std::string& text) {
         struct Aperture { char shape = 'C'; double w = 0.1, h = 0.1; };
         std::map<int, Aperture> apertures;
         int xDec = 6, yDec = 6, xInt = 3, yInt = 3, current = -1, interp = 1, dcode = 2;
-        bool trailing = false, region = false, clear = false, multi = true, macroWarned = false;
+        bool trailing = false, incremental = false, region = false, clear = false, multi = true, macroWarned = false;
         double scale = 1;
+        // Step and repeat (%SRXnYmIiJj*%): the shapes from srFrom on are copied nx × ny times when the block closes;
+        // srBudget caps the copied points so a hostile file cannot blow up memory.
+        size_t srFrom = 0, srBudget = 4000000;
+        int srX = 1, srY = 1;
+        double srI = 0, srJ = 0;
+        auto closeRepeat = [&] {
+            const size_t end = img.shapes.size();
+            for (int ix = 0; ix < srX; ++ix)
+                for (int iy = 0; iy < srY; ++iy)
+                    for (size_t k = srFrom; k < end && (ix || iy); ++k) {
+                        if (img.shapes.size() >= 2000000 || srBudget < 1 + img.shapes[k].points.size()) return;
+                        GerberShape c = img.shapes[k];
+                        const Vec2 d{ix * srI, iy * srJ};
+                        srBudget -= 1 + c.points.size();
+                        c.a = c.a + d, c.b = c.b + d;
+                        for (Vec2& q : c.points) q = q + d;
+                        img.shapes.push_back(std::move(c));
+                    }
+        };
         Vec2 pos;
         std::vector<Vec2> contour;
         auto flushContour = [&] {
@@ -770,10 +805,22 @@ GerberImage parseGerber(const std::string& text) {
             if (st.empty()) return;
             if (st.rfind("FS", 0) == 0) {
                 trailing = st.size() > 2 && st[2] == 'T';
+                incremental = st.size() > 3 && st[3] == 'I';
                 const size_t x = st.find('X'), y = st.find('Y');
                 if (x != std::string::npos && x + 2 < st.size()) xInt = st[x + 1] - '0', xDec = st[x + 2] - '0';
                 if (y != std::string::npos && y + 2 < st.size()) yInt = st[y + 1] - '0', yDec = st[y + 2] - '0';
                 xDec = std::clamp(xDec, 0, 9), yDec = std::clamp(yDec, 0, 9);
+            } else if (st.rfind("SR", 0) == 0) {  // a new block (or none: %SR*%) closes the open one
+                closeRepeat();
+                auto field = [&](char c) {
+                    const size_t at = st.find(c);
+                    return at == std::string::npos ? 0.0 : std::atof(st.c_str() + at + 1);
+                };
+                const double nx = field('X'), ny = field('Y');
+                srX = std::isfinite(nx) ? static_cast<int>(std::clamp(nx, 1.0, 1000.0)) : 1;
+                srY = std::isfinite(ny) ? static_cast<int>(std::clamp(ny, 1.0, 1000.0)) : 1;
+                srI = field('I') * scale, srJ = field('J') * scale, srFrom = img.shapes.size();
+                if (!std::isfinite(srI) || !std::isfinite(srJ)) srX = srY = 1;
             } else if (st == "MOMM") {
                 scale = 1;
             } else if (st == "MOIN") {
@@ -825,8 +872,8 @@ GerberImage parseGerber(const std::string& text) {
                             else if (n == 70) scale = 25.4;
                             else if (n == 71) scale = 1;
                             break;
-                        case 'X': x = number(v, xInt, xDec); break;
-                        case 'Y': y = number(v, yInt, yDec); break;
+                        case 'X': x = number(v, xInt, xDec) + (incremental ? pos.x : 0); break;
+                        case 'Y': y = number(v, yInt, yDec) + (incremental ? pos.y : 0); break;
                         case 'I': ci = number(v, xInt, xDec); break;
                         case 'J': cj = number(v, yInt, yDec); break;
                         case 'D':
@@ -883,6 +930,10 @@ GerberImage parseGerber(const std::string& text) {
         };
         size_t i = 0;
         while (i < text.size()) {
+            if (std::isspace(static_cast<unsigned char>(text[i]))) {  // line breaks between statements
+                ++i;
+                continue;
+            }
             if (text[i] == '%') {  // extended command: statements up to the closing '%'
                 const size_t end = text.find('%', i + 1);
                 const std::string block = text.substr(i + 1, end == std::string::npos ? std::string::npos : end - i - 1);
@@ -907,6 +958,7 @@ GerberImage parseGerber(const std::string& text) {
             }
         }
         flushContour();
+        closeRepeat();
     }
     bool any = false;
     auto grow = [&](Vec2 p, double r) {

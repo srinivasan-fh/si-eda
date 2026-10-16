@@ -82,7 +82,7 @@
   offline cache), `SupplierSearchView`, `BomLivePricingView`; guide in `docs/SUPPLIERS.md`. Tests never use the
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
 - Gerber viewer / reference layers: `parseGerber` + `gerberImageJson` in `Documents.cpp` (Gerber X2 / RS-274X,
-  Excellon and ODB++ layer `features` files (kind "odb"); `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
+  Excellon (LZ / TZ, `;FILE_FORMAT=a:b`, nothing kept between files) and ODB++ layer `features` files (kind "odb"); Gerber `%SR` step-repeat expanded (copies capped), `%FSLI` incremental; `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
   C `sieda_gerber_parse` / `sieda_pcb_*reference_layer*`, MCP `pcb_reference_layer`, app `GerberViewerView.swift` and
   the PCB canvas overlay (`DesignStore.referenceArtwork`).
 - Netlist / schematic import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV, and through it
