@@ -206,7 +206,8 @@
   `Project::revisions` (both saved only when present; title blocks of both PDFs); net-length CSV `exportNetLengthReport`.
 - Documents in `Core/src/Documents.cpp`: DXF export / outline import (`exportDxf`, `importDxfOutline`,
   `applyDxfOutline`, MCP `pcb_import_dxf`, fuzzed in the `idf` target), test-point report, interactive HTML BOM and the
-  bring-up checklist; all four are in the fabrication package and `sieda_export` ("dxf", "testpoints", "html_bom",
+  bring-up checklist; all four are in the fabrication package. Placement files (`exportPickAndPlaceCsv` / `exportCplCsv`):
+  lower-left origin (Y up), rotation counter-clockwise (`placementRotation`, as IPC-2581 / IDF), no DNP parts and `sieda_export` ("dxf", "testpoints", "html_bom",
   "bringup"). Product checklist with every item's status: `docs/EDA_CHECKLIST.md`.
 - IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
@@ -246,7 +247,9 @@
   search `fav:` / `tag:`).
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards
   within a fab panel size, default the DFM pack's; panel Gerbers are the
-  board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
+  board's own Gerbers shifted and stepped with %SR (opened outside multi-line %…% blocks such as %AMRR; fiducial D-codes
+  above every board code), drills repeated per board (NPTH from the board's -NPTH.drl: footprint `npth` pads too, which
+  also count in the fab notes); C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC

@@ -345,9 +345,11 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
 
             std::string bom = exportBomCsv(sch);
             check("Bill of materials (CSV)", bom, countLines(bom) >= 2, "no parts listed");
-            std::string pnp = exportPickAndPlaceCsv(sch);
-            check("Pick and place (CSV)", pnp, countLines(pnp) - 1 == placed,
-                  std::to_string(countLines(pnp) - 1) + " rows for " + std::to_string(placed) + " placed parts");
+            std::string pnp = exportPickAndPlaceCsv(sch, pcb);
+            int fitted = placed;  // DNP parts are left out of the placement files
+            for (const auto& c : sch.components()) fitted -= c.hasFootprint() && pcb.onBoard(c) && c.pcb.placed && c.sourcing.dnp;
+            check("Pick and place (CSV)", pnp, countLines(pnp) - 1 == fitted,
+                  std::to_string(countLines(pnp) - 1) + " rows for " + std::to_string(fitted) + " fitted parts");
             std::string net = exportSpiceNetlist(sch, project.name);
             check("SPICE netlist", net, net.find(".end") != std::string::npos, "missing .end");
 

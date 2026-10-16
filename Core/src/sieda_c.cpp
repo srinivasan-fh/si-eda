@@ -118,7 +118,7 @@ void addAssemblyNote(const Project& p, Json& result) {
 /// Assembly outputs (they follow a design variant). False for any other format.
 bool assemblyExport(const Project& p, const Schematic& sch, const std::string& f, std::string* out) {
     if (f == "bom") *out = exportBomCsv(sch);
-    else if (f == "pnp") *out = exportPickAndPlaceCsv(sch);
+    else if (f == "pnp") *out = exportPickAndPlaceCsv(sch, p.pcb);
     else if (f == "bom_assembly") *out = exportAssemblyBomCsv(sch);
     else if (f == "cpl") *out = exportCplCsv(sch, p.pcb);
     else if (f == "assembly_top") *out = exportAssemblySvg(sch, p.pcb, false, p.name);
