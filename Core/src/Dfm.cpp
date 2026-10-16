@@ -312,7 +312,7 @@ std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb)
         worst = std::max(worst, r);
     }
     for (const auto& pad : pads)
-        if (pad.throughHole && pad.drill > 0) {
+        if (pad.throughHole && pad.drill > 0 && !pad.npth) {  // a non-plated hole is not plated
             const double r = s.thickness / pad.drill;
             if (r > p->maxAspectRatio + 1e-9 && deep++ == 0) deepAt = pad.position;
             worst = std::max(worst, r);
@@ -384,6 +384,7 @@ Json dfmReportJson(const Schematic& sch, const PcbLayout& pcb) {
     for (const auto& pad : pcb.pads(sch))
         if (pad.throughHole && pad.drill > 0) {
             minDrill = std::min(minDrill, pad.drill);
+            if (pad.npth) continue;  // no ring, nothing plated
             minRing = std::min(minRing, (std::min(pad.size.x, pad.size.y) - pad.drill) / 2);
             aspect = std::max(aspect, s.thickness / pad.drill);
         }

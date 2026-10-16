@@ -20,7 +20,7 @@ struct Feature {
     enum Kind { Pad, Line, Arc, Box } kind = Pad;
     Vec2 a, b, c;            // pad / hole centre; line or arc ends; arc centre (Y up)
     double w = 0, h = 0;     // pad size or hole diameter; line width (w)
-    bool round = false;      // round pad
+    bool round = false;      // round pad (an oval when w != h)
     bool cw = false;         // clockwise arc
     bool plated = true;      // hole
     int net = -1;
@@ -131,8 +131,9 @@ struct Board {
         auto mask = [&](bool bottomSide) {
             Layer l{bottomSide ? "smb" : "smt", "SOLDER_MASK", "SOLDERMASK", bottomSide ? 'B' : 'T', "", "", {}};
             const int cl = bottomSide ? copper - 1 : 0;
+            Pad scratch;
             for (const auto& pad : pads)
-                if (pad.onLayer(cl)) l.features.push_back(padFeature(pad, pad.mask >= 0 ? pad.mask : 0.05));
+                if (pad.onLayer(cl)) l.features.push_back(padFeature(padOnLayer(pad, cl, copper - 1, scratch), pad.mask >= 0 ? pad.mask : 0.05));
             return l;
         };
 
@@ -166,8 +167,9 @@ struct Board {
                 }
                 l.features.push_back(f);
             }
+            Pad scratch;
             for (const auto& pad : pads)
-                if (pad.onLayer(cl) && !pad.npth) l.features.push_back(padFeature(pad, 0));
+                if (pad.onLayer(cl) && !pad.npth) l.features.push_back(padFeature(padOnLayer(pad, cl, copper - 1, scratch), 0));
             for (const auto& v : pcb.vias) {
                 if (!v.spans(cl)) continue;
                 Feature f;
@@ -262,9 +264,11 @@ std::string exportIpc(const Board& board) {
     std::ostringstream o;
     std::map<std::string, std::string> shapes;  // id → primitive
     auto padShape = [&](const Feature& f) {
-        std::string id = f.round ? "CIRCLE_" + num(f.w) : "RECT_" + num(f.w) + "X" + num(f.h);
-        shapes.emplace(id, f.round ? "<Circle diameter=\"" + num(f.w) + "\"/>"
-                                   : "<RectCenter width=\"" + num(f.w) + "\" height=\"" + num(f.h) + "\"/>");
+        const bool oval = f.round && f.w != f.h;
+        std::string id = oval ? "OVAL_" + num(f.w) + "X" + num(f.h) : f.round ? "CIRCLE_" + num(f.w) : "RECT_" + num(f.w) + "X" + num(f.h);
+        shapes.emplace(id, oval      ? "<Oval width=\"" + num(f.w) + "\" height=\"" + num(f.h) + "\"/>"
+                           : f.round ? "<Circle diameter=\"" + num(f.w) + "\"/>"
+                                     : "<RectCenter width=\"" + num(f.w) + "\" height=\"" + num(f.h) + "\"/>");
         return id;
     };
     std::map<std::string, double> lineDescs;
@@ -427,7 +431,9 @@ std::string odbFeatures(const Layer& layer) {
         switch (f.kind) {
             case Feature::Pad:
                 body << "P " << num(f.a.x) << " " << num(f.a.y) << " "
-                     << symbol(f.round ? "r" + microns(f.w) : "rect" + microns(f.w) + "x" + microns(f.h)) << " P 0 0\n";
+                     << symbol(f.round && f.w != f.h ? "oval" + microns(f.w) + "x" + microns(f.h)
+                               : f.round ? "r" + microns(f.w)
+                                         : "rect" + microns(f.w) + "x" + microns(f.h)) << " P 0 0\n";
                 break;
             case Feature::Line:
                 body << "L " << num(f.a.x) << " " << num(f.a.y) << " " << num(f.b.x) << " " << num(f.b.y) << " "
@@ -572,7 +578,7 @@ std::string exportOdb(const Board& board) {
                     packages << "PIN " << i + 1 << " " << (pd.throughHole ? "T" : "S") << " " << num(pd.offset.x) << " "
                              << num(-pd.offset.y) << " 0 " << (pd.pinIndex >= 0 ? "E" : "M") << " "
                              << (pd.throughHole ? "T" : "S") << "\n";
-                    if (pd.round)
+                    if (pd.round && pd.size.x == pd.size.y)  // an oval pad by its rectangle
                         packages << "CR " << num(pd.offset.x) << " " << num(-pd.offset.y) << " " << num(pd.size.x / 2) << "\n";
                     else
                         packages << "RC " << num(pd.offset.x - pd.size.x / 2) << " " << num(-pd.offset.y - pd.size.y / 2) << " "
