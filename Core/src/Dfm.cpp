@@ -283,12 +283,10 @@ std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb)
     // top edge) that run into each other cannot be read on the assembled board.
     {
         std::vector<Rect> text;
+        const auto boxes = designatorBoxes(sch, pcb);
         for (const Component* c : placed) {
             const Rect r = pcb.courtyard(*c).inflated(-0.15);
-            const double w = silkscreenTextWidth(c->ref, 1.0);
-            double baseline = r.y0 - 0.45;
-            if (baseline - 1.0 < s.edgeClearance) baseline = r.y1 + 0.45 + 1.0;
-            text.push_back({(r.x0 + r.x1 - w) / 2, baseline - 1.0, (r.x0 + r.x1 + w) / 2, baseline});
+            text.push_back(boxes.count(c->id) ? boxes.at(c->id) : Rect{r.x0, r.y0 - 1.45, r.x1, r.y0 - 0.45});
         }
         int shown = 0;
         for (size_t i = 0; i < placed.size() && shown < 20; ++i)

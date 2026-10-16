@@ -523,6 +523,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 for (const auto& [a, b] : g.lines) ops.push_back({aperture(circle(g.width)), coord(a) + "D02*\n" + coord(b) + "D01*"});
             }
         int ap = aperture(circle(0.15));
+        const auto designators = designatorBoxes(sch, pcb);
         for (const auto& c : sch.components()) {
             if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide || c.pcb.embedded()) continue;
             Rect r = pcb.courtyard(c).inflated(-0.15);
@@ -539,12 +540,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 Vec2 mark = len > 1e-9 ? p1 + dir * (0.9 / len) : p1;
                 ops.push_back({aperture(circle(0.3)), coord(mark) + "D03*"});
             }
-            // Reference designator above the part (below it when that would leave the board).
+            // Reference designator by the part, clear of the others (designatorBoxes).
             const double textH = 1.0;
-            double width = silkscreenTextWidth(c.ref, textH);
-            double baseline = r.y0 - 0.45;
-            if (baseline - textH < s.edgeClearance) baseline = r.y1 + 0.45 + textH;
-            Vec2 origin{(r.x0 + r.x1) / 2 + (bottomSide ? width / 2 : -width / 2), baseline};
+            const Rect box = designators.count(c.id) ? designators.at(c.id) : Rect{r.x0, r.y0 - 1.45, r.x1, r.y0 - 0.45};
+            Vec2 origin{bottomSide ? box.x1 : box.x0, box.y1};
             for (const auto& stroke : silkscreenText(c.ref, origin, textH, bottomSide)) {
                 std::string path = coord(stroke[0]) + "D02*";
                 for (size_t i = 1; i < stroke.size(); ++i) path += "\n" + coord(stroke[i]) + "D01*";
@@ -717,6 +716,44 @@ double silkscreenTextWidth(const std::string& text, double height) {
     if (text.empty()) return 0;
     double u = height / 6;
     return (static_cast<double>(text.size()) * 6 - 2) * u;
+}
+
+std::map<int, Rect> designatorBoxes(const Schematic& sch, const PcbLayout& pcb, double height) {
+    const BoardSettings& s = pcb.settings;
+    std::map<int, Rect> out;
+    std::vector<std::pair<Rect, bool>> taken;  // designators placed so far, and their side
+    std::vector<std::tuple<int, Rect, bool>> parts;
+    for (const auto& c : sch.components())
+        if (c.hasFootprint() && c.pcb.placed && !c.pcb.embedded() && pcb.onBoard(c)) parts.push_back({c.id, pcb.courtyard(c), c.pcb.bottom});
+    auto onBoard = [&](const Rect& t) {
+        return t.x0 >= s.edgeClearance && t.y0 >= s.edgeClearance && t.x1 <= s.width - s.edgeClearance && t.y1 <= s.height - s.edgeClearance;
+    };
+    for (const auto& [id, cy, bottom] : parts) {
+        const Rect r = cy.inflated(-0.15);
+        const double w = silkscreenTextWidth(sch.find(id)->ref, height), cx = (r.x0 + r.x1) / 2, cyy = (r.y0 + r.y1) / 2;
+        const std::array<Rect, 4> spots{Rect{cx - w / 2, r.y0 - 0.45 - height, cx + w / 2, r.y0 - 0.45},
+                                        Rect{cx - w / 2, r.y1 + 0.45, cx + w / 2, r.y1 + 0.45 + height},
+                                        Rect{r.x1 + 0.45, cyy - height / 2, r.x1 + 0.45 + w, cyy + height / 2},
+                                        Rect{r.x0 - 0.45 - w, cyy - height / 2, r.x0 - 0.45, cyy + height / 2}};
+        auto clear = [&, id = id, bottom = bottom](const Rect& t) {
+            if (!onBoard(t)) return false;
+            for (const auto& [o, side] : taken)
+                if (side == bottom && t.x0 < o.x1 + 0.1 && o.x0 < t.x1 + 0.1 && t.y0 < o.y1 + 0.1 && o.y0 < t.y1 + 0.1) return false;
+            for (const auto& [oid, ocy, oside] : parts)
+                if (oid != id && oside == bottom && t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1) return false;
+            return true;
+        };
+        // As before when nothing is clear: above, or below at the board's top edge.
+        Rect pick = spots[0].y0 < s.edgeClearance ? spots[1] : spots[0];
+        for (const Rect& t : spots)
+            if (clear(t)) {
+                pick = t;
+                break;
+            }
+        taken.push_back({pick, bottom});
+        out[id] = pick;
+    }
+    return out;
 }
 
 std::vector<std::vector<Vec2>> silkscreenText(const std::string& text, Vec2 origin, double height, bool mirror) {

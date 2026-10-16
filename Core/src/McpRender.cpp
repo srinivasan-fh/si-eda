@@ -807,15 +807,18 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
         s.disc(h.position, h.drill / 2, "#000000");
     }
     for (const auto& [a, c] : pcb.ratsnest(sch)) s.line(a, c, 0.08, "#ffff66");
+    const auto designators = designatorBoxes(sch, pcb);  // where the silkscreen puts them, clear of each other
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !c.pcb.placed || c.packageOnly) continue;
         const Rect cy = pcb.courtyard(c);
         s.box(cy, false, 0.08, "#e0e0e0");
-        s.text({cy.center().x, cy.y0 - 0.3}, c.ref, 1.0, "#f0f0f0", true);
-        b.x0 = std::min(b.x0, cy.x0);
-        b.y0 = std::min(b.y0, cy.y0 - 1.5);
-        b.x1 = std::max(b.x1, cy.x1);
-        b.y1 = std::max(b.y1, cy.y1);
+        const auto d = designators.find(c.id);
+        const Rect t = d != designators.end() ? d->second : Rect{cy.x0, cy.y0 - 1.3, cy.x1, cy.y0 - 0.3};
+        s.text({t.center().x, t.y1}, c.ref, 1.0, "#f0f0f0", true);
+        b.x0 = std::min({b.x0, cy.x0, t.x0});
+        b.y0 = std::min({b.y0, cy.y0, t.y0 - 0.5});
+        b.x1 = std::max({b.x1, cy.x1, t.x1});
+        b.y1 = std::max({b.y1, cy.y1, t.y1});
     }
     for (const auto& p : outline) {
         b.x0 = std::min(b.x0, p.x);

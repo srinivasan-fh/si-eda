@@ -197,8 +197,21 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
     std::set<int> serpentineIds;  // tracks that are already part of a serpentine are not tuned again
     auto tuneOnce = [&](int net, double want) -> double {
         std::vector<size_t> cand;
+        // Not a track that another of its net's tracks (or vias) joins part-way along (a stub to an ESD array): a
+        // serpentine in its place would cut that branch off.
+        auto branched = [&](const Track& t) {
+            auto inside = [&](Vec2 e) {
+                return (e - t.a).length() > 1e-3 && (e - t.b).length() > 1e-3 && pointSegmentDistance(e, t.a, t.b) < t.width / 2 + 1e-6;
+            };
+            for (const auto& o : pcb.tracks)
+                if (&o != &t && o.net == net && (inside(o.a) || inside(o.b))) return true;
+            for (const auto& v : pcb.vias)
+                if (v.net == net && inside(v.position)) return true;
+            return false;
+        };
         for (size_t i = 0; i < pcb.tracks.size(); ++i)
-            if (pcb.tracks[i].net == net && !pcb.tracks[i].arc && !serpentineIds.count(pcb.tracks[i].id)) cand.push_back(i);
+            if (pcb.tracks[i].net == net && !pcb.tracks[i].arc && !serpentineIds.count(pcb.tracks[i].id) && !branched(pcb.tracks[i]))
+                cand.push_back(i);
         std::sort(cand.begin(), cand.end(), [&](size_t x, size_t y) {
             return (pcb.tracks[x].b - pcb.tracks[x].a).length() > (pcb.tracks[y].b - pcb.tracks[y].a).length();
         });
