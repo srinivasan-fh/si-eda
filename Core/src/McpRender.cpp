@@ -704,6 +704,13 @@ Scene schematicScene(const Project& project, int sheet) {
                     s.text({(x0 + x1) / 2, y}, t, h, textC, true);
                 };
                 const std::string ref = sch.displayRef(c);
+                if (pins.size() == 2 && std::fabs(sch.pinPosition({c.id, 0}).x - sch.pinPosition({c.id, 1}).x) < 0.5) {
+                    // a two-pin part standing up (a pull-up): ref and value beside the body, off its leads and wires
+                    s.text({x1 + 4, (y0 + y1) / 2 - 3}, ref, 8, textC, false);
+                    if (!c.value.empty()) s.text({x1 + 4, (y0 + y1) / 2 + 9}, c.value, 7, textC, false);
+                    grow(b, any, {x1 + 4 + textWidth(std::max(ref, c.value, [](const auto& l, const auto& r) { return l.size() < r.size(); }), 8), y0});
+                    break;
+                }
                 clearAt(ref, 8, top - 4, true);
                 if (!c.value.empty()) clearAt(c.value, 7, bottom + 10, false);
                 grow(b, any, {(x0 + x1) / 2, top - 14});
@@ -742,8 +749,8 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
     const auto fills = copperFills(sch, pcb);
     for (int l : order) {  // every pour under every track (bottom first): a top pour does not hide the bottom layer's tracks
-        // A lighter tint of the layer's colour: the clearance gaps and thermal spokes round pads stand out on it.
-        const std::string tint = l == 0 ? "#7a3434" : (l == n - 1 ? "#34487a" : "#6a5a30");
+        // A dark, muted tint of the layer's colour: the tracks, the clearance gaps and the spokes round pads stand out on it.
+        const std::string tint = l == 0 ? "#4a2c2c" : (l == n - 1 ? "#2a3350" : "#463e28");
         for (const auto& f : fills)
             if (f.layer == l)
                 for (const auto& r : f.rects) s.box(r, true, 0, tint);
