@@ -613,7 +613,7 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
     auto fits = [&](Vec2 p) {
         if (s.edgeDistance(p) < s.edgeClearance + dia / 2 || s.holeDistance(p) < dia / 2) return false;
         for (const auto& pd : pads) {
-            const double d = pd.round ? (p - pd.position).length() - std::min(pd.size.x, pd.size.y) / 2
+            const double d = pd.round ? roundPadPointDistance(pd, p) - padRadius(pd)
                                       : pointRectDistance(p, pd.bounds());
             if (pd.net == bigPad.net && !pd.throughHole) continue;  // own-net SMD copper: vias may sit in it
             if (d - dia / 2 < s.clearance) return false;

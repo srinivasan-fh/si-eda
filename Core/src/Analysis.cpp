@@ -334,6 +334,11 @@ SpectrumResult spectrum(const std::vector<double>& time, const std::vector<doubl
     for (size_t i = 0; i < n; ++i)
         if (time[i] >= t0 - 1e-15) ++inside;
     const size_t points = fftSize(inside);
+    if (static_cast<size_t>(cycles) >= points / 2) {  // the fundamental's bin past Nyquist of the resampled window
+        res.error = "The fundamental (" + formatEngineeringValue(fundamentalHz, "Hz") +
+                    ") is above half the sampling rate of the window: use a smaller time step or a shorter run.";
+        return res;
+    }
     auto x = resampled(time, values, n, t0, span, points, false);
     fftInPlace(x);
     auto amplitude = [&](size_t k) {

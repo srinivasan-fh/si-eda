@@ -78,8 +78,11 @@ BoardFacts facts(const Project& p) {
     }
     auto pads = p.pcb.pads(p.schematic);
     std::map<int, std::vector<Vec2>> smdByPart;
+    f.npth = static_cast<int>(s.holes.size());  // mounting holes and footprint NPTH pads (-NPTH.drl)
     for (const auto& pd : pads) {
-        if (pd.throughHole) {
+        if (pd.npth) {
+            ++f.npth;
+        } else if (pd.throughHole) {
             ++f.pth;
             minDrill = std::min(minDrill, pd.drill);
             minRing = std::min(minRing, (std::min(pd.size.x, pd.size.y) - pd.drill) / 2);
@@ -93,7 +96,6 @@ BoardFacts facts(const Project& p) {
             for (size_t b = a + 1; b < pts.size(); ++b) f.minPitch = std::min(f.minPitch, (pts[a] - pts[b]).length());
     f.minDrill = minDrill == std::numeric_limits<double>::max() ? 0 : minDrill;
     f.minRing = minRing == std::numeric_limits<double>::max() ? 0 : minRing;
-    f.npth = static_cast<int>(s.holes.size());
     std::set<int> thtParts;
     for (const auto& pd : pads)
         if (pd.throughHole) thtParts.insert(pd.componentId);
@@ -477,7 +479,7 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(a + "-bom.csv", exportBomCsv(asmSch), "Bill of materials" + variantNote);
     add(a + "-bom_assembly.csv", exportAssemblyBomCsv(asmSch), "BOM for assembly houses (JLCPCB / PCBWay columns)" + variantNote);
     add(a + "-cpl.csv", exportCplCsv(asmSch, pcb), "Component placement list (CPL) for assembly" + variantNote);
-    add(a + "-pick_and_place.csv", exportPickAndPlaceCsv(asmSch), "Pick and place (all columns)" + variantNote);
+    add(a + "-pick_and_place.csv", exportPickAndPlaceCsv(asmSch, pcb), "Pick and place (all columns)" + variantNote);
     add(a + "-assembly_top.svg", exportAssemblySvg(asmSch, pcb, false, project.name), "Assembly drawing, top" + variantNote);
     if (f.partsBottom)
         add(a + "-assembly_bottom.svg", exportAssemblySvg(asmSch, pcb, true, project.name), "Assembly drawing, bottom" + variantNote);

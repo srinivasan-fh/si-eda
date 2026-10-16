@@ -16,10 +16,7 @@
 namespace sieda {
 
 namespace {
-double padCopperDistance(const Pad& p, Vec2 pt) {
-    if (p.round) return std::max(0.0, (pt - p.position).length() - std::min(p.size.x, p.size.y) / 2);
-    return pointRectDistance(pt, p.bounds());
-}
+double padCopperDistance(const Pad& p, Vec2 pt) { return padPointDistance(p, pt); }
 
 /// Raster helper: calls f(cellIndex, centre) for every cell whose centre lies in `box`.
 template <typename F>
@@ -187,8 +184,10 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         auto chipPad = [&](const Pad& p) {
             return !p.throughHole && padsOf[p.componentId] == 2 && smdOf[p.componentId] == 2 && p.size.x * p.size.y <= 4.0;
         };
-        for (const auto& p : ps) {
-            if (!p.onLayer(L)) continue;
+        Pad scratch;
+        for (const auto& p0 : ps) {
+            if (!p0.onLayer(L)) continue;
+            const Pad& p = padOnLayer(p0, L, s.bottomLayer(), scratch);  // pad stacks: this layer's size
             const double rp = keep(p.net);
             Rect box = p.bounds().inflated(rp + cell);
             if (p.net != net || p.net < 0) {
@@ -251,11 +250,13 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         std::vector<char> own(n, 0);
         auto mark = [&](size_t c, Vec2) { own[c] = 1; };
         const double touch = cell * 0.45;
-        for (const auto& p : ps)
-            if (p.net == net && p.onLayer(L))
+        for (const auto& p0 : ps)
+            if (p0.net == net && p0.onLayer(L)) {
+                const Pad& p = padOnLayer(p0, L, s.bottomLayer(), scratch);
                 forCells(cols, rows, cell, p.bounds().inflated(touch), [&](size_t c, Vec2 at) {
                     if (padCopperDistance(p, at) <= touch) mark(c, at);
                 });
+            }
         for (const auto& t : trs)
             if (t.net == net && t.layer == L)
                 forCells(cols, rows, cell, trackBox(t, t.width / 2 + touch), [&](size_t c, Vec2 at) {
@@ -423,6 +424,9 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         for (double v : {p.position.x, p.position.y, p.size.x, p.size.y}) hashD(h, v);
         hashI(h, p.net);
         hashI(h, p.smdLayer * 2 + p.throughHole);
+        hashI(h, p.round);
+        for (double v : {p.corner, p.inner, p.solder}) hashD(h, v);
+        for (const Vec2& v : p.outline) hashD(h, v.x), hashD(h, v.y);
     }
     for (const auto& t : tracks) {
         for (double v : {t.a.x, t.a.y, t.b.x, t.b.y, t.width}) hashD(h, v);
@@ -436,7 +440,13 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
     for (const auto& v : vias) {
         for (double d : {v.position.x, v.position.y, v.diameter}) hashD(h, d);
         hashI(h, v.net);
+        hashI(h, v.fromLayer);
+        hashI(h, v.toLayer);
     }
+    // Spacing domains: net voltages (source values), altitude and coating set the mains / isolation fences.
+    const SpacingDomains spacing = spacingDomains(sch, s);
+    hashD(h, spacing.gap);
+    for (int d : spacing.domains.netDomain) hashI(h, d);
     fillStale_ = fillValid_ && h != fillKey_ && holdPours;
     if (!fillValid_ || (h != fillKey_ && !holdPours)) {
         fillCache_ = fillZones(sch, ps, tracks, vias);
@@ -467,7 +477,7 @@ std::vector<ZoneFill> copperThieving(const Schematic& sch, const PcbLayout& pcb)
                     bins[static_cast<size_t>(y * bc + x)].push_back({kind, i});
         };
         for (size_t i = 0; i < ps.size(); ++i)
-            if (ps[i].onLayer(L)) put(ps[i].bounds(), 'p', i);
+            if (ps[i].onLayer(L)) put(padStackBounds(ps[i]), 'p', i);
         for (size_t i = 0; i < pcb.tracks.size(); ++i)
             if (pcb.tracks[i].layer == L) put(trackBox(pcb.tracks[i], pcb.tracks[i].width / 2), 't', i);
         for (size_t i = 0; i < pcb.vias.size(); ++i)
@@ -490,7 +500,8 @@ std::vector<ZoneFill> copperThieving(const Schematic& sch, const PcbLayout& pcb)
                 for (const auto& z : fills) clear &= !(clear && z.layer == L && z.islandNear(c, reach) >= 0);
                 if (!clear) continue;
                 for (const auto& [kind, i] : bins[static_cast<size_t>(std::min(br - 1, int(c.y / bin)) * bc + std::min(bc - 1, int(c.x / bin)))]) {
-                    const double d = kind == 'p' ? padCopperDistance(ps[i], c)
+                    Pad scratch;
+                    const double d = kind == 'p' ? padCopperDistance(padOnLayer(ps[i], L, s.bottomLayer(), scratch), c)
                                      : kind == 't' ? trackPointDistance(pcb.tracks[i], c) - pcb.tracks[i].width / 2
                                                    : (c - pcb.vias[i].position).length() - pcb.vias[i].diameter / 2;
                     if (d < reach) {

@@ -12,7 +12,11 @@
   silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
   `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. More land checks in `landChecksMore` (LAND_PASTE /
   SILK_PAD / PIN1 / NUMBERING / COURTYARD, LAND_MASK_SLIVER in the pair loop) must stay quiet on every catalog part;
-  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift).
+  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift). Pad copper is measured only through
+  `TrackGeometry.hpp` (`padPointDistance` / `padSegmentDistance` / `padTrackDistance` / `padPadDistance`: a round pad
+  with w ≠ h is an oval = stadium round `padSpine`, circles keep their exact arithmetic; `padOnLayer` = the pad stack's
+  `inner` / `solder` circle on that layer) in DRC, connectivity, pours and routers; ovals export as Gerber `O`,
+  IPC-2581 `Oval`, ODB++ `oval`. NPTH pads have no annular ring (DRC / DFM); via-to-edge DRC counts the via radius.
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
@@ -22,7 +26,7 @@
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in
-  `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it), graphical
+  `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it; a sheet-numbered channel ref held by another part takes the next free number; suffixed blocks share one logical numbering in `annotateBlocks`), graphical
   buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
   `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; Update PCB (forward ECO,
@@ -82,7 +86,7 @@
   offline cache), `SupplierSearchView`, `BomLivePricingView`; guide in `docs/SUPPLIERS.md`. Tests never use the
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
 - Gerber viewer / reference layers: `parseGerber` + `gerberImageJson` in `Documents.cpp` (Gerber X2 / RS-274X,
-  Excellon and ODB++ layer `features` files (kind "odb"); `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
+  Excellon (LZ / TZ, `;FILE_FORMAT=a:b`, nothing kept between files) and ODB++ layer `features` files (kind "odb"); Gerber `%SR` step-repeat expanded (copies capped), `%FSLI` incremental; `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
   C `sieda_gerber_parse` / `sieda_pcb_*reference_layer*`, MCP `pcb_reference_layer`, app `GerberViewerView.swift` and
   the PCB canvas overlay (`DesignStore.referenceArtwork`).
 - Netlist / schematic import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV, and through it
@@ -169,8 +173,8 @@
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
   counts single-pin nets (`singlePinNets`); `pcb_autoplace` re-places the edge parts once when Auto Place grew the board;
   `stitchingVias` skips vias by a part (the router's pour fan-out); route results give `viasOnBoard`; MCP whole-board
-  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`, again at the board
-  width if that leaves anything open) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
+  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`; not a net with a pad narrower than 0.4 mm + clearance; if that leaves anything open
+  the board-width route is tried too and only the one with fewer open goes through `finishRouting`, once) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
   of a part drawn before (`layoutBuilt` `anchor`), a grounded two-pin part above an upward pin stands upright with labels
   (`grounded`); McpRender keeps side pin names inside their half of the body, a lead-less pin's no-connect X outside it,
   and draws every pour under every track (bottom first, each in a light tint of its layer colour; no blend) with light spokes from each pad joined to a pour of its net; `pcb_summary` footprints carry `kicadFootprint` (the catalog's library name); a label splitting a wire is drawn as text along it, catalog D / SW / Y parts
@@ -181,7 +185,8 @@
   always point down (out beyond the labels below); a crystal's load caps hang below its pins (laid out right after the crystal, which stands 300 out from its IC, on
   a 5 grid in line with its pins, wired down from them), a 4-pad crystal is mirrored to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
   part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
-  part (layout-only link); after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
+  part (layout-only link); the repair passes after an MCP route (`squareEscapes`, `viasOffPads`, `trimStubs`) try candidates on held pours
+  (`PourTrials`, which sets `PcbLayout::pourTrials` so the DRC skips DRC_POUR_CLEARANCE on those stale pours) and judge one that passes again on refilled pours; after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
   runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
   VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; `neckTombstones` (after MCP routes and pours) necks wide tracks at
   small two-pad parts unless that raises DRC_TRACK_CURRENT, else widens the light pad's lead-in (pour spokes) when the DRC
@@ -206,7 +211,8 @@
   `Project::revisions` (both saved only when present; title blocks of both PDFs); net-length CSV `exportNetLengthReport`.
 - Documents in `Core/src/Documents.cpp`: DXF export / outline import (`exportDxf`, `importDxfOutline`,
   `applyDxfOutline`, MCP `pcb_import_dxf`, fuzzed in the `idf` target), test-point report, interactive HTML BOM and the
-  bring-up checklist; all four are in the fabrication package and `sieda_export` ("dxf", "testpoints", "html_bom",
+  bring-up checklist; all four are in the fabrication package. Placement files (`exportPickAndPlaceCsv` / `exportCplCsv`):
+  lower-left origin (Y up), rotation counter-clockwise (`placementRotation`, as IPC-2581 / IDF), no DNP parts and `sieda_export` ("dxf", "testpoints", "html_bom",
   "bringup"). Product checklist with every item's status: `docs/EDA_CHECKLIST.md`.
 - IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
   `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
@@ -246,7 +252,9 @@
   search `fav:` / `tag:`).
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards
   within a fab panel size, default the DFM pack's; panel Gerbers are the
-  board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
+  board's own Gerbers shifted and stepped with %SR (opened outside multi-line %…% blocks such as %AMRR; fiducial D-codes
+  above every board code), drills repeated per board (NPTH from the board's -NPTH.drl: footprint `npth` pads too, which
+  also count in the fab notes); C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
@@ -282,9 +290,18 @@
     the app's per-edit core path (move + undo state + delta snapshot) is slower at p95 (in CTest `sieda_scale_budget`).
   - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
     layer, and must stay identical to the sequential fill; the board mask (cells inside the outline, clear of holes)
-    is kept between fills while its inputs are unchanged (`boardMask_`).
+    is kept between fills while its inputs are unchanged (`boardMask_`). The fill cache key (`zoneFills`) hashes every
+    fill input, incl. the `spacingDomains` result (net voltages, altitude, coating), via spans and pad shape fields;
+    `pourClearanceChecks` (Pcb.cpp) adds DRC_POUR_CLEARANCE (pour rects vs other nets' copper by the fill's own rule).
   - **MCP:** file reads are capped at 128 MB.
-  - **Live endpoint:** at most 16 connections.
+  - **Live endpoint:** at most 16 connections, answered one request at a time (`MCPLiveServer.waitForTurn`); tool
+    calls run the core in the background (`MCPStoreBridge.handleLive`, `DesignStore.performExternalEditInBackground`:
+    one undo step as before).
+  - **Main thread:** heavy core calls stay off it. `runDRC` runs in the background (one at a time plus one queued
+    re-run, results tagged with the revision they checked; `drcSettled()` awaits it); verification and the DRC after
+    Auto Route run inside `runBusy`; Auto Place (`autoPlaceInBackground`), Gloss and Minimise Vias go through
+    `performInBackground` (one undo step); the placement ghost's check is coalesced like `moveRoute`
+    (`movePlacementGhostNow` checks synchronously).
   - **`sieda-mcp --connect`:** only connects to 127.0.0.1 / localhost / ::1 and caps replies at 64 MB.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from

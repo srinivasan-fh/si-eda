@@ -53,6 +53,35 @@ struct MCPBridgeOutcome {
     var changed = false
 }
 
+/// One message for the core MCP server, run under the engine lock on a background thread (the live endpoint): the
+/// same steps as `MCPStoreBridge.callCore`. The live endpoint sends one message at a time, so the server pointer is
+/// never used by two threads at once.
+struct MCPCoreCall: @unchecked Sendable {
+    let server: OpaquePointer
+    let text: String
+    let path: String
+
+    func run(_ engine: EDAEngine) -> String {
+        engine.withHandle { (project: OpaquePointer) -> String in
+            // Undo and Open swap the engine's project, so attach on every call (a no-op when it is the same one).
+            _ = sieda_mcp_attach_project(server, project)
+            _ = sieda_mcp_set_project_path(server, path)
+            return EDAEngine.take(sieda_mcp_handle(server, text)) ?? ""
+        }
+    }
+}
+
+/// The change log and the response of a background tool call, handed between the main actor and the background run
+/// (one at a time: written there, read here after it finished).
+final class MCPChangeLogBox: @unchecked Sendable {
+    let log: MCPChangeLog
+    init(_ log: MCPChangeLog) { self.log = log }
+}
+
+final class MCPResponseBox: @unchecked Sendable {
+    var text = ""
+}
+
 /// Runs MCP messages against a `DesignStore`'s engine. Owns the core MCP server. Main actor only (the engine's
 /// project belongs to the main actor; the core server is not thread-safe).
 final class MCPStoreBridge {
@@ -158,6 +187,74 @@ final class MCPStoreBridge {
         }
         if changed, Self.replacingTools.contains(name) { store.noteDesignReplaced() }
         return MCPBridgeOutcome(response: response, tool: name, changed: changed)
+    }
+
+    // MARK: - Live endpoint (off the main thread)
+
+    /// `handle` for the live endpoint: tool calls run the core off the main thread (`DesignStore.runBusy`), so a long
+    /// tool (a whole-board route) does not freeze the window; everything else is answered as by `handle`. The caller
+    /// sends one message at a time (`MCPLiveServer.answer`): the core MCP server is not thread-safe.
+    @MainActor
+    func handleLive(_ body: String, store: DesignStore) async -> [MCPBridgeOutcome] {
+        let parsed = try? JSONSerialization.jsonObject(with: Data(body.utf8), options: [.fragmentsAllowed])
+        guard let batch = parsed as? [Any] else {
+            let outcome = await handleOneLive(body, message: parsed as? [String: Any], store: store)
+            return [outcome]
+        }
+        var outcomes: [MCPBridgeOutcome] = []
+        for element in batch {
+            guard let message = element as? [String: Any],
+                  let data = try? JSONSerialization.data(withJSONObject: message) else {
+                outcomes.append(MCPBridgeOutcome(response: Self.rpcError(id: NSNull(), code: -32600, message: "Invalid Request")))
+                continue
+            }
+            let outcome = await handleOneLive(String(decoding: data, as: UTF8.self), message: message, store: store)
+            outcomes.append(outcome)
+        }
+        return outcomes
+    }
+
+    /// `handleOne` with the tool call's core work in the background: a design-changing tool through
+    /// `DesignStore.performExternalEditInBackground` (one undo step, as `performExternalEdit`), a reading tool through
+    /// `runBusy`. The answers are the same as `handleOne`'s.
+    @MainActor
+    private func handleOneLive(_ text: String, message: [String: Any]?, store: DesignStore) async -> MCPBridgeOutcome {
+        let params = message?["params"] as? [String: Any]
+        guard message?["method"] as? String == "tools/call", let name = params?["name"] as? String, !store.isBusy else {
+            return handleOne(text, message: message, store: store)  // not a tool call, or answered "busy"
+        }
+        let id: Any? = message?["id"]
+        let arguments = params?["arguments"] as? [String: Any] ?? [:]
+        if let special = specialTool(name, arguments: arguments, id: id, store: store) { return special }
+        let mutates = Self.mutatingTools[name] ?? false
+        guard mutates, !readOnly else {
+            let response = await callCoreInBackground(text, store: store)
+            return MCPBridgeOutcome(response: response, tool: name)
+        }
+        changes.tools.removeAll()
+        let call = coreCall(text, store: store)
+        let log = MCPChangeLogBox(changes)
+        let response = MCPResponseBox()
+        let changed = await store.performExternalEditInBackground("AI: \(name)") { engine in
+            response.text = call.run(engine)
+            return !log.log.tools.isEmpty
+        }
+        if changed, Self.replacingTools.contains(name) { store.noteDesignReplaced() }
+        return MCPBridgeOutcome(response: response.text, tool: name, changed: changed)
+    }
+
+    /// `callCore` off the main thread, the store busy meanwhile.
+    @MainActor
+    private func callCoreInBackground(_ text: String, store: DesignStore) async -> String {
+        let call = coreCall(text, store: store)
+        let engine = store.engine
+        return await store.runBusy("AI tool call…") { call.run(engine) }
+    }
+
+    /// One message for the core MCP server on the engine's project, to run on any thread (under the engine lock).
+    @MainActor
+    private func coreCall(_ text: String, store: DesignStore) -> MCPCoreCall {
+        MCPCoreCall(server: server, text: text, path: store.documentURL?.path ?? "")
     }
 
     @MainActor
@@ -359,6 +456,9 @@ final class MCPLiveServer: ObservableObject {
     private(set) var store: DesignStore?
     private var endpoint: MCPEndpoint?
     private var bridge: MCPStoreBridge?
+    /// A request is being answered (`waitForTurn` / `endTurn`); the others wait here in order.
+    private var answering = false
+    private var waitingRequests: [CheckedContinuation<Void, Never>] = []
     private var cachedToken: String?
 
     init(defaults: UserDefaults = .standard, tokens: MCPTokenStore = KeychainMCPTokenStore()) {
@@ -488,19 +588,41 @@ final class MCPLiveServer: ObservableObject {
             return .text(406, "This endpoint answers with application/json")
         }
         let body = String(decoding: request.body, as: UTF8.self)
-        return answer(body, store: store)
+        // One request at a time: a tool call runs in the background now, and the core MCP server is not thread-safe
+        // (requests used to queue on the main thread instead).
+        await waitForTurn()
+        defer { endTurn() }
+        return await answer(body, store: store)
+    }
+
+    private func waitForTurn() async {
+        guard answering else {
+            answering = true
+            return
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            waitingRequests.append(continuation)
+        }
+    }
+
+    private func endTurn() {
+        if waitingRequests.isEmpty {
+            answering = false
+        } else {
+            waitingRequests.removeFirst().resume()  // the turn passes on: `answering` stays true
+        }
     }
 
     static func acceptsJSON(_ accept: String) -> Bool {
         accept.contains("application/json") || accept.contains("*/*") || accept.contains("application/*")
     }
 
-    private func answer(_ body: String, store: DesignStore) -> MCPHTTPResponse {
+    private func answer(_ body: String, store: DesignStore) async -> MCPHTTPResponse {
         let bridge = self.bridge ?? MCPStoreBridge()
         self.bridge = bridge
         bridge.configure(readOnly: readOnly, allowedRoot: store.mcpAllowedRoot(chosen: allowedFolder))
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        let outcomes = bridge.handle(body, store: store)
+        let outcomes = await bridge.handleLive(body, store: store)
         for outcome in outcomes {
             if let tool = outcome.tool { record(tool, changed: outcome.changed) }
         }

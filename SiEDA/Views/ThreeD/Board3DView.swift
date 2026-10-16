@@ -96,7 +96,7 @@ struct Board3DWorkspace: View {
                 if store.snapshot.pads.isEmpty {
                     BlueEmptyState(systemImage: "cube.transparent", title: "Nothing to show yet",
                                    message: "Place footprints in the PCB Layout workspace to build the 3D model.",
-                                   actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
+                                   actionTitle: "Auto-Place Footprints") { Task { await store.autoPlaceInBackground(all: true) } }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if mode == .xray {
                     XRayStackView(engine: store.engine, snapshot: store.snapshot, revision: store.revision,

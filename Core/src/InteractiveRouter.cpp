@@ -122,16 +122,8 @@ Vec2 closestOnSegment(Vec2 p, Vec2 a, Vec2 b) {
     return a + ab * t;
 }
 
-/// Distance from a point to pad copper (0 inside); round pads are circles. Same as the DRC's.
-double padDistance(const Pad& p, Vec2 pt) {
-    if (p.round) return std::max(0.0, (pt - p.position).length() - std::min(p.size.x, p.size.y) / 2);
-    return pointRectDistance(pt, p.bounds());
-}
-
-double padSegmentDistance(const Pad& p, Vec2 a, Vec2 b) {
-    if (p.round) return std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2);
-    return segmentRectDistance(a, b, p.bounds());
-}
+/// Distance from a point to pad copper (0 inside); round pads are circles / ovals. Same as the DRC's.
+double padDistance(const Pad& p, Vec2 pt) { return padPointDistance(p, pt); }
 
 Rect segmentBox(Vec2 a, Vec2 b, double r) { return Rect(a.x, a.y, b.x, b.y).inflated(r); }
 
@@ -700,9 +692,10 @@ Shape viaShape(const Via& v) {
 }
 Shape padShape(const Pad& p) {
     Shape s;
-    if (p.round) {
-        s.a = p.position;
-        s.radius = std::min(p.size.x, p.size.y) / 2;
+    if (p.round) {  // a circle, or an oval as a segment (stadium)
+        std::tie(s.a, s.b) = padSpine(p);
+        if (p.size.x != p.size.y) s.type = Shape::Segment;
+        s.radius = padRadius(p);
     } else {
         s.type = Shape::Box;
         s.box = p.bounds();
@@ -1117,9 +1110,7 @@ bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Tr
         if (!p.onLayer(layer) || inNets(nets, p.net)) continue;
         const bool barrier = B.barrierComps.count(p.componentId) > 0;
         if (gap(p.bounds()) - hw >= clearanceTo(B, nets, p.net, barrier) - kTol + 1e-9) continue;
-        const double d = (seg.arc ? (p.round ? std::max(0.0, trackPointDistance(seg, p.position) - std::min(p.size.x, p.size.y) / 2)
-                                             : trackRectDistance(seg, p.bounds()))
-                                  : padSegmentDistance(p, a, b)) - hw;
+        const double d = (seg.arc ? padTrackDistance(p, seg) : padSegmentDistance(p, a, b)) - hw;
         double need = clearanceTo(B, nets, p.net, barrier);
         if (d >= need - kTol) continue;
         // Where the track is still inside its own pad of the same footprint, the gap is the package's pad gap.
@@ -3169,7 +3160,7 @@ std::vector<size_t> padPartition(const std::vector<Pad>& pads, const std::vector
         for (size_t p = 0; p < np; ++p) {
             const Pad& pd = pads[padsOfNet[p]];
             if (!pd.onLayer(t.layer)) continue;
-            const bool touch = pd.round ? trackPointDistance(t, pd.position) <= std::min(pd.size.x, pd.size.y) / 2 + t.width / 2 - 1e-6
+            const bool touch = pd.round ? roundPadTrackDistance(pd, t) <= padRadius(pd) + t.width / 2 - 1e-6
                                         : trackRectDistance(t, pd.bounds()) <= t.width / 2 - 1e-6;
             if (touch) unite(i + np, p);
         }
@@ -6417,8 +6408,7 @@ LengthTuneResult tuneTrackLengthAdvanced(PcbLayout& pcb, const Schematic& sch, s
     auto clearOwnPads = [&](const Track& t, const Track& piece) {
         for (const auto& pd : base.pads)
             if (pd.net == t.net && pd.onLayer(t.layer) &&
-                (pd.round ? std::max(0.0, trackPointDistance(piece, pd.position) - std::min(pd.size.x, pd.size.y) / 2)
-                          : trackRectDistance(piece, pd.bounds())) - t.width / 2 < clr - kTol)
+                padTrackDistance(pd, piece) - t.width / 2 < clr - kTol)
                 return false;
         return true;
     };

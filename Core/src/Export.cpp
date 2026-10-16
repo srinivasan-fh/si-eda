@@ -256,13 +256,18 @@ std::string exportBomCsv(const Schematic& sch) {
     return o.str();
 }
 
-std::string exportPickAndPlaceCsv(const Schematic& sch) {
+/// Placement-file rotation: counter-clockwise from the top like IPC-2581 / IDF (the board's own is clockwise, Y down).
+static int placementRotation(int r) { return (360 - r % 360) % 360; }
+
+std::string exportPickAndPlaceCsv(const Schematic& sch, const PcbLayout& pcb) {
     std::ostringstream o;
     o << "Designator,Value,Footprint,Mid X (mm),Mid Y (mm),Rotation,Layer\n";
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;  // embedded parts are not assembled
+        // As the CPL: DNP parts are not placed, embedded parts are not assembled; lower-left origin, Y up.
+        if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
         o << c.ref << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
-          << mm(c.pcb.position.y) << "," << c.pcb.rotation << "," << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
+          << mm(pcb.settings.height - c.pcb.position.y) << "," << placementRotation(c.pcb.rotation) << ","
+          << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
     }
     return o.str();
 }
@@ -407,10 +412,11 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     };
     auto circle = [&](double d) { return "C," + mm(d); };
     auto rect = [&](double w, double h) { return "R," + mm(w) + "X" + mm(h); };
-    // A pad's aperture: circle, rectangle or rounded rectangle (macro RR: width, height, corner radius).
+    // A pad's aperture: circle, obround (an oval pad), rectangle or rounded rectangle (macro RR: width, height,
+    // corner radius).
     auto padAperture = [&](const Pad& p, double grow) {
         const double w = p.size.x + 2 * grow, h = p.size.y + 2 * grow;
-        if (p.round) return circle(w);
+        if (p.round) return p.size.x == p.size.y ? circle(w) : "O," + mm(w) + "X" + mm(h);
         const double r = p.corner * std::min(p.size.x, p.size.y) + grow;
         return p.corner > 0 && r > 1e-4 ? "RR," + mm(w) + "X" + mm(h) + "X" + mm(r) : rect(w, h);
     };
@@ -901,7 +907,8 @@ std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
         if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
         // Same origin as the Gerbers: the board's lower-left corner, Y up.
         o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
-        o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << "," << c.pcb.rotation << "\n";
+        o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << ","
+          << placementRotation(c.pcb.rotation) << "\n";
     }
     return o.str();
 }

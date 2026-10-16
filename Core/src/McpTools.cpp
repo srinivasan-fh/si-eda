@@ -703,6 +703,32 @@ std::vector<int> ownNetSymbols(const Schematic& sch, int id) {
     return out;
 }
 
+/// Pours held while a repair pass tries its candidates (no refill per trial); `fresh` judges a candidate that passed
+/// on the held pours again on refilled ones, so a change is kept only as the DRC sees it afterwards, and `reverted`
+/// (after putting the copper back) refills them for that state after a failed `fresh`. Pours a board already holds stay held.
+struct PourTrials {
+    Project& pr;
+    const bool held = pr.pcb.holdPours;
+    bool dirty = false;
+    explicit PourTrials(Project& p) : pr(p) {
+        pr.pcb.zoneFills(pr.schematic);
+        pr.pcb.holdPours = pr.pcb.pourTrials = true;  // (held pours are stale: their clearance is judged on refill)
+    }
+    ~PourTrials() { pr.pcb.holdPours = held, pr.pcb.pourTrials = false; }
+    PourTrials(const PourTrials&) = delete;
+    PourTrials& operator=(const PourTrials&) = delete;
+    template <class F> bool fresh(F&& test) {
+        pr.pcb.holdPours = held, pr.pcb.pourTrials = false;
+        const bool ok = test();
+        pr.pcb.holdPours = pr.pcb.pourTrials = true;
+        dirty = !ok;
+        return ok;
+    }
+    void reverted() {
+        if (dirty) fresh([&] { pr.pcb.zoneFills(pr.schematic); return true; });
+    }
+};
+
 /// A jog shorter than 0.1 mm between two tracks (left by gloss / via minimisation) folds into one corner: the tracks
 /// meeting its one end move to the other, so no acute sliver remains. Kept only when the DRC finds no more problems.
 int collapseJogs(Project& pr) {
@@ -753,12 +779,15 @@ int trimStubs(Project& pr) {
         return n;
     };
     int fixed = 0;
+    PourTrials trials(pr);
     for (int pass = 0; pass < 20; ++pass) {
-        const auto was = problems();
+        std::multiset<std::string> was;
         Vec2 at;
         bool found = false;
-        for (const auto& v : pr.pcb.runDRC(pr.schematic))
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) {
             if (v.code == "DRC_DANGLING_TRACK" && !found) at = v.location, found = true;
+            if (v.severity != Severity::Info) was.insert(v.code + " " + v.message);
+        }
         if (!found) break;
         size_t t = pr.pcb.tracks.size();
         for (size_t i = 0; i < pr.pcb.tracks.size(); ++i) {
@@ -769,13 +798,15 @@ int trimStubs(Project& pr) {
         const Track old = pr.pcb.tracks[t];
         const bool atB = (old.b - at).length() < 1e-6;
         const Vec2 other = atB ? old.a : old.b;
-        auto better = [&] {
+        auto improves = [&] {
             const auto now = problems();
             return now.size() < was.size() && std::includes(was.begin(), was.end(), now.begin(), now.end());
         };
+        auto better = [&] { return improves() && trials.fresh(improves); };
         pr.pcb.tracks.erase(pr.pcb.tracks.begin() + static_cast<long>(t));
         if (better()) { ++fixed; continue; }
         pr.pcb.tracks.insert(pr.pcb.tracks.begin() + static_cast<long>(t), old);
+        trials.reverted();
         bool done = false;
         const double len = (other - at).length();
         for (double d = 0.02; d < len - 0.02 && !done; d += 0.02) {
@@ -787,7 +818,7 @@ int trimStubs(Project& pr) {
             if (!onCopper) continue;
             (atB ? pr.pcb.tracks[t].b : pr.pcb.tracks[t].a) = end;
             if ((done = better())) ++fixed;
-            else pr.pcb.tracks[t] = old;
+            else pr.pcb.tracks[t] = old, trials.reverted();
             break;
         }
         if (!done) break;  // this stub stays: the DRC lists it
@@ -826,9 +857,12 @@ int squareEscapes(Project& pr) {
     };
     // The fabrication minimum DRC_FINE_PITCH_PADS measures against inside a footprint.
     const double clr = std::min(pr.pcb.settings.minClearance, pr.pcb.settings.clearance);
-    std::multiset<std::string> was;
+    std::multiset<std::string> was, now;
     bool counted = false;
     int done = 0;
+    PourTrials trials(pr);
+    auto noNewProblem = [&] { return noWorse(now = problems(), was); };  // on the held pours, then on refilled ones
+    auto keep = [&] { return noNewProblem() && trials.fresh(noNewProblem); };
     for (const Pad& pad : pads) {
         if (byPart[pad.componentId].size() < 8 || pad.round || pad.throughHole) continue;
         const Component* c = pr.schematic.find(pad.componentId);
@@ -859,6 +893,7 @@ int squareEscapes(Project& pr) {
                 for (int square = 0; square < 2 && !kept; ++square) {
                     if (neck > 0 && t.width - neck < pr.pcb.settings.minTrackWidth - 1e-9) continue;
                     pr.pcb.tracks = before;
+                    trials.reverted();
                     const Vec2 o2 = pad.position + ax * ((tall ? pad.size.y : pad.size.x) / 2 + ext);
                     if ((far - o2).dot(ax) < 0) continue;
                     std::vector<Vec2> path{pad.position, o2};
@@ -874,11 +909,10 @@ int squareEscapes(Project& pr) {
                     if (segs.size() < 2) continue;
                     pr.pcb.tracks[i] = segs[0];
                     for (size_t k = 1; k < segs.size(); ++k) pr.pcb.addTrack(segs[k]);
-                    const auto now = problems();
-                    kept = noWorse(now, was) && std::all_of(segs.begin(), segs.end(), [&](const Track& seg) { return gapTo(seg, pad.componentId) >= need - 1e-6; });
+                    kept = std::all_of(segs.begin(), segs.end(), [&](const Track& seg) { return gapTo(seg, pad.componentId) >= need - 1e-6; }) && keep();
                     if (kept) was = now, ++done;
                 }
-            if (!kept) pr.pcb.tracks = before;
+            if (!kept) pr.pcb.tracks = before, trials.reverted();
         }
     }
     // A segment still too close to a pin of the part moves away from it in 0.05 mm steps, its free ends (not on a pad
@@ -914,16 +948,16 @@ int squareEscapes(Project& pr) {
             bool kept = false;
             for (double d = 0.05; d <= 0.25 + 1e-9 && !kept; d += 0.05) {
                 pr.pcb.tracks = before;
+                trials.reverted();
                 for (auto& o : pr.pcb.tracks) {
                     if (o.net != t.net || o.layer != t.layer) continue;
                     for (Vec2* e : {&o.a, &o.b})
                         if ((moveA && (*e - t.a).length() < 1e-6) || (moveB && (*e - t.b).length() < 1e-6)) *e = *e + away * d;
                 }
                 if (gapTo(pr.pcb.tracks[i], part) < partNeed[part] - 1e-6) continue;
-                const auto now = problems();
-                if (noWorse(now, was)) was = now, kept = true, ++done;
+                if (keep()) was = now, kept = true, ++done;
             }
-            if (!kept) pr.pcb.tracks = before;
+            if (!kept) pr.pcb.tracks = before, trials.reverted();
         }
     return done;
 }
@@ -951,7 +985,18 @@ int viasOffPads(Project& pr) {
             if (!p.throughHole && p.net == v.net && !p.bounds().contains(v.position) && gap(v, p) < w.first) w = {gap(v, p), &p};
         return w;
     };
+    // A move bringing the via nearer than the clearance to a track or via of another net is a problem the DRC need not
+    // be run to find (with the DRC's 1 µm tolerance, and as much again).
+    const double clr = pr.pcb.settings.clearance - 2e-3;
+    auto clearOfOthers = [&](const Via& v) {
+        for (const auto& t : pr.pcb.tracks)
+            if (t.net != v.net && v.spans(t.layer) && trackPointDistance(t, v.position) - (t.width + v.diameter) / 2 < clr - 1e-6) return false;
+        return std::none_of(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& o) {
+            return o.net != v.net && (o.position - v.position).length() - (o.diameter + v.diameter) / 2 < clr - 1e-6;
+        });
+    };
     int was = -1, moved = 0;
+    PourTrials trials(pr);
     for (size_t i = 0; i < pr.pcb.vias.size(); ++i) {
         const auto [g, pad] = worst(pr.pcb.vias[i]);
         if (!pad || g >= 0.1 - 1e-9) continue;
@@ -965,21 +1010,25 @@ int viasOffPads(Project& pr) {
         const auto tracks = pr.pcb.tracks;
         const Vec2 from = pr.pcb.vias[i].position;
         const size_t open = pr.pcb.ratsnest(pr.schematic).size();
+        const bool wasClear = clearOfOthers(pr.pcb.vias[i]);
+        int now = 0;
+        auto noWorse = [&] { return (now = problems()) <= was && pr.pcb.ratsnest(pr.schematic).size() <= open; };
         bool kept = false;
         for (size_t k = 0; k < dirs.size() * 12 && !kept; ++k) {
             const Vec2 dir = dirs[k / 12];
             const double d = 0.05 * static_cast<double>(k % 12 + 1);
             pr.pcb.tracks = tracks;
+            pr.pcb.vias[i].position = from;
+            trials.reverted();
             pr.pcb.vias[i].position = from + dir * d;
             for (auto& t : pr.pcb.tracks)
                 if (t.net == pr.pcb.vias[i].net && !t.arc && !t.teardrop)
                     for (Vec2* e : {&t.a, &t.b})
                         if ((*e - from).length() < 1e-6) *e = pr.pcb.vias[i].position;
-            if (worst(pr.pcb.vias[i]).first < 0.1 - 1e-9) continue;
-            const int now = problems();
-            if (now <= was && pr.pcb.ratsnest(pr.schematic).size() <= open) was = now, kept = true, ++moved;
+            if (worst(pr.pcb.vias[i]).first < 0.1 - 1e-9 || (wasClear && !clearOfOthers(pr.pcb.vias[i]))) continue;
+            if (noWorse() && trials.fresh(noWorse)) was = now, kept = true, ++moved;
         }
-        if (!kept) pr.pcb.tracks = tracks, pr.pcb.vias[i].position = from;
+        if (!kept) pr.pcb.tracks = tracks, pr.pcb.vias[i].position = from, trials.reverted();
         if (kept || !pr.pcb.isZoneNet(pr.schematic, pr.pcb.vias[i].net)) continue;
         // No room to move a pour net's via: dropped with its stub to the pad when the pours still join everything.
         const auto vias = pr.pcb.vias;
@@ -993,11 +1042,11 @@ int viasOffPads(Project& pr) {
                  }),
                  ts.end());
         pr.pcb.vias.erase(pr.pcb.vias.begin() + static_cast<long>(i));
-        if (const int now = problems(); now <= was && pr.pcb.ratsnest(pr.schematic).size() <= open) {
+        if (noWorse() && trials.fresh(noWorse)) {
             was = now, ++moved, --i;
             continue;
         }
-        pr.pcb.tracks = tracks, pr.pcb.vias = vias;
+        pr.pcb.tracks = tracks, pr.pcb.vias = vias, trials.reverted();
     }
     return moved;
 }
@@ -1013,10 +1062,9 @@ Json neckTombstones(Project& pr) {
     for (const auto& z : pr.pcb.zones)
         for (const auto& n : pr.schematic.nets())
             if (n.name == z.net) poured.insert(n.index);
-    auto drcCount = [&](bool currentOnly) {
-        int n = 0;
-        for (const auto& v : pr.pcb.runDRC(pr.schematic))
-            n += currentOnly ? v.code == "DRC_TRACK_CURRENT" : v.severity != Severity::Info;
+    auto drcCounts = [&] {  // DRC_TRACK_CURRENT warnings, all errors and warnings
+        std::pair<int, int> n{0, 0};
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) n.first += v.code == "DRC_TRACK_CURRENT", n.second += v.severity != Severity::Info;
         return n;
     };
     auto leaving = [&](const Pad& pad) {  // the tracks crossing the pad's edge, as the reliability check counts them
@@ -1052,7 +1100,7 @@ Json neckTombstones(Project& pr) {
         return hi >= 0.6 && hi > 3 * std::max(lo, 0.05);
     };
     const auto before = pr.pcb.tracks;
-    const int warned = drcCount(true), errors = drcCount(false);
+    const auto [warned, errors] = drcCounts();
     std::map<int, std::vector<const Pad*>> byPart;
     for (const auto& pad : pads) byPart[pad.componentId].push_back(&pad);
     std::vector<std::pair<int, std::array<const Pad*, 2>>> parts;
@@ -1069,7 +1117,7 @@ Json neckTombstones(Project& pr) {
             setLeadIn(h, std::max(pr.pcb.settings.minTrackWidth,
                                   (3 * std::max(mass(*two[1 - heavy]), 0.05) - spokes) / static_cast<double>(wide.size()) - 0.01), false);
     }
-    if (drcCount(true) > warned) pr.pcb.tracks = before;  // a neck too thin for the current: leave the copper as routed
+    if (!parts.empty() && drcCounts().first > warned) pr.pcb.tracks = before;  // a neck too thin for the current: leave the copper as routed
     for (const auto& [id, two] : parts) {  // still unbalanced (spokes, the minimum width): widen the light pad's lead-in
         if (!unbalanced(*two[0], *two[1])) continue;
         const int light = mass(*two[0]) < mass(*two[1]) ? 0 : 1;
@@ -1080,7 +1128,7 @@ Json neckTombstones(Project& pr) {
         if (thin.empty() || w > std::min(l.size.x, l.size.y)) continue;
         const auto kept = pr.pcb.tracks;
         setLeadIn(l, w, true);
-        if (drcCount(false) > errors) pr.pcb.tracks = kept;
+        if (drcCounts().second > errors) pr.pcb.tracks = kept;
     }
     for (const auto& [id, two] : parts)
         if (!unbalanced(*two[0], *two[1])) done.push(pr.schematic.find(id)->ref);
@@ -1435,7 +1483,7 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
     auto fail = [&](const std::string& what) { throw ToolError("Too close to " + what + " (board clearance " + Json(clr).dump() + " mm)"); };
     for (const auto& pad : pr.pcb.pads(pr.schematic)) {
         if (pad.net == net || (layer >= 0 && !pad.onLayer(layer))) continue;
-        const double d = pad.round ? trackPointDistance(seg, pad.position) - std::min(pad.size.x, pad.size.y) / 2
+        const double d = pad.round ? roundPadTrackDistance(pad, seg) - padRadius(pad)
                                    : trackRectDistance(seg, pad.bounds());
         if (d - width / 2 < clr - 1e-9) {
             const Component* c = pr.schematic.find(pad.componentId);
@@ -5159,13 +5207,18 @@ void pcbTools(Table& t) {
                             kos.end());
               }
               // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
-              // the current sizing no source to measure); again at the board's width if that leaves anything open.
+              // the current sizing no source to measure); again at the board's width if that leaves anything open. A net
+              // with a pad narrower than 0.4 mm + clearance (a fine-pitch pin a wide track cannot escape) keeps its width.
               std::vector<std::string> widened;
-              if (!ar.scoped() && !ar.fanoutOnly && p->project.pcb.settings.trackWidth < 0.4 && argBool(a, "powerWidths", true))
+              if (!ar.scoped() && !ar.fanoutOnly && p->project.pcb.settings.trackWidth < 0.4 && argBool(a, "powerWidths", true)) {
+                  std::set<int> fine;
+                  for (const auto& pad : p->project.pcb.pads(p->project.schematic))
+                      if (std::min(pad.size.x, pad.size.y) < 0.4 + p->project.pcb.settings.clearance - 1e-9) fine.insert(pad.net);
                   for (const auto& n : p->project.schematic.nets())
-                      if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() &&
+                      if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() && !fine.count(n.index) &&
                           !p->project.pcb.settings.netWidths.count(n.name) && !p->project.pcb.isZoneNet(p->project.schematic, n.index))
                           widened.push_back(n.name);
+              }
               // A route with coupled pairs pairs X_DP / X_DM (USB) nets by a directive, as a designer would.
               Json pairedByName = Json::array();
               if (ar.coupledPairs && !ar.scoped() && !ar.fanoutOnly) {
@@ -5197,14 +5250,18 @@ void pcbTools(Table& t) {
               for (const auto& n : widened) p->project.pcb.settings.netWidths[n] = 0.4;
               Json stats = takeJson(sieda_pcb_autoroute(p));
               Json j = obj();
-              Json repairs = finishRouting(p, &stats);
-              if (!widened.empty() && !p->project.pcb.ratsnest(p->project.schematic).empty()) {
+              // Widened power left something open: routed again at the board's width, and the one with fewer connections
+              // open goes on to the (costly) completion, once.
+              if (const size_t wide = widened.empty() ? 0 : p->project.pcb.ratsnest(p->project.schematic).size()) {
+                  Project widenedRoute = std::move(p->project);
+                  const Json widenedStats = stats;
                   p->project = unrouted;
                   p->router.reset();
                   stats = takeJson(sieda_pcb_autoroute(p));
-                  repairs = finishRouting(p, &stats);
-                  widened.clear();
+                  if (p->project.pcb.ratsnest(p->project.schematic).size() <= wide) widened.clear();
+                  else p->project = std::move(widenedRoute), p->router.reset(), stats = widenedStats;
               }
+              Json repairs = finishRouting(p, &stats);
               // A pair the top pour left uncoupled: routed again with the bottom pour only, kept if more pairs couple.
               auto uncoupledPairs = [&] {
                   int n = 0;

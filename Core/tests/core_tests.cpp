@@ -1863,6 +1863,88 @@ TEST(ipc2221_voltage_clearance) {
     CHECK(build("SIN(0 325 50)") > 0);  // mains peak, not the 0 V DC value
 }
 
+// Issue #154: the pour cache follows the net voltages (spacing domains) and via spans, and the DRC measures pour copper.
+namespace {
+Project pourHvProject(int& hvNet, int& source) {
+    Project p;
+    auto& s = p.schematic;
+    int v = source = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1M", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    p.schematicChanged();
+    p.pcb.autoPlace(p.schematic, true);
+    hvNet = s.netOf({v, 0});
+    const double w = p.pcb.settings.width, h = p.pcb.settings.height;
+    Via gv;
+    gv.net = s.groundNet();
+    gv.position = {w * 0.25, h * 0.5};
+    Via hv;
+    hv.net = hvNet;
+    hv.position = {w * 0.75, h * 0.5};
+    p.pcb.vias = {gv, hv};
+    CopperZone z;
+    z.net = "GND";
+    z.layer = 1;
+    p.pcb.zones.push_back(z);
+    return p;
+}
+int pourClearanceErrors(const Project& p) {
+    int n = 0;
+    for (const auto& x : p.pcb.runDRC(p.schematic)) n += x.code == "DRC_POUR_CLEARANCE";
+    return n;
+}
+}  // namespace
+
+TEST(pour_refills_when_net_voltage_changes) {
+    int hvNet = -1, source = -1;
+    Project p = pourHvProject(hvNet, source);
+    const std::string low = exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper);
+    CHECK(p.pcb.zoneFills(p.schematic).size() == 1);
+    if (p.pcb.zoneFills(p.schematic).size() != 1) return;
+    const double lowArea = p.pcb.zoneFills(p.schematic)[0].area();
+    CHECK(lowArea > 0);
+    p.schematic.setValue(source, "400");  // copper unchanged: only the net voltages move
+    const std::string high = exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper);
+    CHECK(high != low);  // 2.5 mm mains fence round the 400 V via, not the 0.2 mm clearance
+    CHECK(p.pcb.zoneFills(p.schematic)[0].area() < lowArea);
+    p.pcb.refillPours();
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper) == high);  // = a fresh fill
+    CHECK(pourClearanceErrors(p) == 0);
+    // A via span change refills too: a top-only via no longer reaches the bottom pour.
+    const double withVia = p.pcb.zoneFills(p.schematic)[0].area();
+    p.pcb.vias[1].toLayer = 0;
+    CHECK(p.pcb.zoneFills(p.schematic)[0].area() > withVia);
+}
+
+TEST(drc_pour_clearance) {
+    int hvNet = -1, source = -1;
+    Project p = pourHvProject(hvNet, source);
+    CHECK(pourClearanceErrors(p) == 0);
+    // Pours held: a track of another net laid across the old fill is reported, and quiet again once refilled.
+    p.pcb.holdPours = true;
+    p.pcb.zoneFills(p.schematic);
+    Track t;
+    t.net = hvNet;
+    t.layer = 1;
+    t.a = p.pcb.vias[1].position;
+    t.b = {p.pcb.settings.width * 0.5, p.pcb.settings.height * 0.5};
+    p.pcb.tracks.push_back(t);
+    CHECK(pourClearanceErrors(p) > 0);
+    p.pcb.refillPours();
+    CHECK(pourClearanceErrors(p) == 0);
+    // A held 5 V fill next to a via that is now at 400 V breaks the mains fence.
+    p.pcb.tracks.clear();
+    p.pcb.refillPours();
+    p.pcb.zoneFills(p.schematic);
+    p.schematic.setValue(source, "400");  // copper unchanged: only the net voltages move
+    CHECK(pourClearanceErrors(p) > 0);
+    p.pcb.refillPours();
+    CHECK(pourClearanceErrors(p) == 0);
+}
+
 TEST(no_connect_flags) {
     Project p;
     auto& s = p.schematic;
@@ -2127,7 +2209,7 @@ TEST(exports_are_well_formed) {
     std::string drill = exportExcellonDrill(p.schematic, p.pcb);
     CHECK(drill.rfind("M48", 0) == 0);
     CHECK(drill.find("T1C1.000") != std::string::npos || drill.find("C1.000") != std::string::npos);
-    std::string pnp = exportPickAndPlaceCsv(p.schematic);
+    std::string pnp = exportPickAndPlaceCsv(p.schematic, p.pcb);
     CHECK(pnp.find("U1") != std::string::npos);
 }
 
@@ -3107,6 +3189,11 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     CHECK(boardHoles > 0 && holes(byName["panel/Amp-panel-PTH.drl"]) == 6 * boardHoles);
     const std::string npth = byName["panel/Amp-panel-NPTH.drl"];
     CHECK(npth.find("C2.000") != std::string::npos && npth.find("C0.500") != std::string::npos);
+    // The viewer steps the panel Gerber out again: every board's copper, the panel 3 boards wide (#163).
+    const GerberImage boardImg = parseGerber(byName["gerbers/Amp-F_Cu.gbr"]), panelImg = parseGerber(copper);
+    CHECK(boardImg.error.empty() && panelImg.error.empty() && panelImg.shapes.size() >= 6 * boardImg.shapes.size());
+    CHECK(panelImg.x1 + 1e-6 >= l.boards.back().x + boardImg.x1 && panelImg.y1 + 1e-6 >= l.boards.back().y + boardImg.y1);
+    CHECK(l.boards.back().x > l.boards.front().x + 2 * W && l.boards.back().y > l.boards.front().y + H);
 
     // Saved and read back; V-score panels butt the boards and score between them.
     Project back = Project::fromJson(p.toJson());
@@ -6696,6 +6783,7 @@ TEST(spectrum_thd) {
     CHECK_NEAR(detected.fundamentalHz, 1e3, 5);
     CHECK_NEAR(detected.thd, 0.1, 0.002);
     CHECK(!spectrum(t, v, 10).ok);  // shorter than one period
+    CHECK(!spectrum(t, v, 5e7).ok);  // fundamental past Nyquist of the window: an error, not a read past the FFT (#173)
 
     // Circuit: a ±1 V square wave (PULSE) has odd harmonics 1/n → THD through the 10th = √(Σ 1/n², n = 3,5,7,9).
     Schematic s;
@@ -8624,6 +8712,50 @@ TEST(repeated_sheets_channels_nets_designators_and_flattening) {
     CHECK(!s.isRepeated(b.sheet) && !s.findSheet(group[1]));
     CHECK(s.find(b.r1)->ref == "R9" && s.find(b.r1)->logicalRef.empty());
     CHECK(instancesConsistent(s));
+}
+
+TEST(repeated_sheets_suffix_annotation_unique_across_blocks) {
+    // Issue #166: two suffixed blocks share their channel labels (A, B), so their logical designators must not repeat.
+    Schematic s;
+    const int amp = s.addSheet("Amp"), filt = s.addSheet("Filt");
+    s.setActiveSheet(amp);
+    const int ra = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    s.setActiveSheet(filt);
+    const int rf = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.repeatSheet(amp, 2) == 2 && s.repeatSheet(filt, 2) == 2);
+    CHECK(s.setInstanceRefs(amp, InstanceRefs::Suffix) && s.setInstanceRefs(filt, InstanceRefs::Suffix));
+    CHECK(s.find(ra)->ref != s.find(rf)->ref);
+    s.annotate({});
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(s.find(ra)->logicalRef == "R1" && s.find(rf)->logicalRef == "R2");
+    CHECK(!hasCode(s.runERC(), "ERC_DUPLICATE_REF"));
+}
+
+TEST(repeated_sheets_sheet_numbered_channel_skips_taken_ref) {
+    // Issue #167: a channel added in front of a sheet takes that sheet's old number range; a designator held there by
+    // another part is skipped, and the channel keeps its number on every later sync.
+    Schematic s;
+    const int amp = s.addSheet("Amp"), power = s.addSheet("Power");
+    s.setActiveSheet(amp);
+    const int ra = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    s.setActiveSheet(power);
+    const int rp = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.repeatSheet(amp, 2) == 2);
+    AnnotateOptions o;
+    o.sheetNumbering = true;
+    s.annotate(o);
+    CHECK(s.find(rp)->ref == "R401" && s.find(ra)->ref == "R201");
+    CHECK(s.repeatSheet(amp, 3) == 3);
+    const int rc = s.copyOn(ra, s.sheetInstances(amp)[2]);
+    CHECK(rc > 0 && s.find(rp)->ref == "R401" && s.find(rc)->ref == "R402");
+    s.syncInstances();
+    CHECK(s.find(rc)->ref == "R402");
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(!hasCode(s.runERC(), "ERC_DUPLICATE_REF"));
 }
 
 TEST(repeated_sheets_rules_annotation_and_erc) {
@@ -23066,6 +23198,77 @@ TEST(footprint_pad_options_rounded_npth_mask_paste) {
     CHECK_NEAR(p.pcb.courtyard(*p.schematic.find(w)).width() - before, 1.0, 1e-6);
 }
 
+TEST(fab_outputs_footprint_npth_rounded_panel_and_placement_frame) {
+    // A rounded pad (an %AMRR macro in the Gerbers) and a footprint NPTH hole; the board has no mounting holes.
+    CustomPartSpec spec;
+    spec.name = "PADFAB";
+    spec.refPrefix = "U";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 3;
+    PackageSpec::Land a{-2, 0, 3, 3};
+    a.corner = 0.25;
+    PackageSpec::Land b{2, 0, 1.2, 1.2, 0.7, true, "2"};
+    PackageSpec::Land hole{0, 3, 1.6, 1.6, 1.0, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {a, b, hole};
+    Project p;
+    p.name = "Pad";
+    const int u = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.settings.holes.empty());
+    auto byName = [&] {
+        std::map<std::string, std::string> m;
+        for (const auto& f : fabricationPackage(p)) m[f.path] = f.content;
+        return m;
+    };
+    // #156: footprint NPTH holes get the -NPTH.drl file and count in the fab notes.
+    auto files = byName();
+    CHECK(files.count("gerbers/Pad-NPTH.drl") == 1 && files["gerbers/Pad-NPTH.drl"].find("T1C1.000") != std::string::npos);
+    CHECK(files["fab_notes.txt"].find("Non-plated           1") != std::string::npos);
+
+    // #158 / #159: both placement files use the lower-left origin and counter-clockwise rotation; DNP parts are left out.
+    Component& c = *p.schematic.find(u);
+    c.pcb.rotation = 90;
+    const std::string y = [&] {
+        char t[32];
+        std::snprintf(t, sizeof t, "%.4f", p.pcb.settings.height - c.pcb.position.y);
+        return std::string(t);
+    }();
+    const std::string pnp = exportPickAndPlaceCsv(p.schematic, p.pcb), cpl = exportCplCsv(p.schematic, p.pcb);
+    CHECK(pnp.find("," + y + ",270,Top\n") != std::string::npos);
+    CHECK(cpl.find("," + y + "mm,Top,270\n") != std::string::npos);
+    c.sourcing.dnp = true;
+    CHECK(exportPickAndPlaceCsv(p.schematic, p.pcb).find(c.ref + ",") == std::string::npos);
+    CHECK(exportCplCsv(p.schematic, p.pcb).find(c.ref + ",") == std::string::npos);
+    c.sourcing.dnp = false;
+
+    // #155: a 2 × 1 panel keeps the macro body whole, defines every D-code once and flashes only defined ones.
+    p.pcb.settings.panel = {2, 1, 2.0, 5.0, false};
+    files = byName();
+    const std::string copper = files["panel/Pad-panel-F_Cu.gbr"];
+    const size_t am = copper.find("%AMRR*");
+    CHECK(am != std::string::npos && copper.find("%SRX2Y1") > copper.find("*%", am));
+    std::istringstream in(copper);
+    std::map<int, int> defined;
+    std::vector<int> used;
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind("%ADD", 0) == 0) ++defined[std::atoi(line.c_str() + 4)];
+        else if (line.size() > 2 && line[0] == 'D' && line.back() == '*') used.push_back(std::atoi(line.c_str() + 1));
+    }
+    CHECK(!used.empty() && defined.size() >= 3);  // the board's apertures and the fiducial dot
+    for (const auto& [code, n] : defined) CHECK(n == 1);
+    for (int code : used) CHECK(defined.count(code) == 1);
+    // #156: the panel drill steps the footprint NPTH hole once per board.
+    const std::string npth = files["panel/Pad-panel-NPTH.drl"];
+    const size_t tool = npth.find("C1.000");
+    CHECK(tool != std::string::npos);
+    const std::string select = "\n" + npth.substr(npth.rfind('T', tool), tool - npth.rfind('T', tool)) + "\n";
+    const size_t from = npth.find(select, tool) + select.size();
+    const std::string holes = npth.substr(from, npth.find("\nT", from) - from);
+    CHECK(std::count(holes.begin(), holes.end(), 'X') == 2);
+}
+
 TEST(assembly_mesh_hides_parts) {
     Project p = ledProject();
     p.pcb.autoPlace(p.schematic, true);
@@ -23622,6 +23825,27 @@ TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
     CHECK(sieda_pcb_add_reference_layer(m.project(), "fab data", odb.substr(at, odb.find('\0', at) - at).c_str()) == 0);
 }
 
+TEST(gerber_viewer_reads_multiline_incremental_step_repeat_and_excellon_zeros) {
+    // #157: extended commands after a line break are read (inches here, not the 1 µm default).
+    const GerberImage g = parseGerber("G04 x*\n%FSLAX24Y24*%\n%MOIN*%\n%ADD10C,0.01*%\nD10*\nX20000Y0D03*\nM02*\n");
+    CHECK(g.error.empty() && g.shapes.size() == 1 && std::fabs(g.shapes[0].a.x - 50.8) < 1e-9);
+    // #163: incremental coordinates add up; step and repeat copies the block 3 × 2.
+    const GerberImage inc = parseGerber("%FSLIX33Y33*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nX1000Y0D03*\nX1000Y500D03*\nM02*\n");
+    CHECK(inc.shapes.size() == 2 && std::fabs(inc.shapes[1].a.x - 2) < 1e-9 && std::fabs(inc.shapes[1].a.y - 0.5) < 1e-9);
+    const GerberImage sr = parseGerber("%FSLAX33Y33*%\n%MOMM*%\n%ADD10C,0.1*%\n%SRX3Y2I10.0J20.0*%\nD10*\nX0Y0D03*\n%SR*%\nX0Y0D03*\nM02*\n");
+    CHECK(sr.shapes.size() == 7 && std::fabs(sr.x1 - 20.05) < 1e-9 && std::fabs(sr.y1 - 20.05) < 1e-9);
+    const GerberImage huge = parseGerber("%FSLAX33Y33*%%MOMM*%%ADD10C,0.1*%%SRX1000000Y1000000I1J1*%D10*X0Y0D03*X1000Y0D01*M02*");
+    CHECK(huge.shapes.size() <= 2000000);
+    // #161: LZ (trailing zeros suppressed) pads to the format, TZ counts from the right; nothing carries between files.
+    const GerberImage lz = parseGerber("M48\nINCH,LZ\nT1C0.0400\n%\nT1\nX01Y02\nY03\nM30\n");
+    CHECK(lz.shapes.size() == 2 && std::fabs(lz.shapes[0].a.x - 25.4) < 1e-9 && std::fabs(lz.shapes[0].a.y - 50.8) < 1e-9);
+    CHECK(std::fabs(lz.shapes[1].a.x - 25.4) < 1e-9 && std::fabs(lz.shapes[1].a.y - 76.2) < 1e-9);
+    const GerberImage tz = parseGerber("M48\n;FILE_FORMAT=3:3\nMETRIC,TZ\nT1C0.8\n%\nT1\nY2500\nM30\n");
+    CHECK(tz.shapes.size() == 1 && std::fabs(tz.shapes[0].a.x) < 1e-9 && std::fabs(tz.shapes[0].a.y - 2.5) < 1e-9);
+    const GerberImage digits = parseGerber("M48\nMETRIC,LZ,000.000\nT1C0.8\n%\nT1\nX0125Y-001\nM30\n");
+    CHECK(digits.shapes.size() == 1 && std::fabs(digits.shapes[0].a.x - 12.5) < 1e-9 && std::fabs(digits.shapes[0].a.y + 1) < 1e-9);
+}
+
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,
     // the stack-up and the revision table; dimensions and revisions save, load and reach the DXF; net lengths per net.
@@ -24164,4 +24388,157 @@ TEST(bom_custom_columns_and_multi_board) {
     const std::string front = exportBomColumns(p, {"designators", "quantity"}, 1);
     CHECK(front == "Designators,Quantity\nR2,1\n");
     CHECK(exportBomColumns(p, {}).rfind("Item,Designators,Quantity,Value,Footprint,Manufacturer,Manufacturer Part #,DNP\n", 0) == 0);
+}
+
+TEST(oval_pads_are_stadiums_in_gerber_drc_and_exchange) {
+    // Issue #150: KiCad "oval" through-hole pads (TO-247-4: 1.905 × 4.5 mm at 2.54 mm pitch), turned 90°.
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 40;
+    const std::string id = p.addCustomPart(findStandardPart("C3M0065100K")->spec);
+    const int q1 = p.schematic.addCustomComponent(id, "", {0, 0}), q2 = p.schematic.addCustomComponent(id, "", {100, 0});
+    for (int q : {q1, q2}) {
+        Component* c = p.schematic.find(q);
+        c->pcb.placed = true;
+        c->pcb.rotation = 90;
+        c->pcb.position = {q == q1 ? 15.0 : 19.6, 20.0};  // the two parts' pad ends 0.1 mm apart
+    }
+    const auto ps = p.pcb.pads(p.schematic);
+    const Pad* oval = nullptr;
+    for (const auto& pd : ps)
+        if (pd.round && pd.size.x > pd.size.y) oval = &pd;
+    CHECK(oval != nullptr);
+    if (!oval) return;
+    // The copper is a stadium: it reaches the ends of the long axis, and only the radius across it.
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{2.25, 0}), 0, 1e-9);
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{2.5, 0}), 0.25, 1e-9);
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{0, 1.2}), 1.2 - 1.905 / 2, 1e-9);
+    // Gerber: an obround aperture, never a 4.5 mm circle shorting the neighbouring pins.
+    const std::string top = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(top.find("O,4.5000X1.9050") != std::string::npos && top.find("C,4.5000") == std::string::npos);
+    // DRC: every facing pad pair of the two parts is too close, the ovals as well as the rectangular pad 1.
+    int facing = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) facing += v.message.rfind("Pad clearance", 0) == 0 && v.components.size() == 2;
+    CHECK(facing == 4);
+    // IPC-2581 / ODB++ draw an oval too.
+    const std::string ipc = exportIpc2581(p);
+    CHECK(ipc.find("<Oval width=\"4.5\" height=\"1.905\"/>") != std::string::npos && ipc.find("CIRCLE_4.5\"") == std::string::npos);
+}
+
+TEST(pad_stack_sizes_in_drc_pours_and_connectivity) {
+    // Issue #151: a through-hole pad 1.8 mm on top, 1.0 mm on the inner layers and 2.4 mm on the solder side.
+    CustomPartSpec spec;
+    spec.name = "STACK2";
+    spec.refPrefix = "J";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land la{-3, 0, 1.8, 1.8, 1.0, true}, lb{3, 0, 1.8, 1.8, 1.0, true};
+    for (PackageSpec::Land* l : {&la, &lb}) l->inner = 1.0, l->solder = 2.4;
+    spec.package.lands = {la, lb};
+    Project p;
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.width = p.pcb.settings.height = 30;
+    p.pcb.settings.clearance = 0.2;
+    const int j = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    const int r1 = p.schematic.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    const int r2 = p.schematic.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    wire(p.schematic, r1, "2", r2, "1");
+    p.schematicChanged();
+    p.schematic.find(j)->pcb.placed = true;
+    p.schematic.find(j)->pcb.position = {15, 15};
+    const int net = p.schematic.netOf({r1, pin(p.schematic, r1, "2")});
+    CHECK(net >= 0);
+    const auto ps = p.pcb.pads(p.schematic);
+    CHECK(ps.size() == 2);
+    if (net < 0 || ps.size() != 2) return;
+    const Vec2 a = ps[0].position, b = ps[1].position;
+    Via v;
+    v.position = {3, 3};
+    v.net = net;
+    p.pcb.addVia(v);
+    // Pours clear each layer's own land: more copper on the inner layer, less on the solder side, than on top.
+    for (int l : {0, 1, 3}) p.pcb.zones.push_back({p.schematic.nets()[static_cast<size_t>(net)].name, l, false, 0});
+    std::map<int, double> area;
+    for (const auto& f : p.pcb.zoneFills(p.schematic)) area[f.layer] += f.area();
+    CHECK(area[0] > 100 && area[3] < area[0] - 2.0 && area[1] > area[0] + 2.0);
+    p.pcb.zones.clear();
+    // Connectivity: a track ending 0.7 mm from both pad centres joins them on top, not on an inner layer.
+    Track t;
+    t.net = net;
+    t.width = 0.25;
+    t.layer = 1;
+    t.a = a + Vec2{0.7, 0};
+    t.b = b - Vec2{0.7, 0};
+    p.pcb.addTrack(t);
+    CHECK(p.pcb.padGroups(p.schematic)[0] != p.pcb.padGroups(p.schematic)[1]);
+    p.pcb.tracks[0].layer = 0;
+    CHECK(p.pcb.padGroups(p.schematic)[0] == p.pcb.padGroups(p.schematic)[1]);
+    p.pcb.tracks.clear();
+    // DRC: a track / via of another net measured against the land on its layer.
+    auto toPad = [&p, net, a](int layer, double dy, bool via) {
+        Project q = p;
+        if (via) {
+            Via w;
+            w.net = net;
+            w.position = a + Vec2{0, dy};
+            q.pcb.addVia(w);
+        } else {
+            Track u;
+            u.net = net;
+            u.width = 0.25;
+            u.layer = layer;
+            u.a = a + Vec2{-2, dy};
+            u.b = a + Vec2{0, dy};
+            q.pcb.addTrack(u);
+        }
+        int n = 0;
+        for (const auto& r : q.pcb.runDRC(q.schematic)) n += r.message.find(") to pad (") != std::string::npos;
+        return n;
+    };
+    CHECK(toPad(3, 1.45, false) == 1 && toPad(0, 1.45, false) == 0);  // solder side 2.4 mm, top 1.8 mm
+    CHECK(toPad(1, 1.15, false) == 0 && toPad(0, 1.15, false) == 1);  // inner 1.0 mm
+    CHECK(toPad(0, 1.6, true) == 1);                                    // a through via reaches the solder-side land
+}
+
+TEST(via_edge_clearance_counts_the_via_copper) {
+    // Issue #152: the edge clearance is held by the via's copper, not its centre.
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 20;
+    p.pcb.settings.edgeClearance = 0.3;
+    Via v;
+    v.position = {0.55, 10};
+    p.pcb.addVia(v);  // 0.6 mm via: its copper 0.25 mm from the edge
+    CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 1);
+    p.pcb.vias[0].position.x = 0.65;
+    CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 0);
+}
+
+TEST(npth_holes_have_no_annular_ring) {
+    // Issue #153: a non-plated hole (its pad is the drill) has no ring to check, and nothing plated (aspect ratio).
+    CustomPartSpec spec;
+    spec.name = "NPTHRING";
+    spec.refPrefix = "H";
+    spec.pins = {{"1", "A"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land pad{-2, 0, 1.6, 1.6, 1.0, true, "1"};
+    PackageSpec::Land hole{2, 0, 1.6, 1.6, 0.1, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {pad, hole};
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 20;
+    const int h = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.schematic.find(h)->pcb.placed = true;
+    p.schematic.find(h)->pcb.position = {10, 10};
+    CHECK(drcCount(p, "DRC_ANNULAR_RING") == 0);
+    CHECK(drcCount(p, "DRC_DRILL_SIZE") == 1);  // the drill itself is still checked
+    p.pcb.settings.dfmPack = "jlcpcb-standard";
+    int aspect = 0;
+    for (const auto& v : dfmChecks(p.schematic, p.pcb)) aspect += v.code == "DFM_ASPECT_RATIO";
+    CHECK(aspect == 0);
+    std::string ring;
+    const Json report = dfmReportJson(p.schematic, p.pcb);
+    for (const auto& row : report.get("rows").items())
+        if (row.get("rule").asString() == "Smallest annular ring") ring = row.get("actual").asString();
+    CHECK(ring == "0.30 mm");
 }

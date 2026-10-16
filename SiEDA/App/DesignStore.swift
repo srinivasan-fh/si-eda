@@ -381,6 +381,16 @@ final class DesignStore: ObservableObject {
             return false
         }
         let t2 = DispatchTime.now()
+        finishEdit(actionName, before: before, invalidatesAnalysis: invalidatesAnalysis,
+                   stateMs: PerformanceLog.milliseconds(t0, t1), engineMs: PerformanceLog.milliseconds(t1, t2))
+        return true
+    }
+
+    /// What follows a successful edit (`performChecked` and the background variants): the undo step, the document's
+    /// dirty state, the refresh, the timing record and the status line. Main actor only.
+    private func finishEdit(_ actionName: String, before: String?, invalidatesAnalysis: Bool,
+                            stateMs: Double, engineMs: Double) {
+        let t2 = DispatchTime.now()
         if let before { pushUndo(before) }
         isDirty = true
         collaboration.noteEdit()
@@ -396,13 +406,46 @@ final class DesignStore: ObservableObject {
         }
         refresh()
         let t3 = DispatchTime.now()
-        editTimings.append(EditTiming(action: actionName, stateMs: PerformanceLog.milliseconds(t0, t1),
-                                      engineMs: PerformanceLog.milliseconds(t1, t2), refreshMs: PerformanceLog.milliseconds(t2, t3)))
+        editTimings.append(EditTiming(action: actionName, stateMs: stateMs, engineMs: engineMs,
+                                      refreshMs: PerformanceLog.milliseconds(t2, t3)))
         if editTimings.count > PerformanceLog.capacity { editTimings.removeFirst(editTimings.count - PerformanceLog.capacity) }
         statusMessage = actionName
         CrashReporter.note(actionName)
         scheduleRecoverySave()
-        return true
+    }
+
+    /// Like `performChecked`, for long board commands (Auto Place, Gloss, Minimise Vias): the undo state and the engine
+    /// work run off the main thread under `runBusy` (the window stays responsive; other edits are refused meanwhile),
+    /// then the undo step, refresh and status follow here as for any edit. `changed` tells from `body`'s result whether
+    /// the design changed: when it did not, no undo step is recorded and `failureMessage` is shown. Returns `body`'s
+    /// result, or nil when the store was busy and nothing ran.
+    @discardableResult
+    func performInBackground<T: Sendable>(_ actionName: String, busy message: String, invalidatesAnalysis: Bool = true,
+                                          failureMessage: String? = nil, changed: (T) -> Bool = { _ in true },
+                                          _ body: @escaping @Sendable (EDAEngine) -> T) async -> T? {
+        guard !isBusy else {
+            statusMessage = "\(busyMessage.isEmpty ? "Busy" : busyMessage) — try again when it finishes"
+            return nil
+        }
+        let signpost = PerformanceLog.signposter.beginInterval("edit", "\(actionName)")
+        defer { PerformanceLog.signposter.endInterval("edit", signpost) }
+        let engine = self.engine
+        let run = await runBusy(message) { () -> BackgroundEdit<T> in
+            let t0 = DispatchTime.now()
+            let before = engine.stateJSON()
+            let t1 = DispatchTime.now()
+            let value = body(engine)
+            let t2 = DispatchTime.now()
+            return BackgroundEdit(before: before, value: value, stateMs: PerformanceLog.milliseconds(t0, t1),
+                                  engineMs: PerformanceLog.milliseconds(t1, t2))
+        }
+        guard changed(run.value) else {
+            statusMessage = failureMessage ?? "\(actionName): not possible"
+            return run.value
+        }
+        finishEdit(actionName, before: run.before, invalidatesAnalysis: invalidatesAnalysis,
+                   stateMs: run.stateMs, engineMs: run.engineMs)
+        return run.value
     }
 
     /// An edit whose effect is known only afterwards (an AI client's tool call through the live MCP endpoint):
@@ -417,6 +460,32 @@ final class DesignStore: ObservableObject {
         }
         if changed { pushUndo(before) }
         return changed
+    }
+
+    /// `performExternalEdit` with the engine work off the main thread (the live MCP endpoint): the state before,
+    /// `body` and the state after run in one background task while the store is busy (no other edit can slip in
+    /// between), then the one undo step, refresh and status follow here exactly as in `performExternalEdit`.
+    func performExternalEditInBackground(_ actionName: String,
+                                         _ body: @escaping @Sendable (EDAEngine) -> Bool) async -> Bool {
+        guard !isBusy else { return performChecked(actionName) { _ in false } }
+        let signpost = PerformanceLog.signposter.beginInterval("edit", "\(actionName)")
+        defer { PerformanceLog.signposter.endInterval("edit", signpost) }
+        let engine = self.engine
+        let run = await runBusy(actionName) { () -> BackgroundEdit<Bool> in
+            let t0 = DispatchTime.now()
+            let before = engine.stateJSON()
+            let t1 = DispatchTime.now()
+            let changed = body(engine) && engine.stateJSON() != before
+            let t2 = DispatchTime.now()
+            return BackgroundEdit(before: before, value: changed, stateMs: PerformanceLog.milliseconds(t0, t1),
+                                  engineMs: PerformanceLog.milliseconds(t1, t2))
+        }
+        guard run.value else {
+            statusMessage = "\(actionName) — no change"
+            return false
+        }
+        finishEdit(actionName, before: run.before, invalidatesAnalysis: true, stateMs: run.stateMs, engineMs: run.engineMs)
+        return true
     }
 
     func undo() {
@@ -1432,12 +1501,18 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func runVerification() async -> VerificationReport? {
         let engine = self.engine
-        let report = await runBusy("Verifying design…") { engine.runVerification() }
+        let hasPads = !snapshot.pads.isEmpty
+        // The individual check panels' runs go with the verification, off the main thread (large boards).
+        let run = await runBusy("Verifying design…") { () -> VerificationRun in
+            VerificationRun(report: engine.runVerification(), erc: engine.runERC(),
+                            validation: engine.runCircuitValidation(), drc: hasPads ? engine.runDRCChecked() : nil)
+        }
+        let report = run.report
         verificationReport = report
         verifiedRevision = revision
-        ercResults = engine.runERC()
-        validationResults = engine.runCircuitValidation()
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        ercResults = run.erc
+        validationResults = run.validation
+        if let drc = run.drc { recordDRC(drc, at: revision) }
         if let report {
             ProjectHooks.run("after-verify", project: documentURL)
             statusMessage = "Verification: \(report.verdict.title) — \(report.errors) error(s), \(report.warnings) warning(s)"
@@ -1522,6 +1597,18 @@ final class DesignStore: ObservableObject {
         if all { fitToken &+= 1 }
     }
 
+    /// `autoPlace(all:)` for the menus, buttons and agents: the placement runs off the main thread (a large board takes
+    /// seconds), one undo step as before.
+    func autoPlaceInBackground(all: Bool) async {
+        let placed = await performInBackground(all ? "Auto-placed all footprints" : "Placed new footprints",
+                                               busy: all ? "Auto-placing footprints…" : "Placing new footprints…",
+                                               invalidatesAnalysis: false) { engine -> Bool in
+            engine.autoPlace(all: all)
+            return true
+        }
+        if placed != nil, all { fitToken &+= 1 }
+    }
+
     /// The single Auto Route action: footprints not on the board yet are placed inside its shape first (outline,
     /// mounting holes and edge clearance respected, connected parts kept close), then the whole board is routed
     /// cleanly from scratch and DRC-checked. One undo step.
@@ -1582,7 +1669,9 @@ final class DesignStore: ObservableObject {
         refresh()
         routeStats = stats
         routeRevision = revision
-        recordDRC(engine.runDRCChecked())
+        let checked = revision
+        let drc = await runBusy("Checking design rules…") { engine.runDRCChecked() }
+        recordDRC(drc, at: checked)
         let routed = stats.failed == 0
             ? "routed \(stats.routed)/\(stats.connections) connections, \(stats.vias) vias"
             : "routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
@@ -1990,6 +2079,11 @@ final class DesignStore: ObservableObject {
     private var routeMoveRunning = false
     private var routePendingPoint: CGPoint?
     private var routeGeneration = 0
+    // The same for the "place new parts" ghost (DesignStore+Placement.swift): one placement check in flight, the
+    // newest cursor position waiting, results of a superseded check dropped.
+    var placementCheckRunning = false
+    var placementPendingPoint: CGPoint?
+    var placementGeneration = 0
 
     /// Moves the head of the route to the cursor (shoving or walking around as set), off the main thread.
     func moveRoute(to point: CGPoint) {
@@ -2444,12 +2538,15 @@ final class DesignStore: ObservableObject {
     }
 
     /// Stores DRC results for the current revision; a core failure is shown instead of reading as "passed".
+    /// `at`: the revision the check ran on (a background check may finish after later edits; its results then read
+    /// as stale). Results older than the ones shown are dropped.
     @discardableResult
-    private func recordDRC(_ result: Result<[RuleViolation], EDAEngineError>) -> Bool {
+    private func recordDRC(_ result: Result<[RuleViolation], EDAEngineError>, at checked: Int) -> Bool {
         switch result {
         case .success(let violations):
+            guard checked >= drcRevision else { return false }
             drcResults = violations
-            drcRevision = revision
+            drcRevision = checked
             return true
         case .failure(let error):
             present(error, title: "Design rule check failed")
@@ -2463,11 +2560,53 @@ final class DesignStore: ObservableObject {
         workspace = .checks
     }
 
-    func runDRC() {
+    // The DRC runs off the main thread, one at a time: a request while one runs asks for one more run after it (the
+    // design changed meanwhile), so a burst of edits costs at most two checks. `drcEpoch` changes when the results are
+    // cleared (new design, stack-up change); a check started before that is dropped.
+    private(set) var drcTask: Task<Void, Never>?
+    private var drcAgain = false
+    private var drcAnnounce = false
+    private var drcEpoch = 0
+
+    /// Runs the design rule check off the main thread and shows its results (the status line says how it went unless
+    /// `announce` is false: the edit's own message stays). `drcSettled()` waits for it.
+    func runDRC(announce: Bool = true) {
         guard !isBusy else { return }
-        guard recordDRC(engine.runDRCChecked()) else { return }
-        let errors = drcResults.filter { $0.severity == .error }.count
-        statusMessage = errors == 0 ? "DRC passed" : "DRC: \(errors) error(s)"
+        drcAnnounce = drcAnnounce || announce
+        if drcTask != nil {
+            drcAgain = true
+            return
+        }
+        let engine = self.engine
+        let checked = revision
+        let epoch = drcEpoch
+        drcTask = Task { @MainActor [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { engine.runDRCChecked() }.value
+            self?.drcFinished(result, at: checked, epoch: epoch)
+        }
+    }
+
+    private func drcFinished(_ result: Result<[RuleViolation], EDAEngineError>, at checked: Int, epoch: Int) {
+        drcTask = nil
+        let again = drcAgain
+        drcAgain = false
+        if epoch == drcEpoch, recordDRC(result, at: checked), !again, drcAnnounce {
+            let errors = drcResults.filter { $0.severity == .error }.count
+            statusMessage = errors == 0 ? "DRC passed" : "DRC: \(errors) error(s)"
+        }
+        if again { runDRC(announce: false) }  // keeps a pending announcement for that run
+        if drcTask == nil { drcAnnounce = false }
+    }
+
+    /// Waits until the DRC started by `runDRC` (and any run it queued) has finished and its results are shown.
+    func drcSettled() async {
+        while let task = drcTask { await task.value }
+    }
+
+    /// Clears the DRC results; a check still running is dropped when it finishes.
+    private func clearDRC() {
+        drcEpoch &+= 1
+        drcResults = []
     }
 
     func moveFootprint(_ id: Int, to point: CGPoint) {
@@ -2564,7 +2703,7 @@ final class DesignStore: ObservableObject {
         guard layers != snapshot.board.layerCount else { return }
         perform("\(layers)-layer stack-up", invalidatesAnalysis: false) { $0.setLayerCount(layers) }
         routeStats = nil
-        drcResults = []
+        clearDRC()
     }
 
     /// Selects the project's industry profile: its design-rule preset, altitude class and component derating.
@@ -2573,7 +2712,7 @@ final class DesignStore: ObservableObject {
         perform("Industry: \(profile.name)", invalidatesAnalysis: false) { $0.setIndustry(profile.id) }
         validationResults = []
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     /// Robot platform ("" = not a robot): turns on the 7-segment robotics checks. Undoable.
@@ -2581,7 +2720,7 @@ final class DesignStore: ObservableObject {
         guard id != snapshot.robotPlatform else { return }
         perform(id.isEmpty ? "Not a robot" : "Robot platform: \(id)", invalidatesAnalysis: false) { $0.setRobotPlatform(id) }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func robotSegments() -> RobotSegmentsReport { engine.robotSegments() }
@@ -2605,7 +2744,7 @@ final class DesignStore: ObservableObject {
         guard id != snapshot.ecuType else { return }
         perform(id.isEmpty ? "No ECU type" : "ECU type: \(id)", invalidatesAnalysis: false) { $0.setEcuType(id) }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func ecuSegments() -> RobotSegmentsReport { engine.ecuSegments() }
@@ -2617,7 +2756,7 @@ final class DesignStore: ObservableObject {
             $0.setAerospaceMission(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func aerospaceSegments() -> RobotSegmentsReport { engine.aerospaceSegments() }
@@ -2629,7 +2768,7 @@ final class DesignStore: ObservableObject {
             $0.setNavalPlatform(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func navalSegments() -> RobotSegmentsReport { engine.navalSegments() }
@@ -2641,7 +2780,7 @@ final class DesignStore: ObservableObject {
             $0.setMedicalClass(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func medicalSegments() -> RobotSegmentsReport { engine.medicalSegments() }
@@ -2653,7 +2792,7 @@ final class DesignStore: ObservableObject {
             $0.setRetailDevice(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func retailSegments() -> RobotSegmentsReport { engine.retailSegments() }
@@ -2665,7 +2804,7 @@ final class DesignStore: ObservableObject {
             $0.setApplianceType(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func applianceSegments() -> RobotSegmentsReport { engine.applianceSegments() }
@@ -2677,7 +2816,7 @@ final class DesignStore: ObservableObject {
             $0.setMemoryDesign(id)
         }
         verificationReport = nil
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func memorySegments() -> RobotSegmentsReport { engine.memorySegments() }
@@ -2686,7 +2825,7 @@ final class DesignStore: ObservableObject {
     func setMemoryLimits(_ limits: EDAEngine.MemoryLimits) {
         guard engine.memoryLimits()?.overrides != limits else { return }
         performChecked("DDR layout limits", invalidatesAnalysis: false) { $0.setMemoryLimits(limits) }
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
@@ -2697,7 +2836,7 @@ final class DesignStore: ObservableObject {
             index = $0.addTamperMesh(component: ref, netA: netA, netB: netB)
         }
         if index == nil { alert = AlertItem(title: "Tamper mesh not added", message: "Choose a part and two mesh nets.") }
-        else if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        else if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     func clearTamperMeshes() {
@@ -2742,7 +2881,7 @@ final class DesignStore: ObservableObject {
     func applyRulePreset(_ preset: DesignRulePreset) {
         guard preset.name != snapshot.board.rulePreset else { return }
         perform("Design rules: \(preset.name)", invalidatesAnalysis: false) { $0.applyRulePreset(preset.name) }
-        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+        if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
     /// Board size and default track/clearance. Values the core would reject are reported instead of ignored.
@@ -2784,7 +2923,7 @@ final class DesignStore: ObservableObject {
 
     private func resetChecks() {
         ercResults = []
-        drcResults = []
+        clearDRC()
         validationResults = []
         verificationReport = nil
     }
@@ -3084,4 +3223,21 @@ enum ChecksMode: String, CaseIterable, Identifiable {
     case verification = "Verification"
     case rules = "Rule Checks"
     var id: String { rawValue }
+}
+
+/// An edit run off the main thread (`performInBackground`, `performExternalEditInBackground`): the undo state taken
+/// before it, the body's result and the timings recorded in Help → Performance….
+private struct BackgroundEdit<T: Sendable>: Sendable {
+    let before: String
+    let value: T
+    let stateMs: Double
+    let engineMs: Double
+}
+
+/// What `runVerification` computes off the main thread: the report and the individual check panels' results.
+private struct VerificationRun: Sendable {
+    let report: VerificationReport?
+    let erc: [RuleViolation]
+    let validation: [RuleViolation]
+    let drc: Result<[RuleViolation], EDAEngineError>?
 }

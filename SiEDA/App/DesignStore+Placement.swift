@@ -47,6 +47,7 @@ extension DesignStore {
     /// The current part's ghost starts at the free spot nearest the parts it connects to: placed parts are
     /// obstacles, the parts still waiting are not (so a part whose automatic spot is now taken starts elsewhere).
     private func preparePlacement() {
+        placementGeneration &+= 1  // a hover check for the previous part is out of date
         guard var session = placementSession else { return }
         while let next = session.current, snapshot.component(next.id) == nil { session.queue.removeFirst() }
         guard let next = session.current else {
@@ -63,13 +64,54 @@ extension DesignStore {
         statusMessage = "Placing \(next.ref) (\(session.number) of \(session.total))"
     }
 
-    /// The ghost follows the cursor (snapped, checked against placed courtyards, the outline and keep-outs).
+    /// The ghost follows the cursor (snapped, checked against placed courtyards, the outline and keep-outs). The check
+    /// runs off the main thread, latest wins (as the router's head, `moveRoute`): while one is computed, newer cursor
+    /// positions replace each other and only the newest is checked next. The session is published only when the
+    /// ghost changed, and a result for another part, turn or side (R / F / a click meanwhile) is dropped.
     func movePlacementGhost(to point: CGPoint) {
-        guard var session = placementSession, let part = session.current else { return }
+        guard let session = placementSession, let part = session.current, !isBusy else { return }
+        if placementCheckRunning {
+            placementPendingPoint = point
+            return
+        }
+        placementCheckRunning = true
+        let generation = placementGeneration
+        let id = part.id
         let rotation = session.rotation
         let bottom = session.bottom
-        session.ghost = engine.checkPlacement(part.id, at: point, rotation: rotation, bottom: bottom,
-                                              ignore: session.waiting)
+        let waiting = session.waiting
+        let engine = self.engine
+        Task { @MainActor [weak self] in
+            let ghost = await Task.detached(priority: .userInitiated) {
+                engine.checkPlacement(id, at: point, rotation: rotation, bottom: bottom, ignore: waiting)
+            }.value
+            self?.placementCheckFinished(ghost, part: id, rotation: rotation, bottom: bottom, generation: generation)
+        }
+    }
+
+    private func placementCheckFinished(_ ghost: PlacementCheckInfo?, part: Int, rotation: Int, bottom: Bool,
+                                        generation: Int) {
+        placementCheckRunning = false
+        if generation == placementGeneration, var session = placementSession, session.current?.id == part,
+           session.rotation == rotation, session.bottom == bottom, session.ghost != ghost {
+            session.ghost = ghost
+            placementSession = session
+        }
+        if let next = placementPendingPoint {
+            placementPendingPoint = nil
+            movePlacementGhost(to: next)
+        }
+    }
+
+    /// The ghost at `point` now, on the main thread (R / F re-check the ghost where it stands; tests): a hover check
+    /// in flight is superseded. Publishes only when the ghost changed.
+    func movePlacementGhostNow(to point: CGPoint) {
+        guard var session = placementSession, let part = session.current else { return }
+        placementGeneration &+= 1
+        let ghost = engine.checkPlacement(part.id, at: point, rotation: session.rotation, bottom: session.bottom,
+                                          ignore: session.waiting)
+        guard ghost != session.ghost else { return }
+        session.ghost = ghost
         placementSession = session
     }
 
@@ -91,7 +133,7 @@ extension DesignStore {
 
     private func recheckGhost() {
         guard let ghost = placementSession?.ghost else { return }
-        movePlacementGhost(to: ghost.position)
+        movePlacementGhostNow(to: ghost.position)
     }
 
     /// Click: places the current part at `point` (or the ghost's spot), snapped, as one undo step, and goes on to
@@ -101,6 +143,7 @@ extension DesignStore {
     func placeCurrentPart(at point: CGPoint? = nil, force: Bool = false) -> Bool {
         guard let session = placementSession, let part = session.current else { return false }
         guard let target = point ?? session.ghost?.position else { return false }
+        placementGeneration &+= 1  // a hover check still in flight must not replace what the click shows
         let waiting = session.waiting
         var result: PlacementCheckInfo?
         let placed = performChecked("Placed \(part.ref)", invalidatesAnalysis: false) { engine in
