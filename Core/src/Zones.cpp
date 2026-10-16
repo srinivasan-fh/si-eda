@@ -423,6 +423,9 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
         for (double v : {p.position.x, p.position.y, p.size.x, p.size.y}) hashD(h, v);
         hashI(h, p.net);
         hashI(h, p.smdLayer * 2 + p.throughHole);
+        hashI(h, p.round);
+        for (double v : {p.corner, p.inner, p.solder}) hashD(h, v);
+        for (const Vec2& v : p.outline) hashD(h, v.x), hashD(h, v.y);
     }
     for (const auto& t : tracks) {
         for (double v : {t.a.x, t.a.y, t.b.x, t.b.y, t.width}) hashD(h, v);
@@ -436,7 +439,13 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
     for (const auto& v : vias) {
         for (double d : {v.position.x, v.position.y, v.diameter}) hashD(h, d);
         hashI(h, v.net);
+        hashI(h, v.fromLayer);
+        hashI(h, v.toLayer);
     }
+    // Spacing domains: net voltages (source values), altitude and coating set the mains / isolation fences.
+    const SpacingDomains spacing = spacingDomains(sch, s);
+    hashD(h, spacing.gap);
+    for (int d : spacing.domains.netDomain) hashI(h, d);
     fillStale_ = fillValid_ && h != fillKey_ && holdPours;
     if (!fillValid_ || (h != fillKey_ && !holdPours)) {
         fillCache_ = fillZones(sch, ps, tracks, vias);

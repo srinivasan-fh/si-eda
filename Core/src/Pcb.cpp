@@ -5909,6 +5909,79 @@ std::map<std::string, double> PcbLayout::autoNetWidths(const Schematic& sch) {
 
 // ===================================================================== DRC
 
+namespace {
+/// DRC_POUR_CLEARANCE: pour copper against other nets' copper, by the rule the fill keeps (the zone's clearance, or
+/// the isolation / mains fence across spacing domains), from the fill's rectangles (whole cells) to the exact copper.
+/// A pour held stale (holdPours) or filled before its inputs changed shows up here.
+void pourClearanceChecks(const Schematic& sch, const PcbLayout& pcb, const std::vector<Pad>& ps,
+                         const std::vector<ZoneFill>& fills, std::vector<RuleViolation>& out) {
+    if (fills.empty()) return;
+    const BoardSettings& s = pcb.settings;
+    const SpacingDomains spacing = spacingDomains(sch, s);
+    const auto& nets = sch.nets();
+    auto netName = [&](int n) { return n >= 0 && n < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(n)].name : std::string("(none)"); };
+    for (size_t fi = 0; fi < fills.size(); ++fi) {
+        const ZoneFill& f = fills[fi];
+        if (f.net < 0 || f.rects.empty() || f.zone < 0 || f.zone >= static_cast<int>(pcb.zones.size())) continue;
+        const double clr = std::max(s.clearance, pcb.zones[static_cast<size_t>(f.zone)].clearance);
+        const int dom = spacing.domains.domainOfNet(f.net);
+        auto need = [&](int other) {
+            const int od = spacing.domains.domainOfNet(other);
+            return dom >= 0 && od >= 0 && od != dom ? std::max(clr, spacing.gap) : clr;
+        };
+        const double reach = std::max(clr, spacing.gap) + 0.01;
+        const RectIndex ix(f.rects);
+        int reported = 0;
+        // Copper of `net` within `box`, measured to a pour rectangle by `dist`: reported once when too near.
+        auto check = [&](const Rect& box, int net, auto dist, const char* what, Vec2 at, int comp) {
+            if (reported >= 5 || net == f.net) return;
+            const double rule = need(net);
+            for (size_t r : ix.query(box.inflated(reach))) {
+                const double d = dist(f.rects[r]);
+                if (d >= rule - 1e-3) continue;
+                const Component* c = comp >= 0 ? sch.find(comp) : nullptr;
+                char buf[240];
+                std::snprintf(buf, sizeof buf, "%s pour on %s is %.3f mm from %s%s%s on %s (needs %.3f mm) — refill the pours.",
+                              netName(f.net).c_str(), copperLayerName(f.layer, s.layerCount).c_str(), std::max(0.0, d), what,
+                              c ? " of " : "", c ? c->ref.c_str() : "", netName(net).c_str(), rule);
+                RuleViolation v;
+                v.severity = Severity::Error;
+                v.code = "DRC_POUR_CLEARANCE";
+                v.message = buf;
+                v.location = at;
+                v.hasLocation = true;
+                if (c) v.components = {comp};
+                out.push_back(std::move(v));
+                ++reported;
+                return;
+            }
+        };
+        for (const Pad& p : ps) {
+            if (!p.onLayer(f.layer)) continue;
+            check(p.bounds(), p.net, [&](const Rect& r) {
+                return p.round ? pointRectDistance(p.position, r) - std::min(p.size.x, p.size.y) / 2 : rectRectDistance(p.bounds(), r);
+            }, "a pad", p.position, p.componentId);
+        }
+        for (const Track& t : pcb.tracks)
+            if (t.layer == f.layer)
+                check(trackBox(t, t.width / 2), t.net, [&](const Rect& r) { return trackRectDistance(t, r) - t.width / 2; },
+                      "a track", t.a, -1);
+        for (const Via& v : pcb.vias)
+            if (v.spans(f.layer))
+                check(Rect::centered(v.position, v.diameter, v.diameter), v.net,
+                      [&](const Rect& r) { return pointRectDistance(v.position, r) - v.diameter / 2; }, "a via", v.position, -1);
+        // Earlier pours of other nets on the layer (the later fill keeps clear of them).
+        for (size_t ei = 0; ei < fi; ++ei) {
+            const ZoneFill& e = fills[ei];
+            if (e.layer != f.layer || e.net < 0 || e.net == f.net) continue;
+            for (const Rect& er : e.rects)
+                check(er, e.net, [&](const Rect& r) { return rectRectDistance(er, r); }, "the pour", er.center(), -1);
+        }
+    }
+}
+}  // namespace
+
+
 std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::vector<RuleViolation> out;
     const double eps = 1e-3;
@@ -6255,6 +6328,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
 
     // Track geometry: dangling ends and acute (< 90°) joins that trap etchant.
     const auto& fills = zoneFills(sch);
+    pourClearanceChecks(sch, *this, ps, fills, out);
     auto touchesCopper = [&](size_t self, Vec2 end) {
         const Track& t = tracks[self];
         for (const auto& f : fills)
