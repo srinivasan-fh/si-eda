@@ -3233,7 +3233,7 @@ void schematicTools(Table& t) {
                       o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
                   return o;
               };
-              auto hitsOf = [&](int id) {  // symbols and labels a placed tag overlaps
+              auto hitsOf = [&](int id, const Link* own = nullptr) {  // symbols and labels a placed tag overlaps
                   const Schematic& sch = proj(s).schematic;
                   const auto o = textBox(*sch.find(id));
                   int hits = 0;
@@ -3242,12 +3242,16 @@ void schematicTools(Table& t) {
                       const auto q = textBox(c);
                       hits += o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
                   }
-                  for (const auto& w : sch.wires()) {  // nor across another wire (a tag standing off its own into the next)
-                      if (w.a.component == id || w.b.component == id) continue;
-                      const Vec2 a0 = sch.pinPosition(w.a), b0 = sch.pinPosition(w.b);
-                      hits += std::max(a0.x, b0.x) > o[0] + 1 && std::min(a0.x, b0.x) < o[2] - 1 && std::max(a0.y, b0.y) > o[1] + 1 &&
-                              std::min(a0.y, b0.y) < o[3] - 1 && (std::fabs(a0.x - b0.x) < 0.5 || std::fabs(a0.y - b0.y) < 0.5);
-                  }
+                  auto across = [&](Vec2 a0, Vec2 b0) {  // a straight wire through the tag's box
+                      return std::max(a0.x, b0.x) > o[0] + 1 && std::min(a0.x, b0.x) < o[2] - 1 && std::max(a0.y, b0.y) > o[1] + 1 &&
+                             std::min(a0.y, b0.y) < o[3] - 1 && (std::fabs(a0.x - b0.x) < 0.5 || std::fabs(a0.y - b0.y) < 0.5);
+                  };
+                  // Nor across another wire (a tag standing off its own into the next), drawn or still to come with its tag.
+                  for (const auto& w : sch.wires())
+                      if (w.a.component != id && w.b.component != id) hits += across(sch.pinPosition(w.a), sch.pinPosition(w.b));
+                  if (own)
+                      for (const auto& [n, l] : tags)
+                          if (l != own) hits += across(sch.pinPosition({l->a.component, l->a.pin}), sch.pinPosition({l->b.component, l->b.pin}));
                   return hits;
               };
               // The clearest spot for a net's tag on wire l: {pose index, overlaps}, poses filled in.
@@ -3270,7 +3274,7 @@ void schematicTools(Table& t) {
                       const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(),
                                                          poses[k].first.x, poses[k].first.y, poses[k].second, nullptr);
                       if (id < 0) continue;
-                      const int hits = hitsOf(id);
+                      const int hits = hitsOf(id, l);
                       sieda_remove_component(P(s), id);
                       if (hits < fewest) fewest = hits, best = static_cast<int>(k);
                   }
@@ -3303,11 +3307,11 @@ void schematicTools(Table& t) {
                           int least = 1 << 30;
                           for (int k = -6; k <= 6; ++k) {
                               const Vec2 at = along.first + dir * (10.0 * k);
-                              const double t = (at.x - p0.x) * dir.x + (at.y - p0.y) * dir.y;  // on the wire, not past its ends
-                              if (t < 20 || t > (p1 - p0).length() - 20) continue;
+                              const double t = (at.x - p0.x) * dir.x + (at.y - p0.y) * dir.y;  // never back past the IC's pin
+                              if (t < 20 || (at - p1).length() < 20) continue;
                               const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, along.second, nullptr);
                               if (id < 0) continue;
-                              const int hits = hitsOf(id);
+                              const int hits = hitsOf(id, l);
                               sieda_remove_component(P(s), id);
                               if (hits < least) least = hits, poses.push_back({at, along.second}), pick = static_cast<int>(poses.size()) - 1;
                           }
@@ -3330,7 +3334,7 @@ void schematicTools(Table& t) {
               // Labels placed after a tag (another net's end labels) may sit on it: such a tag moves to its clearest
               // spot now that every label is down.
               for (auto& [tag, net, l] : placedTags) {
-                  if (tag < 0 || !hitsOf(tag) || isStanding(l)) continue;
+                  if (tag < 0 || !hitsOf(tag, l) || isStanding(l)) continue;
                   sieda_remove_component(P(s), tag);  // its two wires go with it
                   std::vector<std::pair<Vec2, int>> poses;
                   tag = placeTag(net, l, poses, clearest(net, l, poses).first);
