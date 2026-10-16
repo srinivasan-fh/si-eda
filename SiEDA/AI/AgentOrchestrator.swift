@@ -289,7 +289,7 @@ final class AgentOrchestrator: ObservableObject {
 
     private func layout(store: DesignStore, boardHint: PlannedBoard) async throws {
         let index = begin(.layout, "Placing and routing PCB")
-        store.autoPlace(all: true)
+        await store.autoPlaceInBackground(all: true)
         store.fitBoard(margin: 2.5)  // compact outline around the placed parts
         await store.autoRoute()
         try Task.checkCancellation()
@@ -297,11 +297,12 @@ final class AgentOrchestrator: ObservableObject {
             // Give the router more room and try once more.
             let board = store.snapshot.board
             store.setBoard(width: board.width * 1.3, height: board.height * 1.3, trackWidth: 0, clearance: 0)
-            store.autoPlace(all: true)
+            await store.autoPlaceInBackground(all: true)
             await store.autoRoute()
             try Task.checkCancellation()
         }
         store.runDRC()
+        await store.drcSettled()
         let stats = store.routeStats ?? RouteStats()
         let drcErrors = store.drcResults.filter { $0.severity == .error }.count
         let board = store.snapshot.board

@@ -171,34 +171,46 @@ extension DesignStore {
         }
     }
 
-    /// Glossing: pulls the selected routes (all tracks when none is selected) tight.
-    func glossTracks() {
+    /// Glossing: pulls the selected routes (all tracks when none is selected) tight. Runs off the main thread (every
+    /// route of a large board takes a while); one undo step.
+    func glossTracks() async {
         let tracks = commandTracks
         guard !tracks.isEmpty else {
             statusMessage = "Gloss: there are no tracks"
             return
         }
-        runBoardCommand("Gloss", failure: "Gloss: the routes are already as tight as the board allows") {
-            $0.gloss(tracks: tracks, moveVias: true)
+        if routePreview != nil { cancelRoute() }
+        let result = await performInBackground("Gloss", busy: "Glossing…", invalidatesAnalysis: false,
+                                               failureMessage: "Gloss: the routes are already as tight as the board allows",
+                                               changed: { $0?.applied == true }) { engine -> BoardEditResult? in
+            engine.gloss(tracks: tracks, moveVias: true)
         }
+        // As `runBoardCommand`: the command's own message, and the DRC again when it changed something.
+        guard let edit = result ?? nil else { return }
+        if !edit.message.isEmpty { statusMessage = edit.message }
+        if edit.applied, !drcResults.isEmpty { runDRC() }
     }
 
     /// Via minimisation on the nets of the selected tracks (every net when none is selected): routed again with fewer
-    /// vias, kept only when it has fewer vias and leaves nothing more unrouted. One undo step.
-    func minimizeVias() {
+    /// vias, kept only when it has fewer vias and leaves nothing more unrouted. One undo step; runs off the main thread.
+    func minimizeVias() async {
         let ids = Set(commandTracks)
-        let nets = Set(snapshot.tracks.filter { ids.contains($0.id) }.map(\.net)).compactMap { n in snapshot.nets.first { $0.index == n }?.name }
+        // Net index → name once (the first net of each index, as before), not a scan of every net per routed net.
+        var names: [Int: String] = [:]
+        for net in snapshot.nets where names[net.index] == nil { names[net.index] = net.name }
+        let nets = Set(snapshot.tracks.filter { ids.contains($0.id) }.map(\.net)).compactMap { names[$0] }
         guard !nets.isEmpty else {
             statusMessage = "Minimise Vias: there are no routed nets"
             return
         }
         if routePreview != nil { cancelRoute() }
-        var outcome: EDAEngine.ViaMinimisation?
-        performChecked("Minimise vias", invalidatesAnalysis: false, failureMessage: "Minimise Vias: no via could be saved") {
-            outcome = $0.minimizeVias(nets: nets.sorted())
-            return outcome?.kept == true
+        let sorted = nets.sorted()
+        let outcome = await performInBackground("Minimise vias", busy: "Minimising vias…", invalidatesAnalysis: false,
+                                                failureMessage: "Minimise Vias: no via could be saved",
+                                                changed: { $0?.kept == true }) { engine -> EDAEngine.ViaMinimisation? in
+            engine.minimizeVias(nets: sorted)
         }
-        if let o = outcome, o.kept { statusMessage = "Minimise Vias: \(o.viasBefore) → \(o.viasAfter) vias" }
+        if let o = outcome ?? nil, o.kept { statusMessage = "Minimise Vias: \(o.viasBefore) → \(o.viasAfter) vias" }
         if !drcResults.isEmpty { runDRC() }
     }
 

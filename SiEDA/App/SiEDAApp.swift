@@ -429,7 +429,7 @@ struct SiEDACommands: Commands {
             }
             .keyboardShortcut(shortcuts.shortcut("dcOp"))
             Divider()
-            Button("Auto-Place Footprints") { store.autoPlace(all: true) }
+            Button("Auto-Place Footprints") { Task { await store.autoPlaceInBackground(all: true) } }
                 .keyboardShortcut(shortcuts.shortcut("autoPlace"))
             Button("Fit Board to Components") { store.fitBoard() }
             Button("Auto Route Board") { Task { await store.autoRouteBoard() } }
