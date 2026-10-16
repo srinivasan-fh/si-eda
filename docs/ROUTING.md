@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Auto Place, Auto Route and DRC: performance and limits
 
 This guide covers how the placer, the autorouter and the design-rule check scale to large boards: the classic

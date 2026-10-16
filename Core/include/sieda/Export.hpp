@@ -1,6 +1,7 @@
 // SiEDA Core — manufacturing & interchange exports.
 #pragma once
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,6 +40,11 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
 /// baseline point `origin`; `mirror` for bottom-side text (reads correctly from below).
 std::vector<std::vector<Vec2>> silkscreenText(const std::string& text, Vec2 origin, double height, bool mirror);
 double silkscreenTextWidth(const std::string& text, double height);
+/// Each placed part's silkscreen designator box (`height` mm text; y1 = its baseline): above the part, else below,
+/// right or left of it, the first spot clear of the designators placed before it, of other parts' outlines and of the
+/// board edge (above / below at the edge as before when none is). The silkscreen Gerber, IPC-2581 / ODB++, the DFA
+/// check and the renders all place designators so.
+std::map<int, Rect> designatorBoxes(const Schematic& sch, const PcbLayout& pcb, double height = 1.0);
 std::string exportStl(const Mesh& mesh, const std::string& name);
 std::string exportObj(const Mesh& mesh, const std::string& name);
 /// glTF 2.0 binary (.glb): positions, normals and vertex colours, in metres. Empty for an empty mesh.

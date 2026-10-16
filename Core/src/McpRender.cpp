@@ -682,7 +682,13 @@ Scene schematicScene(const Project& project, int sheet) {
                         s.line(x + Vec2{-4, 4}, x + Vec2{4, -4}, 1.5, "#1f4f9f");
                     }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
-                        const std::string& label = pins[i].name;
+                        // A generic header pin (Pin_3, 3) reads by its net's name (SCK, DTR) when the net has one.
+                        std::string label = pins[i].name;
+                        const std::string bare = label.rfind("Pin_", 0) == 0 ? label.substr(4) : label;
+                        if (!bare.empty() && bare.find_first_not_of("0123456789") == std::string::npos && pinNet >= 0) {
+                            const std::string& net = sch.nets()[static_cast<size_t>(pinNet)].name;
+                            if (!net.empty() && net.rfind("N$", 0) != 0) label = net;
+                        }
                         const bool left = m == dl, right = m == dr;
                         // A side name keeps to its half of the body (smaller text when it is long).
                         const double h = std::max(4.0, std::min(6.0, 6 * ((x1 - x0) / 2 - 6) / std::max(1.0, textWidth(label, 6))));
@@ -731,7 +737,7 @@ std::string layerColour(int layer, int layerCount) {
     return inner[(layer - 1) % 4];
 }
 
-Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
+Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool pours = true) {
     const Schematic& sch = project.schematic;
     const PcbLayout& pcb = project.pcb;
     const int n = std::max(1, pcb.settings.layerCount);
@@ -747,31 +753,33 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     // Bottom layer first, the top layer last.
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
-    const auto fills = copperFills(sch, pcb);
+    const auto fills = pours ? copperFills(sch, pcb) : std::vector<ZoneFill>{};
     for (int l : order) {  // every pour under every track (bottom first): a top pour does not hide the bottom layer's tracks
         // A dark, muted tint of the layer's colour: the tracks, the clearance gaps and the spokes round pads stand out on it.
-        const std::string tint = l == 0 ? "#4a2c2c" : (l == n - 1 ? "#2a3350" : "#463e28");
+        const std::string tint = l == 0 ? "#3a2626" : (l == n - 1 ? "#232b42" : "#383222");
         for (const auto& f : fills)
             if (f.layer == l)
                 for (const auto& r : f.rects) s.box(r, true, 0, tint);
     }
-    for (int l : order) {
-        const std::string col = layerColour(l, n);
-        for (const auto& t : pcb.tracks) {
-            if (t.layer != l) continue;
-            if (t.arc) {
-                const ArcGeom g = trackArc(t);
-                if (g.valid) {
-                    std::vector<Vec2> pts;
-                    const int steps = std::max(4, static_cast<int>(std::fabs(g.sweep) / (kPi / 24)));
-                    for (int i = 0; i <= steps; ++i) pts.push_back(g.point(static_cast<double>(i) / steps));
-                    s.polyline(pts, t.width, col);
-                    continue;
+    for (int l : order)  // each layer's tracks over a dark casing: they stand out on the pours of both layers
+        for (const bool casing : {true, false}) {
+            const std::string col = casing ? "#101010" : layerColour(l, n);
+            for (const auto& t : pcb.tracks) {
+                if (t.layer != l) continue;
+                const double w = t.width + (casing && pours ? 0.3 : 0);
+                if (t.arc) {
+                    const ArcGeom g = trackArc(t);
+                    if (g.valid) {
+                        std::vector<Vec2> pts;
+                        const int steps = std::max(4, static_cast<int>(std::fabs(g.sweep) / (kPi / 24)));
+                        for (int i = 0; i <= steps; ++i) pts.push_back(g.point(static_cast<double>(i) / steps));
+                        s.polyline(pts, w, col);
+                        continue;
+                    }
                 }
+                s.line(t.a, t.b, w, col);
             }
-            s.line(t.a, t.b, t.width, col);
         }
-    }
     // A pad joined to a pour of its net: light spokes out into the pour show the connection.
     for (const auto& p : pcb.pads(sch))
         for (const auto& f : fills)
@@ -807,15 +815,28 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
         s.disc(h.position, h.drill / 2, "#000000");
     }
     for (const auto& [a, c] : pcb.ratsnest(sch)) s.line(a, c, 0.08, "#ffff66");
+    const auto designators = designatorBoxes(sch, pcb);  // where the silkscreen puts them, clear of each other
+    std::map<int, std::pair<int, Vec2>> padOne;  // part → its pad count and pad 1
+    for (const auto& p : pcb.pads(sch)) {
+        auto& [n, at] = padOne[p.componentId];
+        ++n;
+        if (p.padNumber == 1) at = p.position;
+    }
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !c.pcb.placed || c.packageOnly) continue;
         const Rect cy = pcb.courtyard(c);
         s.box(cy, false, 0.08, "#e0e0e0");
-        s.text({cy.center().x, cy.y0 - 0.3}, c.ref, 1.0, "#f0f0f0", true);
-        b.x0 = std::min(b.x0, cy.x0);
-        b.y0 = std::min(b.y0, cy.y0 - 1.5);
-        b.x1 = std::max(b.x1, cy.x1);
-        b.y1 = std::max(b.y1, cy.y1);
+        if (const auto one = padOne.find(c.id); one != padOne.end() && one->second.first >= 3) {  // pin 1: a dot on its corner
+            const Vec2 q = one->second.second;
+            s.disc({q.x - cy.x0 < cy.x1 - q.x ? cy.x0 : cy.x1, q.y - cy.y0 < cy.y1 - q.y ? cy.y0 : cy.y1}, 0.35, "#f0f0f0");
+        }
+        const auto d = designators.find(c.id);
+        const Rect t = d != designators.end() ? d->second : Rect{cy.x0, cy.y0 - 1.3, cy.x1, cy.y0 - 0.3};
+        s.text({t.center().x, t.y1}, c.ref, t.y1 - t.y0, "#f0f0f0", true);
+        b.x0 = std::min({b.x0, cy.x0, t.x0});
+        b.y0 = std::min({b.y0, cy.y0, t.y0 - 0.5});
+        b.x1 = std::max({b.x1, cy.x1, t.x1});
+        b.y1 = std::max({b.y1, cy.y1, t.y1});
     }
     for (const auto& p : outline) {
         b.x0 = std::min(b.x0, p.x);
@@ -823,11 +844,15 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
         b.x1 = std::max(b.x1, p.x);
         b.y1 = std::max(b.y1, p.y);
     }
-    for (const auto& k : pcb.settings.keepouts) {  // keep-outs: an orange box with a cross and its name
-        s.box(k.area, false, 0.12, "#ff9933");
-        s.line({k.area.x0, k.area.y0}, {k.area.x1, k.area.y1}, 0.06, "#ff9933");
-        s.line({k.area.x0, k.area.y1}, {k.area.x1, k.area.y0}, 0.06, "#ff9933");
-        if (!k.name.empty()) s.text({k.area.center().x, k.area.y1 - 0.4}, k.name, 0.8, "#ff9933", true);
+    Rect ob = outline.empty() ? Rect{} : Rect{outline[0].x, outline[0].y, outline[0].x, outline[0].y};
+    for (const auto& p : outline) ob.x0 = std::min(ob.x0, p.x), ob.y0 = std::min(ob.y0, p.y), ob.x1 = std::max(ob.x1, p.x), ob.y1 = std::max(ob.y1, p.y);
+    for (const auto& k : pcb.settings.keepouts) {  // keep-outs: an orange box with a cross and its name (on the board)
+        const Rect r{std::max(k.area.x0, ob.x0), std::max(k.area.y0, ob.y0), std::min(k.area.x1, ob.x1), std::min(k.area.y1, ob.y1)};
+        if (r.x0 >= r.x1 || r.y0 >= r.y1) continue;
+        s.box(r, false, 0.12, "#ff9933");
+        s.line({r.x0, r.y0}, {r.x1, r.y1}, 0.06, "#ff9933");
+        s.line({r.x0, r.y1}, {r.x1, r.y0}, 0.06, "#ff9933");
+        if (!k.name.empty()) s.text({r.center().x, r.y1 - 0.4}, k.name, 0.8, "#ff9933", true);
     }
     s.polygon(outline, false, 0.15, "#e8e8e8");
     s.bounds = b.inflated(2);
@@ -842,11 +867,11 @@ std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width
 std::string renderSchematicPng(const SiedaProject& project, int sheet, int width) {
     return toPng(schematicScene(project.project, sheet), width);
 }
-std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width) {
-    return toSvg(pcbScene(project.project, layers), width);
+std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours) {
+    return toSvg(pcbScene(project.project, layers, pours), width);
 }
-std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width) {
-    return toPng(pcbScene(project.project, layers), width);
+std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours) {
+    return toPng(pcbScene(project.project, layers, pours), width);
 }
 
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width) {

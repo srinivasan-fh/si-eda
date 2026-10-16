@@ -304,10 +304,22 @@ Json projectSummary(McpServer& s) {
     return j;
 }
 
+/// A straight wire p0–p1 running inside a part's body or a net label (exactly, however thin the body).
+bool wireCrossesBody(const Schematic& sch, Vec2 p0, Vec2 p1) {
+    for (const auto& c : sch.components()) {
+        if (c.packageOnly || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
+        const auto o = sch.symbolOutline(c);
+        if (std::max(p0.x, p1.x) > o[0] + 1 && std::min(p0.x, p1.x) < o[2] - 1 && std::max(p0.y, p1.y) > o[1] + 1 && std::min(p0.y, p1.y) < o[3] - 1)
+            return true;
+    }
+    return false;
+}
+
 /// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
 /// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
 void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {},
-                 const std::map<std::pair<int, int>, std::string>& pinNet = {}) {
+                 const std::map<std::pair<int, int>, std::string>& pinNet = {}, std::map<int, PinAddress>* rehub = nullptr,
+                 std::map<int, std::pair<int, PinAddress>>* taps = nullptr) {
     const Schematic& sch = p->project.schematic;
     std::vector<std::pair<PinAddress, PinAddress>> links;
     for (const auto& chain : wires.items())
@@ -327,6 +339,26 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
         return up[0] == '+' || (std::isdigit(static_cast<unsigned char>(up[0])) && up.find('V') != std::string::npos) ||
                up.rfind("VCC", 0) == 0 || up.rfind("VDD", 0) == 0;
+    };
+    // A pulled-up side pin whose second two-pin part (an EN cap) taps the pull-up's wire from above: the pin below has a
+    // pull-up of its own (its wire would run under a part beyond), and nothing is linked or labelled up to 100 above.
+    auto tapPin = [&](int hub, int pin, double side) {
+        const double y = sch.pinPosition({hub, pin}).y;
+        bool pulled = false, extra = false, below = false, above = false;
+        for (const auto& [c0, e0] : links)
+            for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}}) {
+                if (c.component != hub || !mine.count(e.component) || pinOutward(p->project, c).x * side < 0.5) continue;
+                const bool two = sch.find(e.component)->def().pins.size() == 2, pull = two && supplyName(e.component, 1 - e.pin);
+                const double dy = sch.pinPosition({hub, c.pin}).y - y;
+                if (c.pin == pin && pull && !pulled) pulled = true;
+                else if (c.pin == pin) extra = extra || two;
+                else if (pull && dy > 0.5 && dy < 70) below = true;
+            }
+        for (int j = 0; j < static_cast<int>(sch.find(hub)->def().pins.size()); ++j) {
+            const double dy = sch.pinPosition({hub, j}).y - y;
+            above = above || (j != pin && pinNet.count({hub, j}) && pinOutward(p->project, {hub, j}).x * side > 0.5 && dy < -0.5 && dy > -100);
+        }
+        return pulled && extra && below && !above;
     };
     // Then pull-ups (two-pin parts to a supply) on an IC's pins, standing up beside them before other parts take the room.
     std::stable_partition(links.begin(), links.end(), [&](const auto& l) {
@@ -351,7 +383,8 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
             const auto net = pinNet.find({id, i});
             const int drawn = mine.count(id) ? -1 : sch.netOf({id, i});  // a part drawn before: its net's name as the schematic has it
             const size_t chars = net != pinNet.end() ? net->second.size() : drawn >= 0 ? sch.nets()[static_cast<size_t>(drawn)].name.size() : 0;
-            const double side = grounded.count({id, i}) ? 140.0 : std::max(60.0, 10.0 * static_cast<double>(chars) + 30);
+            const double side = grounded.count({id, i}) ? (c.def().pins.size() == 2 ? 50.0 : 140.0)  // (a two-pin part's ground: no label between)
+                                                        : std::max(60.0, 10.0 * static_cast<double>(chars) + 30);
             if (q.x <= body[0] + 0.5) o[0] = std::min(o[0], body[0] - side);
             if (q.x >= body[2] - 0.5) o[2] = std::max(o[2], body[2] + side);
             if (q.y <= body[1] + 0.5) o[1] = std::min(o[1], body[1] - 60);
@@ -439,6 +472,8 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A pull-up on a side pin stands up beside it on its own wire, the first on each pin: pull-ups on
                     // pins higher up nearer the IC, so no wire runs under another's body.
                     int rank = -1;
+                    double pullRun = 120;
+                    bool lastPull = false;  // the lowest pull-up on its side: free to step further out, clear of the group
                     if (std::fabs(d.x) > 0.5 && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4 &&
                         supplyName(b.component, 1 - b.pin)) {
                         std::map<int, int> pulled;  // the hub's pins on this side with a pull-up: pin → its first pull-up
@@ -452,6 +487,24 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                             standing.insert(b.component);
                             for (const auto& [pin, part] : pulled)
                                 rank += sch.pinPosition({a.component, pin}).y < sch.pinPosition({a.component, a.pin}).y - 0.5;
+                            // Its distance out: past the pull-ups above (80 apart) and past a part in line on a pin up to
+                            // 110 above it (an AREF cap), so its body never stands across that part's wire.
+                            std::vector<std::pair<double, int>> order;
+                            for (const auto& [pin, part] : pulled) order.push_back({sch.pinPosition({a.component, pin}).y, pin});
+                            std::sort(order.begin(), order.end());
+                            double prev = 40;
+                            for (const auto& [y, pin] : order) {
+                                double r = prev + 80;
+                                for (const auto& [c0, e0] : links)
+                                    for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}})
+                                        if (c.component == a.component && !pulled.count(c.pin) && mine.count(e.component) &&
+                                            sch.find(e.component)->def().pins.size() == 2 && pinOutward(p->project, c).x * d.x > 0.5 &&
+                                            sch.pinPosition({c.component, c.pin}).y < y - 0.5 && sch.pinPosition({c.component, c.pin}).y > y - 110)
+                                            r = std::max(r, 290.0);
+                                if (taps && tapPin(a.component, pin, d.x)) r = std::max(r, 180.0);  // (room for the tap above)
+                                if (pin == a.pin) pullRun = r, lastPull = pin == order.back().second;
+                                prev = r;
+                            }
                         }
                     }
                     if (sch.find(b.component)->def().pins.size() == 2)
@@ -465,7 +518,15 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A crystal stands further out from its IC, so its load capacitors hang clear of the IC's labels.
                     const std::string& ref = sch.find(b.component)->ref;
                     const bool crystal = ref.size() > 1 && ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(ref[1]));
-                    const double run = rank >= 0 ? 120 + 80.0 * rank : upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
+                    double run = rank >= 0 ? pullRun : upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
+                    if (rank < 0 && run == 120 && std::fabs(d.x) > 0.5)  // past the labels on the hub's neighbouring pins (a USB-C's USB_DP)
+                        for (int j = 0; j < static_cast<int>(sch.find(a.component)->def().pins.size()); ++j) {
+                            const auto net = pinNet.find({a.component, j});
+                            if (j == a.pin || net == pinNet.end() || pinOutward(p->project, {a.component, j}).x * d.x < 0.5 ||
+                                std::fabs(sch.pinPosition({a.component, j}).y - sch.pinPosition({a.component, a.pin}).y) > 45)
+                                continue;
+                            run = std::max(run, 12.0 * static_cast<double>(net->second.size()) + 70);
+                        }
                     moveBy(b.component, upright ? Vec2{from.x + 80 - to.x, from.y - 140 - to.y}
                                                 : Vec2{from.x + d.x * run - to.x, from.y + d.y * run - to.y},
                            loadCap || rank >= 0 ? 5 : 10);  // in line with the crystal's pin (5 off the 10 grid)
@@ -476,10 +537,24 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         const auto o = sch.symbolOutline(*sch.find(part.component)), ro = room(part.component);
                         bool hit = false;
                         for (int other : group) {  // the part it is wired to: bodies apart; any other: label room too
-                            const auto q = other == hub.component ? sch.symbolOutline(*sch.find(other)) : room(other);
                             const auto& m = other == hub.component ? o : ro;
                             const double g = 20;
-                            hit |= m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g;
+                            auto near = [&](const std::array<double, 4>& q) { return m[0] < q[2] + g && q[0] < m[2] + g && m[1] < q[3] + g && q[1] < m[3] + g; };
+                            if (other == hub.component || sch.find(other)->def().pins.size() <= 4) {  // (a small part: its whole room)
+                                hit |= near(other == hub.component ? sch.symbolOutline(*sch.find(other)) : room(other));
+                                continue;
+                            }
+                            // A larger part: its body and the label strip at each pin with a net, not the box round them all.
+                            auto body = sch.symbolOutline(*sch.find(other));
+                            hit |= near({body[0], body[1] - 14, body[2], body[3] + 14});
+                            for (int j = 0; j < static_cast<int>(sch.find(other)->def().pins.size()) && !hit; ++j) {
+                                const auto net = pinNet.find({other, j});
+                                if (net == pinNet.end() && !grounded.count({other, j})) continue;
+                                const Vec2 q = sch.pinPosition({other, j}), e = pinOutward(p->project, {other, j});
+                                const double len = grounded.count({other, j}) ? 140.0 : std::max(60.0, 10.0 * static_cast<double>(net->second.size()) + 30);
+                                const Vec2 r = q + e * len;
+                                hit |= near({std::min(q.x, r.x) - 12, std::min(q.y, r.y) - 12, std::max(q.x, r.x) + 12, std::max(q.y, r.y) + 12});
+                            }
                         }
                         // Nor over the labels on the hub's other pins.
                         const Component& h = *sch.find(hub.component);
@@ -494,7 +569,68 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         }
                         return hit;
                     };
+                    // A second part on a pulled-up pin (an auto-reset cap, a BOOT button) in line beyond its pull-up, wired from
+                    // the pull-up's lower pin, unless a pull-up on a pin just below would run its wire under it.
+                    if (const Vec2 home = sch.find(b.component)->position;
+                        rank < 0 && rehub && std::fabs(d.x) > 0.5 && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4) {
+                        PinAddress up{-1, 0};
+                        bool below = false;
+                        for (const auto& [c0, e0] : links)
+                            for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}}) {
+                                if (c.component != a.component || !standing.count(e.component) || !done.count(e.component)) continue;
+                                if (c.pin == a.pin) up = e;
+                                const double dy = sch.pinPosition({c.component, c.pin}).y - from.y;
+                                below = below || (pinOutward(p->project, c).x * d.x > 0.5 && dy > 0.5 && dy < 70);
+                            }
+                        if (up.component >= 0 && below && taps && tapPin(a.component, a.pin, d.x)) {  // above the wire, by a junction on it
+                            moveBy(b.component, from + d * 30 + Vec2{0, -60} - sch.pinPosition({b.component, b.pin}));
+                            const Vec2 q = sch.pinPosition({b.component, 1 - b.pin});
+                            auto ob = sch.symbolOutline(*sch.find(b.component));
+                            const std::array<double, 4> m{std::min(ob[0], q.x - 30), ob[1] - 14, std::max(ob[2], q.x + 30), std::max(ob[3], q.y + 40)};
+                            bool clear = true;
+                            for (int other : group) {
+                                const auto o = sch.symbolOutline(*sch.find(other));
+                                clear = clear && !(m[0] < o[2] + 10 && o[0] < m[2] + 10 && m[1] < o[3] + 10 && o[1] < m[3] + 10);
+                            }
+                            if (clear) {
+                                (*taps)[b.component] = {b.pin, PinAddress{a.component, a.pin}};
+                                done.insert(b.component);
+                                group.push_back(b.component);
+                                continue;
+                            }
+                            moveBy(b.component, home - sch.find(b.component)->position);
+                        }
+                        if (up.component >= 0 && !below) {
+                            const Vec2 rp = sch.pinPosition({up.component, up.pin});
+                            moveBy(b.component, rp + d * 80 - sch.pinPosition({b.component, b.pin}));
+                            const Vec2 q = sch.pinPosition({b.component, 1 - b.pin}), e = pinOutward(p->project, {b.component, 1 - b.pin});
+                            const auto net = pinNet.find({b.component, 1 - b.pin});
+                            const double len = grounded.count({b.component, 1 - b.pin}) ? 60.0 : net == pinNet.end() ? 30.0 : 10.0 * static_cast<double>(net->second.size()) + 40;
+                            auto ob = sch.symbolOutline(*sch.find(b.component));
+                            const Vec2 r = q + e * len;
+                            const std::array<double, 4> m{std::min({ob[0], r.x}), std::min({ob[1] - 14, r.y}), std::max({ob[2], r.x}), std::max({ob[3] + 14, r.y})};
+                            bool clear = !wireCrossesBody(sch, rp, sch.pinPosition({b.component, b.pin}));
+                            for (int other : group) {
+                                if (other == up.component) continue;
+                                const auto o = sch.symbolOutline(*sch.find(other));
+                                clear = clear && !(m[0] < o[2] + 10 && o[0] < m[2] + 10 && m[1] < o[3] + 10 && o[1] < m[3] + 10);
+                            }
+                            if (clear) {
+                                (*rehub)[b.component] = up;
+                                done.insert(b.component);
+                                group.push_back(b.component);
+                                continue;
+                            }
+                            moveBy(b.component, home - sch.find(b.component)->position);
+                        }
+                    }
+                    for (int i = 0; lastPull && i < 30 && hitAt(false); ++i) moveBy(b.component, d * 10, 5);
+                    bool placed = true, chain = false;  // chain: linked on beyond this part
+                    for (const auto& [c, e] : links)
+                        chain = chain || (sch.find(a.component)->def().pins.size() > 4 && ((c.component == b.component && e.component != a.component) ||
+                                                                                          (e.component == b.component && c.component != a.component)));
                     if (hitAt(upright)) {
+                        placed = false;
                         const Vec2 home = sch.find(b.component)->position;
                         const auto o = sch.symbolOutline(*sch.find(b.component));
                         // A step clears the designator above and the value below as well.
@@ -505,16 +641,31 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         for (int id : standing)  // (on this side of the hub)
                             beside = beside || (std::fabs(d.x) > 0.5 && std::find(group.begin(), group.end(), id) != group.end() &&
                                                 (sch.find(id)->position.x - from.x) * d.x > 0);
-                        for (double out : loadCap ? std::vector<double>{0} : std::vector<double>{0, 80, 200, 340})
+                        // A connector (more than four pins) goes further out in line before aside: its wire stays straight.
+                        const bool big = sch.find(b.component)->def().pins.size() > 4;
+                        for (double out : loadCap ? std::vector<double>{0} : big ? std::vector<double>{0, 80, 200, 340, 420} : std::vector<double>{0, 80, 200, 340})
                             for (int k = -10; k <= 10; ++k)
-                                if (k || out > 0)  // along a chain of two-pin parts: further out in line before aside
-                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside ? 0.2 : 1.5), d * out + side * (k * w)});
+                                if ((k || out > 0) && (!k || out < 500))  // along a chain of two-pin parts: further out in line before aside
+                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside || (big && !k) ? 0.2 : 1.5), d * out + side * (k * w)});
                         std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
                         for (const auto& [cost, off] : spots) {
                             moveBy(b.component, home + off - sch.find(b.component)->position, loadCap ? 5 : 10);
-                            if (!hitAt(true)) break;
+                            const Vec2 q0 = sch.pinPosition({a.component, a.pin}), q1 = sch.pinPosition({b.component, b.pin});
+                            const bool inLine = std::fabs(q0.x - q1.x) < 0.5 || std::fabs(q0.y - q1.y) < 0.5;  // (wired: clear of bodies
+                            bool across = inLine && wireCrossesBody(sch, q0, q1);                                // and of the group's
+                            for (int other : group)                                                              // grounds and labels)
+                                if (const auto r = room(other); inLine && other != a.component && other != b.component)
+                                    across = across || (std::max(q0.x, q1.x) > r[0] + 1 && std::min(q0.x, q1.x) < r[2] - 1 &&
+                                                        std::max(q0.y, q1.y) > r[1] + 1 && std::min(q0.y, q1.y) < r[3] - 1);
+                            if (inLine ? !hitAt(false) && !across : !hitAt(true)) {  // (in line: a wire, no label to make room for)
+                                placed = inLine || !chain;
+                                break;
+                            }
                         }
                     }
+                    // A two-pin part with no clear spot (or a chain's first part, an LED's resistor, with none in line by an
+                    // IC) starts a group of its own, its chain wired, joined to the rest by labels.
+                    if (!placed && !loadCap && sch.find(b.component)->def().pins.size() == 2) continue;
                     done.insert(b.component);
                     group.push_back(b.component);
                     if (crystal) expand(b.component);
@@ -1407,9 +1558,11 @@ Json placeDecoupling(SiedaProject* p, std::set<int>* bound = nullptr) {
     auto gap = [&](int cap, int comp, int pinIndex) {
         const auto pads = p->project.pcb.pads(sch);
         const auto pin = std::find_if(pads.begin(), pads.end(), [&](const Pad& q) { return q.componentId == comp && q.pinIndex == pinIndex; });
-        double best = 1e9;
+        double best = 1e9;  // to the nearest pad of that net on the part (a regulator's tab is its output too)
         for (const auto& q : pads)
-            if (pin != pads.end() && q.componentId == cap && q.net == pin->net) best = std::min(best, (q.position - pin->position).length());
+            for (const auto& r : pads)
+                if (pin != pads.end() && q.componentId == cap && q.net == pin->net && r.componentId == comp && r.net == pin->net)
+                    best = std::min(best, (q.position - r.position).length());
         char text[32] = "";
         if (best < 1e8) std::snprintf(text, sizeof text, " (%.1f mm)", best);
         return std::string(text);
@@ -2920,7 +3073,17 @@ void schematicTools(Table& t) {
                       layoutWires.push(chain);
                   }
               }
-              layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet);
+              std::map<int, PinAddress> rehub;  // parts laid out beyond a pull-up: wired from its lower pin instead
+              std::map<int, std::pair<int, PinAddress>> taps;  // parts above a pull-up's wire: joined by a junction on it
+              layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet, &rehub, &taps);
+              links.erase(std::remove_if(links.begin(), links.end(), [&](const Link& l) { return taps.count(l.b.component) > 0; }), links.end());
+              for (Link& l : links)
+                  if (const auto it = rehub.find(l.b.component); it != rehub.end() && l.a.component != it->second.component) {
+                      const Component* r = proj(s).schematic.find(it->second.component);
+                      const PinDef& d = r->def().pins[static_cast<size_t>(it->second.pin)];
+                      l.a = it->second;
+                      l.from = Json(r->ref + "." + (d.number.empty() ? d.name : d.number));
+                  }
               auto straight = [&](const Link& l) {  // facing pins in line, nothing in between
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l.a.component, l.a.pin}), p1 = sch.pinPosition({l.b.component, l.b.pin});
@@ -2930,7 +3093,8 @@ void schematicTools(Table& t) {
                   const bool fromCrystal = hub.size() > 1 && hub[0] == 'Y' && std::isdigit(static_cast<unsigned char>(hub[1]));
                   const double out0 = run.x * d0.x + run.y * d0.y;
                   if ((std::fabs(run.x) > 0.5 && std::fabs(run.y) > 0.5) || run.length() < 1 ||
-                      (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= (std::fabs(d0.x) > 0.5 && d1.y > 0.5 ? 0.5 : 0))  // (a pull-up standing on its wire)
+                      (fromCrystal ? out0 < -0.5 : out0 <= 0 && !(d0.y > 0.5 && std::fabs(run.y) < 0.5)) ||  // (from a pull-up's lower pin, side-on)
+                      run.x * d1.x + run.y * d1.y >= (std::fabs(d0.x) > 0.5 && d1.y > 0.5 ? 0.5 : 0))  // (a pull-up standing on its wire)
                       return false;
                   for (const auto& c : sch.components()) {  // nothing in the way: a body, a label drawn before or another pin
                       if (c.kind == ComponentKind::Junction || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
@@ -2938,13 +3102,8 @@ void schematicTools(Table& t) {
                           const Vec2 q = sch.pinPosition({c.id, i});
                           if ((q - p0).length() > 1 && (q - p1).length() > 1 && pointSegmentDistance(q, p0, p1) < 1) return false;
                       }
-                      const auto o = sch.symbolOutline(c);
-                      for (int k = 1; k < 20; ++k) {
-                          const Vec2 q = p0 + run * (k / 20.0);
-                          if (q.x > o[0] + 1 && q.x < o[2] - 1 && q.y > o[1] + 1 && q.y < o[3] - 1) return false;
-                      }
                   }
-                  return true;
+                  return !wireCrossesBody(sch, p0, p1);
               };
               std::map<std::string, std::vector<const Link*>> drawn;  // net → its links drawn as wires
               std::vector<std::pair<std::string, const Link*>> tags;  // net, the wire its tag names
@@ -2976,10 +3135,11 @@ void schematicTools(Table& t) {
               {
                   const Schematic& sch = proj(s).schematic;
                   auto prefix = [&](int id) { const std::string& r = sch.find(id)->ref; return r.substr(0, r.find_first_of("0123456789")); };
-                  auto clearBy = [&](const std::vector<int>& group, Vec2 d) {  // the group moved by d keeps off every other part
+                  auto clearBy = [&](const std::vector<int>& group, Vec2 d, const std::vector<int>& skip = {}) {  // the group moved by d keeps off every other part
                       for (int g : group)
                           for (const auto& c : sch.components()) {
-                              if (std::find(group.begin(), group.end(), c.id) != group.end() || isNetSymbolKind(c.kind) || c.kind == ComponentKind::Junction) continue;
+                              if (std::find(group.begin(), group.end(), c.id) != group.end() || std::find(skip.begin(), skip.end(), c.id) != skip.end() ||
+                                  isNetSymbolKind(c.kind) || c.kind == ComponentKind::Junction) continue;
                               const auto o = sch.symbolOutline(c), m = sch.symbolOutline(*sch.find(g));
                               if (!(m[2] + d.x + 80 < o[0] || m[0] + d.x - 80 > o[2] || m[3] + d.y + 40 < o[1] || m[1] + d.y - 40 > o[3])) return false;
                           }
@@ -2995,13 +3155,35 @@ void schematicTools(Table& t) {
                           wiredPins.count(l.net + "|" + l.to.dump()) || pinOutward(proj(s), l.a).y > -0.5 || pinOutward(proj(s), l.b).y > -0.5 ||
                           sch.pinPosition({l.b.component, l.b.pin}).y > sch.pinPosition({l.a.component, l.a.pin}).y - 1)
                           continue;
-                      rails[{l.net, {l.a.component, l.a.pin}}].push_back(&l);
+                      // One rail per IC and net (its VCC and AVCC caps in one row), dropped from the first pin.
+                      auto same = std::find_if(rails.begin(), rails.end(), [&](const auto& r) { return r.first.first == l.net && r.first.second.first == l.a.component; });
+                      (same != rails.end() ? same->second : rails[{l.net, {l.a.component, l.a.pin}}]).push_back(&l);
                   }
                   for (auto& [key, caps] : rails) {
                       auto at = [&](const Link* l) { return sch.pinPosition({l->b.component, l->b.pin}); };
                       const Vec2 hub = sch.pinPosition({key.second.first, key.second.second});
                       const double y = at(caps.front()).y;
-                      caps.erase(std::remove_if(caps.begin(), caps.end(), [&](const Link* l) { return std::fabs(at(l).y - y) > 0.5; }), caps.end());
+                      // A cap standing at another height joins the row when it can move there clear of everything.
+                      double end = -1e18, pitch = 1e18;  // the row's last cap (its pin x) and its spacing
+                      std::vector<int> inRow;
+                      for (const Link* l : caps)
+                          if (std::fabs(at(l).y - y) <= 0.5) {
+                              if (end > -1e17) pitch = std::min(pitch, std::fabs(at(l).x - end));
+                              end = std::max(end, at(l).x), inRow.push_back(l->b.component);
+                          }
+                      if (pitch > 1e17) pitch = 90;
+                      caps.erase(std::remove_if(caps.begin(), caps.end(), [&](const Link* l) {
+                                     const double dy = y - at(l).y;
+                                     if (std::fabs(dy) <= 0.5) return false;
+                                     for (const Vec2 d : {Vec2{std::round((end + pitch - at(l).x) / 10) * 10, dy}})  // at the row's end
+                                         if (clearBy({l->b.component}, d, inRow)) {
+                                             moveAll({l->b.component}, d);
+                                             end = std::max(end, at(l).x), inRow.push_back(l->b.component);
+                                             return false;
+                                         }
+                                     return true;
+                                 }),
+                                 caps.end());
                       std::sort(caps.begin(), caps.end(), [&](const Link* l, const Link* r) { return at(l).x < at(r).x; });
                       if (caps.size() < 2) continue;
                       std::vector<int> row;
@@ -3130,7 +3312,8 @@ void schematicTools(Table& t) {
                               run("schematic_connect", w, net);
                               joined = true;
                           }
-                      const bool wired = wiredPins.count(net + "|" + pin.dump()) > 0;  // joined by its wire
+                      const auto tap = taps.find(pa.component);  // (or a junction on the wire it stands over)
+                      const bool wired = wiredPins.count(net + "|" + pin.dump()) > 0 || (tap != taps.end() && tap->second.first == pa.pin);
                       seen.push_back({pin, pa, pos, d});
                       const int on = proj(s).schematic.netOf({pa.component, pa.pin});  // labelled by an earlier build
                       const bool already = on >= 0 && proj(s).schematic.nets()[static_cast<size_t>(on)].name == net &&
@@ -3178,7 +3361,7 @@ void schematicTools(Table& t) {
                       o[0] -= 5.0 * c.value.size(), o[2] += 5.0 * c.value.size();
                   return o;
               };
-              auto hitsOf = [&](int id) {  // symbols and labels a placed tag overlaps
+              auto hitsOf = [&](int id, const Link* own = nullptr) {  // symbols and labels a placed tag overlaps
                   const Schematic& sch = proj(s).schematic;
                   const auto o = textBox(*sch.find(id));
                   int hits = 0;
@@ -3187,6 +3370,16 @@ void schematicTools(Table& t) {
                       const auto q = textBox(c);
                       hits += o[0] < q[2] && q[0] < o[2] && o[1] < q[3] && q[1] < o[3];
                   }
+                  auto across = [&](Vec2 a0, Vec2 b0) {  // a straight wire through the tag's box
+                      return std::max(a0.x, b0.x) > o[0] + 1 && std::min(a0.x, b0.x) < o[2] - 1 && std::max(a0.y, b0.y) > o[1] + 1 &&
+                             std::min(a0.y, b0.y) < o[3] - 1 && (std::fabs(a0.x - b0.x) < 0.5 || std::fabs(a0.y - b0.y) < 0.5);
+                  };
+                  // Nor across another wire (a tag standing off its own into the next), drawn or still to come with its tag.
+                  for (const auto& w : sch.wires())
+                      if (w.a.component != id && w.b.component != id) hits += across(sch.pinPosition(w.a), sch.pinPosition(w.b));
+                  if (own)
+                      for (const auto& [n, l] : tags)
+                          if (l != own) hits += across(sch.pinPosition({l->a.component, l->a.pin}), sch.pinPosition({l->b.component, l->b.pin}));
                   return hits;
               };
               // The clearest spot for a net's tag on wire l: {pose index, overlaps}, poses filled in.
@@ -3209,7 +3402,7 @@ void schematicTools(Table& t) {
                       const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(),
                                                          poses[k].first.x, poses[k].first.y, poses[k].second, nullptr);
                       if (id < 0) continue;
-                      const int hits = hitsOf(id);
+                      const int hits = hitsOf(id, l);
                       sieda_remove_component(P(s), id);
                       if (hits < fewest) fewest = hits, best = static_cast<int>(k);
                   }
@@ -3242,10 +3435,11 @@ void schematicTools(Table& t) {
                           int least = 1 << 30;
                           for (int k = -6; k <= 6; ++k) {
                               const Vec2 at = along.first + dir * (10.0 * k);
-                              if ((at - p0).length() < 20 || (at - p1).length() < 20) continue;
+                              const double t = (at.x - p0.x) * dir.x + (at.y - p0.y) * dir.y;  // never back past the IC's pin
+                              if (t < 20 || (at - p1).length() < 20) continue;
                               const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, along.second, nullptr);
                               if (id < 0) continue;
-                              const int hits = hitsOf(id);
+                              const int hits = hitsOf(id, l);
                               sieda_remove_component(P(s), id);
                               if (hits < least) least = hits, poses.push_back({at, along.second}), pick = static_cast<int>(poses.size()) - 1;
                           }
@@ -3268,7 +3462,7 @@ void schematicTools(Table& t) {
               // Labels placed after a tag (another net's end labels) may sit on it: such a tag moves to its clearest
               // spot now that every label is down.
               for (auto& [tag, net, l] : placedTags) {
-                  if (tag < 0 || !hitsOf(tag) || isStanding(l)) continue;
+                  if (tag < 0 || !hitsOf(tag, l) || isStanding(l)) continue;
                   sieda_remove_component(P(s), tag);  // its two wires go with it
                   std::vector<std::pair<Vec2, int>> poses;
                   tag = placeTag(net, l, poses, clearest(net, l, poses).first);
@@ -3406,6 +3600,17 @@ void schematicTools(Table& t) {
                                              (pin.component >= 0 ? " at " + pinLabel(*P(s), pin) : std::string()) + " stands on another net's wire");
                       }
                   }
+              }
+              for (const auto& [part, tap] : taps) {  // a junction on the wire under a tapped part, wired up to its pin
+                  const Schematic& sch = proj(s).schematic;
+                  const Vec2 at{sch.pinPosition({part, tap.first}).x, sch.pinPosition({tap.second.component, tap.second.pin}).y};
+                  int over = -1;
+                  for (const auto& w : sch.wires()) {
+                      const Vec2 a0 = sch.pinPosition(w.a), b0 = sch.pinPosition(w.b);
+                      if (pointSegmentDistance(at, a0, b0) < 0.5 && (at - a0).length() > 1 && (at - b0).length() > 1) over = w.id;
+                  }
+                  const int junction = over < 0 ? -1 : sieda_split_wire(P(s), over, at.x, at.y);
+                  if (junction >= 0) sieda_connect(P(s), junction, 0, part, tap.first);  // (else its pin is labelled below)
               }
               // Every net asked for is one net in the end: a pin left off it (a wire nobody named) gets its label.
               Json netsJoined = Json::array();
@@ -3890,7 +4095,7 @@ void libraryTools(Table& t) {
                   }
                   return e;
               };
-              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked;  // some of the words / all of them
+              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked, byPackage;  // some of the words / all of them
               for (const auto& p : standardParts()) {
                   const std::string cat = lowerStr(p.category), mfr = lowerStr(p.spec.manufacturer);
                   const std::string pkg = compact(p.spec.package.type + std::to_string(p.spec.package.pinCount) + p.footprint);
@@ -3911,10 +4116,15 @@ void libraryTools(Table& t) {
                       continue;
                   }
                   ++total;
-                  size_t named = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
+                  size_t named = 0, said = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
                   for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
-                  ranked.push_back({named, &p});
+                  for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
+                  (said == words.size() ? ranked : byPackage).push_back({named, &p});
               }
+              // A word only a package names ("header": a module in a HEADER-4 package) lists those parts only when
+              // nothing says it in its name or description.
+              if (ranked.empty()) ranked.swap(byPackage);
+              total = static_cast<int>(ranked.size());
               std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
               // A part-number-like query ("usb-c", "esp32"): the parts with every word in their name alone (an MCU whose
               // description says USB-C is noise there); a feature word ("ble") still lists every part that has it.
@@ -3937,6 +4147,11 @@ void libraryTools(Table& t) {
                   j["builtin"] = "\"" + kindWord + "\" is a built-in kind, not a catalog part: schematic_build parts [{\"ref\": \"D1\", \"kind\": "
                                  "\"led\", \"value\": \"Green\", \"package\": \"0805\"}] (kinds: resistor, capacitor, inductor, led; "
                                  "library_builtin_kinds lists them with packages).";
+              static const std::regex genericDiode(R"(^1n(4\d{3}|5[48]\d{2})$)");  // 1N4007, 1N4148, 1N5819: plain two-pin diodes
+              for (const auto& w : words)
+                  if (!total && std::regex_match(w, genericDiode))
+                      j["builtin"] = std::string("A plain two-pin diode: schematic_build parts [{\"ref\": \"D1\", \"kind\": \"diode\", \"value\": \"1N") +
+                                     w.substr(2) + "\"}] (pins A / K; library_builtin_kinds lists its packages), or the catalog's SS14 Schottky.";
               if (!total && !partial.empty() && kindWord.empty()) {  // nothing has every word: the parts with the most of them
                   size_t best = 0;
                   for (const auto& [n, p] : partial) best = std::max(best, n);
@@ -4477,7 +4692,12 @@ void pcbTools(Table& t) {
                   place["all"] = true;
                   // Each smaller board keeps every capacitor / crystal Auto Place set by its pins at the start.
                   Json placed, bestPlaced;  // the capacitors / crystals by their pins, as Auto Place reports them
-                  auto paired = [&] { return (placed = autoplaceTool(s, place).data.get("decouplingPlaced")).size(); };
+                  auto paired = [&] {  // the capacitors / crystals Auto Place set by their pins
+                      placed = autoplaceTool(s, place).data.get("decouplingPlaced");
+                      size_t n = 0;
+                      for (const auto& m : placed.items()) n += m.asString("x")[0] == 'C' || m.asString("x")[0] == 'Y';
+                      return n;
+                  };
                   const size_t pairs = paired();
                   auto spread = [&] {  // the capacitors' distances to their pins, summed ("C2 → U1.VCC (2.7 mm)")
                       double mm = 0;
@@ -4486,12 +4706,12 @@ void pcbTools(Table& t) {
                       return mm;
                   };
                   const double reach = spread() * 1.15 + 1;
-                  auto pairings = [&] {  // "C1 → D1.K" → its distance (mm; 0 when not given)
-                      std::map<std::string, double> keys;
+                  auto pairings = [&] {  // "C1 → D1.K (2.7 mm)" → C1's distance (mm; 0 when not given): by its part, so two
+                      std::map<std::string, double> keys;  // caps that trade like pins (VCC / AVCC) still count as kept
                       for (const auto& m : placed.items()) {
                           const std::string line = m.asString("");
                           const size_t at = line.rfind(" (");
-                          keys[line.substr(0, at)] = at == std::string::npos ? 0 : std::atof(line.c_str() + at + 2);
+                          keys[line.substr(0, line.find(' '))] = at == std::string::npos ? 0 : std::atof(line.c_str() + at + 2);
                       }
                       return keys;
                   };
@@ -4512,8 +4732,8 @@ void pcbTools(Table& t) {
                           sieda_pcb_set_board(P(s), w, h, pr.pcb.settings.trackWidth, pr.pcb.settings.clearance);
                           bool fewer = paired() < pairs;
                           const auto now = pairings();  // and each one Auto Place made at the start, no more than 1 mm further
-                          for (const auto& [key, mm] : served)
-                              fewer = fewer || !now.count(key) || now.at(key) > mm + 1.0;
+                          for (const auto& [key, mm] : served)  // capacitors and crystals (a resistor / LED may move)
+                              fewer = fewer || ((key[0] == 'C' || key[0] == 'Y') && (!now.count(key) || now.at(key) > mm + 1.0));
                           const bool further = !fewer && spread() > reach,
                                      resized = pr.pcb.settings.width == w && pr.pcb.settings.height == h, worse = resized && problems() > allowed;
                           if (!fewer && !further && resized && !worse) {
@@ -4530,6 +4750,51 @@ void pcbTools(Table& t) {
                   const bool wide = pr.pcb.settings.width >= pr.pcb.settings.height;
                   for (int pass = 0; pass < 2; ++pass) shrink(wide), shrink(!wide);
                   pr = best;
+                  // Pull in: each part steps toward the main IC while it stays legal and spaced (an edge part only away
+                  // from its edge, and only while it stays the outermost part there); then the board fits them.
+                  if (const auto classes = partClasses(pr); true) {
+                      const Component* hub = nullptr;
+                      for (const auto& c : pr.schematic.components())
+                          if (c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c) && (!hub || c.def().pins.size() > hub->def().pins.size())) hub = &c;
+                      const Vec2 c0 = hub ? hub->pcb.position : Vec2{};
+                      const double W = pr.pcb.settings.width, H = pr.pcb.settings.height;
+                      std::vector<int> ids;
+                      for (const auto& c : pr.schematic.components())
+                          if (hub && c.id != hub->id && c.hasFootprint() && c.pcb.placed && !c.pcb.locked && pr.pcb.onBoard(c)) ids.push_back(c.id);
+                      auto outermost = [&](int id, const Rect& r, int edge) {  // no other part further out on that side
+                          for (const auto& o : pr.schematic.components()) {
+                              if (o.id == id || !o.hasFootprint() || !o.pcb.placed || !pr.pcb.onBoard(o)) continue;
+                              const Rect q = pr.pcb.courtyard(o);
+                              if ((edge == 1 && q.x0 < r.x0) || (edge == 2 && q.x1 > r.x1) || (edge == 4 && q.y0 < r.y0) || (edge == 8 && q.y1 > r.y1)) return false;
+                          }
+                          return true;
+                      };
+                      for (int round = 0; round < 8 && hub; ++round) {
+                          std::sort(ids.begin(), ids.end(), [&](int l, int r) {
+                              return (pr.schematic.find(l)->pcb.position - c0).length() > (pr.schematic.find(r)->pcb.position - c0).length();
+                          });
+                          for (int id : ids) {
+                              const Component& c = *pr.schematic.find(id);
+                              const Rect cy = pr.pcb.courtyard(c);
+                              const int edge = cy.x0 < 2.5 ? 1 : cy.x1 > W - 2.5 ? 2 : cy.y0 < 2.5 ? 4 : cy.y1 > H - 2.5 ? 8 : 0;  // (Auto Place's edge parts)
+                              Vec2 dir = c0 - c.pcb.position;
+                              if (edge) dir = edge < 4 ? Vec2{dir.x, 0} : Vec2{0, dir.y};
+                              for (double t : {0.5, 0.35, 0.2, 0.1, 0.05}) {
+                                  const Vec2 to = c.pcb.position + dir * t;
+                                  const PlacementCheck chk = pr.checkPlacement(id, to, c.pcb.rotation, c.pcb.bottom, 0.25);
+                                  if ((chk.position - c.pcb.position).length() < 0.2 || !chk.legal ||
+                                      !crowding(pr, classes, id, chk.courtyard, c.pcb.bottom).empty() || (edge && !outermost(id, chk.courtyard, edge)))
+                                      continue;
+                                  pr.placeComponent(id, to, c.pcb.rotation, c.pcb.bottom, 0.25);
+                                  break;
+                              }
+                          }
+                      }
+                      if (hub && sieda_pcb_fit_board(P(s), argNum(a, "margin", 2)) == 1 && problems() <= allowed &&
+                          pr.pcb.settings.width * pr.pcb.settings.height < best.pcb.settings.width * best.pcb.settings.height - 1)
+                          best = pr;
+                      pr = best;
+                  }
                   P(s)->router.reset();
                   Json board = projectSummary(s).get("board");
                   if (bestPlaced.size()) board["decouplingPlaced"] = bestPlaced;
@@ -4633,6 +4898,10 @@ void pcbTools(Table& t) {
                   r["report"] = kept;
               }
               if (r.isObject()) r["board"] = projectSummary(s).get("board"), noteBoardGrown(s, w0, h0, r);
+              if (r.isObject() && r.get("placementQueue").size() && !proj(s).pcb.tracks.empty())
+                  r["next"] = "The rest stays as placed and routed: the new parts sit at Auto Place spots; pcb_place_footprint moves "
+                              "one by the pads it joins (pcb_summary gives their x / y), then pcb_autoroute routes them; "
+                              "pcb_autoplace all: true would re-place every part.";
               return out(r);
           });
     t.add("pcb", "pcb_autoplace", "Auto place", Kind::Edit, false,
@@ -5071,6 +5340,9 @@ void pcbTools(Table& t) {
                                      ", \"diffPair\": true} pairs them, then route again");
               if (uncoupled.size()) j["pairsNotCoupled"] = uncoupled;
               if (coupled.size()) j["pairsCoupled"] = coupled;
+              if (stats.get("lengthTuned").asInt(0) > 0)  // the meanders' reason
+                  j["lengthTunedWhy"] = coupled.size() ? "serpentines even out a coupled pair's P / N lengths (skew), e.g. " + coupled.items().front().asString("")
+                                                       : std::string("serpentines bring nets to their length rules or match groups");
               if (pairedByName.size()) j["pairedByName"] = pairedByName;  // schematic_net_rules lists the directives
               if (!poured.empty()) j["groundPour"] = poured;
               return out(j);
@@ -6862,14 +7134,16 @@ void renderTools(Table& t) {
           Schema()
               .str("format", "png (default) or svg", false, {"png", "svg"})
               .array("layers", "Copper layers to show (default all; 0 = top)", "integer")
-              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+              .integer("width", "Image width in pixels (default 1000, at most 2048)")
+              .boolean("pours", "Draw the copper pours (default true; false shows the tracks and pads alone)"),
           [](McpServer& s, const Json& a) {
               std::vector<int> layers;
               if (a.get("layers").isArray())
                   for (const auto& l : a.get("layers").items()) layers.push_back(l.asInt(0));
               const std::string f = argStr(a, "format", "png");
               const int w = argInt(a, "width", 1000);
-              return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w) : renderPcbPng(*P(s), layers, w), "pcb");
+              const bool pours = argBool(a, "pours", true);
+              return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w, pours) : renderPcbPng(*P(s), layers, w, pours), "pcb");
           });
     t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
           "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "
@@ -6901,3 +7175,8 @@ std::vector<McpTool> buildTools() {
 }
 
 }  // namespace sieda::mcp
+
+
+
+
+

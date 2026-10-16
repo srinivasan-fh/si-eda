@@ -523,6 +523,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 for (const auto& [a, b] : g.lines) ops.push_back({aperture(circle(g.width)), coord(a) + "D02*\n" + coord(b) + "D01*"});
             }
         int ap = aperture(circle(0.15));
+        const auto designators = designatorBoxes(sch, pcb);
         for (const auto& c : sch.components()) {
             if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide || c.pcb.embedded()) continue;
             Rect r = pcb.courtyard(c).inflated(-0.15);
@@ -539,12 +540,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 Vec2 mark = len > 1e-9 ? p1 + dir * (0.9 / len) : p1;
                 ops.push_back({aperture(circle(0.3)), coord(mark) + "D03*"});
             }
-            // Reference designator above the part (below it when that would leave the board).
-            const double textH = 1.0;
-            double width = silkscreenTextWidth(c.ref, textH);
-            double baseline = r.y0 - 0.45;
-            if (baseline - textH < s.edgeClearance) baseline = r.y1 + 0.45 + textH;
-            Vec2 origin{(r.x0 + r.x1) / 2 + (bottomSide ? width / 2 : -width / 2), baseline};
+            // Reference designator by the part, clear of the others (designatorBoxes).
+            const Rect box = designators.count(c.id) ? designators.at(c.id) : Rect{r.x0, r.y0 - 1.45, r.x1, r.y0 - 0.45};
+            const double textH = box.y1 - box.y0;  // (0.8 mm where full size had no clear spot)
+            Vec2 origin{bottomSide ? box.x1 : box.x0, box.y1};
             for (const auto& stroke : silkscreenText(c.ref, origin, textH, bottomSide)) {
                 std::string path = coord(stroke[0]) + "D02*";
                 for (size_t i = 1; i < stroke.size(); ++i) path += "\n" + coord(stroke[i]) + "D01*";
@@ -717,6 +716,69 @@ double silkscreenTextWidth(const std::string& text, double height) {
     if (text.empty()) return 0;
     double u = height / 6;
     return (static_cast<double>(text.size()) * 6 - 2) * u;
+}
+
+std::map<int, Rect> designatorBoxes(const Schematic& sch, const PcbLayout& pcb, double height) {
+    const BoardSettings& s = pcb.settings;
+    std::map<int, Rect> out;
+    std::vector<std::pair<Rect, bool>> taken;  // designators placed so far, and their side
+    std::vector<std::tuple<int, Rect, bool>> parts;
+    for (const auto& c : sch.components())
+        if (c.hasFootprint() && c.pcb.placed && !c.pcb.embedded() && pcb.onBoard(c)) parts.push_back({c.id, pcb.courtyard(c), c.pcb.bottom});
+    std::vector<std::pair<Rect, int>> padRects;  // pads by side: 0 top, 1 bottom, 2 both (through-hole)
+    for (const auto& p : pcb.pads(sch)) padRects.push_back({p.bounds(), p.throughHole ? 2 : p.smdLayer == 0 ? 0 : 1});
+    auto onBoard = [&](const Rect& t) {
+        return t.x0 >= s.edgeClearance && t.y0 >= s.edgeClearance && t.x1 <= s.width - s.edgeClearance && t.y1 <= s.height - s.edgeClearance;
+    };
+    for (const auto& [id, cy, bottom] : parts) {
+        const Rect r = cy.inflated(-0.15);
+        auto inside = [&](Rect t) {  // slid in from an edge it overhangs
+            const double dx = std::max(0.0, s.edgeClearance - t.x0) - std::max(0.0, t.x1 - (s.width - s.edgeClearance));
+            const double dy = std::max(0.0, s.edgeClearance - t.y0) - std::max(0.0, t.y1 - (s.height - s.edgeClearance));
+            return Rect{t.x0 + dx, t.y0 + dy, t.x1 + dx, t.y1 + dy};
+        };
+        // Full-size text where some spot is clear, else 0.8 mm text (most fabs' smallest legible) at its clearest spot.
+        Rect pick;
+        int least = 1 << 30;
+        for (const double hgt : {height, 0.8 * height}) {
+            const double w = silkscreenTextWidth(sch.find(id)->ref, hgt), cx = (r.x0 + r.x1) / 2, cyy = (r.y0 + r.y1) / 2;
+            const double far = 0.45 + hgt + 0.2;  // a row further out
+            const std::array<Rect, 12> spots{Rect{cx - w / 2, r.y0 - 0.45 - hgt, cx + w / 2, r.y0 - 0.45},
+                                             Rect{cx - w / 2, r.y1 + 0.45, cx + w / 2, r.y1 + 0.45 + hgt},
+                                             Rect{r.x1 + 0.45, cyy - hgt / 2, r.x1 + 0.45 + w, cyy + hgt / 2},
+                                             Rect{r.x0 - 0.45 - w, cyy - hgt / 2, r.x0 - 0.45, cyy + hgt / 2},
+                                             Rect{r.x0, r.y0 - 0.45 - hgt, r.x0 + w, r.y0 - 0.45},  // corners
+                                             Rect{r.x1 - w, r.y0 - 0.45 - hgt, r.x1, r.y0 - 0.45},
+                                             Rect{r.x0, r.y1 + 0.45, r.x0 + w, r.y1 + 0.45 + hgt},
+                                             Rect{r.x1 - w, r.y1 + 0.45, r.x1, r.y1 + 0.45 + hgt},
+                                             Rect{cx - w / 2, r.y0 - far - hgt, cx + w / 2, r.y0 - far},
+                                             Rect{cx - w / 2, r.y1 + far, cx + w / 2, r.y1 + far + hgt},
+                                             Rect{r.x1 + far, cyy - hgt / 2, r.x1 + far + w, cyy + hgt / 2},
+                                             Rect{r.x0 - far - w, cyy - hgt / 2, r.x0 - far, cyy + hgt / 2}};
+            // The clearest spot: on the board, then off other designators, pads, then other parts' courtyards (the first
+            // of equals, so a clear spot above stays the usual one).
+            auto cost = [&, id = id, bottom = bottom](const Rect& t) {
+                int c = onBoard(t) ? 0 : 10000;
+                for (const auto& [o, side] : taken)
+                    c += 100 * (side == bottom && t.x0 < o.x1 + 0.1 && o.x0 < t.x1 + 0.1 && t.y0 < o.y1 + 0.1 && o.y0 < t.y1 + 0.1);
+                for (const auto& [oid, ocy, oside] : parts) {  // (its own courtyard too, when slid in from an edge)
+                    if (oside != bottom) continue;
+                    if (t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1) c += oid == id ? 50 : 5;
+                    // Up against another part it reads as that part's name: some room from it is better.
+                    else if (oid != id && t.x0 < ocy.x1 + 0.3 && ocy.x0 < t.x1 + 0.3 && t.y0 < ocy.y1 + 0.3 && ocy.y0 < t.y1 + 0.3) c += 2;
+                }
+                for (const auto& [pr, side] : padRects)  // silk on a pad is clipped away: worse than over a courtyard
+                    c += 20 * ((side == 2 || side == (bottom ? 1 : 0)) && t.x0 < pr.x1 && pr.x0 < t.x1 && t.y0 < pr.y1 && pr.y0 < t.y1);
+                return c;
+            };
+            for (const Rect& t0 : spots)
+                if (const Rect t = inside(t0); cost(t) < least) pick = t, least = cost(t);
+            if (!least) break;
+        }
+        taken.push_back({pick, bottom});
+        out[id] = pick;
+    }
+    return out;
 }
 
 std::vector<std::vector<Vec2>> silkscreenText(const std::string& text, Vec2 origin, double height, bool mirror) {

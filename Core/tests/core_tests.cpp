@@ -3150,12 +3150,35 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
     const Rect a = p.pcb.courtyard(*parts[0]), b = p.pcb.courtyard(*parts[1]);
     parts[1]->pcb.position = parts[1]->pcb.position + Vec2{a.x1 + 0.1 - b.x0, a.y0 - b.y0};
     CHECK(codes().count("DFA_PART_SPACING") && !codes().count("DFA_REFDES_OVERLAP"));
-    parts[1]->pcb.position = parts[0]->pcb.position + Vec2{0.3, 0};  // designators on top of each other
+    for (Component* c : parts) c->pcb.position = parts[0]->pcb.position, c->pcb.bottom = parts[0]->pcb.bottom;  // more designators than spots
     CHECK(codes().count("DFA_REFDES_OVERLAP"));
     // Saved only when set.
     Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.dfmPack == "oshpark-2");
     CHECK(applyDfmPack(p.pcb.settings, "") && !p.toJson().get("board").has("dfmPack"));
+}
+
+TEST(designators_stand_clear_of_each_other_and_of_parts) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    std::vector<Component*> parts;
+    for (auto& comp : p.schematic.mutableComponents())
+        if (comp.hasFootprint() && comp.pcb.placed && !comp.pcb.bottom) parts.push_back(&comp);
+    CHECK(parts.size() >= 3);
+    // Three parts in a column, 0.3 mm apart: the plain "above" spot of each would sit on the part above it.
+    for (size_t i = 1; i < 3; ++i) {
+        const Rect a = p.pcb.courtyard(*parts[i - 1]), b = p.pcb.courtyard(*parts[i]);
+        parts[i]->pcb.position = parts[i]->pcb.position + Vec2{a.x0 - b.x0, a.y1 + 0.3 - b.y0};
+    }
+    const auto boxes = designatorBoxes(p.schematic, p.pcb);
+    for (size_t i = 0; i < 3; ++i) {
+        const Rect t = boxes.at(parts[i]->id);
+        for (size_t j = 0; j < 3; ++j) {
+            const Rect o = boxes.at(parts[j]->id), cy = p.pcb.courtyard(*parts[j]);
+            if (j != i) CHECK(!(t.x0 < o.x1 && o.x0 < t.x1 && t.y0 < o.y1 && o.y0 < t.y1));
+            if (j != i) CHECK(!(t.x0 < cy.x1 && cy.x0 < t.x1 && t.y0 < cy.y1 && cy.y0 < t.y1));
+        }
+    }
 }
 
 TEST(fabrication_package_is_complete) {
@@ -18139,14 +18162,18 @@ TEST(autoroute_coupled_pair_changes_layer_with_coupled_vias) {
     const auto errors = routeDrcErrors(p);
     for (const auto& e : errors) std::printf("    %s\n", e.c_str());
     CHECK(errors.empty());
-    // A pair that cannot be coupled (here: a member with a third pad) routes as two nets.
+    // A member with a third pad (a tap, as an ESD array on USB): the pair still couples between its two ends and the
+    // tap joins its copper.
     const int tap = placeR(p, {60, 34});
     wire(p.schematic, b.u1, "TXN", tap, "1");
     p.schematicChanged();
     p.pcb.clearRouting();
     RouteStats wide = p.pcb.autoRoute(p.schematic);
     CHECK(wide.failed == 0 && wide.report.pairs.size() == 1);
-    if (!wide.report.pairs.empty()) CHECK(!wide.report.pairs.front().coupled && !wide.report.pairs.front().reason.empty());
+    if (!wide.report.pairs.empty()) CHECK(wide.report.pairs.front().coupled);
+    CHECK(p.pcb.ratsnest(p.schematic).empty());
+    for (const auto& e : routeDrcErrors(p)) std::printf("    %s\n", e.c_str());
+    CHECK(routeDrcErrors(p).empty());
 }
 
 namespace {
@@ -20957,6 +20984,22 @@ TEST(mcp_wire_to_ground_stub_trim_and_track_ids) {
     CHECK(again.has("undo"));  // a re-route points at project_undo
     const Json after = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     for (const auto& v : after.get("violations").items()) CHECK(v.get("code").asString("") != "DRC_DANGLING_TRACK");
+}
+
+TEST(mcp_usb_pair_stays_coupled_through_an_esd_part) {
+    // The ESD part's pads tap the coupled pair (connector to MCU) instead of breaking it into uncoupled stubs.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"pins": false, "parts": [{"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"},
+        {"ref": "U1", "part": "ESP32-C3-MINI-1"}, {"ref": "U3", "part": "USBLC6-2SC6"}, {"ref": "C1", "kind": "capacitor", "value": "100n"}],
+        "nets": {"GND": ["J1.GND(A1)", "J1.GND(A12)", "U1.GND(1)", "U3.GND", "C1.2"], "VBUS": ["J1.VBUS(A4)", "J1.VBUS(A9)", "U3.VBUS", "U1.3V3", "C1.1"],
+        "USB_DP": ["J1.D+(A6)", "J1.D+(B6)", "U1.GPIO19/USB_D+", "U3.IO1(1)", "U3.IO1(6)"],
+        "USB_DM": ["J1.D-(A7)", "J1.D-(B7)", "U1.GPIO18/USB_D-", "U3.IO2(3)", "U3.IO2(4)"]}})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))));
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
+    CHECK(routed.get("pairsCoupled").dump().find("USB_DP") != std::string::npos);
+    const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
+    CHECK(routed.get("unroutedConnections").asInt(-1) == 0 && drc.get("clean").asBool(false));
 }
 
 TEST(mcp_build_stands_pull_ups_and_reviews_usb_esd) {

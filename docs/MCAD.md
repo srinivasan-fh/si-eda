@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Mechanical CAD exchange (STEP, IDF)
 
 SiEDA sends the board to mechanical CAD (MCAD) as STEP solids or IDF 3.0 files. It reads MCAD's placement changes

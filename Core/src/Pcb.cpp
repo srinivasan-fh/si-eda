@@ -3326,27 +3326,36 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     // from the two vias as from BGA balls'.
     if (settings.layerCount >= 2 && settings.autorouter.coupledPairs && !settings.autorouter.fanoutOnly)
         for (auto [pNet, nNet] : differentialPairs(sch)) {
-            if (!netPads.count(pNet) || !netPads.count(nNet) || netPads[pNet].size() != 3 || netPads[nNet].size() != 3) continue;
-            std::vector<size_t> row;  // the four pads on one part
-            int part = -1;
-            Vec2 far{0, 0};
-            for (int net : {pNet, nNet}) {
-                std::map<int, std::vector<size_t>> byPart;
+            if (!netPads.count(pNet) || !netPads.count(nNet) || netPads[pNet].size() < 3 || netPads[nNet].size() < 3) continue;
+            if (seeded.count(pNet) || seeded.count(nNet)) continue;  // its copper stays (a fan-out laid before)
+            // The part with two pads of each member in one alternating row (an ESD array beside it has two each too).
+            std::vector<size_t> row;  // its four pads
+            Vec2 far{0, 0};           // the mean of the members' other pads
+            bool horizontal = false, alternating = false;
+            Vec2 across;
+            std::map<int, std::vector<size_t>> byPart;
+            for (int net : {pNet, nNet})
                 for (size_t pi : netPads[net]) byPart[ps[pi].componentId].push_back(pi);
-                for (const auto& [id, list] : byPart)
-                    if (list.size() == 2 && (part < 0 || part == id)) part = id, row.insert(row.end(), list.begin(), list.end());
-                    else if (list.size() == 1) far = far + ps[list[0]].position * 0.5;
+            for (const auto& [id, list] : byPart) {
+                if (list.size() != 4 || std::count_if(list.begin(), list.end(), [&, p = pNet](size_t pi) { return ps[pi].net == p; }) != 2) continue;
+                row = list;
+                horizontal = std::fabs(ps[row[0]].position.y - ps[row[3]].position.y) < 0.01;
+                std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
+                    return horizontal ? ps[a].position.x < ps[b].position.x : ps[a].position.y < ps[b].position.y;
+                });
+                across = horizontal ? Vec2{0, 1} : Vec2{1, 0};
+                alternating = true;  // P N P N (or N P N P), evenly spaced in a line
+                for (size_t k = 1; k < 4; ++k)
+                    alternating = alternating && ps[row[k]].net != ps[row[k - 1]].net &&
+                                  std::fabs((ps[row[k]].position - ps[row[0]].position).dot(across)) < 0.01;
+                if (!alternating) continue;
+                int others = 0;
+                for (const auto& [o, ol] : byPart)
+                    if (o != id)
+                        for (size_t pi : ol) far = far + ps[pi].position, ++others;
+                far = far * (1.0 / std::max(1, others));
+                break;
             }
-            if (row.size() != 4) continue;
-            const bool horizontal = std::fabs(ps[row[0]].position.y - ps[row[3]].position.y) < 0.01;
-            std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
-                return horizontal ? ps[a].position.x < ps[b].position.x : ps[a].position.y < ps[b].position.y;
-            });
-            const Vec2 across = horizontal ? Vec2{0, 1} : Vec2{1, 0};
-            bool alternating = true;  // P N P N (or N P N P), evenly spaced in a line
-            for (size_t k = 1; k < 4; ++k)
-                alternating = alternating && ps[row[k]].net != ps[row[k - 1]].net &&
-                              std::fabs((ps[row[k]].position - ps[row[0]].position).dot(across)) < 0.01;
             if (!alternating) continue;
             const Vec2 mid = (ps[row[1]].position + ps[row[2]].position) * 0.5;
             const double side = (far - mid).dot(across) >= 0 ? 1.0 : -1.0;  // toward the pair's far ends
@@ -3624,6 +3633,9 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     std::vector<PairRouteReport> pairReports;  // one per differential pair, planned or not
     std::vector<size_t> pairReportOf;          // per plan: its report
     std::vector<PairLayout> pairLayouts;       // per plan, from the first pass
+    // A pair whose members reach more pads than its two ends (an ESD array on USB D+ / D-): the coupled router lays it
+    // between its farthest ends, and the net loop joins the other pads to that copper (classic router only).
+    std::map<int, std::pair<size_t, std::vector<size_t>>> pairSeeds;  // net → (plan, its pads joined by the pair)
     double maxExtraAll = 0;
     for (const auto& [net, x] : extraClearance) maxExtraAll = std::max(maxExtraAll, x);
     if (ropt.coupledPairs && !ropt.fanoutOnly) {
@@ -3653,6 +3665,47 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                     for (size_t pi : *l) (fanoutOfPad.count(pi) ? fanned : other).push_back(pi);
                     if (fanned.size() == 2 && other.size() == 1) *l = {fanned[0], other[0]};
                 }
+            std::vector<size_t> joinedP, joinedN;  // with ends taken from more pads: the pads the pair copper joins
+            if (!corridorMode && (lp.size() > 2 || ln.size() > 2) && lp.size() >= 2 && ln.size() >= 2) {
+                // The two parts carrying both members that lie farthest apart (connector and chip, past the ESD part).
+                auto onPart = [&](const std::vector<size_t>& l, int part) {  // its pad on that part (a fanned one first)
+                    size_t best = SIZE_MAX;
+                    for (size_t pi : l)
+                        if (ps[pi].componentId == part && (best == SIZE_MAX || (fanoutOfPad.count(pi) && !fanoutOfPad.count(best)))) best = pi;
+                    return best;
+                };
+                std::vector<int> parts;
+                for (size_t pi : lp)
+                    if (onPart(ln, ps[pi].componentId) != SIZE_MAX && std::find(parts.begin(), parts.end(), ps[pi].componentId) == parts.end())
+                        parts.push_back(ps[pi].componentId);
+                double far = -1;
+                int a = -1, b = -1;
+                for (size_t i = 0; i < parts.size(); ++i)
+                    for (size_t j = i + 1; j < parts.size(); ++j) {
+                        const double d = (ps[onPart(lp, parts[i])].position - ps[onPart(lp, parts[j])].position).length();
+                        if (d > far) far = d, a = parts[i], b = parts[j];
+                    }
+                // Every pad of the two end parts must join the pair (a doubled USB-C pad only once fanned out to
+                // its twin's via): else the members route as single nets, as before.
+                bool whole = a >= 0;
+                for (auto [l, joined] : {std::pair{&lp, &joinedP}, std::pair{&ln, &joinedN}}) {
+                    if (!whole) break;
+                    const size_t ea = onPart(*l, a), eb = onPart(*l, b);
+                    for (size_t pi : *l) {  // the ends, and pads fanned out to an end's via
+                        bool join = pi == ea || pi == eb;
+                        for (size_t e : {ea, eb})
+                            if (fanoutOfPad.count(pi) && fanoutOfPad.count(e) && (fanoutOfPad[pi]->via - fanoutOfPad[e]->via).length() < 1e-6) join = true;
+                        if (join) joined->push_back(pi);
+                        else if (ps[pi].componentId == a || ps[pi].componentId == b) whole = false;
+                    }
+                }
+                if (whole) {
+                    lp = {onPart(lp, a), onPart(lp, b)};
+                    ln = {onPart(ln, a), onPart(ln, b)};
+                } else {
+                    joinedP.clear(), joinedN.clear();
+                }
+            }
             if (isZoneNet(sch, pNet) || isZoneNet(sch, nNet) || isMeshNet(pNet) || isMeshNet(nNet)) rep.reason = "pour or mesh net";
             else if (spacing.gap > 0) rep.reason = "isolation barrier board";
             else if (lp.size() != 2 || ln.size() != 2) rep.reason = "members need exactly two pads each";
@@ -3713,6 +3766,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             rep.gap = pl.gap;
             pairReportOf.push_back(pairReports.size());
             pairReports.push_back(rep);
+            if (!joinedP.empty()) {
+                pairSeeds[pNet] = {pairPlans.size(), joinedP};
+                pairSeeds[nNet] = {pairPlans.size(), joinedN};
+            }
             pairPlans.push_back(pl);
         }
     }
@@ -4324,7 +4381,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 stats.connections += 2;
                 stats.routed += 2;
                 const int pNet = pairPlans[k].netP, nNet = pairPlans[k].netN;
-                order.erase(std::remove_if(order.begin(), order.end(), [&](int n) { return n == pNet || n == nNet; }), order.end());
+                order.erase(std::remove_if(order.begin(), order.end(), [&](int n) { return (n == pNet || n == nNet) && !pairSeeds.count(n); }),
+                            order.end());
             }
         }
         fixedTracks = outT.size();
@@ -4735,6 +4793,59 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                             netFailed = true;
                             failedConnections.push_back({net, list[a]});
                         }
+                    }
+                }
+                if (netFailed) {
+                    failedNets.push_back(net);
+                    stats.failedNets.push_back(nets[static_cast<size_t>(net)].name);
+                }
+                advance(1);
+                continue;
+            }
+            if (auto seed = pairSeeds.find(net); seed != pairSeeds.end() && pairLayouts.size() > seed->second.first &&
+                                                   pairLayouts[seed->second.first].ok) {
+                // A coupled pair's member with more pads: its other pads join the pair's copper.
+                const std::vector<size_t>& joined = seed->second.second;
+                std::vector<std::pair<int, size_t>> tree;
+                NearestPad nearest(ps, list);
+                int pending = 0;
+                for (size_t a = 0; a < list.size(); ++a)
+                    if (std::find(joined.begin(), joined.end(), list[a]) != joined.end()) {
+                        nearest.connect(a);
+                        padCells(ps[list[a]], tree);
+                    } else ++pending;
+                const PairLayout& pl = pairLayouts[seed->second.first];
+                // The grid cells whose centres lie on the pair's copper (it runs off the grid): a branch ending there
+                // touches it.
+                for (const Track& t : pl.tracks) {
+                    if (t.net != net) continue;
+                    const int steps = std::max(1, static_cast<int>(std::ceil(trackLength(t) / (grid.pitch() / 2))));
+                    for (int q = 0; q <= steps; ++q) {
+                        const Vec2 p = t.a + (t.b - t.a) * (static_cast<double>(q) / steps);
+                        for (int di = -1; di <= 1; ++di)
+                            for (int dj = -1; dj <= 1; ++dj) {
+                                const int i = static_cast<int>(std::lround(p.x / grid.pitch())) + di, j = static_cast<int>(std::lround(p.y / grid.pitch())) + dj;
+                                if (grid.inside(i, j) && pointSegmentDistance(grid.pos(i, j), t.a, t.b) <= t.width / 2 - 1e-6)
+                                    tree.push_back({t.layer, grid.idx(i, j)});
+                            }
+                    }
+                }
+                for (const Via& v : pl.vias)
+                    for (int di = -1; di <= 1 && v.net == net; ++di)
+                        for (int dj = -1; dj <= 1; ++dj) {
+                            const int i = static_cast<int>(std::lround(v.position.x / grid.pitch())) + di, j = static_cast<int>(std::lround(v.position.y / grid.pitch())) + dj;
+                            if (grid.inside(i, j) && (grid.pos(i, j) - v.position).length() <= v.diameter / 2 - 1e-6)
+                                for (int l = 0; l < grid.layers(); ++l) tree.push_back({l, grid.idx(i, j)});
+                        }
+                bool netFailed = false;
+                for (; pending > 0; --pending) {
+                    const size_t target = nearest.next();
+                    nearest.connect(target);
+                    ++stats.connections;
+                    if (connect(net, list, tree, ps[list[target]])) ++stats.routed;
+                    else {
+                        netFailed = true;
+                        failedConnections.push_back({net, list[target]});
                     }
                 }
                 if (netFailed) {
