@@ -682,7 +682,13 @@ Scene schematicScene(const Project& project, int sheet) {
                         s.line(x + Vec2{-4, 4}, x + Vec2{4, -4}, 1.5, "#1f4f9f");
                     }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
-                        const std::string& label = pins[i].name;
+                        // A generic header pin (Pin_3, 3) reads by its net's name (SCK, DTR) when the net has one.
+                        std::string label = pins[i].name;
+                        const std::string bare = label.rfind("Pin_", 0) == 0 ? label.substr(4) : label;
+                        if (!bare.empty() && bare.find_first_not_of("0123456789") == std::string::npos && pinNet >= 0) {
+                            const std::string& net = sch.nets()[static_cast<size_t>(pinNet)].name;
+                            if (!net.empty() && net.rfind("N$", 0) != 0) label = net;
+                        }
                         const bool left = m == dl, right = m == dr;
                         // A side name keeps to its half of the body (smaller text when it is long).
                         const double h = std::max(4.0, std::min(6.0, 6 * ((x1 - x0) / 2 - 6) / std::max(1.0, textWidth(label, 6))));

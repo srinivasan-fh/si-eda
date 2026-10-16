@@ -318,7 +318,7 @@ bool wireCrossesBody(const Schematic& sch, Vec2 p0, Vec2 p1) {
 /// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
 /// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
 void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {},
-                 const std::map<std::pair<int, int>, std::string>& pinNet = {}) {
+                 const std::map<std::pair<int, int>, std::string>& pinNet = {}, std::map<int, PinAddress>* rehub = nullptr) {
     const Schematic& sch = p->project.schematic;
     std::vector<std::pair<PinAddress, PinAddress>> links;
     for (const auto& chain : wires.items())
@@ -450,6 +450,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A pull-up on a side pin stands up beside it on its own wire, the first on each pin: pull-ups on
                     // pins higher up nearer the IC, so no wire runs under another's body.
                     int rank = -1;
+                    double pullRun = 120;
                     if (std::fabs(d.x) > 0.5 && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4 &&
                         supplyName(b.component, 1 - b.pin)) {
                         std::map<int, int> pulled;  // the hub's pins on this side with a pull-up: pin → its first pull-up
@@ -463,6 +464,23 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                             standing.insert(b.component);
                             for (const auto& [pin, part] : pulled)
                                 rank += sch.pinPosition({a.component, pin}).y < sch.pinPosition({a.component, a.pin}).y - 0.5;
+                            // Its distance out: past the pull-ups above (80 apart) and past a part in line on a pin up to
+                            // 110 above it (an AREF cap), so its body never stands across that part's wire.
+                            std::vector<std::pair<double, int>> order;
+                            for (const auto& [pin, part] : pulled) order.push_back({sch.pinPosition({a.component, pin}).y, pin});
+                            std::sort(order.begin(), order.end());
+                            double prev = 40;
+                            for (const auto& [y, pin] : order) {
+                                double r = prev + 80;
+                                for (const auto& [c0, e0] : links)
+                                    for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}})
+                                        if (c.component == a.component && !pulled.count(c.pin) && mine.count(e.component) &&
+                                            sch.find(e.component)->def().pins.size() == 2 && pinOutward(p->project, c).x * d.x > 0.5 &&
+                                            sch.pinPosition({c.component, c.pin}).y < y - 0.5 && sch.pinPosition({c.component, c.pin}).y > y - 110)
+                                            r = std::max(r, 240.0);
+                                if (pin == a.pin) pullRun = r;
+                                prev = r;
+                            }
                         }
                     }
                     if (sch.find(b.component)->def().pins.size() == 2)
@@ -476,7 +494,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A crystal stands further out from its IC, so its load capacitors hang clear of the IC's labels.
                     const std::string& ref = sch.find(b.component)->ref;
                     const bool crystal = ref.size() > 1 && ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(ref[1]));
-                    double run = rank >= 0 ? 120 + 80.0 * rank : upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
+                    double run = rank >= 0 ? pullRun : upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
                     if (rank < 0 && run == 120 && std::fabs(d.x) > 0.5)  // past the labels on the hub's neighbouring pins (a USB-C's USB_DP)
                         for (int j = 0; j < static_cast<int>(sch.find(a.component)->def().pins.size()); ++j) {
                             const auto net = pinNet.find({a.component, j});
@@ -527,6 +545,43 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         }
                         return hit;
                     };
+                    // A second part on a pulled-up pin (an auto-reset cap, a BOOT button) in line beyond its pull-up, wired from
+                    // the pull-up's lower pin, unless a pull-up on a pin just below would run its wire under it.
+                    if (const Vec2 home = sch.find(b.component)->position;
+                        rank < 0 && rehub && std::fabs(d.x) > 0.5 && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4) {
+                        PinAddress up{-1, 0};
+                        bool below = false;
+                        for (const auto& [c0, e0] : links)
+                            for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}}) {
+                                if (c.component != a.component || !standing.count(e.component) || !done.count(e.component)) continue;
+                                if (c.pin == a.pin) up = e;
+                                const double dy = sch.pinPosition({c.component, c.pin}).y - from.y;
+                                below = below || (pinOutward(p->project, c).x * d.x > 0.5 && dy > 0.5 && dy < 70);
+                            }
+                        if (up.component >= 0 && !below) {
+                            const Vec2 rp = sch.pinPosition({up.component, up.pin});
+                            moveBy(b.component, rp + d * 80 - sch.pinPosition({b.component, b.pin}));
+                            const Vec2 q = sch.pinPosition({b.component, 1 - b.pin}), e = pinOutward(p->project, {b.component, 1 - b.pin});
+                            const auto net = pinNet.find({b.component, 1 - b.pin});
+                            const double len = grounded.count({b.component, 1 - b.pin}) ? 60.0 : net == pinNet.end() ? 30.0 : 10.0 * static_cast<double>(net->second.size()) + 40;
+                            auto ob = sch.symbolOutline(*sch.find(b.component));
+                            const Vec2 r = q + e * len;
+                            const std::array<double, 4> m{std::min({ob[0], r.x}), std::min({ob[1] - 14, r.y}), std::max({ob[2], r.x}), std::max({ob[3] + 14, r.y})};
+                            bool clear = !wireCrossesBody(sch, rp, sch.pinPosition({b.component, b.pin}));
+                            for (int other : group) {
+                                if (other == up.component) continue;
+                                const auto o = sch.symbolOutline(*sch.find(other));
+                                clear = clear && !(m[0] < o[2] + 10 && o[0] < m[2] + 10 && m[1] < o[3] + 10 && o[1] < m[3] + 10);
+                            }
+                            if (clear) {
+                                (*rehub)[b.component] = up;
+                                done.insert(b.component);
+                                group.push_back(b.component);
+                                continue;
+                            }
+                            moveBy(b.component, home - sch.find(b.component)->position);
+                        }
+                    }
                     if (hitAt(upright)) {
                         const Vec2 home = sch.find(b.component)->position;
                         const auto o = sch.symbolOutline(*sch.find(b.component));
@@ -538,16 +593,23 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         for (int id : standing)  // (on this side of the hub)
                             beside = beside || (std::fabs(d.x) > 0.5 && std::find(group.begin(), group.end(), id) != group.end() &&
                                                 (sch.find(id)->position.x - from.x) * d.x > 0);
-                        for (double out : loadCap ? std::vector<double>{0} : std::vector<double>{0, 80, 200, 340})
+                        // A connector (more than four pins) goes further out in line before aside: its wire stays straight.
+                        const bool big = sch.find(b.component)->def().pins.size() > 4;
+                        for (double out : loadCap ? std::vector<double>{0} : big ? std::vector<double>{0, 80, 200, 340, 500, 660} : std::vector<double>{0, 80, 200, 340})
                             for (int k = -10; k <= 10; ++k)
-                                if (k || out > 0)  // along a chain of two-pin parts: further out in line before aside
-                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside ? 0.2 : 1.5), d * out + side * (k * w)});
+                                if ((k || out > 0) && (!k || out < 500))  // along a chain of two-pin parts: further out in line before aside
+                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside || (big && !k) ? 0.2 : 1.5), d * out + side * (k * w)});
                         std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
                         for (const auto& [cost, off] : spots) {
                             moveBy(b.component, home + off - sch.find(b.component)->position, loadCap ? 5 : 10);
                             const Vec2 q0 = sch.pinPosition({a.component, a.pin}), q1 = sch.pinPosition({b.component, b.pin});
-                            const bool inLine = std::fabs(q0.x - q1.x) < 0.5 || std::fabs(q0.y - q1.y) < 0.5;  // (wired: clear of bodies)
-                            if (!hitAt(true) && !(inLine && wireCrossesBody(sch, q0, q1))) break;
+                            const bool inLine = std::fabs(q0.x - q1.x) < 0.5 || std::fabs(q0.y - q1.y) < 0.5;  // (wired: clear of bodies
+                            bool across = inLine && wireCrossesBody(sch, q0, q1);                                // and of the group's
+                            for (int other : group)                                                              // grounds and labels)
+                                if (const auto r = room(other); inLine && other != a.component && other != b.component)
+                                    across = across || (std::max(q0.x, q1.x) > r[0] + 1 && std::min(q0.x, q1.x) < r[2] - 1 &&
+                                                        std::max(q0.y, q1.y) > r[1] + 1 && std::min(q0.y, q1.y) < r[3] - 1);
+                            if (inLine ? !hitAt(false) && !across : !hitAt(true)) break;  // (in line: a wire, no label to make room for)
                         }
                     }
                     done.insert(b.component);
@@ -2957,7 +3019,15 @@ void schematicTools(Table& t) {
                       layoutWires.push(chain);
                   }
               }
-              layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet);
+              std::map<int, PinAddress> rehub;  // parts laid out beyond a pull-up: wired from its lower pin instead
+              layoutBuilt(P(s), unplaced, layoutWires, grounded, pinNet, &rehub);
+              for (Link& l : links)
+                  if (const auto it = rehub.find(l.b.component); it != rehub.end() && l.a.component != it->second.component) {
+                      const Component* r = proj(s).schematic.find(it->second.component);
+                      const PinDef& d = r->def().pins[static_cast<size_t>(it->second.pin)];
+                      l.a = it->second;
+                      l.from = Json(r->ref + "." + (d.number.empty() ? d.name : d.number));
+                  }
               auto straight = [&](const Link& l) {  // facing pins in line, nothing in between
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l.a.component, l.a.pin}), p1 = sch.pinPosition({l.b.component, l.b.pin});
@@ -2967,7 +3037,8 @@ void schematicTools(Table& t) {
                   const bool fromCrystal = hub.size() > 1 && hub[0] == 'Y' && std::isdigit(static_cast<unsigned char>(hub[1]));
                   const double out0 = run.x * d0.x + run.y * d0.y;
                   if ((std::fabs(run.x) > 0.5 && std::fabs(run.y) > 0.5) || run.length() < 1 ||
-                      (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= (std::fabs(d0.x) > 0.5 && d1.y > 0.5 ? 0.5 : 0))  // (a pull-up standing on its wire)
+                      (fromCrystal ? out0 < -0.5 : out0 <= 0 && !(d0.y > 0.5 && std::fabs(run.y) < 0.5)) ||  // (from a pull-up's lower pin, side-on)
+                      run.x * d1.x + run.y * d1.y >= (std::fabs(d0.x) > 0.5 && d1.y > 0.5 ? 0.5 : 0))  // (a pull-up standing on its wire)
                       return false;
                   for (const auto& c : sch.components()) {  // nothing in the way: a body, a label drawn before or another pin
                       if (c.kind == ComponentKind::Junction || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
@@ -7036,5 +7107,8 @@ std::vector<McpTool> buildTools() {
 }
 
 }  // namespace sieda::mcp
+
+
+
 
 

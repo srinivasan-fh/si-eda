@@ -761,8 +761,12 @@ std::map<int, Rect> designatorBoxes(const Schematic& sch, const PcbLayout& pcb, 
                 int c = onBoard(t) ? 0 : 10000;
                 for (const auto& [o, side] : taken)
                     c += 100 * (side == bottom && t.x0 < o.x1 + 0.1 && o.x0 < t.x1 + 0.1 && t.y0 < o.y1 + 0.1 && o.y0 < t.y1 + 0.1);
-                for (const auto& [oid, ocy, oside] : parts)  // (its own courtyard too, when slid in from an edge)
-                    c += (oid == id ? 50 : 1) * (oside == bottom && t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1);
+                for (const auto& [oid, ocy, oside] : parts) {  // (its own courtyard too, when slid in from an edge)
+                    if (oside != bottom) continue;
+                    if (t.x0 < ocy.x1 && ocy.x0 < t.x1 && t.y0 < ocy.y1 && ocy.y0 < t.y1) c += oid == id ? 50 : 5;
+                    // Up against another part it reads as that part's name: some room from it is better.
+                    else if (oid != id && t.x0 < ocy.x1 + 0.3 && ocy.x0 < t.x1 + 0.3 && t.y0 < ocy.y1 + 0.3 && ocy.y0 < t.y1 + 0.3) c += 2;
+                }
                 for (const auto& [pr, side] : padRects)  // silk on a pad is clipped away: worse than over a courtyard
                     c += 20 * ((side == 2 || side == (bottom ? 1 : 0)) && t.x0 < pr.x1 && pr.x0 < t.x1 && t.y0 < pr.y1 && pr.y0 < t.y1);
                 return c;
