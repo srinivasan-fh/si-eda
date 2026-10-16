@@ -692,7 +692,8 @@ char* sieda_custom_part_register(SiedaProject* project, const char* spec_json, c
 char* sieda_custom_part_preview(const char* spec_json, char** error_out) {
     if (error_out) *error_out = nullptr;
     try {
-        auto part = CustomPartRegistry::instance().registerPart(customPartSpecFromJson(Json::parse(str(spec_json))));
+        // Built, not kept: an editor previews every draft change (the part is registered when it is added).
+        auto part = CustomPartRegistry::instance().registerPart(customPartSpecFromJson(Json::parse(str(spec_json))), false);
         return dup(customPartToJson(*part).dump());
     } catch (const std::exception& e) {
         if (error_out) *error_out = dup(e.what());
@@ -2092,9 +2093,9 @@ SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* opt
         for (const auto& id : j.get("hidden").items()) opt.hidden.insert(id.asInt(-1));
         opt.standoffs = std::clamp(j.get("standoffs").asNumber(0), 0.0, 50.0);
         opt.enclosure = j.get("enclosure").asBool(false);
-        auto* m = new SiedaMesh();
+        auto m = std::make_unique<SiedaMesh>();  // freed if the build throws
         m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
-        return m;
+        return m.release();
     } catch (...) {
         return nullptr;
     }
@@ -2103,11 +2104,11 @@ SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* opt
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components) {
     if (!project) return nullptr;
     try {
-        auto* m = new SiedaMesh();
+        auto m = std::make_unique<SiedaMesh>();  // freed if the build throws
         MeshOptions opt;
         opt.components = include_components != 0;
         m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
-        return m;
+        return m.release();
     } catch (...) {
         return nullptr;
     }
@@ -2161,11 +2162,11 @@ SiedaMesh* sieda_model3d_preview(const char* spec_json) {
         p.pcb.settings.height = h;
         c->pcb.placed = true;
         c->pcb.position = {w / 2, h / 2};
-        auto* m = new SiedaMesh();
+        auto m = std::make_unique<SiedaMesh>();  // freed if the build throws
         MeshOptions opt;
         opt.silkscreen = false;
         m->mesh = buildAssemblyMesh(p.schematic, p.pcb, opt);
-        return m;
+        return m.release();
     } catch (...) {
         return nullptr;
     }
@@ -2174,9 +2175,9 @@ SiedaMesh* sieda_model3d_preview(const char* spec_json) {
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer) {
     if (!project || layer < 0 || layer >= project->project.pcb.settings.layerCount) return nullptr;
     try {
-        auto* m = new SiedaMesh();
+        auto m = std::make_unique<SiedaMesh>();  // freed if the build throws
         m->mesh = buildCopperLayerMesh(project->project.schematic, project->project.pcb, layer);
-        return m;
+        return m.release();
     } catch (...) {
         return nullptr;
     }

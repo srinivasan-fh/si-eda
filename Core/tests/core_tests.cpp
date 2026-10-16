@@ -309,6 +309,24 @@ TEST(sim_led_forward_voltage) {
     CHECK(i > 8e-3 && i < 10.5e-3);
 }
 
+TEST(sim_pulse_current_source_reading_follows_time) {
+    // A PULSE current source reports the current it drives at each sample, not its t = 0 value (#175).
+    Schematic s;
+    int i = s.addComponent(ComponentKind::CurrentSource, "PULSE(0 1m 1m 0 0 1m 4m)", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, i, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, i, "-", g, "GND");
+    auto res = Simulator(s).transient(3e-3, 1e-5);
+    CHECK(res.ok && res.time.size() > 150);
+    if (res.ok && res.time.size() > 150) {
+        CHECK_NEAR(res.currents[i][50], 0, 1e-9);
+        CHECK_NEAR(std::fabs(res.currents[i][150]), 1e-3, 1e-6);
+        CHECK_NEAR(std::fabs(res.currents[i][150]), std::fabs(res.currents[r][150]), 1e-6);
+    }
+}
+
 TEST(sim_rc_transient) {
     Schematic s;
     int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 5 20m)", {0, 0});
@@ -1031,6 +1049,41 @@ TEST(custom_part_generation) {
     (void)pinsFromName;
     CustomPartSpec soic = customPartSpecFromJson(Json::parse(R"({"name":"X","package":"SOIC-8","pins":[{"number":"1","name":"A"}]})"));
     CHECK(soic.package.type == "SOIC" && soic.package.pinCount == 8);
+}
+
+TEST(erc_own_pin_types_refs_and_wire_ends) {
+    Project p;
+    auto& s = p.schematic;
+    const std::string id = p.addCustomPart(customPartSpecFromJson(Json::parse(R"({"name":"REG","package":"SOIC-8","pins":[
+        {"number":"1","name":"GND","type":"power_in"},{"number":"2","name":"VOUT","type":"power_out"},
+        {"number":"3","name":"VOUT","type":"power_out"},{"number":"4","name":"VIN","type":"passive"},
+        {"number":"5","name":"GND","type":"passive"}]})")));
+    const int u = s.addCustomComponent(id, "", {200, 0});
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0}), r2 = s.addComponent(ComponentKind::Resistor, "1k", {0, 100});
+    const int g = s.addComponent(ComponentKind::Ground, "", {0, 200});
+    s.connect({u, s.pinIndex(u, "5")}, {g, 0});
+    s.connect({u, s.pinIndex(u, "4")}, {r2, 1});
+    s.connect({u, s.pinIndex(u, "2")}, {r1, 0});
+    s.connect({u, s.pinIndex(u, "3")}, {r1, 0});
+    const int w = s.connect({r1, 1}, {r2, 0});
+    std::set<std::string> codes;
+    for (const auto& e : s.runERC()) codes.insert(e.code);
+    CHECK(codes.count("ERC_POWER_PIN_UNCONNECTED"));  // pin 1 is power in, whatever pin 5 (also GND) is (#171)
+    CHECK(!codes.count("ERC_OUTPUT_CONFLICT"));  // its own two VOUT pins are one driver (#172)
+    CHECK(!s.setRef(r2, s.find(r1)->ref) && s.setRef(r2, "R9"));  // a taken designator is refused (#169)
+    const size_t wires = s.wires().size();  // a wire end moved onto no pin stays where it was (#170)
+    CHECK(!s.moveWireEnd(w, true, {}, {r2, 7}) && s.wires().size() == wires && s.netOf({r1, 1}) == s.netOf({r2, 0}));
+}
+
+TEST(custom_part_preview_is_not_kept) {
+    // An editor previews every draft: the preview builds the part without keeping it in the registry (#195).
+    char* json = sieda_custom_part_preview(R"({"name":"PREVIEW_ONLY_X1","package":"SOIC-8","pins":[{"number":"1","name":"A"}]})", nullptr);
+    CHECK(json != nullptr);
+    if (json) {
+        const std::string id = Json::parse(json).get("id").asString("");
+        CHECK(!id.empty() && !CustomPartRegistry::instance().find(id));
+        sieda_string_free(json);
+    }
 }
 
 TEST(custom_part_in_design) {
@@ -3277,10 +3330,18 @@ TEST(fabrication_package_is_complete) {
     p.pcb.settings.holes.push_back({{3, 3}, 3.2, 6.4});
     CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
     // One SMD part on the bottom side.
+    int under = -1;
     for (auto& c : p.schematic.mutableComponents())
         if (c.kind == ComponentKind::Resistor && c.hasFootprint()) {
             c.pcb.bottom = true;
+            under = c.id;
             break;
+        }
+    for (const auto& pad : p.pcb.pads(p.schematic))  // its pin-1 dot on the assembly drawing marks its (mirrored) pad 1 (#160)
+        if (pad.componentId == under && pad.pinIndex == 0) {
+            char dot[96];
+            std::snprintf(dot, sizeof dot, "cx=\"%.4f\" cy=\"%.4f\" r=\"0.25\"", pad.position.x, pad.position.y);
+            CHECK(exportAssemblySvg(p.schematic, p.pcb, true, "t").find(dot) != std::string::npos);
         }
     auto files = fabricationPackage(p);
     std::map<std::string, std::string> byName;
@@ -3849,6 +3910,15 @@ TEST(length_matching_serpentines) {
     Json before = lengthReportJson(p.pcb, s);
     CHECK(!matched(before, 0) && !matched(before, 1));
 
+    {  // a via whose ring overlaps the short track, its centre off the line, is a branch: that track is left (#143)
+        PcbLayout branched = p.pcb;
+        Via v;
+        v.net = n1;
+        v.position = {20, 70.15};
+        branched.vias.push_back(v);
+        CHECK(tuneLengths(branched, s) == 1);
+        CHECK_NEAR(routedNetLength(branched, n1), 20, 1e-6);
+    }
     CHECK(tuneLengths(p.pcb, s) == 2);
     CHECK_NEAR(routedNetLength(p.pcb, n1), 30, 1e-6);
     CHECK_NEAR(routedNetLength(p.pcb, s.netOf({dn, 0})), 30, 1e-6);
@@ -11201,6 +11271,23 @@ TEST(spice_controlled_sources_dc) {
     CHECK(netV(s, Simulator(s).dcOperatingPoint(), d, "A") == builtin);
 }
 
+TEST(spice_subcircuit_port_named_gnd_is_its_pin) {
+    // .subckt A 1 GND on a diode: the GND port is the K pin, not global ground: 5 V over 1k + 1k (#174).
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", d, "A");
+    wire(s, d, "K", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    s.setSpiceModel(d, SpiceModelRef{".subckt A 1 GND\nR1 1 GND 1k\n.ends A\n", "A", ""});
+    const DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(netV(s, dc, d, "K"), 2.5, 1e-6);
+}
+
 TEST(spice_semiconductor_models_dc) {
     // Diode series resistance: 10 mA through RS = 10 Ω adds exactly 0.1 V.
     auto diodeV = [](const std::string& model) {
@@ -11311,6 +11398,14 @@ TEST(spice_semiconductor_models_dc) {
     CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m)", 3, 0.5), 2e-3 * (2 - 0.25) * 0.5, 1e-8);  // triode
     CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m THETA=0.5)", 3, 5), 4e-3 / 2, 1e-8);
     CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m)", 0.5, 5), 0, 1e-9);
+    {  // NSUB / TOX with no PHI / GAMMA / VTO: SPICE3 derives them (mos1temp.c) (#177)
+        const double tnom = 300.15, vt = 1.380649e-23 * tnom / 1.602176634e-19, eg = 1.16 - 7.02e-4 * tnom * tnom / (tnom + 1108);
+        const double phi = 2 * vt * std::log(1e22 / 1.45e16);
+        const double gamma = std::sqrt(2 * 11.7 * 8.854214871e-12 * 1.602176634e-19 * 1e22) / (3.453e-11 / 50e-9);
+        const double vto = -0.5 * (eg + phi) + gamma * std::sqrt(phi) + phi;
+        CHECK(vto > 0.3 && vto < 0.7);
+        CHECK_NEAR(mosId(".model MN NMOS(KP=2m NSUB=1e16 TOX=50n)", 3, 5), 1e-3 * (3 - vto) * (3 - vto), 1e-8);
+    }
     // P-MOSFET subcircuit (body diode) on a catalog part with pins G S D: conducts with the gate low.
     {
         auto id = CustomPartRegistry::instance().registerPart(findStandardPart("BSS84")->spec)->id;
@@ -14171,6 +14266,13 @@ TEST(channel_parameters_override_values_per_channel) {
     CHECK(s.setChannelValue(r1b, "12k"));
     CHECK(s.find(r1b)->value == "12k" && s.find(b.r1)->value == "10k" && s.find(r1c)->value == "10k");
     CHECK(s.find(r1b)->channelOverrides == kOverrideValue && s.blockValue(r1b) == "10k");
+    {  // find / replace on a channel's own value changes that channel only (#168)
+        Schematic t = s;
+        SearchOptions values;
+        values.refs = values.nets = values.pins = false;
+        CHECK(replaceInSchematic(t, "12k", "47k", values) == 1);
+        CHECK(t.find(r1b)->value == "47k" && t.find(b.r1)->value == "10k" && t.find(r1c)->value == "10k");
+    }
     // The block's value changes every channel that does not set its own.
     CHECK(s.setValue(r1c, "22k"));
     CHECK(s.find(b.r1)->value == "22k" && s.find(r1c)->value == "22k" && s.find(r1b)->value == "12k");
@@ -20752,6 +20854,17 @@ TEST(mcp_change_handler_and_attach) {
     CHECK(s.project() != app);
     CHECK(sieda_find_component(app, "C1") >= 0);
     sieda_project_free(app);
+    // Undo history belongs to one project, also when a new one takes a freed one's address (#147).
+    SiedaProject* a = sieda_project_new("DocA");
+    s.attachProject(a);
+    CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", add)));
+    sieda_project_free(a);
+    SiedaProject* b = sieda_project_new("DocB");
+    s.attachProject(b);
+    mcpTool(s, "project_undo");
+    CHECK(mcpData(mcpTool(s, "project_summary")).get("name").asString("") == "DocB");
+    s.attachProject(nullptr);
+    sieda_project_free(b);
 }
 
 TEST(mcp_render_images) {
@@ -21938,6 +22051,12 @@ TEST(mcp_library_search_wireless_words_and_new_radio_parts) {
     CHECK(ble.count("nRF52840") && ble.count("nRF5340") && ble.count("ESP32-H2") && ble.count("BLE-MODULE"));
     CHECK(!ble.count("LM317") && !ble.count("AP2112K-3.3"));
     CHECK(names("esp").count("ESP32-C3"));
+    auto total = [&](const char* query) {  // a maker's name lists its parts, as manufacturer: does (#141)
+        Json a = Json::object();
+        a["query"] = query;
+        return mcpData(mcpTool(s, "library_search", a)).get("total").asInt(-1);
+    };
+    CHECK(total("texas") > 100 && total("texas") == total("manufacturer:texas"));
     for (const char* n : {"ESP32-C6", "ESP32-H2", "ESP32-C6-MINI-1", "ESP32-S3-WROOM-1", "ESP32-S3-MINI-1", "nRF52840", "nRF5340"}) {
         Json a = Json::object();
         a["name"] = n;
@@ -22288,6 +22407,11 @@ TEST(idf_export_and_placement_round_trip) {
         importIdfPlacement(moved.schematic, hostile);
         CHECK(u1->pcb.rotation >= 0 && u1->pcb.rotation < 360);
     }
+    // A THOU file (Allegro, OrCAD) places in mm: 1000 × 500 thou = 25.4 × 12.7 mm (#164).
+    importIdfPlacement(moved.schematic, ".HEADER\nBOARD_FILE 3.0 \"x\" 2026/01/01.00:00:00 1\n\"b\" THOU\n.END_HEADER\n"
+                                        ".PLACEMENT\n\"P\" \"N\" U1\n1000 500 0 0 TOP PLACED\n.END_PLACEMENT\n");
+    CHECK_NEAR(u1->pcb.position.x, 25.4, 1e-9);
+    CHECK_NEAR(u1->pcb.position.y, -12.7, 1e-9);
 }
 
 TEST(project_diff_parts_nets_copper_variants) {
@@ -22491,8 +22615,13 @@ TEST(json_hostile_nesting_and_number_format) {
     ok += "1" + std::string(200, '}');
     CHECK(Json::parse(ok).dump() == ok);
     // Numbers and strings are written exactly as before the to_chars fast path (printf "%.10g" / "%lld").
-    CHECK(Json::parse("[0.1,1e-7,-2.5e300,123456789012,0.30000000000000004,1e15,-0.0,3.14159265358979,-7]").dump() ==
-          "[0.1,1e-07,-2.5e+300,123456789012,0.3,1e+15,0,3.141592654,-7]");
+    CHECK(Json::parse("[0.1,1e-7,-2.5e300,123456789012,0.30000000000000004,1e15,-0.0,3.14159265358979,-7,1e16]").dump() ==
+          "[0.1,1e-07,-2.5e+300,123456789012,0.3,1000000000000000,0,3.141592654,-7,1e+16]");
+    CHECK(Json::parse("1234567890123456").dump() == "1234567890123456");  // a JSON-RPC id comes back as sent (#149)
+    // A surrogate pair combines; a lone surrogate is U+FFFD and takes nothing after it (#148).
+    CHECK(Json::parse("\"a\\ud83d\\ude00b\"").asString("") == "a\xF0\x9F\x98\x80" "b");
+    CHECK(Json::parse("\"a\\ud800\\u0041b\"").asString("") == "a\xEF\xBF\xBD" "Ab");
+    CHECK(Json::parse("\"\\udc00x\"").asString("") == "\xEF\xBF\xBDx");
     CHECK(Json(std::string("a\x01\"b\\c\n")).dump() == "\"a\\u0001\\\"b\\\\c\\n\"");
 }
 
@@ -22717,6 +22846,13 @@ TEST(spice_includes_are_inlined_from_the_model_folder) {
     CHECK(out.find(".include /etc/passwd") != std::string::npos && out.find(".inc ../x.lib") != std::string::npos);
     const SpiceLibrary lib = parseSpiceLibrary(out);
     CHECK(lib.findModel("DX") && lib.findModel("QF") && !lib.findModel("QT"));
+    // A section calling another section keeps going after the call; a nested include is found beside its file (#176).
+    std::ofstream(dir / "corners2.lib") << ".lib TT\n.lib 'corners2.lib' MODELS\n.param after=1\n.endl\n.lib MODELS\n.model QM NPN(BF=100)\n.endl\n";
+    std::ofstream(dir / "sub" / "a.lib") << ".include b.lib\n";
+    std::ofstream(dir / "sub" / "b.lib") << ".model DB D(IS=1e-15)\n";
+    const std::string nested = inlineSpiceIncludes(".lib corners2.lib TT\n.include sub/a.lib\n", dir.string());
+    CHECK(nested.find("QM NPN") != std::string::npos && nested.find(".param after=1") != std::string::npos);
+    CHECK(nested.find(".model DB D(") != std::string::npos);
     fs::remove_all(dir);
 }
 
@@ -23661,6 +23797,7 @@ TEST(netlist_import_kicad_protel_csv) {
     CHECK(p.format == "protel" && p.parts.size() == 2 && p.parts[0].value == "10k" && p.nets.size() == 2 && p.nets[0].second[1].first == "C1");
     const ParsedNetlist c = parseNetlist("Net,Designator,Pin\nVCC,R1,1\nVCC,U9,8\nGND,R1,2\n");
     CHECK(c.format == "csv" && c.parts.size() == 2 && c.nets.size() == 2);  // U9 added from the nets
+    CHECK(parseNetlist("Net,Designator,Pin\n\"Net \"\"A\"\"\",R1,1\n").nets[0].first == "Net \"A\"");  // "" in a quoted cell (#165)
     for (const char* bad : {"", "hello", "(export (nets (net (name \"A\") (node (ref \"R1\")", "(\nA\nnodash\n)\n", "Net,Value\nA,1\n"}) {
         bool threw = false;
         try {
@@ -23924,6 +24061,11 @@ TEST(documents_dxf_test_points_html_bom_and_bring_up) {
     const DxfOutline drawn = importDxfOutline(inch);
     CHECK(drawn.error.empty() && drawn.outline.size() > 6 && drawn.cutouts.size() == 1);
     CHECK(std::fabs(drawn.width - 63.5) < 0.01 && std::fabs(drawn.height - 12.7) < 0.01);
+    // An R12 POLYLINE keeps its VERTEX bulges: a 20 × 10 rectangle with a semicircle on its right side is 25 wide (#162).
+    const DxfOutline r12 = importDxfOutline(
+        "0\nSECTION\n2\nENTITIES\n0\nPOLYLINE\n8\n0\n66\n1\n70\n1\n0\nVERTEX\n8\n0\n10\n0\n20\n0\n0\nVERTEX\n8\n0\n10\n20\n20\n0\n42\n1\n"
+        "0\nVERTEX\n8\n0\n10\n20\n20\n10\n0\nVERTEX\n8\n0\n10\n0\n20\n10\n0\nSEQEND\n0\nENDSEC\n0\nEOF\n");
+    CHECK(r12.error.empty() && std::fabs(r12.width - 25) < 0.01 && std::fabs(r12.height - 10) < 0.01);
     CHECK(!importDxfOutline("0\nSECTION\n0\nEOF\n").error.empty() && !importDxfOutline("not a dxf").error.empty());
     PcbLayout board = p.pcb;
     CHECK(applyDxfOutline(board, drawn) && board.settings.width == drawn.width && board.settings.cutouts.size() == 1);

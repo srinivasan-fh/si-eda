@@ -736,18 +736,24 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         int count = 0;
         std::set<std::pair<int, int>> partners;
         for (const auto& [p, n] : differentialPairs(sch)) partners.insert({p, n}), partners.insert({n, p});
+        std::vector<signed char> signalNet(sch.nets().size(), -1);  // each net's role, looked up once (not per pair)
+        auto signal = [&](int net) {
+            if (net < 0 || net >= static_cast<int>(signalNet.size())) return sch.netRole(net) == NetRole::Signal;
+            signed char& r = signalNet[static_cast<size_t>(net)];
+            if (r < 0) r = sch.netRole(net) == NetRole::Signal;
+            return r == 1;
+        };
         for (const auto& a : pcb.tracks) {
             if (!cls.fast.count(a.net) || count >= 20 || a.arc) continue;
             Vec2 da = a.b - a.a;
             double la = da.length();
             if (la < 1.0) continue;
             for (const auto& b : pcb.tracks) {
-                if (b.layer != a.layer || b.net == a.net || sch.netRole(b.net) != NetRole::Signal || b.arc ||
-                    partners.count({a.net, b.net}))
-                    continue;
+                if (b.layer != a.layer || b.net == a.net || b.arc) continue;
                 Vec2 db = b.b - b.a;
                 double lb = db.length();
                 if (lb < 1.0 || std::fabs((da.x * db.x + da.y * db.y) / (la * lb)) < 0.98) continue;
+                if (partners.count({a.net, b.net}) || !signal(b.net)) continue;  // the cheap tests first
                 // Overlap of b projected on a, and the gap between them.
                 Vec2 u = da * (1.0 / la);
                 double t0 = (b.a - a.a).x * u.x + (b.a - a.a).y * u.y, t1 = (b.b - a.a).x * u.x + (b.b - a.a).y * u.y;

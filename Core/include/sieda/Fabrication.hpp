@@ -23,8 +23,9 @@ struct FabFile {
 ///  - fab_notes.txt: the order sheet (size, layers, thickness, finish, mask/silk colours, minimum features, counts);
 ///  - <base>-gerbers.zip: the gerbers/ folder zipped for upload to the fab;
 ///  - netlist.cir and 3d/<base>.stl.
-/// `base` names the files ("" → the project name). Unpopulated sides and absent features produce no file.
-std::vector<FabFile> fabricationPackage(const Project& project, const std::string& base = "");
+/// `base` names the files ("" → the project name). Unpopulated sides and absent features produce no file; `assembly3d`
+/// false leaves the STL out (verification checks the rest).
+std::vector<FabFile> fabricationPackage(const Project& project, const std::string& base = "", bool assembly3d = true);
 
 /// Writes the package into `dir` (created if needed). Returns false with `error` set on an I/O failure.
 bool writeFabricationPackage(const Project& project, const std::string& dir, std::vector<std::string>* written,

@@ -2255,8 +2255,10 @@ ParsedNetlist parseNetlist(const std::string& text) {
             std::vector<std::string> v;
             std::string cur;
             bool quote = false;
-            for (char ch : l) {
-                if (ch == '"') quote = !quote;
+            for (size_t k = 0; k < l.size(); ++k) {
+                const char ch = l[k];
+                if (ch == '"' && quote && k + 1 < l.size() && l[k + 1] == '"') cur += '"', ++k;  // "" in a quoted cell
+                else if (ch == '"') quote = !quote;
                 else if ((ch == ',' || ch == ';' || ch == '\t') && !quote) v.push_back(trimmed(cur)), cur.clear();
                 else cur += ch;
             }

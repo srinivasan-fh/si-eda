@@ -89,6 +89,12 @@ std::string mdEscape(const std::string& s) {
 VerificationReport verifyDesign(const Project& project, const VerificationOptions& options) {
     const Schematic& sch = project.schematic;
     const PcbLayout& pcb = project.pcb;
+    std::vector<RuleViolation> drcFound;  // the DRC, run once for the placement and rule stages
+    bool drcRun = false;
+    auto drc = [&]() -> const std::vector<RuleViolation>& {
+        if (!drcRun) drcFound = pcb.runDRC(sch), drcRun = true;
+        return drcFound;
+    };
     VerificationReport report;
     report.projectName = project.name;
     report.industry = project.industry;
@@ -200,8 +206,8 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                     v.components = {c.id};
                     st.findings.push_back(std::move(v));
                 }
-            for (auto& v : pcb.runDRC(sch))
-                if (v.code == "DRC_OUT_OF_BOARD" || v.code == "DRC_COURTYARD_OVERLAP") st.findings.push_back(std::move(v));
+            for (const auto& v : drc())
+                if (v.code == "DRC_OUT_OF_BOARD" || v.code == "DRC_COURTYARD_OVERLAP") st.findings.push_back(v);
             st.status = statusOf(st.findings);
             st.summary = std::to_string(placed) + " of " + std::to_string(footprinted) + " footprints placed";
             char buf[64];
@@ -248,8 +254,8 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
         } else {
             static const std::set<std::string> covered{"DRC_PASS", "DRC_UNPLACED", "DRC_UNROUTED", "DRC_OUT_OF_BOARD",
                                                        "DRC_COURTYARD_OVERLAP"};
-            for (auto& v : pcb.runDRC(sch))
-                if (!covered.count(v.code)) st.findings.push_back(std::move(v));
+            for (const auto& v : drc())
+                if (!covered.count(v.code)) st.findings.push_back(v);
             st.status = statusOf(st.findings);
             st.summary = countSummary(st.findings, "Clean against " + pcb.settings.rulePreset);
             char buf[160];
@@ -372,7 +378,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             const int expected = static_cast<int>(pads.size() + pcb.vias.size());
             check("IPC-D-356A test netlist", ipc, endsWith(ipc, "999\n") && records == expected,
                   std::to_string(records) + " test points for " + std::to_string(expected) + " pads and vias");
-            auto package = fabricationPackage(project);
+            auto package = fabricationPackage(project, "", false);  // the files above, the job and the zip (no 3D model)
             bool zipOk = false, jobOk = false;
             std::string zip, job;
             for (const auto& f : package) {

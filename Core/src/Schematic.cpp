@@ -4,6 +4,7 @@
 #include <cctype>
 
 #include <algorithm>
+#include <utility>
 #include <climits>
 #include <cmath>
 #include <functional>
@@ -272,8 +273,15 @@ bool Schematic::moveWireEnd(int wireId, bool b, Vec2 position, PinRef to) {
         activeSheet_ = shown;
     }
     if (to == keep || !find(to.component)) return false;
-    wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
-    connect(keep, to);
+    const auto at = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    const Wire old = *at;
+    const auto index = at - wires_.begin();
+    wires_.erase(at);
+    if (connect(keep, to) < 0) {  // another sheet, no such pin: the wire stays as it was
+        wires_.insert(wires_.begin() + index, old);
+        invalidate();
+        return false;
+    }
     invalidate();
     edited();
     return true;
@@ -385,6 +393,8 @@ bool Schematic::setRef(int id, const std::string& ref) {
         syncInstances();
         return true;
     }
+    for (const auto& o : components_)  // a designator another part has is refused (net symbols carry none)
+        if (o.id != c->id && o.ref == ref && !isNetSymbolKind(o.kind) && !o.packageOnly) return false;
     c->ref = ref;
     edited();
     return true;
@@ -462,16 +472,20 @@ void Schematic::restoreWire(const Wire& w) {
 }
 
 const Component* Schematic::find(int id) const {
+    // Ids are handed out in increasing order, so the parts are almost always sorted by id: a binary search first,
+    // the scan when they are not (a file or an edit that put them out of order) or the id is not there.
+    for (size_t lo = 0, hi = components_.size(); lo < hi;) {
+        const size_t mid = lo + (hi - lo) / 2;
+        if (components_[mid].id == id) return &components_[mid];
+        if (components_[mid].id < id) lo = mid + 1;
+        else hi = mid;
+    }
     for (const auto& c : components_)
         if (c.id == id) return &c;
     return nullptr;
 }
 
-Component* Schematic::find(int id) {
-    for (auto& c : components_)
-        if (c.id == id) return &c;
-    return nullptr;
-}
+Component* Schematic::find(int id) { return const_cast<Component*>(std::as_const(*this).find(id)); }
 
 const Component* Schematic::findByRef(const std::string& ref) const {
     // The part itself, not one of its placed units (a multi-unit part's units share its designator).
@@ -916,6 +930,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
             if (list.size() < 2) continue;
             for (size_t i = 0; i < list.size(); ++i)
                 for (size_t k = i + 1; k < list.size(); ++k) {
+                    if (reported.count(list[i])) break;  // said once: no message to build for the rest
                     if (list[i].component == list[k].component) continue;  // a part's own stacked pins
                     const int n1 = netOf(list[i]), n2 = netOf(list[k]);
                     if (n1 >= 0 && n1 == n2) continue;
@@ -1002,8 +1017,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 if (c.isNoConnect(openIdx[o])) continue;  // flagged as intentionally open
                 if (c.kind == ComponentKind::Custom) {
                     PinType type = PinType::Passive;
-                    for (const auto& pd : pins)
-                        if (pd.name == name) type = static_cast<PinType>(pd.type);
+                    if (openIdx[o] >= 0 && openIdx[o] < static_cast<int>(pins.size()))  // this pin's own type
+                        type = static_cast<PinType>(pins[static_cast<size_t>(openIdx[o])].type);
                     if (type == PinType::NoConnect) continue;
                     if (type == PinType::PowerIn) {
                         add(Severity::Error, "ERC_POWER_PIN_UNCONNECTED",
@@ -1103,7 +1118,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
             const auto& pins = c->def().pins;
             if (pr.pin < 0 || pr.pin >= static_cast<int>(pins.size())) continue;
             auto type = static_cast<PinType>(pins[static_cast<size_t>(pr.pin)].type);
-            if (type == PinType::Output || type == PinType::PowerOut) {
+            // One part's own stacked outputs (two VOUT pins) are one driver.
+            if ((type == PinType::Output || type == PinType::PowerOut) && std::find(ids.begin(), ids.end(), c->id) == ids.end()) {
                 drivers.push_back(c->ref + "." + pins[static_cast<size_t>(pr.pin)].name);
                 ids.push_back(c->id);
             }

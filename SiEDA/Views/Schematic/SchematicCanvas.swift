@@ -982,11 +982,15 @@ struct SchematicCanvas: View {
         // Harness connector bodies: a box around each harness label's entries, notched towards the harness.
         drawHarnessBodies(&ctx, snap: snap, screen: screen, moving: movingIds, delta: delta)
         // Net directives: a small flag beside the pin they sit on (net class, ⇄ for a differential pair, sizes).
-        if showLabels {
+        if showLabels, !snap.directives.isEmpty {
+            // The block part's pin on its own sheet, or its copy's on a channel sheet shown now (one pass, not per directive).
+            var byBlock: [Int: SnapComponent] = [:]
+            for c in snap.components {
+                if byBlock[c.id] == nil { byBlock[c.id] = c }
+                if let block = c.instanceOf, byBlock[block] == nil { byBlock[block] = c }
+            }
             for d in snap.directives {
-                // The block part's pin on its own sheet, or its copy's on a channel sheet shown now.
-                guard let c = snap.components.first(where: { $0.id == d.component || $0.instanceOf == d.component }),
-                      d.pin < c.pins.count else { continue }
+                guard let c = byBlock[d.component], d.pin < c.pins.count else { continue }
                 let pin = c.pins[d.pin].point
                 let at = CGPoint(x: pin.x + 6, y: pin.y - 10).applying(screen)
                 ctx.draw(Text(verbatim: "◆ " + d.summary).font(.system(size: 9, weight: .semibold, design: .monospaced))

@@ -581,6 +581,8 @@ struct BoardSceneView: NSViewRepresentable {
 
     final class Coordinator: NSObject {
         var lastRevision = -1
+        /// An edit's mesh rebuild, waiting for edits to pause (each edit bumps the revision).
+        var pendingRebuild: DispatchWorkItem?
         var lastComponents = true
         var lastFinish: BoardFinish?
         var lastReset = 0
@@ -701,12 +703,26 @@ struct BoardSceneView: NSViewRepresentable {
         c.onSaveView = onSaveView
         let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)"]
         if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish || c.lastMesh != meshKey {
+            // Only an edit (side-by-side with an editor): rebuild once the edits pause, not on every one.
+            let onlyEdit = c.lastRevision >= 0 && c.lastComponents == includeComponents && c.lastFinish == finish && c.lastMesh == meshKey
             c.lastRevision = revision
             c.lastComponents = includeComponents
             c.lastFinish = finish
             c.lastMesh = meshKey
-            rebuild(c)
-            if c.lastReset == 0 { placeCamera(c, view: view) }
+            c.pendingRebuild?.cancel()
+            if onlyEdit {
+                let work = DispatchWorkItem { [c] in
+                    MainActor.assumeIsolated {
+                        rebuild(c)
+                        applyLook(c)
+                    }
+                }
+                c.pendingRebuild = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+            } else {
+                rebuild(c)
+                if c.lastReset == 0 { placeCamera(c, view: view) }
+            }
         }
         if c.lastReset != resetToken {
             c.lastReset = resetToken

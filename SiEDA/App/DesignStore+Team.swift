@@ -206,6 +206,9 @@ extension DesignStore {
         let key = "\(index):\(layer.name):\(layer.bytes)"
         if let cached = referenceArtworkCache[key] { return cached }
         guard let art = engine.referenceLayer(index) else { return nil }
+        // Only the layers there now: a removed, re-imported or other project's layer is dropped.
+        let live = Set(snapshot.referenceLayers.enumerated().map { "\($0.offset):\($0.element.name):\($0.element.bytes)" })
+        referenceArtworkCache = referenceArtworkCache.filter { live.contains($0.key) }
         referenceArtworkCache[key] = art
         return art
     }

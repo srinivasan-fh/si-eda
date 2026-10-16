@@ -765,7 +765,7 @@ void Simulator::updateCharges(Element& e) const {
 }
 
 void Simulator::terminalCurrents(const Element& e, const std::vector<double>& x, double h,
-                                 std::vector<std::pair<int, double>>& out) const {
+                                 std::vector<std::pair<int, double>>& out, double t) const {
     const int a = e.n[0], b = e.n[1];
     const double v = nodeV(x, a) - nodeV(x, b);
     auto two = [&](double i) {
@@ -779,14 +779,14 @@ void Simulator::terminalCurrents(const Element& e, const std::vector<double>& x,
             break;
         case ElemType::Inductor:
         case ElemType::VSource: two(x[static_cast<size_t>(e.branch)]); break;
-        case ElemType::ISource: two(-e.source.valueAt(0)); break;
+        case ElemType::ISource: two(-e.source.valueAt(t)); break;
         case ElemType::Ctrl:
             if (e.voltageOut) {
                 two(x[static_cast<size_t>(e.branch)]);
             } else {
                 std::vector<double> vals(e.refs.size()), grad;
                 for (size_t r = 0; r < vals.size(); ++r) vals[r] = nodeV(x, e.refs[r]);
-                two(ctrlEval(e, vals, t_, grad));
+                two(ctrlEval(e, vals, t, grad));
             }
             break;
         case ElemType::Device: {
@@ -807,12 +807,12 @@ void Simulator::terminalCurrents(const Element& e, const std::vector<double>& x,
     }
 }
 
-DeviceReading Simulator::modelReading(const Element& e, const std::vector<double>& x, double h) const {
+DeviceReading Simulator::modelReading(const Element& e, const std::vector<double>& x, double h, double t) const {
     std::map<int, double> into;  // node → current flowing into the model's elements
     std::vector<std::pair<int, double>> cur;
     for (size_t i = e.first; i < e.last; ++i) {
         cur.clear();
-        terminalCurrents(elements_[i], x, h, cur);
+        terminalCurrents(elements_[i], x, h, cur, t);
         for (const auto& [node, current] : cur) into[node] += current;
     }
     DeviceReading r;

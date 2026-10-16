@@ -217,7 +217,8 @@ private:
     bool build(std::string& error);
     bool solve(double t, double h, std::vector<double>& x, int& iterations, double gminExtra, double sourceScale);
     void stamp(double t, double h, const std::vector<double>& x, double gminExtra, double sourceScale);
-    std::vector<DeviceReading> readings(const std::vector<double>& x, double h) const;
+    /// Each part's voltage / current / power at solution x; `t` = the time it was solved for (< 0: t_).
+    std::vector<DeviceReading> readings(const std::vector<double>& x, double h, double t = -1) const;
     /// Newton from `x`, then Gmin stepping, then source stepping (the DC operating point strategy).
     bool operatingPoint(std::vector<double>& x, int& iterations);
 
@@ -241,9 +242,9 @@ private:
     /// point x (shared by AC and noise analysis).
     void acMatrix(double freq, const std::vector<double>& G, const std::vector<double>& x,
                   std::vector<std::complex<double>>& M) const;
-    DeviceReading modelReading(const Element& e, const std::vector<double>& x, double h) const;
+    DeviceReading modelReading(const Element& e, const std::vector<double>& x, double h, double t) const;
     void terminalCurrents(const Element& e, const std::vector<double>& x, double h,
-                          std::vector<std::pair<int, double>>& out) const;
+                          std::vector<std::pair<int, double>>& out, double t) const;
 
     const Schematic& sch_;
     std::vector<int> netToNode_;

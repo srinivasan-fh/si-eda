@@ -250,7 +250,8 @@ final class DesignStore: ObservableObject {
     func relieveMemoryPressure(critical: Bool) {
         redoStack.removeAll()
         if critical, undoStack.count > 1 { undoStack.removeFirst(undoStack.count / 2) }
-        if critical { statusMessage = "Low memory — older undo steps released" }
+        referenceArtworkCache.removeAll()  // read again when drawn
+        if critical { LocalLLM.unload(); statusMessage = "Low memory — older undo steps released" }
     }
 
     // MARK: - Crash recovery
@@ -271,9 +272,10 @@ final class DesignStore: ObservableObject {
         recoveryWork?.cancel()
         recoveryWork = nil
         guard let recovery, isDirty else { return }
-        recovery.save(json: engine.saveJSON(), documentURL: documentURL)
-        // Settings ▸ "Save projects automatically": a saved project is written to its own file after each pause too.
-        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL { _ = write(to: url) }
+        let json = engine.saveJSON()  // built once: for the project's own file or the recovery copy
+        // Settings ▸ "Save projects automatically": a saved project is written to its own file after each pause instead.
+        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL, write(to: url, json: json) { return }
+        recovery.save(json: json, documentURL: documentURL)
     }
 
     static let autosaveKey = "autosaveProject"
@@ -3082,9 +3084,9 @@ final class DesignStore: ObservableObject {
         return write(to: url)
     }
 
-    private func write(to url: URL) -> Bool {
+    private func write(to url: URL, json saved: String? = nil) -> Bool {
         do {
-            let json = engine.saveJSON()
+            let json = saved ?? engine.saveJSON()
             try json.write(to: url, atomically: true, encoding: .utf8)
             if documentURL != url {
                 ProjectLock.release(documentURL)

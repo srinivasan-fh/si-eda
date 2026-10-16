@@ -919,7 +919,7 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
 int numericOrder(const std::string& number) { return isNumber(number) ? std::stoi(number) : 100000; }
 }  // namespace
 
-std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomPartSpec& specIn) {
+std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomPartSpec& specIn, bool keep) {
     CustomPartSpec spec = specIn;
     if (spec.name.empty()) throw JsonError("The component needs a name.");
     if (spec.pins.empty()) throw JsonError("The component needs at least one pin.");
@@ -1217,7 +1217,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             unit.power = std::all_of(sub.pins.begin(), sub.pins.end(), [](const CustomPin& p) {
                 return p.type == PinType::PowerIn || p.type == PinType::PowerOut;
             });
-            const auto generated = registerPart(sub);
+            const auto generated = registerPart(sub, keep);
             unit.def = generated->def;
             unit.def.kind = ComponentKind::PartUnit;
             unit.def.footprint.clear();
@@ -1239,6 +1239,10 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!keep) {
+        const auto it = parts_.find(part->id);
+        return it != parts_.end() ? it->second : part;
+    }
     auto [it, inserted] = parts_.emplace(part->id, part);
     return it->second;
 }

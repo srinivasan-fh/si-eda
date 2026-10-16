@@ -612,17 +612,21 @@ std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& e
         if (l.find_first_not_of(" \t") != std::string::npos && l[l.find_first_not_of(" \t")] != '#') lines.push_back(l);
     }
     bool inPlacement = false;
+    double unit = 1;  // mm, or 0.0254 when the header says THOU (Allegro, OrCAD)
     for (size_t i = 0; i < lines.size(); ++i) {
         const auto t = tokens(lines[i]);
         if (t.empty()) continue;
-        if (t[0] == ".PLACEMENT") inPlacement = true;
+        if (t[0] == ".HEADER" && i + 2 < lines.size()) {
+            const auto h = tokens(lines[i + 2]);  // board name and units
+            if (!h.empty() && h.back() == "THOU") unit = 0.0254;
+        } else if (t[0] == ".PLACEMENT") inPlacement = true;
         else if (t[0] == ".END_PLACEMENT") inPlacement = false;
         else if (inPlacement && t.size() >= 3 && i + 1 < lines.size()) {
             const auto p = tokens(lines[++i]);
             Component* c = nullptr;
             if (const Component* found = sch.findByRef(t[2])) c = sch.find(found->id);
             if (!c || p.size() < 5) continue;
-            const Vec2 at{std::atof(p[0].c_str()), -std::atof(p[1].c_str())};
+            const Vec2 at{std::atof(p[0].c_str()) * unit, -std::atof(p[1].c_str()) * unit};
             double deg = std::fmod(std::atof(p[3].c_str()), 360.0);  // hostile files: huge or NaN angles
             if (!std::isfinite(deg)) deg = 0;
             const int rot = idfRotation(static_cast<int>(std::lround(deg / 90.0)) * 90);

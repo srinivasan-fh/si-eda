@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <map>
@@ -540,7 +541,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             // Pin-1 marker dot.
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (fp && !fp->pads.empty()) {
-                Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
+                const Vec2 off{c.pcb.bottom ? -fp->pads[0].offset.x : fp->pads[0].offset.x, fp->pads[0].offset.y};  // mirrored on the bottom
+                Vec2 p1 = c.pcb.position + rotate90(off, c.pcb.rotation);
                 Vec2 dir = p1 - c.pcb.position;
                 double len = dir.length();
                 Vec2 mark = len > 1e-9 ? p1 + dir * (0.9 / len) : p1;
@@ -962,7 +964,8 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
               << "\" stroke=\"" << (l.fab ? "#8a5a00" : "#333") << "\" stroke-width=\"" << mm(l.width) << "\"/>\n";
         const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (fp && !fp->pads.empty()) {
-            Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
+            const Vec2 off{c.pcb.bottom ? -fp->pads[0].offset.x : fp->pads[0].offset.x, fp->pads[0].offset.y};  // mirrored on the bottom
+            Vec2 p1 = c.pcb.position + rotate90(off, c.pcb.rotation);
             o << "<circle cx=\"" << mm(p1.x) << "\" cy=\"" << mm(p1.y) << "\" r=\"0.25\" fill=\"#c0392b\"/>\n";
         }
         double size = std::max(0.8, std::min(2.0, std::min(r.x1 - r.x0, r.y1 - r.y0) * 0.45));
@@ -976,9 +979,15 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
 }
 
 std::string exportStl(const Mesh& mesh, const std::string& name) {
-    std::ostringstream o;
-    o << "solid " << name << "\n";
-    char buf[160];
+    // std::to_chars (general, 6 digits) writes what printf's "%g" does, without format parsing or a stream.
+    std::string o;
+    o.reserve(mesh.indices.size() / 3 * 180 + 2 * name.size() + 32);
+    o += "solid " + name + "\n";
+    char buf[32];
+    auto num = [&](double x) {
+        o += ' ';
+        o.append(buf, std::to_chars(buf, buf + sizeof buf, x, std::chars_format::general, 6).ptr);
+    };
     for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3) {
         uint32_t i0 = mesh.indices[t], i1 = mesh.indices[t + 1], i2 = mesh.indices[t + 2];
         auto v = [&](uint32_t i) {
@@ -988,16 +997,18 @@ std::string exportStl(const Mesh& mesh, const std::string& name) {
         Vec3 n = (b - a).cross(c - a);
         if (n.length() < 1e-12) continue;  // skip degenerate triangles
         n = n.normalized();
-        std::snprintf(buf, sizeof buf, "facet normal %g %g %g\n", n.x, n.y, n.z);
-        o << buf << " outer loop\n";
+        o += "facet normal";
+        num(n.x), num(n.y), num(n.z);
+        o += "\n outer loop\n";
         for (const Vec3& p : {a, b, c}) {
-            std::snprintf(buf, sizeof buf, "  vertex %g %g %g\n", p.x, p.y, p.z);
-            o << buf;
+            o += "  vertex";
+            num(p.x), num(p.y), num(p.z);
+            o += '\n';
         }
-        o << " endloop\nendfacet\n";
+        o += " endloop\nendfacet\n";
     }
-    o << "endsolid " << name << "\n";
-    return o.str();
+    o += "endsolid " + name + "\n";
+    return o;
 }
 
 std::string exportObj(const Mesh& mesh, const std::string& name) {

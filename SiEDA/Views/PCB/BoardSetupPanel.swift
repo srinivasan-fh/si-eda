@@ -5,6 +5,8 @@ struct BoardSetupPanel: View {
     @EnvironmentObject private var store: DesignStore
 
     @State private var preset: BoardOutlinePreset = .rectangle
+    /// The manufacturer sign-off report, run once per design revision (not on every publish).
+    @State private var dfmReport: DfmReport?
     @State private var outlineWidth = "50"
     @State private var outlineHeight = "40"
     @State private var outlineParameter = "3"
@@ -75,7 +77,7 @@ struct BoardSetupPanel: View {
                                               pack.minSpace, pack.minDrill, pack.maxLayers))
                             .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
                         DisclosureGroup("Sign-off Report") {
-                            ForEach(store.engine.dfmReport()?.rows ?? []) { row in
+                            ForEach(dfmReport?.rows ?? []) { row in
                                 HStack {
                                     Image(systemName: row.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
                                         .foregroundStyle(row.ok ? Color.green : Theme.warning)
@@ -86,6 +88,7 @@ struct BoardSetupPanel: View {
                                 }
                             }
                         }
+                        .task(id: store.revision) { dfmReport = store.engine.dfmReport() }
                     }
                     Text("The DRC uses the manufacturer's minimum track, space, drill and annular ring, and adds fabrication and assembly checks: layers, board size, thickness, vias, solder-mask webs, silkscreen over pads, part spacing, part-to-edge distance, fiducials. Check the maker's current capability page before ordering.")
                         .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)

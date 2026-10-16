@@ -7589,7 +7589,11 @@ BoardEditResult glossTracks(PcbLayout& pcb, const Schematic& sch, const std::vec
         for (size_t sgm : L.segs) w.goneT[sgm] = 1;
         auto clear = [&](const std::vector<Vec2>& q) { return pathClear(w, {L.net}, L.layer, q, L.width / 2); };
         std::vector<Vec2> better = tightenPolyline(L.pts, clear);
-        if (opt.retrace) {
+        // A grid route is made of 45° links, never shorter than the octile distance between the ends: a line already
+        // within 1 µm of it cannot improve, so the (whole-board) grid search is skipped.
+        const Vec2 span = L.pts.back() - L.pts.front();
+        const double octile = std::max(std::fabs(span.x), std::fabs(span.y)) + (std::sqrt(2.0) - 1) * std::min(std::fabs(span.x), std::fabs(span.y));
+        if (opt.retrace && pathLength(better) - 1e-3 > octile - 1e-6) {
             const GridPath g = gridRoute(w, {L.net}, L.layer, L.width / 2, L.pts.front(), L.pts.back(),
                                          RoutePosture::Diagonal45, Vec2{});
             if (g.reached && g.pts.size() >= 2 && samePoint(g.pts.front(), L.pts.front(), 1e-9) &&

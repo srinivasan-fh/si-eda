@@ -15,6 +15,7 @@
 // the thread that owns an attached project.
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -149,7 +150,7 @@ private:
     std::function<void(const std::string&)> onChange_;
     std::vector<std::string> log_;
     std::vector<std::string> undo_;  // project states before the last design-changing calls, oldest first
-    const SiedaProject* undoOf_ = nullptr;  // the project they belong to (history clears when it changes)
+    uint64_t undoOf_ = 0;  // the serial of the project they belong to (history clears when it changes)
 };
 
 /// The built-in example designs (project_list_examples / project_load_example): {id, title, description}.

@@ -293,7 +293,12 @@
     is kept between fills while its inputs are unchanged (`boardMask_`). The fill cache key (`zoneFills`) hashes every
     fill input, incl. the `spacingDomains` result (net voltages, altitude, coating), via spans and pad shape fields;
     `pourClearanceChecks` (Pcb.cpp) adds DRC_POUR_CLEARANCE (pour rects vs other nets' copper by the fill's own rule).
-  - **MCP:** file reads are capped at 128 MB.
+  - **MCP:** file reads are capped at 128 MB; undo history belongs to one project by its `SiedaProject::serial` (a reused
+    address starts empty) and keeps the newest `kUndoHistory` (30) steps, also after loading a saved history.
+  - **Previews / outputs:** `sieda_custom_part_preview` builds the part without keeping it (`registerPart(spec, false)`);
+    verification runs the DRC once and builds the package without the STL (`fabricationPackage(…, false)`); the STL is
+    written with `to_chars` (byte-identical to `%g`); `Schematic::find` binary-searches the id-sorted parts first; gloss
+    skips the grid retrace of a line already at its octile length (copper unchanged).
   - **Live endpoint:** at most 16 connections, answered one request at a time (`MCPLiveServer.waitForTurn`); tool
     calls run the core in the background (`MCPStoreBridge.handleLive`, `DesignStore.performExternalEditInBackground`:
     one undo step as before).
