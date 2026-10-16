@@ -8626,6 +8626,50 @@ TEST(repeated_sheets_channels_nets_designators_and_flattening) {
     CHECK(instancesConsistent(s));
 }
 
+TEST(repeated_sheets_suffix_annotation_unique_across_blocks) {
+    // Issue #166: two suffixed blocks share their channel labels (A, B), so their logical designators must not repeat.
+    Schematic s;
+    const int amp = s.addSheet("Amp"), filt = s.addSheet("Filt");
+    s.setActiveSheet(amp);
+    const int ra = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    s.setActiveSheet(filt);
+    const int rf = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.repeatSheet(amp, 2) == 2 && s.repeatSheet(filt, 2) == 2);
+    CHECK(s.setInstanceRefs(amp, InstanceRefs::Suffix) && s.setInstanceRefs(filt, InstanceRefs::Suffix));
+    CHECK(s.find(ra)->ref != s.find(rf)->ref);
+    s.annotate({});
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(s.find(ra)->logicalRef == "R1" && s.find(rf)->logicalRef == "R2");
+    CHECK(!hasCode(s.runERC(), "ERC_DUPLICATE_REF"));
+}
+
+TEST(repeated_sheets_sheet_numbered_channel_skips_taken_ref) {
+    // Issue #167: a channel added in front of a sheet takes that sheet's old number range; a designator held there by
+    // another part is skipped, and the channel keeps its number on every later sync.
+    Schematic s;
+    const int amp = s.addSheet("Amp"), power = s.addSheet("Power");
+    s.setActiveSheet(amp);
+    const int ra = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    s.setActiveSheet(power);
+    const int rp = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.repeatSheet(amp, 2) == 2);
+    AnnotateOptions o;
+    o.sheetNumbering = true;
+    s.annotate(o);
+    CHECK(s.find(rp)->ref == "R401" && s.find(ra)->ref == "R201");
+    CHECK(s.repeatSheet(amp, 3) == 3);
+    const int rc = s.copyOn(ra, s.sheetInstances(amp)[2]);
+    CHECK(rc > 0 && s.find(rp)->ref == "R401" && s.find(rc)->ref == "R402");
+    s.syncInstances();
+    CHECK(s.find(rc)->ref == "R402");
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(!hasCode(s.runERC(), "ERC_DUPLICATE_REF"));
+}
+
 TEST(repeated_sheets_rules_annotation_and_erc) {
     Schematic s;
     DividerBlock b = dividerBlock(s);

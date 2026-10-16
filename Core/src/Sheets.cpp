@@ -504,6 +504,7 @@ std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
         changes.push_back({c.id, c.ref, fresh[it.at]});
         c.ref = fresh[it.at];
     }
+    if (blocks) syncInstances();  // a channel bumped off a part's old designator takes its own number back
     for (const auto& [id, ref] : blockRefs)
         if (const Component* c = find(id); c && c->ref != ref) changes.push_back({id, ref, c->ref});
     syncUnits();  // units take their packages' new designators
