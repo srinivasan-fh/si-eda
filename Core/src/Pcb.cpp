@@ -1797,6 +1797,8 @@ public:
         // Pad copper is sampled on the grid, so a pad edge can sit up to half a cell diagonal closer than the cells
         // suggest: check other-net pads exactly, and hole-to-hole spacing to drilled pads.
         Vec2 at = pos(ci, cj);
+        // The board edge exactly too: its cells hold track clearance only, so a via ring could reach into it (DRC #152).
+        if (s_.edgeDistance(at) < s_.edgeClearance + s_.viaDiameter / 2 - 1e-9) return false;
         double need = s_.viaDiameter / 2 + s_.clearance - 1e-9;
         // Only pads within the largest reach can matter (the bucket index holds every pad by its rectangle).
         bool padClash = false;
