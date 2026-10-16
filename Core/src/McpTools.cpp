@@ -4594,7 +4594,7 @@ void pcbTools(Table& t) {
                           for (int id : ids) {
                               const Component& c = *pr.schematic.find(id);
                               const Rect cy = pr.pcb.courtyard(c);
-                              const int edge = cy.x0 < 1 ? 1 : cy.x1 > W - 1 ? 2 : cy.y0 < 1 ? 4 : cy.y1 > H - 1 ? 8 : 0;
+                              const int edge = cy.x0 < 2.5 ? 1 : cy.x1 > W - 2.5 ? 2 : cy.y0 < 2.5 ? 4 : cy.y1 > H - 2.5 ? 8 : 0;  // (Auto Place's edge parts)
                               Vec2 dir = c0 - c.pcb.position;
                               if (edge) dir = edge < 4 ? Vec2{dir.x, 0} : Vec2{0, dir.y};
                               for (double t : {0.5, 0.35, 0.2, 0.1, 0.05}) {
@@ -4610,7 +4610,7 @@ void pcbTools(Table& t) {
                       }
                       if (hub && sieda_pcb_fit_board(P(s), argNum(a, "margin", 2)) == 1 && problems() <= allowed &&
                           pr.pcb.settings.width * pr.pcb.settings.height < best.pcb.settings.width * best.pcb.settings.height - 1)
-                          best = pr, last.clear();
+                          best = pr;
                       pr = best;
                   }
                   P(s)->router.reset();
@@ -6952,14 +6952,16 @@ void renderTools(Table& t) {
           Schema()
               .str("format", "png (default) or svg", false, {"png", "svg"})
               .array("layers", "Copper layers to show (default all; 0 = top)", "integer")
-              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+              .integer("width", "Image width in pixels (default 1000, at most 2048)")
+              .boolean("pours", "Draw the copper pours (default true; false shows the tracks and pads alone)"),
           [](McpServer& s, const Json& a) {
               std::vector<int> layers;
               if (a.get("layers").isArray())
                   for (const auto& l : a.get("layers").items()) layers.push_back(l.asInt(0));
               const std::string f = argStr(a, "format", "png");
               const int w = argInt(a, "width", 1000);
-              return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w) : renderPcbPng(*P(s), layers, w), "pcb");
+              const bool pours = argBool(a, "pours", true);
+              return imageOutput(f, f == "svg" ? renderPcbSvg(*P(s), layers, w, pours) : renderPcbPng(*P(s), layers, w, pours), "pcb");
           });
     t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
           "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "

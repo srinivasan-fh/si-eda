@@ -731,7 +731,7 @@ std::string layerColour(int layer, int layerCount) {
     return inner[(layer - 1) % 4];
 }
 
-Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
+Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool pours = true) {
     const Schematic& sch = project.schematic;
     const PcbLayout& pcb = project.pcb;
     const int n = std::max(1, pcb.settings.layerCount);
@@ -747,7 +747,7 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
     // Bottom layer first, the top layer last.
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
-    const auto fills = copperFills(sch, pcb);
+    const auto fills = pours ? copperFills(sch, pcb) : std::vector<ZoneFill>{};
     for (int l : order) {  // every pour under every track (bottom first): a top pour does not hide the bottom layer's tracks
         // A dark, muted tint of the layer's colour: the tracks, the clearance gaps and the spokes round pads stand out on it.
         const std::string tint = l == 0 ? "#4a2c2c" : (l == n - 1 ? "#2a3350" : "#463e28");
@@ -826,11 +826,15 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn) {
         b.x1 = std::max(b.x1, p.x);
         b.y1 = std::max(b.y1, p.y);
     }
-    for (const auto& k : pcb.settings.keepouts) {  // keep-outs: an orange box with a cross and its name
-        s.box(k.area, false, 0.12, "#ff9933");
-        s.line({k.area.x0, k.area.y0}, {k.area.x1, k.area.y1}, 0.06, "#ff9933");
-        s.line({k.area.x0, k.area.y1}, {k.area.x1, k.area.y0}, 0.06, "#ff9933");
-        if (!k.name.empty()) s.text({k.area.center().x, k.area.y1 - 0.4}, k.name, 0.8, "#ff9933", true);
+    Rect ob = outline.empty() ? Rect{} : Rect{outline[0].x, outline[0].y, outline[0].x, outline[0].y};
+    for (const auto& p : outline) ob.x0 = std::min(ob.x0, p.x), ob.y0 = std::min(ob.y0, p.y), ob.x1 = std::max(ob.x1, p.x), ob.y1 = std::max(ob.y1, p.y);
+    for (const auto& k : pcb.settings.keepouts) {  // keep-outs: an orange box with a cross and its name (on the board)
+        const Rect r{std::max(k.area.x0, ob.x0), std::max(k.area.y0, ob.y0), std::min(k.area.x1, ob.x1), std::min(k.area.y1, ob.y1)};
+        if (r.x0 >= r.x1 || r.y0 >= r.y1) continue;
+        s.box(r, false, 0.12, "#ff9933");
+        s.line({r.x0, r.y0}, {r.x1, r.y1}, 0.06, "#ff9933");
+        s.line({r.x0, r.y1}, {r.x1, r.y0}, 0.06, "#ff9933");
+        if (!k.name.empty()) s.text({r.center().x, r.y1 - 0.4}, k.name, 0.8, "#ff9933", true);
     }
     s.polygon(outline, false, 0.15, "#e8e8e8");
     s.bounds = b.inflated(2);
@@ -845,11 +849,11 @@ std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width
 std::string renderSchematicPng(const SiedaProject& project, int sheet, int width) {
     return toPng(schematicScene(project.project, sheet), width);
 }
-std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width) {
-    return toSvg(pcbScene(project.project, layers), width);
+std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours) {
+    return toSvg(pcbScene(project.project, layers, pours), width);
 }
-std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width) {
-    return toPng(pcbScene(project.project, layers), width);
+std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours) {
+    return toPng(pcbScene(project.project, layers, pours), width);
 }
 
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width) {

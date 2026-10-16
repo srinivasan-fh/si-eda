@@ -162,8 +162,8 @@ const std::vector<McpExample>& mcpExamples();
 /// layers: copper layers to draw on the board (empty = all). width: image width in pixels (PNG) / user units (SVG).
 std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width);
 std::string renderSchematicPng(const SiedaProject& project, int sheet, int width);
-std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width);
-std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width);
+std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours = true);
+std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours = true);
 /// The assembled board in 3D (shaded, orthographic) as PNG: view iso (default), top, bottom, front, back, left, right.
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width);
 
