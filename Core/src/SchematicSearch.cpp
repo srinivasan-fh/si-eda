@@ -106,15 +106,21 @@ int replaceInSchematic(Schematic& sch, const std::string& text, const std::strin
         const bool part = isPart(c) && !c.packageOnly;
         if ((label && !o.labels) || (part && !o.values) || (!label && !part)) continue;
         if (!matches(c.value, text, o)) continue;
-        int target = sch.masterOf(c.id);  // a block part is edited once, on its definition
-        if (const int pkg = sch.unitPackage(target); pkg > 0) target = pkg;  // a multi-unit part once, on its package
+        // A block part is edited once, on its definition; a channel's own value on that channel only.
+        const bool own = c.instanceOf != 0 && (c.channelOverrides & kOverrideValue);
+        int target = own ? c.id : sch.masterOf(c.id);
+        if (const int pkg = own ? 0 : sch.unitPackage(target); pkg > 0) target = pkg;  // a multi-unit part once, on its package
         if (!seen.insert(target).second) continue;
         const std::string value = replaced(c.value, text, with, o);
         if (value == c.value || (label && value.empty())) continue;
         edits.push_back({target, value});
     }
     int changed = 0;
-    for (const auto& [id, value] : edits) changed += sch.setValue(id, value) ? 1 : 0;
+    for (const auto& [id, value] : edits) {
+        const Component* c = sch.find(id);
+        const bool own = c && c->instanceOf != 0 && (c->channelOverrides & kOverrideValue);
+        changed += (own ? sch.setChannelValue(id, value) : sch.setValue(id, value)) ? 1 : 0;
+    }
     // Designators too (refs): a new one must still be a designator (letters then a number) and be free.
     if (o.refs) {
         std::vector<std::pair<int, std::string>> renames;

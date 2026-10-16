@@ -200,13 +200,14 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
         // Not a track that another of its net's tracks (or vias) joins part-way along (a stub to an ESD array): a
         // serpentine in its place would cut that branch off.
         auto branched = [&](const Track& t) {
-            auto inside = [&](Vec2 e) {
-                return (e - t.a).length() > 1e-3 && (e - t.b).length() > 1e-3 && pointSegmentDistance(e, t.a, t.b) < t.width / 2 + 1e-6;
+            auto inside = [&](Vec2 e, double w) {  // copper of width w centred at e touches t away from its ends
+                const double r = (t.width + w) / 2 + 1e-6;
+                return (e - t.a).length() > r && (e - t.b).length() > r && pointSegmentDistance(e, t.a, t.b) < r;
             };
             for (const auto& o : pcb.tracks)
-                if (&o != &t && o.net == net && (inside(o.a) || inside(o.b))) return true;
+                if (&o != &t && o.net == net && o.layer == t.layer && (inside(o.a, o.width) || inside(o.b, o.width))) return true;
             for (const auto& v : pcb.vias)
-                if (v.net == net && inside(v.position)) return true;
+                if (v.net == net && v.spans(t.layer) && inside(v.position, v.diameter)) return true;
             return false;
         };
         for (size_t i = 0; i < pcb.tracks.size(); ++i)

@@ -221,11 +221,15 @@ DxfOutline importDxfOutline(const std::string& text) {
         } else if (type == "CIRCLE") {
             auto pts = arcPoints({value(10), value(20)}, value(40), 0, 2 * M_PI);
             if (pts.size() > 3) pts.pop_back(), loops.push_back(pts);
-        } else if (type == "LWPOLYLINE") {
+        } else if (type == "LWPOLYLINE" || type == "POLYLINE") {
+            // LWPOLYLINE: its vertices in its own groups; R12 POLYLINE: one VERTEX entity each, up to SEQEND. Both
+            // give each vertex's bulge (42) to the next one.
             std::vector<Vec2> verts;
             std::vector<double> bulges;
-            for (size_t k = i + 1; k < j; ++k) {
-                if (pairs[k].first == 10) verts.push_back({std::atof(pairs[k].second.c_str()), 0}), bulges.push_back(0);
+            const bool lw = type == "LWPOLYLINE";
+            for (size_t k = lw ? i + 1 : j; k < pairs.size() && (lw ? k < j : !(pairs[k].first == 0 && pairs[k].second == "SEQEND")); ++k) {
+                if (lw ? pairs[k].first == 10 : pairs[k].first == 0 && pairs[k].second == "VERTEX") verts.push_back({0, 0}), bulges.push_back(0);
+                if (pairs[k].first == 10 && !verts.empty()) verts.back().x = std::atof(pairs[k].second.c_str());
                 if (pairs[k].first == 20 && !verts.empty()) verts.back().y = std::atof(pairs[k].second.c_str());
                 if (pairs[k].first == 42 && !bulges.empty()) bulges.back() = std::atof(pairs[k].second.c_str());
             }
@@ -236,23 +240,10 @@ DxfOutline importDxfOutline(const std::string& text) {
             if (closed) {
                 bulgeTo(pts, verts.back(), verts[0], bulges.back());
                 pts.pop_back();
-                loops.push_back(pts);
+                if (pts.size() >= 3) loops.push_back(pts);
             } else {
                 for (size_t k = 1; k < pts.size(); ++k) segments.push_back({pts[k - 1], pts[k]});
             }
-        } else if (type == "POLYLINE") {
-            const bool closed = (flags(70) & 1) != 0;
-            std::vector<Vec2> pts;
-            size_t k = j;
-            while (k < pairs.size() && !(pairs[k].first == 0 && pairs[k].second == "SEQEND")) {
-                if (pairs[k].first == 0 && pairs[k].second == "VERTEX") pts.push_back({0, 0});
-                if (pairs[k].first == 10 && !pts.empty()) pts.back().x = std::atof(pairs[k].second.c_str());
-                if (pairs[k].first == 20 && !pts.empty()) pts.back().y = std::atof(pairs[k].second.c_str());
-                ++k;
-            }
-            if (closed && pts.size() >= 3) loops.push_back(pts);
-            else
-                for (size_t m = 1; m < pts.size(); ++m) segments.push_back({pts[m - 1], pts[m]});
         }
     }
     auto sane = [](Vec2 p) { return std::isfinite(p.x) && std::isfinite(p.y) && std::fabs(p.x) < 1e7 && std::fabs(p.y) < 1e7; };

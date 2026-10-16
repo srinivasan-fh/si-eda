@@ -690,7 +690,9 @@ int SpiceLibrary::findSubckt(const std::string& rawName, int scope) const {
 std::string inlineSpiceIncludes(const std::string& text, const std::string& dir) {
     size_t budget = kMaxText;
     std::set<std::string> seen;
-    std::function<std::string(const std::string&, int)> expand = [&](const std::string& src, int depth) {
+    // `at`: the folder of the file being expanded (a nested include is found beside the file that names it).
+    std::function<std::string(const std::string&, int, const std::string&)> expand = [&](const std::string& src, int depth,
+                                                                                         const std::string& at) {
         std::istringstream in(src);
         std::string out, line;
         while (std::getline(in, line)) {
@@ -702,8 +704,8 @@ std::string inlineSpiceIncludes(const std::string& text, const std::string& dir)
             const bool inc = kw == ".INCLUDE" || kw == ".INC" || kw == ".LIB" || kw == ".LIBRARY";
             std::string body;
             if (inc && depth < 8 && !file.empty() && file[0] != '/' && file[0] != '\\' && file.find("..") == std::string::npos &&
-                file.find(':') == std::string::npos && seen.insert(file + "|" + upper(section)).second) {
-                std::ifstream f(dir + "/" + file, std::ios::binary);
+                file.find(':') == std::string::npos && seen.insert(at + "/" + file + "|" + upper(section)).second) {
+                std::ifstream f(at + "/" + file, std::ios::binary);
                 std::ostringstream buf;
                 if (f && buf << f.rdbuf()) body = buf.str();
                 if (!body.empty() && !section.empty()) {  // .lib file section: only that block
@@ -712,10 +714,13 @@ std::string inlineSpiceIncludes(const std::string& text, const std::string& dir)
                     bool on = false;
                     while (std::getline(bs, l)) {
                         std::istringstream t(l);
-                        std::string k, name;
-                        t >> k >> name;
+                        std::string k, name, more;
+                        t >> k >> name >> more;
                         k = upper(k);
-                        if (on && (k == ".ENDL" || k == ".LIB")) break;
+                        // The section ends at .ENDL or the next section's header (".lib NAME"); a nested
+                        // ".lib 'file' SECTION" call is part of it (expanded below).
+                        const bool header = k == ".LIB" && more.empty() && !name.empty() && name[0] != '"' && name[0] != '\'';
+                        if (on && (k == ".ENDL" || header)) break;
                         if (on) block += l + "\n";
                         on = on || (k == ".LIB" && upper(name) == upper(section));
                     }
@@ -727,11 +732,12 @@ std::string inlineSpiceIncludes(const std::string& text, const std::string& dir)
                 continue;
             }
             budget -= body.size();
-            out += "* " + line + " (inlined)\n" + expand(body, depth + 1) + "\n";
+            const size_t slash = file.find_last_of("/\\");
+            out += "* " + line + " (inlined)\n" + expand(body, depth + 1, slash == std::string::npos ? at : at + "/" + file.substr(0, slash)) + "\n";
         }
         return out;
     };
-    return expand(text, 0);
+    return expand(text, 0, dir);
 }
 
 SpiceLibrary parseSpiceLibrary(const std::string& text) {
@@ -1052,7 +1058,7 @@ const ParamSets& paramSets(const std::string& type) {
                   "KF", "AF", "LEVEL", "TNOM", "T_MEASURED", "EG", "XTI", "XTB"},
                  commonInfo}},
         {"MOS", {{"LEVEL", "VTO", "VT0", "KP", "GAMMA", "PHI", "LAMBDA", "THETA", "RD", "RS", "CBD", "CBS", "IS", "PB",
-                  "CGSO", "CGDO", "CGBO", "CJ", "MJ", "CJSW", "MJSW", "FC", "TOX", "UO", "U0", "LD", "KF", "AF", "JS",
+                  "CGSO", "CGDO", "CGBO", "CJ", "MJ", "CJSW", "MJSW", "FC", "TOX", "UO", "U0", "LD", "KF", "AF", "NSS",
                   "L", "W", "TNOM", "T_MEASURED", "NSUB", "XJ", "NFS", "ETA", "VMAX", "KAPPA", "DELTA"},
                  commonInfo}},
         {"JFET", {{"VTO", "VT0", "BETA", "LAMBDA", "IS", "N", "RD", "RS", "CGS", "CGD", "PB", "M", "FC", "KF", "AF",
@@ -1208,9 +1214,9 @@ private:
 
     std::string nodeName(const Ctx& c, const std::string& raw) const {
         std::string n = upper(raw);
-        if (n == "0" || n == "GND" || n == "GND!") return "0";
-        auto it = c.ports.find(n);
+        auto it = c.ports.find(n);  // a port named GND is its pin, not global ground
         if (it != c.ports.end()) return it->second;
+        if (n == "0" || n == "GND" || n == "GND!") return "0";
         return c.prefix + n;
     }
 

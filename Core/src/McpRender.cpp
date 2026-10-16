@@ -640,6 +640,17 @@ Scene schematicScene(const Project& project, int sheet) {
                 }
                 // Top / bottom pin names that would touch the one before go one row further in; a name already
                 // written at that spot (stacked pins) is written once. Ref and value clear the pin ends.
+                std::vector<std::string> shown;  // a generic header pin (Pin_3, 3) reads by its net's name (SCK, DTR)
+                for (size_t i = 0; i < pins.size(); ++i) {
+                    std::string label = pins[i].name;
+                    const std::string bare = label.rfind("Pin_", 0) == 0 ? label.substr(4) : label;
+                    const int pinNet = sch.netOf({c.id, static_cast<int>(i)});
+                    if (!bare.empty() && bare.find_first_not_of("0123456789") == std::string::npos && pinNet >= 0) {
+                        const std::string& net = sch.nets()[static_cast<size_t>(pinNet)].name;
+                        if (!net.empty() && net.rfind("N$", 0) != 0) label = net;
+                    }
+                    shown.push_back(label);
+                }
                 std::map<size_t, double> row;
                 std::set<std::pair<long, std::string>> written;
                 double top = y0, bottom = y1;
@@ -654,7 +665,7 @@ Scene schematicScene(const Project& project, int sheet) {
                     std::sort(along.begin(), along.end());
                     double ends[2] = {-1e9, -1e9};
                     for (const auto& [x, i] : along) {
-                        const double half = 3.0 * static_cast<double>(pins[i].name.size()) + 1.5;  // with room between names
+                        const double half = 3.0 * static_cast<double>(shown[i].size()) + 1.5;  // with room between names
                         const int r = x - half >= ends[0] ? 0 : 1;
                         if (x - half >= ends[r] || r == 0) ends[r] = std::max(ends[r], x + half);
                         row[i] = r * 7.0;
@@ -682,13 +693,7 @@ Scene schematicScene(const Project& project, int sheet) {
                         s.line(x + Vec2{-4, 4}, x + Vec2{4, -4}, 1.5, "#1f4f9f");
                     }
                     if (pins.size() > 3 || c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) {
-                        // A generic header pin (Pin_3, 3) reads by its net's name (SCK, DTR) when the net has one.
-                        std::string label = pins[i].name;
-                        const std::string bare = label.rfind("Pin_", 0) == 0 ? label.substr(4) : label;
-                        if (!bare.empty() && bare.find_first_not_of("0123456789") == std::string::npos && pinNet >= 0) {
-                            const std::string& net = sch.nets()[static_cast<size_t>(pinNet)].name;
-                            if (!net.empty() && net.rfind("N$", 0) != 0) label = net;
-                        }
+                        const std::string& label = shown[i];
                         const bool left = m == dl, right = m == dr;
                         // A side name keeps to its half of the body (smaller text when it is long).
                         const double h = std::max(4.0, std::min(6.0, 6 * ((x1 - x0) / 2 - 6) / std::max(1.0, textWidth(label, 6))));

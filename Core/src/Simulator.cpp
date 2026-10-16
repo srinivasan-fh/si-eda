@@ -787,13 +787,14 @@ bool Simulator::solve(double t, double h, std::vector<double>& x, int& iteration
     return false;
 }
 
-std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, double h) const {
+std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, double h, double t) const {
+    if (t < 0) t = t_;
     std::vector<DeviceReading> out;
     for (const auto& e : elements_) {
         if (e.type == ElemType::McuPin) continue;  // part of the microcontroller (its supply load is the reading)
         if (e.internal) continue;                   // inside an imported model: ModelPorts is the part's reading
         if (e.type == ElemType::ModelPorts) {
-            out.push_back(modelReading(e, x, h));
+            out.push_back(modelReading(e, x, h, t));
             continue;
         }
         DeviceReading r;
@@ -821,7 +822,7 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
                 r.power = -r.voltage * r.current;
                 break;
             case ElemType::ISource:
-                r.current = e.source.valueAt(0);
+                r.current = e.source.valueAt(t);  // a PULSE / SIN / PWL source at the sample's time
                 r.power = -r.voltage * r.current;
                 break;
             case ElemType::OpAmp:
@@ -912,7 +913,7 @@ DcResult Simulator::dcOperatingPoint() {
     const auto& nets = sch_.nets();
     res.netVoltages.assign(nets.size(), 0.0);
     for (size_t i = 0; i < nets.size(); ++i) res.netVoltages[i] = nodeV(x, netToNode_[i]);
-    res.devices = readings(x, 0);
+    res.devices = readings(x, 0, 0);
     return res;
 }
 
@@ -986,7 +987,7 @@ bool Simulator::advance(double h, std::string& error) {
     std::vector<double> guess = x_;
     int iters = 0;
     if (solve(t, h, x_, iters, 0.0, 1.0)) {
-        lastReadings_ = readings(x_, h);  // pre-update state: capacitor currents use the previous voltage
+        lastReadings_ = readings(x_, h, t);  // pre-update state: capacitor currents use the previous voltage
         stepH_ = h;
         updateState();
     } else {
@@ -1007,7 +1008,7 @@ bool Simulator::advance(double h, std::string& error) {
                 error = "Transient analysis failed to converge at t = " + formatEngineeringValue(t, "s");
                 return false;
             }
-            if (k == sub) lastReadings_ = readings(x_, hs);
+            if (k == sub) lastReadings_ = readings(x_, hs, t);
             stepH_ = hs;
             updateState();
         }
@@ -1487,7 +1488,7 @@ DcSweepResult Simulator::dcSweep(int componentId, double start, double stop, dou
         }
         res.values.push_back(v);
         for (size_t k = 0; k < nets.size(); ++k) res.netVoltages[k].push_back(nodeV(x, netToNode_[k]));
-        for (const auto& r : readings(x, 0))
+        for (const auto& r : readings(x, 0, 0))
             if (r.subIndex == 0) res.currents[r.componentId].push_back(r.current);
     }
     res.ok = true;
@@ -1529,7 +1530,7 @@ DcSweepResult Simulator::temperatureSweep(const std::vector<double>& celsius) {
         }
         res.values.push_back(t);
         for (size_t k = 0; k < nets.size(); ++k) res.netVoltages[k].push_back(nodeV(x, netToNode_[k]));
-        for (const auto& r : readings(x, 0))
+        for (const auto& r : readings(x, 0, 0))
             if (r.subIndex == 0) res.currents[r.componentId].push_back(r.current);
     }
     temperatureC_ = saved;

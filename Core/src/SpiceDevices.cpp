@@ -279,6 +279,19 @@ public:
         gamma_ = std::max(param(p, {"GAMMA"}, 0.0), 0.0);
         phi_ = std::max(param(p, {"PHI"}, 0.6), 0.1);
         vto_ = sign_ * param(p, {"VTO", "VT0"}, 0.0);
+        if (const double nsub = param(p, {"NSUB"}, 0.0) * 1e6; nsub > 1.45e16) {
+            // NSUB (cm⁻³) gives the PHI / GAMMA / VTO a card leaves out, at TNOM (SPICE3 mos1temp.c / mos3temp.c;
+            // the oxide defaults to 100 nm, the gate type is 1 (opposite to the substrate), NSS = 0 unless given).
+            const double cox = cox_ > 0 ? cox_ : kEpsOx / 1e-7;
+            if (param(p, {"PHI"}, -1.0) < 0) phi_ = std::max(2 * (kBoltzmann * tp.tnom / kCharge) * std::log(nsub / 1.45e16), 0.1);
+            if (param(p, {"GAMMA"}, -1.0) < 0) gamma_ = std::sqrt(2 * kEpsSi * kCharge * nsub) / cox;
+            if (std::isnan(param(p, {"VTO", "VT0"}, NAN))) {
+                const double fermis = sign_ * 0.5 * phi_, fermig = sign_ * 0.5 * tp.egfet1;
+                const double vfb = (3.25 + 0.5 * tp.egfet1 - fermig) - (3.25 + 0.5 * tp.egfet1 + fermis) -
+                                   param(p, {"NSS"}, 0.0) * 1e4 * kCharge / cox;
+                vto_ = sign_ * (vfb + sign_ * (gamma_ * std::sqrt(phi_) + phi_));
+            }
+        }
         if (!tp.nominal) {
             // VTO and PHI at T: the flat-band voltage follows the band gap and the Fermi potential (mostemp.c).
             const double tPhi = tp.potential(phi_);

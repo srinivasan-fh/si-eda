@@ -4166,7 +4166,7 @@ void libraryTools(Table& t) {
                   ++total;
                   size_t named = 0, said = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
                   for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
-                  for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
+                  for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " + p.spec.manufacturer), w);
                   (said == words.size() ? ranked : byPackage).push_back({named, &p});
               }
               // A word only a package names ("header": a module in a HEADER-4 package) lists those parts only when
@@ -4817,6 +4817,34 @@ void pcbTools(Table& t) {
                           }
                           return true;
                       };
+                      // No step takes a capacitor / crystal more than 1 mm further from what it serves (the nearest pads on
+                      // a shared net of "C2 → U1.VCC (2.7 mm)" / "C6 → Y1"); the reply's distances follow the moves.
+                      auto pairGaps = [&] {
+                          const auto pads = pr.pcb.pads(pr.schematic);
+                          std::map<std::string, double> gaps;
+                          const std::string arrow = " → ";
+                          for (const auto& m : bestPlaced.items()) {
+                              const std::string line = m.asString("");
+                              if (line.find(arrow) == std::string::npos) continue;
+                              const std::string rest = line.substr(line.find(arrow) + arrow.size());
+                              const Component *ca = pr.schematic.findByRef(line.substr(0, line.find(' '))),
+                                              *cb = pr.schematic.findByRef(rest.substr(0, rest.find_first_of(". ")));
+                              double best = 1e9;
+                              for (const auto& q : pads)
+                                  for (const auto& r : pads)
+                                      if (ca && cb && q.componentId == ca->id && r.componentId == cb->id && q.net >= 0 && q.net == r.net)
+                                          best = std::min(best, (q.position - r.position).length());
+                              if (best < 1e8) gaps[line] = best;
+                          }
+                          return gaps;
+                      };
+                      const auto gaps0 = pairGaps();
+                      auto pairsKept = [&] {
+                          const auto now = pairGaps();
+                          for (const auto& [line, mm] : gaps0)
+                              if (!now.count(line) || now.at(line) > mm + 1.0) return false;
+                          return true;
+                      };
                       for (int round = 0; round < 8 && hub; ++round) {
                           std::sort(ids.begin(), ids.end(), [&](int l, int r) {
                               return (pr.schematic.find(l)->pcb.position - c0).length() > (pr.schematic.find(r)->pcb.position - c0).length();
@@ -4833,14 +4861,31 @@ void pcbTools(Table& t) {
                                   if ((chk.position - c.pcb.position).length() < 0.2 || !chk.legal ||
                                       !crowding(pr, classes, id, chk.courtyard, c.pcb.bottom).empty() || (edge && !outermost(id, chk.courtyard, edge)))
                                       continue;
+                                  const Vec2 was = c.pcb.position;
                                   pr.placeComponent(id, to, c.pcb.rotation, c.pcb.bottom, 0.25);
-                                  break;
+                                  if (pairsKept()) break;
+                                  pr.schematic.find(id)->pcb.position = was;
+                                  pr.schematicChanged();
                               }
                           }
                       }
-                      if (hub && sieda_pcb_fit_board(P(s), argNum(a, "margin", 2)) == 1 && problems() <= allowed &&
-                          pr.pcb.settings.width * pr.pcb.settings.height < best.pcb.settings.width * best.pcb.settings.height - 1)
+                      if (hub && sieda_pcb_fit_board(P(s), argNum(a, "margin", 3)) == 1 && problems() <= allowed &&
+                          pr.pcb.settings.width * pr.pcb.settings.height < best.pcb.settings.width * best.pcb.settings.height - 1) {
                           best = pr;
+                          const auto now = pairGaps();
+                          Json moved = Json::array();
+                          for (const auto& m : bestPlaced.items()) {
+                              std::string line = m.asString("");
+                              const size_t at = line.rfind(" (");
+                              if (at != std::string::npos && gaps0.count(line) && now.count(line)) {
+                                  char mm[32];
+                                  std::snprintf(mm, sizeof mm, " (%.1f mm)", std::max(0.0, std::atof(line.c_str() + at + 2) + now.at(line) - gaps0.at(line)));
+                                  line = line.substr(0, at) + mm;
+                              }
+                              moved.push(line);
+                          }
+                          bestPlaced = moved;
+                      }
                       pr = best;
                   }
                   P(s)->router.reset();

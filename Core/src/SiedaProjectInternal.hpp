@@ -16,4 +16,9 @@ struct SiedaProject {
     std::atomic<unsigned> routerAbort{0};
     /// Snapshot sections (top-level key → JSON text) last sent by sieda_project_snapshot_delta.
     std::map<std::string, std::string> sentSnapshot;
+    /// Unique to this project (a freed project's address is often reused): MCP undo history belongs to one project.
+    const uint64_t serial = [] {
+        static std::atomic<uint64_t> next{0};
+        return ++next;
+    }();
 };

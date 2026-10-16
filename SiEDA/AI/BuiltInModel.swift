@@ -53,6 +53,9 @@ final class LocalLLM {
         sieda_llm_close(handle)
     }
 
+    /// Closes the loaded model (its file mapping and GPU buffers) after the request in flight; the next one loads it again.
+    static func unload() { queue.async { loaded = nil } }
+
     /// Answers on the model's queue; cancelling the calling task stops the generation.
     static func run(path: String, system: String, user: String, maxTokens: Int, json: Bool = true) async throws -> String {
         let cancelled = CancelFlag()
@@ -83,9 +86,10 @@ final class LocalLLM {
         let reply = sieda_llm_chat(handle, system, user, options, { _, context in
             Unmanaged<CancelFlag>.fromOpaque(context!).takeUnretainedValue().isSet ? 0 : 1
         }, context, &error)
+        let answer = EDAEngine.take(reply), failure = EDAEngine.take(error)  // both freed, cancelled or not
         if cancelled.isSet { throw CancellationError() }
-        guard let text = EDAEngine.take(reply) else {
-            throw AIProviderError.invalidResponse(EDAEngine.take(error) ?? "The built-in model failed.")
+        guard let text = answer else {
+            throw AIProviderError.invalidResponse(failure ?? "The built-in model failed.")
         }
         return text
     }
@@ -178,6 +182,7 @@ final class LocalModelStore: ObservableObject {
     func cancel(_ file: String) { tasks[file]?.cancel() }
 
     func delete(_ file: String) {
+        LocalLLM.unload()  // a deleted model mapped until quit would keep its disk space
         try? FileManager.default.removeItem(at: Self.folder.appendingPathComponent(file))
         refresh()
     }

@@ -51,6 +51,8 @@ through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; 
 | F20 | Schematic ↔ board, 10/10 pass: Update PCB forward ECO (components, nets, pours, rules) with review and execute; PCB pin / gate swap with ratsnest gain and automatic swap, back-annotated; free-form symbol graphics (lines, arcs, rectangles, polygons, text, fill) in the Symbol Editor, on the canvas and in the PDF; drawn sheet-symbol sizes and harness connector bodies; helper sheets inside repeated blocks; per-channel SPICE model, firmware and DNP; copy / paste with buses, directives, sourcing and variants; align / distribute by symbol outline; fixed sheet frames; PDF with real symbols and Unicode text (embedded TrueType subset); interactive router keeps net-class clearances (docs/SCHEMATIC.md, docs/SYMBOL_EDITOR.md) | ✅ |
 | F21 | Autorouting, pro: coupled differential-pair autorouting (pair gap from the stack-up, symmetric fan-out, coupled vias), length-aware routing to length rules and match groups (meanders by the interactive tuner, achieved vs target reported), quality passes (via minimisation, gloss, true-arc corners, teardrops), routing keep-outs, net-class clearances kept both ways, per-class layer restrictions, routing strategies (default, fast, high quality, fan-out only, selected nets, net class, area) with locked copper protected, routing report sheet; multi-resolution corridor router: the 923-part board in under a minute and under 500 MB (docs/ROUTING.md) | ✅ |
 | F18 | Part library: KiCad, Eagle and Altium (.SchLib / .PcbLib) import with a footprint choice per symbol; VRML / STL / OBJ 3D models per part (3D view, STL / OBJ export); live distributor search (Octopart / Nexar, DigiKey, Mouser) with stock, price breaks and lifecycle, Place Part with sourcing; BOM live pricing and cost per build quantity (docs/LIBRARY_IMPORT.md, docs/SUPPLIERS.md) | ✅ |
+| F22 | iPad app: the same core and project files (`.siedaproj`) as the Mac app, opened from Files / iCloud Drive and saved back; schematic, PCB, 3D, simulation and verification views in a layout for 11″ and 13″ iPads (sidebar + canvas + inspector, collapsing to canvas + popovers in Split View / Slide Over and portrait); multitouch canvas (pinch zoom, two-finger pan, long-press context menu, drag and drop of parts from the library); hardware keyboard and trackpad with the Mac shortcuts; Stage Manager and external display; fabrication package exported through the share sheet; the built-in AI model on M-series iPads, cloud providers elsewhere | 🔲 |
+| F23 | Stylus (Apple Pencil): draw wires and tracks with the pencil while a finger pans, so a part is never moved by accident (palm rejection); hover preview on Pencil Pro / M-series iPads (snap target, ratsnest, DRC clearance halo before the tip touches); the tip snaps to the grid for precise placement, double-tap / squeeze to switch the tool (route ↔ select, configurable); handwritten review comments and markup on schematic, board and 3D, kept as `reviewComments` with the ink; Scribble into every text field (values, net names, search); latency low enough to follow the tip (≤ 1 frame at 120 Hz on ProMotion) | 🔲 |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
@@ -61,7 +63,11 @@ through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; 
   under 500 MB (corridor router: global routing, a multi-resolution grid, parallel nets, targeted rip-up), with
   progress and Stop in the app (benchmark and limits in [ROUTING.md](ROUTING.md)).
 - **Privacy.** Keys live in the Keychain. Only the prompt and design context are sent to the selected provider.
-- **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
+- **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI; the iPad app (F22)
+  links the same core and builds for iPadOS 17+ in CI, with projects opening identically on Mac and iPad.
+- **Touch and pencil.** Touch targets are at least 44 pt; every canvas action reachable by mouse is reachable by touch,
+  pencil or keyboard; the canvas keeps 120 Hz while panning a 1000-part board on an M-series iPad, and pencil strokes
+  commit as one undo step each (F23).
 
 ## Out of scope for v1
 - Custom symbol graphics (the Footprint and Symbol Editors shipped; see F13, F14; library import shipped, F18).
@@ -85,3 +91,4 @@ see [SIGNAL_POWER_INTEGRITY.md](SIGNAL_POWER_INTEGRITY.md).)
    Remaining: true arc tracks, bus vias, pair-aware length tuning with coupled meanders. See
    [INTERACTIVE_ROUTING.md](INTERACTIVE_ROUTING.md).
 4. Team collaboration through a shared project repository.
+5. iPad app with Apple Pencil (F22, F23): one core and file format on Mac and iPad, touch- and pencil-first canvases.

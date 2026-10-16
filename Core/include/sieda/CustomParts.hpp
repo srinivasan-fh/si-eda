@@ -293,8 +293,9 @@ std::string packageTypeFromName(const std::string& name, int& pinCount);
 class CustomPartRegistry {
 public:
     static CustomPartRegistry& instance();
-    /// Validates the spec, generates symbol/footprint and registers it (idempotent for identical specs).
-    std::shared_ptr<const CustomPart> registerPart(const CustomPartSpec& spec);  // throws JsonError
+    /// Validates the spec, generates symbol/footprint and registers it (idempotent for identical specs). `keep`
+    /// false only builds it (an editor's preview of each draft: nothing is kept for the process lifetime).
+    std::shared_ptr<const CustomPart> registerPart(const CustomPartSpec& spec, bool keep = true);  // throws JsonError
     std::shared_ptr<const CustomPart> get(const std::string& id) const;
     const CustomPart* find(const std::string& id) const;  // pointer stays valid for the process lifetime
 

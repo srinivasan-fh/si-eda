@@ -172,11 +172,13 @@ private:
                 case 'u': {
                     uint32_t cp = parseHex4();
                     if (cp >= 0xD800 && cp <= 0xDBFF && pos_ + 6 <= s_.size() && s_[pos_] == '\\' && s_[pos_ + 1] == 'u') {
+                        const size_t at = pos_;
                         pos_ += 2;
-                        uint32_t lo = parseHex4();
-                        cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                        const uint32_t lo = parseHex4();
+                        if (lo >= 0xDC00 && lo <= 0xDFFF) cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                        else pos_ = at;  // not a pair: the next escape stands on its own
                     }
-                    appendUtf8(out, cp);
+                    appendUtf8(out, cp >= 0xD800 && cp <= 0xDFFF ? 0xFFFD : cp);  // a lone surrogate is no UTF-8
                     break;
                 }
                 default: fail("invalid escape");
@@ -391,7 +393,7 @@ void Json::dumpTo(std::string& out, bool pretty, int indent) const {
             } else {
                 // std::to_chars: the same text as printf ("%lld" / "%.10g") without locale or format parsing.
                 char buf[40];
-                if (num_ == std::floor(num_) && std::fabs(num_) < 1e15) {
+                if (num_ == std::floor(num_) && std::fabs(num_) <= 9007199254740992.0) {  // every digit of an exact integer (2^53): JSON-RPC ids
                     out.append(buf, std::to_chars(buf, buf + sizeof buf, static_cast<long long>(num_)).ptr);
                 } else if (!shortDecimal(out, num_)) {
                     out.append(buf, std::to_chars(buf, buf + sizeof buf, num_, std::chars_format::general, 10).ptr);

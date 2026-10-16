@@ -51,7 +51,7 @@ bool Simulator::retryWithLimiting(double t0, double h, std::string& error) {
         int iters = 0;
         if (guard < 200000 && solve(t + step, step, trial, iters, 0.0, 1.0)) {
             x_ = trial;
-            lastReadings_ = readings(x_, step);
+            lastReadings_ = readings(x_, step, t + step);
             stepH_ = step;
             updateState();
             t += step;
@@ -286,7 +286,7 @@ TransientResult Simulator::transient(const TransientOptions& o) {
         // Accept.
         x_ = trial;
         stepH_ = step;
-        lastReadings_ = readings(x_, step);
+        lastReadings_ = readings(x_, step, hitsBreak ? breaks[bp] : t_ + step);
         updateState();
         t_ = hitsBreak ? breaks[bp] : t_ + step;
         record(t_);

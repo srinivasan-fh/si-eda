@@ -447,6 +447,9 @@ final class MCPLiveServer: ObservableObject {
     @Published private(set) var status: Status = .off
     @Published private(set) var connections = 0
     @Published private(set) var sessions: Set<String> = []
+    /// Each session's last request: idle ones expire after an hour and the oldest goes first past 64 (clients that
+    /// reconnect without DELETE would grow the set for as long as the endpoint runs).
+    private var sessionUse: [String: Date] = [:]
     @Published private(set) var lastCall: CallRecord?
     @Published private(set) var callCount = 0
     /// Bumped when the token changes (views showing it re-read).
@@ -489,6 +492,7 @@ final class MCPLiveServer: ObservableObject {
         tokens.writeToken(value)
         cachedToken = value
         sessions.removeAll()
+        sessionUse.removeAll()
         tokenRevision &+= 1
     }
 
@@ -521,6 +525,7 @@ final class MCPLiveServer: ObservableObject {
         endpoint = nil
         connections = 0
         sessions.removeAll()
+        sessionUse.removeAll()
         guard enabled, store != nil else {
             status = .off
             return
@@ -570,6 +575,7 @@ final class MCPLiveServer: ObservableObject {
             break
         case "DELETE":
             guard let id = sessionHeader, sessions.remove(id) != nil else { return .text(404, "Unknown session") }
+            sessionUse[id] = nil
             return MCPHTTPResponse(status: 204)
         default:
             // No server-initiated stream (GET): every answer comes back on its POST.
@@ -581,6 +587,7 @@ final class MCPLiveServer: ObservableObject {
         if let id = sessionHeader, !sessions.contains(id) {
             return .text(404, "Unknown or expired session: initialize again")
         }
+        if let id = sessionHeader { sessionUse[id] = Date() }
         if let type = request.header("content-type")?.lowercased(), !type.contains("json") {
             return .text(415, "Content-Type must be application/json")
         }
@@ -630,8 +637,17 @@ final class MCPLiveServer: ObservableObject {
         guard !text.isEmpty else { return MCPHTTPResponse(status: 202) }
         var headers: [(String, String)] = []
         if Self.isInitialize(body), text.contains("\"result\"") {
-            let session = UUID().uuidString
+            let session = UUID().uuidString, now = Date()
+            for (id, used) in sessionUse where now.timeIntervalSince(used) > 3600 {
+                sessions.remove(id)
+                sessionUse[id] = nil
+            }
+            if sessions.count >= 64, let oldest = sessionUse.min(by: { $0.value < $1.value })?.key {
+                sessions.remove(oldest)
+                sessionUse[oldest] = nil
+            }
             sessions.insert(session)
+            sessionUse[session] = now
             headers.append(("Mcp-Session-Id", session))
         }
         return .json(text, headers: headers)

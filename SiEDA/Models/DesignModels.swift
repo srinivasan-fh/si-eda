@@ -1111,9 +1111,24 @@ struct ZoneFillInfo: Decodable, Equatable {
     /// A held fill (Refill Pours on demand) the copper has changed since.
     var stale: Bool?
 
-    var cgRects: [CGRect] {
-        stride(from: 0, to: rects.count - 3, by: 4).map {
-            CGRect(x: rects[$0], y: rects[$0 + 1], width: rects[$0 + 2] - rects[$0], height: rects[$0 + 3] - rects[$0 + 1])
+    /// The rects as CGRects, made once when decoded (the canvas draws every pour on each hover redraw).
+    private(set) var cgRects: [CGRect] = []
+
+    private enum CodingKeys: String, CodingKey { case zone, net, layer, islands, area, rects, removedIslands, stale }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        zone = try c.decode(Int.self, forKey: .zone)
+        net = try c.decode(Int.self, forKey: .net)
+        layer = try c.decode(Int.self, forKey: .layer)
+        islands = try c.decode(Int.self, forKey: .islands)
+        area = try c.decode(Double.self, forKey: .area)
+        rects = try c.decode([Double].self, forKey: .rects)
+        removedIslands = try c.decodeIfPresent([Double].self, forKey: .removedIslands)
+        stale = try c.decodeIfPresent(Bool.self, forKey: .stale)
+        let r = rects
+        cgRects = stride(from: 0, to: r.count - 3, by: 4).map {
+            CGRect(x: r[$0], y: r[$0 + 1], width: r[$0 + 2] - r[$0], height: r[$0 + 3] - r[$0 + 1])
         }
     }
 }

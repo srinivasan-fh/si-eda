@@ -729,6 +729,9 @@ McpServer::~McpServer() {
     if (ownsProject_ && project_) sieda_project_free(project_);
 }
 
+/// Steps of MCP undo history kept (the oldest go first), also when a saved history is loaded.
+constexpr size_t kUndoHistory = 30;
+
 void McpServer::attachProject(SiedaProject* project) {
     if (project == project_) return;
     if (ownsProject_ && project_) sieda_project_free(project_);
@@ -839,8 +842,7 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     const std::string problem = validateArguments(tool->inputSchema, args);
     if (!problem.empty()) return toolErrorResult("Invalid arguments for " + name + ": " + problem);
     // Undo history: the state before each call that changes the design (not the undo itself), for this project only.
-    constexpr size_t kUndoSteps = 30;
-    if (undoOf_ != project_) undo_.clear(), undoOf_ = project_;
+    if (undoOf_ != (project_ ? project_->serial : 0)) undo_.clear(), undoOf_ = project_ ? project_->serial : 0;
     std::string before;
     if (tool->mutates && name != "project_undo" && project_)
         before = project_->project.toJson().dump();
@@ -859,9 +861,9 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     if (name == "project_open" || name == "project_new" || name == "project_load_example") {
         undo_.clear();  // a fresh design: undo never steps back past it …
         if (name == "project_open") loadUndoHistory();  // … unless this file was saved with its history
-    } else if (!before.empty() && project_ == undoOf_) {
+    } else if (!before.empty() && project_ && project_->serial == undoOf_) {
         undo_.push_back(std::move(before));
-        if (undo_.size() > kUndoSteps) undo_.erase(undo_.begin());
+        if (undo_.size() > kUndoHistory) undo_.erase(undo_.begin(), undo_.end() - kUndoHistory);
     }
     if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
     if (tool->mutates && onChange_) onChange_(name);
@@ -916,14 +918,15 @@ void McpServer::loadUndoHistory() {
         const Json j = Json::parse(readTextFile(f.string()));
         if (j.get("file").asString("") != std::to_string(std::hash<std::string>{}(readTextFile(projectPath_)))) return;  // changed since
         for (const auto& step : j.get("steps").items()) undo_.push_back(step.asString(""));
-        undoOf_ = project_;
+        if (undo_.size() > kUndoHistory) undo_.erase(undo_.begin(), undo_.end() - kUndoHistory);  // the newest steps
+        undoOf_ = project_->serial;
     } catch (const std::exception&) {
         undo_.clear();
     }
 }
 
 bool McpServer::undo() {
-    if (undoOf_ != project_ || undo_.empty() || !project_) return false;
+    if (!project_ || undoOf_ != project_->serial || undo_.empty()) return false;
     project_->project = Project::fromJson(Json::parse(undo_.back()));
     project_->router.reset();
     undo_.pop_back();

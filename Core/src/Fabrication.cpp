@@ -422,7 +422,7 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     return o.str();
 }
 
-std::vector<FabFile> fabricationPackage(const Project& project, const std::string& baseName) {
+std::vector<FabFile> fabricationPackage(const Project& project, const std::string& baseName, bool assembly3d) {
     const auto& sch = project.schematic;
     const auto& pcb = project.pcb;
     const auto& s = pcb.settings;
@@ -490,7 +490,7 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(base + "-net_lengths.csv", exportNetLengthReport(sch, pcb), "Routed length, segments and vias per net, against its length rule");
     add("mechanical/" + base + ".dxf", exportDxf(sch, pcb), "Board outline, holes, silk and courtyards for MCAD (DXF)");
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
-    add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
+    if (assembly3d) add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");
     add(base + "-ipc2581.xml", exportIpc2581(project), "IPC-2581C: copper, mask, silk, drills, nets, parts and BOM in one file");
     add(base + "-odb.tgz", exportOdbArchive(project), "ODB++ v7 job (.tgz): layers, drills, components and nets");
