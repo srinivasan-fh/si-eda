@@ -3107,6 +3107,11 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     CHECK(boardHoles > 0 && holes(byName["panel/Amp-panel-PTH.drl"]) == 6 * boardHoles);
     const std::string npth = byName["panel/Amp-panel-NPTH.drl"];
     CHECK(npth.find("C2.000") != std::string::npos && npth.find("C0.500") != std::string::npos);
+    // The viewer steps the panel Gerber out again: every board's copper, the panel 3 boards wide (#163).
+    const GerberImage boardImg = parseGerber(byName["gerbers/Amp-F_Cu.gbr"]), panelImg = parseGerber(copper);
+    CHECK(boardImg.error.empty() && panelImg.error.empty() && panelImg.shapes.size() >= 6 * boardImg.shapes.size());
+    CHECK(panelImg.x1 + 1e-6 >= l.boards.back().x + boardImg.x1 && panelImg.y1 + 1e-6 >= l.boards.back().y + boardImg.y1);
+    CHECK(l.boards.back().x > l.boards.front().x + 2 * W && l.boards.back().y > l.boards.front().y + H);
 
     // Saved and read back; V-score panels butt the boards and score between them.
     Project back = Project::fromJson(p.toJson());
@@ -23620,6 +23625,27 @@ TEST(gerber_viewer_reads_our_artwork_and_reference_layers) {
     CHECK(pads == 3 && lines > 5 && surfaces == 2 && clears == 2 && f.warnings.size() == 1);  // moiré: a circle
     CHECK(std::fabs(f.shapes[0].width - 1.27) < 1e-9 && std::fabs(f.shapes[0].a.x - 25.4) < 1e-9);  // mils / inches
     CHECK(sieda_pcb_add_reference_layer(m.project(), "fab data", odb.substr(at, odb.find('\0', at) - at).c_str()) == 0);
+}
+
+TEST(gerber_viewer_reads_multiline_incremental_step_repeat_and_excellon_zeros) {
+    // #157: extended commands after a line break are read (inches here, not the 1 µm default).
+    const GerberImage g = parseGerber("G04 x*\n%FSLAX24Y24*%\n%MOIN*%\n%ADD10C,0.01*%\nD10*\nX20000Y0D03*\nM02*\n");
+    CHECK(g.error.empty() && g.shapes.size() == 1 && std::fabs(g.shapes[0].a.x - 50.8) < 1e-9);
+    // #163: incremental coordinates add up; step and repeat copies the block 3 × 2.
+    const GerberImage inc = parseGerber("%FSLIX33Y33*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nX1000Y0D03*\nX1000Y500D03*\nM02*\n");
+    CHECK(inc.shapes.size() == 2 && std::fabs(inc.shapes[1].a.x - 2) < 1e-9 && std::fabs(inc.shapes[1].a.y - 0.5) < 1e-9);
+    const GerberImage sr = parseGerber("%FSLAX33Y33*%\n%MOMM*%\n%ADD10C,0.1*%\n%SRX3Y2I10.0J20.0*%\nD10*\nX0Y0D03*\n%SR*%\nX0Y0D03*\nM02*\n");
+    CHECK(sr.shapes.size() == 7 && std::fabs(sr.x1 - 20.05) < 1e-9 && std::fabs(sr.y1 - 20.05) < 1e-9);
+    const GerberImage huge = parseGerber("%FSLAX33Y33*%%MOMM*%%ADD10C,0.1*%%SRX1000000Y1000000I1J1*%D10*X0Y0D03*X1000Y0D01*M02*");
+    CHECK(huge.shapes.size() <= 2000000);
+    // #161: LZ (trailing zeros suppressed) pads to the format, TZ counts from the right; nothing carries between files.
+    const GerberImage lz = parseGerber("M48\nINCH,LZ\nT1C0.0400\n%\nT1\nX01Y02\nY03\nM30\n");
+    CHECK(lz.shapes.size() == 2 && std::fabs(lz.shapes[0].a.x - 25.4) < 1e-9 && std::fabs(lz.shapes[0].a.y - 50.8) < 1e-9);
+    CHECK(std::fabs(lz.shapes[1].a.x - 25.4) < 1e-9 && std::fabs(lz.shapes[1].a.y - 76.2) < 1e-9);
+    const GerberImage tz = parseGerber("M48\n;FILE_FORMAT=3:3\nMETRIC,TZ\nT1C0.8\n%\nT1\nY2500\nM30\n");
+    CHECK(tz.shapes.size() == 1 && std::fabs(tz.shapes[0].a.x) < 1e-9 && std::fabs(tz.shapes[0].a.y - 2.5) < 1e-9);
+    const GerberImage digits = parseGerber("M48\nMETRIC,LZ,000.000\nT1C0.8\n%\nT1\nX0125Y-001\nM30\n");
+    CHECK(digits.shapes.size() == 1 && std::fabs(digits.shapes[0].a.x - 12.5) < 1e-9 && std::fabs(digits.shapes[0].a.y + 1) < 1e-9);
 }
 
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
