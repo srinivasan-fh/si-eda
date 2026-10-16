@@ -6696,6 +6696,7 @@ TEST(spectrum_thd) {
     CHECK_NEAR(detected.fundamentalHz, 1e3, 5);
     CHECK_NEAR(detected.thd, 0.1, 0.002);
     CHECK(!spectrum(t, v, 10).ok);  // shorter than one period
+    CHECK(!spectrum(t, v, 5e7).ok);  // fundamental past Nyquist of the window: an error, not a read past the FFT (#173)
 
     // Circuit: a ±1 V square wave (PULSE) has odd harmonics 1/n → THD through the 10th = √(Σ 1/n², n = 3,5,7,9).
     Schematic s;
