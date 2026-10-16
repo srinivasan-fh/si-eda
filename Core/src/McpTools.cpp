@@ -304,6 +304,17 @@ Json projectSummary(McpServer& s) {
     return j;
 }
 
+/// A straight wire p0–p1 running inside a part's body or a net label (exactly, however thin the body).
+bool wireCrossesBody(const Schematic& sch, Vec2 p0, Vec2 p1) {
+    for (const auto& c : sch.components()) {
+        if (c.packageOnly || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
+        const auto o = sch.symbolOutline(c);
+        if (std::max(p0.x, p1.x) > o[0] + 1 && std::min(p0.x, p1.x) < o[2] - 1 && std::max(p0.y, p1.y) > o[1] + 1 && std::min(p0.y, p1.y) < o[3] - 1)
+            return true;
+    }
+    return false;
+}
+
 /// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
 /// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
 void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {},
@@ -520,7 +531,9 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
                         for (const auto& [cost, off] : spots) {
                             moveBy(b.component, home + off - sch.find(b.component)->position, loadCap ? 5 : 10);
-                            if (!hitAt(true)) break;
+                            const Vec2 q0 = sch.pinPosition({a.component, a.pin}), q1 = sch.pinPosition({b.component, b.pin});
+                            const bool inLine = std::fabs(q0.x - q1.x) < 0.5 || std::fabs(q0.y - q1.y) < 0.5;  // (wired: clear of bodies)
+                            if (!hitAt(true) && !(inLine && wireCrossesBody(sch, q0, q1))) break;
                         }
                     }
                     done.insert(b.component);
@@ -2948,13 +2961,8 @@ void schematicTools(Table& t) {
                           const Vec2 q = sch.pinPosition({c.id, i});
                           if ((q - p0).length() > 1 && (q - p1).length() > 1 && pointSegmentDistance(q, p0, p1) < 1) return false;
                       }
-                      const auto o = sch.symbolOutline(c);
-                      for (int k = 1; k < 20; ++k) {
-                          const Vec2 q = p0 + run * (k / 20.0);
-                          if (q.x > o[0] + 1 && q.x < o[2] - 1 && q.y > o[1] + 1 && q.y < o[3] - 1) return false;
-                      }
                   }
-                  return true;
+                  return !wireCrossesBody(sch, p0, p1);
               };
               std::map<std::string, std::vector<const Link*>> drawn;  // net → its links drawn as wires
               std::vector<std::pair<std::string, const Link*>> tags;  // net, the wire its tag names
@@ -3923,7 +3931,7 @@ void libraryTools(Table& t) {
                   }
                   return e;
               };
-              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked;  // some of the words / all of them
+              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked, byPackage;  // some of the words / all of them
               for (const auto& p : standardParts()) {
                   const std::string cat = lowerStr(p.category), mfr = lowerStr(p.spec.manufacturer);
                   const std::string pkg = compact(p.spec.package.type + std::to_string(p.spec.package.pinCount) + p.footprint);
@@ -3944,10 +3952,15 @@ void libraryTools(Table& t) {
                       continue;
                   }
                   ++total;
-                  size_t named = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
+                  size_t named = 0, said = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
                   for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
-                  ranked.push_back({named, &p});
+                  for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
+                  (said == words.size() ? ranked : byPackage).push_back({named, &p});
               }
+              // A word only a package names ("header": a module in a HEADER-4 package) lists those parts only when
+              // nothing says it in its name or description.
+              if (ranked.empty()) ranked.swap(byPackage);
+              total = static_cast<int>(ranked.size());
               std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
               // A part-number-like query ("usb-c", "esp32"): the parts with every word in their name alone (an MCU whose
               // description says USB-C is noise there); a feature word ("ble") still lists every part that has it.
@@ -3970,6 +3983,11 @@ void libraryTools(Table& t) {
                   j["builtin"] = "\"" + kindWord + "\" is a built-in kind, not a catalog part: schematic_build parts [{\"ref\": \"D1\", \"kind\": "
                                  "\"led\", \"value\": \"Green\", \"package\": \"0805\"}] (kinds: resistor, capacitor, inductor, led; "
                                  "library_builtin_kinds lists them with packages).";
+              static const std::regex genericDiode(R"(^1n(4\d{3}|5[48]\d{2})$)");  // 1N4007, 1N4148, 1N5819: plain two-pin diodes
+              for (const auto& w : words)
+                  if (!total && std::regex_match(w, genericDiode))
+                      j["builtin"] = std::string("A plain two-pin diode: schematic_build parts [{\"ref\": \"D1\", \"kind\": \"diode\", \"value\": \"1N") +
+                                     w.substr(2) + "\"}] (pins A / K; library_builtin_kinds lists its packages), or the catalog's SS14 Schottky.";
               if (!total && !partial.empty() && kindWord.empty()) {  // nothing has every word: the parts with the most of them
                   size_t best = 0;
                   for (const auto& [n, p] : partial) best = std::max(best, n);
