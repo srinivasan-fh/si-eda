@@ -756,28 +756,30 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     const auto fills = pours ? copperFills(sch, pcb) : std::vector<ZoneFill>{};
     for (int l : order) {  // every pour under every track (bottom first): a top pour does not hide the bottom layer's tracks
         // A dark, muted tint of the layer's colour: the tracks, the clearance gaps and the spokes round pads stand out on it.
-        const std::string tint = l == 0 ? "#4a2c2c" : (l == n - 1 ? "#2a3350" : "#463e28");
+        const std::string tint = l == 0 ? "#3a2626" : (l == n - 1 ? "#232b42" : "#383222");
         for (const auto& f : fills)
             if (f.layer == l)
                 for (const auto& r : f.rects) s.box(r, true, 0, tint);
     }
-    for (int l : order) {
-        const std::string col = layerColour(l, n);
-        for (const auto& t : pcb.tracks) {
-            if (t.layer != l) continue;
-            if (t.arc) {
-                const ArcGeom g = trackArc(t);
-                if (g.valid) {
-                    std::vector<Vec2> pts;
-                    const int steps = std::max(4, static_cast<int>(std::fabs(g.sweep) / (kPi / 24)));
-                    for (int i = 0; i <= steps; ++i) pts.push_back(g.point(static_cast<double>(i) / steps));
-                    s.polyline(pts, t.width, col);
-                    continue;
+    for (int l : order)  // each layer's tracks over a dark casing: they stand out on the pours of both layers
+        for (const bool casing : {true, false}) {
+            const std::string col = casing ? "#101010" : layerColour(l, n);
+            for (const auto& t : pcb.tracks) {
+                if (t.layer != l) continue;
+                const double w = t.width + (casing && pours ? 0.3 : 0);
+                if (t.arc) {
+                    const ArcGeom g = trackArc(t);
+                    if (g.valid) {
+                        std::vector<Vec2> pts;
+                        const int steps = std::max(4, static_cast<int>(std::fabs(g.sweep) / (kPi / 24)));
+                        for (int i = 0; i <= steps; ++i) pts.push_back(g.point(static_cast<double>(i) / steps));
+                        s.polyline(pts, w, col);
+                        continue;
+                    }
                 }
+                s.line(t.a, t.b, w, col);
             }
-            s.line(t.a, t.b, t.width, col);
         }
-    }
     // A pad joined to a pour of its net: light spokes out into the pour show the connection.
     for (const auto& p : pcb.pads(sch))
         for (const auto& f : fills)
