@@ -20959,6 +20959,33 @@ TEST(mcp_wire_to_ground_stub_trim_and_track_ids) {
     for (const auto& v : after.get("violations").items()) CHECK(v.get("code").asString("") != "DRC_DANGLING_TRACK");
 }
 
+TEST(mcp_build_stands_pull_ups_and_reviews_usb_esd) {
+    // A pull-up on an IC's side pin stands up beside it on its own wire; USB data lines without ESD get a review note;
+    // a search whose words name parts lists those alone.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"pins": false, "parts": [{"ref": "U1", "part": "ESP32-C3-WROOM-02"},
+        {"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"}, {"ref": "R2", "kind": "resistor", "value": "10k"}],
+        "nets": {"+3V3": ["U1.3V3", "R1.1", "R2.1"], "EN": ["U1.EN", "R1.2"], "IO8": ["U1.IO8", "R2.2"], "USB_DP": ["J1.D+(A6)", "U1.IO19"],
+        "GND": ["U1.GND(9)", "J1.GND(A1)"]}})J"))));
+    const Schematic& sch = s.project()->project.schematic;
+    for (const char* ref : {"R1", "R2"}) {
+        const Component* r = sch.findByRef(ref);
+        CHECK(std::fabs(sch.pinPosition({r->id, 0}).x - sch.pinPosition({r->id, 1}).x) < 0.5);  // standing up
+        CHECK(sch.pinPosition({r->id, 0}).y < sch.pinPosition({r->id, 1}).y);                    // the supply on top
+        const int u = sch.findByRef("U1")->id;
+        CHECK(std::any_of(sch.wires().begin(), sch.wires().end(), [&](const Wire& w) {  // wired to the module's pin
+            const PinRef a = w.a.component == r->id ? w.a : w.b, b = w.a.component == r->id ? w.b : w.a;
+            return a.component == r->id && a.pin == 1 && (b.component == u || (sch.find(b.component) && sch.find(b.component)->kind == ComponentKind::NetLabel));
+        }));
+    }
+    CHECK(mcpData(mcpTool(s, "schematic_validate", Json::object())).dump().find("VAL_USB_ESD") != std::string::npos);
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "usb-c"})J")));
+    CHECK(found.get("total").asInt(0) >= 1 && found.has("alsoInDescriptions"));
+    for (const auto& p : found.get("parts").items()) CHECK(p.get("name").asString("").find("USB") != std::string::npos);
+    CHECK(mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "pin header 2"})J"))).get("parts")[0].get("pins").asInt(0) == 2);
+}
+
 TEST(mcp_build_wires_decoupling_rail_and_supply_entry) {
     // Decoupling caps above the IC's supply pin share one rail wire with the pin; the input diode is wired into it.
     mcp::McpServer s;

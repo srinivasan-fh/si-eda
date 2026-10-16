@@ -432,6 +432,30 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         }
     }
 
+    // A USB connector's data lines with no ESD / TVS part on them: a cable plugged in brings ESD straight to the chip.
+    for (const auto& c : sch.components()) {
+        std::string part = c.def().name;
+        for (auto& ch : part) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        if (part.find("USB") == std::string::npos) continue;
+        bool open = false;
+        for (size_t i = 0; i < c.def().pins.size() && !open; ++i) {
+            const std::string& name = c.def().pins[i].name;
+            if (name != "D+" && name != "D-" && name != "DP" && name != "DM") continue;
+            const int n = sch.netOf({c.id, static_cast<int>(i)});
+            bool guarded = n < 0;
+            for (const auto& pr : n < 0 ? std::vector<PinRef>{} : nets[static_cast<size_t>(n)].pins) {
+                const Component* o = sch.find(pr.component);
+                std::string on = o ? o->def().name + " " + o->value : "";
+                for (auto& ch : on) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                for (const char* w : {"ESD", "TVS", "USBLC", "PRTR", "TPD", "SRV05", "PESD"}) guarded = guarded || on.find(w) != std::string::npos;
+            }
+            open = !guarded;
+        }
+        if (open)
+            add(Severity::Info, "VAL_USB_ESD",
+                c.ref + "'s USB data lines have no ESD protection: add a low-capacitance TVS array (e.g. USBLC6-2) by the connector.", c);
+    }
+
     // Capacitors on `net` whose other pin is on ground (`highFrequency`: 1 µF or less, not bulk).
     auto capToGround = [&](int net, bool highFrequency = false) {
         int n = 0;

@@ -319,8 +319,24 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
         const std::string& r = sch.find(id)->ref;
         return r.size() > 1 && r[0] == 'Y' && std::isdigit(static_cast<unsigned char>(r[1]));
     };
+    std::set<int> mine(ids.begin(), ids.end()), done, standing;
+    auto supplyName = [&](int id, int pin) {  // the pin's net is a positive supply (+3V3, VCC, 5V)
+        const auto n = pinNet.find({id, pin});
+        if (n == pinNet.end() || n->second.empty()) return false;
+        std::string up = n->second;
+        for (auto& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        return up[0] == '+' || (std::isdigit(static_cast<unsigned char>(up[0])) && up.find('V') != std::string::npos) ||
+               up.rfind("VCC", 0) == 0 || up.rfind("VDD", 0) == 0;
+    };
+    // Then pull-ups (two-pin parts to a supply) on an IC's pins, standing up beside them before other parts take the room.
+    std::stable_partition(links.begin(), links.end(), [&](const auto& l) {
+        for (const auto& [a, b] : {std::pair{l.first, l.second}, std::pair{l.second, l.first}})
+            if (mine.count(b.component) && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4 &&
+                supplyName(b.component, 1 - b.pin))
+                return true;
+        return false;
+    });
     std::stable_partition(links.begin(), links.end(), [&](const auto& l) { return isCrystal(l.first.component) || isCrystal(l.second.component); });
-    std::set<int> mine(ids.begin(), ids.end()), done;
     auto moveBy = [&](int id, Vec2 d, double grid = 10) {
         const Vec2 at = sch.find(id)->position;
         sieda_move_component(p, id, std::round((at.x + d.x) / grid) * grid, std::round((at.y + d.y) / grid) * grid);
@@ -339,7 +355,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
             if (q.x <= body[0] + 0.5) o[0] = std::min(o[0], body[0] - side);
             if (q.x >= body[2] - 0.5) o[2] = std::max(o[2], body[2] + side);
             if (q.y <= body[1] + 0.5) o[1] = std::min(o[1], body[1] - 60);
-            if (q.y >= body[3] - 0.5) o[3] = std::max(o[3], body[3] + 60);
+            if (q.y >= body[3] - 0.5 && !standing.count(id)) o[3] = std::max(o[3], body[3] + 60);  // (a pull-up's wire comes in from the side)
         }
         o[1] = std::min(o[1], body[1] - 14), o[3] = std::max(o[3], body[3] + 14);  // its designator above, value below
         return o;
@@ -420,10 +436,28 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A part grounded at its other end above an upward pin stands beside it the right way up (its
                     // pin facing up too, joined by labels), not upside down over the pin with its ground on top.
                     const bool upright = d.y < -0.5 && sch.find(b.component)->def().pins.size() == 2 && grounded.count({b.component, 1 - b.pin});
+                    // A pull-up on a side pin stands up beside it on its own wire, the first on each pin: pull-ups on
+                    // pins higher up nearer the IC, so no wire runs under another's body.
+                    int rank = -1;
+                    if (std::fabs(d.x) > 0.5 && sch.find(b.component)->def().pins.size() == 2 && sch.find(a.component)->def().pins.size() > 4 &&
+                        supplyName(b.component, 1 - b.pin)) {
+                        std::map<int, int> pulled;  // the hub's pins on this side with a pull-up: pin → its first pull-up
+                        for (const auto& [c0, e0] : links)
+                            for (const auto& [c, e] : {std::pair{c0, e0}, std::pair{e0, c0}})
+                                if (c.component == a.component && mine.count(e.component) && sch.find(e.component)->def().pins.size() == 2 &&
+                                    supplyName(e.component, 1 - e.pin) && pinOutward(p->project, c).x * d.x > 0.5)
+                                    pulled.emplace(c.pin, e.component);
+                        if (pulled[a.pin] == b.component) {
+                            rank = 0;
+                            standing.insert(b.component);
+                            for (const auto& [pin, part] : pulled)
+                                rank += sch.pinPosition({a.component, pin}).y < sch.pinPosition({a.component, a.pin}).y - 0.5;
+                        }
+                    }
                     if (sch.find(b.component)->def().pins.size() == 2)
                         for (int turn = 0; turn < 3; ++turn) {
                             const Vec2 e = pinOutward(p->project, b);
-                            if (upright ? e.y < -0.5 : std::fabs(e.x + d.x) < 0.5 && std::fabs(e.y + d.y) < 0.5) break;
+                            if (upright || rank >= 0 ? e.y * (rank >= 0 ? -1 : 1) < -0.5 : std::fabs(e.x + d.x) < 0.5 && std::fabs(e.y + d.y) < 0.5) break;
                             sieda_rotate_component(p, b.component, 90);
                         }
                     const Vec2 from = sch.pinPosition({a.component, a.pin}), to = sch.pinPosition({b.component, b.pin});
@@ -431,10 +465,10 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                     // A crystal stands further out from its IC, so its load capacitors hang clear of the IC's labels.
                     const std::string& ref = sch.find(b.component)->ref;
                     const bool crystal = ref.size() > 1 && ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(ref[1]));
-                    const double run = upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
+                    const double run = rank >= 0 ? 120 + 80.0 * rank : upright ? 0 : loadCap ? 100 : sch.find(a.component)->def().pins.size() == 2 ? 40 : crystal ? 300 : 120;
                     moveBy(b.component, upright ? Vec2{from.x + 80 - to.x, from.y - 140 - to.y}
                                                 : Vec2{from.x + d.x * run - to.x, from.y + d.y * run - to.y},
-                           loadCap ? 5 : 10);  // in line with the crystal's pin (5 off the 10 grid)
+                           loadCap || rank >= 0 ? 5 : 10);  // in line with the crystal's pin (5 off the 10 grid)
                     // Two parts on one pin (or a chain folding back): the nearest clear spot, along the pin's side either
                     // way or further out (its pin then gets a label), clear of the group (a crystal's load capacitor
                     // either side of its pin, so it stays under the crystal).
@@ -467,10 +501,14 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                         const double w = std::fabs(d.x) > 0.5 ? o[3] - o[1] + 60 : o[2] - o[0] + 40;
                         const Vec2 side = std::fabs(d.x) > 0.5 ? Vec2{0, 1} : Vec2{1, 0};
                         std::vector<std::pair<double, Vec2>> spots;
+                        bool beside = false;  // pull-ups stand on the hub's pins: in line further out (still wired) before aside
+                        for (int id : standing)  // (on this side of the hub)
+                            beside = beside || (std::fabs(d.x) > 0.5 && std::find(group.begin(), group.end(), id) != group.end() &&
+                                                (sch.find(id)->position.x - from.x) * d.x > 0);
                         for (double out : loadCap ? std::vector<double>{0} : std::vector<double>{0, 80, 200, 340})
                             for (int k = -10; k <= 10; ++k)
                                 if (k || out > 0)  // along a chain of two-pin parts: further out in line before aside
-                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : 1.5), d * out + side * (k * w)});
+                                    spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside ? 0.2 : 1.5), d * out + side * (k * w)});
                         std::stable_sort(spots.begin(), spots.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
                         for (const auto& [cost, off] : spots) {
                             moveBy(b.component, home + off - sch.find(b.component)->position, loadCap ? 5 : 10);
@@ -2883,7 +2921,7 @@ void schematicTools(Table& t) {
                   const bool fromCrystal = hub.size() > 1 && hub[0] == 'Y' && std::isdigit(static_cast<unsigned char>(hub[1]));
                   const double out0 = run.x * d0.x + run.y * d0.y;
                   if ((std::fabs(run.x) > 0.5 && std::fabs(run.y) > 0.5) || run.length() < 1 ||
-                      (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= 0)
+                      (fromCrystal ? out0 < -0.5 : out0 <= 0) || run.x * d1.x + run.y * d1.y >= (std::fabs(d0.x) > 0.5 && d1.y > 0.5 ? 0.5 : 0))  // (a pull-up standing on its wire)
                       return false;
                   for (const auto& c : sch.components()) {  // nothing in the way: a body, a label drawn before or another pin
                       if (c.kind == ComponentKind::Junction || (isNetSymbolKind(c.kind) && c.kind != ComponentKind::NetLabel)) continue;
@@ -3177,12 +3215,29 @@ void schematicTools(Table& t) {
                       failed.push(net + ": could not name the wire");
                   return tag;
               };
+              auto isStanding = [&](const Link* l) {  // a pull-up standing on its wire: the wire meets its pin side-on
+                  const Vec2 run = proj(s).schematic.pinPosition({l->b.component, l->b.pin}) - proj(s).schematic.pinPosition({l->a.component, l->a.pin});
+                  return std::fabs(run.x * pinOutward(proj(s), l->b).x + run.y * pinOutward(proj(s), l->b).y) < 0.5;
+              };
               std::vector<std::tuple<int, std::string, const Link*>> placedTags;
               for (const auto& [net, l] : tags) {
                   std::vector<std::pair<Vec2, int>> poses;
                   const auto [best, fewest] = clearest(net, l, poses);
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l->a.component, l->a.pin}), p1 = sch.pinPosition({l->b.component, l->b.pin});
+                  // A pull-up standing on its wire (or no clear spot on the wire), the net named by a label on another
+                  // pin: the wire alone.
+                  std::set<std::string> onWires;
+                  for (const Link* w : drawn[net]) onWires.insert(w->from.dump()), onWires.insert(w->to.dump());
+                  const bool standing = isStanding(l);
+                  if ((fewest || standing) && nets.get(net).size() > onWires.size()) {
+                      if (sieda_connect(P(s), l->a.component, l->a.pin, l->b.component, l->b.pin) < 0) failed.push(net + ": could not wire it");
+                      continue;
+                  }
+                  if (standing && fewest) {  // a pull-up's own net: its tag lies along the wire
+                      placedTags.push_back({placeTag(net, l, poses, static_cast<int>(poses.size()) - 1), net, l});
+                      continue;
+                  }
                   // No clear spot on its only wire, and room on it for two labels: a label at each end instead.
                   if (fewest && drawn[net].size() == 1 && (p1 - p0).length() >= 2 * (15.0 * net.size() + 30)) {
                       Json args = obj(), ends = Json::array();
@@ -3198,7 +3253,7 @@ void schematicTools(Table& t) {
               // Labels placed after a tag (another net's end labels) may sit on it: such a tag moves to its clearest
               // spot now that every label is down.
               for (auto& [tag, net, l] : placedTags) {
-                  if (tag < 0 || !hitsOf(tag)) continue;
+                  if (tag < 0 || !hitsOf(tag) || isStanding(l)) continue;
                   sieda_remove_component(P(s), tag);  // its two wires go with it
                   std::vector<std::pair<Vec2, int>> poses;
                   tag = placeTag(net, l, poses, clearest(net, l, poses).first);
@@ -3284,6 +3339,57 @@ void schematicTools(Table& t) {
                           if (!clear)
                               labelOverlaps.push(sch.find(l)->value + " at " + pinLabel(*P(s), pl) + " overlaps " + sch.find(o)->value + " at " + pinLabel(*P(s), po));
                       }
+              }
+              // A ground or label standing on another net's wire (a part laid out across a link drawn before): it steps out
+              // along its stub, away from its pin, until clear of every other net's wire; else it is listed.
+              {
+                  const Schematic& sch = proj(s).schematic;
+                  auto route = [&](const Wire& w) {  // as drawn: out of the part's pin, one corner
+                      const bool partA = !isNetSymbolKind(sch.find(w.a.component)->kind);
+                      const PinRef from = partA ? w.a : w.b, to = partA ? w.b : w.a;
+                      const Vec2 p0 = sch.pinPosition(from), p1 = sch.pinPosition(to);
+                      const bool across = std::fabs(pinOutward(proj(s), {from.component, from.pin}).x) > 0.5;
+                      return std::array<Vec2, 3>{p0, across ? Vec2{p1.x, p0.y} : Vec2{p0.x, p1.y}, p1};
+                  };
+                  auto onWire = [&](int sym) {  // its outline crosses a wire of another net
+                      const auto o = sch.symbolOutline(*sch.find(sym));
+                      const int net = sch.netOf({sym, 0});
+                      for (const auto& w : sch.wires()) {
+                          if (sch.netOf(w.a) == net || w.a.component == sym || w.b.component == sym) continue;
+                          const auto r = route(w);
+                          for (int seg = 0; seg < 2; ++seg)
+                              for (int k = 0; k <= 20; ++k) {
+                                  const Vec2 q = r[seg] + (r[seg + 1] - r[seg]) * (k / 20.0);
+                                  if (q.x > o[0] - 1 && q.x < o[2] + 1 && q.y > o[1] - 1 && q.y < o[3] + 1) return true;
+                              }
+                      }
+                      return false;
+                  };
+                  std::vector<int> grounds;
+                  for (const auto& c : sch.components())
+                      if (c.kind == ComponentKind::Ground || c.kind == ComponentKind::NetLabel) grounds.push_back(c.id);
+                  for (int g : grounds) {
+                      PinAddress pin{-1, 0};  // the one part pin it hangs from (a wire's tag has two: left alone)
+                      int pins = 0;
+                      for (const auto& w : sch.wires())
+                          for (const auto& [x, y] : {std::pair{w.a, w.b}, std::pair{w.b, w.a}})
+                              if (x.component == g && sch.find(y.component) && !isNetSymbolKind(sch.find(y.component)->kind)) pin = {y.component, y.pin}, ++pins;
+                      if (pins > 1 || !onWire(g)) continue;
+                      const Vec2 was = sch.find(g)->position;
+                      bool clear = false;
+                      if (pin.component >= 0) {
+                          const Vec2 out = pinOutward(proj(s), pin) * 10;
+                          for (int step = 1; step <= 8 && !clear; ++step) {
+                              sieda_move_component(P(s), g, was.x + out.x * step, was.y + out.y * step);
+                              clear = !onWire(g);
+                          }
+                      }
+                      if (!clear) {
+                          sieda_move_component(P(s), g, was.x, was.y);
+                          labelOverlaps.push((sch.find(g)->kind == ComponentKind::Ground ? std::string("ground") : sch.find(g)->value) +
+                                             (pin.component >= 0 ? " at " + pinLabel(*P(s), pin) : std::string()) + " stands on another net's wire");
+                      }
+                  }
               }
               Json j = obj();
               if (labelOverlaps.size()) j["labelOverlaps"] = labelOverlaps;
@@ -3698,7 +3804,9 @@ void libraryTools(Table& t) {
               bool range = false;
               // "4 pin", "4-pin", "8 way", "6 position" are a pin count: pins:4.
               static const std::regex count(R"((^|\s)(\d{1,3})\s*-?\s*(pins?|ways?|positions?|pos)\b)");
-              std::istringstream in(std::regex_replace(lowerStr(argStr(a, "query", "")), count, "$1pins:$2"));
+              // "header 2", "connector 4": the count after a connector word too.
+              static const std::regex after(R"(\b(headers?|connectors?|conn|terminals?|sockets?)\s+(\d{1,3})\b)");
+              std::istringstream in(std::regex_replace(std::regex_replace(lowerStr(argStr(a, "query", "")), count, "$1pins:$2"), after, "$1 pins:$2"));
               for (std::string w; in >> w;) {
                   const size_t colon = w.find(':');
                   if (colon != std::string::npos && colon > 0 && colon + 1 < w.size()) {
@@ -3775,6 +3883,17 @@ void libraryTools(Table& t) {
                   ranked.push_back({named, &p});
               }
               std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
+              // A part-number-like query ("usb-c", "esp32"): the parts with every word in their name alone (an MCU whose
+              // description says USB-C is noise there); a feature word ("ble") still lists every part that has it.
+              const bool numberLike = std::any_of(words.begin(), words.end(), [](const std::string& w) {
+                  return std::any_of(w.begin(), w.end(), [](unsigned char c) { return std::isdigit(c) || c == '-'; });
+              });
+              if (numberLike && !ranked.empty() && ranked.front().first == words.size()) {
+                  const size_t all = ranked.size();
+                  ranked.erase(std::find_if(ranked.begin(), ranked.end(), [&](const auto& r) { return r.first < words.size(); }), ranked.end());
+                  if (all > ranked.size()) j["alsoInDescriptions"] = static_cast<int>(all - ranked.size());
+                  total = static_cast<int>(ranked.size());
+              }
               for (const auto& [n, part] : ranked)
                   if (static_cast<int>(list.size()) < limit) list.push(entry(*part));
               std::string kindWord;  // a built-in kind ("led 0805"): partial matches would only be noise
