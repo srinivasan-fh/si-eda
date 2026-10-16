@@ -2127,7 +2127,7 @@ TEST(exports_are_well_formed) {
     std::string drill = exportExcellonDrill(p.schematic, p.pcb);
     CHECK(drill.rfind("M48", 0) == 0);
     CHECK(drill.find("T1C1.000") != std::string::npos || drill.find("C1.000") != std::string::npos);
-    std::string pnp = exportPickAndPlaceCsv(p.schematic);
+    std::string pnp = exportPickAndPlaceCsv(p.schematic, p.pcb);
     CHECK(pnp.find("U1") != std::string::npos);
 }
 
@@ -23114,6 +23114,77 @@ TEST(footprint_pad_options_rounded_npth_mask_paste) {
     const int w = p.schematic.addCustomComponent(p.addCustomPart(wide), "", {0, 100});
     p.pcb.autoPlace(p.schematic, true);
     CHECK_NEAR(p.pcb.courtyard(*p.schematic.find(w)).width() - before, 1.0, 1e-6);
+}
+
+TEST(fab_outputs_footprint_npth_rounded_panel_and_placement_frame) {
+    // A rounded pad (an %AMRR macro in the Gerbers) and a footprint NPTH hole; the board has no mounting holes.
+    CustomPartSpec spec;
+    spec.name = "PADFAB";
+    spec.refPrefix = "U";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 3;
+    PackageSpec::Land a{-2, 0, 3, 3};
+    a.corner = 0.25;
+    PackageSpec::Land b{2, 0, 1.2, 1.2, 0.7, true, "2"};
+    PackageSpec::Land hole{0, 3, 1.6, 1.6, 1.0, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {a, b, hole};
+    Project p;
+    p.name = "Pad";
+    const int u = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.settings.holes.empty());
+    auto byName = [&] {
+        std::map<std::string, std::string> m;
+        for (const auto& f : fabricationPackage(p)) m[f.path] = f.content;
+        return m;
+    };
+    // #156: footprint NPTH holes get the -NPTH.drl file and count in the fab notes.
+    auto files = byName();
+    CHECK(files.count("gerbers/Pad-NPTH.drl") == 1 && files["gerbers/Pad-NPTH.drl"].find("T1C1.000") != std::string::npos);
+    CHECK(files["fab_notes.txt"].find("Non-plated           1") != std::string::npos);
+
+    // #158 / #159: both placement files use the lower-left origin and counter-clockwise rotation; DNP parts are left out.
+    Component& c = *p.schematic.find(u);
+    c.pcb.rotation = 90;
+    const std::string y = [&] {
+        char t[32];
+        std::snprintf(t, sizeof t, "%.4f", p.pcb.settings.height - c.pcb.position.y);
+        return std::string(t);
+    }();
+    const std::string pnp = exportPickAndPlaceCsv(p.schematic, p.pcb), cpl = exportCplCsv(p.schematic, p.pcb);
+    CHECK(pnp.find("," + y + ",270,Top\n") != std::string::npos);
+    CHECK(cpl.find("," + y + "mm,Top,270\n") != std::string::npos);
+    c.sourcing.dnp = true;
+    CHECK(exportPickAndPlaceCsv(p.schematic, p.pcb).find(c.ref + ",") == std::string::npos);
+    CHECK(exportCplCsv(p.schematic, p.pcb).find(c.ref + ",") == std::string::npos);
+    c.sourcing.dnp = false;
+
+    // #155: a 2 × 1 panel keeps the macro body whole, defines every D-code once and flashes only defined ones.
+    p.pcb.settings.panel = {2, 1, 2.0, 5.0, false};
+    files = byName();
+    const std::string copper = files["panel/Pad-panel-F_Cu.gbr"];
+    const size_t am = copper.find("%AMRR*");
+    CHECK(am != std::string::npos && copper.find("%SRX2Y1") > copper.find("*%", am));
+    std::istringstream in(copper);
+    std::map<int, int> defined;
+    std::vector<int> used;
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind("%ADD", 0) == 0) ++defined[std::atoi(line.c_str() + 4)];
+        else if (line.size() > 2 && line[0] == 'D' && line.back() == '*') used.push_back(std::atoi(line.c_str() + 1));
+    }
+    CHECK(!used.empty() && defined.size() >= 3);  // the board's apertures and the fiducial dot
+    for (const auto& [code, n] : defined) CHECK(n == 1);
+    for (int code : used) CHECK(defined.count(code) == 1);
+    // #156: the panel drill steps the footprint NPTH hole once per board.
+    const std::string npth = files["panel/Pad-panel-NPTH.drl"];
+    const size_t tool = npth.find("C1.000");
+    CHECK(tool != std::string::npos);
+    const std::string select = "\n" + npth.substr(npth.rfind('T', tool), tool - npth.rfind('T', tool)) + "\n";
+    const size_t from = npth.find(select, tool) + select.size();
+    const std::string holes = npth.substr(from, npth.find("\nT", from) - from);
+    CHECK(std::count(holes.begin(), holes.end(), 'X') == 2);
 }
 
 TEST(assembly_mesh_hides_parts) {

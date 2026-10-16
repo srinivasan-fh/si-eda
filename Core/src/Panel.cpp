@@ -64,8 +64,10 @@ std::string stepGerber(const std::string& board, const PanelLayout& l, const Pan
     std::istringstream in(board);
     std::ostringstream out;
     std::string line;
-    bool body = false;
-    int maxCode = 9;
+    bool body = false, block = false;  // block: inside a multi-line %…% command (an %AM macro body)
+    int maxCode = 9;  // the fiducials' D-codes go above every code the board defines, wherever it defines it
+    for (size_t at = board.find("%ADD"); at != std::string::npos; at = board.find("%ADD", at + 4))
+        maxCode = std::max(maxCode, std::atoi(board.c_str() + at + 4));
     const Vec2 shift = l.boards.front();
     const double gap = p.vscore ? 0 : p.gap;
     auto open = [&] {
@@ -77,19 +79,21 @@ std::string stepGerber(const std::string& board, const PanelLayout& l, const Pan
             << fmt("%.6f", l.boardHeight + gap) << "*%\n";
     };
     while (std::getline(in, line)) {
-        if (line.rfind("%ADD", 0) == 0) maxCode = std::max(maxCode, std::atoi(line.c_str() + 4));
         if (line == "M02*") {
             if (!body) open();  // a layer with no artwork: the block is empty, the panel extras still go in
             out << "%SR*%\n";
+            int code = maxCode;
             for (const auto& [diameter, points] : flashes) {
                 if (points.empty()) continue;
-                out << "D" << ++maxCode << "*\n";
+                out << "D" << ++code << "*\n";
                 for (Vec2 v : points) out << gerberXY(v) << "D03*\n";
             }
             out << "M02*\n";
             break;
         }
-        if (!body && line[0] != '%' && line.rfind("G04", 0) != 0) open();
+        const bool extended = block || line[0] == '%';
+        block = extended && !line.empty() && line.back() != '%';
+        if (!body && !extended && line.rfind("G04", 0) != 0) open();
         if (body && line[0] == 'X') {
             // Coordinates lead the line (X…Y…); I / J offsets after them are relative and stay.
             char* end = nullptr;
@@ -358,11 +362,13 @@ std::vector<FabFile> panelFiles(const PcbLayout& pcb, const std::string& base, c
     const std::string dir = "panel/" + base + "-panel";
     std::vector<FabFile> files;
     const std::string kind = s.panel.vscore ? "V-score" : "tabs and mouse bites";
+    const std::string* boardNpth = nullptr;
     for (const auto& f : boardFiles) {
         if (f.path.rfind("gerbers/", 0) != 0) continue;
         const std::string name = f.path.substr(f.path.find('-', 8));  // "-F_Cu.gbr", "-PTH.drl", …
         const bool gbr = name.size() > 4 && name.compare(name.size() - 4, 4, ".gbr") == 0;
         const bool drl = name.size() > 4 && name.compare(name.size() - 4, 4, ".drl") == 0;
+        if (name == "-NPTH.drl") boardNpth = &f.content;  // mounting holes and footprint NPTH pads, stepped below
         if (name == "-Edge_Cuts.gbr" || name == "-NPTH.drl" || (!gbr && !drl)) continue;
         if (drl) {
             files.push_back({dir + name, stepDrill(f.content, l), "Panel: " + f.description});
@@ -412,8 +418,17 @@ std::vector<FabFile> panelFiles(const PcbLayout& pcb, const std::string& base, c
         files.push_back({dir + "-VScore.gbr", v.str(), "Panel V-score lines (score both sides, 1/3 depth each)"});
     }
     std::map<double, std::vector<Vec2>> npth;
-    for (Vec2 o : l.boards)
-        for (const auto& h : s.holes) npth[h.drill].push_back({o.x + h.position.x, o.y + s.height - h.position.y});
+    if (boardNpth) {  // the board's own NPTH drill (lower-left origin): every hole once per board
+        std::istringstream in(*boardNpth);
+        std::map<int, double> tools;
+        int tool = 0;
+        double d = 0, x = 0, y = 0;
+        for (std::string line; std::getline(in, line);)
+            if (std::sscanf(line.c_str(), "T%dC%lf", &tool, &d) == 2) tools[tool] = d;
+            else if (std::sscanf(line.c_str(), "X%lfY%lf", &x, &y) == 2)
+                for (Vec2 o : l.boards) npth[tools[tool]].push_back({o.x + x, o.y + y});
+            else std::sscanf(line.c_str(), "T%d", &tool);
+    }
     for (Vec2 v : l.toolingHoles) npth[kTooling].push_back(v);
     for (Vec2 v : l.mouseBites) npth[kBite].push_back(v);
     if (!npth.empty())
