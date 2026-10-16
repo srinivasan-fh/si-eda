@@ -1863,6 +1863,88 @@ TEST(ipc2221_voltage_clearance) {
     CHECK(build("SIN(0 325 50)") > 0);  // mains peak, not the 0 V DC value
 }
 
+// Issue #154: the pour cache follows the net voltages (spacing domains) and via spans, and the DRC measures pour copper.
+namespace {
+Project pourHvProject(int& hvNet, int& source) {
+    Project p;
+    auto& s = p.schematic;
+    int v = source = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1M", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    p.schematicChanged();
+    p.pcb.autoPlace(p.schematic, true);
+    hvNet = s.netOf({v, 0});
+    const double w = p.pcb.settings.width, h = p.pcb.settings.height;
+    Via gv;
+    gv.net = s.groundNet();
+    gv.position = {w * 0.25, h * 0.5};
+    Via hv;
+    hv.net = hvNet;
+    hv.position = {w * 0.75, h * 0.5};
+    p.pcb.vias = {gv, hv};
+    CopperZone z;
+    z.net = "GND";
+    z.layer = 1;
+    p.pcb.zones.push_back(z);
+    return p;
+}
+int pourClearanceErrors(const Project& p) {
+    int n = 0;
+    for (const auto& x : p.pcb.runDRC(p.schematic)) n += x.code == "DRC_POUR_CLEARANCE";
+    return n;
+}
+}  // namespace
+
+TEST(pour_refills_when_net_voltage_changes) {
+    int hvNet = -1, source = -1;
+    Project p = pourHvProject(hvNet, source);
+    const std::string low = exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper);
+    CHECK(p.pcb.zoneFills(p.schematic).size() == 1);
+    if (p.pcb.zoneFills(p.schematic).size() != 1) return;
+    const double lowArea = p.pcb.zoneFills(p.schematic)[0].area();
+    CHECK(lowArea > 0);
+    p.schematic.setValue(source, "400");  // copper unchanged: only the net voltages move
+    const std::string high = exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper);
+    CHECK(high != low);  // 2.5 mm mains fence round the 400 V via, not the 0.2 mm clearance
+    CHECK(p.pcb.zoneFills(p.schematic)[0].area() < lowArea);
+    p.pcb.refillPours();
+    CHECK(exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper) == high);  // = a fresh fill
+    CHECK(pourClearanceErrors(p) == 0);
+    // A via span change refills too: a top-only via no longer reaches the bottom pour.
+    const double withVia = p.pcb.zoneFills(p.schematic)[0].area();
+    p.pcb.vias[1].toLayer = 0;
+    CHECK(p.pcb.zoneFills(p.schematic)[0].area() > withVia);
+}
+
+TEST(drc_pour_clearance) {
+    int hvNet = -1, source = -1;
+    Project p = pourHvProject(hvNet, source);
+    CHECK(pourClearanceErrors(p) == 0);
+    // Pours held: a track of another net laid across the old fill is reported, and quiet again once refilled.
+    p.pcb.holdPours = true;
+    p.pcb.zoneFills(p.schematic);
+    Track t;
+    t.net = hvNet;
+    t.layer = 1;
+    t.a = p.pcb.vias[1].position;
+    t.b = {p.pcb.settings.width * 0.5, p.pcb.settings.height * 0.5};
+    p.pcb.tracks.push_back(t);
+    CHECK(pourClearanceErrors(p) > 0);
+    p.pcb.refillPours();
+    CHECK(pourClearanceErrors(p) == 0);
+    // A held 5 V fill next to a via that is now at 400 V breaks the mains fence.
+    p.pcb.tracks.clear();
+    p.pcb.refillPours();
+    p.pcb.zoneFills(p.schematic);
+    p.schematic.setValue(source, "400");  // copper unchanged: only the net voltages move
+    CHECK(pourClearanceErrors(p) > 0);
+    p.pcb.refillPours();
+    CHECK(pourClearanceErrors(p) == 0);
+}
+
 TEST(no_connect_flags) {
     Project p;
     auto& s = p.schematic;

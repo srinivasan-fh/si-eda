@@ -289,7 +289,9 @@
     the app's per-edit core path (move + undo state + delta snapshot) is slower at p95 (in CTest `sieda_scale_budget`).
   - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
     layer, and must stay identical to the sequential fill; the board mask (cells inside the outline, clear of holes)
-    is kept between fills while its inputs are unchanged (`boardMask_`).
+    is kept between fills while its inputs are unchanged (`boardMask_`). The fill cache key (`zoneFills`) hashes every
+    fill input, incl. the `spacingDomains` result (net voltages, altitude, coating), via spans and pad shape fields;
+    `pourClearanceChecks` (Pcb.cpp) adds DRC_POUR_CLEARANCE (pour rects vs other nets' copper by the fill's own rule).
   - **MCP:** file reads are capped at 128 MB.
   - **Live endpoint:** at most 16 connections, answered one request at a time (`MCPLiveServer.waitForTurn`); tool
     calls run the core in the background (`MCPStoreBridge.handleLive`, `DesignStore.performExternalEditInBackground`:
