@@ -361,11 +361,8 @@ std::vector<Vec2> boardOutlinePreset(const std::string& kind, double w, double h
 
 namespace {
 
-/// Distance from a point to pad copper (0 inside); round pads are true circles.
-double padDistance(const Pad& p, Vec2 pt) {
-    if (p.round) return std::max(0.0, (pt - p.position).length() - std::min(p.size.x, p.size.y) / 2);
-    return pointRectDistance(pt, p.bounds());
-}
+/// Distance from a point to pad copper (0 inside); round pads are true circles / ovals.
+double padDistance(const Pad& p, Vec2 pt) { return padPointDistance(p, pt); }
 }  // namespace
 
 std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
@@ -1097,7 +1094,7 @@ Rect segmentBox(Vec2 a, Vec2 b, double half) { return Rect(a.x, a.y, b.x, b.y).i
 std::vector<Rect> padBoxes(const std::vector<Pad>& ps) {
     std::vector<Rect> out;
     out.reserve(ps.size());
-    for (const auto& p : ps) out.push_back(p.bounds());
+    for (const auto& p : ps) out.push_back(padStackBounds(p));
     return out;
 }
 std::vector<Rect> trackBoxes(const std::vector<Track>& ts) {
@@ -1132,9 +1129,11 @@ struct DSU {
     void unite(size_t a, size_t b) { p[find(a)] = find(b); }
 };
 
-bool trackTouchesPad(const Track& t, const Pad& p) {
-    if (!p.onLayer(t.layer)) return false;
-    if (p.round) return trackPointDistance(t, p.position) <= std::min(p.size.x, p.size.y) / 2 + t.width / 2 - 1e-6;
+bool trackTouchesPad(const Track& t, const Pad& p0, int bottom) {
+    if (!p0.onLayer(t.layer)) return false;
+    Pad scratch;
+    const Pad& p = padOnLayer(p0, t.layer, bottom, scratch);
+    if (p.round) return roundPadTrackDistance(p, t) <= padRadius(p) + t.width / 2 - 1e-6;
     return trackRectDistance(t, p.bounds()) <= t.width / 2 - 1e-6;
 }
 
@@ -1147,14 +1146,24 @@ bool viaTouchesTrack(const Via& v, const Track& t) {
     return v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2;
 }
 
-bool viaTouchesPad(const Via& v, const Pad& p) {
-    return (p.throughHole || v.spans(p.smdLayer)) && padDistance(p, v.position) <= v.diameter / 2 - 1e-6;
+/// Distance from a via's centre to the pad copper on the layers both span (pad stacks); infinity when none.
+double viaPadDistance(const Via& v, const Pad& p, int bottom) {
+    constexpr double kNone = std::numeric_limits<double>::infinity();
+    if (!padStacked(p))
+        return p.throughHole || v.spans(p.smdLayer) ? padDistance(p, v.position) : kNone;
+    double d = kNone;
+    Pad scratch;
+    for (int l = 0; l <= bottom; ++l)
+        if (v.spans(l)) d = std::min(d, padDistance(padOnLayer(p, l, bottom, scratch), v.position));
+    return d;
 }
+
+bool viaTouchesPad(const Via& v, const Pad& p, int bottom) { return viaPadDistance(v, p, bottom) <= v.diameter / 2 - 1e-6; }
 
 /// Union-find over pads + tracks + vias (+ poured islands) by physical contact. Item order: pads, tracks, vias, then
 /// the islands of each fill in turn.
 DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& tracks, const std::vector<Via>& vias,
-                   const std::vector<ZoneFill>* fills = nullptr) {
+                   int bottom, const std::vector<ZoneFill>* fills = nullptr) {
     size_t np = pads.size(), nt = tracks.size(), nv = vias.size();
     size_t ni = 0;
     if (fills)
@@ -1168,7 +1177,8 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
                 if (island >= 0) d.unite(item, base + static_cast<size_t>(island));
             };
             for (size_t p = 0; p < np; ++p) {
-                const Pad& pd = pads[p];
+                Pad scratch;
+                const Pad& pd = padOnLayer(pads[p], f.layer, bottom, scratch);
                 if (pd.net != f.net || !pd.onLayer(f.layer)) continue;
                 // Sample the pad area; any island cell inside the pad copper connects.
                 const double touch = f.cell * 0.45;
@@ -1207,7 +1217,7 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
         const Track& tr = tracks[t];
         const Rect body = trackBox(tr, tr.width / 2 + slack);
         for (size_t p : padIx.query(body))
-            if (trackTouchesPad(tr, pads[p])) d.unite(np + t, p);
+            if (trackTouchesPad(tr, pads[p], bottom)) d.unite(np + t, p);
         for (size_t u : trackIx.query(body, static_cast<long long>(t)))
             if (tracksTouch(tr, tracks[u])) d.unite(np + t, np + u);
         for (size_t v : viaIx.query(trackBox(tr, slack)))
@@ -1215,7 +1225,7 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
     }
     for (size_t v = 0; v < nv; ++v)
         for (size_t p : padIx.query(Rect::centered(vias[v].position, vias[v].diameter + slack, vias[v].diameter + slack)))
-            if (viaTouchesPad(vias[v], pads[p])) d.unite(np + nt + v, p);
+            if (viaTouchesPad(vias[v], pads[p], bottom)) d.unite(np + nt + v, p);
     return d;
 }
 }  // namespace
@@ -1223,7 +1233,7 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
 void PcbLayout::pruneStaleRouting(const Schematic& sch) {
     if (tracks.empty() && vias.empty()) return;
     auto ps = pads(sch);
-    DSU d = copperClusters(ps, tracks, vias);
+    DSU d = copperClusters(ps, tracks, vias, settings.bottomLayer());
     size_t np = ps.size(), nt = tracks.size();
     std::map<size_t, std::map<int, int>> clusterNets;
     for (size_t p = 0; p < np; ++p)
@@ -1282,7 +1292,7 @@ void PcbLayout::pruneStaleRouting(const Schematic& sch) {
 
 std::vector<size_t> PcbLayout::padGroups(const Schematic& sch) const {
     const auto ps = pads(sch);
-    DSU d = copperClusters(ps, tracks, vias, &zoneFills(sch));
+    DSU d = copperClusters(ps, tracks, vias, settings.bottomLayer(), &zoneFills(sch));
     std::vector<size_t> out(ps.size());
     for (size_t i = 0; i < ps.size(); ++i) out[i] = d.find(i);
     return out;
@@ -1291,7 +1301,7 @@ std::vector<size_t> PcbLayout::padGroups(const Schematic& sch) const {
 std::vector<std::pair<Vec2, Vec2>> PcbLayout::ratsnest(const Schematic& sch) const {
     std::vector<std::pair<Vec2, Vec2>> lines;
     auto ps = pads(sch);
-    DSU d = copperClusters(ps, tracks, vias, &zoneFills(sch));
+    DSU d = copperClusters(ps, tracks, vias, settings.bottomLayer(), &zoneFills(sch));
     std::map<int, std::vector<size_t>> byNet;
     for (size_t i = 0; i < ps.size(); ++i)
         if (ps[i].net >= 0) byNet[ps[i].net].push_back(i);
@@ -1642,8 +1652,7 @@ public:
         forBuckets(box, 0, padBuckets_, [&](size_t id) {
             const Pad& p = pads_[id];
             if (clash || (p.net == net && net >= 0) || !p.onLayer(l)) return;
-            double d = p.round ? std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2)
-                               : segmentRectDistance(a, b, p.bounds());
+            double d = padSegmentDistance(p, a, b);
             if (d < need + classExtra(p.net)) clash = true;
         });
         if (clash) return false;
@@ -1678,8 +1687,7 @@ public:
             const double gap = p.net == partner && partner >= 0 ? partnerGap
                                                                  : s_.clearance + std::max(own, p.net >= 0 ? extraOf(p.net) : 0.0);
             const double need = gap + half - 1e-9;
-            const double d = p.round ? std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2)
-                                     : segmentRectDistance(a, b, p.bounds());
+            const double d = padSegmentDistance(p, a, b);
             if (d < need) clash = true;
         });
         if (clash) return false;
@@ -3222,7 +3230,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     for (const Track& t : keptT)
         if (std::find(order.begin(), order.end(), t.net) != order.end()) seeded.insert(t.net);
     std::unique_ptr<DSU> keptClusters;
-    if (!seeded.empty()) keptClusters = std::make_unique<DSU>(copperClusters(ps, keptT, keptV, nullptr));
+    if (!seeded.empty()) keptClusters = std::make_unique<DSU>(copperClusters(ps, keptT, keptV, settings.bottomLayer(), nullptr));
     if (strategy0.fanoutOnly) order.clear();  // fan-outs only (BGA dog-bones, pour pad vias)
     // Net-class layers: masks of the layers each net may route on, and of its SMD pads' layers (to leave them).
     std::vector<uint32_t> netLayerMask, netPadLayerMask;
@@ -4900,7 +4908,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             for (int net : zoneOrder) {
                 const auto& list = netPads[net];
                 auto tClusters = profile.now();
-                DSU d = copperClusters(ps, outT, outV, &fills);
+                DSU d = copperClusters(ps, outT, outV, settings.bottomLayer(), &fills);
                 profile.since("  pour clusters", tClusters);
                 const size_t base = ps.size() + outT.size() + outV.size();
                 const size_t vbaseVias = outV.size();  // vias that existed when the clusters were computed
@@ -5751,8 +5759,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
         for (size_t pi : padIx.query(reach)) {
             const Pad& pd = ps[pi];
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
-            double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
-                                : segmentRectDistance(a, b, pd.bounds());
+            double d = pd.round ? roundPadSegmentDistance(pd, a, b) - padRadius(pd) : segmentRectDistance(a, b, pd.bounds());
             if (d - w / 2 < need(net, pd.net) - 1e-6) return false;
         }
         for (size_t vi : viaIx.query(reach)) {
@@ -6049,6 +6056,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     courtyard(*placed[i]).center(), {placed[i]->id, placed[j]->id});
 
     auto ps = pads(sch);
+    const int bottomL = settings.bottomLayer();
     // Spacing inside one footprint is fixed by the package (0.5 mm-pitch QFN pads are ~0.2 mm apart): it is held to
     // the fabrication minimum only, not to the board's design clearance.
     constexpr double kMinEtchGap = 0.1;  // absolute etching limit, whatever the preset
@@ -6087,17 +6095,18 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     for (const auto& v : vias) widestVia = std::max(widestVia, v.diameter);
     // Pad ↔ pad.
     for (size_t i = 0; i < ps.size(); ++i)
-        for (size_t j : padIx.query(ps[i].bounds().inflated(reach), static_cast<long long>(i))) {
+        for (size_t j : padIx.query(padStackBounds(ps[i]).inflated(reach), static_cast<long long>(i))) {
             if (ps[i].net == ps[j].net && ps[i].net >= 0) continue;
-            bool share = false;
-            for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
-            if (!share) continue;
-            const Pad &pi = ps[i], &pj = ps[j];  // round pads as circles (diagonal neighbours: staggered TO-92)
-            const double d = pi.round && pj.round ? std::max(0.0, (pi.position - pj.position).length() - std::min(pi.size.x, pi.size.y) / 2 -
-                                                                       std::min(pj.size.x, pj.size.y) / 2)
-                           : pi.round || pj.round ? std::max(0.0, padDistance(pi.round ? pj : pi, (pi.round ? pi : pj).position) -
-                                                                      std::min((pi.round ? pi : pj).size.x, (pi.round ? pi : pj).size.y) / 2)
-                                                  : rectRectDistance(pi.bounds(), pj.bounds());
+            // Round pads as circles / ovals (diagonal neighbours: staggered TO-92), pad stacks on each shared layer.
+            const bool stacked = padStacked(ps[i]) || padStacked(ps[j]);
+            double d = std::numeric_limits<double>::infinity();
+            Pad si, sj;
+            for (int l = 0; l < settings.layerCount; ++l)
+                if (ps[i].onLayer(l) && ps[j].onLayer(l)) {
+                    d = std::min(d, padPadDistance(padOnLayer(ps[i], l, bottomL, si), padOnLayer(ps[j], l, bottomL, sj)));
+                    if (!stacked) break;
+                }
+            if (d == std::numeric_limits<double>::infinity()) continue;
             if (ps[i].componentId == ps[j].componentId) {
                 footprintCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net),
                                (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId}, ps[i].net, ps[j].net);
@@ -6121,11 +6130,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             }
         const Rect trackReach = trackBox(tr, tr.width / 2 + reach);
         for (size_t pi : padIx.query(trackReach)) {
-            const Pad& p = ps[pi];
+            Pad scratch;
+            const Pad& p = padOnLayer(ps[pi], tr.layer, bottomL, scratch);
             if (p.net == tr.net || !p.onLayer(tr.layer)) continue;
-            double d = (p.round ? std::max(0.0, trackPointDistance(tr, p.position) - std::min(p.size.x, p.size.y) / 2)
-                                : trackRectDistance(tr, p.bounds())) -
-                       tr.width / 2;
+            double d = padTrackDistance(p, tr) - tr.width / 2;
             // Where the track is still inside its own pad of the same footprint, the gap is the package's pad gap.
             Vec2 ab = tr.b - tr.a;
             double len2 = ab.dot(ab);
@@ -6165,7 +6173,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         for (size_t pi : padIx.query(viaReach)) {
             const Pad& p = ps[pi];
             if (p.net == vias[i].net || !(p.throughHole || vias[i].spans(p.smdLayer))) continue;
-            double d = padDistance(p, vias[i].position) - vias[i].diameter / 2;
+            double d = viaPadDistance(vias[i], p, bottomL) - vias[i].diameter / 2;
             clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId}, vias[i].net, p.net);
         }
         for (size_t j : viaIx.query(viaReach, static_cast<long long>(i))) {
@@ -6173,7 +6181,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             double d = (vias[i].position - vias[j].position).length() - (vias[i].diameter + vias[j].diameter) / 2;
             clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position, {}, vias[i].net, vias[j].net);
         }
-        if (settings.edgeDistance(vias[i].position) < settings.edgeClearance - eps)
+        if (settings.edgeDistance(vias[i].position) - vias[i].diameter / 2 < settings.edgeClearance - eps)
             add(Severity::Error, "DRC_EDGE_CLEARANCE", "Via is too close to the board edge.", vias[i].position);
         if (settings.holeDistance(vias[i].position) < vias[i].diameter / 2 - eps)
             add(Severity::Error, "DRC_HOLE_KEEPOUT", "Via inside a mounting-hole keep-out.", vias[i].position);
@@ -6220,7 +6228,11 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             std::snprintf(buf, sizeof buf, "Pad drill %.3f mm is below the minimum %.3f mm.", p.drill, settings.minDrill);
             add(Severity::Error, "DRC_DRILL_SIZE", buf, p.position, {p.componentId});
         }
-        double ring = (std::min(p.size.x, p.size.y) - p.drill) / 2;
+        if (p.npth) continue;  // a non-plated hole has no ring
+        double land = std::min(p.size.x, p.size.y);
+        if (p.inner > 0 && settings.layerCount > 2) land = std::min(land, p.inner);
+        if (p.solder > 0) land = std::min(land, p.solder);
+        double ring = (land - p.drill) / 2;
         if (ring < settings.minAnnularRing - eps) {
             std::snprintf(buf, sizeof buf, "Pad annular ring %.3f mm is below the minimum %.3f mm.", ring, settings.minAnnularRing);
             add(Severity::Error, "DRC_ANNULAR_RING", buf, p.position, {p.componentId});

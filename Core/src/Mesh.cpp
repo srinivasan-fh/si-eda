@@ -311,7 +311,11 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
         }
     for (const auto& p : pcb.pads(sch)) {
         if (!p.onLayer(layer)) continue;
-        if (p.round) m.addCylinder({p.position.x, 0.0, p.position.y}, std::min(p.size.x, p.size.y) / 2, cu, pad, 16);
+        if (p.round && p.size.x != p.size.y) {  // oval: a stadium round its centre segment
+            const auto [a, b] = padSpine(p);
+            m.addSegmentBox(a, b, 2 * padRadius(p), 0.0, cu, pad);
+            for (Vec2 e : {a, b}) m.addCylinder({e.x, 0.0, e.y}, padRadius(p), cu, pad, 16);
+        } else if (p.round) m.addCylinder({p.position.x, 0.0, p.position.y}, std::min(p.size.x, p.size.y) / 2, cu, pad, 16);
         else m.addBox({p.position.x - p.size.x / 2, 0.0, p.position.y - p.size.y / 2},
                       {p.position.x + p.size.x / 2, cu, p.position.y + p.size.y / 2}, pad);
     }
@@ -642,6 +646,18 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         auto padShape = [](const Pad& p) {
             std::vector<Vec2> out;
             for (const Vec2& v : p.outline) out.push_back(p.position + v);
+            if (out.empty() && p.round && p.size.x != p.size.y) {  // oval: two half circles round its centre segment
+                const auto [a, b] = padSpine(p);
+                const double r = padRadius(p), a0 = std::atan2(b.y - a.y, b.x - a.x);
+                for (int i = 0; i <= 16; ++i) {
+                    const double t = a0 + M_PI / 2 + i * M_PI / 16;
+                    out.push_back(a + Vec2{r * std::cos(t), r * std::sin(t)});
+                }
+                for (int i = 0; i <= 16; ++i) {
+                    const double t = a0 - M_PI / 2 + i * M_PI / 16;
+                    out.push_back(b + Vec2{r * std::cos(t), r * std::sin(t)});
+                }
+            }
             if (out.empty() && p.corner > 0 && !p.round) {
                 const double r = p.corner * std::min(p.size.x, p.size.y), hx = p.size.x / 2 - r, hy = p.size.y / 2 - r;
                 const Vec2 centres[4] = {{hx, hy}, {-hx, hy}, {-hx, -hy}, {hx, -hy}};
@@ -664,7 +680,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
                     if (!top && layers == 1) continue;  // single-sided: copper on the top layer only
                     double y = top ? 0.0 : -t - cu;
                     m.surface = Surface::Finish;
-                    if (p.round) m.addCylinder({p.position.x, y, p.position.y}, p.size.x / 2, cu, gold);
+                    if (p.round && shape.empty()) m.addCylinder({p.position.x, y, p.position.y}, p.size.x / 2, cu, gold);
                     else if (!shape.empty()) m.addPrism(shape, y, y + cu, gold);
                     else
                         m.addBox({p.position.x - p.size.x / 2, y, p.position.y - p.size.y / 2},

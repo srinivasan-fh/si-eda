@@ -12,7 +12,11 @@
   silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
   `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. More land checks in `landChecksMore` (LAND_PASTE /
   SILK_PAD / PIN1 / NUMBERING / COURTYARD, LAND_MASK_SLIVER in the pair loop) must stay quiet on every catalog part;
-  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift).
+  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift). Pad copper is measured only through
+  `TrackGeometry.hpp` (`padPointDistance` / `padSegmentDistance` / `padTrackDistance` / `padPadDistance`: a round pad
+  with w ≠ h is an oval = stadium round `padSpine`, circles keep their exact arithmetic; `padOnLayer` = the pad stack's
+  `inner` / `solder` circle on that layer) in DRC, connectivity, pours and routers; ovals export as Gerber `O`,
+  IPC-2581 `Oval`, ODB++ `oval`. NPTH pads have no annular ring (DRC / DFM); via-to-edge DRC counts the via radius.
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.

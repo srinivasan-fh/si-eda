@@ -24165,3 +24165,156 @@ TEST(bom_custom_columns_and_multi_board) {
     CHECK(front == "Designators,Quantity\nR2,1\n");
     CHECK(exportBomColumns(p, {}).rfind("Item,Designators,Quantity,Value,Footprint,Manufacturer,Manufacturer Part #,DNP\n", 0) == 0);
 }
+
+TEST(oval_pads_are_stadiums_in_gerber_drc_and_exchange) {
+    // Issue #150: KiCad "oval" through-hole pads (TO-247-4: 1.905 × 4.5 mm at 2.54 mm pitch), turned 90°.
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 40;
+    const std::string id = p.addCustomPart(findStandardPart("C3M0065100K")->spec);
+    const int q1 = p.schematic.addCustomComponent(id, "", {0, 0}), q2 = p.schematic.addCustomComponent(id, "", {100, 0});
+    for (int q : {q1, q2}) {
+        Component* c = p.schematic.find(q);
+        c->pcb.placed = true;
+        c->pcb.rotation = 90;
+        c->pcb.position = {q == q1 ? 15.0 : 19.6, 20.0};  // the two parts' pad ends 0.1 mm apart
+    }
+    const auto ps = p.pcb.pads(p.schematic);
+    const Pad* oval = nullptr;
+    for (const auto& pd : ps)
+        if (pd.round && pd.size.x > pd.size.y) oval = &pd;
+    CHECK(oval != nullptr);
+    if (!oval) return;
+    // The copper is a stadium: it reaches the ends of the long axis, and only the radius across it.
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{2.25, 0}), 0, 1e-9);
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{2.5, 0}), 0.25, 1e-9);
+    CHECK_NEAR(padPointDistance(*oval, oval->position + Vec2{0, 1.2}), 1.2 - 1.905 / 2, 1e-9);
+    // Gerber: an obround aperture, never a 4.5 mm circle shorting the neighbouring pins.
+    const std::string top = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(top.find("O,4.5000X1.9050") != std::string::npos && top.find("C,4.5000") == std::string::npos);
+    // DRC: every facing pad pair of the two parts is too close, the ovals as well as the rectangular pad 1.
+    int facing = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) facing += v.message.rfind("Pad clearance", 0) == 0 && v.components.size() == 2;
+    CHECK(facing == 4);
+    // IPC-2581 / ODB++ draw an oval too.
+    const std::string ipc = exportIpc2581(p);
+    CHECK(ipc.find("<Oval width=\"4.5\" height=\"1.905\"/>") != std::string::npos && ipc.find("CIRCLE_4.5\"") == std::string::npos);
+}
+
+TEST(pad_stack_sizes_in_drc_pours_and_connectivity) {
+    // Issue #151: a through-hole pad 1.8 mm on top, 1.0 mm on the inner layers and 2.4 mm on the solder side.
+    CustomPartSpec spec;
+    spec.name = "STACK2";
+    spec.refPrefix = "J";
+    spec.pins = {{"1", "A"}, {"2", "B"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land la{-3, 0, 1.8, 1.8, 1.0, true}, lb{3, 0, 1.8, 1.8, 1.0, true};
+    for (PackageSpec::Land* l : {&la, &lb}) l->inner = 1.0, l->solder = 2.4;
+    spec.package.lands = {la, lb};
+    Project p;
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.width = p.pcb.settings.height = 30;
+    p.pcb.settings.clearance = 0.2;
+    const int j = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    const int r1 = p.schematic.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    const int r2 = p.schematic.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    wire(p.schematic, r1, "2", r2, "1");
+    p.schematicChanged();
+    p.schematic.find(j)->pcb.placed = true;
+    p.schematic.find(j)->pcb.position = {15, 15};
+    const int net = p.schematic.netOf({r1, pin(p.schematic, r1, "2")});
+    CHECK(net >= 0);
+    const auto ps = p.pcb.pads(p.schematic);
+    CHECK(ps.size() == 2);
+    if (net < 0 || ps.size() != 2) return;
+    const Vec2 a = ps[0].position, b = ps[1].position;
+    Via v;
+    v.position = {3, 3};
+    v.net = net;
+    p.pcb.addVia(v);
+    // Pours clear each layer's own land: more copper on the inner layer, less on the solder side, than on top.
+    for (int l : {0, 1, 3}) p.pcb.zones.push_back({p.schematic.nets()[static_cast<size_t>(net)].name, l, false, 0});
+    std::map<int, double> area;
+    for (const auto& f : p.pcb.zoneFills(p.schematic)) area[f.layer] += f.area();
+    CHECK(area[0] > 100 && area[3] < area[0] - 2.0 && area[1] > area[0] + 2.0);
+    p.pcb.zones.clear();
+    // Connectivity: a track ending 0.7 mm from both pad centres joins them on top, not on an inner layer.
+    Track t;
+    t.net = net;
+    t.width = 0.25;
+    t.layer = 1;
+    t.a = a + Vec2{0.7, 0};
+    t.b = b - Vec2{0.7, 0};
+    p.pcb.addTrack(t);
+    CHECK(p.pcb.padGroups(p.schematic)[0] != p.pcb.padGroups(p.schematic)[1]);
+    p.pcb.tracks[0].layer = 0;
+    CHECK(p.pcb.padGroups(p.schematic)[0] == p.pcb.padGroups(p.schematic)[1]);
+    p.pcb.tracks.clear();
+    // DRC: a track / via of another net measured against the land on its layer.
+    auto toPad = [&p, net, a](int layer, double dy, bool via) {
+        Project q = p;
+        if (via) {
+            Via w;
+            w.net = net;
+            w.position = a + Vec2{0, dy};
+            q.pcb.addVia(w);
+        } else {
+            Track u;
+            u.net = net;
+            u.width = 0.25;
+            u.layer = layer;
+            u.a = a + Vec2{-2, dy};
+            u.b = a + Vec2{0, dy};
+            q.pcb.addTrack(u);
+        }
+        int n = 0;
+        for (const auto& r : q.pcb.runDRC(q.schematic)) n += r.message.find(") to pad (") != std::string::npos;
+        return n;
+    };
+    CHECK(toPad(3, 1.45, false) == 1 && toPad(0, 1.45, false) == 0);  // solder side 2.4 mm, top 1.8 mm
+    CHECK(toPad(1, 1.15, false) == 0 && toPad(0, 1.15, false) == 1);  // inner 1.0 mm
+    CHECK(toPad(0, 1.6, true) == 1);                                    // a through via reaches the solder-side land
+}
+
+TEST(via_edge_clearance_counts_the_via_copper) {
+    // Issue #152: the edge clearance is held by the via's copper, not its centre.
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 20;
+    p.pcb.settings.edgeClearance = 0.3;
+    Via v;
+    v.position = {0.55, 10};
+    p.pcb.addVia(v);  // 0.6 mm via: its copper 0.25 mm from the edge
+    CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 1);
+    p.pcb.vias[0].position.x = 0.65;
+    CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 0);
+}
+
+TEST(npth_holes_have_no_annular_ring) {
+    // Issue #153: a non-plated hole (its pad is the drill) has no ring to check, and nothing plated (aspect ratio).
+    CustomPartSpec spec;
+    spec.name = "NPTHRING";
+    spec.refPrefix = "H";
+    spec.pins = {{"1", "A"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land pad{-2, 0, 1.6, 1.6, 1.0, true, "1"};
+    PackageSpec::Land hole{2, 0, 1.6, 1.6, 0.1, true, "-"};
+    hole.npth = true;
+    spec.package.lands = {pad, hole};
+    Project p;
+    p.pcb.settings.width = p.pcb.settings.height = 20;
+    const int h = p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.schematic.find(h)->pcb.placed = true;
+    p.schematic.find(h)->pcb.position = {10, 10};
+    CHECK(drcCount(p, "DRC_ANNULAR_RING") == 0);
+    CHECK(drcCount(p, "DRC_DRILL_SIZE") == 1);  // the drill itself is still checked
+    p.pcb.settings.dfmPack = "jlcpcb-standard";
+    int aspect = 0;
+    for (const auto& v : dfmChecks(p.schematic, p.pcb)) aspect += v.code == "DFM_ASPECT_RATIO";
+    CHECK(aspect == 0);
+    std::string ring;
+    const Json report = dfmReportJson(p.schematic, p.pcb);
+    for (const auto& row : report.get("rows").items())
+        if (row.get("rule").asString() == "Smallest annular ring") ring = row.get("actual").asString();
+    CHECK(ring == "0.30 mm");
+}

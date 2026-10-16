@@ -407,10 +407,11 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     };
     auto circle = [&](double d) { return "C," + mm(d); };
     auto rect = [&](double w, double h) { return "R," + mm(w) + "X" + mm(h); };
-    // A pad's aperture: circle, rectangle or rounded rectangle (macro RR: width, height, corner radius).
+    // A pad's aperture: circle, obround (an oval pad), rectangle or rounded rectangle (macro RR: width, height,
+    // corner radius).
     auto padAperture = [&](const Pad& p, double grow) {
         const double w = p.size.x + 2 * grow, h = p.size.y + 2 * grow;
-        if (p.round) return circle(w);
+        if (p.round) return p.size.x == p.size.y ? circle(w) : "O," + mm(w) + "X" + mm(h);
         const double r = p.corner * std::min(p.size.x, p.size.y) + grow;
         return p.corner > 0 && r > 1e-4 ? "RR," + mm(w) + "X" + mm(h) + "X" + mm(r) : rect(w, h);
     };

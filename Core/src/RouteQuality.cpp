@@ -390,7 +390,7 @@ int fixAcuteJoins(PcbLayout& pcb, const Schematic& sch) {
         auto covered = [&](int net, int layer, Vec2 p) {
             for (const Pad& pd : ps)
                 if (pd.net == net && pd.onLayer(layer) &&
-                    (pd.round ? (p - pd.position).length() - std::min(pd.size.x, pd.size.y) / 2 : pointRectDistance(p, pd.bounds())) <= 0)
+                    (pd.round ? roundPadPointDistance(pd, p) - padRadius(pd) : pointRectDistance(p, pd.bounds())) <= 0)
                     return true;
             for (const Via& v : pcb.vias)
                 if (v.net == net && (v.position - p).length() <= v.diameter / 2) return true;
@@ -404,7 +404,7 @@ int fixAcuteJoins(PcbLayout& pcb, const Schematic& sch) {
                     trackSegmentDistance(t, a, b) - (w + t.width) / 2 < std::max(own, clearanceOf(t.net)) + 1e-3) return false;
             for (const Pad& pd : ps) {
                 if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
-                const double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
+                const double d = pd.round ? roundPadSegmentDistance(pd, a, b) - padRadius(pd)
                                           : segmentRectDistance(a, b, pd.bounds());
                 if (d - w / 2 < std::max(own, clearanceOf(pd.net)) + 1e-3) return false;
             }

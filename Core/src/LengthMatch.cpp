@@ -170,7 +170,7 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
         }
         for (const auto& pd : pads) {
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
-            double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
+            double d = pd.round ? roundPadSegmentDistance(pd, a, b) - padRadius(pd)
                                 : segmentRectDistance(a, b, pd.bounds());
             if (d - w / 2 < clr - 1e-6) return false;
         }

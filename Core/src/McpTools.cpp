@@ -1435,7 +1435,7 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
     auto fail = [&](const std::string& what) { throw ToolError("Too close to " + what + " (board clearance " + Json(clr).dump() + " mm)"); };
     for (const auto& pad : pr.pcb.pads(pr.schematic)) {
         if (pad.net == net || (layer >= 0 && !pad.onLayer(layer))) continue;
-        const double d = pad.round ? trackPointDistance(seg, pad.position) - std::min(pad.size.x, pad.size.y) / 2
+        const double d = pad.round ? roundPadTrackDistance(pad, seg) - padRadius(pad)
                                    : trackRectDistance(seg, pad.bounds());
         if (d - width / 2 < clr - 1e-9) {
             const Component* c = pr.schematic.find(pad.componentId);
