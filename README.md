@@ -66,7 +66,7 @@ One design, from the first wire to the finished board. Every picture below was d
 
 ```mermaid
 flowchart LR
-    A["Describe<br/>prompt or PRD"] --> B["Design<br/><sub>schematic + parts</sub>"]
+    A["Describe<br/>prompt or PRD"] --> B["Design<br/>schematic + parts"]
     B --> C["Simulate<br/>SPICE, firmware"]
     C --> D["Lay out<br/>place + route"]
     D --> E["Verify<br/>ERC, DRC, DFM"]
