@@ -186,7 +186,7 @@
   a 5 grid in line with its pins, wired down from them), a 4-pad crystal is mirrored to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
   part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
   part (layout-only link); the repair passes after an MCP route (`squareEscapes`, `viasOffPads`, `trimStubs`) try candidates on held pours
-  (`PourTrials`) and judge one that passes again on refilled pours; after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
+  (`PourTrials`, which sets `PcbLayout::pourTrials` so the DRC skips DRC_POUR_CLEARANCE on those stale pours) and judge one that passes again on refilled pours; after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
   runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
   VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; `neckTombstones` (after MCP routes and pours) necks wide tracks at
   small two-pad parts unless that raises DRC_TRACK_CURRENT, else widens the light pad's lead-in (pour spokes) when the DRC

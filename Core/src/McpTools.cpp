@@ -712,15 +712,15 @@ struct PourTrials {
     bool dirty = false;
     explicit PourTrials(Project& p) : pr(p) {
         pr.pcb.zoneFills(pr.schematic);
-        pr.pcb.holdPours = true;
+        pr.pcb.holdPours = pr.pcb.pourTrials = true;  // (held pours are stale: their clearance is judged on refill)
     }
-    ~PourTrials() { pr.pcb.holdPours = held; }
+    ~PourTrials() { pr.pcb.holdPours = held, pr.pcb.pourTrials = false; }
     PourTrials(const PourTrials&) = delete;
     PourTrials& operator=(const PourTrials&) = delete;
     template <class F> bool fresh(F&& test) {
-        pr.pcb.holdPours = held;
+        pr.pcb.holdPours = held, pr.pcb.pourTrials = false;
         const bool ok = test();
-        pr.pcb.holdPours = true;
+        pr.pcb.holdPours = pr.pcb.pourTrials = true;
         dirty = !ok;
         return ok;
     }

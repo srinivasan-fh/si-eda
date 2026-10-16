@@ -6340,7 +6340,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
 
     // Track geometry: dangling ends and acute (< 90°) joins that trap etchant.
     const auto& fills = zoneFills(sch);
-    pourClearanceChecks(sch, *this, ps, fills, out);
+    if (!pourTrials) pourClearanceChecks(sch, *this, ps, fills, out);
     auto touchesCopper = [&](size_t self, Vec2 end) {
         const Track& t = tracks[self];
         for (const auto& f : fills)

@@ -681,6 +681,9 @@ public:
     /// Pours refilled on demand only (an editing preference, not saved): edits keep the last fill until
     /// `refillPours`; `poursStale` says the copper has changed since.
     bool holdPours = false;
+    /// Set while the MCP repair passes try copper moves on held (stale) pours: the DRC skips DRC_POUR_CLEARANCE then
+    /// (an accepted move is judged again on refilled pours). Transient, never saved.
+    bool pourTrials = false;
     void refillPours() const { fillValid_ = false; }
     bool poursStale() const { return fillStale_; }
     /// True if `net` has a zone (its connections may be made through poured copper).
