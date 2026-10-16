@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Interface Languages
 
 SiEDA's interface is in English and 19 other languages. Pick one in **Settings → Language → Interface language**.

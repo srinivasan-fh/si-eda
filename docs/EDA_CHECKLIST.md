@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Best-in-class PCB EDA — SiEDA status against the checklist
 
 The product checklist (26 sections, P0 essential → P3 enterprise) with SiEDA's status for every item. Work through

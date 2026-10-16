@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Using SiEDA from any AI: the MCP server
 
 SiEDA speaks the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). Any MCP client — Claude Desktop,

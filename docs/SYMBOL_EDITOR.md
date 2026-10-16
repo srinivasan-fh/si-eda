@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # Symbol Editor
 
 The Symbol Editor arranges where a part's pins sit on its schematic symbol: which side of the body, in what order,

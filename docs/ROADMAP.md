@@ -1,3 +1,5 @@
+<p align="center"><a href="../README.md">Home</a> · <a href="FEATURES.md">Features</a> · <a href="README.md">Documentation</a> · <a href="MCP.md">MCP server</a> · <a href="ARCHITECTURE.md">Architecture</a></p>
+
 # SiEDA roadmap — checklist
 
 Status of the recent work and the planned work, one line per item. Tick an item (`[x]`) when its PR is merged with

@@ -1,5 +1,7 @@
 # SiEDA — notes for Claude Code
 
+- README.md is the landing page (gallery from `docs/images/`, rendered by `sieda-mcp`; feature cards link to the guides); the
+  detailed reference is `docs/FEATURES.md`, the guide index `docs/README.md`; every guide opens with the same nav bar.
 - Core (C++): `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ./build/sieda_core_tests`
 - macOS app: `./run.sh` (builds the core, generates the Xcode project, runs the app).
 - Footprint Editor: core in `Core/src/CustomParts.cpp` (`landPatternFromFootprint`, `checkLandPattern`), app in
