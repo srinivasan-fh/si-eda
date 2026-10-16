@@ -595,7 +595,7 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                                                 (sch.find(id)->position.x - from.x) * d.x > 0);
                         // A connector (more than four pins) goes further out in line before aside: its wire stays straight.
                         const bool big = sch.find(b.component)->def().pins.size() > 4;
-                        for (double out : loadCap ? std::vector<double>{0} : big ? std::vector<double>{0, 80, 200, 340, 500, 660} : std::vector<double>{0, 80, 200, 340})
+                        for (double out : loadCap ? std::vector<double>{0} : big ? std::vector<double>{0, 80, 200, 340, 420} : std::vector<double>{0, 80, 200, 340})
                             for (int k = -10; k <= 10; ++k)
                                 if ((k || out > 0) && (!k || out < 500))  // along a chain of two-pin parts: further out in line before aside
                                     spots.push_back({std::abs(k) * w + out * (sch.find(a.component)->def().pins.size() == 2 ? 0.5 : beside || (big && !k) ? 0.2 : 1.5), d * out + side * (k * w)});

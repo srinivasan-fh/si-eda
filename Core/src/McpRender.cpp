@@ -814,10 +814,20 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     }
     for (const auto& [a, c] : pcb.ratsnest(sch)) s.line(a, c, 0.08, "#ffff66");
     const auto designators = designatorBoxes(sch, pcb);  // where the silkscreen puts them, clear of each other
+    std::map<int, std::pair<int, Vec2>> padOne;  // part → its pad count and pad 1
+    for (const auto& p : pcb.pads(sch)) {
+        auto& [n, at] = padOne[p.componentId];
+        ++n;
+        if (p.padNumber == 1) at = p.position;
+    }
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !c.pcb.placed || c.packageOnly) continue;
         const Rect cy = pcb.courtyard(c);
         s.box(cy, false, 0.08, "#e0e0e0");
+        if (const auto one = padOne.find(c.id); one != padOne.end() && one->second.first >= 3) {  // pin 1: a dot on its corner
+            const Vec2 q = one->second.second;
+            s.disc({q.x - cy.x0 < cy.x1 - q.x ? cy.x0 : cy.x1, q.y - cy.y0 < cy.y1 - q.y ? cy.y0 : cy.y1}, 0.35, "#f0f0f0");
+        }
         const auto d = designators.find(c.id);
         const Rect t = d != designators.end() ? d->second : Rect{cy.x0, cy.y0 - 1.3, cy.x1, cy.y0 - 0.3};
         s.text({t.center().x, t.y1}, c.ref, t.y1 - t.y0, "#f0f0f0", true);
