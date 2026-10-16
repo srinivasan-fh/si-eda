@@ -173,8 +173,8 @@
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
   counts single-pin nets (`singlePinNets`); `pcb_autoplace` re-places the edge parts once when Auto Place grew the board;
   `stitchingVias` skips vias by a part (the router's pour fan-out); route results give `viasOnBoard`; MCP whole-board
-  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`, again at the board
-  width if that leaves anything open) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
+  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`; not a net with a pad narrower than 0.4 mm + clearance; if that leaves anything open
+  the board-width route is tried too and only the one with fewer open goes through `finishRouting`, once) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
   of a part drawn before (`layoutBuilt` `anchor`), a grounded two-pin part above an upward pin stands upright with labels
   (`grounded`); McpRender keeps side pin names inside their half of the body, a lead-less pin's no-connect X outside it,
   and draws every pour under every track (bottom first, each in a light tint of its layer colour; no blend) with light spokes from each pad joined to a pour of its net; `pcb_summary` footprints carry `kicadFootprint` (the catalog's library name); a label splitting a wire is drawn as text along it, catalog D / SW / Y parts
@@ -185,7 +185,8 @@
   always point down (out beyond the labels below); a crystal's load caps hang below its pins (laid out right after the crystal, which stands 300 out from its IC, on
   a 5 grid in line with its pins, wired down from them), a 4-pad crystal is mirrored to face its IC; a rail's first bulk cap links to its regulator's pin; `layoutBuilt`'s room counts a
   part's designator and value; a later build's part on an existing net is laid out by that net's regulator / largest
-  part (layout-only link); after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
+  part (layout-only link); the repair passes after an MCP route (`squareEscapes`, `viasOffPads`, `trimStubs`) try candidates on held pours
+  (`PourTrials`) and judge one that passes again on refilled pours; after an MCP route `collapseJogs` folds sub-0.1 mm jogs (acute slivers), `fixAcuteJoins`
   runs, and `squareEscapes` straightens or nudges IC pad exits closer than the fab minimum (DRC_FINE_PITCH_PADS);
   VAL_DECOUPLING_PER_PIN lets any capacitor serve a regulator's input pin; `neckTombstones` (after MCP routes and pours) necks wide tracks at
   small two-pad parts unless that raises DRC_TRACK_CURRENT, else widens the light pad's lead-in (pour spokes) when the DRC
