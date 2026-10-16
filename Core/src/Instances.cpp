@@ -1075,29 +1075,38 @@ bool Schematic::syncInstancesOnce() {
                     changed = true;
                 }
             }
-        // Designators for every channel, the definition's own included.
+        // Designators for every channel, the definition's own included. A sheet-numbered one held by another part (a
+        // sheet that moved up as channels were added) takes the next free number of its prefix (units follow theirs).
+        const bool sheetNumbered = findSheet(def)->refs == InstanceRefs::SheetNumber;
+        std::map<std::string, int> refCount;
+        if (sheetNumbered)
+            for (const auto& c : components_)
+                if (c.kind != ComponentKind::PartUnit) ++refCount[c.ref];
+        auto setRef = [&](Component& c, std::string ref, bool free) {
+            std::string prefix;
+            int number = 0;
+            free = free && c.kind != ComponentKind::PartUnit;
+            if (free && sheetNumbered && ref.find('_') == std::string::npos && splitDesignator(ref, prefix, number))
+                while (refCount[ref] > (c.ref == ref ? 1 : 0)) ref = prefix + std::to_string(++number);
+            if (c.ref == ref) return;
+            if (free && sheetNumbered) {
+                --refCount[c.ref];
+                ++refCount[ref];
+            }
+            c.ref = ref;
+            changed = true;
+        };
         for (int mid : masterIds) {
             Component& m = *comp(mid);
             const bool part = !isNetSymbolKind(m.kind);
             const std::string logical = m.logicalRef;
             const std::string netSymbolRef = m.ref;
-            if (part) {
-                const std::string ref = channelRef(logical, def, step, pathOf(def));
-                if (m.ref != ref) {
-                    m.ref = ref;
-                    changed = true;
-                }
-            }
+            if (part) setRef(m, channelRef(logical, def, step, pathOf(def)), true);
             for (int sheet : instances) {
                 const auto copyIt = copyOf.find({mid, sheet});
                 Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
                 if (!copy) continue;
-                Component& c = *copy;
-                const std::string ref = part ? channelRef(logical, sheet, step, pathOf(sheet)) : netSymbolRef;
-                if (c.ref != ref) {
-                    c.ref = ref;
-                    changed = true;
-                }
+                setRef(*copy, part ? channelRef(logical, sheet, step, pathOf(sheet)) : netSymbolRef, part);
             }
         }
         // Wires: the definition's wires on every instance, between the copies of their ends.
@@ -1151,6 +1160,7 @@ void Schematic::annotateBlocks(const AnnotateOptions& o) {
     std::set<int> defs;
     for (const auto& s : sheets_)
         if (s.instanceOf != 0) defs.insert(s.instanceOf);
+    std::set<std::string> suffixUsed;  // suffixed blocks share channel labels (R1_A): one numbering for all of them
     for (int def : defs) {
         struct Item {
             size_t at;
@@ -1169,7 +1179,9 @@ void Schematic::annotateBlocks(const AnnotateOptions& o) {
             if (a.minor != b.minor) return a.minor < b.minor;
             return components_[a.at].id < components_[b.at].id;
         });
-        std::set<std::string> used;
+        std::set<std::string> ownUsed;
+        const Sheet* d = findSheet(def);
+        std::set<std::string>& used = d && d->refs == InstanceRefs::Suffix ? suffixUsed : ownUsed;
         std::vector<const Item*> pending;
         for (const auto& it : items) {
             const std::string& logical = components_[it.at].logicalRef;
