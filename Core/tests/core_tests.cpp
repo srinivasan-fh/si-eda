@@ -20965,9 +20965,10 @@ TEST(mcp_build_stands_pull_ups_and_reviews_usb_esd) {
     mcp::McpServer s;
     CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
     CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"pins": false, "parts": [{"ref": "U1", "part": "ESP32-C3-WROOM-02"},
-        {"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"}, {"ref": "R2", "kind": "resistor", "value": "10k"}],
-        "nets": {"+3V3": ["U1.3V3", "R1.1", "R2.1"], "EN": ["U1.EN", "R1.2"], "IO8": ["U1.IO8", "R2.2"], "USB_DP": ["J1.D+(A6)", "U1.IO19"],
-        "GND": ["U1.GND(9)", "J1.GND(A1)"]}})J"))));
+        {"ref": "J1", "part": "USB-C-RECEPTACLE-USB2"}, {"ref": "R1", "kind": "resistor", "value": "10k"}, {"ref": "R2", "kind": "resistor", "value": "10k"},
+        {"ref": "C1", "kind": "capacitor", "value": "1u"}],
+        "nets": {"+3V3": ["U1.3V3", "R1.1", "R2.1"], "EN": ["U1.EN", "R1.2", "C1.1"], "IO8": ["U1.IO8", "R2.2"], "USB_DP": ["J1.D+(A6)", "U1.IO19"],
+        "GND": ["U1.GND(9)", "J1.GND(A1)", "C1.2"]}})J"))));
     const Schematic& sch = s.project()->project.schematic;
     for (const char* ref : {"R1", "R2"}) {
         const Component* r = sch.findByRef(ref);
@@ -20978,6 +20979,15 @@ TEST(mcp_build_stands_pull_ups_and_reviews_usb_esd) {
             const PinRef a = w.a.component == r->id ? w.a : w.b, b = w.a.component == r->id ? w.b : w.a;
             return a.component == r->id && a.pin == 1 && (b.component == u || (sch.find(b.component) && sch.find(b.component)->kind == ComponentKind::NetLabel));
         }));
+    }
+    // Every net asked for is one net: a pull-up's wire, a cap's label and the module pin all share it (no N$ nets).
+    for (const auto& [ref, pin, net] : {std::tuple{"R1", 1, "EN"}, std::tuple{"U1", -1, "EN"}, std::tuple{"C1", 0, "EN"}}) {
+        const Component* c = sch.findByRef(ref);
+        int at = pin;
+        for (int i = 0; at < 0 && i < static_cast<int>(c->def().pins.size()); ++i)
+            if (c->def().pins[static_cast<size_t>(i)].name == "EN") at = i;
+        const int n = sch.netOf({c->id, at});
+        CHECK(n >= 0 && sch.nets()[static_cast<size_t>(n)].name == net);
     }
     CHECK(mcpData(mcpTool(s, "schematic_validate", Json::object())).dump().find("VAL_USB_ESD") != std::string::npos);
     const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"J({"query": "usb-c"})J")));
