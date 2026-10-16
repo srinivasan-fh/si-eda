@@ -2397,7 +2397,16 @@ void schematicTools(Table& t) {
                   if (n >= 0 && n == sch.netOf({id, 1}) && sch.isPinConnected({id, 0}))
                       warnings.push(c->ref + " is shorted: both its pins are on net " + netName(p->project, n));
               }
+              Json noConnectCleared = Json::array();  // a pin marked unused, now wired: no longer unused
+              for (const auto& r : results.items())
+                  for (const char* k : {"from", "to"}) {
+                      const PinAddress pa = pinAddress(*p, r.get(k));
+                      const Component* c = sch.find(pa.component);
+                      if (c && c->isNoConnect(pa.pin) && sieda_set_pin_no_connect(p, pa.component, pa.pin, 0))
+                          noConnectCleared.push(pinLabel(*p, pa));
+                  }
               Json j = obj();
+              if (noConnectCleared.size()) j["noConnectCleared"] = noConnectCleared;
               j["wiresAdded"] = made;
               j["connections"] = results;
               if (warnings.size()) j["warnings"] = warnings;
@@ -3225,17 +3234,23 @@ void schematicTools(Table& t) {
                   const auto [best, fewest] = clearest(net, l, poses);
                   const Schematic& sch = proj(s).schematic;
                   const Vec2 p0 = sch.pinPosition({l->a.component, l->a.pin}), p1 = sch.pinPosition({l->b.component, l->b.pin});
-                  // A pull-up standing on its wire (or no clear spot on the wire), the net named by a label on another
-                  // pin: the wire alone.
-                  std::set<std::string> onWires;
-                  for (const Link* w : drawn[net]) onWires.insert(w->from.dump()), onWires.insert(w->to.dump());
-                  const bool standing = isStanding(l);
-                  if ((fewest || standing) && nets.get(net).size() > onWires.size()) {
-                      if (sieda_connect(P(s), l->a.component, l->a.pin, l->b.component, l->b.pin) < 0) failed.push(net + ": could not wire it");
-                      continue;
-                  }
-                  if (standing && fewest) {  // a pull-up's own net: its tag lies along the wire
-                      placedTags.push_back({placeTag(net, l, poses, static_cast<int>(poses.size()) - 1), net, l});
+                  if (isStanding(l)) {  // a pull-up standing on its wire: its tag lies along the wire, never off it,
+                      int pick = fewest ? static_cast<int>(poses.size()) - 1 : best;  // slid to its clearest spot there
+                      if (fewest) {
+                          const auto along = poses.back();
+                          const Vec2 dir = (p1 - p0) * (1 / std::max(1e-9, (p1 - p0).length()));
+                          int least = 1 << 30;
+                          for (int k = -6; k <= 6; ++k) {
+                              const Vec2 at = along.first + dir * (10.0 * k);
+                              if ((at - p0).length() < 20 || (at - p1).length() < 20) continue;
+                              const int id = sieda_add_component(P(s), static_cast<int>(ComponentKind::NetLabel), net.c_str(), at.x, at.y, along.second, nullptr);
+                              if (id < 0) continue;
+                              const int hits = hitsOf(id);
+                              sieda_remove_component(P(s), id);
+                              if (hits < least) least = hits, poses.push_back({at, along.second}), pick = static_cast<int>(poses.size()) - 1;
+                          }
+                      }
+                      placedTags.push_back({placeTag(net, l, poses, pick), net, l});
                       continue;
                   }
                   // No clear spot on its only wire, and room on it for two labels: a label at each end instead.
@@ -3378,11 +3393,12 @@ void schematicTools(Table& t) {
                       const Vec2 was = sch.find(g)->position;
                       bool clear = false;
                       if (pin.component >= 0) {
-                          const Vec2 out = pinOutward(proj(s), pin) * 10;
-                          for (int step = 1; step <= 8 && !clear; ++step) {
-                              sieda_move_component(P(s), g, was.x + out.x * step, was.y + out.y * step);
-                              clear = !onWire(g);
-                          }
+                          const Vec2 out = pinOutward(proj(s), pin) * 10, aside{-out.y, out.x};  // out, then aside too
+                          for (int side : {0, 2, -2, 4, -4})
+                              for (int step = 1; step <= 8 && !clear; ++step) {
+                                  sieda_move_component(P(s), g, was.x + out.x * step + aside.x * side, was.y + out.y * step + aside.y * side);
+                                  clear = !onWire(g);
+                              }
                       }
                       if (!clear) {
                           sieda_move_component(P(s), g, was.x, was.y);
@@ -3391,7 +3407,24 @@ void schematicTools(Table& t) {
                       }
                   }
               }
+              // Every net asked for is one net in the end: a pin left off it (a wire nobody named) gets its label.
+              Json netsJoined = Json::array();
+              for (const auto& [net, pins] : nets.fields()) {
+                  Json loose = Json::array();
+                  for (const auto& pin : pins.items()) try {
+                          const PinAddress pa = pinAddress(*P(s), pin);
+                          const int n = proj(s).schematic.netOf({pa.component, pa.pin});
+                          if (n < 0 || proj(s).schematic.nets()[static_cast<size_t>(n)].name != net) loose.push(pin);
+                      } catch (const std::exception&) {}
+                  if (!loose.size() || isGround(net)) continue;
+                  Json args = obj();
+                  args["net"] = net;
+                  args["pins"] = loose;
+                  run("schematic_net_label", args, net);
+                  for (const auto& pin : loose.items()) netsJoined.push(net + ": " + pin.asString(""));
+              }
               Json j = obj();
+              if (netsJoined.size()) j["netsJoined"] = netsJoined;  // pins labelled onto their net after the layout
               if (labelOverlaps.size()) j["labelOverlaps"] = labelOverlaps;
               if (noConnectCleared.size()) j["noConnectCleared"] = noConnectCleared;  // schematic_move_component clears them
               for (int id : ids) {  // with the nets they joined; pins: false keeps the reply short
