@@ -80,11 +80,22 @@ public:
     std::shared_ptr<const Model3DMesh> get(const std::string& id) const;
     /// Makes `alias` refer to the mesh registered as `id` (a project file's id kept for its parts).
     void addAlias(const std::string& alias, const std::string& id);
+    /// Memory bound: past `budget` bytes of meshes, `add` drops the least recently used ones that nothing else holds
+    /// (an open project holds the meshes it refers to, see sieda_c's `holdMeshes`) and no library part refers to.
+    void setBudget(size_t bytes);
+    size_t bytes() const;
 
 private:
     Model3DRegistry() = default;
+    void trim();
+    struct Entry {
+        std::shared_ptr<const Model3DMesh> mesh;
+        mutable uint64_t used = 0;  // last add / get (a use counter)
+    };
     mutable std::mutex mutex_;
-    std::map<std::string, std::shared_ptr<const Model3DMesh>> meshes_;
+    mutable uint64_t clock_ = 0;
+    size_t budget_ = 256u << 20;
+    std::map<std::string, Entry> meshes_;
 };
 
 /// The 4 × 3 affine transform from file coordinates to the footprint's model frame in mm (x right, y up the

@@ -103,18 +103,33 @@ struct DesignSnapshot: Decodable, Equatable {
             if let fallback { return fallback }
             return try c.decode(T.self, forKey: key)  // throws: a required section is missing
         }
+        /// A large array section: whole, or the base's with the changed elements replaced (`<key>Patch`).
+        func list<T: Decodable>(_ key: CodingKeys, _ patchKey: CodingKeys, _ old: KeyPath<DesignSnapshot, [T]>,
+                                _ fallback: [T]?) throws -> [T] {
+            guard let base, let patch = try c.decodeIfPresent(SectionPatch<T>.self, forKey: patchKey) else {
+                return try field(key, old, fallback)
+            }
+            var items = base[keyPath: old]
+            for item in patch.set {
+                guard items.indices.contains(item.i) else {
+                    throw DecodingError.dataCorruptedError(forKey: patchKey, in: c, debugDescription: "patch index out of range")
+                }
+                items[item.i] = item.v
+            }
+            return items
+        }
         name = try field(.name, \.name, nil)
         requirements = try field(.requirements, \.requirements, "")
-        components = try field(.components, \.components, nil)
-        wires = try field(.wires, \.wires, nil)
+        components = try list(.components, .componentsPatch, \.components, nil)
+        wires = try list(.wires, .wiresPatch, \.wires, nil)
         nets = try field(.nets, \.nets, nil)
         board = try field(.board, \.board, nil)
-        pads = try field(.pads, \.pads, nil)
-        tracks = try field(.tracks, \.tracks, nil)
-        vias = try field(.vias, \.vias, nil)
-        ratsnest = try field(.ratsnest, \.ratsnest, nil)
-        courtyards = try field(.courtyards, \.courtyards, nil)
-        bodies = try field(.bodies, \.bodies, [])
+        pads = try list(.pads, .padsPatch, \.pads, nil)
+        tracks = try list(.tracks, .tracksPatch, \.tracks, nil)
+        vias = try list(.vias, .viasPatch, \.vias, nil)
+        ratsnest = try list(.ratsnest, .ratsnestPatch, \.ratsnest, nil)
+        courtyards = try list(.courtyards, .courtyardsPatch, \.courtyards, nil)
+        bodies = try list(.bodies, .bodiesPatch, \.bodies, [])
         customParts = try field(.customParts, \.customParts, [])
         industry = try field(.industry, \.industry, "general")
         robotPlatform = try field(.robotPlatform, \.robotPlatform, "")
@@ -127,7 +142,7 @@ struct DesignSnapshot: Decodable, Equatable {
         memoryDesign = try field(.memoryDesign, \.memoryDesign, "")
         tamperMeshes = try field(.tamperMeshes, \.tamperMeshes, [])
         zones = try field(.zones, \.zones, [])
-        zoneFills = try field(.zoneFills, \.zoneFills, [])
+        zoneFills = try list(.zoneFills, .zoneFillsPatch, \.zoneFills, [])
         sheets = try field(.sheets, \.sheets, [])
         activeSheet = try field(.activeSheet, \.activeSheet, 1)
         boards = try field(.boards, \.boards, BoardsInfo())
@@ -142,7 +157,8 @@ struct DesignSnapshot: Decodable, Equatable {
         directives = try field(.directives, \.directives, [])
         ercSeverities = try field(.ercSeverities, \.ercSeverities, [:])
         // Unchanged parts: keep the base's index instead of rebuilding it.
-        componentIndex = base != nil && !c.contains(.components) ? base!.componentIndex : Self.index(of: components)
+        componentIndex = base != nil && !c.contains(.components) && !c.contains(.componentsPatch)
+            ? base!.componentIndex : Self.index(of: components)
     }
 
     private static func index(of components: [SnapComponent]) -> [Int: Int] {
@@ -156,6 +172,8 @@ struct DesignSnapshot: Decodable, Equatable {
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
         case harnessTypes, netClassDefs, directives, ercSeverities, delta, boards, sheetGraphics, referenceLayers
+        case componentsPatch, wiresPatch, padsPatch, tracksPatch, viasPatch, ratsnestPatch, courtyardsPatch, bodiesPatch
+        case zoneFillsPatch
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -190,6 +208,15 @@ struct DesignSnapshot: Decodable, Equatable {
     }
     func component(ref: String) -> SnapComponent? { components.first { $0.ref == ref } }
     func net(_ index: Int) -> SnapNet? { index >= 0 && index < nets.count ? nets[index] : nil }
+}
+
+/// The changed elements of a large snapshot section (`sieda_project_snapshot_delta`): index `i` gets element `v`.
+private struct SectionPatch<T: Decodable>: Decodable {
+    struct Item: Decodable {
+        let i: Int
+        let v: T
+    }
+    let set: [Item]
 }
 
 struct SnapPin: Decodable, Equatable {

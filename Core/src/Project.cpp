@@ -635,7 +635,21 @@ static PcbPlacement placementFromJson(const Json& pc) {
     return pl;
 }
 
+void Project::holdMeshes() const {
+    auto hold = [&](const std::string& id) {
+        if (id.empty() || meshHolds.count(id)) return;
+        if (auto mesh = Model3DRegistry::instance().get(id)) meshHolds[id] = std::move(mesh);
+    };
+    auto board = [&](const PcbLayout& b) {
+        hold(b.settings.enclosure);
+        for (const auto& [id, ref] : b.partModels) hold(ref.id);
+    };
+    board(pcb);
+    for (const auto& [n, b] : parkedBoards) board(b);
+}
+
 Json Project::toJson(bool meshes) const {
+    holdMeshes();
     Json root = Json::object();
     root["format"] = "sieda-project";
     root["version"] = kProjectFormatVersion;

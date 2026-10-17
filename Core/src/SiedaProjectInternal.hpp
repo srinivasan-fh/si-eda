@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/Project.hpp"
@@ -16,6 +17,9 @@ struct SiedaProject {
     std::atomic<unsigned> routerAbort{0};
     /// Snapshot sections (top-level key → JSON text) last sent by sieda_project_snapshot_delta.
     std::map<std::string, std::string> sentSnapshot;
+    /// The elements of the large array sections last sent (one JSON text each): a later delta patches only the changed
+    /// ones (`"<key>Patch": {"set": [{"i": index, "v": element}, …]}`) when the length is unchanged.
+    std::map<std::string, std::vector<std::string>> sentItems;
     /// Unique to this project (a freed project's address is often reused): MCP undo history belongs to one project.
     const uint64_t serial = [] {
         static std::atomic<uint64_t> next{0};

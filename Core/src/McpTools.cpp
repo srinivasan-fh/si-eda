@@ -622,6 +622,25 @@ void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires
                                 continue;
                             }
                             moveBy(b.component, home - sch.find(b.component)->position);
+                            // No room in line (another part's labels there): hanging below the pull-up's wire, upright,
+                            // joined by a junction on it, at the first clear spot along it.
+                            if (taps) {
+                                int turns = 0;
+                                for (; turns < 3 && pinOutward(p->project, b).y > -0.5; ++turns) sieda_rotate_component(p, b.component, 90);
+                                bool hung = false;
+                                for (double k = 60; !hung && k + 30 < std::fabs(rp.x - from.x); k += 20) {
+                                    moveBy(b.component, Vec2{from.x + d.x * k, from.y + 40} - sch.pinPosition({b.component, b.pin}));
+                                    hung = !hitAt(true) && !wireCrossesBody(sch, rp, from);
+                                }
+                                if (hung) {
+                                    (*taps)[b.component] = {b.pin, PinAddress{a.component, a.pin}};
+                                    done.insert(b.component);
+                                    group.push_back(b.component);
+                                    continue;
+                                }
+                                for (; turns > 0 && turns < 4; ++turns) sieda_rotate_component(p, b.component, 90);  // back round
+                                moveBy(b.component, home - sch.find(b.component)->position);
+                            }
                         }
                     }
                     for (int i = 0; lastPull && i < 30 && hitAt(false); ++i) moveBy(b.component, d * 10, 5);
@@ -3649,13 +3668,20 @@ void schematicTools(Table& t) {
                       }
                   }
               }
-              for (const auto& [part, tap] : taps) {  // a junction on the wire under a tapped part, wired up to its pin
+              for (const auto& [part, tap] : taps) {  // a junction on the wire by a tapped part (above or below), wired to its pin
                   const Schematic& sch = proj(s).schematic;
-                  const Vec2 at{sch.pinPosition({part, tap.first}).x, sch.pinPosition({tap.second.component, tap.second.pin}).y};
+                  const Vec2 hub{sch.pinPosition({part, tap.first}).x, sch.pinPosition({tap.second.component, tap.second.pin}).y};
+                  Vec2 at = hub;
                   int over = -1;
+                  double best = 60;  // the run nearest the hub pin's height
                   for (const auto& w : sch.wires()) {
-                      const Vec2 a0 = sch.pinPosition(w.a), b0 = sch.pinPosition(w.b);
-                      if (pointSegmentDistance(at, a0, b0) < 0.5 && (at - a0).length() > 1 && (at - b0).length() > 1) over = w.id;
+                      const Vec2 a0 = sch.pinPosition(w.a), b0 = sch.pinPosition(w.b), k{b0.x, a0.y};
+                      for (const auto& [u, v] : {std::pair{a0, k}, std::pair{k, b0}}) {  // the wire as drawn (an L)
+                          const Vec2 on{at.x, u.y};
+                          if (std::fabs(u.y - v.y) < 0.5 && std::fabs(u.y - hub.y) <= best && pointSegmentDistance(on, u, v) < 0.5 &&
+                              (on - a0).length() > 1 && (on - b0).length() > 1)
+                              over = w.id, at = on, best = std::fabs(u.y - hub.y);
+                      }
                   }
                   const int junction = over < 0 ? -1 : sieda_split_wire(P(s), over, at.x, at.y);
                   if (junction >= 0) sieda_connect(P(s), junction, 0, part, tap.first);  // (else its pin is labelled below)

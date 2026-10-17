@@ -1615,6 +1615,14 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::get(const std::string& id)
 
 const CustomPart* CustomPartRegistry::find(const std::string& id) const { return get(id).get(); }
 
+std::set<std::string> CustomPartRegistry::model3dIds() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::set<std::string> ids;
+    for (const auto& [id, part] : parts_)
+        if (!part->spec.model3d.empty()) ids.insert(part->spec.model3d.id);
+    return ids;
+}
+
 Json customPartToJson(const CustomPart& part) {
     Json j = customPartSpecToJson(part.spec);
     j["id"] = part.id;

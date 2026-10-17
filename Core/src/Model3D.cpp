@@ -2031,18 +2031,72 @@ Model3DRegistry& Model3DRegistry::instance() {
     return r;
 }
 
+namespace {
+size_t meshBytes(const Model3DMesh& m) {
+    return m.positions.size() * sizeof(float) + m.indices.size() * sizeof(uint32_t) + m.groups.size() * sizeof(Model3DMesh::Group);
+}
+}  // namespace
+
 std::string Model3DRegistry::add(Model3DMesh mesh) {
     validate(mesh);
     const std::string id = meshId(mesh);
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!meshes_.count(id)) meshes_[id] = std::make_shared<const Model3DMesh>(std::move(mesh));
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        Entry& e = meshes_[id];
+        if (!e.mesh) e.mesh = std::make_shared<const Model3DMesh>(std::move(mesh));
+        e.used = ++clock_;
+    }
+    trim();
     return id;
 }
 
 std::shared_ptr<const Model3DMesh> Model3DRegistry::get(const std::string& id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = meshes_.find(id);
-    return it == meshes_.end() ? nullptr : it->second;
+    if (it == meshes_.end()) return nullptr;
+    it->second.used = ++clock_;
+    return it->second.mesh;
+}
+
+void Model3DRegistry::setBudget(size_t bytes) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        budget_ = bytes;
+    }
+    trim();
+}
+
+size_t Model3DRegistry::bytes() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::set<const Model3DMesh*> seen;  // an alias shares its mesh
+    size_t total = 0;
+    for (const auto& [id, e] : meshes_)
+        if (seen.insert(e.mesh.get()).second) total += meshBytes(*e.mesh);
+    return total;
+}
+
+void Model3DRegistry::trim() {
+    if (bytes() <= budget_) return;
+    const std::set<std::string> library = CustomPartRegistry::instance().model3dIds();  // before our lock (its own)
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::map<const Model3DMesh*, long> entries;  // registry entries per mesh (aliases): more holders = held elsewhere
+    std::map<const Model3DMesh*, size_t> size;
+    for (const auto& [id, e] : meshes_) ++entries[e.mesh.get()], size[e.mesh.get()] = meshBytes(*e.mesh);
+    size_t total = 0;
+    for (const auto& [m, b] : size) total += b;
+    std::vector<std::pair<uint64_t, std::string>> order;  // least recently used first
+    for (const auto& [id, e] : meshes_) order.push_back({e.used, id});
+    std::sort(order.begin(), order.end());
+    for (const auto& [used, id] : order) {
+        if (total <= budget_) break;
+        auto it = meshes_.find(id);
+        const Model3DMesh* m = it->second.mesh.get();
+        // A library part's, a project's, or the newest (just imported: no part refers to it yet).
+        if (library.count(id) || it->second.mesh.use_count() > entries[m] || used == clock_) continue;
+        // Drop the mesh with every alias of it.
+        for (auto a = meshes_.begin(); a != meshes_.end();) a = a->second.mesh.get() == m && !library.count(a->first) ? meshes_.erase(a) : std::next(a);
+        if (std::none_of(meshes_.begin(), meshes_.end(), [&](const auto& kv) { return kv.second.mesh.get() == m; })) total -= size[m];
+    }
 }
 
 // ------------------------------------------------------------------ alignment
@@ -2216,7 +2270,7 @@ std::string model3dFromJson(const Json& j) {
 void Model3DRegistry::addAlias(const std::string& alias, const std::string& id) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = meshes_.find(id);
-    if (it != meshes_.end() && !meshes_.count(alias)) meshes_[alias] = it->second;
+    if (it != meshes_.end() && !meshes_.count(alias)) meshes_[alias] = {it->second.mesh, ++clock_};
 }
 
 Json models3dForParts(const std::vector<std::string>& customPartIds, const std::vector<std::string>& extraModels) {
