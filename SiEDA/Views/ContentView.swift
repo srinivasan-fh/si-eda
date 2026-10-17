@@ -178,27 +178,17 @@ struct ContentView: View {
     }
 }
 
-/// Workspaces, components and nets. A plain scroll view, not a `List`: a List is an AppKit table, and loading a
+/// Components and nets (the toolbar's picker switches workspaces). A plain scroll view, not a `List`: a List is an AppKit table, and loading a
 /// design (dozens of rows inserted while the section headers change) made it update re-entrantly, which AppKit
 /// warns will become an assert.
 struct SidebarView: View {
     @EnvironmentObject private var store: DesignStore
-    @EnvironmentObject private var settings: AISettings
 
     var body: some View {
         let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual }
         let nets = store.snapshot.nets.filter { $0.pinCount > 1 }
         ScrollView(.vertical) {
             LazyVStack(alignment: .leading, spacing: 1) {
-                header("Workspaces")
-                ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    row(highlighted: store.workspace == w) {
-                        store.workspace = w
-                    } label: {
-                        Label(LocalizedStringKey(w.title), systemImage: w.systemImage)
-                            .foregroundStyle(store.workspace == w ? Theme.skyBlue : Theme.textSecondary)
-                    }
-                }
                 header("Components (\(parts.count))")
                 ForEach(parts) { c in
                     row(highlighted: store.selection.contains(c.id)) {
