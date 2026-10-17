@@ -310,7 +310,7 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
             for (size_t k = 0; k + 1 < pts.size(); ++k) m.addSegmentBox(pts[k], pts[k + 1], tr.width, 0.0, cu, trace);
         }
     for (const auto& p : pcb.pads(sch)) {
-        if (!p.onLayer(layer)) continue;
+        if (!p.onLayer(layer) || p.npth) continue;  // an NPTH hole has no copper
         if (p.round && p.size.x != p.size.y) {  // oval: a stadium round its centre segment
             const auto [a, b] = padSpine(p);
             m.addSegmentBox(a, b, 2 * padRadius(p), 0.0, cu, pad);

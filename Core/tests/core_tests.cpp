@@ -24724,6 +24724,14 @@ TEST(fab_notes_npth_pegs_are_not_through_hole_parts) {
     p.pcb.autoPlace(p.schematic, true);
     for (const auto& f : fabricationPackage(p))
         if (f.path == "fab_notes.txt") CHECK(f.content.find("(0 through-hole)") != std::string::npos);
+    // IPC-D-356A marks the peg's hole unplated (column 38 'U'); the 3D copper has the SMD pad only.
+    std::istringstream ipc(exportIpcD356(p.schematic, p.pcb, "PEG"));
+    int unplated = 0;
+    for (std::string line; std::getline(ipc, line);) unplated += line.rfind("317", 0) == 0 && line.size() > 37 && line[37] == 'U';
+    CHECK(unplated == 1);
+    Mesh box;
+    box.addBox({0, 0, 0}, {1, 1, 1}, {1, 1, 1, 1});
+    CHECK(buildCopperLayerMesh(p.schematic, p.pcb, kTopLayer).vertexCount() == box.vertexCount());  // one box
 }
 
 TEST(npth_holes_have_no_annular_ring) {

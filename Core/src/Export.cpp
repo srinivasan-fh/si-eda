@@ -847,7 +847,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         return n.substr(0, 14);
     };
     auto record = [&](bool through, const std::string& net, const std::string& ref, const std::string& pin, double drill,
-                      const std::string& access, Vec2 pos, double w, double h) {
+                      const std::string& access, Vec2 pos, double w, double h, bool plated = true) {
         std::string line(80, ' ');
         place(line, 1, through ? "317" : "327");
         place(line, 4, net);
@@ -856,7 +856,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         place(line, 28, pin.substr(0, 4));
         if (through) {
             place(line, 33, "D" + num(drill, 4));
-            place(line, 38, "P");
+            place(line, 38, plated ? "P" : "U");  // an NPTH hole is unplated
         }
         place(line, 39, access);
         place(line, 42, "X+" + num(pos.x, 6));
@@ -880,7 +880,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         const Component* c = sch.find(p.componentId);
         if (!c) continue;
         o << record(p.throughHole, netName(p.net), c->ref, std::to_string(p.padNumber), p.drill,
-                    p.throughHole ? "A00" : (p.smdLayer == kTopLayer ? "A01" : layerCode), p.position, p.size.x, p.size.y);
+                    p.throughHole ? "A00" : (p.smdLayer == kTopLayer ? "A01" : layerCode), p.position, p.size.x, p.size.y, !p.npth);
     }
     for (const auto& v : pcb.vias) o << record(true, netName(v.net), "VIA", "", v.drill, "A00", v.position, v.diameter, v.diameter);
     o << "999\n";
