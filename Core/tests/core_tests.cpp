@@ -24732,6 +24732,13 @@ TEST(fab_notes_npth_pegs_are_not_through_hole_parts) {
     Mesh box;
     box.addBox({0, 0, 0}, {1, 1, 1}, {1, 1, 1, 1});
     CHECK(buildCopperLayerMesh(p.schematic, p.pcb, kTopLayer).vertexCount() == box.vertexCount());  // one box
+    // The board render draws the peg as a bare hole, not a gold pad.
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    const std::string svg = mcp::renderPcbSvg(*sp, {}, 400);
+    sieda_project_free(sp);
+    size_t gold = 0;
+    for (size_t at = svg.find("#d4af37"); at != std::string::npos; at = svg.find("#d4af37", at + 1)) ++gold;
+    CHECK(gold == 1);
 }
 
 TEST(npth_holes_have_no_annular_ring) {
