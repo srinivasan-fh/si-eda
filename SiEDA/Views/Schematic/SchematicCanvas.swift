@@ -837,7 +837,7 @@ struct SchematicCanvas: View {
             guard case .bend(let id) = dragMode, let h = hover else { return nil }
             return (id, SchematicGrid.snap(viewport.toWorld(h)))
         }()
-        var endpointCount: [String: (CGPoint, Int)] = [:]
+        var endpointCount: [SIMD2<Int>: (CGPoint, Int)] = [:]  // integer keys: no string per wire end per frame
         let highlighted = store.highlightedNets  // a selected wire lights its whole net
         for w in snap.wires {
             guard let a = pinPoint(w.a), let b = pinPoint(w.b),
@@ -865,7 +865,7 @@ struct SchematicCanvas: View {
                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
             // Two wires on one pin make a T with the pin's lead (a dot); junctions draw their own.
             for (end, p) in [(w.a, a), (w.b, b)] where !junctionIds.contains(end.component) {
-                let key = "\(Int(p.x))_\(Int(p.y))"
+                let key = SIMD2(Int(p.x), Int(p.y))
                 endpointCount[key] = (p, (endpointCount[key]?.1 ?? 0) + 1)
             }
         }
