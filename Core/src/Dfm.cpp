@@ -346,8 +346,14 @@ std::vector<double> copperCoverage(const Schematic& sch, const PcbLayout& pcb) {
         if (f.layer >= 0 && f.layer < n) area[static_cast<size_t>(f.layer)] += f.area();
     double board = 0;
     const auto poly = s.outlinePolygon();
-    for (size_t i = 0; i < poly.size(); ++i) board += poly[i].x * poly[(i + 1) % poly.size()].y - poly[(i + 1) % poly.size()].x * poly[i].y;
-    board = std::max(1.0, std::fabs(board) / 2);
+    auto polyArea = [](const std::vector<Vec2>& q) {
+        double a = 0;
+        for (size_t i = 0; i < q.size(); ++i) a += q[i].x * q[(i + 1) % q.size()].y - q[(i + 1) % q.size()].x * q[i].y;
+        return std::fabs(a) / 2;
+    };
+    board = polyArea(poly);
+    for (const auto& c : s.cutouts) board -= polyArea(c);  // no copper where the board is routed out
+    board = std::max(1.0, board);
     for (auto& a : area) a = std::min(1.0, a / board);
     return area;
 }

@@ -3317,6 +3317,17 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
         const Rect r = p.pcb.courtyard(*parts[1]);
         p.pcb.settings.cutouts = {{{r.x1 + 0.2, r.y0}, {r.x1 + 2, r.y0}, {r.x1 + 2, r.y1}, {r.x1 + 0.2, r.y1}}};
         CHECK(nearEdge(parts[1]->id));
+        // Drawn in the assembly drawing and the board render.
+        const std::string drawing = exportAssemblySvg(p.schematic, p.pcb, false, "A");
+        size_t polygons = 0;
+        for (size_t at = drawing.find("<polygon"); at != std::string::npos; at = drawing.find("<polygon", at + 1)) ++polygons;
+        CHECK(polygons == 2);
+        SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+        const std::string withCut = mcp::renderPcbSvg(*sp, {}, 400);
+        sp->project.pcb.settings.cutouts.clear();
+        const std::string without = mcp::renderPcbSvg(*sp, {}, 400);
+        sieda_project_free(sp);
+        CHECK(withCut.size() > without.size());
         p.pcb.settings.cutouts.clear();
     }
     // Saved only when set.
@@ -17185,6 +17196,19 @@ TEST(interactive_placement_illegal_poses_are_reported_not_committed) {
     c = f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25);
     CHECK(!c.legal && hasIssue(c, "PLACE_HOLE"));
     f.p.pcb.settings.holes.clear();
+    // Over a board cutout (its edge through the part, or the part inside it): outside the board.
+    f.p.pcb.settings.cutouts = {{{38, 48}, {42, 48}, {42, 52}, {38, 52}}};
+    CHECK(hasIssue(f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25), "PLACE_OUTSIDE"));
+    f.p.pcb.settings.cutouts = {{{30, 40}, {50, 40}, {50, 60}, {30, 60}}};
+    CHECK(hasIssue(f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25), "PLACE_OUTSIDE"));
+    {  // the DRC agrees: a part over a cutout is out of the board
+        Project q = f.p;
+        q.pcb.settings.cutouts = {{{38, 48}, {42, 48}, {42, 52}, {38, 52}}};
+        q.placeComponent(f.r3, {40, 50}, 0, false, 0.25, true);
+        const auto drc = q.pcb.runDRC(q.schematic);
+        CHECK(std::any_of(drc.begin(), drc.end(), [](const RuleViolation& v) { return v.code == "DRC_OUT_OF_BOARD"; }));
+    }
+    f.p.pcb.settings.cutouts.clear();
     CHECK(f.p.toJson().dump() == saved);  // nothing was committed
     // A routing keep-out over its pads is a warning: legal, committed, and reported.
     RouteKeepout k;
@@ -22307,7 +22331,15 @@ int placedBodies(const Project& p) {
 
 TEST(step_export_closed_named_solids) {
     Project p = placedBenchBoard();
+    auto loops = [](const std::string& text) {
+        size_t n = 0;
+        for (size_t at = text.find("POLY_LOOP"); at != std::string::npos; at = text.find("POLY_LOOP", at + 1)) ++n;
+        return n;
+    };
+    const size_t plain = loops(exportStep(p.schematic, p.pcb, "bench"));
+    p.pcb.settings.cutouts = {{{1, 1}, {4, 1}, {4, 4}, {1, 4}}};  // a cutout goes through the board solid (still closed)
     const std::string step = exportStep(p.schematic, p.pcb, "bench");
+    CHECK(loops(step) == plain + 2 + 4);  // its top and bottom rings and four walls
     CHECK(step.rfind("ISO-10303-21;", 0) == 0);
     CHECK(step.find("AUTOMOTIVE_DESIGN") != std::string::npos);
     CHECK(step.find("END-ISO-10303-21;") != std::string::npos);
@@ -22412,6 +22444,12 @@ TEST(idf_export_and_placement_round_trip) {
     CHECK(emn.find("BOARD_FILE 3.0") != std::string::npos);
     CHECK(emn.find(".BOARD_OUTLINE ECAD\n1.6\n0 ") != std::string::npos);
     CHECK(emn.find("3.2 3. -3. NPTH BOARD MTG ECAD") != std::string::npos);
+    {  // a cutout is a further outline loop (label 1)
+        Project cut = p;
+        cut.pcb.settings.cutouts = {{{1, 1}, {4, 1}, {4, 4}, {1, 4}}};
+        const std::string withCut = exportIdfBoard(cut.schematic, cut.pcb, "bench");
+        CHECK(withCut.find("\n1 1. -1. 0\n") != std::string::npos);
+    }
     CHECK(emp.find("LIBRARY_FILE 3.0") != std::string::npos);
     size_t placements = 0;
     for (size_t i = emn.find(" PLACED\n"); i != std::string::npos; i = emn.find(" PLACED\n", i + 1)) ++placements;

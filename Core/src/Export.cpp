@@ -945,6 +945,11 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
     o << "<polygon fill=\"#f4f4ef\" stroke=\"#222\" stroke-width=\"0.2\" points=\"";
     for (const auto& v : s.outlinePolygon()) o << mm(v.x) << "," << mm(v.y) << " ";
     o << "\"/>\n";
+    for (const auto& c : s.cutouts) {  // routed out of the board
+        o << "<polygon fill=\"white\" stroke=\"#222\" stroke-width=\"0.2\" points=\"";
+        for (const auto& v : c) o << mm(v.x) << "," << mm(v.y) << " ";
+        o << "\"/>\n";
+    }
     for (const auto& h : s.holes)
         o << "<circle cx=\"" << mm(h.position.x) << "\" cy=\"" << mm(h.position.y) << "\" r=\"" << mm(h.drill / 2)
           << "\" fill=\"white\" stroke=\"#222\" stroke-width=\"0.15\"/>\n";

@@ -74,10 +74,8 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
         for (const auto& h : s.holes)
             if (pointRectDistance(h.position, cy) < h.keepout / 2 - kEps) inHole = true;
         const Rect inner = cy.inflated(-kEps);
-        bool outside = !s.contains(cy.center());
-        const auto poly = s.outlinePolygon();
-        for (size_t a = 0, b = poly.size() - 1; a < poly.size() && !outside; b = a++)
-            outside = segmentRectDistance(poly[b], poly[a], inner) <= 0;
+        bool outside = !s.contains(cy.center());  // the outline's edges and the cutouts' (a part over a cutout)
+        s.forEachEdge([&](Vec2 a, Vec2 b) { outside = outside || segmentRectDistance(a, b, inner) <= 0; });
         if (outside) out.issues.push_back({"PLACE_OUTSIDE", cand.ref + " would extend beyond the board outline.", -1, true});
         if (inHole) out.issues.push_back({"PLACE_HOLE", cand.ref + " would overlap a mounting-hole keep-out.", -1, true});
     }

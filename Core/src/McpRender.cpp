@@ -755,6 +755,8 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     const std::vector<Vec2> outline = pcb.settings.outlinePolygon();
     Rect b(0, 0, pcb.settings.width, pcb.settings.height);
     s.polygon(outline, true, 0, "#0d3b1e");
+    for (const auto& c : pcb.settings.cutouts)  // routed out of the board
+        if (c.size() >= 3) s.polygon(c, true, 0, s.background);
     // Bottom layer first, the top layer last.
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });

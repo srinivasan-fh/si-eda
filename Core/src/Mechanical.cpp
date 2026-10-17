@@ -540,6 +540,8 @@ std::string exportStep(const Schematic& sch, const PcbLayout& pcb, const std::st
 
     std::vector<std::vector<Vec2>> holes;
     for (const auto& h : s.holes) holes.push_back(mcad(circle(h.position, h.drill / 2, 24), false));
+    for (const auto& c : s.cutouts)
+        if (c.size() >= 3) holes.push_back(mcad(c, false));  // board cutouts go through the solid too
     const int board = w.prism("PCB", mcad(boardOutline(s), true), holes, 0, t);
     items.push_back(board);
     styles.push_back(w.styled(board, 0.10f, 0.42f, 0.20f));
@@ -570,6 +572,9 @@ std::string exportIdfBoard(const Schematic& sch, const PcbLayout& pcb, const std
     o << ".HEADER\nBOARD_FILE 3.0 \"SiEDA\" " << idfDate() << " 1\n\"" << quoted(name.empty() ? "board" : name)
       << "\" MM\n.END_HEADER\n.BOARD_OUTLINE ECAD\n" << num(s.thickness) << '\n';
     idfLoop(o, 0, mcad(boardOutline(s), true));
+    int loop = 0;  // cutouts: further loops, clockwise
+    for (const auto& c : s.cutouts)
+        if (c.size() >= 3) idfLoop(o, ++loop, mcad(c, false));
     o << ".END_BOARD_OUTLINE\n.DRILLED_HOLES\n";
     for (const auto& h : s.holes)
         o << num(h.drill) << ' ' << num(h.position.x) << ' ' << num(-h.position.y) << " NPTH BOARD MTG ECAD\n";
