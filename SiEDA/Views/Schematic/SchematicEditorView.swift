@@ -69,52 +69,6 @@ struct SchematicEditorView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ToolStrip {
-                ToolStripButton(systemImage: "cursorarrow", help: "Select / move (V)", isActive: tool == .select) { tool = .select }
-                ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: tool == .pan) { tool = .pan }
-                ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
-                ToolStripButton(systemImage: "line.3.horizontal", help: "Bus (B) — click the corners, click the last point again (or Return) to name it",
-                                isActive: tool == .bus) { tool = .bus }
-                ToolStripButton(systemImage: "xmark", help: "No connect (Q) — click a pin to mark it intentionally open",
-                                isActive: tool == .noConnect) { tool = .noConnect }
-                ToolStripDivider()
-                ToolStripButton(systemImage: "plus.square.on.square", help: "Place selected device (P)",
-                                isActive: tool == placementTool) {
-                    tool = placementTool
-                }
-                ToolStripButton(systemImage: "arrow.down.to.line", help: "Place ground (G)", isActive: tool == .place(.ground)) {
-                    tool = .place(.ground)
-                }
-                ToolStripButton(systemImage: "tag", help: "Place net label (L)", isActive: tool == .place(.netLabel)) {
-                    tool = .place(.netLabel)
-                }
-                ToolStripButton(systemImage: "bolt.circle", help: "Place voltage source", isActive: tool == .place(.voltageSource)) {
-                    tool = .place(.voltageSource)
-                }
-                ToolStripDivider()
-                ToolStripButton(systemImage: "textformat", help: "Note (T) — click to place text on the sheet",
-                                isActive: tool == .graphic("text")) { tool = .graphic("text") }
-                ToolStripButton(systemImage: "line.diagonal.arrow", help: "Arrow — drag from tail to head",
-                                isActive: tool == .graphic("arrow")) { tool = .graphic("arrow") }
-                ToolStripButton(systemImage: "rectangle.dashed", help: "Section rectangle — drag a corner to the other",
-                                isActive: tool == .graphic("rect")) { tool = .graphic("rect") }
-                ToolStripButton(systemImage: "minus", help: "Line — drag from one end to the other",
-                                isActive: tool == .graphic("line")) { tool = .graphic("line") }
-                ToolStripDivider()
-                ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
-                ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
-                ToolStripDivider()
-                ToolStripButton(systemImage: "sidebar.left", help: "Show/hide device picker", isActive: showPicker) {
-                    showPicker.toggle()
-                }
-                ToolStripButton(systemImage: "map", help: "Navigator overview (N)", isActive: store.showNavigator) {
-                    store.showNavigator.toggle()
-                }
-                ToolStripButton(systemImage: "plus.magnifyingglass", help: "Zoom to area (Z) — drag a rectangle") {
-                    store.requestView(.zoomArea)
-                }
-            }
-
             if showPicker {
                 DevicePicker(selected: $pickerKind, customParts: store.snapshot.customParts,
                              isPlacing: tool == .place(pickerKind),
@@ -132,6 +86,51 @@ struct SchematicEditorView: View {
             }
 
             VStack(spacing: 0) {
+                ToolStrip(horizontal: true) {  // the tools as a bar along the top of the canvas; devices stay in the sidebar
+                    ToolStripButton(systemImage: "cursorarrow", help: "Select / move (V)", isActive: tool == .select) { tool = .select }
+                    ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: tool == .pan) { tool = .pan }
+                    ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
+                    ToolStripButton(systemImage: "line.3.horizontal", help: "Bus (B) — click the corners, click the last point again (or Return) to name it",
+                                    isActive: tool == .bus) { tool = .bus }
+                    ToolStripButton(systemImage: "xmark", help: "No connect (Q) — click a pin to mark it intentionally open",
+                                    isActive: tool == .noConnect) { tool = .noConnect }
+                    ToolStripDivider()
+                    ToolStripButton(systemImage: "plus.square.on.square", help: "Place selected device (P)",
+                                    isActive: tool == placementTool) {
+                        tool = placementTool
+                    }
+                    ToolStripButton(systemImage: "arrow.down.to.line", help: "Place ground (G)", isActive: tool == .place(.ground)) {
+                        tool = .place(.ground)
+                    }
+                    ToolStripButton(systemImage: "tag", help: "Place net label (L)", isActive: tool == .place(.netLabel)) {
+                        tool = .place(.netLabel)
+                    }
+                    ToolStripButton(systemImage: "bolt.circle", help: "Place voltage source", isActive: tool == .place(.voltageSource)) {
+                        tool = .place(.voltageSource)
+                    }
+                    ToolStripDivider()
+                    ToolStripButton(systemImage: "textformat", help: "Note (T) — click to place text on the sheet",
+                                    isActive: tool == .graphic("text")) { tool = .graphic("text") }
+                    ToolStripButton(systemImage: "line.diagonal.arrow", help: "Arrow — drag from tail to head",
+                                    isActive: tool == .graphic("arrow")) { tool = .graphic("arrow") }
+                    ToolStripButton(systemImage: "rectangle.dashed", help: "Section rectangle — drag a corner to the other",
+                                    isActive: tool == .graphic("rect")) { tool = .graphic("rect") }
+                    ToolStripButton(systemImage: "minus", help: "Line — drag from one end to the other",
+                                    isActive: tool == .graphic("line")) { tool = .graphic("line") }
+                    ToolStripDivider()
+                    ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
+                    ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
+                    ToolStripDivider()
+                    ToolStripButton(systemImage: "sidebar.left", help: "Show/hide device picker", isActive: showPicker) {
+                        showPicker.toggle()
+                    }
+                    ToolStripButton(systemImage: "map", help: "Navigator overview (N)", isActive: store.showNavigator) {
+                        store.showNavigator.toggle()
+                    }
+                    ToolStripButton(systemImage: "plus.magnifyingglass", help: "Zoom to area (Z) — drag a rectangle") {
+                        store.requestView(.zoomArea)
+                    }
+                }
                 OptionsBar {  // scrolls sideways on narrow windows: the Arrange, Back Annotate, Messages and PDF controls need the room
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
                     Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
