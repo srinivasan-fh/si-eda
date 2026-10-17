@@ -394,13 +394,18 @@ std::vector<FabFile> panelFiles(const PcbLayout& pcb, const std::string& base, c
     const Vec2 c0{0, 0}, c1{l.width, 0}, c2{l.width, l.height}, c3{0, l.height};
     edge << gerberXY(c0) << "D02*\n" << gerberXY(c1) << "D01*\n" << gerberXY(c2) << "D01*\n" << gerberXY(c3) << "D01*\n"
          << gerberXY(c0) << "D01*\n";
-    if (!s.panel.vscore && s.panel.gap > 0) {
-        const auto outline = s.outlinePolygon();
-        for (Vec2 o : l.boards)
-            for (size_t i = 0; i < outline.size(); ++i) {
-                const Vec2 a = outline[i], b = outline[(i + 1) % outline.size()];
-                segment({o.x + a.x, o.y + s.height - a.y}, {o.x + b.x, o.y + s.height - b.y});
-            }
+    const bool routed = !s.panel.vscore && s.panel.gap > 0;
+    auto loop = [&](Vec2 o, const std::vector<Vec2>& poly) {
+        for (size_t i = 0; i < poly.size(); ++i) {
+            const Vec2 a = poly[i], b = poly[(i + 1) % poly.size()];
+            segment({o.x + a.x, o.y + s.height - a.y}, {o.x + b.x, o.y + s.height - b.y});
+        }
+    };
+    for (Vec2 o : l.boards) {  // cutouts are routed in every panel, the outline only between tabs
+        if (routed) loop(o, s.outlinePolygon());
+        for (const auto& c : s.cutouts) loop(o, c);
+    }
+    if (routed) {
         if (s.panel.rail > 0) {
             segment({0, s.panel.rail}, {l.width, s.panel.rail});
             segment({0, l.height - s.panel.rail}, {l.width, l.height - s.panel.rail});

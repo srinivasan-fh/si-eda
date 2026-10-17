@@ -3259,6 +3259,15 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     bool vscoreFile = false;
     for (const auto& f : files) vscoreFile |= f.path == "panel/Amp-panel-VScore.gbr";
     CHECK(vscoreFile);
+    // A board cutout is routed once per board, V-scored panels too.
+    p.pcb.settings.cutouts = {{{2, 2}, {4, 2}, {4, 4}, {2, 4}}};
+    for (const auto& f : fabricationPackage(p))
+        if (f.path == "panel/Amp-panel-Edge_Cuts.gbr") {
+            size_t draws = 0;
+            for (size_t at = f.content.find("D01*"); at != std::string::npos; at = f.content.find("D01*", at + 1)) ++draws;
+            CHECK(draws == 4 + 6 * 4);  // the frame + 4 edges per board
+        }
+    p.pcb.settings.cutouts.clear();
     PanelSettings clamped;
     panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
     CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
