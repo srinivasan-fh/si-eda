@@ -103,7 +103,8 @@
 - 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers and the STEP AP203 / AP214 reader
   `parseStep`: Part 21 parser, B-rep faces triangulated in their surface's parameters with seams unwrapped so shells
   stay closed, assembly placements, units, colours; B-spline / unknown surfaces use their boundary and are counted in
-  `warnings`; `Model3DRegistry`, project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
+  `warnings`; `Model3DRegistry` (256 MB budget: least recently used meshes dropped, never one a project holds —
+  `Project::holdMeshes`, taken by `toJson` / load / set part model — a library part refers to, or the newest), project `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its
   mesh by `CustomPartSpec::model3d`; app `SiEDA/Views/Library/Model3DEditorView.swift`. The 3D view's tools (camera presets, layers, hide / isolate =
   `MeshOptions::hidden`, explode, section cut, measure, click to cross-probe) are in `SiEDA/Views/ThreeD/Board3DView.swift`. Tests:
   `step_import_round_trip_of_export` (every exported solid comes back closed, bounds and volume within 1 %),

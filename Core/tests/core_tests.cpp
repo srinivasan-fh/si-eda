@@ -24309,6 +24309,41 @@ TEST(pcb_part_model_on_a_catalog_part) {
     sieda_project_free(sp);
 }
 
+TEST(model3d_registry_budget_drops_only_unheld_meshes) {
+    // Three distinct meshes; under a tight budget the least recently used one nothing holds goes, while a mesh an
+    // open project refers to (or a library part does) stays, and an undo state of that project still finds it.
+    auto box = [](double h) {
+        char stl[512];
+        std::snprintf(stl, sizeof stl,
+                      "solid b\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 0 0\nvertex 3 2 %g\nendloop\nendfacet\n"
+                      "facet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 3 2 %g\nvertex 0 2 %g\nendloop\nendfacet\nendsolid b\n",
+                      h, h, h);
+        return parseStl(stl, "b.stl");
+    };
+    Model3DRegistry& reg = Model3DRegistry::instance();
+    const std::string held = reg.add(box(1.1)), loose = reg.add(box(1.2));
+    Project p = ledProject();
+    p.pcb.autoPlace(p.schematic, true);
+    int led = -1;
+    for (const auto& c : p.schematic.components())
+        if (c.kind == ComponentKind::LED) led = c.id;
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    CHECK(sieda_pcb_set_part_model(sp, led, held.c_str(), "b.stl", 1) == 1);
+    char* st = sieda_project_state_json(sp);
+    const std::string state = st;
+    sieda_string_free(st);
+    reg.get(loose);   // used after `held`: still the older one nothing holds goes first
+    reg.setBudget(1);  // everything over budget: only held / library meshes may stay
+    const std::string fresh = reg.add(box(1.3));
+    CHECK(reg.get(held) != nullptr);  // held by the open project
+    CHECK(reg.get(loose) == nullptr);
+    CHECK(reg.get(fresh) != nullptr);  // the newest stays until a part can refer to it
+    const Project undone = Project::fromJson(Json::parse(state));
+    CHECK(undone.pcb.partModels.count(led) == 1 && reg.get(undone.pcb.partModels.at(led).id) != nullptr);
+    sieda_project_free(sp);
+    reg.setBudget(256u << 20);
+}
+
 TEST(copper_thieving_dots_clear_of_copper_and_parts) {
     // Thieving dots fill the free board area on every copper layer, keep their clearance from copper, holes and the
     // top-side parts' courtyards, raise the coverage, reach the copper Gerber and the snapshot, and save only when on.

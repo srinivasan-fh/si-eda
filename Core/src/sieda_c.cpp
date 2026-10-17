@@ -2181,6 +2181,7 @@ int32_t sieda_pcb_set_part_model(SiedaProject* project, int32_t component_id, co
     Model3DRef ref;
     ref.id = str(model_id), ref.name = str(name), ref.unit = unit;
     models[component_id] = model3dSeated(ref);  // centred on the footprint, standing on the board
+    project->project.holdMeshes();
     return 1;
 }
 

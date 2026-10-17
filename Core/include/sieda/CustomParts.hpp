@@ -7,6 +7,7 @@
 
 #include <array>
 #include <map>
+#include <set>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -298,6 +299,8 @@ public:
     std::shared_ptr<const CustomPart> registerPart(const CustomPartSpec& spec, bool keep = true);  // throws JsonError
     std::shared_ptr<const CustomPart> get(const std::string& id) const;
     const CustomPart* find(const std::string& id) const;  // pointer stays valid for the process lifetime
+    /// The 3D model ids the registered parts refer to (`CustomPartSpec::model3d`): Model3DRegistry keeps them.
+    std::set<std::string> model3dIds() const;
 
 private:
     CustomPartRegistry() = default;

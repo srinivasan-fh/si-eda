@@ -3,6 +3,7 @@
 
 #include <array>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "sieda/CustomParts.hpp"
@@ -122,6 +123,8 @@ struct ReviewComment {
     bool resolved = false;
     std::vector<std::pair<std::string, std::string>> replies;  // (author, text)
 };
+
+struct Model3DMesh;
 
 class Project {
 public:
@@ -329,6 +332,11 @@ public:
 
     /// `meshes` false: no "models3d" (the undo state; the meshes stay in Model3DRegistry under their ids).
     Json toJson(bool meshes = true) const;
+    /// The imported 3D meshes this project has referred to (enclosure, part models), held so that Model3DRegistry's
+    /// memory budget never drops one while the project is open. Taken by toJson (every undo state and save, also on
+    /// load) and when a part model is set; kept until the project goes, so an undo within it finds them.
+    void holdMeshes() const;
+    mutable std::map<std::string, std::shared_ptr<const Model3DMesh>> meshHolds;
     static Project fromJson(const Json& j);  // throws JsonError on malformed input
 
     /// Read-only view model consumed by the UI (pins in world space, pads, ratsnest, …).
