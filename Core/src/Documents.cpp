@@ -374,6 +374,8 @@ std::string exportHtmlBom(const Project& project) {
     const Schematic sch = project.variantSchematic(project.activeVariant);
     const PcbLayout& pcb = project.pcb;
     const BoardSettings& s = pcb.settings;
+    std::map<int, std::vector<Pad>> padsOf;  // built once (the board's pads), drawn per part
+    for (Pad& p : pcb.pads(sch)) padsOf[p.componentId].push_back(std::move(p));
     std::ostringstream svg[2];
     for (int side = 0; side < 2; ++side) {
         std::ostringstream& v = svg[side];
@@ -392,11 +394,10 @@ std::string exportHtmlBom(const Project& project) {
             const Rect r = pcb.courtyard(c);
             v << "<g class=\"part\" data-ref=\"" << html(c.ref) << "\"><rect class=\"court\" x=\"" << num(r.x0) << "\" y=\""
               << num(r.y0) << "\" width=\"" << num(r.width()) << "\" height=\"" << num(r.height()) << "\"/>";
-            for (const Pad& p : pcb.pads(sch))
-                if (p.componentId == c.id)
-                    v << "<rect class=\"pad\" x=\"" << num(p.position.x - p.size.x / 2) << "\" y=\""
-                      << num(p.position.y - p.size.y / 2) << "\" width=\"" << num(p.size.x) << "\" height=\""
-                      << num(p.size.y) << "\" rx=\"" << num(p.round ? std::min(p.size.x, p.size.y) / 2 : 0) << "\"/>";
+            for (const Pad& p : padsOf[c.id])
+                v << "<rect class=\"pad\" x=\"" << num(p.position.x - p.size.x / 2) << "\" y=\""
+                  << num(p.position.y - p.size.y / 2) << "\" width=\"" << num(p.size.x) << "\" height=\""
+                  << num(p.size.y) << "\" rx=\"" << num(p.round ? std::min(p.size.x, p.size.y) / 2 : 0) << "\"/>";
             v << "</g>\n";
         }
         v << "</svg>";
