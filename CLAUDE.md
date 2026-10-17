@@ -283,6 +283,13 @@
     components, wires, pads, tracks, vias, ratsnest, courtyards, bodies, zoneFills — send only their changed elements as
     `<key>Patch` when the length is unchanged, applied by `list(...)`); a new snapshot section must be decoded through
     `field(...)` there.
+  - **Redraws:** every `@Published` write of `DesignStore` redraws the whole window, so write selection state only when
+    it changes (`select(component:)`, `refresh()`); nothing in a view `body` / canvas `draw` calls the core or scans the
+    catalog per redraw: segment reports, memory limits and PCB swap options go through `DesignStore.cached(_:_:)` (per
+    `revision`), the palette's standard-part filter is memoised (`StandardFilterCache`), custom parts are looked up by
+    `DesignSnapshot.customPartIndex`; canvas hover is written only when the snapped grid point (schematic) or the hovered
+    net / 3 points of movement (PCB) changes. `Project::snapshot` walks the cached pours by reference (`copperFills`
+    copies every cell grid).
   - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
     arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and
     `shortDecimal` (≤ 6 decimals by integer arithmetic), and must stay byte-identical to `%.10g` / `%lld`

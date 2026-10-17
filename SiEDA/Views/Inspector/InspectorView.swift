@@ -883,7 +883,7 @@ private struct MemorySystemProperties: View {
                             selection: Binding(get: { store.snapshot.memoryDesign }, set: { store.setMemoryDesign($0) }),
                             hint: "Pick a memory design type (or the Memory & DRAM industry) to check power, clock / address, "
                                 + "data, configuration and layout segments.")
-        if !store.snapshot.memoryDesign.isEmpty, let report = store.engine.memoryLimits() {
+        if !store.snapshot.memoryDesign.isEmpty, let report = store.memoryLimits() {
             Section("Controller Layout Limits") {
                 limit("Byte-lane skew (ps)", \.laneSkewPs, report)
                 limit("DQ to DQS (ps)", \.dqsSkewPs, report)
@@ -1092,7 +1092,7 @@ private struct PcbSwapPanel: View {
     var component: Int
 
     var body: some View {
-        let options = store.engine.pcbSwapOptions(component)
+        let options = store.pcbSwapOptions(component)
         if !options.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("PIN / GATE SWAP").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)

@@ -608,14 +608,29 @@ struct DevicePicker: View {
         return customParts.filter { query.isEmpty || query.matches($0) }
     }
 
-    /// Standard parts not yet in the project library (those already added show under Custom Parts).
+    /// Standard parts not yet in the project library (those already added show under Custom Parts). The ~1,600-part
+    /// catalog is filtered once per search text and library, not on every redraw (the editor redraws on every click).
     private var filteredStandard: [StandardPart] {
+        let names = customParts.map(\.name)
+        if let hit = standardCache.parts, standardCache.search == search, standardCache.library == names { return hit }
         let query = PartQuery(search)
-        let inLibrary = Set(customParts.map(\.name))
-        return StandardLibrary.parts.filter { part in
+        let inLibrary = Set(names)
+        let parts = StandardLibrary.parts.filter { part in
             !inLibrary.contains(part.spec.name) && (query.isEmpty || query.matches(part))
         }
+        standardCache.search = search
+        standardCache.library = names
+        standardCache.parts = parts
+        return parts
     }
+
+    /// `filteredStandard`'s last result (a reference, so filling it during a redraw changes no view state).
+    private final class StandardFilterCache {
+        var search = ""
+        var library: [String] = []
+        var parts: [StandardPart]?
+    }
+    @State private var standardCache = StandardFilterCache()
 
     private func header(_ title: String) -> some View {
         Text(title)

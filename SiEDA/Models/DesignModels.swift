@@ -21,7 +21,11 @@ struct DesignSnapshot: Decodable, Equatable {
     var ratsnest: [SnapLine]
     var courtyards: [SnapCourtyard]
     var bodies: [SnapBody] = []
-    var customParts: [CustomPartInfo] = []
+    var customParts: [CustomPartInfo] = [] {
+        didSet { customPartIndex = Self.index(of: customParts) }
+    }
+    /// Part id → its position in `customParts`: the canvases look up every component's part on every frame.
+    private(set) var customPartIndex: [String: Int] = [:]
     var industry = "general"
     /// Robot platform id ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"); empty when the design is not a robot.
     var robotPlatform = ""
@@ -87,6 +91,7 @@ struct DesignSnapshot: Decodable, Equatable {
         self.bodies = bodies
         self.customParts = customParts
         componentIndex = Self.index(of: components)
+        customPartIndex = Self.index(of: customParts)
     }
 
     /// `JSONDecoder.userInfo` key of the snapshot a delta (`"delta": true`) is merged into: absent sections keep its value.
@@ -159,6 +164,13 @@ struct DesignSnapshot: Decodable, Equatable {
         // Unchanged parts: keep the base's index instead of rebuilding it.
         componentIndex = base != nil && !c.contains(.components) && !c.contains(.componentsPatch)
             ? base!.componentIndex : Self.index(of: components)
+        customPartIndex = Self.index(of: customParts)
+    }
+
+    private static func index(of parts: [CustomPartInfo]) -> [String: Int] {
+        var index = [String: Int](minimumCapacity: parts.count)
+        for (i, p) in parts.enumerated() where index[p.id] == nil { index[p.id] = i }
+        return index
     }
 
     private static func index(of components: [SnapComponent]) -> [Int: Int] {
@@ -199,7 +211,8 @@ struct DesignSnapshot: Decodable, Equatable {
     }
     func customPart(_ id: String?) -> CustomPartInfo? {
         guard let id else { return nil }
-        return customParts.first { $0.id == id }
+        if let i = customPartIndex[id], i < customParts.count, customParts[i].id == id { return customParts[i] }
+        return customPartIndex.isEmpty ? customParts.first { $0.id == id } : nil
     }
     func customPart(for component: SnapComponent) -> CustomPartInfo? {
         guard component.componentKind == .custom, let part = customPart(component.customPart) else { return nil }

@@ -1632,7 +1632,11 @@ Json Project::snapshot() const {
     root["zones"] = zonesJson(pcb.zones);
     root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
     Json fills = Json::array();
-    for (const auto& f : copperFills(schematic, pcb)) {  // the thieving dots last, zone and net -1
+    // The cached pours by reference (copperFills copies every fill's cell grid), then the thieving dots: zone and net -1.
+    const std::vector<ZoneFill> dots = copperThieving(schematic, pcb);
+    const std::vector<ZoneFill>& poured = pcb.zoneFills(schematic);
+    for (size_t i = 0; i < poured.size() + dots.size(); ++i) {
+        const ZoneFill& f = i < poured.size() ? poured[i] : dots[i - poured.size()];
         Json j = Json::object();
         j["zone"] = f.zone;
         j["net"] = f.net;
