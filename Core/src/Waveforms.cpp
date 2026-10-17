@@ -116,12 +116,10 @@ WaveformMeasurements measureWaveform(const std::vector<double>& time, const std:
     int state = v[0] <= mid ? -1 : (v[0] > mid + hyst ? 1 : 0);  // starting at mid and rising counts as a crossing
     for (size_t i = 1; i < k; ++i) {
         if (state != 1 && v[i] > mid + hyst) {
-            if (state == -1) {
-                // The mid crossing on the way up (search back to where it passed mid).
-                size_t j = i;
-                while (j > 1 && v[j - 1] >= mid) --j;
-                rising.push_back(v[j - 1] < mid && v[j] >= mid ? crossTime(j, mid) : t[j - 1]);
-            }
+            // The mid crossing on the way up (search back to where it passed mid; a start just above mid counts).
+            size_t j = i;
+            while (j > 1 && v[j - 1] >= mid) --j;
+            rising.push_back(v[j - 1] < mid && v[j] >= mid ? crossTime(j, mid) : t[j - 1]);
             state = 1;
         } else if (state != -1 && v[i] < mid - hyst) {
             state = -1;

@@ -12243,6 +12243,11 @@ TEST(waveform_measurements) {
         WaveformMeasurements half = measureWaveform(t, v, 0, 0.5e-3);
         CHECK(half.ok && std::isnan(half.frequency));
         CHECK_NEAR(half.max, 2.5, 1e-6);
+        // Starting just above mid (inside the hysteresis band) and rising counts as at mid.
+        for (size_t i = 0; i < t.size(); ++i) v[i] = 0.5 + 2 * std::sin(2 * kPi * 1e3 * t[i] + 0.01);
+        WaveformMeasurements late = measureWaveform(t, v);
+        CHECK(late.cycles == 1);
+        CHECK_NEAR(late.frequency, 1e3, 3);
     }
     // RC step: rise 10 → 90 % = τ·ln 9, no overshoot, settled to 2 % after τ·ln 50.
     {
