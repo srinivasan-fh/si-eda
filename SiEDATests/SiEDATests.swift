@@ -1152,6 +1152,7 @@ final class TableReentrancyTests: XCTestCase {
 
     func testLoadingADesignCausesNoReentrantTableUpdates() throws {
         var results: [String: Int] = [:]
+        results["sidebar"] = try reentrantWarnings("sidebar") { _ in SidebarView() }
         results["schematic editor"] = try reentrantWarnings("schematic editor") { _ in SchematicEditorView() }
         results["inspector"] = try reentrantWarnings("inspector") { _ in InspectorView() }
         results["window (from Design Checks)"] = try reentrantWarnings("window (from Design Checks)", { _ in ContentView() },
