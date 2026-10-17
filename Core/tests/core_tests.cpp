@@ -21404,6 +21404,22 @@ TEST(mcp_build_wires_decoupling_rail_and_supply_entry) {
     CHECK(k >= 0 && wired("C1", 0) && wired("C2", 0) && wired("C3", 0) && wired("D1", k));
 }
 
+TEST(mcp_build_wires_the_auto_reset_cap_beside_a_stepped_out_pull_up) {
+    // #146: the ATmega's RESET pull-up R1 steps out past the AREF cap; the auto-reset cap C8 (DTR → RESET) has no room in
+    // line beyond R1 (the ISP header's labels), so it hangs below the RESET wire, joined by a junction on it.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({"pins":false,"parts":[{"ref":"U1","part":"ATMEGA328P-AU"},{"ref":"J1","part":"PinHeader_1x02_P2.54mm","value":"5V IN"},{"ref":"D1","part":"SS14"},{"ref":"C1","kind":"capacitor","value":"10u"},{"ref":"C2","kind":"capacitor","value":"100n"},{"ref":"C3","kind":"capacitor","value":"100n"},{"ref":"C4","kind":"capacitor","value":"100n"},{"ref":"C5","kind":"capacitor","value":"100n"},{"ref":"Y1","part":"Crystal_16MHz","value":"16MHz"},{"ref":"C6","kind":"capacitor","value":"22p"},{"ref":"C7","kind":"capacitor","value":"22p"},{"ref":"R1","kind":"resistor","value":"10k"},{"ref":"C8","kind":"capacitor","value":"100n"},{"ref":"J2","part":"PinHeader_2x03_P2.54mm","value":"ISP"},{"ref":"J3","part":"PinHeader_1x06_P2.54mm","value":"FTDI"},{"ref":"R2","kind":"resistor","value":"330"},{"ref":"R3","kind":"resistor","value":"330"},{"ref":"D2","kind":"led","value":"red"},{"ref":"D3","kind":"led","value":"green"},{"ref":"SW1","part":"TACTILE-SWITCH-6MM","value":"SW_Push"}],"nets":{"GND":["U1.GND(3)","U1.GND(5)","U1.GND(21)","J1.Pin_2","C1.2","C2.2","C3.2","C4.2","C5.2","C6.2","C7.2","J2.Pin_6","J3.Pin_1","J3.Pin_2","D2.K","D3.K","SW1.2"],"+5V":["U1.VCC(4)","U1.VCC(6)","U1.AVCC","D1.K","C1.1","C2.1","C3.1","C4.1","R1.1","J2.Pin_2","J3.Pin_3"],"XTAL1":["U1.XTAL1/PB6","Y1.1","C6.1"],"XTAL2":["U1.XTAL2/PB7","Y1.2","C7.1"],"LED2":["U1.PD6","R3.1"],"MOSI":["U1.PB3","J2.Pin_4"],"MISO":["U1.PB4","J2.Pin_1"],"SCK":["U1.PB5","J2.Pin_3","R2.1"],"AREF":["U1.AREF","C5.1"],"RESET":["U1.nRESET/PC6","R1.2","C8.2","J2.Pin_5"],"RXD":["U1.PD0","J3.Pin_4"],"TXD":["U1.PD1","J3.Pin_5"],"BTN":["U1.PD2","SW1.1"],"VIN":["J1.Pin_1","D1.A"],"DTR":["C8.1","J3.Pin_6"],"N$16":["R2.2","D2.A"],"N$17":["R3.2","D3.A"]}})J"))));
+    const Schematic& sch = s.project()->project.schematic;
+    const Component* c8 = sch.findByRef("C8");
+    const int reset = sch.netOf({c8->id, 1});
+    CHECK(reset >= 0 && sch.nets()[static_cast<size_t>(reset)].name == "RESET");
+    CHECK(std::any_of(sch.wires().begin(), sch.wires().end(), [&](const Wire& w) {  // to a junction on a wire, not a label
+        const PinRef other = w.a.component == c8->id && w.a.pin == 1 ? w.b : w.b.component == c8->id && w.b.pin == 1 ? w.a : PinRef{-1, 0};
+        return other.component >= 0 && sch.find(other.component)->kind == ComponentKind::Junction;
+    }));
+}
+
 TEST(mcp_autoplace_puts_a_pin_chain_by_its_pin) {
     // An LED's resistor goes beside the IC pin it hangs on, then the LED beside the resistor.
     mcp::McpServer s;
