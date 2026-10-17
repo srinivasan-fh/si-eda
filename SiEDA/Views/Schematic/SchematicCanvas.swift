@@ -148,7 +148,11 @@ struct SchematicCanvas: View {
                               onRightClick: { contextMenu(at: viewport.toWorld($0)) })
             .onContinuousHover { phase in
                 switch phase {
-                case .active(let p): hover = p
+                case .active(let p):
+                    // The pointer as its grid point (pin highlights, the ghost, the rubber band and the readout snap to
+                    // the grid): the sheet is redrawn when the pointer reaches another grid point, not on every pixel.
+                    let snapped = viewport.toScreen(SchematicGrid.snap(viewport.toWorld(p)))
+                    if hover != snapped { hover = snapped }
                 case .ended: hover = nil
                 }
             }

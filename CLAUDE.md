@@ -53,7 +53,8 @@
   fixed `Theme` schematic colours), and Midnight Navy (`siedaDark`) must stay today's colours. Symbols are drawn in
   their device colour (`ComponentKind.deviceColour`) by default; "Colour Symbols by Device" off = the scheme's symbol colour.
   App-wide theme (Midnight Navy / Matrix Green / Graphite): `SiEDA/Views/Common/AppTheme.swift`; `Theme` colours read
-  `AppTheme.current`, the app redraws through `.id(appTheme)`; Midnight Navy must stay today's blues; board colours
+  `AppTheme.current` (saved in user defaults, so the next launch and its splash start in it), the app redraws through `.id(appTheme)`;
+  dark backdrops outside `Theme` (splash, 3D / X-ray / model views) go through `AppTheme.backdrop(r, g, b)` (Midnight Navy = the given navy); Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
   `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened, `inlineSpiceIncludes` for files beside the model) + `SpiceDevices.cpp` (device equations: SPICE3
@@ -283,6 +284,13 @@
     components, wires, pads, tracks, vias, ratsnest, courtyards, bodies, zoneFills — send only their changed elements as
     `<key>Patch` when the length is unchanged, applied by `list(...)`); a new snapshot section must be decoded through
     `field(...)` there.
+  - **Redraws:** every `@Published` write of `DesignStore` redraws the whole window, so write selection state only when
+    it changes (`select(component:)`, `refresh()`); nothing in a view `body` / canvas `draw` calls the core or scans the
+    catalog per redraw: segment reports, memory limits and PCB swap options go through `DesignStore.cached(_:_:)` (per
+    `revision`), the palette's standard-part filter is memoised (`StandardFilterCache`), custom parts are looked up by
+    `DesignSnapshot.customPartIndex`; canvas hover is written only when the snapped grid point (schematic) or the hovered
+    net / 3 points of movement (PCB) changes. `Project::snapshot` walks the cached pours by reference (`copperFills`
+    copies every cell grid).
   - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
     arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and
     `shortDecimal` (≤ 6 decimals by integer arithmetic), and must stay byte-identical to `%.10g` / `%lld`

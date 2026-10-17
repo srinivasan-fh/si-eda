@@ -888,7 +888,13 @@ struct PCBCanvas: View {
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p):
-                        hover = p
+                        // Every hover write redraws the whole board (pours included): only when the pointer has moved a
+                        // few points or onto another pad's net (the highlight), not on every pixel.
+                        let changed = hover.map { h in
+                            hypot(p.x - h.x, p.y - h.y) >= 3
+                                || pad(at: viewport.toWorld(p))?.net != pad(at: viewport.toWorld(h))?.net
+                        } ?? true
+                        if changed { hover = p }
                         // Placing new parts: the ghost follows the cursor.
                         if store.placementSession != nil { store.movePlacementGhost(to: viewport.toWorld(p)) }
                         // The route's head follows the cursor (shoving or walking around as set).

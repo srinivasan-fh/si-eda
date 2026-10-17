@@ -60,7 +60,7 @@ struct XRayStackView: NSViewRepresentable {
         view.allowsCameraControl = true
         view.autoenablesDefaultLighting = false
         view.antialiasingMode = .multisampling4X
-        view.backgroundColor = NSColor(red: 0.01, green: 0.03, blue: 0.08, alpha: 1)
+        view.backgroundColor = AppTheme.backdrop(0.01, 0.03, 0.08).nsColor
         view.defaultCameraController.interactionMode = .orbitTurntable
         view.defaultCameraController.inertiaEnabled = true
         scene.background.contents = Self.backgroundGradient()
@@ -459,9 +459,9 @@ struct XRayStackView: NSViewRepresentable {
         let size = NSSize(width: 4, height: 512)
         let image = NSImage(size: size)
         image.lockFocus()
-        let gradient = NSGradient(colors: [NSColor(red: 0.00, green: 0.02, blue: 0.06, alpha: 1),
-                                           NSColor(red: 0.02, green: 0.08, blue: 0.20, alpha: 1),
-                                           NSColor(red: 0.00, green: 0.02, blue: 0.06, alpha: 1)])
+        let gradient = NSGradient(colors: [AppTheme.backdrop(0.00, 0.02, 0.06).nsColor,
+                                           AppTheme.backdrop(0.02, 0.08, 0.20).nsColor,
+                                           AppTheme.backdrop(0.00, 0.02, 0.06).nsColor])
         gradient?.draw(in: NSRect(origin: .zero, size: size), angle: 90)
         image.unlockFocus()
         return image

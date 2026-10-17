@@ -95,6 +95,8 @@ final class DesignStore: ObservableObject {
     @Published var showWelcomeTour = false
     @Published var showShortcuts = false
     @Published var showPerformance = false
+    /// Reports cached per design revision (`cached(_:_:)`).
+    private var revisionCache: [String: (revision: Int, value: Any)] = [:]
     /// The last edits' timings (Help → Performance…); not published, so recording one redraws nothing.
     private(set) var editTimings: [EditTiming] = []
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
@@ -342,14 +344,18 @@ final class DesignStore: ObservableObject {
             }
         }
         sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
-        selection = selection.filter { snapshot.component($0) != nil }  // O(1) per part (large designs)
+        let kept = selection.filter { snapshot.component($0) != nil }  // O(1) per part (large designs)
+        if kept.count != selection.count { selection = kept }  // unchanged: no write, no redraw
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         if let g = selectedGraphic, !sheetSnapshot.sheetGraphics.contains(where: { $0.id == g }) { selectedGraphic = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
-        if !selectedTracks.isEmpty { selectedTracks.formIntersection(snapshot.tracks.map(\.id)) }
+        if !selectedTracks.isEmpty {
+            let kept = selectedTracks.intersection(snapshot.tracks.map(\.id))
+            if kept.count != selectedTracks.count { selectedTracks = kept }
+        }
         // A new design (open, example) or an undone Update PCB took the part being placed away.
         if let part = placementSession?.current, snapshot.component(part.id) == nil { placementSession = nil }
         revision &+= 1
@@ -879,17 +885,19 @@ final class DesignStore: ObservableObject {
     }
 
     func select(component id: Int?, extend: Bool = false) {
-        selectedWire = nil
-        selectedBus = nil
-        selectedGraphic = nil
-        if !extend { boxedWires = [] }
+        // Only what changes is written: every @Published write redraws the whole window, and a click on a part selects
+        // it on mouse-down and again on mouse-up.
+        if selectedWire != nil { selectedWire = nil }
+        if selectedBus != nil { selectedBus = nil }
+        if selectedGraphic != nil { selectedGraphic = nil }
+        if !extend, !boxedWires.isEmpty { boxedWires = [] }
         guard let id else {
-            if !extend { selection = [] }
+            if !extend, !selection.isEmpty { selection = [] }
             return
         }
         if extend {
             if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
-        } else {
+        } else if selection != [id] {
             selection = [id]
         }
     }
@@ -2726,7 +2734,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func robotSegments() -> RobotSegmentsReport { engine.robotSegments() }
+    func robotSegments() -> RobotSegmentsReport { cached("robotSegments") { engine.robotSegments() } }
 
     /// Adds every part of a robot platform's production kit to the project library (parts already there are kept).
     /// Returns how many were added.
@@ -2750,7 +2758,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func ecuSegments() -> RobotSegmentsReport { engine.ecuSegments() }
+    func ecuSegments() -> RobotSegmentsReport { cached("ecuSegments") { engine.ecuSegments() } }
 
     /// Aerospace mission ("" = none): turns on the 5-segment aerospace checks at full severity. Undoable.
     func setAerospaceMission(_ id: String) {
@@ -2762,7 +2770,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func aerospaceSegments() -> RobotSegmentsReport { engine.aerospaceSegments() }
+    func aerospaceSegments() -> RobotSegmentsReport { cached("aerospaceSegments") { engine.aerospaceSegments() } }
 
     /// Naval platform ("" = none): turns on the 5-segment naval checks at full severity. Undoable.
     func setNavalPlatform(_ id: String) {
@@ -2774,7 +2782,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func navalSegments() -> RobotSegmentsReport { engine.navalSegments() }
+    func navalSegments() -> RobotSegmentsReport { cached("navalSegments") { engine.navalSegments() } }
 
     /// Medical device class ("" = none): turns on the 4-segment medical checks at full severity. Undoable.
     func setMedicalClass(_ id: String) {
@@ -2786,7 +2794,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func medicalSegments() -> RobotSegmentsReport { engine.medicalSegments() }
+    func medicalSegments() -> RobotSegmentsReport { cached("medicalSegments") { engine.medicalSegments() } }
 
     /// Retail device class ("" = none): turns on the 4-segment retail / POS checks at full severity. Undoable.
     func setRetailDevice(_ id: String) {
@@ -2798,7 +2806,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func retailSegments() -> RobotSegmentsReport { engine.retailSegments() }
+    func retailSegments() -> RobotSegmentsReport { cached("retailSegments") { engine.retailSegments() } }
 
     /// Home appliance type ("" = none): turns on the 4-segment appliance checks at full severity. Undoable.
     func setApplianceType(_ id: String) {
@@ -2810,7 +2818,7 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func applianceSegments() -> RobotSegmentsReport { engine.applianceSegments() }
+    func applianceSegments() -> RobotSegmentsReport { cached("applianceSegments") { engine.applianceSegments() } }
 
     /// Memory design type ("" = none): turns on the 5-segment memory checks at full severity. Undoable.
     func setMemoryDesign(_ id: String) {
@@ -2822,7 +2830,25 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { runDRC(announce: false) }
     }
 
-    func memorySegments() -> RobotSegmentsReport { engine.memorySegments() }
+    func memorySegments() -> RobotSegmentsReport { cached("memorySegments") { engine.memorySegments() } }
+
+    /// The controller's DDR layout limits (cached per revision: the Properties panel asks on every redraw).
+    func memoryLimits() -> EDAEngine.MemoryLimitsReport? { cached("memoryLimits") { engine.memoryLimits() } }
+
+    /// The PCB pin / gate swaps of a part (cached per revision: the inspector asks on every redraw).
+    func pcbSwapOptions(_ component: Int) -> [PcbSwapOptionInfo] {
+        cached("pcbSwap\(component)") { engine.pcbSwapOptions(component) }
+    }
+
+    /// `make()` once per design revision and key: reports the inspector draws on every redraw (every click) would
+    /// otherwise run the core and decode its JSON each time. Not published, so filling it redraws nothing.
+    func cached<T>(_ key: String, _ make: () -> T) -> T {
+        if let hit = revisionCache[key], hit.revision == revision, let value = hit.value as? T { return value }
+        let value = make()
+        if revisionCache.count > 64 { revisionCache.removeAll() }
+        revisionCache[key] = (revision, value)
+        return value
+    }
 
     /// The controller's own DDR layout limits (nil fields = the memory type's typical value). Undoable.
     func setMemoryLimits(_ limits: EDAEngine.MemoryLimits) {

@@ -620,7 +620,7 @@ struct BoardSceneView: NSViewRepresentable {
         view.allowsCameraControl = true
         view.autoenablesDefaultLighting = false
         view.antialiasingMode = .multisampling4X
-        view.backgroundColor = NSColor(red: 0.03, green: 0.06, blue: 0.13, alpha: 1)
+        view.backgroundColor = AppTheme.backdrop(0.03, 0.06, 0.13).nsColor
         view.defaultCameraController.interactionMode = .orbitTurntable
         view.defaultCameraController.inertiaEnabled = true
 
@@ -977,11 +977,12 @@ struct BoardSceneView: NSViewRepresentable {
         softbox(NSRect(x: 420, y: 470, width: 200, height: 30), 0.9)   // overhead strip
     }
 
-    /// Vertical navy gradient behind the board.
-    static let backdrop: NSImage = HoloFX.render(NSSize(width: 4, height: 256)) {
-        NSGradient(colors: [NSColor(red: 0.01, green: 0.02, blue: 0.05, alpha: 1),
-                            NSColor(red: 0.05, green: 0.09, blue: 0.17, alpha: 1)])?
-            .draw(in: NSRect(x: 0, y: 0, width: 4, height: 256), angle: 90)
+    /// Vertical gradient behind the board in the app theme (Midnight Navy: navy); drawn per view, so a new theme shows.
+    static var backdrop: NSImage {
+        HoloFX.render(NSSize(width: 4, height: 256)) {
+            NSGradient(colors: [AppTheme.backdrop(0.01, 0.02, 0.05).nsColor, AppTheme.backdrop(0.05, 0.09, 0.17).nsColor])?
+                .draw(in: NSRect(x: 0, y: 0, width: 4, height: 256), angle: 90)
+        }
     }
 
     static func geometry(from mesh: MeshData) -> SCNGeometry {
