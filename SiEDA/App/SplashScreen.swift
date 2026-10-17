@@ -367,11 +367,11 @@ private struct SplashProgressBar: View {
     }
 }
 
-/// Deep navy with a soft glow behind the circuit and a faint dot grid, like an empty schematic sheet.
+/// The theme's deep background (Midnight Navy: deep navy) with a soft glow behind the circuit and a faint dot grid, like an empty schematic sheet.
 private struct SplashBackground: View {
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 0.045, green: 0.075, blue: 0.15), Color(red: 0.012, green: 0.025, blue: 0.06)],
+            LinearGradient(colors: [AppTheme.backdrop(0.045, 0.075, 0.15).color, AppTheme.backdrop(0.012, 0.025, 0.06).color],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             RadialGradient(colors: [Theme.blue.opacity(0.22), .clear], center: UnitPoint(x: 0.74, y: 0.42),
                            startRadius: 0, endRadius: 300)
@@ -483,8 +483,8 @@ struct SplashCircuit: View {
             let body = CGRect(x: Self.chipCenter.x - half, y: Self.chipCenter.y - half,
                               width: Self.chipSize, height: Self.chipSize)
             let chip = Path(roundedRect: body, cornerRadius: 7)
-            context.fill(chip, with: .linearGradient(Gradient(colors: [Color(red: 0.09, green: 0.15, blue: 0.29),
-                                                                        Color(red: 0.04, green: 0.07, blue: 0.15)]),
+            context.fill(chip, with: .linearGradient(Gradient(colors: [AppTheme.backdrop(0.09, 0.15, 0.29).color,
+                                                                        AppTheme.backdrop(0.04, 0.07, 0.15).color]),
                                                      startPoint: CGPoint(x: body.minX, y: body.minY),
                                                      endPoint: CGPoint(x: body.maxX, y: body.maxY)))
             context.stroke(chip, with: .color(Theme.lightBlue.opacity(0.45)), lineWidth: 1)

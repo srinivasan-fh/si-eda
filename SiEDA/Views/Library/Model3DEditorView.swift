@@ -214,7 +214,7 @@ struct Model3DPreview: NSViewRepresentable {
         view.allowsCameraControl = true
         view.autoenablesDefaultLighting = true
         view.antialiasingMode = .multisampling4X
-        view.backgroundColor = NSColor(red: 0.03, green: 0.06, blue: 0.13, alpha: 1)
+        view.backgroundColor = AppTheme.backdrop(0.03, 0.06, 0.13).nsColor
         view.scene?.lightingEnvironment.contents = BoardSceneView.studioEnvironment
         view.scene?.lightingEnvironment.intensity = 1.2
         return view

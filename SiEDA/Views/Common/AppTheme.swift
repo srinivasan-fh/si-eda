@@ -35,6 +35,15 @@ enum AppTheme: String, CaseIterable, Identifiable {
         UserDefaults.standard.set(theme.rawValue, forKey: storageKey)
     }
 
+    /// One of SiEDA's original dark navy backdrop shades (splash, 3D views) in the current theme: Midnight Navy keeps
+    /// it exactly; the other themes give their own background colour at the same brightness.
+    static func backdrop(_ r: Double, _ g: Double, _ b: Double, alpha: Double = 1) -> SchematicRGB {
+        guard current != .midnightNavy else { return SchematicRGB(r, g, b, a: alpha) }
+        let ref = midnight.navy, own = current.colours.navy
+        let k = (r + g + b) / max(1e-6, ref.r + ref.g + ref.b)
+        return SchematicRGB(min(1, own.r * k), min(1, own.g * k), min(1, own.b * k), a: alpha)
+    }
+
     struct Colours {
         var navy, deepBlue, darkBlue, blue, lightBlue, skyBlue, iceBlue, textMuted: SchematicRGB
         var gridDot, symbolFill, pin, valueLabel, pcbBackground: SchematicRGB
