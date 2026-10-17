@@ -3301,6 +3301,20 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
     CHECK(codes().count("DFA_PART_SPACING") && !codes().count("DFA_REFDES_OVERLAP"));
     for (Component* c : parts) c->pcb.position = parts[0]->pcb.position, c->pcb.bottom = parts[0]->pcb.bottom;  // more designators than spots
     CHECK(codes().count("DFA_REFDES_OVERLAP"));
+    // A cutout beside a part (corner-to-edge 0.2 mm) is an edge too.
+    {
+        auto nearEdge = [&](int id) {
+            for (const auto& v : p.pcb.runDRC(p.schematic))
+                if (v.code == "DFA_PART_TO_EDGE" && std::count(v.components.begin(), v.components.end(), id)) return true;
+            return false;
+        };
+        parts[1]->pcb.position = {p.pcb.settings.width / 2, p.pcb.settings.height / 2};
+        CHECK(!nearEdge(parts[1]->id));
+        const Rect r = p.pcb.courtyard(*parts[1]);
+        p.pcb.settings.cutouts = {{{r.x1 + 0.2, r.y0}, {r.x1 + 2, r.y0}, {r.x1 + 2, r.y1}, {r.x1 + 0.2, r.y1}}};
+        CHECK(nearEdge(parts[1]->id));
+        p.pcb.settings.cutouts.clear();
+    }
     // Saved only when set.
     Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.dfmPack == "oshpark-2");
