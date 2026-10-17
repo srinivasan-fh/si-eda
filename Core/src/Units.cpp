@@ -33,6 +33,10 @@ std::optional<double> prefixMultiplier(const std::string& s, size_t& consumed) {
         case 'G': return 1e9;
         case 'T': return 1e12;
         case 'R': case 'r': return 1.0;  // RKM "2R2"
+        case 'V': case 'v':  // RKM volts "3V3"; a trailing unit ("5V") is not a prefix
+            if (s.size() > 1 && std::isdigit(static_cast<unsigned char>(s[1]))) return 1.0;
+            consumed = 0;
+            return 1.0;
         default: consumed = 0; return 1.0;
     }
 }

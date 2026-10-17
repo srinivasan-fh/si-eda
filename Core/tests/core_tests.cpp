@@ -163,6 +163,9 @@ TEST(units_parse) {
     CHECK_NEAR(*parseEngineeringValue("4.7k"), 4700, 1e-9);
     CHECK_NEAR(*parseEngineeringValue("4k7"), 4700, 1e-9);
     CHECK_NEAR(*parseEngineeringValue("2R2"), 2.2, 1e-12);
+    CHECK_NEAR(*parseEngineeringValue("3V3"), 3.3, 1e-12);  // not 3 V
+    CHECK_NEAR(*parseEngineeringValue("1v8"), 1.8, 1e-12);
+    CHECK_NEAR(*parseEngineeringValue("5V"), 5, 1e-12);
     CHECK_NEAR(*parseEngineeringValue("100nF"), 100e-9, 1e-18);
     CHECK_NEAR(*parseEngineeringValue("10uF"), 10e-6, 1e-15);
     CHECK_NEAR(*parseEngineeringValue("1meg"), 1e6, 1e-6);
