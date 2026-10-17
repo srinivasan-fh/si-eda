@@ -24707,6 +24707,25 @@ TEST(via_edge_clearance_counts_the_via_copper) {
     CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 0);
 }
 
+TEST(fab_notes_npth_pegs_are_not_through_hole_parts) {
+    // An SMD part held by an NPTH peg (as a USB-C receptacle) is assembled as an SMD part.
+    CustomPartSpec spec;
+    spec.name = "PEGGED";
+    spec.refPrefix = "J";
+    spec.pins = {{"1", "A"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land a{-2, 0, 1.5, 1.5};
+    PackageSpec::Land peg{2, 0, 1.0, 1.0, 0.8, true, "-"};
+    peg.npth = true;
+    spec.package.lands = {a, peg};
+    Project p;
+    p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    for (const auto& f : fabricationPackage(p))
+        if (f.path == "fab_notes.txt") CHECK(f.content.find("(0 through-hole)") != std::string::npos);
+}
+
 TEST(npth_holes_have_no_annular_ring) {
     // Issue #153: a non-plated hole (its pad is the drill) has no ring to check, and nothing plated (aspect ratio).
     CustomPartSpec spec;

@@ -98,7 +98,7 @@ BoardFacts facts(const Project& p) {
     f.minRing = minRing == std::numeric_limits<double>::max() ? 0 : minRing;
     std::set<int> thtParts;
     for (const auto& pd : pads)
-        if (pd.throughHole) thtParts.insert(pd.componentId);
+        if (pd.throughHole && !pd.npth) thtParts.insert(pd.componentId);  // NPTH pegs (USB-C) are not soldered
     f.tht = static_cast<int>(thtParts.size());
     for (const auto& c : p.schematic.components()) {
         if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;
