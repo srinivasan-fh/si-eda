@@ -92,19 +92,22 @@ void measureEdits(const Project& p) {
             break;
         }
     std::vector<double> ms;
+    size_t bytes = 0;
     for (int i = 0; part && i < 20; ++i) {
         const auto t0 = clock::now();
         sieda_pcb_move_footprint(sp, part->id, part->pcb.position.x + (i % 2 ? 0.5 : 0), part->pcb.position.y);
         sieda_string_free(sieda_project_state_json(sp));
-        sieda_string_free(sieda_project_snapshot_delta(sp, 0));
+        char* delta = sieda_project_snapshot_delta(sp, 0);
+        bytes = std::max(bytes, std::string(delta ? delta : "").size());
+        sieda_string_free(delta);
         ms.push_back(std::chrono::duration<double, std::milli>(clock::now() - t0).count());
     }
     sieda_project_free(sp);
     if (ms.empty()) return;
     std::sort(ms.begin(), ms.end());
     g_editP95 = ms[std::min(ms.size() - 1, static_cast<size_t>(0.95 * static_cast<double>(ms.size())))];
-    std::printf("  edit    %8.0f ms median, %.0f ms p95, %.0f ms slowest (move + undo state + delta snapshot)\n",
-                ms[ms.size() / 2], g_editP95, ms.back());
+    std::printf("  edit    %8.0f ms median, %.0f ms p95, %.0f ms slowest (move + undo state + delta snapshot, up to %zu bytes)\n",
+                ms[ms.size() / 2], g_editP95, ms.back(), bytes);
 }
 
 /// Seconds spent in place, route, DRC, ratsnest and snapshot.

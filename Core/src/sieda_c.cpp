@@ -21,6 +21,7 @@
 #include <cctype>
 #include <map>
 #include <memory>
+#include <set>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -247,14 +248,48 @@ char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full) {
         bool all = full != 0 || sent.size() != root.fields().size();
         for (const auto& [key, value] : root.fields()) all = all || !sent.count(key);
         std::string out = all ? "{" : "{\"delta\":true";
-        for (const auto& [key, value] : root.fields()) {
-            std::string text = value.dump();
-            auto& last = sent[key];
-            if (!all && text == last) continue;
+        auto put = [&](const std::string& key, const std::string& text) {
             if (out.size() > 1) out += ',';
             out += Json(key).dump();
             out += ':';
             out += text;
+        };
+        // Large arrays (one edit changes a few elements): compared and sent element by element.
+        static const std::set<std::string> kPatched{"components", "wires", "pads", "tracks", "vias", "ratsnest",
+                                                     "courtyards", "bodies", "zoneFills"};
+        auto& items = project->sentItems;
+        if (all) items.clear();
+        for (const auto& [key, value] : root.fields()) {
+            if (kPatched.count(key) && value.isArray()) {
+                std::vector<std::string> now;
+                now.reserve(value.items().size());
+                for (const auto& e : value.items()) now.push_back(e.dump());
+                auto it = items.find(key);
+                sent[key];  // the section is known to the app
+                if (!all && it != items.end() && it->second.size() == now.size()) {
+                    std::string set;
+                    size_t changed = 0;
+                    for (size_t i = 0; i < now.size(); ++i)
+                        if (now[i] != it->second[i]) {
+                            set += std::string(changed++ ? "," : "") + "{\"i\":" + std::to_string(i) + ",\"v\":" + now[i] + "}";
+                        }
+                    if (changed == 0) continue;
+                    if (changed * 2 <= now.size()) {
+                        put(key + "Patch", "{\"set\":[" + set + "]}");
+                        it->second = std::move(now);
+                        continue;
+                    }
+                }
+                std::string text = "[";
+                for (size_t i = 0; i < now.size(); ++i) text += (i ? "," : "") + now[i];
+                put(key, text + "]");
+                items[key] = std::move(now);
+                continue;
+            }
+            std::string text = value.dump();
+            auto& last = sent[key];
+            if (!all && text == last) continue;
+            put(key, text);
             last = std::move(text);
         }
         if (all)
@@ -262,6 +297,7 @@ char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full) {
         return dup(out + "}");
     } catch (const std::exception& e) {
         project->sentSnapshot.clear();
+        project->sentItems.clear();
         return errorJson(e);
     }
 }

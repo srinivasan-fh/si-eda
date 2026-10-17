@@ -278,8 +278,10 @@
 - Speed and safety rules:
   - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json` (no `models3d` meshes: `toJson(false)`, they stay in `Model3DRegistry`); files on disk
     use the indented `sieda_project_save_json`. The view refresh uses `sieda_project_snapshot_delta` (only changed
-    top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`); a new snapshot section
-    must be decoded through `field(...)` there.
+    top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`; the large arrays —
+    components, wires, pads, tracks, vias, ratsnest, courtyards, bodies, zoneFills — send only their changed elements as
+    `<key>Patch` when the length is unchanged, applied by `list(...)`); a new snapshot section must be decoded through
+    `field(...)` there.
   - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
     arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and
     `shortDecimal` (≤ 6 decimals by integer arithmetic), and must stay byte-identical to `%.10g` / `%lld`

@@ -1795,6 +1795,32 @@ TEST(snapshot_delta_sends_changed_sections_and_merges_to_full) {
     CHECK(held.dump() == take(sieda_project_snapshot(p)).dump());  // merged = full snapshot
     Json full = take(sieda_project_snapshot_delta(p, 1));
     CHECK(!full.has("delta") && full.dump() == held.dump());
+    // A large section with one element changed: only that element is sent ("componentsPatch"), and applying it to the
+    // copy gives the full snapshot again.
+    for (int k = 0; k < 3; ++k) sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 100.0 * (k + 1), 0, 0, "");
+    held = take(sieda_project_snapshot_delta(p, 1));
+    CHECK(sieda_set_component_value(p, r, "3k3"));
+    Json patch = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(patch.has("componentsPatch") && !patch.has("components"));
+    CHECK(patch.get("componentsPatch").get("set").size() == 1);
+    for (const auto& [key, value] : patch.fields()) {
+        if (key == "delta") continue;
+        if (key.size() > 5 && key.compare(key.size() - 5, 5, "Patch") == 0) {
+            Json& list = held[key.substr(0, key.size() - 5)];
+            Json merged = Json::array();
+            for (const auto& e : list.items()) merged.push(e);
+            for (const auto& item : value.get("set").items()) {
+                Json next = Json::array();
+                const size_t at = static_cast<size_t>(item.get("i").asInt());
+                for (size_t i = 0; i < merged.items().size(); ++i) next.push(i == at ? item.get("v") : merged.items()[i]);
+                merged = next;
+            }
+            list = merged;
+        } else {
+            held[key] = value;
+        }
+    }
+    CHECK(held.dump() == take(sieda_project_snapshot(p)).dump());
     sieda_project_free(p);
 }
 
