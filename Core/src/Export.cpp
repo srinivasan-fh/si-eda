@@ -266,7 +266,7 @@ std::string exportPickAndPlaceCsv(const Schematic& sch, const PcbLayout& pcb) {
     for (const auto& c : sch.components()) {
         // As the CPL: DNP parts are not placed, embedded parts are not assembled; lower-left origin, Y up.
         if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
-        o << c.ref << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
+        o << csvEscape(c.ref) << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
           << mm(pcb.settings.height - c.pcb.position.y) << "," << placementRotation(c.pcb.rotation) << ","
           << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
     }
@@ -908,7 +908,7 @@ std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
         // DNP parts are not placed; embedded passives are made by the board house, not assembled.
         if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
         // Same origin as the Gerbers: the board's lower-left corner, Y up.
-        o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
+        o << csvEscape(c.ref) << "," << mm(c.pcb.position.x) << "mm,";
         o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << ","
           << placementRotation(c.pcb.rotation) << "\n";
     }

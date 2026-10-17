@@ -1071,6 +1071,7 @@ TEST(erc_own_pin_types_refs_and_wire_ends) {
     CHECK(codes.count("ERC_POWER_PIN_UNCONNECTED"));  // pin 1 is power in, whatever pin 5 (also GND) is (#171)
     CHECK(!codes.count("ERC_OUTPUT_CONFLICT"));  // its own two VOUT pins are one driver (#172)
     CHECK(!s.setRef(r2, s.find(r1)->ref) && s.setRef(r2, "R9"));  // a taken designator is refused (#169)
+    for (const char* bad : {"R 9", "R9\n.end", "R9,R10", "R\"9", ""}) CHECK(!s.setRef(r2, bad));  // one plain word
     const size_t wires = s.wires().size();  // a wire end moved onto no pin stays where it was (#170)
     CHECK(!s.moveWireEnd(w, true, {}, {r2, 7}) && s.wires().size() == wires && s.netOf({r1, 1}) == s.netOf({r2, 0}));
 }
