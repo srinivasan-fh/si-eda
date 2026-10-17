@@ -8,7 +8,10 @@ struct ContentView: View {
     /// The inspector starts hidden on laptop-size screens (decided once at launch: measuring the window and
     /// toggling panels during layout makes AppKit loop on constraint updates and abort).
     @State private var showInspector = ContentView.startsWithInspector
-    @State private var columns = NavigationSplitViewVisibility.all
+    /// The components / nets sidebar starts hidden (the toolbar's sidebar button shows it).
+    @State private var columns = NavigationSplitViewVisibility.detailOnly
+    /// Whether the sidebar was shown when focus mode hid it (restored on leaving).
+    @State private var columnsBeforeFocus = NavigationSplitViewVisibility.detailOnly
     /// Whether the inspector was open when focus mode hid it (restored on leaving).
     @State private var inspectorBeforeFocus = false
 
@@ -81,10 +84,11 @@ struct ContentView: View {
         if focus {
             inspectorBeforeFocus = showInspector
             showInspector = false
+            columnsBeforeFocus = columns
             columns = .detailOnly
         } else {
             showInspector = inspectorBeforeFocus
-            columns = .all
+            columns = columnsBeforeFocus
         }
     }
 
