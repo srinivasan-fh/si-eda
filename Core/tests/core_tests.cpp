@@ -15117,6 +15117,13 @@ TEST(back_annotation_eco_renames_pin_and_gate_swaps) {
     CHECK(p.applyEco(eco) == 3);
     CHECK(s.find(r3)->ref == "R1" && s.find(r1)->ref == "R2" && s.find(r2)->ref == "R3");
     CHECK(p.reannotateFromBoard(false).empty());
+    // Parts within 1 mm of a row are one row (by x), even across a whole millimetre.
+    place(r3, {30, 10.4});
+    place(r1, {10, 10.6});
+    for (const auto& e : p.reannotateFromBoard(false)) to[e.component] = e.to;
+    CHECK(to[r1] == "R1" && to[r3] == "R2");
+    place(r3, {5, 5});
+    place(r1, {20, 15});
     // WAS / IS: a swap R1 ↔ R2, a pin swap, a gate swap; bad lines are listed, not applied.
     const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
     const int ua = s.addCustomUnits(part->id, "", {0, 300});
