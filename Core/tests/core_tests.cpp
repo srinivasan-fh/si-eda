@@ -7731,6 +7731,13 @@ TEST(router_tunes_length_with_meanders) {
     const LengthTuneResult refused = tuneTrackLength(branched.pcb, branched.schematic, branched.pcb.tracks.front().id,
                                                      routedNetLength(branched.pcb, net) + 3);
     CHECK(!refused.ok && !refused.applied && netRouted(branched, net));
+    // An arc is not meandered (its chord is not its copper).
+    Project arced = p;
+    Track& bow = arced.pcb.tracks.front();
+    bow.arc = true;
+    bow.mid = (bow.a + bow.b) * 0.5 + Vec2{0, 2};
+    const LengthTuneResult arcRefused = tuneTrackLength(arced.pcb, arced.schematic, bow.id, routedNetLength(arced.pcb, net) + 3);
+    CHECK(!arcRefused.ok && !arcRefused.applied && arced.pcb.tracks.front().arc);
     const double before = routedNetLength(p.pcb, net);
     const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
     CHECK(t.ok);
