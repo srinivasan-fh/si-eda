@@ -8,7 +8,6 @@ struct ContentView: View {
     /// The inspector starts hidden on laptop-size screens (decided once at launch: measuring the window and
     /// toggling panels during layout makes AppKit loop on constraint updates and abort).
     @State private var showInspector = ContentView.startsWithInspector
-    @State private var columns = NavigationSplitViewVisibility.all
     /// Whether the inspector was open when focus mode hid it (restored on leaving).
     @State private var inspectorBeforeFocus = false
 
@@ -17,26 +16,23 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
-            SidebarView()
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
-        } detail: {
-            VStack(spacing: 0) {
-                workspaceView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .environment(\.editorFocusMode, store.focusMode)
-                if !store.focusMode {
-                    StatusBar()
-                }
+        // No workspace sidebar: the toolbar's workspace picker switches workspaces, and each editor keeps its own
+        // side panel (the schematic's device palette, expanded or icons only).
+        VStack(spacing: 0) {
+            workspaceView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .environment(\.editorFocusMode, store.focusMode)
+            if !store.focusMode {
+                StatusBar()
             }
-            .overlay(alignment: .topTrailing) {
-                if store.focusMode { FocusModeBadge() }
-            }
-            .background(Theme.navy)
-            .inspector(isPresented: $showInspector) {
-                InspectorView()
-                    .inspectorColumnWidth(min: 240, ideal: 280, max: 380)
-            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if store.focusMode { FocusModeBadge() }
+        }
+        .background(Theme.navy)
+        .inspector(isPresented: $showInspector) {
+            InspectorView()
+                .inspectorColumnWidth(min: 240, ideal: 280, max: 380)
         }
         .navigationTitle(store.windowTitle)
         .onChange(of: store.inspectorRevealToken) { _, _ in showInspector = true }
@@ -76,15 +72,13 @@ struct ContentView: View {
         }
     }
 
-    /// Focus mode hides the sidebar and the inspector, and puts them back as they were on leaving.
+    /// Focus mode hides the inspector, and puts them back as they were on leaving.
     private func applyFocus(_ focus: Bool) {
         if focus {
             inspectorBeforeFocus = showInspector
             showInspector = false
-            columns = .detailOnly
         } else {
             showInspector = inspectorBeforeFocus
-            columns = .all
         }
     }
 
@@ -175,89 +169,6 @@ struct ContentView: View {
 
             Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
         }
-    }
-}
-
-/// Workspaces, components and nets. A plain scroll view, not a `List`: a List is an AppKit table, and loading a
-/// design (dozens of rows inserted while the section headers change) made it update re-entrantly, which AppKit
-/// warns will become an assert.
-struct SidebarView: View {
-    @EnvironmentObject private var store: DesignStore
-    @EnvironmentObject private var settings: AISettings
-
-    var body: some View {
-        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual }
-        let nets = store.snapshot.nets.filter { $0.pinCount > 1 }
-        ScrollView(.vertical) {
-            LazyVStack(alignment: .leading, spacing: 1) {
-                header("Workspaces")
-                ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    row(highlighted: store.workspace == w) {
-                        store.workspace = w
-                    } label: {
-                        Label(LocalizedStringKey(w.title), systemImage: w.systemImage)
-                            .foregroundStyle(store.workspace == w ? Theme.skyBlue : Theme.textSecondary)
-                    }
-                }
-                header("Components (\(parts.count))")
-                ForEach(parts) { c in
-                    row(highlighted: store.selection.contains(c.id)) {
-                        store.select(component: c.id)
-                        // Make the selection visible: jump to the schematic unless an editor that shows it is open.
-                        if ![.schematic, .pcb, .threeD].contains(store.workspace) { store.workspace = .schematic }
-                    } label: {
-                        HStack {
-                            ComponentSymbolImage(kind: c.componentKind, size: CGSize(width: 18, height: 14), value: c.value)
-                            Text(c.ref).font(.system(.body, design: .monospaced)).foregroundStyle(Theme.textPrimary)
-                            Spacer()
-                            Text(c.value).foregroundStyle(Theme.textMuted).lineLimit(1)
-                        }
-                    }
-                }
-                header("Nets (\(nets.count))")
-                ForEach(nets) { net in
-                    HStack {
-                        Image(systemName: net.ground ? "arrow.down.to.line" : "point.topleft.down.to.point.bottomright.curvepath")
-                            .foregroundStyle(Theme.skyBlue)
-                            .frame(width: 18)
-                        Text(net.name).font(.system(.callout, design: .monospaced)).foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        if let v = store.dcResult?.voltage(net: net.index) {
-                            Text(EngineeringFormat.string(v, unit: "V")).font(.caption.monospacedDigit())
-                                .foregroundStyle(Theme.probe)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 10)
-        }
-        .background(Theme.deepBlue.opacity(0.6))
-    }
-
-    private func header(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(Theme.textMuted)
-            .padding(.horizontal, 8)
-            .padding(.top, 12)
-            .padding(.bottom, 3)
-    }
-
-    /// A full-width clickable sidebar row with the selection highlight.
-    private func row<RowLabel: View>(highlighted: Bool, action: @escaping () -> Void,
-                                  @ViewBuilder label: () -> RowLabel) -> some View {
-        Button(action: action) {
-            label()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(RoundedRectangle(cornerRadius: 6).fill(highlighted ? Theme.blue.opacity(0.22) : Color.clear))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

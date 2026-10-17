@@ -44,7 +44,7 @@
   `Schematic::dragWireSegment` and `moveWireEnd` in `Schematic.cpp` (app: right-click menu
   `CanvasMenuItem`, double-click `QuickEditSheet`, X / Y / ⌘D / ⌥-drag / '/' keys, schematic `locked`, net-label `power` look,
   sheet notes / drawings `SheetGraphic` (`sheetGraphics`), view options `SchematicGrid` (snap step, display, selection
-  filters); the app lands on the schematic (`DesignStore.startWorkspace`), its tools a top bar (`ToolStrip(horizontal: true)`), devices the left sidebar); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
+  filters); the app lands on the schematic (`DesignStore.startWorkspace`), its tools a top bar (`ToolStrip(horizontal: true)`), devices the left sidebar; no workspace sidebar in `ContentView`: the toolbar picker switches workspaces); back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
   (gate) checks `checkUnits` in `CustomParts.cpp`, app `SiEDA/Models/UnitDraft.swift` + `UnitEditorView.swift`. AI
   plans keep this structure (`DesignPlanCompiler.plan(from:)` / `apply` / `preservingStructure`); new project fields
   are written only when used so older files load and save identically.
