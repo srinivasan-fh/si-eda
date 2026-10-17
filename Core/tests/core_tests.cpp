@@ -24212,6 +24212,15 @@ TEST(pcb_part_model_on_a_catalog_part) {
     CHECK(hasMesh);
     const Project back = Project::fromJson(saved);
     CHECK(back.pcb.partModels.count(led) == 1 && back.pcb.partModels.at(led).id == id);
+    // The undo state leaves the mesh out (it stays registered) and still restores the part's model.
+    {
+        char* st = sieda_project_state_json(sp);
+        const Json state = Json::parse(st);
+        sieda_string_free(st);
+        CHECK(!state.has("models3d"));
+        const Project undone = Project::fromJson(state);
+        CHECK(undone.pcb.partModels.count(led) == 1 && buildAssemblyMesh(undone.schematic, undone.pcb).vertexCount() == with.vertexCount());
+    }
     CHECK(BoardSettings::normalizeLayerCount(2147483647) == BoardSettings::kMaxLayers);  // a hostile file's count
     CHECK(sieda_pcb_set_part_model(sp, led, "", "", 1) == 1);
     CHECK(sp->project.pcb.partModels.empty());
