@@ -278,12 +278,13 @@ final class CrashRecovery {
         let savedAt: Date?
     }
 
-    func save(json: String, documentURL: URL?) {
+    /// `json` is built on the recovery queue (off the main thread).
+    func save(json: @escaping @Sendable () -> String, documentURL: URL?) {
         let designURL = designURL, originURL = originURL, directory = directory
         queue.async {
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try json.write(to: designURL, atomically: true, encoding: .utf8)
+                try json().write(to: designURL, atomically: true, encoding: .utf8)
                 try (documentURL?.path ?? "").write(to: originURL, atomically: true, encoding: .utf8)
             } catch {
                 NSLog("SiEDA: recovery autosave failed: %@", error.localizedDescription)

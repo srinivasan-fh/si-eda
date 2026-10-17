@@ -276,7 +276,7 @@
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.
 - Speed and safety rules:
-  - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json`; files on disk
+  - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json` (no `models3d` meshes: `toJson(false)`, they stay in `Model3DRegistry`); files on disk
     use the indented `sieda_project_save_json`. The view refresh uses `sieda_project_snapshot_delta` (only changed
     top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`); a new snapshot section
     must be decoded through `field(...)` there.

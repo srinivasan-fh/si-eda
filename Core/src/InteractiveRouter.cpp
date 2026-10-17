@@ -6622,6 +6622,10 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         r.message = "The track has no net";
         return r;
     }
+    if (sel.arc || sel.teardrop) {
+        r.message = "Tune on a straight track (arcs are not meandered)";
+        return r;
+    }
     r.before = routedNetLength(pcb, sel.net);
     double target = opt.target;
     double tolerance = 0.01;
@@ -6660,7 +6664,9 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
     std::vector<size_t> cand{static_cast<size_t>(ti)};
     std::vector<size_t> others;
     for (size_t i = 0; i < base.tracks.size(); ++i)
-        if (static_cast<long>(i) != ti && base.tracks[i].net == sel.net && !base.trackFixed[i]) others.push_back(i);
+        if (static_cast<long>(i) != ti && base.tracks[i].net == sel.net && !base.trackFixed[i] && !base.tracks[i].arc &&
+            !base.tracks[i].teardrop)
+            others.push_back(i);
     std::stable_sort(others.begin(), others.end(), [&](size_t a, size_t b) {
         return (base.tracks[a].b - base.tracks[a].a).length() > (base.tracks[b].b - base.tracks[b].a).length();
     });

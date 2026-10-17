@@ -6108,10 +6108,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             for (const auto& h : settings.holes)
                 if (pointRectDistance(h.position, cy) < h.keepout / 2 - eps) inHole = true;
             Rect inner = cy.inflated(-eps);
-            bool outside = !settings.contains(cy.center());
-            auto poly = settings.outlinePolygon();
-            for (size_t a = 0, b = poly.size() - 1; a < poly.size() && !outside; b = a++)
-                outside = segmentRectDistance(poly[b], poly[a], inner) <= 0;
+            bool outside = !settings.contains(cy.center());  // outline and cutout edges (a part over a cutout)
+            settings.forEachEdge([&](Vec2 a, Vec2 b) { outside = outside || segmentRectDistance(a, b, inner) <= 0; });
             if (outside)
                 add(Severity::Error, "DRC_OUT_OF_BOARD", c.ref + " extends beyond the board outline.", c.pcb.position, {c.id});
             if (inHole)

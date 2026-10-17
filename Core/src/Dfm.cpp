@@ -227,16 +227,15 @@ std::vector<RuleViolation> dfmChecks(const Schematic& sch, const PcbLayout& pcb)
                     {a->id, b->id}, (ra.center() + rb.center()) * 0.5, true);
         }
     const bool rails = s.panel.enabled() && s.panel.rail >= p->minPartToEdge;
-    const auto outline = s.outlinePolygon();
     if (!rails)
         for (const Component* c : placed) {
             const Rect r = pcb.courtyard(*c);
             double d = 1e9;
-            for (size_t i = 0; i < outline.size(); ++i) {
-                const Vec2 a = outline[i], b = outline[(i + 1) % outline.size()];
+            s.forEachEdge([&](Vec2 a, Vec2 b) {  // outline and cutouts; an edge's corner may reach into the courtyard's side
+                d = std::min({d, pointRectDistance(a, r), pointRectDistance(b, r)});
                 for (Vec2 corner : {Vec2{r.x0, r.y0}, Vec2{r.x1, r.y0}, Vec2{r.x1, r.y1}, Vec2{r.x0, r.y1}})
                     d = std::min(d, pointSegment(corner, a, b));
-            }
+            });
             if (d < p->minPartToEdge - 1e-9)
                 add(Severity::Warning, "DFA_PART_TO_EDGE",
                     c->ref + " is " + mm(d) + " from the board edge; the assembly line needs " + mm(p->minPartToEdge) +
@@ -347,8 +346,14 @@ std::vector<double> copperCoverage(const Schematic& sch, const PcbLayout& pcb) {
         if (f.layer >= 0 && f.layer < n) area[static_cast<size_t>(f.layer)] += f.area();
     double board = 0;
     const auto poly = s.outlinePolygon();
-    for (size_t i = 0; i < poly.size(); ++i) board += poly[i].x * poly[(i + 1) % poly.size()].y - poly[(i + 1) % poly.size()].x * poly[i].y;
-    board = std::max(1.0, std::fabs(board) / 2);
+    auto polyArea = [](const std::vector<Vec2>& q) {
+        double a = 0;
+        for (size_t i = 0; i < q.size(); ++i) a += q[i].x * q[(i + 1) % q.size()].y - q[(i + 1) % q.size()].x * q[i].y;
+        return std::fabs(a) / 2;
+    };
+    board = polyArea(poly);
+    for (const auto& c : s.cutouts) board -= polyArea(c);  // no copper where the board is routed out
+    board = std::max(1.0, board);
     for (auto& a : area) a = std::min(1.0, a / board);
     return area;
 }

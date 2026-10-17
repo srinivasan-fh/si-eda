@@ -327,7 +327,8 @@ public:
     /// number applied.
     int applyEco(const std::vector<EcoChange>& changes);
 
-    Json toJson() const;
+    /// `meshes` false: no "models3d" (the undo state; the meshes stay in Model3DRegistry under their ids).
+    Json toJson(bool meshes = true) const;
     static Project fromJson(const Json& j);  // throws JsonError on malformed input
 
     /// Read-only view model consumed by the UI (pins in world space, pads, ratsnest, …).

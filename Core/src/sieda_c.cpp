@@ -164,7 +164,7 @@ SiedaProject* sieda_project_load_json(const char* json, char** error_out) {
 char* sieda_project_state_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(project->project.toJson().dump());
+        return dup(project->project.toJson(false).dump());  // undo / change detection: meshes stay registered
     } catch (...) {
         return nullptr;
     }

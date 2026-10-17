@@ -635,7 +635,7 @@ static PcbPlacement placementFromJson(const Json& pc) {
     return pl;
 }
 
-Json Project::toJson() const {
+Json Project::toJson(bool meshes) const {
     Json root = Json::object();
     root["format"] = "sieda-project";
     root["version"] = kProjectFormatVersion;
@@ -666,7 +666,8 @@ Json Project::toJson() const {
     // Imported 3D models of the library parts (Model3D.hpp); only when there are any.
     std::vector<std::string> boardModels{pcb.settings.enclosure};  // the enclosure and the parts' own models
     for (const auto& [id, ref] : pcb.partModels) boardModels.push_back(ref.id);
-    if (Json models = models3dForParts(customLibrary, boardModels); models.size() > 0) root["models3d"] = models;
+    if (Json models = meshes ? models3dForParts(customLibrary, boardModels) : Json::array(); models.size() > 0)
+        root["models3d"] = models;
 
     Json comps = Json::array();
     comps.reserve(schematic.components().size());

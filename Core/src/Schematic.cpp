@@ -384,7 +384,11 @@ bool Schematic::setSpiceModel(int id, const SpiceModelRef& model) {
 bool Schematic::setRef(int id, const std::string& ref) {
     if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's designator is its package's
     Component* c = find(masterOf(id));
-    if (!c || ref.empty()) return false;
+    // One word that the netlists, SPICE decks and CSV outputs can carry as it is.
+    const bool plain = std::none_of(ref.begin(), ref.end(), [](char ch) {
+        return static_cast<unsigned char>(ch) <= ' ' || ch == ',' || ch == ';' || ch == '"' || ch == 0x7f;
+    });
+    if (!c || ref.empty() || ref.size() > 64 || !plain) return false;
     if (hasInstances() && isRepeated(c->sheet) && !isNetSymbolKind(c->kind)) {
         // A part of a repeated sheet: `ref` is its designator inside the block; each channel's follows from it.
         for (const auto& o : components_)

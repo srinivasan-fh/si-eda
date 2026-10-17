@@ -272,10 +272,10 @@ final class DesignStore: ObservableObject {
         recoveryWork?.cancel()
         recoveryWork = nil
         guard let recovery, isDirty else { return }
-        let json = engine.saveJSON()  // built once: for the project's own file or the recovery copy
         // Settings ▸ "Save projects automatically": a saved project is written to its own file after each pause instead.
-        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL, write(to: url, json: json) { return }
-        recovery.save(json: json, documentURL: documentURL)
+        if UserDefaults.standard.bool(forKey: Self.autosaveKey), let url = documentURL, write(to: url) { return }
+        let engine = self.engine  // the recovery copy is built and written in the background
+        recovery.save(json: { engine.saveJSON() }, documentURL: documentURL)
     }
 
     static let autosaveKey = "autosaveProject"

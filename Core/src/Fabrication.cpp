@@ -98,7 +98,7 @@ BoardFacts facts(const Project& p) {
     f.minRing = minRing == std::numeric_limits<double>::max() ? 0 : minRing;
     std::set<int> thtParts;
     for (const auto& pd : pads)
-        if (pd.throughHole) thtParts.insert(pd.componentId);
+        if (pd.throughHole && !pd.npth) thtParts.insert(pd.componentId);  // NPTH pegs (USB-C) are not soldered
     f.tht = static_cast<int>(thtParts.size());
     for (const auto& c : p.schematic.components()) {
         if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;
@@ -391,7 +391,7 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     {  // Drill chart (IPC-2615): finished hole sizes with their counts, as on a drill drawing.
         std::map<long, std::array<int, 3>> chart;  // µm → plated pads, vias, non-plated
         for (const auto& p : project.pcb.pads(project.schematic))
-            if (p.throughHole && p.drill > 0) ++chart[std::lround(p.drill * 1000)][0];
+            if (p.throughHole && p.drill > 0) ++chart[std::lround(p.drill * 1000)][p.npth ? 2 : 0];  // NPTH pads: non-plated
         for (const auto& v : project.pcb.vias) ++chart[std::lround(v.drill * 1000)][1];
         for (const auto& h : s.holes) ++chart[std::lround(h.drill * 1000)][2];
         if (!chart.empty()) {

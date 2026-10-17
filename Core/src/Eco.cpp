@@ -42,12 +42,16 @@ std::vector<EcoChange> Project::reannotateFromBoard(bool byColumns) const {
             fixed.insert(c.ref);
             continue;
         }
-        // Within 1 mm counts as one row (or column).
-        const double x = std::round(c.pcb.position.x), y = std::round(c.pcb.position.y);
+        const double x = c.pcb.position.x, y = c.pcb.position.y;
         byPrefix[prefixOf(c.ref).empty() ? std::string("U") : prefixOf(c.ref)].push_back(
             {&c, byColumns ? x : y, byColumns ? y : x});
     }
     for (auto& [prefix, items] : byPrefix) {
+        // Within 1 mm of a row's (or column's) first part counts as that row.
+        std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.major < b.major; });
+        for (size_t i = 1, start = 0; i < items.size(); ++i)
+            if (items[i].major - items[start].major <= 1.0) items[i].major = items[start].major;
+            else start = i;
         std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
             if (a.major != b.major) return a.major < b.major;
             if (a.minor != b.minor) return a.minor < b.minor;

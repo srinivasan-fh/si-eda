@@ -163,6 +163,9 @@ TEST(units_parse) {
     CHECK_NEAR(*parseEngineeringValue("4.7k"), 4700, 1e-9);
     CHECK_NEAR(*parseEngineeringValue("4k7"), 4700, 1e-9);
     CHECK_NEAR(*parseEngineeringValue("2R2"), 2.2, 1e-12);
+    CHECK_NEAR(*parseEngineeringValue("3V3"), 3.3, 1e-12);  // not 3 V
+    CHECK_NEAR(*parseEngineeringValue("1v8"), 1.8, 1e-12);
+    CHECK_NEAR(*parseEngineeringValue("5V"), 5, 1e-12);
     CHECK_NEAR(*parseEngineeringValue("100nF"), 100e-9, 1e-18);
     CHECK_NEAR(*parseEngineeringValue("10uF"), 10e-6, 1e-15);
     CHECK_NEAR(*parseEngineeringValue("1meg"), 1e6, 1e-6);
@@ -1071,6 +1074,7 @@ TEST(erc_own_pin_types_refs_and_wire_ends) {
     CHECK(codes.count("ERC_POWER_PIN_UNCONNECTED"));  // pin 1 is power in, whatever pin 5 (also GND) is (#171)
     CHECK(!codes.count("ERC_OUTPUT_CONFLICT"));  // its own two VOUT pins are one driver (#172)
     CHECK(!s.setRef(r2, s.find(r1)->ref) && s.setRef(r2, "R9"));  // a taken designator is refused (#169)
+    for (const char* bad : {"R 9", "R9\n.end", "R9,R10", "R\"9", ""}) CHECK(!s.setRef(r2, bad));  // one plain word
     const size_t wires = s.wires().size();  // a wire end moved onto no pin stays where it was (#170)
     CHECK(!s.moveWireEnd(w, true, {}, {r2, 7}) && s.wires().size() == wires && s.netOf({r1, 1}) == s.netOf({r2, 0}));
 }
@@ -3259,6 +3263,15 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     bool vscoreFile = false;
     for (const auto& f : files) vscoreFile |= f.path == "panel/Amp-panel-VScore.gbr";
     CHECK(vscoreFile);
+    // A board cutout is routed once per board, V-scored panels too.
+    p.pcb.settings.cutouts = {{{2, 2}, {4, 2}, {4, 4}, {2, 4}}};
+    for (const auto& f : fabricationPackage(p))
+        if (f.path == "panel/Amp-panel-Edge_Cuts.gbr") {
+            size_t draws = 0;
+            for (size_t at = f.content.find("D01*"); at != std::string::npos; at = f.content.find("D01*", at + 1)) ++draws;
+            CHECK(draws == 4 + 6 * 4);  // the frame + 4 edges per board
+        }
+    p.pcb.settings.cutouts.clear();
     PanelSettings clamped;
     panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
     CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
@@ -3292,6 +3305,31 @@ TEST(dfm_packs_tighten_drc_and_add_manufacturing_checks) {
     CHECK(codes().count("DFA_PART_SPACING") && !codes().count("DFA_REFDES_OVERLAP"));
     for (Component* c : parts) c->pcb.position = parts[0]->pcb.position, c->pcb.bottom = parts[0]->pcb.bottom;  // more designators than spots
     CHECK(codes().count("DFA_REFDES_OVERLAP"));
+    // A cutout beside a part (corner-to-edge 0.2 mm) is an edge too.
+    {
+        auto nearEdge = [&](int id) {
+            for (const auto& v : p.pcb.runDRC(p.schematic))
+                if (v.code == "DFA_PART_TO_EDGE" && std::count(v.components.begin(), v.components.end(), id)) return true;
+            return false;
+        };
+        parts[1]->pcb.position = {p.pcb.settings.width / 2, p.pcb.settings.height / 2};
+        CHECK(!nearEdge(parts[1]->id));
+        const Rect r = p.pcb.courtyard(*parts[1]);
+        p.pcb.settings.cutouts = {{{r.x1 + 0.2, r.y0}, {r.x1 + 2, r.y0}, {r.x1 + 2, r.y1}, {r.x1 + 0.2, r.y1}}};
+        CHECK(nearEdge(parts[1]->id));
+        // Drawn in the assembly drawing and the board render.
+        const std::string drawing = exportAssemblySvg(p.schematic, p.pcb, false, "A");
+        size_t polygons = 0;
+        for (size_t at = drawing.find("<polygon"); at != std::string::npos; at = drawing.find("<polygon", at + 1)) ++polygons;
+        CHECK(polygons == 2);
+        SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+        const std::string withCut = mcp::renderPcbSvg(*sp, {}, 400);
+        sp->project.pcb.settings.cutouts.clear();
+        const std::string without = mcp::renderPcbSvg(*sp, {}, 400);
+        sieda_project_free(sp);
+        CHECK(withCut.size() > without.size());
+        p.pcb.settings.cutouts.clear();
+    }
     // Saved only when set.
     Project back = Project::fromJson(p.toJson());
     CHECK(back.pcb.settings.dfmPack == "oshpark-2");
@@ -7707,6 +7745,13 @@ TEST(router_tunes_length_with_meanders) {
     const LengthTuneResult refused = tuneTrackLength(branched.pcb, branched.schematic, branched.pcb.tracks.front().id,
                                                      routedNetLength(branched.pcb, net) + 3);
     CHECK(!refused.ok && !refused.applied && netRouted(branched, net));
+    // An arc is not meandered (its chord is not its copper).
+    Project arced = p;
+    Track& bow = arced.pcb.tracks.front();
+    bow.arc = true;
+    bow.mid = (bow.a + bow.b) * 0.5 + Vec2{0, 2};
+    const LengthTuneResult arcRefused = tuneTrackLength(arced.pcb, arced.schematic, bow.id, routedNetLength(arced.pcb, net) + 3);
+    CHECK(!arcRefused.ok && !arcRefused.applied && arced.pcb.tracks.front().arc);
     const double before = routedNetLength(p.pcb, net);
     const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
     CHECK(t.ok);
@@ -12243,6 +12288,11 @@ TEST(waveform_measurements) {
         WaveformMeasurements half = measureWaveform(t, v, 0, 0.5e-3);
         CHECK(half.ok && std::isnan(half.frequency));
         CHECK_NEAR(half.max, 2.5, 1e-6);
+        // Starting just above mid (inside the hysteresis band) and rising counts as at mid.
+        for (size_t i = 0; i < t.size(); ++i) v[i] = 0.5 + 2 * std::sin(2 * kPi * 1e3 * t[i] + 0.01);
+        WaveformMeasurements late = measureWaveform(t, v);
+        CHECK(late.cycles == 1);
+        CHECK_NEAR(late.frequency, 1e3, 3);
     }
     // RC step: rise 10 → 90 % = τ·ln 9, no overshoot, settled to 2 % after τ·ln 50.
     {
@@ -15103,6 +15153,13 @@ TEST(back_annotation_eco_renames_pin_and_gate_swaps) {
     CHECK(p.applyEco(eco) == 3);
     CHECK(s.find(r3)->ref == "R1" && s.find(r1)->ref == "R2" && s.find(r2)->ref == "R3");
     CHECK(p.reannotateFromBoard(false).empty());
+    // Parts within 1 mm of a row are one row (by x), even across a whole millimetre.
+    place(r3, {30, 10.4});
+    place(r1, {10, 10.6});
+    for (const auto& e : p.reannotateFromBoard(false)) to[e.component] = e.to;
+    CHECK(to[r1] == "R1" && to[r3] == "R2");
+    place(r3, {5, 5});
+    place(r1, {20, 15});
     // WAS / IS: a swap R1 ↔ R2, a pin swap, a gate swap; bad lines are listed, not applied.
     const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
     const int ua = s.addCustomUnits(part->id, "", {0, 300});
@@ -17139,6 +17196,19 @@ TEST(interactive_placement_illegal_poses_are_reported_not_committed) {
     c = f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25);
     CHECK(!c.legal && hasIssue(c, "PLACE_HOLE"));
     f.p.pcb.settings.holes.clear();
+    // Over a board cutout (its edge through the part, or the part inside it): outside the board.
+    f.p.pcb.settings.cutouts = {{{38, 48}, {42, 48}, {42, 52}, {38, 52}}};
+    CHECK(hasIssue(f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25), "PLACE_OUTSIDE"));
+    f.p.pcb.settings.cutouts = {{{30, 40}, {50, 40}, {50, 60}, {30, 60}}};
+    CHECK(hasIssue(f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25), "PLACE_OUTSIDE"));
+    {  // the DRC agrees: a part over a cutout is out of the board
+        Project q = f.p;
+        q.pcb.settings.cutouts = {{{38, 48}, {42, 48}, {42, 52}, {38, 52}}};
+        q.placeComponent(f.r3, {40, 50}, 0, false, 0.25, true);
+        const auto drc = q.pcb.runDRC(q.schematic);
+        CHECK(std::any_of(drc.begin(), drc.end(), [](const RuleViolation& v) { return v.code == "DRC_OUT_OF_BOARD"; }));
+    }
+    f.p.pcb.settings.cutouts.clear();
     CHECK(f.p.toJson().dump() == saved);  // nothing was committed
     // A routing keep-out over its pads is a warning: legal, committed, and reported.
     RouteKeepout k;
@@ -22261,7 +22331,15 @@ int placedBodies(const Project& p) {
 
 TEST(step_export_closed_named_solids) {
     Project p = placedBenchBoard();
+    auto loops = [](const std::string& text) {
+        size_t n = 0;
+        for (size_t at = text.find("POLY_LOOP"); at != std::string::npos; at = text.find("POLY_LOOP", at + 1)) ++n;
+        return n;
+    };
+    const size_t plain = loops(exportStep(p.schematic, p.pcb, "bench"));
+    p.pcb.settings.cutouts = {{{1, 1}, {4, 1}, {4, 4}, {1, 4}}};  // a cutout goes through the board solid (still closed)
     const std::string step = exportStep(p.schematic, p.pcb, "bench");
+    CHECK(loops(step) == plain + 2 + 4);  // its top and bottom rings and four walls
     CHECK(step.rfind("ISO-10303-21;", 0) == 0);
     CHECK(step.find("AUTOMOTIVE_DESIGN") != std::string::npos);
     CHECK(step.find("END-ISO-10303-21;") != std::string::npos);
@@ -22366,6 +22444,12 @@ TEST(idf_export_and_placement_round_trip) {
     CHECK(emn.find("BOARD_FILE 3.0") != std::string::npos);
     CHECK(emn.find(".BOARD_OUTLINE ECAD\n1.6\n0 ") != std::string::npos);
     CHECK(emn.find("3.2 3. -3. NPTH BOARD MTG ECAD") != std::string::npos);
+    {  // a cutout is a further outline loop (label 1)
+        Project cut = p;
+        cut.pcb.settings.cutouts = {{{1, 1}, {4, 1}, {4, 4}, {1, 4}}};
+        const std::string withCut = exportIdfBoard(cut.schematic, cut.pcb, "bench");
+        CHECK(withCut.find("\n1 1. -1. 0\n") != std::string::npos);
+    }
     CHECK(emp.find("LIBRARY_FILE 3.0") != std::string::npos);
     size_t placements = 0;
     for (size_t i = emn.find(" PLACED\n"); i != std::string::npos; i = emn.find(" PLACED\n", i + 1)) ++placements;
@@ -23362,6 +23446,13 @@ TEST(fab_outputs_footprint_npth_rounded_panel_and_placement_frame) {
     auto files = byName();
     CHECK(files.count("gerbers/Pad-NPTH.drl") == 1 && files["gerbers/Pad-NPTH.drl"].find("T1C1.000") != std::string::npos);
     CHECK(files["fab_notes.txt"].find("Non-plated           1") != std::string::npos);
+    {  // in the drill chart too: the 1 mm NPTH hole is non-plated, not a plated pad
+        const std::string& notes = files["fab_notes.txt"];
+        std::istringstream row(notes.substr(notes.find(" 1.000 mm") + 9));
+        int plated = -1, vias = -1, nonPlated = -1;
+        row >> plated >> vias >> nonPlated;
+        CHECK(plated == 0 && vias == 0 && nonPlated == 1);
+    }
 
     // #158 / #159: both placement files use the lower-left origin and counter-clockwise rotation; DNP parts are left out.
     Component& c = *p.schematic.find(u);
@@ -24177,6 +24268,15 @@ TEST(pcb_part_model_on_a_catalog_part) {
     CHECK(hasMesh);
     const Project back = Project::fromJson(saved);
     CHECK(back.pcb.partModels.count(led) == 1 && back.pcb.partModels.at(led).id == id);
+    // The undo state leaves the mesh out (it stays registered) and still restores the part's model.
+    {
+        char* st = sieda_project_state_json(sp);
+        const Json state = Json::parse(st);
+        sieda_string_free(st);
+        CHECK(!state.has("models3d"));
+        const Project undone = Project::fromJson(state);
+        CHECK(undone.pcb.partModels.count(led) == 1 && buildAssemblyMesh(undone.schematic, undone.pcb).vertexCount() == with.vertexCount());
+    }
     CHECK(BoardSettings::normalizeLayerCount(2147483647) == BoardSettings::kMaxLayers);  // a hostile file's count
     CHECK(sieda_pcb_set_part_model(sp, led, "", "", 1) == 1);
     CHECK(sp->project.pcb.partModels.empty());
@@ -24653,6 +24753,40 @@ TEST(via_edge_clearance_counts_the_via_copper) {
     CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 1);
     p.pcb.vias[0].position.x = 0.65;
     CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 0);
+}
+
+TEST(fab_notes_npth_pegs_are_not_through_hole_parts) {
+    // An SMD part held by an NPTH peg (as a USB-C receptacle) is assembled as an SMD part.
+    CustomPartSpec spec;
+    spec.name = "PEGGED";
+    spec.refPrefix = "J";
+    spec.pins = {{"1", "A"}};
+    spec.package.type = "CUSTOM";
+    spec.package.pinCount = 2;
+    PackageSpec::Land a{-2, 0, 1.5, 1.5};
+    PackageSpec::Land peg{2, 0, 1.0, 1.0, 0.8, true, "-"};
+    peg.npth = true;
+    spec.package.lands = {a, peg};
+    Project p;
+    p.schematic.addCustomComponent(p.addCustomPart(spec), "", {0, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    for (const auto& f : fabricationPackage(p))
+        if (f.path == "fab_notes.txt") CHECK(f.content.find("(0 through-hole)") != std::string::npos);
+    // IPC-D-356A marks the peg's hole unplated (column 38 'U'); the 3D copper has the SMD pad only.
+    std::istringstream ipc(exportIpcD356(p.schematic, p.pcb, "PEG"));
+    int unplated = 0;
+    for (std::string line; std::getline(ipc, line);) unplated += line.rfind("317", 0) == 0 && line.size() > 37 && line[37] == 'U';
+    CHECK(unplated == 1);
+    Mesh box;
+    box.addBox({0, 0, 0}, {1, 1, 1}, {1, 1, 1, 1});
+    CHECK(buildCopperLayerMesh(p.schematic, p.pcb, kTopLayer).vertexCount() == box.vertexCount());  // one box
+    // The board render draws the peg as a bare hole, not a gold pad.
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    const std::string svg = mcp::renderPcbSvg(*sp, {}, 400);
+    sieda_project_free(sp);
+    size_t gold = 0;
+    for (size_t at = svg.find("#d4af37"); at != std::string::npos; at = svg.find("#d4af37", at + 1)) ++gold;
+    CHECK(gold == 1);
 }
 
 TEST(npth_holes_have_no_annular_ring) {

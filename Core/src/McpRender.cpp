@@ -755,6 +755,8 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     const std::vector<Vec2> outline = pcb.settings.outlinePolygon();
     Rect b(0, 0, pcb.settings.width, pcb.settings.height);
     s.polygon(outline, true, 0, "#0d3b1e");
+    for (const auto& c : pcb.settings.cutouts)  // routed out of the board
+        if (c.size() >= 3) s.polygon(c, true, 0, s.background);
     // Bottom layer first, the top layer last.
     std::vector<int> order = layers;
     std::sort(order.begin(), order.end(), [](int a, int c) { return a > c; });
@@ -797,6 +799,10 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     const std::string padC = "#d4af37";
     for (const auto& p : pcb.pads(sch)) {
         if (!p.throughHole && !shown(p.smdLayer)) continue;
+        if (p.npth) {  // a bare hole, no copper
+            s.disc(p.position, p.drill / 2, "#000000");
+            continue;
+        }
         const Rect r = p.bounds();
         if (p.round && std::fabs(p.size.x - p.size.y) < 1e-6) {
             s.disc(p.position, p.size.x / 2, padC);

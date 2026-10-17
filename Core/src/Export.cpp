@@ -266,7 +266,7 @@ std::string exportPickAndPlaceCsv(const Schematic& sch, const PcbLayout& pcb) {
     for (const auto& c : sch.components()) {
         // As the CPL: DNP parts are not placed, embedded parts are not assembled; lower-left origin, Y up.
         if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
-        o << c.ref << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
+        o << csvEscape(c.ref) << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
           << mm(pcb.settings.height - c.pcb.position.y) << "," << placementRotation(c.pcb.rotation) << ","
           << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
     }
@@ -847,7 +847,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         return n.substr(0, 14);
     };
     auto record = [&](bool through, const std::string& net, const std::string& ref, const std::string& pin, double drill,
-                      const std::string& access, Vec2 pos, double w, double h) {
+                      const std::string& access, Vec2 pos, double w, double h, bool plated = true) {
         std::string line(80, ' ');
         place(line, 1, through ? "317" : "327");
         place(line, 4, net);
@@ -856,7 +856,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         place(line, 28, pin.substr(0, 4));
         if (through) {
             place(line, 33, "D" + num(drill, 4));
-            place(line, 38, "P");
+            place(line, 38, plated ? "P" : "U");  // an NPTH hole is unplated
         }
         place(line, 39, access);
         place(line, 42, "X+" + num(pos.x, 6));
@@ -880,7 +880,7 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
         const Component* c = sch.find(p.componentId);
         if (!c) continue;
         o << record(p.throughHole, netName(p.net), c->ref, std::to_string(p.padNumber), p.drill,
-                    p.throughHole ? "A00" : (p.smdLayer == kTopLayer ? "A01" : layerCode), p.position, p.size.x, p.size.y);
+                    p.throughHole ? "A00" : (p.smdLayer == kTopLayer ? "A01" : layerCode), p.position, p.size.x, p.size.y, !p.npth);
     }
     for (const auto& v : pcb.vias) o << record(true, netName(v.net), "VIA", "", v.drill, "A00", v.position, v.diameter, v.diameter);
     o << "999\n";
@@ -908,7 +908,7 @@ std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
         // DNP parts are not placed; embedded passives are made by the board house, not assembled.
         if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
         // Same origin as the Gerbers: the board's lower-left corner, Y up.
-        o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
+        o << csvEscape(c.ref) << "," << mm(c.pcb.position.x) << "mm,";
         o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << ","
           << placementRotation(c.pcb.rotation) << "\n";
     }
@@ -945,6 +945,11 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
     o << "<polygon fill=\"#f4f4ef\" stroke=\"#222\" stroke-width=\"0.2\" points=\"";
     for (const auto& v : s.outlinePolygon()) o << mm(v.x) << "," << mm(v.y) << " ";
     o << "\"/>\n";
+    for (const auto& c : s.cutouts) {  // routed out of the board
+        o << "<polygon fill=\"white\" stroke=\"#222\" stroke-width=\"0.2\" points=\"";
+        for (const auto& v : c) o << mm(v.x) << "," << mm(v.y) << " ";
+        o << "\"/>\n";
+    }
     for (const auto& h : s.holes)
         o << "<circle cx=\"" << mm(h.position.x) << "\" cy=\"" << mm(h.position.y) << "\" r=\"" << mm(h.drill / 2)
           << "\" fill=\"white\" stroke=\"#222\" stroke-width=\"0.15\"/>\n";
