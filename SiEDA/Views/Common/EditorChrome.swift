@@ -27,34 +27,74 @@ struct ToolStripButton: View {
     }
 }
 
-/// Vertical tool palette container (left edge of the editors).
+/// Tool palette container: a column at the left edge of the editors, or a bar along the top of the canvas (`horizontal`).
 struct ToolStrip<Content: View>: View {
-    @ViewBuilder var content: Content
+    var horizontal = false
+    var content: Content
+
+    init(horizontal: Bool = false, @ViewBuilder content: () -> Content) {
+        self.horizontal = horizontal
+        self.content = content()
+    }
 
     var body: some View {
-        // On short windows the tools scroll instead of forcing the workspace taller than the window.
-        ViewThatFits(in: .vertical) {
-            VStack(spacing: 4) {
-                content
-                Spacer(minLength: 0)
+        if horizontal {
+            // On narrow windows the tools scroll sideways instead of forcing the workspace wider than the window.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 4) {
+                    content
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 8)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) { content }
+                        .padding(.horizontal, 8)
+                }
             }
-            .padding(.vertical, 8)
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 4) { content }
-                    .padding(.vertical, 8)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.deepBlue)
+            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .bottom)
+            .environment(\.toolStripHorizontal, true)
+        } else {
+            // On short windows the tools scroll instead of forcing the workspace taller than the window.
+            ViewThatFits(in: .vertical) {
+                VStack(spacing: 4) {
+                    content
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 8)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 4) { content }
+                        .padding(.vertical, 8)
+                }
             }
+            .padding(.horizontal, 5)
+            .frame(width: 44)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(Theme.deepBlue)
+            .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
         }
-        .padding(.horizontal, 5)
-        .frame(width: 44)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.deepBlue)
-        .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
+    }
+}
+
+private struct ToolStripHorizontalKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// Inside a horizontal `ToolStrip`: dividers stand upright.
+    var toolStripHorizontal: Bool {
+        get { self[ToolStripHorizontalKey.self] }
+        set { self[ToolStripHorizontalKey.self] = newValue }
     }
 }
 
 struct ToolStripDivider: View {
+    @Environment(\.toolStripHorizontal) private var horizontal
+
     var body: some View {
-        Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 26, height: 1).padding(.vertical, 4)
+        Rectangle().fill(Theme.blue.opacity(0.3))
+            .frame(width: horizontal ? 1 : 26, height: horizontal ? 22 : 1)
+            .padding(horizontal ? .horizontal : .vertical, 4)
     }
 }
 

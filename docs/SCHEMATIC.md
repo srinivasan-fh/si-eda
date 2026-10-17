@@ -15,6 +15,10 @@ simulation of a variant, title block, persistence). App: the sheet bar and the i
 `SiEDA/Views/Schematic/SchematicEditorView.swift`, `SchematicCanvas.swift`, `SchematicFindView.swift` and
 `SiEDA/Views/Inspector/InspectorView.swift`.
 
+The app opens on the schematic (Super Intelligence is one click away in the toolbar). The editing tools (select,
+pan, wire, bus, no connect, place, notes and drawings, rotate, delete, navigator, zoom to area) are a bar along the top
+of the canvas; the device palette stays as the left sidebar.
+
 ## The model in one paragraph
 
 A design is still one flat list of components and wires. Every component carries the sheet it is drawn on, and a

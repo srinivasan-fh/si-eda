@@ -64,7 +64,7 @@ final class DesignStore: ObservableObject {
     @Published private(set) var snapshot: DesignSnapshot = .empty
     /// What the schematic canvas shows: the active sheet's components and wires (the whole design on one sheet).
     @Published private(set) var sheetSnapshot: DesignSnapshot = .empty
-    @Published var workspace: Workspace = .promptStudio {
+    @Published var workspace: Workspace = .schematic {
         didSet { if workspace != oldValue { CrashReporter.note("Workspace: \(workspace.title)") } }
     }
     @Published var selection: Set<Int> = [] {
@@ -124,11 +124,12 @@ final class DesignStore: ObservableObject {
     @Published var showDCOverlay = true
     /// Tab of the Design Checks workspace (set by the actions that open it, so they land on their results).
     @Published var checksMode: ChecksMode = .verification
-    /// Mirrors `AISettings.aiEnabled` so document actions pick the right start workspace.
+    /// Mirrors `AISettings.aiEnabled` (the Super Intelligence workspace is left when AI assistance is turned off).
     @Published var aiEnabled = true {
         didSet { if !aiEnabled && workspace == .promptStudio { workspace = .schematic } }
     }
-    var startWorkspace: Workspace { aiEnabled ? .promptStudio : .schematic }
+    /// The schematic is the landing page (Super Intelligence stays one click away in the toolbar).
+    var startWorkspace: Workspace { .schematic }
     /// Custom part the Component Library should open (set when jumping from the inspector).
     @Published var libraryFocusPartId: String?
     @Published private(set) var isBusy = false
