@@ -23398,6 +23398,13 @@ TEST(fab_outputs_footprint_npth_rounded_panel_and_placement_frame) {
     auto files = byName();
     CHECK(files.count("gerbers/Pad-NPTH.drl") == 1 && files["gerbers/Pad-NPTH.drl"].find("T1C1.000") != std::string::npos);
     CHECK(files["fab_notes.txt"].find("Non-plated           1") != std::string::npos);
+    {  // in the drill chart too: the 1 mm NPTH hole is non-plated, not a plated pad
+        const std::string& notes = files["fab_notes.txt"];
+        std::istringstream row(notes.substr(notes.find(" 1.000 mm") + 9));
+        int plated = -1, vias = -1, nonPlated = -1;
+        row >> plated >> vias >> nonPlated;
+        CHECK(plated == 0 && vias == 0 && nonPlated == 1);
+    }
 
     // #158 / #159: both placement files use the lower-left origin and counter-clockwise rotation; DNP parts are left out.
     Component& c = *p.schematic.find(u);
