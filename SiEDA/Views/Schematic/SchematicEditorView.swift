@@ -624,13 +624,15 @@ struct DevicePicker: View {
         return parts
     }
 
-    /// `filteredStandard`'s last result (a reference, so filling it during a redraw changes no view state).
+    /// `filteredStandard`'s last result (a reference, so filling it during a redraw changes no view state; shared, so
+    /// showing the picker again does not filter the catalog again).
     private final class StandardFilterCache {
         var search = ""
         var library: [String] = []
         var parts: [StandardPart]?
     }
-    @State private var standardCache = StandardFilterCache()
+    private static let standardCache = StandardFilterCache()
+    private var standardCache: StandardFilterCache { Self.standardCache }
 
     private func header(_ title: String) -> some View {
         Text(title)

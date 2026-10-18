@@ -42,7 +42,7 @@ struct ContentView: View {
             }
         }
         .navigationTitle(store.windowTitle)
-        .onChange(of: store.inspectorRevealToken) { _, _ in showInspector = true }
+        .onChange(of: store.inspectorRevealToken) { _, _ in setInspector(true) }
         .toolbar { toolbarContent }
         .toolbar(store.focusMode ? .hidden : .visible, for: .windowToolbar)
         .background(FullScreenObserver { full in store.focusMode = full && FocusMode.hidesPanels })
@@ -77,6 +77,13 @@ struct ContentView: View {
             if !enabled { agents.cancel() }
             store.aiEnabled = enabled
         }
+    }
+
+    /// Shows or hides the inspector at once: an animated slide resizes the canvas, and redraws it, on every frame.
+    private func setInspector(_ shown: Bool) {
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) { showInspector = shown }
     }
 
     /// Focus mode hides the sidebar and the inspector, and puts them back as they were on leaving.
@@ -177,7 +184,7 @@ struct ContentView: View {
             }
             .help("Export fabrication package (⇧⌘E)")
 
-            Button { showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+            Button { setInspector(!showInspector) } label: { Label("Inspector", systemImage: "sidebar.trailing") }
         }
     }
 }

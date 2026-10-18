@@ -106,7 +106,7 @@ struct SchematicCanvas: View {
                     fitToContent(size: geo.size)
                 }
             }
-            .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
+            .settledSize(geo.size, into: $canvasSize)
             .onChange(of: store.viewRequest) { _, request in
                 if let request { perform(request.command, size: geo.size) }
             }

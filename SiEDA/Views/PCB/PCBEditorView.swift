@@ -1016,7 +1016,7 @@ struct PCBCanvas: View {
                         fit(geo.size)
                     }
                 }
-                .onChange(of: geo.size) { _, s in canvasSize = s }
+                .settledSize(geo.size, into: $canvasSize)
                 .onChange(of: store.viewRequest) { _, request in
                     if let request { perform(request.command, size: geo.size) }
                 }

@@ -678,3 +678,27 @@ extension Viewport {
         }
     }
 }
+
+extension View {
+    /// Writes a canvas's size to its editor once a panel's show / hide has settled, not on every frame of the slide:
+    /// each write re-evaluates the whole editor (tool bars, device picker) while the canvas redraws anyway.
+    func settledSize(_ size: CGSize, into target: Binding<CGSize>) -> some View {
+        modifier(SettledSize(size: size, target: target))
+    }
+}
+
+private struct SettledSize: ViewModifier {
+    let size: CGSize
+    @Binding var target: CGSize
+    @State private var pending: Task<Void, Never>?
+
+    func body(content: Content) -> some View {
+        content.onChange(of: size) { _, newSize in
+            pending?.cancel()
+            pending = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(150))
+                if !Task.isCancelled { target = newSize }
+            }
+        }
+    }
+}
