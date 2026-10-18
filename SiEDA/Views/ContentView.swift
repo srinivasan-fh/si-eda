@@ -23,6 +23,7 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
+                .toolbar(removing: .sidebarToggle)  // our own button below shows / hides it without the slide
         } detail: {
             VStack(spacing: 0) {
                 workspaceView
@@ -86,6 +87,13 @@ struct ContentView: View {
         withTransaction(instant) { showInspector = shown }
     }
 
+    /// Shows or hides the components / nets sidebar at once, like the inspector.
+    private func setSidebar(_ visibility: NavigationSplitViewVisibility) {
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) { columns = visibility }
+    }
+
     /// Focus mode hides the sidebar and the inspector, and puts them back as they were on leaving.
     private func applyFocus(_ focus: Bool) {
         if focus {
@@ -119,6 +127,10 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
+            Button { setSidebar(columns == .detailOnly ? .all : .detailOnly) } label: {
+                Label("Components", systemImage: "sidebar.leading")
+            }
+            .help("Components")
             // Like ⌘Z: while a text field is being edited, undo belongs to the text.
             Button {
                 if TextEditingFocus.isActive { TextEditingFocus.send("undo:") } else { store.undo() }
