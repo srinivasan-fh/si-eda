@@ -52,8 +52,10 @@
   (+ `SchematicCustomTheme.swift`, `SchematicAppearanceViews.swift`); the canvas draws only with the palette (no
   fixed `Theme` schematic colours), and Midnight Navy (`siedaDark`) must stay today's colours. Symbols are drawn in
   their device colour (`ComponentKind.deviceColour`) by default; "Colour Symbols by Device" off = the scheme's symbol colour.
-  App-wide theme (Midnight Navy / Matrix Green / Graphite): `SiEDA/Views/Common/AppTheme.swift`; `Theme` colours read
-  `AppTheme.current` (saved in user defaults, so the next launch and its splash start in it), the app redraws through `.id(appTheme)`;
+  App-wide theme (Midnight Navy / Matrix Green / Graphite / Light): `SiEDA/Views/Common/AppTheme.swift`; `Theme` colours read
+  `AppTheme.current` (saved in user defaults, so the next launch and its splash start in it; a plain value, never an observed one: colours are read
+  thousands of times a frame and tracking each read halved UI speed); window roots `.id(AppTheme.Shown.shared.theme)` (`@Observable`) rebuild at once on a
+  new theme; Light also sets the light colour scheme, `AppTheme.colorScheme`);
   dark backdrops outside `Theme` (splash, 3D / X-ray / model views) go through `AppTheme.backdrop(r, g, b)` (Midnight Navy = the given navy); Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in

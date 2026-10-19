@@ -4,11 +4,24 @@ import SwiftUI
 /// (`Theme`). Board colours (copper layers, pads, errors, warnings) stay standard in every theme. Choosing a theme
 /// also picks the matching schematic scheme, which can still be changed on its own.
 enum AppTheme: String, CaseIterable, Identifiable {
-    case midnightNavy, matrixGreen, graphite
+    case midnightNavy, matrixGreen, graphite, light
 
     static let storageKey = "appTheme"
-    /// The theme in use, read by every `Theme` colour; set through `select`.
-    static var current = AppTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .midnightNavy
+    /// The theme in use, read by every `Theme` colour (a plain value: colours are read thousands of times a frame);
+    /// set through `select`.
+    static var current = AppTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .midnightNavy {
+        didSet { Shown.shared.theme = current }
+    }
+
+    /// The theme the windows were built in, observed by their roots (`.id(AppTheme.Shown.shared.theme)`): a new theme
+    /// rebuilds them at once, without waiting for a user-defaults round trip.
+    @Observable final class Shown {
+        static let shared = Shown()
+        var theme = AppTheme.current
+    }
+
+    /// The light theme puts the system controls in light mode too; the dark themes keep the Appearance setting.
+    var colorScheme: ColorScheme? { self == .light ? .light : nil }
 
     var id: String { rawValue }
 
@@ -17,6 +30,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .midnightNavy: return "Midnight Navy"
         case .matrixGreen: return "Matrix Green"
         case .graphite: return "Graphite"
+        case .light: return "Light"
         }
     }
 
@@ -25,10 +39,11 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .midnightNavy: return .siedaDark
         case .matrixGreen: return .matrix
         case .graphite: return .cr8000
+        case .light: return .allegro
         }
     }
 
-    /// Makes `theme` current and stores it (the app's `@AppStorage` then redraws every window), with its schematic scheme.
+    /// Makes `theme` current (every window redraws in it at once) and stores it, with its schematic scheme.
     static func select(_ theme: AppTheme) {
         current = theme
         UserDefaults.standard.set(theme.schematicScheme.rawValue, forKey: SchematicColorScheme.storageKey)
@@ -54,6 +69,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .midnightNavy: return Self.midnight
         case .matrixGreen: return Self.matrix
         case .graphite: return Self.graphiteColours
+        case .light: return Self.lightColours
         }
     }
 
@@ -80,4 +96,12 @@ enum AppTheme: String, CaseIterable, Identifiable {
         iceBlue: .init(hex: 0xECEFF3), textMuted: .init(hex: 0x8A919C), gridDot: .init(hex: 0x2E323A),
         symbolFill: .init(hex: 0x2A2E35), pin: .init(hex: 0xBFC8D6), valueLabel: .init(hex: 0x9FB0C6),
         pcbBackground: .init(hex: 0x0E0F11))
+
+    /// White panels and dark text with a blue accent; the board keeps a dark background for its standard colours.
+    private static let lightColours = Colours(
+        navy: .init(hex: 0xF7F8FA), deepBlue: .init(hex: 0xE9EDF3), darkBlue: .init(hex: 0xC9D3E2),
+        blue: .init(hex: 0x1F5FD1), lightBlue: .init(hex: 0x2E3A4D), skyBlue: .init(hex: 0x0B63C4),
+        iceBlue: .init(hex: 0x111827), textMuted: .init(hex: 0x5B6576), gridDot: .init(hex: 0xC9D0DA),
+        symbolFill: .init(hex: 0xFFFFFF), pin: .init(hex: 0x1D3F7A), valueLabel: .init(hex: 0x3A5A8C),
+        pcbBackground: .init(hex: 0x14171C))
 }

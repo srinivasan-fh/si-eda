@@ -81,7 +81,7 @@ each package into its steps.
 
 ## App themes — plan later
 
-Midnight Navy, Matrix Green and Graphite colour the whole app (`AppTheme`). Still to do:
+Midnight Navy, Matrix Green, Graphite and Light colour the whole app (`AppTheme`). Still to do:
 
 - **Light app theme** (~0.15M–0.25M tokens): light panels need dark text everywhere, so audit the views that assume a
   dark background (white text on accents, `.opacity` washes over `Theme.navy`, PCB / 3D canvases that stay dark),
