@@ -216,12 +216,13 @@ struct SiEDAApp: App {
     var body: some Scene {
         WindowGroup("SiEDA") {
             ContentView()
+                .id(AppTheme.Shown.shared.theme)  // a new app theme redraws the window
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(agents)
                 .environmentObject(language)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.current.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .documentWindowFrame()
                 .background(WindowCloseGuardInstaller(store: store))
@@ -238,21 +239,23 @@ struct SiEDAApp: App {
 
         Window("Super Intelligence", id: "intelligence") {
             IntelligenceSetupView()
+                .id(AppTheme.Shown.shared.theme)  // a new app theme redraws the window
                 .environmentObject(settings)
                 .environmentObject(store)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.current.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
         }
         .defaultSize(width: 720, height: 520)
 
         Settings {
             SettingsView()
+                .id(AppTheme.Shown.shared.theme)  // a new app theme redraws the window
                 .environmentObject(settings)
                 .environmentObject(store)
                 .environmentObject(language)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.current.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
         }
     }

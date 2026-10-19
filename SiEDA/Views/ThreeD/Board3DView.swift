@@ -697,8 +697,6 @@ struct BoardSceneView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
-        let backdrop = AppTheme.backdrop(0.03, 0.06, 0.13).nsColor  // a new app theme repaints the open view
-        if view.backgroundColor != backdrop { view.backgroundColor = backdrop; view.scene?.background.contents = Self.backdrop }
         let c = context.coordinator
         c.board = board
         c.onClick = onClick

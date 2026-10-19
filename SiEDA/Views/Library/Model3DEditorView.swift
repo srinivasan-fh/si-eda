@@ -221,7 +221,6 @@ struct Model3DPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
-        view.backgroundColor = AppTheme.backdrop(0.03, 0.06, 0.13).nsColor
         guard let scene = view.scene else { return }
         scene.rootNode.childNodes.filter { $0.name == "part" }.forEach { $0.removeFromParentNode() }
         guard let mesh, mesh.vertexCount > 0 else { return }

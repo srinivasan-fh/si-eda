@@ -7,16 +7,17 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case midnightNavy, matrixGreen, graphite, light
 
     static let storageKey = "appTheme"
-    /// The theme in use, read by every `Theme` colour; set through `select`. Observed: a view whose body read a
-    /// `Theme` colour redraws when the theme changes, in place (no window rebuilt, no editor state lost).
-    static var current: AppTheme {
-        get { Model.shared.theme }
-        set { Model.shared.theme = newValue }
+    /// The theme in use, read by every `Theme` colour (a plain value: colours are read thousands of times a frame);
+    /// set through `select`.
+    static var current = AppTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .midnightNavy {
+        didSet { Shown.shared.theme = current }
     }
 
-    @Observable final class Model {
-        static let shared = Model()
-        var theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: AppTheme.storageKey) ?? "") ?? .midnightNavy
+    /// The theme the windows were built in, observed by their roots (`.id(AppTheme.Shown.shared.theme)`): a new theme
+    /// rebuilds them at once, without waiting for a user-defaults round trip.
+    @Observable final class Shown {
+        static let shared = Shown()
+        var theme = AppTheme.current
     }
 
     /// The light theme puts the system controls in light mode too; the dark themes keep the Appearance setting.
@@ -42,7 +43,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Makes `theme` current (every view drawn with it redraws at once) and stores it, with its schematic scheme.
+    /// Makes `theme` current (every window redraws in it at once) and stores it, with its schematic scheme.
     static func select(_ theme: AppTheme) {
         current = theme
         UserDefaults.standard.set(theme.schematicScheme.rawValue, forKey: SchematicColorScheme.storageKey)

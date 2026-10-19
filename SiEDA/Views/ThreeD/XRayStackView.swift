@@ -88,8 +88,6 @@ struct XRayStackView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
-        let backdrop = AppTheme.backdrop(0.01, 0.03, 0.08).nsColor  // a new app theme repaints the open view
-        if view.backgroundColor != backdrop { view.backgroundColor = backdrop; view.scene?.background.contents = Self.backgroundGradient() }
         let c = context.coordinator
         if c.meshRevision != revision {
             c.layerMeshes = [:]

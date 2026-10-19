@@ -863,7 +863,6 @@ struct PCBCanvas: View {
     private let limits = Viewport.pcbLimits
 
     var body: some View {
-        let _ = AppTheme.current  // observed: a new app theme redraws the board in place
         GeometryReader { geo in
             Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size: size) }
                 .contentShape(Rectangle())
