@@ -14,7 +14,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         set { Model.shared.theme = newValue }
     }
 
-    @Observable private final class Model {
+    @Observable final class Model {
         static let shared = Model()
         var theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: AppTheme.storageKey) ?? "") ?? .midnightNavy
     }
