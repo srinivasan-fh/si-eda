@@ -6762,9 +6762,26 @@ final class ArcRoutingTests: XCTestCase {
         let unit = UserDefaults.standard.string(forKey: Theme.displayUnitKey)
         defer { UserDefaults.standard.set(unit, forKey: Theme.displayUnitKey) }
         UserDefaults.standard.set("in", forKey: Theme.displayUnitKey)
-        XCTAssertEqual(Theme.length(25.4), "1.0000 in")
+        XCTAssertEqual(Theme.length(25.4), "1.00000 in")
         UserDefaults.standard.set("mil", forKey: Theme.displayUnitKey)
-        XCTAssertEqual(Theme.length(2.54), "100.0 mil")
+        XCTAssertEqual(Theme.length(2.54), "100.00 mil")
+        // Exact definitions: 1 ft = 304.8 mm, 1 pt = 25.4 / 72 mm, 1 cm = 10 mm; every unit shows 1 µm or better.
+        let expected: [(String, Double, String)] = [("ft", 304.8, "1.000000 ft"), ("pt", 25.4, "72.000 pt"),
+                                                   ("cm", 12.34567, "1.2346 cm"), ("mm", 0.0016, "0.002 mm")]
+        for (name, mm, text) in expected {
+            UserDefaults.standard.set(name, forKey: Theme.displayUnitKey)
+            XCTAssertEqual(Theme.length(mm), text)
+        }
+        for u in Theme.LengthUnit.allCases {
+            XCTAssertEqual(u.toMM(u.fromMM(1.234567)), 1.234567, accuracy: 1e-12, u.rawValue)
+            XCTAssertLessThanOrEqual(u.toMM(pow(10, -Double(u.decimals))), 0.001 + 1e-12, u.rawValue)
+        }
+        let typed: [(String, Double)] = [("50 mil", 1.27), ("0.1in", 2.54), ("1\"", 25.4), ("2 ft", 609.6), ("1'", 304.8),
+                                         ("72pt", 25.4), ("1,5 cm", 15), ("250 µm", 0.25), ("0.01 m", 10), ("3", 3)]
+        for (text, mm) in typed { XCTAssertEqual(Theme.LengthUnit.parse(text) ?? -1, mm, accuracy: 1e-12, text) }
+        XCTAssertNil(Theme.LengthUnit.parse("5 furlongs"))
+        XCTAssertNil(Theme.LengthUnit.parse("mm"))
+        XCTAssertEqual(Theme.LengthUnit.parse("2", unit: .mil) ?? -1, 0.0508, accuracy: 1e-12)
     }
 
     func testPinMapThroughTheCoreTool() {

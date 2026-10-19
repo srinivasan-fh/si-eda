@@ -242,7 +242,7 @@
 - Platform: file format `docs/FILE_FORMAT.md` (`kProjectFormatVersion`; `Project::loadNotes` = newer format / fields
   this version would drop, shown on open), project templates (`DesignStore.saveTemplate` / `newFromTemplate`, Application
   Support/SiEDA/Templates), settings export / import `SettingsTransfer`, colour-blind layer palette
-  (`Theme.layerPaletteKey`), Altium canvas preset; migration guide `docs/MIGRATING.md`; `sieda-cli --upgrade` rewrites
+  (`Theme.layerPaletteKey`), board units `Theme.LengthUnit` (mm / cm / mil / in / ft / pt from exact ratios, shown to ≥ 1 µm; `parse` reads a typed unit), Altium canvas preset; migration guide `docs/MIGRATING.md`; `sieda-cli --upgrade` rewrites
   files in the current format (left alone when load notes say settings would be lost); check-out lock
   `<file>.lock` and event hooks (Application Support/SiEDA/Hooks: after-open / save / verify / export) in
   `SiEDA/App/ProjectHooks.swift` — hooks only from that folder, never from a project.

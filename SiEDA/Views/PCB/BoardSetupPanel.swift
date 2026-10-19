@@ -423,7 +423,7 @@ struct BoardSetupPanel: View {
     }
 
     private func value(_ text: String, _ fallback: Double) -> Double {
-        Double(text.replacingOccurrences(of: ",", with: ".")) ?? fallback
+        Theme.LengthUnit.parse(text) ?? fallback  // "50 mil", "0.1 in", "2 cm" … or plain mm
     }
 
     private func field(_ title: String, _ text: Binding<String>) -> some View {
