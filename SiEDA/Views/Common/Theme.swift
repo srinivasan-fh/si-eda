@@ -63,16 +63,63 @@ enum Theme {
     }
 
     /// Copper layer colours (Layer colour mode, layer tabs, X-Ray stack): standard CAD colours per layer.
-    /// User default for board read-outs (cursor, route length): "mm" (default), "mil" or "in"; the design stays in mm.
+    /// User default for board read-outs (cursor, route length): a `LengthUnit` raw value; the design stays in mm.
     static let displayUnitKey = "pcb.displayUnit"
+
+    /// Board length units by their exact definitions (1 in = 25.4 mm, 1 ft = 12 in, 1 pt = 1/72 in, 1 mil = 1/1000 in),
+    /// each shown to at least 1 µm.
+    enum LengthUnit: String, CaseIterable, Identifiable {
+        case mm, cm, mil, inch = "in", ft, pt
+
+        var id: String { rawValue }
+        /// Exact millimetres per unit as a ratio (numerator, denominator), so conversions divide only once.
+        private var ratio: (Double, Double) {
+            switch self {
+            case .mm: return (1, 1)
+            case .cm: return (10, 1)
+            case .mil: return (254, 10_000)
+            case .inch: return (254, 10)
+            case .ft: return (3048, 10)
+            case .pt: return (254, 720)
+            }
+        }
+        /// Decimals that resolve 1 µm or better.
+        var decimals: Int {
+            switch self {
+            case .mm, .pt: return 3
+            case .cm: return 4
+            case .mil: return 2
+            case .inch: return 5
+            case .ft: return 6
+            }
+        }
+        func fromMM(_ mm: Double) -> Double { mm * ratio.1 / ratio.0 }
+        func toMM(_ value: Double) -> Double { value * ratio.0 / ratio.1 }
+
+        static var display: LengthUnit { LengthUnit(rawValue: UserDefaults.standard.string(forKey: displayUnitKey) ?? "") ?? .mm }
+
+        /// A typed length in mm: a number with an optional unit (mm, cm, m, µm / um, mil / thou, in / ", ft / ', pt),
+        /// a comma accepted as the decimal point; a bare number is in `unit`.
+        static func parse(_ text: String, unit: LengthUnit = .mm) -> Double? {
+            let t = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".").lowercased()
+            let digits = t.prefix { "0123456789.+-e".contains($0) }
+            guard let value = Double(digits) else { return nil }
+            switch t.dropFirst(digits.count).trimmingCharacters(in: .whitespaces) {
+            case "": return unit.toMM(value)
+            case "m": return value * 1000
+            case "µm", "μm", "um": return value / 1000  // micro sign or Greek mu
+            case "thou": return LengthUnit.mil.toMM(value)
+            case "\"", "inch", "inches": return LengthUnit.inch.toMM(value)
+            case "'", "feet", "foot": return LengthUnit.ft.toMM(value)
+            case let name: return LengthUnit(rawValue: name).map { $0.toMM(value) }
+            }
+        }
+    }
 
     /// A board length (mm) in the display unit, with its unit name unless `unit` is false.
     static func length(_ mm: Double, unit: Bool = true) -> String {
-        switch UserDefaults.standard.string(forKey: displayUnitKey) {
-        case "mil": return String(format: "%.1f", mm / 0.0254) + (unit ? " mil" : "")
-        case "in": return String(format: "%.4f", mm / 25.4) + (unit ? " in" : "")
-        default: return String(format: "%.2f", mm) + (unit ? " mm" : "")
-        }
+        let u = LengthUnit.display
+        return String(format: "%.\(u.decimals)f", u.fromMM(mm)) + (unit ? " \(u.rawValue)" : "")
     }
 
     /// User default: "" = standard layer colours, "colourblind" = the Okabe–Ito palette (no red / green pairs).

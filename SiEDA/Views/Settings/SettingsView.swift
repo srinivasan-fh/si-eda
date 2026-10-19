@@ -306,9 +306,7 @@ private struct AppearanceSettings: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Picker("Board Units", selection: $displayUnit) {
-                Text(verbatim: "mm").tag("mm")
-                Text(verbatim: "mil").tag("mil")
-                Text(verbatim: "inch").tag("in")
+                ForEach(Theme.LengthUnit.allCases) { Text(verbatim: $0.rawValue).tag($0.rawValue) }
             }
             .pickerStyle(.segmented)
             .help("Units of the PCB cursor and route-length read-outs (the design itself stays in millimetres)")
