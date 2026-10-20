@@ -1,22 +1,44 @@
+import AppKit
 import SwiftUI
 
 /// SiEDA's blue-first visual language. Dark mode is the default appearance.
 enum Theme {
-    private static var c: AppTheme.Colours { AppTheme.current.colours }
+    /// The current theme's colours, made once per theme: canvases read them thousands of times a frame, and each
+    /// `Color(red:green:blue:)` would be a new allocation.
+    private final class Resolved {
+        let theme: AppTheme
+        let navy, deepBlue, darkBlue, blue, lightBlue, skyBlue, iceBlue, textMuted: Color
+        let gridDot, symbolFill, pin, valueLabel, pcbBackground: Color
+        let navyNS: NSColor
+        init(_ theme: AppTheme) {
+            let c = theme.colours
+            self.theme = theme
+            (navy, deepBlue, darkBlue, blue) = (c.navy.color, c.deepBlue.color, c.darkBlue.color, c.blue.color)
+            (lightBlue, skyBlue, iceBlue, textMuted) = (c.lightBlue.color, c.skyBlue.color, c.iceBlue.color, c.textMuted.color)
+            (gridDot, symbolFill, pin) = (c.gridDot.color, c.symbolFill.color.opacity(0.65), c.pin.color)
+            (valueLabel, pcbBackground, navyNS) = (c.valueLabel.color, c.pcbBackground.color, c.navy.nsColor)
+        }
+    }
+    private static var resolved = Resolved(AppTheme.current)
+    private static var c: Resolved {
+        if resolved.theme != AppTheme.current { resolved = Resolved(AppTheme.current) }
+        return resolved
+    }
 
     // Core blues (the app theme's colours; Midnight Navy keeps the original blues)
-    static var navy: Color { c.navy.color }              // canvas background
-    static var deepBlue: Color { c.deepBlue.color }      // panels
-    static var darkBlue: Color { c.darkBlue.color }
-    static var blue: Color { c.blue.color }              // accent
-    static var lightBlue: Color { c.lightBlue.color }
-    static var skyBlue: Color { c.skyBlue.color }
-    static var iceBlue: Color { c.iceBlue.color }
+    static var navy: Color { c.navy }              // canvas background
+    static var navyNS: NSColor { c.navyNS }        // window backgrounds (AppKit)
+    static var deepBlue: Color { c.deepBlue }      // panels
+    static var darkBlue: Color { c.darkBlue }
+    static var blue: Color { c.blue }              // accent
+    static var lightBlue: Color { c.lightBlue }
+    static var skyBlue: Color { c.skyBlue }
+    static var iceBlue: Color { c.iceBlue }
 
     // Text
     static var textPrimary: Color { iceBlue }
     static var textSecondary: Color { lightBlue }
-    static var textMuted: Color { c.textMuted.color }
+    static var textMuted: Color { c.textMuted }
 
     // Semantic (kept distinct so errors stay noticeable)
     static let error = Color(red: 1.00, green: 0.38, blue: 0.40)
@@ -25,15 +47,15 @@ enum Theme {
 
     // Schematic canvas
     static var schematicBackground: Color { navy }
-    static var gridDot: Color { c.gridDot.color }
+    static var gridDot: Color { c.gridDot }
     static var symbol: Color { lightBlue }
-    static var symbolFill: Color { c.symbolFill.color.opacity(0.65) }
+    static var symbolFill: Color { c.symbolFill }
     static var wire: Color { skyBlue }
-    static var pin: Color { c.pin.color }
+    static var pin: Color { c.pin }
     static var unconnectedPin: Color { warning }
     static let selection = Color(red: 0.98, green: 0.98, blue: 1.00)
     static var label: Color { iceBlue }
-    static var valueLabel: Color { c.valueLabel.color }
+    static var valueLabel: Color { c.valueLabel }
     static let probe = Color(red: 0.36, green: 0.92, blue: 1.00)
     /// Live simulation: closed switches, running indicators.
     static let liveOn = Color(red: 0.36, green: 0.90, blue: 0.52)
@@ -41,7 +63,7 @@ enum Theme {
     static let harness = Color(red: 0.78, green: 0.58, blue: 1.00)
 
     // PCB canvas (blue copper palette)
-    static var pcbBackground: Color { c.pcbBackground.color }
+    static var pcbBackground: Color { c.pcbBackground }
     /// Near-black laminate, so layer and net colours read as in professional CAD (Altium / KiCad dark themes).
     static let boardFill = Color(red: 0.07, green: 0.08, blue: 0.10)
     static var boardEdge: Color { skyBlue }
@@ -127,38 +149,46 @@ enum Theme {
 
     static func copperColor(_ layer: Int, layerCount: Int) -> Color {
         if UserDefaults.standard.string(forKey: layerPaletteKey) == "colourblind" {
-            let okabeIto: [Color] = [Color(red: 0.94, green: 0.89, blue: 0.26), Color(red: 0.00, green: 0.62, blue: 0.45),
-                                     Color(red: 0.84, green: 0.37, blue: 0.00), Color(red: 0.80, green: 0.47, blue: 0.65)]
-            if layer == 0 { return Color(red: 0.90, green: 0.62, blue: 0.00) }
-            if layer == max(1, layerCount) - 1 { return Color(red: 0.34, green: 0.71, blue: 0.91) }
+            if layer == 0 { return okabeItoTop }
+            if layer == max(1, layerCount) - 1 { return okabeItoBottom }
             return okabeIto[max(0, layer - 1) % okabeIto.count]
         }
         if layer == 0 { return topCopper }
         if layer == max(1, layerCount) - 1 { return bottomCopper }
-        // Inner layers: yellow, green, orange, magenta (Altium's mid-layer order).
-        let inner: [Color] = [Color(red: 0.98, green: 0.84, blue: 0.25), Color(red: 0.30, green: 0.82, blue: 0.40),
-                              Color(red: 1.00, green: 0.58, blue: 0.20), Color(red: 0.90, green: 0.40, blue: 0.85)]
-        return inner[max(0, layer - 1) % inner.count]
+        return innerCopper[max(0, layer - 1) % innerCopper.count]
     }
+    // Made once (the canvases ask for these per batch, every frame).
+    private static let okabeIto: [Color] = [Color(red: 0.94, green: 0.89, blue: 0.26), Color(red: 0.00, green: 0.62, blue: 0.45),
+                                            Color(red: 0.84, green: 0.37, blue: 0.00), Color(red: 0.80, green: 0.47, blue: 0.65)]
+    private static let okabeItoTop = Color(red: 0.90, green: 0.62, blue: 0.00)
+    private static let okabeItoBottom = Color(red: 0.34, green: 0.71, blue: 0.91)
+    /// Inner layers: yellow, green, orange, magenta (Altium's mid-layer order).
+    private static let innerCopper: [Color] = [Color(red: 0.98, green: 0.84, blue: 0.25), Color(red: 0.30, green: 0.82, blue: 0.40),
+                                               Color(red: 1.00, green: 0.58, blue: 0.20), Color(red: 0.90, green: 0.40, blue: 0.85)]
 
     /// Copper coloured by what it carries: power red, ground blue, negative rails purple; signals take a per-layer
     /// colour that is never red or blue (top yellow, bottom green, inner cyan / orange / pink / lime).
     static func netColor(_ role: NetRole, layer: Int, layerCount: Int) -> Color {
         switch role {
-        case .power: return Color(red: 1.00, green: 0.25, blue: 0.22)
-        case .ground: return Color(red: 0.27, green: 0.55, blue: 1.00)
-        case .negative: return Color(red: 0.74, green: 0.42, blue: 1.00)
+        case .power: return powerNet
+        case .ground: return groundNet
+        case .negative: return negativeNet
         case .signal: return signalColor(layer, layerCount: layerCount)
         }
     }
+    private static let powerNet = Color(red: 1.00, green: 0.25, blue: 0.22)
+    private static let groundNet = Color(red: 0.27, green: 0.55, blue: 1.00)
+    private static let negativeNet = Color(red: 0.74, green: 0.42, blue: 1.00)
 
     static func signalColor(_ layer: Int, layerCount: Int) -> Color {
-        if layer == 0 { return Color(red: 0.98, green: 0.84, blue: 0.30) }
-        if layer == max(1, layerCount) - 1 { return Color(red: 0.35, green: 0.86, blue: 0.48) }
-        let inner: [Color] = [Color(red: 0.30, green: 0.86, blue: 0.95), Color(red: 1.00, green: 0.62, blue: 0.25),
-                              Color(red: 1.00, green: 0.52, blue: 0.80), Color(red: 0.72, green: 0.95, blue: 0.32)]
-        return inner[max(0, layer - 1) % inner.count]
+        if layer == 0 { return topSignal }
+        if layer == max(1, layerCount) - 1 { return bottomSignal }
+        return innerSignal[max(0, layer - 1) % innerSignal.count]
     }
+    private static let topSignal = Color(red: 0.98, green: 0.84, blue: 0.30)
+    private static let bottomSignal = Color(red: 0.35, green: 0.86, blue: 0.48)
+    private static let innerSignal: [Color] = [Color(red: 0.30, green: 0.86, blue: 0.95), Color(red: 1.00, green: 0.62, blue: 0.25),
+                                               Color(red: 1.00, green: 0.52, blue: 0.80), Color(red: 0.72, green: 0.95, blue: 0.32)]
 
     static func severityColor(_ s: ViolationSeverity) -> Color {
         switch s {
