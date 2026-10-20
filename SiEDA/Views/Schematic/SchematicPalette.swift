@@ -228,8 +228,13 @@ enum SchematicColorScheme: String, CaseIterable, Identifiable {
     static func palette(scheme raw: String, customJSON: String) -> SchematicPalette {
         let scheme = SchematicColorScheme(rawValue: raw) ?? defaultScheme
         if let preset = scheme.presetPalette { return preset }
-        return SchematicCustomTheme.load(customJSON).palette()
+        // The editor asks on every redraw: decode the custom theme's JSON once per change, not each time.
+        if let hit = customPalette, hit.json == customJSON { return hit.palette }
+        let palette = SchematicCustomTheme.load(customJSON).palette()
+        customPalette = (customJSON, palette)
+        return palette
     }
+    private static var customPalette: (json: String, palette: SchematicPalette)?
 }
 
 /// What the schematic canvas draws with: palette and grid. Passed through the environment.
