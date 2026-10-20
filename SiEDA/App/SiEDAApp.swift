@@ -211,7 +211,6 @@ struct SiEDAApp: App {
     @StateObject private var settings = AISettings()
     @StateObject private var agents = AgentOrchestrator()
     @StateObject private var language = LanguageSettings()
-    @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
 
     var body: some Scene {
         WindowGroup("SiEDA") {
@@ -222,7 +221,7 @@ struct SiEDAApp: App {
                 .environmentObject(agents)
                 .environmentObject(language)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme)
                 .tint(Theme.blue)
                 .documentWindowFrame()
                 .background(WindowCloseGuardInstaller(store: store))
@@ -243,7 +242,7 @@ struct SiEDAApp: App {
                 .environmentObject(settings)
                 .environmentObject(store)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme)
                 .tint(Theme.blue)
         }
         .defaultSize(width: 720, height: 520)
@@ -255,7 +254,7 @@ struct SiEDAApp: App {
                 .environmentObject(store)
                 .environmentObject(language)
                 .environment(\.locale, language.locale)
-                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme ?? (AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme)
                 .tint(Theme.blue)
         }
     }
@@ -267,19 +266,6 @@ enum TextEditingFocus {
 
     @MainActor static func send(_ action: String) {
         NSApp.sendAction(Selector((action)), to: nil, from: nil)
-    }
-}
-
-enum AppearancePreference: String, CaseIterable, Identifiable {
-    case dark, light, system
-    var id: String { rawValue }
-    var title: String { rawValue.capitalized }
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .dark: return .dark
-        case .light: return .light
-        case .system: return nil
-        }
     }
 }
 

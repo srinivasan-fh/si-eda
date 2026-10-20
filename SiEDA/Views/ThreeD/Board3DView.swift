@@ -847,8 +847,11 @@ struct BoardSceneView: NSViewRepresentable {
         c.boardNode.childNodes.forEach { $0.removeFromParentNode() }
         // Below the board and anything hanging under it (bottom-side parts, header tails).
         c.floorNode.position = SCNVector3(0, -CGFloat(board.thickness) - 9, 0)
-        guard let mesh = engine.buildMesh(includeComponents: includeComponents, hidden: look.hiddenParts,
-                                          standoffs: look.standoffs ? 6 : 0, enclosure: look.enclosure) else { return }
+        let options = "\(includeComponents) \(look.hiddenParts.sorted()) \(look.standoffs) \(look.enclosure)"
+        guard let mesh = MeshCache.mesh(engine, revision, options, {
+            engine.buildMesh(includeComponents: includeComponents, hidden: look.hiddenParts,
+                             standoffs: look.standoffs ? 6 : 0, enclosure: look.enclosure)
+        }) else { return }
         let node = Self.assemblyNode(from: mesh, finish: finish)
         // Centre the board on the origin (mesh is in board millimetres).
         node.position = SCNVector3(-board.width / 2, 0, -board.height / 2)
@@ -1013,5 +1016,25 @@ struct BoardSceneView: NSViewRepresentable {
         material.isDoubleSided = false
         geometry.materials = [material]
         return geometry
+    }
+}
+
+/// The core meshes of the current design revision, kept when a 3D view is made again for the same board (a theme
+/// change or a workspace switch remakes the views): building them is the slow part. A new revision drops them all.
+enum MeshCache {
+    private static weak var engine: EDAEngine?  // weak: a later engine at the same address never reads its meshes
+    private static var revision = -1
+    private static var meshes: [String: MeshData] = [:]
+
+    static func mesh(_ engine: EDAEngine, _ revision: Int, _ key: String, _ build: () -> MeshData?) -> MeshData? {
+        if self.engine !== engine || self.revision != revision {
+            self.engine = engine
+            self.revision = revision
+            meshes = [:]
+        }
+        if let hit = meshes[key] { return hit }
+        let mesh = build()
+        meshes[key] = mesh
+        return mesh
     }
 }

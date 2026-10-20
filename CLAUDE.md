@@ -55,7 +55,7 @@
   App-wide theme (Midnight Navy / Matrix Green / Graphite / Light): `SiEDA/Views/Common/AppTheme.swift`; `Theme` colours read
   `AppTheme.current` (saved in user defaults, so the next launch and its splash start in it; a plain value, never an observed one: colours are read
   thousands of times a frame and tracking each read halved UI speed); window roots `.id(AppTheme.Shown.shared.theme)` (`@Observable`) rebuild at once on a
-  new theme; Light also sets the light colour scheme, `AppTheme.colorScheme`);
+  new theme; the system controls follow it, `AppTheme.colorScheme` (light for Light, dark otherwise; no separate Appearance setting); the Settings window is painted in it too (`ThemedWindowBackground`); `Theme` resolves each theme's `Color`s once (`Theme.Resolved`), layer / net colours are `static let`s; 3D / X-ray meshes are kept per design revision across view rebuilds (`MeshCache`, Board3DView.swift); the custom schematic palette is decoded once per change);
   dark backdrops outside `Theme` (splash, 3D / X-ray / model views) go through `AppTheme.backdrop(r, g, b)` (Midnight Navy = the given navy); Midnight Navy must stay today's blues; board colours
   (copper, pads, errors) stay standard in every theme.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
