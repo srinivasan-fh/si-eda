@@ -92,7 +92,9 @@ struct XRayStackView: NSViewRepresentable {
         if c.meshRevision != revision {
             c.layerMeshes = [:]
             for layer in 0..<max(1, snapshot.board.layerCount) {
-                if let mesh = engine.buildLayerMesh(layer: layer) { c.layerMeshes[layer] = mesh }
+                if let mesh = MeshCache.mesh(engine, revision, "layer \(layer)", { engine.buildLayerMesh(layer: layer) }) {
+                    c.layerMeshes[layer] = mesh
+                }
             }
             c.meshRevision = revision
         }
