@@ -59,6 +59,7 @@ struct NetDirectiveEditor: View {
 /// Net classes of the design (schematic directives): name, track width and clearance. Directives on nets name them.
 struct NetClassesView: View {
     @EnvironmentObject private var store: DesignStore
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"  // redraws the lengths on a new unit
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var width = ""
@@ -117,8 +118,8 @@ struct NetClassesView: View {
     }
 
     static func describe(_ def: NetClassDefInfo) -> String {
-        let w = def.trackWidth.map { String(format: "w %.2f mm", $0) } ?? "w board"
-        let c = def.clearance.map { String(format: "c %.2f mm", $0) } ?? "c board"
+        let w = def.trackWidth.map { "w " + Theme.length($0) } ?? "w board"
+        let c = def.clearance.map { "c " + Theme.length($0) } ?? "c board"
         return w + " · " + c
     }
 }

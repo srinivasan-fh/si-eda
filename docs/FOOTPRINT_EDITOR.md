@@ -106,7 +106,8 @@ drawings and the board's Fabrication layer.
 
 ## Layout tools
 
-- **Units**: mm or mil (the toolbar); the cursor position shows at the top left of the canvas.
+- **Units**: the board display unit (mm, cm, mil, in, ft or pt; the toolbar menu and Settings → Board Units set the same
+  one, also used by the PCB editor and the inspector); the cursor position shows at the top left of the canvas.
 - **Arrange**: origin at pad 1 or at the selected pad; align left / right / top / bottom / centres; distribute.
 - **Pad array**: a row (copies and pitch) or a grid (rows and row pitch), numbered along the chosen direction.
 - **Body → Courtyard**: the courtyard margin around pads and body (IPC-7351 nominal 0.25 mm; package JSON
