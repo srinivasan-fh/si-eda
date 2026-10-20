@@ -63,6 +63,7 @@ private struct PropertyRow: View {
 
 private struct ComponentProperties: View {
     @EnvironmentObject private var store: DesignStore
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"  // redraws the lengths on a new unit
     let component: SnapComponent
     @State private var ref: String
     @State private var value: String
@@ -348,7 +349,7 @@ private struct ComponentProperties: View {
                 PropertyGroup(title: "PCB Footprint") {
                     PropertyRow(label: "Footprint", value: component.footprint)
                     if component.pcb.placed {
-                        PropertyRow(label: "Position", value: String(format: "%.2f, %.2f mm", component.pcb.x, component.pcb.y))
+                        PropertyRow(label: "Position", value: "\(Theme.length(component.pcb.x, unit: false)), \(Theme.length(component.pcb.y))")
                         PropertyRow(label: "Rotation", value: "\(component.pcb.rotation)°")
                         PropertyRow(label: "Layer", value: component.pcb.bottom ? "Bottom" : "Top")
                         if kind == .resistor || kind == .capacitor, store.snapshot.board.layerCount >= 4 {
@@ -717,6 +718,7 @@ private struct JunctionProperties: View {
 
 private struct ProjectProperties: View {
     @EnvironmentObject private var store: DesignStore
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"  // redraws the lengths on a new unit
     @State private var name = ""
     @State private var original = ""
     @FocusState private var nameFocused: Bool
@@ -746,11 +748,11 @@ private struct ProjectProperties: View {
             ApplianceSystemProperties()
             MemorySystemProperties()
             PropertyGroup(title: "Board") {
-                PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
+                PropertyRow(label: "Size", value: "\(Theme.length(store.snapshot.board.width, unit: false)) × \(Theme.length(store.snapshot.board.height))")
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
                 PropertyRow(label: "Design rules", value: store.snapshot.board.rulePreset)
-                PropertyRow(label: "Track / clearance", value: String(format: "%.2f / %.2f mm", store.snapshot.board.trackWidth, store.snapshot.board.clearance))
-                PropertyRow(label: "Via", value: String(format: "%.2f / %.2f mm", store.snapshot.board.viaDiameter, store.snapshot.board.viaDrill))
+                PropertyRow(label: "Track / clearance", value: "\(Theme.length(store.snapshot.board.trackWidth, unit: false)) / \(Theme.length(store.snapshot.board.clearance))")
+                PropertyRow(label: "Via", value: "\(Theme.length(store.snapshot.board.viaDiameter, unit: false)) / \(Theme.length(store.snapshot.board.viaDrill))")
                 PropertyRow(label: "Tracks / vias", value: "\(store.snapshot.tracks.count) / \(store.snapshot.vias.count)")
             }
             if !store.snapshot.requirements.isEmpty {
@@ -1089,6 +1091,7 @@ private struct ChannelParameterRows: View {
 /// for this part. Every swap is back-annotated to the schematic.
 private struct PcbSwapPanel: View {
     @EnvironmentObject private var store: DesignStore
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"  // redraws the lengths on a new unit
     var component: Int
 
     var body: some View {
@@ -1102,7 +1105,7 @@ private struct PcbSwapPanel: View {
                             .foregroundStyle(Theme.skyBlue)
                         Text(verbatim: option.label).font(.caption.monospaced()).lineLimit(1)
                         Spacer()
-                        Text(verbatim: String(format: "%+.1f mm", -option.gain)).font(.caption2.monospaced())
+                        Text(verbatim: (option.gain > 0 ? "-" : "+") + Theme.length(abs(option.gain))).font(.caption2.monospaced())
                             .foregroundStyle(option.gain > 0.01 ? Theme.liveOn : Theme.textMuted)
                         Button("Swap") { store.swapOnBoard(option) }
                             .controlSize(.small)

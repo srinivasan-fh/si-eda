@@ -23,7 +23,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Unified database: schematic, PCB, footprints, parts, constraints, BOM, 3D | ✅ | `Project` (one JSON document) |
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
-| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), footprint editor mil; a fixed-point (nm) database ⏳ |
+| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; a fixed-point (nm) database ⏳ |
 | P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | core, CLI and MCP server build on Linux / macOS; the app is macOS only |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |

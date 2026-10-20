@@ -29,8 +29,9 @@ struct FootprintEditorView: View {
     @State private var arrayRowPitch = 1.27
     @State private var checkTask: Task<Void, Never>?
     @State private var hoverPoint: CGPoint?
-    /// Lengths shown in mils (1 mil = 0.0254 mm) instead of mm.
-    @AppStorage("footprint.units.mil") private var mil = false
+    /// Lengths shown in the board display unit (Settings → Board Units), shared with the PCB editor and inspector.
+    @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"
+    private var unit: Theme.LengthUnit { Theme.LengthUnit(rawValue: displayUnit) ?? .mm }
     // Generator and IPC-7351 calculator inputs.
     @State private var genType = "SOIC"
     @State private var genPins = 8
@@ -261,11 +262,10 @@ struct FootprintEditorView: View {
             Toggle(isOn: $show3D) { Label("3D", systemImage: "cube") }
                 .toggleStyle(.button)
                 .help("Show the part in 3D above the side panel")
-            Picker("Units", selection: $mil) {
-                Text(verbatim: "mm").tag(false)
-                Text(verbatim: "mil").tag(true)
+            Picker("Units", selection: $displayUnit) {
+                ForEach(Theme.LengthUnit.allCases) { Text(verbatim: $0.rawValue).tag($0.rawValue) }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
             .labelsHidden()
             .fixedSize()
             Divider().frame(height: 18)
@@ -505,20 +505,20 @@ struct FootprintEditorView: View {
 
     /// A length field in the chosen units (the value is kept in mm).
     private func number(_ title: String, _ value: Binding<Double>, step: Double) -> some View {
-        let f = mil ? 0.0254 : 1.0
-        let shown = Binding(get: { value.wrappedValue / f }, set: { value.wrappedValue = $0 * f })
+        let u = unit
+        let shown = Binding(get: { u.fromMM(value.wrappedValue) }, set: { value.wrappedValue = u.toMM($0) })
         return HStack {
             Text(title).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 62, alignment: .leading)
-            TextField(title, value: shown, format: .number.precision(.fractionLength(0...4)))
+            TextField(title, value: shown, format: .number.precision(.fractionLength(0...u.decimals)))
                 .textFieldStyle(.blue)
                 .frame(width: 90)
             Stepper("", value: value, step: step).labelsHidden()
-            Text(verbatim: mil ? "mil" : "mm").font(.caption2).foregroundStyle(Theme.textMuted)
+            Text(verbatim: u.rawValue).font(.caption2).foregroundStyle(Theme.textMuted)
         }
     }
 
     private func length(_ mm: Double) -> String {
-        mil ? String(format: "%.1f mil", mm / 0.0254) : String(format: "%.3f mm", mm)
+        Theme.length(mm)
     }
 
     /// A binding to one land field that records undo once per edit.
