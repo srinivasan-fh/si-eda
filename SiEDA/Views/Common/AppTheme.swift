@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// App-wide colour theme (Settings → Appearance → App Theme): the panels, accents and text of every window
@@ -20,8 +21,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
         var theme = AppTheme.current
     }
 
-    /// The light theme puts the system controls in light mode too; the dark themes keep the Appearance setting.
-    var colorScheme: ColorScheme? { self == .light ? .light : nil }
+    /// The system controls' mode follows the theme: light for Light, dark for the others (no separate setting).
+    var colorScheme: ColorScheme { self == .light ? .light : .dark }
 
     var id: String { rawValue }
 
@@ -104,4 +105,17 @@ enum AppTheme: String, CaseIterable, Identifiable {
         iceBlue: .init(hex: 0x111827), textMuted: .init(hex: 0x5B6576), gridDot: .init(hex: 0xC9D0DA),
         symbolFill: .init(hex: 0xFFFFFF), pin: .init(hex: 0x1D3F7A), valueLabel: .init(hex: 0x3A5A8C),
         pcbBackground: .init(hex: 0x14171C))
+}
+
+/// Paints its window's own background (title bar, Settings tab bar) in the app theme's navy.
+struct ThemedWindowBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { PaintingView() }
+    func updateNSView(_ view: NSView, context: Context) { view.window?.backgroundColor = Theme.navyNS }
+
+    private final class PaintingView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.backgroundColor = Theme.navyNS
+        }
+    }
 }

@@ -20,6 +20,10 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 680, height: 600)
+        // In the app theme, like the main window: its navy behind the forms and the window's tab bar.
+        .scrollContentBackground(.hidden)
+        .background(Theme.navy)
+        .background(ThemedWindowBackground())
     }
 }
 
@@ -280,7 +284,6 @@ struct AccountSettings: View {
 }
 
 private struct AppearanceSettings: View {
-    @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
     @AppStorage("showSplashScreen") private var showSplashScreen = true
     /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
@@ -292,17 +295,10 @@ private struct AppearanceSettings: View {
 
     var body: some View {
         Form {
-            Picker("Appearance", selection: $appearance) {
-                ForEach(AppearancePreference.allCases) { Text($0.title).tag($0.rawValue) }
-            }
-            .pickerStyle(.segmented)
             Picker("App Theme", selection: Binding(get: { AppTheme.current }, set: AppTheme.select)) {
                 ForEach(AppTheme.allCases) { Text(LocalizedStringKey($0.title)).tag($0) }
             }
             Text("Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard.")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-            Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Picker("Board Units", selection: $displayUnit) {

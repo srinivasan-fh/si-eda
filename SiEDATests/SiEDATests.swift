@@ -8416,7 +8416,7 @@ final class AppThemeTests: XCTestCase {
         AppTheme.select(.midnightNavy)
         XCTAssertEqual(SchematicRGB(Theme.navy)?.hexString, "#0A1224")
         XCTAssertEqual(defaults.string(forKey: SchematicColorScheme.storageKey), SchematicColorScheme.siedaDark.rawValue)
-        XCTAssertNil(AppTheme.current.colorScheme)
+        XCTAssertEqual(AppTheme.current.colorScheme, .dark)
         AppTheme.select(.light)
         XCTAssertEqual(SchematicRGB(Theme.navy)?.hexString, "#F7F8FA")
         XCTAssertEqual(AppTheme.current.colorScheme, .light)
