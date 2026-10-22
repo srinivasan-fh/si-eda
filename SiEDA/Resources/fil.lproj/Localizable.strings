@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "Bukas ang proyektong ito sa ibang lugar";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "Bukas ito ni %1$@ sa %2$@ mula %3$@. Magsasalungat ang mga pag-edit sa dalawang lugar.";
 "Open Anyway" = "Buksan Pa Rin";
+"Apply Rules" = "Ilapat ang mga Patakaran";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Bawat patakaran: name, object (track, via, pad, part, net), when (filter), require (dapat totoo), severity. Ginagamit ng mga expression ang mga katangian ng object, hal. net ~ \"USB_*\" and width >= 0.2mm. Iniuulat ng DRC ang nilabag na patakaran bilang RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Tantiya mula sa iyong talaan ng presyo, hindi quote ng gumagawa.";
+"Export Package & Open Order Page" = "I-export ang Package at Buksan ang Order Page";
+"Fold Flex" = "Itiklop ang Flex";
+"No published limits for this fab: check the board against its capability page." = "Walang nailathalang limitasyon para sa gumagawang ito: suriin ang board laban sa capability page nito.";
+"Open Plug-ins Folder" = "Buksan ang Folder ng Plug-in";
+"Order Boards" = "Mag-order ng Board";
+"Order Boards…" = "Mag-order ng Board…";
+"Plug-ins" = "Mga Plug-in";
+"Price Table…" = "Talaan ng Presyo…";
+"Quantity" = "Dami";
+"Remove Price Table" = "Alisin ang Talaan ng Presyo";
+"Within the fab's published limits" = "Pasok sa nailathalang limitasyon ng gumagawa";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "Mga presyo ng iyong gumagawa (sieda.fabprice/1 JSON) para sa tantiya; walang built-in na presyo ang SiEDA";

@@ -1895,6 +1895,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
         if (f == "idx") return dup(exportIdx(p.schematic, p.pcb, p.name));
         if (f == "dxf") return dup(exportDxf(p.schematic, p.pcb));
+        if (f == "freecad" || f == "fusion") return dup(exportMcadScript(p.schematic, p.pcb, p.name, f));
         if (f == "testpoints") return dup(exportTestPointReport(p.schematic, p.pcb));
         if (f == "html_bom") return dup(exportHtmlBom(p));
         if (f == "bringup") return dup(bringUpChecklist(p));
@@ -2129,6 +2130,7 @@ SiedaMesh* sieda_mesh_build_options(const SiedaProject* project, const char* opt
         for (const auto& id : j.get("hidden").items()) opt.hidden.insert(id.asInt(-1));
         opt.standoffs = std::clamp(j.get("standoffs").asNumber(0), 0.0, 50.0);
         opt.enclosure = j.get("enclosure").asBool(false);
+        opt.fold = j.get("fold").asBool(false);
         auto m = std::make_unique<SiedaMesh>();  // freed if the build throws
         m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
         return m.release();

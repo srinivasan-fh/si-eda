@@ -56,6 +56,7 @@ struct ContentView: View {
         .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
         .sheet(isPresented: $store.showGerberViewer) { GerberViewerView().environmentObject(store) }
+        .sheet(isPresented: $store.showFabOrder) { FabOrderView().environmentObject(store) }
         .sheet(isPresented: $store.showWelcomeTour) { WelcomeTourView() }
         .sheet(isPresented: $store.showShortcuts) { KeyboardShortcutsView() }
         .sheet(isPresented: $store.showPerformance) { PerformanceView().environmentObject(store) }

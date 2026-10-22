@@ -6694,7 +6694,8 @@ void outputTools(Table& t) {
           "pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / "
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
           "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), "
-          "testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
+          "freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the "
+          "moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
           "checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, "
           "revisions), net_lengths (routed length per net, CSV). variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
@@ -6830,7 +6831,8 @@ void teamTools(Table& t) {
               .num("maxHeightBottom", "Tallest part on the bottom side (mm, 0 = no limit)")
               .any("zones", "[{name, x0, y0, x1, y1, bottom, maxHeight}] (mm, board coordinates)")
               .any("flex", "Rigid-flex bend areas [{name, x0, y0, x1, y1, bendRadius, thickness (mm, default 0.11), layers "
-                           "(copper, default 2), dynamic}]"),
+                           "(copper, default 2), dynamic, bendAngle (degrees the board past the area folds in render_3d, the 3D view and "
+                           "the drawing: + up, − down; it bends across the area's shorter side)}]"),
           [](McpServer& s, const Json& a) {
               if (a.has("maxHeightTop") || a.has("maxHeightBottom") || a.has("zones") || a.has("flex")) {
                   Json cur = takeJson(sieda_pcb_mechanical_limits(P(s)));
@@ -6856,6 +6858,39 @@ void teamTools(Table& t) {
               j["packs"] = takeJson(sieda_dfm_packs_json());
               j["selected"] = takeJson(sieda_project_snapshot(P(s))).get("board").get("dfmPack");
               j["report"] = takeJson(sieda_dfm_report_json(P(s)));
+              return out(j);
+          });
+    t.add("pcb", "pcb_custom_rules", "Custom design rules", Kind::Edit, true,
+          "Rule scripting: your own DRC rules as expressions over each track, via, pad, part or net. rules replaces "
+          "them ([] removes all): {name, object, when (filter, \"\" = every object), require, severity (error / warning / "
+          "info), message}. Expressions: numbers with mm / mil / in, \"text\", ( ), + - * /, == != < <= > >=, ~ (glob: "
+          "net ~ \"USB_*\"), and / && , or / ||, not / !. Properties — track: net, width, length, layer (\"Top\", \"Bottom\", "
+          "\"Inner 1\"), "
+          "layerIndex, arc, locked; via: net, drill, diameter, ring, through; pad: net, ref, pin, width, height, drill, "
+          "through, npth; part: ref, value, footprint, mpn, x, y, rotation, bottom, dnp; net: net, length, tracks, vias, "
+          "pads, minWidth. pcb_drc reports a broken rule as RULE_<NAME> (RULE_SYNTAX when it cannot be read). Returns the "
+          "rules, read errors and what they flag now.",
+          Schema().array("rules", "[{name, object, when, require, severity, message}]", "object"),
+          [](McpServer& s, const Json& a) {
+              const Json rules = a.get("rules");
+              Json j = takeJson(sieda_pcb_custom_rules(P(s), rules.isArray() ? rules.dump().c_str() : nullptr));
+              check(!j.isNull(), "rules must be an array");
+              return out(j);
+          });
+    t.add("output", "output_fab_quote", "Fab quote and order", Kind::Read, false,
+          "What a board house's order form asks, read from the board (layers, size, area, thickness, material, copper, "
+          "finish, mask / silk colours, minimum track / space / drill / ring, hole and via counts, HDI, via-in-pad, "
+          "impedance control, panel), checked against the fab's published limits (JLCPCB, PCBWay, OSH Park, "
+          "Eurocircuits; Lion Circuits and PCB Power (India) have no published pack: check their capability page), its "
+          "order page and steps. A price estimate only from priceTable (your fab's prices, sieda.fabprice/1: currency, "
+          "setup, perCm2, minimum, layers {\"4\": 2.2}, quantityFactors [[qty, factor]], options {ENIG, impedance, hdi, "
+          "viaInPad, colour}, leadDays); SiEDA has no built-in prices. Without fab: the list of fabs.",
+          Schema().str("fab", "jlcpcb, pcbway, oshpark, eurocircuits, lioncircuits or pcbpower")
+              .integer("quantity", "Boards to order (default 5)")
+              .object("priceTable", "Your fab's prices (sieda.fabprice/1) for an estimate"),
+          [](McpServer& s, const Json& a) {
+              Json j = takeJson(sieda_fab_quote(P(s), a.dump().c_str()));
+              if (j.has("error") && a.has("fab")) throw ToolError(j.get("error").asString() + " (fabs: jlcpcb, pcbway, oshpark, eurocircuits, lioncircuits, pcbpower)");
               return out(j);
           });
     t.add("pcb", "si_field_solver", "Field-solver impedance", Kind::Read, false,

@@ -156,7 +156,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Creepage / clearance (IPC-2221, IEC 62368 / 60664) | ✅ | industry profiles |
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
 | P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
-| P2 | SI / return path / PI / thermal / assembly checks, rule scripting | 🟡 | all but rule scripting ✅ |
+| P2 | SI / return path / PI / thermal / assembly checks, rule scripting | ✅ | rule scripting: custom DRC rules (Board Setup → Custom Rules, MCP `pcb_custom_rules`) |
 | P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report ✅; approvals ⏳ |
 
 ## 7. Simulation and analysis
@@ -182,9 +182,9 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Enclosure reference, heights, collisions, keep-outs, zones, export checks | ✅ | |
 | P1 | ➕ Outline / keep-outs from MCAD (DXF / STEP) with reimport | ✅ | IDX / IDF and DXF outline import |
 | P2 | IDX / IDF, section / exploded views, photoreal render | ✅ | |
-| P2 | Rigid-flex folding | ⏳ | |
+| P2 | Rigid-flex folding | ✅ | flex bend angle folds the 3D view, render_3d and the drawing |
 | P2 | Mechanical revision comparison, connector / fastener collisions | ✅ | |
-| P2 | ➕ Native FreeCAD / Fusion / SolidWorks / Onshape connectors | ⏳ | |
+| P2 | ➕ Native FreeCAD / Fusion / SolidWorks / Onshape connectors | 🟡 | FreeCAD macro and Fusion script with placement back (IDF) ✅; SolidWorks / Onshape through STEP / IDX |
 | P3 | Mechanical change approval, PLM | ⏳ | |
 
 ## 9. Manufacturing, DFM, DFA, test readiness
@@ -199,8 +199,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Gerber X2, IPC-2581, ODB++, ➕ IPC-D-356 | ✅ | |
 | P1 | DFM / DFA, drill-to-copper, mask bridge, polarity, fab profiles | ✅ | |
 | P1 | Panels, fiducials, release checklist, ➕ stack-up docs, per-variant outputs | ✅ | |
-| P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab quote APIs ⏳ |
-| P2 | ➕ Direct order / quote APIs (incl. Indian vendors) | ⏳ | |
+| P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab order form + estimate from your price table ✅; live quote APIs ⏳ (partner keys) |
+| P2 | ➕ Direct order / quote APIs (incl. Indian vendors) | 🟡 | File → Order Boards: order form, published-limit check, order page (JLCPCB, PCBWay, OSH Park, Eurocircuits, Lion Circuits, PCB Power) ✅; vendors' partner APIs ⏳ |
 | P3 | Release signatures, change notices, MES / QMS | ⏳ | |
 
 ## 10. Documentation and drawings
@@ -213,7 +213,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Title blocks, revision tables, templates; PDF of drawings | ✅ | schematic PDF and the board's fabrication drawing PDF, both with the revision table |
 | P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | 🟡 | change report, layer legend, net-length and test-point reports ✅; customer templates ⏳ |
 | P2 | Interactive HTML BOM / board viewer | ✅ | `exportHtmlBom` (one offline file, in the package) |
-| P2 | 3D / exploded / section views in drawings | ⏳ | |
+| P2 | 3D / exploded / section views in drawings | ✅ | fabrication drawing sheet 2 |
 | P3 | Controlled drawing release, PLM numbering | ⏳ | |
 
 ## 11. BOM, sourcing and cost
@@ -224,7 +224,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Custom columns, grouping, templates | ✅ | grouping; MCP `output_bom` columns in any order (`exportBomColumns`); BOM layout travels in project templates |
 | P1 | Supplier catalogs, price breaks, INR / USD, stock / lead time, EOL, alternates | ✅ | Nexar, DigiKey, Mouser |
 | P1 | ➕ MOQ, packaging, attrition | ✅ | |
-| P2 | Build cost, layer / material cost, second sources, risk scores, alerts | 🟡 | cost roll-up ✅; alerts ⏳ |
+| P2 | Build cost, layer / material cost, second sources, risk scores, alerts | 🟡 | cost roll-up and price / stock / lifecycle alerts ✅ |
 | P2 | Indian suppliers, ➕ duty / GST / landed cost | ✅ | |
 | P2 | ➕ Consolidated BOM across boards | ✅ | `exportBomColumns`: one BOM across every board with a Boards column, or one board's |
 | P3 | AVL, procurement rules, RoHS / REACH, origin, ERP | 🟡 | compliance fields ✅; ERP ⏳ |
@@ -315,7 +315,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | CLI ERC / DRC, automated outputs | ✅ | |
 | P1 | CI templates (GitHub Actions / GitLab) | ✅ | `docs/ci/sieda-check.yml` (GitHub Actions), `docs/ci/sieda-check.gitlab-ci.yml` (GitLab) |
 | P1 | ➕ Event hooks | ✅ | after-open / save / verify / export scripts in Application Support/SiEDA/Hooks |
-| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface ✅ |
+| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface, plug-ins (Design → Plug-ins), custom rules ✅; sandboxing ⏳ |
 | P3 | REST, PLM / ERP, plug-in governance | ⏳ | |
 
 ## 19. Enterprise, security, compliance
@@ -399,11 +399,11 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 13. MCU / FPGA pin planner (graphical) with ~~CubeMX / XDC / QSF import and firmware header export~~ ✅ (§12)
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
 15. ~~Library update notices~~, library versions, ~~tags / favourites, CSV pin-table wizard, IPC zero-orientation check~~ (§3)
-16. ~~Consolidated multi-board BOM, custom BOM columns~~ ✅, price alerts (§11)
+16. ~~Consolidated multi-board BOM, custom BOM columns, price alerts~~ ✅ (§11)
 17. In-app Git, browser viewer, ~~file locking~~ ✅, approvals (§15)
 18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
-19. Rigid-flex folding in 3D, native MCAD connectors (§8)
-20. Fab quote / order APIs, Gerber-level package comparison (§9 P2)
+19. ~~Rigid-flex folding in 3D~~ ✅, native MCAD connectors (~~FreeCAD, Fusion~~ ✅; SolidWorks, Onshape) (§8)
+20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), Gerber-level package comparison (§9 P2)
 21. Windows / Linux app (§1 P0) — the core already builds there; the app is SwiftUI
 22. Signed installers and auto-update, SBOM, reproducible builds (§19, §20)
 23. Enterprise: teams, RBAC, SSO, audit, self-hosting, PLM / ERP (§15, §19 P3)

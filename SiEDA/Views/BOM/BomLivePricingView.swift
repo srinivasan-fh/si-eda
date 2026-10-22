@@ -2,7 +2,7 @@ import SwiftUI
 
 /// BOM → Live Pricing: looks up every line's manufacturer part number at the configured distributors and shows stock,
 /// the best offer and price at the build quantity, lifecycle warnings (NRND, EOL, obsolete) and the BOM cost at
-/// 1, 10, 100 and 1000 boards. "Apply Prices" writes the supplier part numbers and unit prices into the BOM (one undo
+/// 1, 10, 100 and 1000 boards, and price watch alerts (what changed since the last look). "Apply Prices" writes the supplier part numbers and unit prices into the BOM (one undo
 /// step).
 struct BomLivePricingView: View {
     let report: BomReport
@@ -95,6 +95,10 @@ struct BomLivePricingView: View {
                 Label("Some lines are priced in another currency and are added as they are.", systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.warning)
             }
+            ForEach(Array((rollup.alerts ?? []).prefix(12).enumerated()), id: \.offset) { _, alert in
+                Label { Text(verbatim: alert.message) } icon: { Image(systemName: "bell.badge.fill") }
+                    .font(.caption).foregroundStyle(alert.severity == "warning" ? Theme.warning : Theme.textSecondary)
+            }
             ForEach(Array((rollup.warnings + problems).prefix(12).enumerated()), id: \.offset) { _, warning in
                 Label { Text(verbatim: warning) } icon: { Image(systemName: "exclamationmark.triangle.fill") }
                     .font(.caption).foregroundStyle(Theme.warning)
@@ -184,8 +188,9 @@ struct BomLivePricingView: View {
                 currency: currency, quantities: Self.boardCounts, buildQuantity: build, attritionPercent: Double(attrition),
                 lines: lines.map { .init(item: $0.item, refs: $0.refs, quantity: $0.quantity, mpn: $0.mpn,
                                          manufacturer: $0.manufacturer, dnp: $0.dnp, embedded: $0.embedded ?? false) },
-                parts: parts)
+                parts: parts, baseline: PriceWatch.load())
             rollup = EDAEngine.supplierBomRollup(request)
+            if let baseline = rollup?.baseline { PriceWatch.save(baseline) }
             problems += failures.sorted().prefix(4)
             task = nil
         }

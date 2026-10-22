@@ -5741,6 +5741,14 @@ final class SupplierSearchTests: XCTestCase {
         XCTAssertEqual(rollup.lines.first?.lifecycle, .nrnd)
         XCTAssertFalse(rollup.warnings.isEmpty)
         XCTAssertEqual(rollup.totals.last?.cost ?? 0, 200 * 0.184, accuracy: 1e-9)
+        XCTAssertNil(rollup.alerts)
+        // Price watch: last time it cost 0.20, so the rise to 0.45 is an alert; the baseline comes back updated.
+        let watched = try XCTUnwrap(EDAEngine.supplierBomRollup(SupplierRollupRequest(
+            currency: "USD", quantities: [1], buildQuantity: 5,
+            lines: [.init(item: 1, refs: ["U1"], quantity: 2, mpn: "LM358DR", manufacturer: "", dnp: false, embedded: false)],
+            parts: result.parts, baseline: ["LM358DR": .init(unitPrice: 0.2, currency: "USD", stock: nil, lifecycle: "nrnd")])))
+        XCTAssertEqual(watched.alerts?.map(\.kind), ["price_up"])
+        XCTAssertEqual(watched.baseline?["LM358DR"]?.unitPrice ?? 0, 0.45, accuracy: 1e-9)  // 10 at the 1-piece price
     }
 }
 
@@ -6829,6 +6837,45 @@ final class ArcRoutingTests: XCTestCase {
         let r = store.runTool("pcb_import_kicad", arguments: ["text": board])
         XCTAssertFalse(r.isError, r.text)
         XCTAssertTrue(r.text.contains("\"misfit\":[]") && r.text.contains("\"tracks\":1"), r.text)
+    }
+
+    func testPluginsCustomRulesAndFabQuote() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-plugins-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // A plug-in sees a copy of the project, prints a report and rewrites it (here: another design): one undo step.
+        let other = DesignStore()
+        XCTAssertFalse(other.runTool("project_load_example", arguments: ["id": "led_indicator"]).isError)
+        try other.engine.saveJSON().write(to: dir.appendingPathComponent("next.json"), atomically: true, encoding: .utf8)
+        let script = dir.appendingPathComponent("replace")
+        try "#!/bin/sh\necho checked\ncp \"$(dirname \"$0\")/next.json\" \"$SIEDA_PROJECT\"\n"
+            .write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        XCTAssertEqual(ProjectPlugins.list(in: dir).map(\.lastPathComponent), ["replace"])
+        let store = DesignStore()
+        let before = store.snapshot.components.count
+        await store.runPlugin(script)
+        XCTAssertEqual(store.snapshot.components.count, other.snapshot.components.count)
+        XCTAssertTrue(store.alert?.message.hasPrefix("checked") ?? false)
+        store.undo()
+        XCTAssertEqual(store.snapshot.components.count, before)
+        // Custom rules: a rule that cannot be read is reported; not-an-array text changes nothing.
+        store.setCustomRules(#"[{"name": "w", "object": "track", "when": "", "require": "width >= 0.1mm", "severity": "warning"},"#
+            + #"{"name": "x", "object": "via", "when": "", "require": "colour == 1", "severity": "error"}]"#)
+        let rules = try XCTUnwrap(store.engine.customRules())
+        XCTAssertEqual(rules.rules.map(\.name), ["w", "x"])
+        XCTAssertEqual(rules.errors.map(\.name), ["x"])
+        XCTAssertTrue(rules.json.contains("\"require\" : \"width >= 0.1mm\""), rules.json)
+        store.setCustomRules("{}")
+        XCTAssertEqual(store.engine.customRules()?.rules.count, 2)
+        // Fab quote: the order form, the fab's published checks, no price without a price table.
+        let quote = try XCTUnwrap(store.engine.fabQuote(#"{"fab":"jlcpcb","quantity":5}"#))
+        XCTAssertTrue(quote.orderUrl.hasPrefix("https://"))
+        XCTAssertNotNil(quote.order["layers"])
+        XCTAssertNil(quote.estimate)
+        let priced = try XCTUnwrap(store.engine.fabQuote(#"{"fab":"pcbpower","priceTable":{"currency":"INR","setup":100}}"#))
+        XCTAssertEqual(priced.estimate?.total ?? 0, 100, accuracy: 1e-9)
+        XCTAssertTrue(priced.checks.isEmpty)
     }
 
     func testPinTableImport() {

@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "此專案已在別處開啟";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ 自 %3$@ 起已在 %2$@ 上開啟它。兩處所做的編輯會互相衝突。";
 "Open Anyway" = "仍要開啟";
+"Apply Rules" = "套用規則";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "每條規則：name、object（track、via、pad、part、net）、when（篩選）、require（必須成立）、severity。運算式使用物件的屬性，例如 net ~ \"USB_*\" and width >= 0.2mm。DRC 會將違反的規則回報為 RULE_<NAME>。";
+"Estimate from your price table, not the fab's quote." = "依您的價格表估算，並非製造商報價。";
+"Export Package & Open Order Page" = "匯出資料包並開啟下單頁面";
+"Fold Flex" = "摺疊軟板區";
+"No published limits for this fab: check the board against its capability page." = "此製造商沒有公布的製程極限：請對照其製程能力頁面檢查電路板。";
+"Open Plug-ins Folder" = "開啟外掛程式資料夾";
+"Order Boards" = "訂購電路板";
+"Order Boards…" = "訂購電路板…";
+"Plug-ins" = "外掛程式";
+"Price Table…" = "價格表…";
+"Quantity" = "數量";
+"Remove Price Table" = "移除價格表";
+"Within the fab's published limits" = "在製造商公布的極限之內";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "用於估算的製造商價格（sieda.fabprice/1 JSON）；SiEDA 不內建任何價格";

@@ -135,6 +135,11 @@ extension EDAEngine {
 
     func setDfmPack(_ id: String) -> Bool { withHandle { sieda_pcb_set_dfm_pack($0, id) } == 1 }
 
+    /// The board's custom (scripted) DRC rules; `json` (an array) replaces them first.
+    func customRules(_ json: String? = nil) -> CustomRulesInfo? {
+        Self.decode(CustomRulesInfo.self, from: withHandle { Self.take(sieda_pcb_custom_rules($0, json)) })
+    }
+
     func dfmReport() -> DfmReport? { Self.decode(DfmReport.self, from: withHandle { Self.take(sieda_dfm_report_json($0)) }) }
 
     /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
@@ -166,5 +171,25 @@ extension EDAEngine {
     /// Pins from a CSV / TSV pin table (a header names the columns; CubeMX pin lists work as they are).
     static func parsePinTable(_ text: String) -> [CustomPartSpec.Pin] {
         decode([CustomPartSpec.Pin].self, from: take(sieda_parse_pin_table(text))) ?? []
+    }
+}
+
+/// Rule scripting (CustomRules.hpp): the rules, what cannot be read, what the DRC flags.
+struct CustomRulesInfo: Decodable {
+    struct Rule: Codable {
+        var name, object, when, require, severity: String
+        var message: String?
+    }
+    struct Problem: Decodable { var name, error: String }
+    struct Flag: Decodable { var code: String }
+    var rules: [Rule]
+    var errors: [Problem]
+    var violations: [Flag]
+
+    /// The rules as editable JSON.
+    var json: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        return (try? encoder.encode(rules)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
     }
 }

@@ -26,6 +26,12 @@ std::string exportIdfLibrary(const Schematic& sch, const PcbLayout& pcb);
 /// rotation and side. Returns the designators moved; unknown designators and unchanged parts are left out.
 std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& emn);
 
+/// A script that opens the board in MCAD (`tool` "freecad": a FreeCAD macro; "fusion": an Autodesk Fusion Python
+/// script): the board solid (outline, cutouts, holes) and one box per placed part, named by designator, in the MCAD
+/// frame (mm, Y up, board underside at Z = 0). Run again in that document, it writes the parts' moved positions,
+/// rotations and sides as an IDF board file (<name>-placement.emn) for importIdfPlacement. Empty for another tool.
+std::string exportMcadScript(const Schematic& sch, const PcbLayout& pcb, const std::string& name, const std::string& tool);
+
 /// ProSTEP iViP EDMD (IDX) v4.5 baseline (SendInformation): the board outline extruded to its thickness with its
 /// mounting holes, and every placed part as a package item (body outline and height) plus an instance with its
 /// designator (REFDES), side (AssembleToName TOP / BOTTOM) and 2D transformation. MCAD XY, Y up, millimetres.

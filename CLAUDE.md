@@ -233,6 +233,19 @@
   Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve` / goal seek `sieda_field_solve_width` (`fieldSolvedWidth`: Illinois regula falsi on ln Z, ~6 solves), MCP `si_field_solver` (`targetOhms`), app Board Setup →
   Stack-up → Check with Field Solver; opt-in `SiSettings::fieldSolverLines` / `LossOptions::fieldSolver` feeds the
   channel lines (`lineModel`, cached per geometry). The closed-form widths are unchanged.
+- P2 features: rigid-flex folding `FlexRegion::bendAngle` (saved only when set) + `MeshOptions::fold` / `foldFlexRegions`
+  (Mesh.cpp: triangles split at the bend's cuts, far side turned; render_3d and the drawing fold, the app's 3D view by
+  "Fold Flex"); fabrication drawing sheet 2 (`exportBoardDrawingPdf(project, views3d)`: isometric / exploded / section
+  A-A rasters by `rasterizeMesh` (McpRender.cpp) as ASCII85 + Flate images: the PDF stays ASCII, the C API hands it
+  over as a string; verification's package leaves them out); price watch (`supplierBomRollup` with `baseline` →
+  `alerts` + new `baseline`; app `PriceWatch` in SupplierModels.swift); fab quote / order (`fabQuote`, `fabServices` in
+  Fabrication.cpp, C `sieda_fab_quote`, MCP `output_fab_quote`, app `FabOrderView.swift`: never built-in prices, only
+  the user's price table; order pages verified, Indian fabs have no published pack); MCAD scripts `exportMcadScript`
+  (Mechanical.cpp, export "freecad" / "fusion", package `mechanical/`: run again they write IDF placement for
+  `importIdfPlacement`); rule scripting `Core/src/CustomRules.cpp` (`BoardSettings::customRules`, saved only when
+  present, RULE_<NAME> / RULE_SYNTAX in `runDRC`, tokens capped at 500, C `sieda_pcb_custom_rules`, MCP
+  `pcb_custom_rules`, app Board Setup → Custom Rules); plug-ins `ProjectPlugins` (ProjectHooks.swift: Application
+  Support/SiEDA/Plugins only, run on a project copy, changes = one undo step via `performExternalEdit`).
 - Board objects (guide in `docs/MCAD.md`): copper thieving `copperThieving` / `copperFills` in `Zones.cpp` (dots as
   extra fills with zone and net -1; output code reads `copperFills`, connectivity keeps `zoneFills`); artwork
   `BoardSettings::graphics` (`BoardGraphic`, raster logos, user layers `exportUserLayerGerber`, DRC_GRAPHIC_COPPER),

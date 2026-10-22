@@ -17,6 +17,8 @@
 #include <sstream>
 
 #include "sieda/Bom.hpp"
+#include "sieda/Dfm.hpp"
+#include "sieda/Mechanical.hpp"
 #include "sieda/Embedded.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
@@ -144,6 +146,119 @@ std::string recommendedSurfaceFinish(const Project& project) {
     std::string required = fabricationRequirements(project).finish;  // industry (no pure tin, RF silver …)
     if (!required.empty()) return required;
     return facts(project).minPitch < 0.65 ? "ENIG" : "HASL lead-free";
+}
+
+const std::vector<FabService>& fabServices() {
+    static const std::vector<FabService> services = {
+        {"jlcpcb", "JLCPCB", "China", "https://cart.jlcpcb.com/quote", {"jlcpcb-standard", "jlcpcb-advanced"}},
+        {"pcbway", "PCBWay", "China", "https://www.pcbway.com/orderonline.aspx", {"pcbway-standard"}},
+        {"oshpark", "OSH Park", "USA", "https://oshpark.com/", {"oshpark-2", "oshpark-4"}},
+        {"eurocircuits", "Eurocircuits", "Europe", "https://www.eurocircuits.com/", {"eurocircuits-6c"}},
+        {"lioncircuits", "Lion Circuits", "India", "https://www.lioncircuits.com/", {}},
+        {"pcbpower", "PCB Power", "India", "https://www.pcbpower.com/", {}},
+    };
+    return services;
+}
+
+Json fabQuote(const Project& project, const Json& request) {
+    Json out = Json::object();
+    const std::string id = request.get("fab").asString("");
+    const FabService* fab = nullptr;
+    for (const auto& f : fabServices())
+        if (f.id == id) fab = &f;
+    if (!fab) {
+        Json list = Json::array();
+        for (const auto& f : fabServices()) {
+            Json e = Json::object();
+            e["id"] = f.id, e["name"] = f.name, e["country"] = f.country, e["orderUrl"] = f.orderUrl;
+            list.push(e);
+        }
+        out["error"] = id.empty() ? "Pick a fab" : "Unknown fab \"" + id + "\"";
+        out["services"] = list;
+        return out;
+    }
+    const BoardSettings& s = project.pcb.settings;
+    const BoardFacts f = facts(project);
+    const int quantity = static_cast<int>(std::clamp(request.get("quantity").asNumber(5), 1.0, 1e6));
+    out["fab"] = fab->id, out["name"] = fab->name, out["country"] = fab->country, out["orderUrl"] = fab->orderUrl;
+    out["quantity"] = quantity;
+    Json o = Json::object();
+    const int layers = std::max(1, s.layerCount);
+    const double area = f.sizeX * f.sizeY / 100;  // cm²
+    std::set<long> drills;
+    for (const auto& v : project.pcb.vias) drills.insert(std::lround(v.drill * 1000));
+    for (const auto& pd : project.pcb.pads(project.schematic))
+        if (pd.throughHole && pd.drill > 0) drills.insert(std::lround(pd.drill * 1000));
+    for (const auto& h : s.holes) drills.insert(std::lround(h.drill * 1000));
+    const std::string finish = recommendedSurfaceFinish(project);
+    o["layers"] = layers, o["widthMm"] = f.sizeX, o["heightMm"] = f.sizeY, o["areaCm2"] = area;
+    o["thicknessMm"] = s.thickness, o["material"] = boardLaminate(s).name, o["copperOz"] = s.copperWeightOz;
+    o["finish"] = finish, o["solderMask"] = colourName(s.solderMask), o["silkscreen"] = silkColour(s);
+    o["minTrackMm"] = f.minTrack, o["minSpaceMm"] = s.clearance, o["minDrillMm"] = f.minDrill, o["minAnnularRingMm"] = f.minRing;
+    o["vias"] = f.vias, o["platedHoles"] = f.pth, o["nonPlatedHoles"] = f.npth, o["drillSizes"] = static_cast<int>(drills.size());
+    o["hdi"] = s.hdi, o["viaInPad"] = s.viaInPad, o["impedanceControl"] = !s.pairRules.empty(), o["construction"] = s.construction;
+    o["panel"] = std::to_string(std::max(1, s.panel.nx)) + " x " + std::to_string(std::max(1, s.panel.ny));
+    out["order"] = o;
+    // The fab's published capability, checked as the DRC's DFM report does.
+    std::string pack;
+    for (const auto& id2 : fab->packs)
+        if (const DfmPack* p = findDfmPack(id2); p && (pack.empty() || layers > findDfmPack(pack)->maxLayers)) pack = id2;
+    out["pack"] = pack;
+    if (!pack.empty()) {
+        PcbLayout pcb = project.pcb;
+        if (pcb.settings.dfmPack != pack) pcb.settings.dfmOverrides.clear();
+        pcb.settings.dfmPack = pack;
+        const Json report = dfmReportJson(project.schematic, pcb);
+        out["checks"] = report.get("rows");
+        out["fits"] = report.get("pass");
+    } else {
+        out["checks"] = Json::array();
+        out["fits"] = Json();  // no published limits: check the fab's capability page
+    }
+    const Json& t = request.get("priceTable");
+    if (t.isObject()) {
+        auto num = [](const Json& v, double d) {
+            const double x = v.asNumber(d);
+            return std::isfinite(x) && x >= 0 ? x : d;
+        };
+        double layerFactor = num(t.get("layers").get(std::to_string(layers)), 1), qtyFactor = 1;
+        for (const auto& b : t.get("quantityFactors").items())
+            if (b.isArray() && b.size() == 2 && quantity >= b[0].asNumber(1e18)) qtyFactor = num(b[1], qtyFactor);
+        Json e = Json::object(), lines = Json::array();
+        double total = 0;
+        auto line = [&](const std::string& what, double amount) {
+            if (amount <= 0) return;
+            Json l = Json::object();
+            l["item"] = what, l["amount"] = amount;
+            lines.push(l);
+            total += amount;
+        };
+        line("Setup", num(t.get("setup"), 0));
+        line("Boards: " + std::to_string(quantity) + " x " + fmt("%.1f", area) + " cm2, " + std::to_string(layers) + " layers",
+             num(t.get("perCm2"), 0) * area * quantity * layerFactor * qtyFactor);
+        const Json& opt = t.get("options");
+        if (finish.rfind("ENIG", 0) == 0) line("ENIG finish", num(opt.get("ENIG"), 0));
+        if (!s.pairRules.empty()) line("Impedance control", num(opt.get("impedance"), 0));
+        if (s.hdi) line("HDI (blind / buried / microvias)", num(opt.get("hdi"), 0));
+        if (s.viaInPad) line("Via-in-pad, filled and capped", num(opt.get("viaInPad"), 0));
+        if (s.solderMask != "green") line("Mask colour " + colourName(s.solderMask), num(opt.get("colour"), 0));
+        const double minimum = num(t.get("minimum"), 0);
+        if (total < minimum) line("Minimum order", minimum - total);
+        e["currency"] = t.get("currency").asString("");
+        e["lines"] = lines;
+        e["total"] = total;
+        e["perBoard"] = total / quantity;
+        if (t.has("leadDays")) e["leadDays"] = num(t.get("leadDays"), 0);
+        e["source"] = "your price table";
+        out["estimate"] = e;
+    }
+    Json steps = Json::array();
+    steps.push("Export the fabrication package (File > Export Fabrication Package).");
+    steps.push("Open " + fab->orderUrl + " and upload <name>-gerbers.zip.");
+    steps.push("Enter the order values above where the form asks for them; attach fab_drawing.pdf for notes.");
+    if (pack.empty()) steps.push("Check the board against " + fab->name + "'s capability page: SiEDA has no published limits for it.");
+    out["steps"] = steps;
+    return out;
 }
 
 std::string makeZip(const std::vector<std::pair<std::string, std::string>>& files) {
@@ -486,9 +601,14 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     add(a + "-test_points.csv", exportTestPointReport(asmSch, pcb), "Test points per net for the bed-of-nails / flying-probe fixture");
     add(a + "-interactive_bom.html", exportHtmlBom(project), "Interactive BOM and board viewer for hand assembly" + variantNote);
     add(base + "-bring_up_checklist.md", bringUpChecklist(project), "Bring-up checklist: shorts, rails, clocks, resets, interfaces");
-    add(base + "-fab_drawing.pdf", exportBoardDrawingPdf(project), "Fabrication drawing: outline, dimensions, drill map and table, stack-up, notes");
+    add(base + "-fab_drawing.pdf", exportBoardDrawingPdf(project, assembly3d),
+        "Fabrication drawing: outline, dimensions, drill map and table, stack-up, notes, 3D / exploded / section views");
     add(base + "-net_lengths.csv", exportNetLengthReport(sch, pcb), "Routed length, segments and vias per net, against its length rule");
     add("mechanical/" + base + ".dxf", exportDxf(sch, pcb), "Board outline, holes, silk and courtyards for MCAD (DXF)");
+    add("mechanical/" + base + ".FCMacro", exportMcadScript(sch, pcb, project.name, "freecad"),
+        "FreeCAD macro: board and parts; run again to send the placement back (IDF)");
+    add("mechanical/" + base + "_fusion.py", exportMcadScript(sch, pcb, project.name, "fusion"),
+        "Autodesk Fusion script: board and parts; run again to send the placement back (IDF)");
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
     if (assembly3d) add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");

@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "ଏହି ପ୍ରକଳ୍ପ ଅନ୍ୟତ୍ର ଖୋଲା ଅଛି";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ ଏହାକୁ %3$@ ଠାରୁ %2$@ ରେ ଖୋଲି ରଖିଛନ୍ତି। ଦୁଇ ସ୍ଥାନରେ କରାଯାଇଥିବା ସମ୍ପାଦନା ଧକ୍କା ଖାଇବ।";
 "Open Anyway" = "ତଥାପି ଖୋଲନ୍ତୁ";
+"Apply Rules" = "ନିୟମ ପ୍ରୟୋଗ କରନ୍ତୁ";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "ପ୍ରତ୍ୟେକ ନିୟମ: name, object (track, via, pad, part, net), when (ଫିଲ୍ଟର), require (ସତ୍ୟ ହେବା ଆବଶ୍ୟକ), severity. ଅଭିବ୍ୟକ୍ତି ବସ୍ତୁର ଗୁଣ ବ୍ୟବହାର କରେ, ଯେପରି net ~ \"USB_*\" and width >= 0.2mm. DRC ଭଙ୍ଗ ହୋଇଥିବା ନିୟମକୁ RULE_<NAME> ଭାବେ ଜଣାଏ।";
+"Estimate from your price table, not the fab's quote." = "ଆପଣଙ୍କ ମୂଲ୍ୟ ତାଲିକାରୁ ଆକଳନ, ନିର୍ମାତାଙ୍କ କୋଟେସନ ନୁହେଁ।";
+"Export Package & Open Order Page" = "ପ୍ୟାକେଜ ରପ୍ତାନି କରି ଅର୍ଡର ପୃଷ୍ଠା ଖୋଲନ୍ତୁ";
+"Fold Flex" = "ଫ୍ଲେକ୍ସ ଭାଙ୍ଗନ୍ତୁ";
+"No published limits for this fab: check the board against its capability page." = "ଏହି ନିର୍ମାତାଙ୍କର କୌଣସି ପ୍ରକାଶିତ ସୀମା ନାହିଁ: ବୋର୍ଡକୁ ସେମାନଙ୍କ କ୍ଷମତା ପୃଷ୍ଠା ସହ ମିଳାନ୍ତୁ।";
+"Open Plug-ins Folder" = "ପ୍ଲଗ-ଇନ ଫୋଲ୍ଡର ଖୋଲନ୍ତୁ";
+"Order Boards" = "ବୋର୍ଡ ଅର୍ଡର କରନ୍ତୁ";
+"Order Boards…" = "ବୋର୍ଡ ଅର୍ଡର କରନ୍ତୁ…";
+"Plug-ins" = "ପ୍ଲଗ-ଇନ";
+"Price Table…" = "ମୂଲ୍ୟ ତାଲିକା…";
+"Quantity" = "ପରିମାଣ";
+"Remove Price Table" = "ମୂଲ୍ୟ ତାଲିକା ହଟାନ୍ତୁ";
+"Within the fab's published limits" = "ନିର୍ମାତାଙ୍କ ପ୍ରକାଶିତ ସୀମା ଭିତରେ";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "ଆକଳନ ପାଇଁ ଆପଣଙ୍କ ନିର୍ମାତାଙ୍କ ମୂଲ୍ୟ (sieda.fabprice/1 JSON); SiEDA ରେ କୌଣସି ଅନ୍ତର୍ନିର୍ମିତ ମୂଲ୍ୟ ନାହିଁ";

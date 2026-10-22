@@ -7,6 +7,8 @@ struct BoardSetupPanel: View {
     @State private var preset: BoardOutlinePreset = .rectangle
     /// The manufacturer sign-off report, run once per design revision (not on every publish).
     @State private var dfmReport: DfmReport?
+    @State private var customRules: CustomRulesInfo?
+    @State private var rulesText = ""
     @State private var outlineWidth = "50"
     @State private var outlineHeight = "40"
     @State private var outlineParameter = "3"
@@ -94,6 +96,7 @@ struct BoardSetupPanel: View {
                         .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
                 }
 
+                customRulesSection
                 panelSection(board.panel ?? PanelInfo())
 
                 section("Copper Pours & Planes", systemImage: "square.fill.on.square.fill") {
@@ -471,6 +474,33 @@ struct BoardSetupPanel: View {
             }
             Text("The fabrication package adds a panel/ folder: every layer stepped across the panel, rails with three fiducials and four tooling holes, and V-score lines or routed tabs with mouse bites.")
                 .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Rule scripting: the board's own DRC rules as a JSON list of {name, object, when, require, severity, message}.
+    private var customRulesSection: some View {
+        section("Custom Rules (Scripting)", systemImage: "function") {
+            ForEach(customRules?.errors ?? [], id: \.name) { problem in
+                Label { Text(verbatim: "\(problem.name): \(problem.error)") } icon: { Image(systemName: "exclamationmark.triangle.fill") }
+                    .font(.caption).foregroundStyle(Theme.warning)
+            }
+            TextEditor(text: $rulesText)
+                .font(.system(.caption, design: .monospaced))
+                .frame(minHeight: 110)
+                .scrollContentBackground(.hidden)
+                .background(Theme.deepBlue)
+            HStack {
+                Text(verbatim: "\(customRules?.rules.count ?? 0) rules · \(customRules?.violations.count ?? 0) flagged")
+                    .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                Spacer()
+                Button("Apply Rules") { store.setCustomRules(rulesText) }
+            }
+            Text("Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>.")
+                .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        }
+        .task(id: store.revision) {
+            customRules = store.engine.customRules()
+            rulesText = customRules?.json ?? "[]"
         }
     }
 

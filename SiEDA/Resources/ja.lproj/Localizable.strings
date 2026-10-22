@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "このプロジェクトは別の場所で開かれています";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ が %3$@ から %2$@ で開いています。両方で編集すると衝突します。";
 "Open Anyway" = "このまま開く";
+"Apply Rules" = "ルールを適用";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "各ルール: name、object（track、via、pad、part、net）、when（フィルター）、require（満たすべき条件）、severity。式ではオブジェクトのプロパティを使います（例: net ~ \"USB_*\" and width >= 0.2mm）。DRC は違反したルールを RULE_<NAME> として報告します。";
+"Estimate from your price table, not the fab's quote." = "お客様の価格表による見積もりで、製造業者の見積もりではありません。";
+"Export Package & Open Order Page" = "パッケージを書き出して注文ページを開く";
+"Fold Flex" = "フレックスを折り曲げる";
+"No published limits for this fab: check the board against its capability page." = "この製造業者の公開仕様はありません。製造能力ページで基板を確認してください。";
+"Open Plug-ins Folder" = "プラグインフォルダを開く";
+"Order Boards" = "基板を注文";
+"Order Boards…" = "基板を注文…";
+"Plug-ins" = "プラグイン";
+"Price Table…" = "価格表…";
+"Quantity" = "数量";
+"Remove Price Table" = "価格表を削除";
+"Within the fab's published limits" = "製造業者の公開仕様の範囲内";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "見積もり用の製造業者の価格（sieda.fabprice/1 JSON）。SiEDA には価格は内蔵されていません";

@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "This project is open elsewhere";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash.";
 "Open Anyway" = "Open Anyway";
+"Apply Rules" = "Apply Rules";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Estimate from your price table, not the fab's quote.";
+"Export Package & Open Order Page" = "Export Package & Open Order Page";
+"Fold Flex" = "Fold Flex";
+"No published limits for this fab: check the board against its capability page." = "No published limits for this fab: check the board against its capability page.";
+"Open Plug-ins Folder" = "Open Plug-ins Folder";
+"Order Boards" = "Order Boards";
+"Order Boards…" = "Order Boards…";
+"Plug-ins" = "Plug-ins";
+"Price Table…" = "Price Table…";
+"Quantity" = "Quantity";
+"Remove Price Table" = "Remove Price Table";
+"Within the fab's published limits" = "Within the fab's published limits";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices";

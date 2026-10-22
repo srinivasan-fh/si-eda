@@ -28,7 +28,7 @@ typedef struct SiedaLiveSim SiedaLiveSim;
  * PATCH for fixes. JSON results only gain fields within a major version. Check SIEDA_API_VERSION_MAJOR at build time
  * and sieda_api_version() at run time when the library is loaded dynamically. */
 #define SIEDA_API_VERSION_MAJOR 1
-#define SIEDA_API_VERSION_MINOR 1
+#define SIEDA_API_VERSION_MINOR 2
 #define SIEDA_API_VERSION_PATCH 0
 /* MAJOR * 10000 + MINOR * 100 + PATCH of the library itself (10100 = 1.1.0). */
 int32_t sieda_api_version(void);
@@ -387,6 +387,13 @@ int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, dou
  * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
  * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
 char* sieda_dfm_report_json(const SiedaProject* project);
+/* Fab quote / order hand-off (sieda/Fabrication.hpp fabQuote): request {"fab","quantity","priceTable"} → the order
+ * form values read from the board, the fab's published limits checked, an estimate only from your price table, the
+ * order page and steps; an unknown fab lists the services. */
+char* sieda_fab_quote(const SiedaProject* project, const char* request_json);
+/* Rule scripting (sieda/CustomRules.hpp): `rules_json` (an array, NULL = keep) replaces the board's custom rules;
+ * returns {"rules":[…],"errors":[{"name","error"}],"violations":[…]} (what the DRC reports for them). */
+char* sieda_pcb_custom_rules(SiedaProject* project, const char* rules_json);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
  * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth); `cpw` > 0 adds
  * coplanar ground copper on the same layer that far from the track edges (grounded coplanar waveguide).

@@ -2,6 +2,7 @@
 // Coordinate system: X = board X (mm), Y = up (mm), Z = board Y (mm). Board top surface at Y = 0.
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <set>
@@ -96,9 +97,22 @@ struct MeshOptions {
     double standoffs = 0;
     /// The enclosure model (BoardSettings::enclosure), see-through.
     bool enclosure = false;
+    /// Rigid-flex bend areas folded by their `FlexRegion::bendAngle` (the board curves through the area).
+    bool fold = false;
 };
 
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& options = {});
+
+/// Bends `m` (built from `s`) through every flex region with a bend angle, far folds first.
+void foldFlexRegions(Mesh& m, const BoardSettings& s);
+
+/// Orthographic z-buffer picture of `m` (RGB rows, `width` × `height`), seen from `pitch` / `yaw` (radians, as
+/// render_3d); `white` = white page background (drawings), else the dark render backdrop. `sectionZ` (finite) cuts
+/// away everything nearer the eye than board y = sectionZ (a section view). Written in McpRender.cpp.
+std::vector<uint8_t> rasterizeMesh(const Mesh& m, double pitch, double yaw, int width, int& height, bool white,
+                                   double sectionZ = NAN);
+/// zlib stream of `data` (PNG / PDF images; `stride` = bytes per row).
+std::string zlibStream(const std::string& data, size_t stride);
 
 /// Copper of a single layer (tracks, pads, via lands) laid flat at Y = 0 — used by the X-ray stack view.
 Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer);

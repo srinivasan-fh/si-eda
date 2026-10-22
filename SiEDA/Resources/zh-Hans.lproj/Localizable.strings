@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "此项目已在别处打开";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ 自 %3$@ 起已在 %2$@ 上打开它。两处的编辑会相互冲突。";
 "Open Anyway" = "仍要打开";
+"Apply Rules" = "应用规则";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "每条规则：name、object（track、via、pad、part、net）、when（筛选）、require（必须成立）、severity。表达式使用对象的属性，例如 net ~ \"USB_*\" and width >= 0.2mm。DRC 将违反的规则报告为 RULE_<NAME>。";
+"Estimate from your price table, not the fab's quote." = "根据您的价格表估算，并非制造商报价。";
+"Export Package & Open Order Page" = "导出资料包并打开下单页面";
+"Fold Flex" = "折叠柔性区";
+"No published limits for this fab: check the board against its capability page." = "该制造商没有公布的工艺极限：请对照其工艺能力页面检查电路板。";
+"Open Plug-ins Folder" = "打开插件文件夹";
+"Order Boards" = "订购电路板";
+"Order Boards…" = "订购电路板…";
+"Plug-ins" = "插件";
+"Price Table…" = "价格表…";
+"Quantity" = "数量";
+"Remove Price Table" = "移除价格表";
+"Within the fab's published limits" = "在制造商公布的极限之内";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "用于估算的制造商价格（sieda.fabprice/1 JSON）；SiEDA 不内置任何价格";

@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/CustomRules.hpp"
 #include "sieda/Panel.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Dfm.hpp"
@@ -6665,6 +6666,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     for (auto& v : mechanicalChecks(sch, *this)) out.push_back(std::move(v));  // 3D clearance (Mechanical.cpp)
     for (auto& v : dfmChecks(sch, *this)) out.push_back(std::move(v));        // manufacturer pack (Dfm.cpp)
     for (auto& v : panelChecks(sch, *this)) out.push_back(std::move(v));      // production panel (Panel.cpp)
+    for (auto& v : customRuleChecks(sch, *this)) out.push_back(std::move(v)); // the user's own rules (CustomRules.cpp)
     if (out.empty()) {
         RuleViolation v;
         v.severity = Severity::Info;

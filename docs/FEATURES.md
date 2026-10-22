@@ -28,7 +28,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 `sieda-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, Claude Desktop, Claude Code,
 Cursor, VS Code, ChatGPT desktop or a local LLM can drive SiEDA completely. The AI can capture schematics, search the
 catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at PNG renders and write Gerbers.
-It has 157 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
+It has 159 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
 and `--read-only` lets the AI inspect without changing anything.
 
 ```bash
@@ -71,6 +71,31 @@ and the tool reference are in [docs/MCP.md](MCP.md).
   - **Always on:** part bodies that collide.
   - **When a limit is set:** parts taller than the enclosure allows on their side (**Board Setup → Tallest part**).
   - **Height zones:** rectangles with their own maximum height, set over MCP or the C API.
+- **FreeCAD and Autodesk Fusion** (**File → Export → FreeCAD Macro / Autodesk Fusion Script**, also in the
+  fabrication package's `mechanical/` folder): the script builds the board (outline, cutouts, holes) and one box per
+  part, named by designator. Move or turn parts there and run the script again: it writes `<name>-placement.emn`,
+  which **File → Import MCAD Placement (IDF)…** reads back as one Undo step.
+- **Rigid-flex folding**: a flex region's bend angle (MCP `pcb_mechanical_limits` `bendAngle`, + up, − down) bends
+  the board through the region in the 3D view (**Layers → Fold Flex**), `render_3d` and the fabrication drawing.
+
+## Ordering, pricing and your own rules
+
+- **File → Order Boards…**: what the board house's order form asks, read from the board (layers, size, thickness,
+  material, copper, finish, mask / silk colours, minimum track / space / drill / ring, holes, vias, HDI, via-in-pad,
+  impedance control, panel), checked against the fab's published limits, and **Export Package & Open Order Page**.
+  JLCPCB, PCBWay, OSH Park, Eurocircuits, and from India Lion Circuits and PCB Power (no published limits: check
+  their capability page). SiEDA has no built-in prices; **Price Table…** loads your fab's prices
+  (`sieda.fabprice/1` JSON: currency, setup, perCm2, minimum, layers factors, quantity factors, options, leadDays)
+  for an estimate. MCP `output_fab_quote`.
+- **Price watch** (**BOM → Live Pricing**): every look compares each part number with the last one and flags prices
+  that rose or fell 10 % or more, stock short for the build or halved, a part turned NRND / EOL / obsolete, or no
+  longer listed (Application Support/SiEDA/PriceWatch.json).
+- **Fabrication drawing, sheet 2**: the assembly isometric, an exploded view and section A-A (marked on sheet 1).
+- **Custom rules** (**Board Setup → Custom Rules**, MCP `pcb_custom_rules`): your own DRC rules as expressions over
+  each track, via, pad, part or net, e.g. `{"name": "usb", "object": "track", "when": "net ~ \"USB_*\"",
+  "require": "width >= 0.2mm"}`; a broken rule shows as RULE_<NAME> in the DRC.
+- **Plug-ins** (**Design → Plug-ins**): executables you put in Application Support/SiEDA/Plugins. One runs on a copy
+  of the open project (`SIEDA_PROJECT`); what it prints is shown and its changes come back as one Undo step.
 
 Guides: [docs/MCAD.md](MCAD.md), [docs/TEAM.md](TEAM.md), [docs/FILE_FORMAT.md](FILE_FORMAT.md) (the project file) and [docs/MIGRATING.md](MIGRATING.md) (coming from KiCad, Altium or Eagle).
 

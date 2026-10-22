@@ -79,3 +79,53 @@ enum ProjectHooks {
         NSWorkspace.shared.open(folder)
     }
 }
+
+/// Plug-ins: executables the user puts in Application Support/SiEDA/Plugins, listed under Design ▸ Plug-ins. One runs
+/// on a copy of the open project (SIEDA_PROJECT, also its working folder) for at most two minutes; what it prints is
+/// shown, and the copy as it left it comes back as one undo step. Only that folder is searched: a project never brings
+/// scripts of its own. (A plug-in can also drive the open design over the live MCP endpoint.)
+enum ProjectPlugins {
+    static var folder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SiEDA/Plugins", isDirectory: true)
+    }
+
+    static func list(in folder: URL = folder) -> [URL] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { !$0.hasDirectoryPath && FileManager.default.isExecutableFile(atPath: $0.path) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    /// Runs `plugin` on `json` (the project's text): what it printed (first 64 KB) and the project if it changed it.
+    static func run(_ plugin: URL, json: String) async -> (output: String, json: String?) {
+        await Task.detached { () -> (String, String?) in
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-plugin-\(UUID().uuidString)", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let file = dir.appendingPathComponent("project.siedaproj")
+            guard (try? json.write(to: file, atomically: true, encoding: .utf8)) != nil else { return ("Could not write the project copy.", nil) }
+            let process = Process()
+            process.executableURL = plugin
+            process.currentDirectoryURL = dir
+            var env = ProcessInfo.processInfo.environment
+            env["SIEDA_PROJECT"] = file.path
+            env["SIEDA_PLUGIN"] = plugin.lastPathComponent
+            process.environment = env
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            do { try process.run() } catch { return ("Could not start \(plugin.lastPathComponent): \(error.localizedDescription)", nil) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 120) { if process.isRunning { process.terminate() } }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()  // until the plug-in exits
+            process.waitUntilExit()
+            let after = try? String(contentsOf: file, encoding: .utf8)
+            return (String(decoding: data.prefix(64 * 1024), as: UTF8.self), after != json ? after : nil)
+        }.value
+    }
+
+    static func openFolder() {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(folder)
+    }
+}
+

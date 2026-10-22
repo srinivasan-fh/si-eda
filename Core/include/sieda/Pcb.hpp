@@ -172,6 +172,15 @@ struct FlexRegion {
     double bendRadius = 0, thickness = 0.11;
     int layers = 2;
     bool dynamic = false;
+    /// Degrees the board beyond the area (larger x, or larger y when the area is wider than tall) is folded in the 3D
+    /// model (`MeshOptions::fold`): + towards the top side, − towards the bottom; 0 = flat (saved only when set).
+    double bendAngle = 0;
+};
+
+/// A design rule written by the user (CustomRules.hpp): for every `object` ("track", "via", "pad", "part" or "net")
+/// matching `when`, `require` must hold, else the DRC reports RULE_<NAME> at `severity` ("error", "warning", "info").
+struct CustomRule {
+    std::string name, object = "track", when, require, severity = "error", message;
 };
 
 struct AutoroutePreset {
@@ -311,6 +320,8 @@ struct BoardSettings {
     std::vector<HeightZone> heightZones;
     /// Rigid-flex bend areas (JSON "mechanical" "flex", written only when present); checked by mechanicalChecks.
     std::vector<FlexRegion> flexRegions;
+    /// The user's own DRC rules (saved only when present).
+    std::vector<CustomRule> customRules;
     /// Enclosure model (Model3DRegistry id; mm in the MCAD frame of Mechanical.hpp) the parts must clear.
     std::string enclosure;
     /// Production panel for the fabrication package (saved only when it has more than one board).

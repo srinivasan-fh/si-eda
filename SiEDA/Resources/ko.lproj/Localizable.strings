@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "이 프로젝트는 다른 곳에서 열려 있습니다";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ 님이 %3$@부터 %2$@에서 열어 두었습니다. 양쪽에서 편집하면 충돌합니다.";
 "Open Anyway" = "그래도 열기";
+"Apply Rules" = "규칙 적용";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "각 규칙: name, object(track, via, pad, part, net), when(필터), require(만족해야 할 조건), severity. 식은 객체의 속성을 사용합니다(예: net ~ \"USB_*\" and width >= 0.2mm). DRC는 어긴 규칙을 RULE_<NAME>(으)로 보고합니다.";
+"Estimate from your price table, not the fab's quote." = "제조사 견적이 아닌, 사용자의 가격표로 낸 추정치입니다.";
+"Export Package & Open Order Page" = "패키지 내보내고 주문 페이지 열기";
+"Fold Flex" = "플렉스 접기";
+"No published limits for this fab: check the board against its capability page." = "이 제조사의 공개된 한계가 없습니다. 제조 능력 페이지와 기판을 대조하세요.";
+"Open Plug-ins Folder" = "플러그인 폴더 열기";
+"Order Boards" = "기판 주문";
+"Order Boards…" = "기판 주문…";
+"Plug-ins" = "플러그인";
+"Price Table…" = "가격표…";
+"Quantity" = "수량";
+"Remove Price Table" = "가격표 제거";
+"Within the fab's published limits" = "제조사의 공개 한계 이내";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "추정을 위한 제조사 가격(sieda.fabprice/1 JSON). SiEDA에는 기본 제공 가격이 없습니다";

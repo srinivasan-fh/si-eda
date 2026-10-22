@@ -324,6 +324,7 @@ struct SiEDACommands: Commands {
             Divider()
             Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
                 .keyboardShortcut(shortcuts.shortcut("fabPackage"))
+            Button("Order Boards…") { store.showFabOrder = true }
             Menu("Export") {
                 ForEach(ExportFormat.allCases) { format in
                     Button(format.displayName) { Task { await store.export(format) } }
@@ -510,6 +511,13 @@ struct SiEDACommands: Commands {
             }
             // ⌥⌘V: ⇧⌘V is Paste and Match Style in text fields.
             .keyboardShortcut("v", modifiers: [.command, .option])
+            Menu("Plug-ins") {
+                ForEach(ProjectPlugins.list(), id: \.self) { plugin in
+                    Button(plugin.lastPathComponent) { Task { await store.runPlugin(plugin) } }
+                }
+                Divider()
+                Button("Open Plug-ins Folder") { ProjectPlugins.openFolder() }
+            }
             Divider()
             Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 .keyboardShortcut("a", modifiers: [.command, .option])

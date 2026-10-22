@@ -47,6 +47,7 @@ struct Board3DWorkspace: View {
         var section: Double?    // cut plane across the board's width (0…1), nil = whole board
         var standoffs = false   // hex standoffs and screws at the mounting holes
         var enclosure = true    // the loaded enclosure, see-through
+        var fold = true         // rigid-flex bend areas folded by their bend angle
         var clashes = true      // parts the 3D clearance DRC flags, boxed in red
     }
 
@@ -170,6 +171,7 @@ struct Board3DWorkspace: View {
                 Toggle("Components", isOn: $showComponents)
                 Toggle("Standoffs and Screws", isOn: $look.standoffs)
                 Toggle("Enclosure", isOn: $look.enclosure)
+                Toggle("Fold Flex", isOn: $look.fold)
                 Toggle("Show Clashes", isOn: $look.clashes)
                 Divider()
                 Text("PARTS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
@@ -356,6 +358,7 @@ struct Board3DWorkspace: View {
                 Divider()
                 Toggle("Standoffs and Screws", isOn: $look.standoffs)
                 Toggle("Enclosure", isOn: $look.enclosure)
+                Toggle("Fold Flex", isOn: $look.fold)
                 Toggle("Show Clashes", isOn: $look.clashes)
             } label: { Label("Layers", systemImage: "square.3.layers.3d") }
                 .fixedSize()
@@ -701,7 +704,7 @@ struct BoardSceneView: NSViewRepresentable {
         c.board = board
         c.onClick = onClick
         c.onSaveView = onSaveView
-        let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)"]
+        let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)", "\(look.fold)"]
         if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish || c.lastMesh != meshKey {
             // Only an edit (side-by-side with an editor): rebuild once the edits pause, not on every one.
             let onlyEdit = c.lastRevision >= 0 && c.lastComponents == includeComponents && c.lastFinish == finish && c.lastMesh == meshKey
@@ -847,10 +850,10 @@ struct BoardSceneView: NSViewRepresentable {
         c.boardNode.childNodes.forEach { $0.removeFromParentNode() }
         // Below the board and anything hanging under it (bottom-side parts, header tails).
         c.floorNode.position = SCNVector3(0, -CGFloat(board.thickness) - 9, 0)
-        let options = "\(includeComponents) \(look.hiddenParts.sorted()) \(look.standoffs) \(look.enclosure)"
+        let options = "\(includeComponents) \(look.hiddenParts.sorted()) \(look.standoffs) \(look.enclosure) \(look.fold)"
         guard let mesh = MeshCache.mesh(engine, revision, options, {
             engine.buildMesh(includeComponents: includeComponents, hidden: look.hiddenParts,
-                             standoffs: look.standoffs ? 6 : 0, enclosure: look.enclosure)
+                             standoffs: look.standoffs ? 6 : 0, enclosure: look.enclosure, fold: look.fold)
         }) else { return }
         let node = Self.assemblyNode(from: mesh, finish: finish)
         // Centre the board on the origin (mesh is in board millimetres).
