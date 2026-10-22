@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "हा प्रकल्प दुसरीकडे उघडा आहे";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ यांनी हे %3$@ पासून %2$@ वर उघडले आहे. दोन्ही ठिकाणी केलेले बदल एकमेकांशी भिडतील.";
 "Open Anyway" = "तरीही उघडा";
+"Apply Rules" = "नियम लागू करा";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "प्रत्येक नियम: name, object (track, via, pad, part, net), when (फिल्टर), require (खरे असायला हवे), severity. अभिव्यक्ती वस्तूचे गुणधर्म वापरतात, उदा. net ~ \"USB_*\" and width >= 0.2mm. DRC मोडलेला नियम RULE_<NAME> म्हणून नोंदवतो.";
+"Estimate from your price table, not the fab's quote." = "तुमच्या किंमत तक्त्यावरून अंदाज, उत्पादकाचे कोटेशन नाही.";
+"Export Package & Open Order Page" = "पॅकेज निर्यात करा आणि ऑर्डर पान उघडा";
+"Fold Flex" = "फ्लेक्स दुमडा";
+"No published limits for this fab: check the board against its capability page." = "या उत्पादकाच्या प्रकाशित मर्यादा नाहीत: बोर्ड त्यांच्या क्षमता पानाशी तपासा.";
+"Open Plug-ins Folder" = "प्लग-इन फोल्डर उघडा";
+"Order Boards" = "बोर्ड ऑर्डर करा";
+"Order Boards…" = "बोर्ड ऑर्डर करा…";
+"Plug-ins" = "प्लग-इन";
+"Price Table…" = "किंमत तक्ता…";
+"Quantity" = "संख्या";
+"Remove Price Table" = "किंमत तक्ता काढा";
+"Within the fab's published limits" = "उत्पादकाच्या प्रकाशित मर्यादांच्या आत";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "अंदाजासाठी तुमच्या उत्पादकाच्या किमती (sieda.fabprice/1 JSON); SiEDA मध्ये अंगभूत किमती नाहीत";

@@ -137,6 +137,10 @@ Json supplierSearchToJson(const SupplierSearchResult& result, const std::string&
 ///     "unitPrice","extended","currency","inStock"}]}],
 ///    "totals":[{"boards","cost","perBoard","priced","unpriced","shortages","complete"}],
 ///    "warnings":[…],"mixedCurrency":bool}
+/// Price watch: with "baseline" (an object, {} on the first look) and "priceChangePercent" (default 10) the reply adds
+/// "alerts":[{"item","mpn","kind":"price_up|price_down|stock_short|stock_low|lifecycle|not_found","severity","message"}]
+/// (changes since the baseline at the build quantity; stock_short at any time) and "baseline" (the input updated with
+/// today's unit price, currency, stock and lifecycle per normalised MPN: save it for the next look).
 Json supplierBomRollup(const Json& request);
 
 /// Standard-catalog part for a manufacturer part number: the exact name, else a catalog part whose name is the MPN

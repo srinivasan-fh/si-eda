@@ -956,6 +956,10 @@ Json supplierBomRollup(const Json& request) {
     std::vector<Total> totals(boards.size());
     bool mixed = false;
     Json lines = Json::array(), warnings = Json::array();
+    // Price watch: changes since the last look (`baseline`, keyed by normalised MPN) become alerts.
+    const bool watch = request.get("baseline").isObject();
+    const double swing = std::clamp(request.get("priceChangePercent").asNumber(10), 0.1, 1000.0);
+    Json baseline = watch ? request.get("baseline") : Json::object(), alerts = Json::array();
     size_t lineCount = 0;
     for (const auto& lj : request.get("lines").items()) {
         if (++lineCount > 5000) break;
@@ -998,6 +1002,7 @@ Json supplierBomRollup(const Json& request) {
         }
         Json offers = Json::array();
         bool anyPrice = false;
+        Json atBuild;  // the offer chosen at the build quantity
         for (size_t k = 0; k < boards.size(); ++k) {
             if (skip || !part) {
                 if (!skip) ++totals[k].unpriced;
@@ -1022,6 +1027,7 @@ Json supplierBomRollup(const Json& request) {
             oj["extended"] = c.quote.extended;
             oj["currency"] = c.quote.currency;
             oj["inStock"] = c.quote.inStock;
+            if (boards[k] == buildBoards) atBuild = oj;
             offers.push(oj);
             if (!c.quote.currency.empty() && c.quote.currency != currency) mixed = true;
             totals[k].cost += c.quote.extended;
@@ -1037,6 +1043,53 @@ Json supplierBomRollup(const Json& request) {
         line["warning"] = warning;
         line["offers"] = offers;
         if (!warning.empty() && warnings.size() < 200) warnings.push((firstRefs.empty() ? "" : firstRefs + ": ") + warning);
+        if (watch && !skip && !mpn.empty()) {
+            const std::string key = normalizeMpn(mpn);
+            const Json before = baseline.get(key);
+            auto alert = [&](const char* kind, const char* severity, const std::string& message) {
+                if (alerts.size() >= 500) return;
+                Json a = Json::object();
+                a["item"] = line.get("item"), a["mpn"] = mpn, a["kind"] = kind, a["severity"] = severity;
+                a["message"] = (firstRefs.empty() ? "" : firstRefs + ": ") + mpn + " " + message;
+                alerts.push(a);
+            };
+            auto money = [](double v, const std::string& cur) {
+                char b[48];
+                std::snprintf(b, sizeof b, "%.4g %s", v, cur.c_str());
+                return std::string(b);
+            };
+            if (!part) {
+                if (before.isObject()) alert("not_found", "warning", "is no longer listed by the distributors");
+            } else {
+                Json now = Json::object();
+                now["lifecycle"] = partLifecycleName(part->lifecycle);
+                now["stock"] = static_cast<double>(part->totalStock());
+                if (atBuild.isObject()) now["unitPrice"] = atBuild.get("unitPrice"), now["currency"] = atBuild.get("currency");
+                const double was = before.get("unitPrice").asNumber(-1), is = now.get("unitPrice").asNumber(-1);
+                if (was > 0 && is > 0 && before.get("currency").asString("") == now.get("currency").asString("")) {
+                    const double change = (is - was) / was * 100;
+                    if (std::fabs(change) >= swing - 1e-9)
+                        alert(change > 0 ? "price_up" : "price_down", change > 0 ? "warning" : "info",
+                              (change > 0 ? "rose " : "fell ") + std::to_string(static_cast<int>(std::lround(std::fabs(change)))) +
+                                  " % (" + money(was, now.get("currency").asString("")) + " → " + money(is, now.get("currency").asString("")) +
+                                  " each at " + std::to_string(buildBoards) + " boards)");
+                }
+                const double stockWas = before.get("stock").asNumber(-1), stockIs = now.get("stock").asNumber(-1);
+                const double needed = atBuild.get("needed").asNumber(0);
+                if (atBuild.isObject() && !atBuild.get("inStock").asBool(true))
+                    alert("stock_short", "warning", "is short: " + std::to_string(static_cast<long long>(std::max(0.0, stockIs))) +
+                                                        " in stock for " + std::to_string(static_cast<long long>(needed)) + " needed");
+                else if (stockWas > 0 && stockIs >= 0 && stockIs <= stockWas / 2 && stockIs < 10 * needed)
+                    alert("stock_low", "warning", "stock fell from " + std::to_string(static_cast<long long>(stockWas)) + " to " +
+                                                      std::to_string(static_cast<long long>(stockIs)) + " (" +
+                                                      std::to_string(static_cast<long long>(needed)) + " needed)");
+                if (lifecycleNeedsAttention(part->lifecycle) && before.isObject() &&
+                    before.get("lifecycle").asString("") != now.get("lifecycle").asString(""))
+                    alert("lifecycle", "warning", std::string("is now ") + partLifecycleName(part->lifecycle) +
+                                                      (part->lifecycleText.empty() ? "" : " (" + part->lifecycleText + ")"));
+                if (before.isObject() || baseline.size() < 5000) baseline[key] = now;
+            }
+        }
         lines.push(line);
     }
     Json tj = Json::array();
@@ -1056,6 +1109,7 @@ Json supplierBomRollup(const Json& request) {
     out["warnings"] = warnings;
     out["mixedCurrency"] = mixed;
     out["buildQuantity"] = buildBoards;
+    if (watch) out["alerts"] = alerts, out["baseline"] = baseline;
     return out;
 }
 

@@ -612,7 +612,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (46)
+### pcb (47)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -655,6 +655,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
 | `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height), and rigid-flex bend areas checked against IPC-2223 (bend radius ≥ 6 / 12 / 24 × the flex thickness for 1 / 2 / more copper layers, 100 × when dynamic; no vias, parts or sharp track corners in the bend). |
 | `pcb_dfm_pack` | edit | Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). |
+| `pcb_custom_rules` | edit | Rule scripting: your own DRC rules as expressions over each track, via, pad, part or net. |
 | `si_field_solver` | read | 2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect with copper roughness, laminate loss tangent). |
 | `pcb_copper_thieving` | edit | Copper thieving: a staggered grid of square dots in the free area of every copper layer, clear of other copper, the edge, holes, keep-outs and outer-layer part courtyards; it evens out plating and the mirror layers' copper (DFM_COPPER_BALANCE). |
 | `pcb_graphics` | edit | Logos and free drawings on the board: filled rectangles and lines on silk-top / silk-bottom, copper-<n> (netless copper; the DRC keeps it clear of other copper) or user-1 … user-4 (their own Gerbers in the fabrication package). |
@@ -720,7 +721,7 @@ Design verification and domain (industry) checks.
 | `memory_layout_limits` | edit | DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, data impedance tolerance, via spread). |
 | `design_set_domain` | edit | Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, military, commercial), naval (combatant, carrier, submarine, patrol, commercial), medical (bf, cf, life, implant, home), retail (countertop, unattended, mpos, kiosk, printer), appliance (laundry, kitchen, refrigeration, hvac, small), memory (sdram, ddr, lpddr, dimm, rdimm). |
 
-### output (9)
+### output (10)
 
 Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D models.
 
@@ -728,11 +729,12 @@ Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D mode
 |---|---|---|
 | `output_fabrication_package` | writes files | Writes the complete fabrication package into a folder inside the root: gerbers/ (every layer, drills, job file, IPC-D-356A), assembly/ (BOMs, CPL, pick-and-place, drawings), fab notes, a gerber zip, netlist and 3D STL. |
 | `output_gerbers` | writes files | Writes RS-274X Gerbers (every copper layer, masks, silkscreens, paste, outline) and Excellon drill files into a folder inside the root. |
-| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, revisions), net_lengths (routed length per net, CSV). |
+| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, revisions), net_lengths (routed length per net, CSV). |
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
 | `output_pick_and_place` | writes files | Pick-and-place / centroid file (designator, x, y, rotation, side) as CSV, inline or written to path. |
 | `output_schematic_pdf` | writes files | The schematic as a PDF (one page per sheet with frame and title block, bookmarks by hierarchy), written to path inside the root, or returned as an embedded PDF resource. |
 | `output_3d_model` | writes files | The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one named body per part), IDF 3.0 board (.emn) or library (.emp), an IDX (ProSTEP EDMD v4.5) baseline, or a mesh (STL, OBJ, VRML 2.0, glTF 2.0 binary .glb). |
+| `output_fab_quote` | read | What a board house's order form asks, read from the board (layers, size, area, thickness, material, copper, finish, mask / silk colours, minimum track / space / drill / ring, hole and via counts, HDI, via-in-pad, impedance control, panel), checked against the fab's published limits (JLCPCB, PCBWay, OSH Park, Eurocircuits; Lion Circuits and PCB Power (India) have no published pack: check their capability page), its order page and steps. |
 | `output_idx_response` | writes files | Writes the IDX response to a change file from MCAD: every change it proposes accepted or rejected. |
 | `output_idx_changes` | writes files | Writes an IDX SendChanges file with only the parts placed differently from a baseline IDX (the one MCAD already has). |
 

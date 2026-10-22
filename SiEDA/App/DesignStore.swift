@@ -170,6 +170,7 @@ final class DesignStore: ObservableObject {
     @Published var variantMatrix: VariantMatrix?
     @Published var showReview = false
     @Published var showGerberViewer = false
+    @Published var showFabOrder = false  // File → Order Boards…
     /// Reference layers' shapes, read once per layer ("index:name:bytes").
     var referenceArtworkCache: [String: GerberArtwork] = [:]
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.

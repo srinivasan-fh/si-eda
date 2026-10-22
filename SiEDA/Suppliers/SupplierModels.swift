@@ -167,6 +167,27 @@ struct SupplierRollupRequest: Encodable {
     var attritionPercent: Double = 0  // spares per line for assembly loss (the core adds the larger of this and attritionMin)
     var lines: [Line]
     var parts: [SupplierPartInfo]
+    var baseline: [String: PriceWatch.Entry]?  // price watch: the last look (alerts on what changed since)
+}
+
+/// Price watch: each part number's unit price, stock and lifecycle at the last Live Pricing look (Application
+/// Support/SiEDA/PriceWatch.json); the roll-up turns what changed since into alerts.
+enum PriceWatch {
+    struct Entry: Codable, Equatable {
+        var unitPrice: Double?
+        var currency: String?
+        var stock: Double?
+        var lifecycle: String?
+    }
+    static let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("SiEDA/PriceWatch.json")
+    static func load() -> [String: Entry] {
+        (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
+    }
+    static func save(_ baseline: [String: Entry]) {
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? JSONEncoder().encode(baseline).write(to: url, options: .atomic)
+    }
 }
 
 /// BOM roll-up: per line the best offer at each board count, totals per board count, warnings.
@@ -215,4 +236,13 @@ struct SupplierRollup: Decodable, Equatable {
     var warnings: [String]
     var mixedCurrency: Bool
     var buildQuantity: Int
+    /// Price watch alerts (price up / down, stock short / low, lifecycle, no longer listed) and the new baseline.
+    struct Alert: Decodable, Equatable {
+        var mpn: String
+        var kind: String
+        var severity: String
+        var message: String
+    }
+    var alerts: [Alert]?
+    var baseline: [String: PriceWatch.Entry]?
 }

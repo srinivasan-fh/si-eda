@@ -549,6 +549,68 @@ bool drawLook(Look look, const PartFrame& f, const Component& c, const Footprint
 }
 }  // namespace
 
+void foldFlexRegions(Mesh& m, const BoardSettings& s) {
+    std::vector<const FlexRegion*> folds;
+    for (const FlexRegion& f : s.flexRegions)
+        if (f.bendAngle != 0 && f.area.width() > 0 && f.area.height() > 0) folds.push_back(&f);
+    auto alongX = [](const FlexRegion& f) { return f.area.width() <= f.area.height(); };  // bends across its short side
+    auto start = [&](const FlexRegion& f) { return alongX(f) ? f.area.x0 : f.area.y0; };
+    std::sort(folds.begin(), folds.end(), [&](auto* a, auto* b) { return start(*a) > start(*b); });  // far folds first
+    const double mid = -s.thickness / 2;
+    for (const FlexRegion* f : folds) {
+        const int axis = alongX(*f) ? 0 : 2;  // mesh x = board x, mesh z = board y
+        const double u0 = start(*f), w = alongX(*f) ? f->area.width() : f->area.height();
+        const double theta = std::fabs(f->bendAngle) * M_PI / 180, sign = f->bendAngle > 0 ? 1 : -1, R = w / theta;
+        // Split every triangle crossing a cut so the area curves smoothly (one cut per 5°, at least 8).
+        const int n = std::max(8, static_cast<int>(std::ceil(std::fabs(f->bendAngle) / 5)));
+        for (int k = 0; k <= n; ++k) {
+            const double c = u0 + w * k / n;
+            std::vector<uint32_t> out;
+            out.reserve(m.indices.size());
+            auto lerp = [&](uint32_t a, uint32_t b, double t) {
+                const uint32_t v = static_cast<uint32_t>(m.vertexCount());
+                for (int q = 0; q < 3; ++q) m.positions.push_back(static_cast<float>(m.positions[3 * a + q] + t * (m.positions[3 * b + q] - m.positions[3 * a + q])));
+                for (int q = 0; q < 3; ++q) m.normals.push_back(m.normals[3 * a + q]);
+                for (int q = 0; q < 4; ++q) m.colors.push_back(m.colors[4 * a + q]);
+                m.surfaces.push_back(m.surfaces[a]);
+                return v;
+            };
+            for (size_t i = 0; i + 2 < m.indices.size(); i += 3) {
+                uint32_t v[3] = {m.indices[i], m.indices[i + 1], m.indices[i + 2]};
+                double d[3];
+                for (int q = 0; q < 3; ++q) d[q] = m.positions[3 * v[q] + axis] - c;
+                const bool lo = d[0] < -1e-7 || d[1] < -1e-7 || d[2] < -1e-7, hi = d[0] > 1e-7 || d[1] > 1e-7 || d[2] > 1e-7;
+                if (!lo || !hi) {
+                    out.insert(out.end(), v, v + 3);
+                    continue;
+                }
+                // Rotate so v[0] is alone on its side, then cut its two edges.
+                int lone = 0;
+                for (int q = 0; q < 3; ++q)
+                    if ((d[q] > 0) != (d[(q + 1) % 3] > 0) && (d[q] > 0) != (d[(q + 2) % 3] > 0)) lone = q;
+                std::rotate(v, v + lone, v + 3);
+                std::rotate(d, d + lone, d + 3);
+                const uint32_t p = lerp(v[0], v[1], d[0] / (d[0] - d[1])), q = lerp(v[0], v[2], d[0] / (d[0] - d[2]));
+                out.insert(out.end(), {v[0], p, q, p, v[1], v[2], p, v[2], q});
+            }
+            m.indices = std::move(out);
+        }
+        for (size_t i = 0; i < m.vertexCount(); ++i) {
+            float* p = &m.positions[3 * i];
+            float* nn = &m.normals[3 * i];
+            const double u = p[axis];
+            if (u <= u0) continue;
+            const double hh = sign * (p[1] - mid), r = R - hh, phi = std::min(u - u0, w) / R;
+            double nu = u0 + r * std::sin(phi), nh = R - r * std::cos(phi);
+            if (u > u0 + w) nu += (u - u0 - w) * std::cos(phi), nh += (u - u0 - w) * std::sin(phi);
+            p[axis] = static_cast<float>(nu), p[1] = static_cast<float>(mid + sign * nh);
+            const double a = nn[axis], b = sign * nn[1];
+            nn[axis] = static_cast<float>(a * std::cos(phi) - b * std::sin(phi));
+            nn[1] = static_cast<float>(sign * (a * std::sin(phi) + b * std::cos(phi)));
+        }
+    }
+}
+
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& opt) {
     Mesh m;
     const BoardSettings& s = pcb.settings;
@@ -931,6 +993,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
             }
         }
     }
+    if (opt.fold) foldFlexRegions(m, s);
     return m;
 }
 

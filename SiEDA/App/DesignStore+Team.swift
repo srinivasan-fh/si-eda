@@ -300,6 +300,25 @@ extension DesignStore {
         if !drcResults.isEmpty { runDRC() }
     }
 
+    /// Runs a plug-in (ProjectPlugins) on the open design: its changes are one undo step, its output is shown.
+    func runPlugin(_ plugin: URL) async {
+        let name = plugin.lastPathComponent
+        statusMessage = "Running plug-in \(name)…"
+        let result = await ProjectPlugins.run(plugin, json: engine.saveJSON())
+        var note = result.json == nil ? "The design is unchanged." : "Its changes are one undo step."
+        if let changed = result.json, !performExternalEdit("Plug-in \(name)", { (try? $0.load(json: changed)) != nil }) {
+            note = "It left a project SiEDA could not read, so nothing changed."
+        }
+        statusMessage = "Plug-in \(name) finished"
+        alert = AlertItem(title: "Plug-in \(name)", message: (result.output.isEmpty ? "" : String(result.output.prefix(2000)) + "\n\n") + note)
+    }
+
+    /// Replaces the board's custom DRC rules (a JSON array); undoable. Text that is not a JSON array changes nothing.
+    func setCustomRules(_ json: String) {
+        performChecked("Custom Rules", invalidatesAnalysis: false) { $0.customRules(json) != nil }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Production panel for the fabrication package (1 × 1 removes it). Undoable.
     func setPanel(_ panel: PanelInfo) {
         guard panel != (snapshot.board.panel ?? PanelInfo()) else { return }

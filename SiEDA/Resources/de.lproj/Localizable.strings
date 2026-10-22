@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "Dieses Projekt ist anderswo geöffnet";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ hat es seit %3$@ auf %2$@ geöffnet. Änderungen an beiden Stellen kollidieren.";
 "Open Anyway" = "Trotzdem öffnen";
+"Apply Rules" = "Regeln anwenden";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Jede Regel: name, object (track, via, pad, part, net), when (Filter), require (muss gelten), severity. Ausdrücke nutzen die Eigenschaften des Objekts, z. B. net ~ \"USB_*\" and width >= 0.2mm. Die DRC meldet eine verletzte Regel als RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Schätzung aus Ihrer Preistabelle, kein Angebot des Herstellers.";
+"Export Package & Open Order Page" = "Paket exportieren & Bestellseite öffnen";
+"Fold Flex" = "Flex falten";
+"No published limits for this fab: check the board against its capability page." = "Keine veröffentlichten Grenzwerte für diesen Hersteller: Prüfen Sie die Platine anhand seiner Fertigungsangaben.";
+"Open Plug-ins Folder" = "Plug-in-Ordner öffnen";
+"Order Boards" = "Platinen bestellen";
+"Order Boards…" = "Platinen bestellen…";
+"Plug-ins" = "Plug-ins";
+"Price Table…" = "Preistabelle…";
+"Quantity" = "Menge";
+"Remove Price Table" = "Preistabelle entfernen";
+"Within the fab's published limits" = "Innerhalb der veröffentlichten Grenzwerte des Herstellers";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "Die Preise Ihres Herstellers (sieda.fabprice/1-JSON) für eine Schätzung; SiEDA hat keine eingebauten Preise";

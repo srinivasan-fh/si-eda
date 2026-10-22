@@ -1556,12 +1556,13 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// The assembly mesh; `standoffs` (mm) adds hex standoffs and screws at the mounting holes, `enclosure` the
-    /// enclosure model (see-through).
-    func buildMesh(includeComponents: Bool, hidden: Set<Int> = [], standoffs: Double = 0, enclosure: Bool = false) -> MeshData? {
+    /// enclosure model (see-through), `fold` the rigid-flex bend areas folded by their bend angle.
+    func buildMesh(includeComponents: Bool, hidden: Set<Int> = [], standoffs: Double = 0, enclosure: Bool = false,
+                   fold: Bool = false) -> MeshData? {
         withHandle { handle -> MeshData? in
-            guard !hidden.isEmpty || standoffs > 0 || enclosure else { return Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0)) }
+            guard !hidden.isEmpty || standoffs > 0 || enclosure || fold else { return Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0)) }
             let json = "{\"components\":\(includeComponents),\"hidden\":[\(hidden.sorted().map(String.init).joined(separator: ","))],"
-                + "\"standoffs\":\(standoffs),\"enclosure\":\(enclosure)}"
+                + "\"standoffs\":\(standoffs),\"enclosure\":\(enclosure),\"fold\":\(fold)}"
             return Self.copyMesh(sieda_mesh_build_options(handle, json))
         }
     }
@@ -1626,6 +1627,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case idx
     case ipc2581
     case dxf
+    case freecad
+    case fusion
     case testPoints = "testpoints"
     case htmlBom = "html_bom"
     case bringUp = "bringup"
@@ -1666,6 +1669,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idx: return "board.idx"
         case .ipc2581: return "board-ipc2581.xml"
         case .dxf: return "board.dxf"
+        case .freecad: return "board.FCMacro"
+        case .fusion: return "board.py"
         case .testPoints: return "test_points.csv"
         case .htmlBom: return "interactive_bom.html"
         case .bringUp: return "bring_up_checklist.md"
@@ -1706,6 +1711,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idx: return "IDX / EDMD Baseline for MCAD (.idx)"
         case .ipc2581: return "IPC-2581C — Layers, Nets, Parts and BOM (XML)"
         case .dxf: return "DXF — Outline, Holes, Silk and Courtyards (MCAD)"
+        case .freecad: return "FreeCAD Macro — Board and Parts, Placement Back (MCAD)"
+        case .fusion: return "Autodesk Fusion Script — Board and Parts, Placement Back (MCAD)"
         case .testPoints: return "Test-Point Report for Fixtures (CSV)"
         case .htmlBom: return "Interactive BOM and Board Viewer (HTML)"
         case .bringUp: return "Bring-Up Checklist (Markdown)"

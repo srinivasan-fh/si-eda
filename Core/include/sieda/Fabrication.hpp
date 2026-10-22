@@ -34,6 +34,22 @@ bool writeFabricationPackage(const Project& project, const std::string& dir, std
 /// The order sheet on its own (also part of the package as fab_notes.txt).
 std::string fabricationNotes(const Project& project, const std::vector<FabFile>& files);
 
+/// A board house to order from: its order page and the DFM packs (Dfm.hpp) its capability is checked against.
+struct FabService {
+    std::string id, name, country, orderUrl;
+    std::vector<std::string> packs;  // by layer count: the first whose maxLayers covers the board; empty = no published pack
+};
+const std::vector<FabService>& fabServices();
+
+/// Quote / order hand-off. request {"fab": id, "quantity": boards, "priceTable": {…}} →
+/// {"fab","name","country","orderUrl","quantity","order":{what the fab's order form asks: layers, size, area, thickness,
+///  material, copper, finish, mask / silk colours, minimum track / space / drill / ring, hole and via counts, HDI,
+///  via-in-pad, impedance control, construction, panel},"pack","checks":[{"rule","actual","limit","ok"}],"fits",
+///  "estimate" (only from "priceTable", never built-in prices), "steps"}; an unknown fab gives {"error","services":[…]}.
+/// priceTable (sieda.fabprice/1, your fab's prices): {"currency","setup","perCm2","minimum","layers":{"2":1,"4":2.2},
+///  "quantityFactors":[[1,1],[10,0.8]],"options":{"ENIG","impedance","hdi","viaInPad","colour"},"leadDays"}.
+Json fabQuote(const Project& project, const Json& request);
+
 /// Gerber X2 job file (.gbrjob, JSON): board size, layer count, thickness, finish, design rules, stack-up with mask and
 /// silkscreen colours, and the function of every Gerber file in `files`.
 std::string exportGerberJob(const Project& project, const std::vector<FabFile>& files);

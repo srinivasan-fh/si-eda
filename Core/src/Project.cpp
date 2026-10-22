@@ -1,4 +1,5 @@
 #include "sieda/Project.hpp"
+#include "sieda/CustomRules.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Panel.hpp"
 #include "sieda/ProjectDiff.hpp"
@@ -156,6 +157,7 @@ Json boardJson(const BoardSettings& s) {
     if (Json m = mechanicalLimitsToJson(s); !m.isNull()) b["mechanical"] = m;
     if (Json panel = panelToJson(s.panel); !panel.isNull()) b["panel"] = panel;
     if (!s.dfmPack.empty()) b["dfmPack"] = s.dfmPack;
+    if (!s.customRules.empty()) b["customRules"] = customRulesToJson(s.customRules);
     if (!s.dfmOverrides.empty()) {
         Json o = Json::object();
         for (const auto& [k, v] : s.dfmOverrides) o[k] = v;
@@ -923,6 +925,7 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
     mechanicalLimitsFromJson(b.get("mechanical"), s);
     panelFromJson(b.get("panel"), s.panel);
     s.dfmPack = b.get("dfmPack").asString("");
+    s.customRules = customRulesFromJson(b.get("customRules"));
     if (b.get("dfmOverrides").isObject())
         for (const auto& [k, v] : b.get("dfmOverrides").fields())
             if (v.isNumber() && v.asNumber() > 0 && v.asNumber() < 1e4) s.dfmOverrides[k] = v.asNumber();

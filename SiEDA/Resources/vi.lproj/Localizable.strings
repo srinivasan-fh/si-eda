@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "Dự án này đang mở ở nơi khác";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ đã mở nó trên %2$@ từ %3$@. Chỉnh sửa ở cả hai nơi sẽ xung đột.";
 "Open Anyway" = "Vẫn mở";
+"Apply Rules" = "Áp dụng quy tắc";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Mỗi quy tắc: name, object (track, via, pad, part, net), when (bộ lọc), require (phải đúng), severity. Biểu thức dùng thuộc tính của đối tượng, ví dụ net ~ \"USB_*\" and width >= 0.2mm. DRC báo quy tắc bị vi phạm là RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Ước tính từ bảng giá của bạn, không phải báo giá của nhà sản xuất.";
+"Export Package & Open Order Page" = "Xuất gói và mở trang đặt hàng";
+"Fold Flex" = "Gập phần mềm dẻo";
+"No published limits for this fab: check the board against its capability page." = "Nhà sản xuất này không có giới hạn công bố: hãy đối chiếu bo mạch với trang năng lực của họ.";
+"Open Plug-ins Folder" = "Mở thư mục plug-in";
+"Order Boards" = "Đặt làm bo mạch";
+"Order Boards…" = "Đặt làm bo mạch…";
+"Plug-ins" = "Plug-in";
+"Price Table…" = "Bảng giá…";
+"Quantity" = "Số lượng";
+"Remove Price Table" = "Xóa bảng giá";
+"Within the fab's published limits" = "Nằm trong giới hạn công bố của nhà sản xuất";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "Giá của nhà sản xuất bạn chọn (JSON sieda.fabprice/1) để ước tính; SiEDA không có giá dựng sẵn";

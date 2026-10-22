@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "ఈ ప్రాజెక్ట్ వేరే చోట తెరిచి ఉంది";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ దీన్ని %3$@ నుండి %2$@ లో తెరిచి ఉంచారు. రెండు చోట్ల చేసిన మార్పులు ఢీకొంటాయి.";
 "Open Anyway" = "అయినా తెరవండి";
+"Apply Rules" = "నియమాలను వర్తింపజేయి";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "ప్రతి నియమం: name, object (track, via, pad, part, net), when (ఫిల్టర్), require (నిజం కావాల్సినది), severity. వ్యక్తీకరణలు వస్తువు లక్షణాలను వాడతాయి, ఉదా. net ~ \"USB_*\" and width >= 0.2mm. DRC ఉల్లంఘించిన నియమాన్ని RULE_<NAME> గా చూపుతుంది.";
+"Estimate from your price table, not the fab's quote." = "మీ ధరల పట్టిక నుండి అంచనా, తయారీదారు కొటేషన్ కాదు.";
+"Export Package & Open Order Page" = "ప్యాకేజీని ఎగుమతి చేసి ఆర్డర్ పేజీ తెరువు";
+"Fold Flex" = "ఫ్లెక్స్‌ను మడువు";
+"No published limits for this fab: check the board against its capability page." = "ఈ తయారీదారుకి ప్రచురించిన పరిమితులు లేవు: బోర్డును వారి సామర్థ్య పేజీతో సరిచూడండి.";
+"Open Plug-ins Folder" = "ప్లగ్-ఇన్‌ల ఫోల్డర్ తెరువు";
+"Order Boards" = "బోర్డులను ఆర్డర్ చేయి";
+"Order Boards…" = "బోర్డులను ఆర్డర్ చేయి…";
+"Plug-ins" = "ప్లగ్-ఇన్‌లు";
+"Price Table…" = "ధరల పట్టిక…";
+"Quantity" = "పరిమాణం";
+"Remove Price Table" = "ధరల పట్టికను తీసివేయి";
+"Within the fab's published limits" = "తయారీదారు ప్రచురించిన పరిమితుల్లో";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "అంచనా కోసం మీ తయారీదారు ధరలు (sieda.fabprice/1 JSON); SiEDAలో అంతర్నిర్మిత ధరలు లేవు";

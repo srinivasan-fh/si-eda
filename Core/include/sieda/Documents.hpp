@@ -46,11 +46,12 @@ std::string exportHtmlBom(const Project& project);
 /// voltage and source, clocks, reset / enable / boot nets, programming and bus interfaces, each with what to measure.
 std::string bringUpChecklist(const Project& project);
 
-/// Fabrication drawing (one A3 PDF page, written in SchematicPdf.cpp beside the schematic PDF): the board outline and
+/// Fabrication drawing (A3 PDF, written in SchematicPdf.cpp beside the schematic PDF): the board outline and
 /// cutouts with overall and user dimensions (BoardSettings::dimensions), a drill map with one symbol per finished
 /// hole size and plating, the drill table, the stack-up as the layer legend, fabrication notes, the title block and
-/// the revision table (Project::revisions).
-std::string exportBoardDrawingPdf(const Project& project);
+/// the revision table (Project::revisions); with `views3d` a second sheet: the assembly isometric (rigid-flex folded),
+/// exploded and section A-A (through the board's middle, marked on sheet 1) views.
+std::string exportBoardDrawingPdf(const Project& project, bool views3d = true);
 
 /// A Gerber (RS-274X / X2), Excellon or ODB++ layer features file (kind "odb") read for viewing: strokes, flashes and
 /// regions in mm, Y up as in the file.

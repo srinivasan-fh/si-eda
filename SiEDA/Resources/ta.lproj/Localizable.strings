@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "இந்தத் திட்டம் வேறு இடத்தில் திறந்துள்ளது";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ இதை %3$@ முதல் %2$@ இல் திறந்துள்ளார். இரு இடங்களிலும் செய்யும் திருத்தங்கள் மோதும்.";
 "Open Anyway" = "இருந்தாலும் திற";
+"Apply Rules" = "விதிகளைப் பயன்படுத்து";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "ஒவ்வொரு விதியும்: name, object (track, via, pad, part, net), when (வடிகட்டி), require (உண்மையாக இருக்க வேண்டியது), severity. கோவைகள் பொருளின் பண்புகளைப் பயன்படுத்துகின்றன, எ.கா. net ~ \"USB_*\" and width >= 0.2mm. மீறிய விதியை DRC RULE_<NAME> எனத் தெரிவிக்கும்.";
+"Estimate from your price table, not the fab's quote." = "உங்கள் விலைப் பட்டியலிலிருந்து மதிப்பீடு, தயாரிப்பாளரின் விலைக்குறிப்பு அல்ல.";
+"Export Package & Open Order Page" = "தொகுப்பை ஏற்றுமதி செய்து ஆர்டர் பக்கத்தைத் திற";
+"Fold Flex" = "ஃபிளெக்ஸை மடி";
+"No published limits for this fab: check the board against its capability page." = "இந்தத் தயாரிப்பாளருக்கு வெளியிட்ட வரம்புகள் இல்லை: பலகையை அவர்களின் திறன் பக்கத்துடன் சரிபார்க்கவும்.";
+"Open Plug-ins Folder" = "செருகுநிரல் கோப்புறையைத் திற";
+"Order Boards" = "பலகைகளை ஆர்டர் செய்";
+"Order Boards…" = "பலகைகளை ஆர்டர் செய்…";
+"Plug-ins" = "செருகுநிரல்கள்";
+"Price Table…" = "விலைப் பட்டியல்…";
+"Quantity" = "அளவு";
+"Remove Price Table" = "விலைப் பட்டியலை நீக்கு";
+"Within the fab's published limits" = "தயாரிப்பாளர் வெளியிட்ட வரம்புகளுக்குள்";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "மதிப்பீட்டிற்கான உங்கள் தயாரிப்பாளரின் விலைகள் (sieda.fabprice/1 JSON); SiEDA-வில் உள்ளமைந்த விலைகள் இல்லை";

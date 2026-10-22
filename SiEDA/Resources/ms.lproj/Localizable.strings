@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "Projek ini dibuka di tempat lain";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ telah membukanya pada %2$@ sejak %3$@. Suntingan di kedua-dua tempat akan bercanggah.";
 "Open Anyway" = "Buka Juga";
+"Apply Rules" = "Guna Peraturan";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Setiap peraturan: name, object (track, via, pad, part, net), when (penapis), require (mesti benar), severity. Ungkapan menggunakan sifat objek, cth. net ~ \"USB_*\" and width >= 0.2mm. DRC melaporkan peraturan yang dilanggar sebagai RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Anggaran daripada jadual harga anda, bukan sebut harga pengilang.";
+"Export Package & Open Order Page" = "Eksport Pakej & Buka Halaman Pesanan";
+"Fold Flex" = "Lipat Flex";
+"No published limits for this fab: check the board against its capability page." = "Tiada had yang diterbitkan untuk pengilang ini: semak papan dengan halaman keupayaannya.";
+"Open Plug-ins Folder" = "Buka Folder Plug-in";
+"Order Boards" = "Pesan Papan";
+"Order Boards…" = "Pesan Papan…";
+"Plug-ins" = "Plug-in";
+"Price Table…" = "Jadual Harga…";
+"Quantity" = "Kuantiti";
+"Remove Price Table" = "Buang Jadual Harga";
+"Within the fab's published limits" = "Dalam had yang diterbitkan oleh pengilang";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "Harga pengilang anda (JSON sieda.fabprice/1) untuk anggaran; SiEDA tiada harga terbina dalam";

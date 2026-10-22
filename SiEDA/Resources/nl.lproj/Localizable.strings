@@ -1744,3 +1744,18 @@
 "This project is open elsewhere" = "Dit project is elders geopend";
 "%1$@ has had it open on %2$@ since %3$@. Edits made in both places will clash." = "%1$@ heeft het sinds %3$@ geopend op %2$@. Bewerkingen op beide plekken botsen.";
 "Open Anyway" = "Toch openen";
+"Apply Rules" = "Regels toepassen";
+"Each rule: name, object (track, via, pad, part, net), when (filter), require (must hold), severity. Expressions use the object's properties, e.g. net ~ \"USB_*\" and width >= 0.2mm. The DRC reports a broken rule as RULE_<NAME>." = "Elke regel: name, object (track, via, pad, part, net), when (filter), require (moet gelden), severity. Expressies gebruiken de eigenschappen van het object, bijv. net ~ \"USB_*\" and width >= 0.2mm. De DRC meldt een geschonden regel als RULE_<NAME>.";
+"Estimate from your price table, not the fab's quote." = "Schatting uit uw prijstabel, geen offerte van de fabrikant.";
+"Export Package & Open Order Page" = "Pakket exporteren en bestelpagina openen";
+"Fold Flex" = "Flex vouwen";
+"No published limits for this fab: check the board against its capability page." = "Geen gepubliceerde limieten voor deze fabrikant: controleer de print met zijn capaciteitenpagina.";
+"Open Plug-ins Folder" = "Plug-inmap openen";
+"Order Boards" = "Printplaten bestellen";
+"Order Boards…" = "Printplaten bestellen…";
+"Plug-ins" = "Plug-ins";
+"Price Table…" = "Prijstabel…";
+"Quantity" = "Aantal";
+"Remove Price Table" = "Prijstabel verwijderen";
+"Within the fab's published limits" = "Binnen de gepubliceerde limieten van de fabrikant";
+"Your fab's prices (sieda.fabprice/1 JSON) for an estimate; SiEDA has no built-in prices" = "De prijzen van uw fabrikant (sieda.fabprice/1-JSON) voor een schatting; SiEDA heeft geen ingebouwde prijzen";

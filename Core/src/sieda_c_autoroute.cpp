@@ -14,6 +14,8 @@
 #include "sieda/Mechanical.hpp"
 #include "sieda/Panel.hpp"
 #include "sieda/Dfm.hpp"
+#include "sieda/CustomRules.hpp"
+#include "sieda/Fabrication.hpp"
 #include "sieda/FieldSolver.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
@@ -98,6 +100,40 @@ char* sieda_dfm_packs_json(void) { return dupText(dfmPacksJson().dump()); }
 char* sieda_dfm_report_json(const SiedaProject* project) {
     if (!project) return nullptr;
     return dupText(dfmReportJson(project->project.schematic, project->project.pcb).dump());
+}
+
+char* sieda_fab_quote(const SiedaProject* project, const char* request_json) {
+    if (!project) return nullptr;
+    try {
+        return dupText(fabQuote(project->project, Json::parse(request_json ? request_json : "{}")).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_pcb_custom_rules(SiedaProject* project, const char* rules_json) {
+    if (!project) return nullptr;
+    try {
+        PcbLayout& pcb = project->project.pcb;
+        if (rules_json) {
+            const Json j = Json::parse(rules_json);
+            if (!j.isArray()) return nullptr;
+            pcb.settings.customRules = customRulesFromJson(j);
+        }
+        Json out = Json::object(), errors = Json::array();
+        out["rules"] = customRulesToJson(pcb.settings.customRules);
+        for (const CustomRule& r : pcb.settings.customRules)
+            if (const std::string e = customRuleError(r); !e.empty()) {
+                Json x = Json::object();
+                x["name"] = r.name, x["error"] = e;
+                errors.push(x);
+            }
+        out["errors"] = errors;
+        out["violations"] = Project::violationsToJson(customRuleChecks(project->project.schematic, pcb));
+        return dupText(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {

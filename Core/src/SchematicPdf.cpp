@@ -1,6 +1,6 @@
 // SiEDA Core — schematic PDF: every sheet on its drawing template with frame, zones, title block and bookmarks.
 //
-// The PDF is written by hand (no library): uncompressed content streams in plain ASCII, the base-14 Helvetica fonts,
+// The PDF is written by hand (no library): uncompressed content streams in plain ASCII (images ASCII85), the base-14 Helvetica fonts,
 // one page per sheet and an outline tree that mirrors the sheet hierarchy. Symbols are simplified vector drawings
 // (the app's canvas is richer): two-pin parts as boxes, capacitor plates or diode triangles between their pins,
 // other parts as a body box with their pin stubs and names, ground symbols, label flags and sheet symbols.
@@ -19,6 +19,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Documents.hpp"
+#include "sieda/Mesh.hpp"
 
 namespace sieda {
 
@@ -196,6 +197,11 @@ public:
         out_ << num(pts[0].x * kPt) << ' ' << num((h_ - pts[0].y) * kPt) << " m";
         for (size_t i = 1; i < pts.size(); ++i) out_ << ' ' << num(pts[i].x * kPt) << ' ' << num((h_ - pts[i].y) * kPt) << " l";
         out_ << (!closed ? " S\n" : fill ? " b\n0 g\n" : " s\n");
+    }
+    /// Image XObject `name` drawn into the box x, y (top-left), w × hh.
+    void image(const std::string& name, double x, double y, double w, double hh) {
+        out_ << "q " << num(w * kPt) << " 0 0 " << num(hh * kPt) << ' ' << num(x * kPt) << ' ' << num((h_ - y - hh) * kPt) << " cm /"
+             << name << " Do Q\n";
     }
     void dot(double x, double y, double r) {
         rect(x - r, y - r, 2 * r, 2 * r, true);
@@ -1096,12 +1102,12 @@ std::string fmtMm(double v) {
 
 }  // namespace
 
-std::string exportBoardDrawingPdf(const Project& project) {
+std::string exportBoardDrawingPdf(const Project& project, bool views3d) {
     const SheetTemplate& t = *findSheetTemplate("A3");
     const BoardSettings& s = project.pcb.settings;
     Canvas cv(t.heightMm);
     drawFrame(cv, t);
-    drawTitleBlock(cv, t, project, "Fabrication drawing", 1, 1);
+    drawTitleBlock(cv, t, project, "Fabrication drawing", 1, views3d ? 2 : 1);
     // The board, top view, scaled into the left 58 % of the frame with room for its dimensions.
     const double ax0 = kMargin + kZone + 22, ay0 = kMargin + kZone + 14, ax1 = t.widthMm * 0.58, ay1 = t.heightMm - kMargin - kZone - 26;
     const double bw = std::max(1.0, s.width), bh = std::max(1.0, s.height);
@@ -1135,6 +1141,12 @@ std::string exportBoardDrawingPdf(const Project& project) {
     dimension(cv, P({0, bh}), P({bw, bh}), 8, fmtMm(s.width));
     dimension(cv, P({0, 0}), P({0, bh}), 8, fmtMm(s.height));
     for (const auto& d : s.dimensions) dimension(cv, P(d.a), P(d.b), d.offset * sc, fmtMm((d.b - d.a).length()));
+    if (views3d) {  // where sheet 2's section A-A cuts
+        cv.width(0.25);
+        const Vec2 a = P({-4, bh / 2}), b = P({bw + 4, bh / 2});
+        cv.line(a.x, a.y, a.x + 3, a.y), cv.line(b.x - 3, b.y, b.x, b.y);
+        cv.text(a.x, a.y - 1.5, 3, "A", 0, true), cv.text(b.x - 2.2, b.y - 1.5, 3, "A", 0, true);
+    }
     // Right column: drill table, stack-up (layer legend), notes.
     const double tx = t.widthMm * 0.62, tw = t.widthMm - kMargin - kZone - 4 - tx;
     double y = kMargin + kZone + 8;
@@ -1194,16 +1206,84 @@ std::string exportBoardDrawingPdf(const Project& project) {
     const std::string content = cv.str();
     char mediabox[96];
     std::snprintf(mediabox, sizeof mediabox, "[0 0 %.2f %.2f]", t.widthMm * kPt, t.heightMm * kPt);
-    const std::vector<std::string> objects = {
+    const std::string fonts = " /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 7 0 R >>";
+    std::vector<std::string> objects = {
         "<< /Type /Catalog /Pages 2 0 R >>",
-        "<< /Type /Pages /Kids [5 0 R] /Count 1 >>",
+        std::string("<< /Type /Pages /Kids [5 0 R") + (views3d ? " 8 0 R] /Count 2 >>" : "] /Count 1 >>"),
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
-        "<< /Type /Page /Parent 2 0 R /MediaBox " + std::string(mediabox) +
-            " /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 7 0 R >> >> /Contents 6 0 R >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox " + std::string(mediabox) + fonts + " >> /Contents 6 0 R >>",
         "<< /Length " + std::to_string(content.size()) + " >>\nstream\n" + content + "endstream",
         "<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>",
     };
+    if (views3d) {
+        // Sheet 2: the assembly as built (rigid-flex folded), exploded (parts lifted off both sides) and cut through the
+        // board's middle (section A-A, seen from the front).
+        Canvas c2(t.heightMm);
+        drawFrame(c2, t);
+        drawTitleBlock(c2, t, project, "Fabrication drawing - 3D views", 2, 2);
+        MeshOptions opt;
+        opt.fold = true;
+        const Mesh mesh = buildAssemblyMesh(project.schematic, project.pcb, opt);
+        Mesh exploded = mesh;
+        const double lift = std::max(4.0, 0.15 * std::max(bw, bh));
+        for (size_t v = 0; v < exploded.vertexCount(); ++v) {
+            const auto surface = static_cast<Surface>(exploded.surfaces[v]);
+            if (surface == Surface::Mask || surface == Surface::Laminate || surface == Surface::Finish || surface == Surface::Hole ||
+                surface == Surface::Silk || surface == Surface::Solder)
+                continue;
+            float& y = exploded.positions[3 * v + 1];  // part bodies and their leads, whole, away from their side
+            y += static_cast<float>(y > -s.thickness / 2 ? lift : -lift);
+        }
+        struct View { const Mesh* mesh; double pitch, yaw, cut; const char* title; double x0, y0, x1, y1; };
+        const double right = t.widthMm - kMargin - kZone - 6, top = kMargin + kZone + 10, split = t.widthMm * 0.58;
+        const View views[] = {
+            {&mesh, 0.6, 0.55, NAN, "ASSEMBLY (ISOMETRIC)", kMargin + kZone + 6, top, split - 6, t.heightMm - kMargin - kZone - 10},
+            {&exploded, 0.45, 0.55, NAN, "EXPLODED VIEW", split + 6, top, right, top + 95},
+            {&mesh, 0.12, 0.0, bh / 2, "SECTION A-A", split + 6, top + 115, right, top + 185},
+        };
+        std::string xobjects;
+        std::vector<std::string> images;
+        for (const View& v : views) {
+            int ih = 0;
+            const int iw = 1200;
+            const std::vector<uint8_t> rgb = rasterizeMesh(*v.mesh, v.pitch, v.yaw, iw, ih, true, v.cut);
+            const double fit = std::min((v.x1 - v.x0) / iw, (v.y1 - v.y0 - 8) / std::max(1, ih));
+            const double w = iw * fit, hh = ih * fit;
+            const std::string name = "Im" + std::to_string(images.size() + 1);
+            c2.gray(0);
+            c2.text(v.x0, v.y0, 3.2, v.title, 0, true);
+            c2.image(name, v.x0 + ((v.x1 - v.x0) - w) / 2, v.y0 + 4, w, hh);
+            // Deflated, then ASCII85 (the PDF stays plain ASCII text: the C API hands it over as a string).
+            const std::string z = zlibStream(std::string(rgb.begin(), rgb.end()), static_cast<size_t>(iw) * 3);
+            std::string data;
+            data.reserve(z.size() * 5 / 4 + 8);
+            for (size_t i = 0; i < z.size(); i += 4) {
+                uint32_t v = 0;
+                const size_t n = std::min<size_t>(4, z.size() - i);
+                for (size_t k = 0; k < 4; ++k) v = v << 8 | (k < n ? static_cast<uint8_t>(z[i + k]) : 0);
+                if (v == 0 && n == 4) {
+                    data += 'z';
+                    continue;
+                }
+                char five[5];
+                for (int k = 4; k >= 0; --k) five[k] = static_cast<char>('!' + v % 85), v /= 85;
+                data.append(five, n + 1);
+            }
+            data += "~>";
+            xobjects += " /" + name + " " + std::to_string(10 + images.size()) + " 0 R";  // pages 8 / 9, images from 10
+            images.push_back("<< /Type /XObject /Subtype /Image /Width " + std::to_string(iw) + " /Height " + std::to_string(ih) +
+                             " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCII85Decode /FlateDecode] /Length " + std::to_string(data.size()) +
+                             " >>\nstream\n" + data + "\nendstream");
+        }
+        c2.text(split + 6, top + 196, 2.3, "Exploded: part bodies lifted " + fmtMm(lift) + " mm off each side.");
+        c2.text(split + 6, top + 201, 2.3, "Section A-A: cut at y = " + fmtMm(bh / 2) + " mm, seen from the front.");
+        const std::string content2 = c2.str();
+        objects.push_back("<< /Type /Page /Parent 2 0 R /MediaBox " + std::string(mediabox) + fonts + " /XObject <<" + xobjects +
+                          " >> >> /Contents 9 0 R >>");
+        objects.push_back("<< /Length " + std::to_string(content2.size()) + " >>\nstream\n" + content2 + "endstream");
+        objects.insert(objects.end(), images.begin(), images.end());
+    }
     std::string pdf = "%PDF-1.4\n%SiEDA board drawing\n";
     std::vector<size_t> offsets;
     for (size_t i = 0; i < objects.size(); ++i) {

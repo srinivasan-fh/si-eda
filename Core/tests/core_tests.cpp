@@ -49,6 +49,7 @@
 #include "sieda/Mcp.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/CustomRules.hpp"
 #include "sieda/ProjectDiff.hpp"
 #include "sieda/Variants.hpp"
 #include "sieda/Project.hpp"
@@ -12962,6 +12963,29 @@ TEST(supplier_merge_rollup_and_catalog_match) {
     // Garbage requests give a roll-up, never an exception.
     CHECK(supplierBomRollup(Json::parse("{\"lines\":[1,\"x\",{}],\"parts\":[null,{\"mpn\":7}]}")).get("lines").size() == 3);
     CHECK(supplierBomRollup(Json()).get("totals").size() == 4);
+    // Price watch: the first look only reports a shortage and returns the baseline; later looks report changes.
+    CHECK(!supplierBomRollup(Json::parse(req.dump())).has("alerts"));
+    req["baseline"] = Json::object();
+    const Json first = supplierBomRollup(Json::parse(req.dump()));
+    auto kinds = [](const Json& r) {
+        std::string k;
+        for (const auto& a : r.get("alerts").items()) k += a.get("mpn").asString() + ":" + a.get("kind").asString() + " ";
+        return k;
+    };
+    CHECK(kinds(first) == "LM358DRG4:stock_short ");
+    Json base = first.get("baseline");
+    CHECK(base.get("LM358DR").get("unitPrice").asNumber() > 0 && base.get("LM358DRG4").get("lifecycle").asString() == "nrnd");
+    base["LM358DR"]["unitPrice"] = base.get("LM358DR").get("unitPrice").asNumber() / 2;  // it cost half last time
+    base["LM358DR"]["stock"] = 1e9;  // stock has halved since, but still covers 10 × the 20 needed: no alert
+    base["LM358DRG4"]["lifecycle"] = "active";
+    base["NOPE123"] = Json::parse(R"({"stock": 5, "lifecycle": "active"})");
+    req["baseline"] = base;
+    const Json later = supplierBomRollup(Json::parse(req.dump()));
+    CHECK(kinds(later) == "lm358-dr:price_up LM358DRG4:stock_short LM358DRG4:lifecycle NOPE123:not_found ");
+    CHECK(later.get("alerts")[0].get("message").asString().find("U1, U2: lm358-dr rose 100 %") == 0);
+    CHECK(later.get("baseline").get("NOPE123").isObject() && later.get("baseline").get("LM358DRG4").get("lifecycle").asString() == "nrnd");
+    req["priceChangePercent"] = 150;  // a smaller swing than asked for: no price alert
+    CHECK(kinds(supplierBomRollup(Json::parse(req.dump()))).find("price_up") == std::string::npos);
 
     // Catalog matching.
     Json cm = catalogMatchForMpn("LM358DR");
@@ -24160,6 +24184,150 @@ TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     bool inPackage = false;
     for (const auto& f : fabricationPackage(p, "board")) inPackage = inPackage || f.path == "board-fab_drawing.pdf";
     CHECK(inPackage);
+}
+
+TEST(flex_fold_and_drawing_3d_views) {
+    Project p;
+    p.pcb.settings.width = 30, p.pcb.settings.height = 20;
+    FlexRegion f;
+    f.area = Rect(10, 0, 14, 20);  // narrower than tall: bends across x
+    f.bendAngle = 90;
+    p.pcb.settings.flexRegions.push_back(f);
+    MeshOptions opt;
+    opt.components = false;
+    const Mesh flat = buildAssemblyMesh(p.schematic, p.pcb, opt);
+    opt.fold = true;
+    const Mesh folded = buildAssemblyMesh(p.schematic, p.pcb, opt);
+    auto range = [](const Mesh& m, int axis) {
+        float lo = 1e9f, hi = -1e9f;
+        for (size_t v = 0; v < m.vertexCount(); ++v) lo = std::min(lo, m.positions[3 * v + axis]), hi = std::max(hi, m.positions[3 * v + axis]);
+        return std::make_pair(lo, hi);
+    };
+    CHECK(folded.vertexCount() > flat.vertexCount() && folded.triangleCount() > flat.triangleCount());
+    // Folded up by 90°: the 16 mm past the bend stand up beside it (R = 4 / (π/2) ≈ 2.55 mm; mid-plane at −0.8).
+    CHECK(range(flat, 1).second < 0.1f && range(folded, 1).second > 17.5f && range(folded, 0).second < 13.5f);
+    CHECK(std::fabs(range(folded, 2).second - 20) < 1e-3);  // across the bend nothing moves
+    p.pcb.settings.flexRegions[0].bendAngle = -45;
+    CHECK(range(buildAssemblyMesh(p.schematic, p.pcb, opt), 1).first < -10.0f);
+    // Saved only when set, and back.
+    CHECK(Project::fromJson(Json::parse(p.toJson().dump())).pcb.settings.flexRegions[0].bendAngle == -45);
+    p.pcb.settings.flexRegions[0].bendAngle = 0;
+    CHECK(p.toJson().dump().find("bendAngle") == std::string::npos);
+    CHECK(buildAssemblyMesh(p.schematic, p.pcb, opt).vertexCount() == flat.vertexCount());
+    // The drawing's second sheet: isometric, exploded and section views as ASCII85 images; sheet 1 marks A-A.
+    p.pcb.settings.flexRegions[0].bendAngle = 30;
+    const std::string pdf = exportBoardDrawingPdf(p);
+    for (const char* text : {"/Count 2", "(ASSEMBLY \\(ISOMETRIC\\))", "(EXPLODED VIEW)", "(SECTION A-A)", "/Im3 12 0 R", "(Sheet 2 of 2)",
+                             "/ASCII85Decode /FlateDecode", "(A)"})
+        CHECK(pdf.find(text) != std::string::npos);
+    CHECK(std::all_of(pdf.begin(), pdf.end(), [](char c) { return static_cast<unsigned char>(c) < 128 && c != 0; }));
+    const std::string one = exportBoardDrawingPdf(p, false);
+    CHECK(one.find("/Count 1") != std::string::npos && one.find("/Im1") == std::string::npos && one.find("(Sheet 1 of 1)") != std::string::npos);
+}
+
+TEST(fab_quote_order_form_checks_and_price_table) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    const Project& p = m.project()->project;
+    // No fab: the list (Indian fabs included); an unknown one is an error result with the list.
+    const Json none = fabQuote(p, Json::object());
+    CHECK(none.has("error") && none.get("services").size() == fabServices().size() && fabServices().size() >= 6);
+    CHECK(mcpFailed(mcpTool(m, "output_fab_quote", Json::parse(R"({"fab": "nope"})"))));
+    const Json q = fabQuote(p, Json::parse(R"({"fab": "jlcpcb", "quantity": 10})"));
+    const Json& o = q.get("order");
+    CHECK(q.get("orderUrl").asString().rfind("https://", 0) == 0 && q.get("quantity").asInt() == 10);
+    CHECK(o.get("layers").asInt() == p.pcb.settings.layerCount && std::fabs(o.get("areaCm2").asNumber() - 6) < 0.6);  // 30 × 20 mm
+    CHECK(o.get("solderMask").asString() == "Green" && o.get("platedHoles").asInt() >= 0 && o.has("minDrillMm"));
+    CHECK(q.get("pack").asString() == "jlcpcb-standard" && q.get("checks").size() > 3 && q.get("fits").asBool());
+    CHECK(!q.has("estimate"));  // no built-in prices
+    // A fab without a published pack: no checks, a step to check its capability page.
+    const Json lion = fabQuote(p, Json::parse(R"({"fab": "lioncircuits"})"));
+    CHECK(lion.get("country").asString() == "India" && lion.get("fits").isNull() && lion.get("steps").size() == 4);
+    // Your price table: setup + area × quantity × layer factor × quantity factor, raised to the minimum.
+    const Json est = fabQuote(p, Json::parse(R"({"fab": "pcbpower", "quantity": 10, "priceTable": {"currency": "INR",
+        "setup": 1000, "perCm2": 2, "layers": {"2": 1.5}, "quantityFactors": [[1, 1], [10, 0.5], [100, 0.3]], "minimum": 0,
+        "options": {"colour": 99}, "leadDays": 6}})")).get("estimate");
+    const double area = o.get("areaCm2").asNumber();
+    CHECK(est.get("currency").asString() == "INR" && est.get("leadDays").asNumber() == 6);
+    CHECK(std::fabs(est.get("total").asNumber() - (1000 + 2 * area * 10 * 1.5 * 0.5)) < 1e-6 && est.get("lines").size() == 2);
+    CHECK(fabQuote(p, Json::parse(R"({"fab": "pcbpower", "priceTable": {"minimum": 5000}})")).get("estimate").get("total").asNumber() == 5000);
+    CHECK(!mcpFailed(mcpTool(m, "output_fab_quote", Json::parse(R"({"fab": "oshpark", "quantity": 3})"))));
+}
+
+TEST(mcad_scripts_freecad_and_fusion) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    Project& p = m.project()->project;
+    p.pcb.settings.holes.push_back({{3, 3}});
+    const std::string fc = exportMcadScript(p.schematic, p.pcb, "LED \"x\"", "freecad");
+    const std::string fu = exportMcadScript(p.schematic, p.pcb, p.name, "fusion");
+    CHECK(exportMcadScript(p.schematic, p.pcb, p.name, "solidworks").empty());
+    // Every placed part by designator (MCAD frame: Y up), the hole, and the placement written back as IDF.
+    for (const std::string* script : {&fc, &fu}) {
+        CHECK(script->find("(\"R1\", ") != std::string::npos && script->find("(\"D1\", ") != std::string::npos);
+        CHECK(script->find("HOLES = [(3., -3., ") != std::string::npos && script->find(".END_PLACEMENT") != std::string::npos);
+    }
+    CHECK(fc.find("NAME = \"LED__x_\"") != std::string::npos && fc.find("import FreeCAD as App") != std::string::npos);
+    CHECK(fu.find("def run(context):") != std::string::npos && fu.find("CM = 0.1") != std::string::npos);
+    // The lines the scripts write are what the IDF import reads: R1 moved 3 mm and turned a quarter (MCAD, CCW).
+    const Component* r1 = p.schematic.findByRef("R1");
+    char line[160];
+    std::snprintf(line, sizeof line, "\"PART\" \"PART\" \"R1\"\n%.4f %.4f 0 %.2f TOP PLACED\n", r1->pcb.position.x + 3, -r1->pcb.position.y,
+                  90.0);
+    const std::string emn = ".HEADER\nBOARD_FILE 3.0 \"FreeCAD\" 2026/01/01.00:00:00 1\n\"LED\" MM\n.END_HEADER\n.PLACEMENT\n" +
+                            std::string(line) + ".END_PLACEMENT\n";
+    const Vec2 was = r1->pcb.position;
+    CHECK(importIdfPlacement(p.schematic, emn) == std::vector<std::string>{"R1"});
+    r1 = p.schematic.findByRef("R1");
+    CHECK(std::fabs(r1->pcb.position.x - was.x - 3) < 1e-6 && r1->pcb.rotation == 270);
+    bool inPackage = false;
+    for (const auto& f : fabricationPackage(p, "led", false)) inPackage = inPackage || f.path == "mechanical/led.FCMacro";
+    CHECK(inPackage);
+}
+
+TEST(custom_rules_scripted_drc) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    CHECK(!mcpFailed(mcpTool(m, "pcb_autoroute", Json::object())));
+    Project& p = m.project()->project;
+    CHECK(!p.pcb.tracks.empty());
+    auto codes = [&](const std::vector<RuleViolation>& vs, const std::string& code) {
+        return static_cast<int>(std::count_if(vs.begin(), vs.end(), [&](const RuleViolation& v) { return v.code == code; }));
+    };
+    // Every track narrower than 10 mm breaks "wide"; a filter that matches nothing flags nothing; units convert.
+    const Json r = mcpTool(m, "pcb_custom_rules", Json::parse(R"J({"rules": [
+        {"name": "wide", "object": "track", "require": "width >= 10mm", "severity": "warning"},
+        {"name": "usb only", "object": "track", "when": "net ~ \"USB_*\"", "require": "width >= 1000mil"},
+        {"name": "mil", "object": "track", "require": "width < 400 mil and length > 0 and (layer == \"Top\" or layer == \"Bottom\")"},
+        {"name": "refs", "object": "part", "when": "ref == \"R1\" || ref == \"D1\"", "require": "not bottom && rotation >= 0"},
+        {"name": "nets", "object": "net", "when": "pads >= 2 and net != \"GND\"", "require": "tracks > 0 and length > 0", "message": "Unrouted"},
+        {"name": "bad", "object": "via", "require": "drill >= (0.2"},
+        {"name": "who", "object": "pad", "require": "colour == 1"},
+        {"name": "kind", "object": "board", "require": "1"}]})J"));
+    CHECK(!mcpFailed(r));
+    const std::vector<RuleViolation> vs = p.pcb.runDRC(p.schematic);
+    CHECK(codes(vs, "RULE_WIDE") == static_cast<int>(p.pcb.tracks.size()) && codes(vs, "RULE_USB_ONLY") == 0);
+    CHECK(codes(vs, "RULE_MIL") == 0 && codes(vs, "RULE_REFS") == 0 && codes(vs, "RULE_NETS") == 0);
+    CHECK(codes(vs, "RULE_SYNTAX") == 3);  // missing ), unknown property, unknown object
+    for (const auto& v : vs)
+        if (v.code == "RULE_WIDE") CHECK(v.severity == Severity::Warning && v.hasLocation && v.message.find("track of ") != std::string::npos);
+    CHECK(customRuleError(p.pcb.settings.customRules[5]).find("missing )") != std::string::npos);
+    CHECK(customRuleError(p.pcb.settings.customRules[6]).find("unknown property \"colour\"") != std::string::npos);
+    CHECK(customRuleError(CustomRule{"t", "track", "", "net > 3", "error", ""}).find("comparing text") != std::string::npos);
+    CHECK(customRuleError(CustomRule{"t", "track", "", "width > 3furlongs", "error", ""}).find("unit") != std::string::npos);
+    // Saved only when present, and back.
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.customRules.size() == 8 && q.pcb.settings.customRules[4].message == "Unrouted");
+    CHECK(Project().toJson().dump().find("customRules") == std::string::npos);
+    CHECK(!mcpFailed(mcpTool(m, "pcb_custom_rules", Json::parse(R"({"rules": []})"))) && p.pcb.settings.customRules.empty());
+    CHECK(mcpFailed(mcpTool(m, "pcb_custom_rules", Json::parse(R"({"rules": 5})"))));
 }
 
 TEST(documents_dxf_test_points_html_bom_and_bring_up) {

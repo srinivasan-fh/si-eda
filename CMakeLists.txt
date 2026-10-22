@@ -50,6 +50,7 @@ add_library(sieda_core STATIC
     Core/src/Variants.cpp
     Core/src/ProjectDiff.cpp
     Core/src/Mechanical.cpp
+    Core/src/CustomRules.cpp
     Core/src/Simulator.cpp
     Core/src/Analysis.cpp
     Core/src/SpiceModels.cpp
