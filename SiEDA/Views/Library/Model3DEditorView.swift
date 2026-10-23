@@ -154,6 +154,8 @@ struct Model3DEditorView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = EDAEngine.model3dExtensions.compactMap { UTType(filenameExtension: $0) }
+        if let shared = UserFootprintLibrary.sharedFolder?.appendingPathComponent("3D Models", isDirectory: true),
+           FileManager.default.fileExists(atPath: shared.path) { panel.directoryURL = shared }  // the team's models first
         guard panel.runModal() == .OK, let url = panel.url else { return }
         guard let data = try? Data(contentsOf: url), data.count <= 32 << 20 else {
             error = "The file cannot be read or is larger than 32 MB."

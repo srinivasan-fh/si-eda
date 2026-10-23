@@ -6677,7 +6677,17 @@ final class ArcRoutingTests: XCTestCase {
         let loaded = try XCTUnwrap(UserFootprintLibrary.load("DIP-8 mine"))
         XCTAssertEqual(loaded.lands, draft.pads.map(\.land))
         XCTAssertEqual(loaded.graphics, draft.graphics)
+        // Saving a changed footprint keeps the version it replaces; saving it unchanged keeps nothing.
+        var changed = draft
+        changed.graphics = []
+        try UserFootprintLibrary.save(changed, as: "DIP-8 mine")
+        try UserFootprintLibrary.save(changed, as: "DIP-8 mine")
+        let versions = UserFootprintLibrary.versions("DIP-8 mine")
+        XCTAssertEqual(versions.count, 1)
+        XCTAssertEqual(UserFootprintLibrary.load(versions[0])?.graphics, draft.graphics)
+        XCTAssertEqual(UserFootprintLibrary.names(), ["DIP-8 mine"])  // the history folder is no footprint
         UserFootprintLibrary.remove("DIP-8 mine")
+        XCTAssertTrue(UserFootprintLibrary.versions("DIP-8 mine").isEmpty)
         XCTAssertTrue(UserFootprintLibrary.names().isEmpty)
         // The solder-side pad size survives the land JSON.
         var land = editable.package.lands![0]
@@ -6704,6 +6714,13 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(keys.toolKey("a", canvas: "sch"), KeyEquivalent("p"))
         XCTAssertEqual(keys.toolKey("p", canvas: "sch"), KeyEquivalent("g"))
         XCTAssertNil(keys.toolKey("h", canvas: "pcb"))
+        // Altium's two-key sequences: P then W is the wire tool; P alone only starts the sequence.
+        keys.applyToolPreset(try XCTUnwrap(ShortcutStore.toolPresets["Altium"]))
+        XCTAssertEqual(keys.toolKey("p", canvas: "sch"), ShortcutStore.sequenceStarted)
+        XCTAssertEqual(keys.toolKey("w", canvas: "sch"), KeyEquivalent("w"))
+        XCTAssertEqual(keys.toolKey("p", canvas: "sch"), ShortcutStore.sequenceStarted)
+        XCTAssertEqual(keys.toolKey("p", canvas: "sch"), KeyEquivalent("p"))  // P, P places a part
+        XCTAssertNil(keys.toolKey("w", canvas: "sch"))  // W alone is no Altium key
         keys.applyToolPreset([:])
         XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
     }

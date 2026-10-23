@@ -2155,7 +2155,7 @@ Json importLibraryRequest(const Json& request) {
 
 // ------------------------------------------------------------------ netlists from other tools
 
-ParsedNetlist parseNetlist(const std::string& text) {
+ParsedNetlist parseNetlist(const std::string& text, const KicadSheetLoader& load) {
     constexpr size_t kMaxParts = 20000, kMaxNodes = 200000;
     ParsedNetlist out;
     size_t nodes = 0;
@@ -2171,7 +2171,8 @@ ParsedNetlist parseNetlist(const std::string& text) {
     };
     size_t start = text.find_first_not_of(" \t\r\n\xEF\xBB\xBF");
     if (start == std::string::npos) throw ImportError("the netlist is empty");
-    if (text.compare(start, 10, "(kicad_sch") == 0) return parseKicadSchematic(text);
+    if (text.compare(start, 10, "(kicad_sch") == 0) return parseKicadSchematic(text, load);
+    if (text.compare(start, 5, "<?xml") == 0 || text.compare(start, 6, "<eagle") == 0) return parseEagleSchematic(text);
     if (text.compare(start, 7, "Version") == 0 || text.compare(start, 5, "SHEET") == 0) return parseLtspiceSchematic(text);
     if (text.compare(start, 7, "(export") == 0) {  // KiCad
         out.format = "kicad";
@@ -2304,42 +2305,24 @@ ParsedNetlist parseNetlist(const std::string& text) {
 
 // ------------------------------------------------------------------ KiCad schematics (.kicad_sch)
 
-ParsedNetlist parseKicadSchematic(const std::string& text) {
-    const SNode root = SexprParser(text).parse();
-    if (root.head() != "kicad_sch") throw ImportError("not a KiCad schematic");
+ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoader& load) {
+    const SNode top = SexprParser(text).parse();
+    if (top.head() != "kicad_sch") throw ImportError("not a KiCad schematic");
     ParsedNetlist out;
     out.format = "kicad_sch";
     auto num = [](const std::string& v) { return std::atof(v.c_str()); };
+    auto unescape = [](std::string name) {  // KiCad escapes a few characters in names: {slash} …
+        for (const auto& [code, ch] : std::initializer_list<std::pair<const char*, const char*>>{
+                 {"{slash}", "/"}, {"{backslash}", "\\"}, {"{colon}", ":"}, {"{dblquote}", "\""}, {"{lt}", "<"}, {"{gt}", ">"}, {"{space}", " "}})
+            for (size_t at = name.find(code); at != std::string::npos; at = name.find(code, at + 1)) name.replace(at, std::strlen(code), ch);
+        return name;
+    };
     struct LibPin { int unit, style; std::string number, name; double x, y; };
     struct LibSym { std::vector<LibPin> pins; bool power = false; std::string extends; };
-    std::map<std::string, LibSym> lib;
-    if (const SNode* syms = root.child("lib_symbols"))
-        for (const auto& sym : syms->kids) {
-            if (sym.head() != "symbol") continue;
-            LibSym& ls = lib[sym.atom(1)];
-            ls.power = sym.child("power") != nullptr;
-            if (const SNode* ext = sym.child("extends")) ls.extends = ext->atom(1);
-            const std::string base = sym.atom(1).substr(sym.atom(1).find(':') == std::string::npos ? 0 : sym.atom(1).find(':') + 1);
-            for (const auto& unit : sym.kids) {
-                if (unit.head() != "symbol") continue;
-                // "<name>_<unit>_<body style>": unit 0 and style 0 belong to every unit / style.
-                const std::string un = unit.atom(1);
-                const size_t b = un.rfind('_'), a = b == std::string::npos ? std::string::npos : un.rfind('_', b - 1);
-                const int u = a == std::string::npos ? 0 : std::atoi(un.substr(a + 1, b - a - 1).c_str());
-                const int st = b == std::string::npos ? 0 : std::atoi(un.substr(b + 1).c_str());
-                for (const auto& pin : unit.kids) {
-                    if (pin.head() != "pin") continue;
-                    const SNode* at = pin.child("at");
-                    const SNode *nm = pin.child("name"), *nb = pin.child("number");
-                    if (!at || !nb) continue;
-                    ls.pins.push_back({u, st, nb->atom(1), nm ? nm->atom(1) : "", num(at->atom(1)), num(at->atom(2))});
-                }
-            }
-            (void)base;
-        }
-    // Every connection point on the sheet, keyed in 1 µm steps.
-    auto key = [](double x, double y) { return std::make_pair(std::llround(x * 1000), std::llround(y * 1000)); };
-    using Key = std::pair<long long, long long>;
+    // Every connection point, keyed by its sheet and position in 1 µm steps (each sub-sheet has its own coordinates).
+    using Key = std::tuple<int, long long, long long>;
+    int sheetNo = 0, sheets = 0;
+    auto key = [&](double x, double y, int sheet = -1) { return Key{sheet < 0 ? sheetNo : sheet, std::llround(x * 1000), std::llround(y * 1000)}; };
     std::vector<int> parent;
     auto node = [&]() { parent.push_back(static_cast<int>(parent.size())); return static_cast<int>(parent.size()) - 1; };
     std::function<int(int)> find = [&](int i) { return parent[static_cast<size_t>(i)] == i ? i : parent[static_cast<size_t>(i)] = find(parent[static_cast<size_t>(i)]); };
@@ -2354,102 +2337,191 @@ ParsedNetlist parseKicadSchematic(const std::string& text) {
         return n;
     };
     std::vector<int> endpoints;  // junctions, no-connect flags and bus entry ends: a wire may end there
-    struct Wire { double x0, y0, x1, y1; int node; };
+    struct Wire { int sheet; double x0, y0, x1, y1; int node; };
     std::vector<Wire> wires;
     struct PinAt { std::string ref, number; int node; };
     std::vector<PinAt> pins;
     std::map<std::string, std::vector<int>> named;  // net name → label / power nodes
     std::map<std::string, NetlistPart> parts;
     std::vector<std::string> order;
-    for (const auto& item : root.kids) {
-        const std::string h = item.head();
-        if (h == "wire") {
-            const SNode* pts = item.child("pts");
-            std::vector<std::pair<double, double>> xy;
-            if (pts)
-                for (const auto& k : pts->kids)
-                    if (k.head() == "xy") xy.push_back({num(k.atom(1)), num(k.atom(2))});
-            for (size_t i = 0; i + 1 < xy.size(); ++i) {
-                const int n = node();
-                join(n, point(xy[i].first, xy[i].second));
-                join(n, point(xy[i + 1].first, xy[i + 1].second));
-                wires.push_back({xy[i].first, xy[i].second, xy[i + 1].first, xy[i + 1].second, n});
-            }
-        } else if (h == "junction" || h == "no_connect") {
-            if (const SNode* a = item.child("at")) endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
-        } else if (h == "bus_entry") {  // bus members join by their labels' names; the entry only ends a wire
-            const SNode *a = item.child("at"), *size = item.child("size");
-            if (a && size) {
-                endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
-                endpoints.push_back(point(num(a->atom(1)) + num(size->atom(1)), num(a->atom(2)) + num(size->atom(2))));
-            }
-        } else if (h == "label" || h == "global_label" || h == "hierarchical_label") {
-            std::string name = item.atom(1);  // KiCad escapes a few characters in names: {slash} …
-            for (const auto& [code, ch] : std::initializer_list<std::pair<const char*, const char*>>{
-                     {"{slash}", "/"}, {"{backslash}", "\\"}, {"{colon}", ":"}, {"{dblquote}", "\""}, {"{lt}", "<"}, {"{gt}", ">"}, {"{space}", " "}})
-                for (size_t at = name.find(code); at != std::string::npos; at = name.find(code, at + 1)) name.replace(at, std::strlen(code), ch);
-            if (const SNode* a = item.child("at")) named[name].push_back(point(num(a->atom(1)), num(a->atom(2))));
-        } else if (h == "sheet") {
-            const SNode* file = nullptr;
-            for (const auto& k : item.kids)
-                if (k.head() == "property" && (k.atom(1) == "Sheetfile" || k.atom(1) == "Sheet file")) file = &k;
-            out.warnings.push_back("sub-sheet " + (file ? file->atom(2) : std::string("?")) + " not imported (open it on its own)");
-        } else if (h == "symbol") {
-            const SNode *id = item.child("lib_id"), *a = item.child("at");
-            if (!id || !a) continue;
-            std::string ref, value, footprint;
-            for (const auto& k : item.kids)
-                if (k.head() == "property") {
-                    if (k.atom(1) == "Reference") ref = k.atom(2);
-                    else if (k.atom(1) == "Value") value = k.atom(2);
-                    else if (k.atom(1) == "Footprint") footprint = k.atom(2);
+    // KiCad 6 keeps every sheet's references in the root file ("/<sheet uuid>/<symbol uuid>"); KiCad 7+ in each symbol's
+    // instances ("/<root uuid>/<sheet uuid>").
+    std::map<std::string, std::string> legacyRefs;
+    if (const SNode* inst = top.child("symbol_instances"))
+        for (const auto& p : inst->kids)
+            if (const SNode* r = p.child("reference"); p.head() == "path" && r) legacyRefs[p.atom(1)] = r->atom(1);
+    std::vector<std::string> stack;  // sheet files being read (a sheet that includes itself is refused)
+    // Reads one sheet into the shared nets: local labels are scoped by the sheet path ("/Sensor/SDA"), global labels and
+    // power symbols are not; returns the sheet's hierarchical labels (name → node) for its parent's sheet pins.
+    std::function<std::map<std::string, int>(const SNode&, const std::string&, const std::string&, const std::string&)> sheet =
+        [&](const SNode& root, const std::string& scope, const std::string& path, const std::string& legacyPath) {
+            std::map<std::string, int> hier;
+            std::map<std::string, LibSym> lib;
+            if (const SNode* syms = root.child("lib_symbols"))
+                for (const auto& sym : syms->kids) {
+                    if (sym.head() != "symbol") continue;
+                    LibSym& ls = lib[sym.atom(1)];
+                    ls.power = sym.child("power") != nullptr;
+                    if (const SNode* ext = sym.child("extends")) ls.extends = ext->atom(1);
+                    for (const auto& unit : sym.kids) {
+                        if (unit.head() != "symbol") continue;
+                        // "<name>_<unit>_<body style>": unit 0 and style 0 belong to every unit / style.
+                        const std::string un = unit.atom(1);
+                        const size_t b = un.rfind('_'), a = b == std::string::npos ? std::string::npos : un.rfind('_', b - 1);
+                        const int u = a == std::string::npos ? 0 : std::atoi(un.substr(a + 1, b - a - 1).c_str());
+                        const int st = b == std::string::npos ? 0 : std::atoi(un.substr(b + 1).c_str());
+                        for (const auto& pin : unit.kids) {
+                            if (pin.head() != "pin") continue;
+                            const SNode* at = pin.child("at");
+                            const SNode *nm = pin.child("name"), *nb = pin.child("number");
+                            if (!at || !nb) continue;
+                            ls.pins.push_back({u, st, nb->atom(1), nm ? nm->atom(1) : "", num(at->atom(1)), num(at->atom(2))});
+                        }
+                    }
                 }
-            const SNode* unitNode = item.child("unit");
-            const SNode* styleNode = item.child("body_style") ? item.child("body_style") : item.child("convert");
-            const int unit = unitNode ? std::atoi(unitNode->atom(1).c_str()) : 1, style = styleNode ? std::atoi(styleNode->atom(1).c_str()) : 1;
-            const SNode* mirror = item.child("mirror");
-            const std::string mir = mirror ? mirror->atom(1) : "";
-            const double X = num(a->atom(1)), Y = num(a->atom(2));
-            const int rot = ((static_cast<int>(std::lround(num(a->atom(3)))) % 360) + 360) % 360;
-            const LibSym* ls = lib.count(id->atom(1)) ? &lib[id->atom(1)] : nullptr;
-            if (ls && ls->pins.empty() && !ls->extends.empty())
-                for (const auto& [name, other] : lib)
-                    if (name.size() >= ls->extends.size() && name.compare(name.size() - ls->extends.size(), std::string::npos, ls->extends) == 0)
-                        ls = &other;
-            if (!ls) {
-                out.warnings.push_back(ref + ": symbol " + id->atom(1) + " missing from the file's library");
-                continue;
-            }
-            const bool power = ls->power || (!ref.empty() && ref[0] == '#');
-            for (const auto& pin : ls->pins) {
-                if ((pin.unit != 0 && pin.unit != unit) || (pin.style != 0 && pin.style != style)) continue;
-                // Symbol space has Y up; the sheet Y down. Rotate by the symbol's angle, then mirror.
-                // (Checked against KiCad's demo sheets: every wire end and pin meets something.)
-                const double x = pin.x, y = -pin.y, r = rot * M_PI / 180.0, c = std::round(std::cos(r)), sn = std::round(std::sin(r));
-                double rx = x * c + y * sn, ry = -x * sn + y * c;  // counter-clockwise on screen
-                if (mir == "x") ry = -ry;
-                if (mir == "y") rx = -rx;
-                const int n = point(X + rx, Y + ry);
-                if (power) {  // a power symbol names its net; a PWR_FLAG only marks a driven net for the ERC
-                    if (!value.empty() && value != "PWR_FLAG") named[value].push_back(n);
-                } else {
-                    pins.push_back({ref, pin.number, n});
+            for (const auto& item : root.kids) {
+                const std::string h = item.head();
+                if (h == "wire") {
+                    const SNode* pts = item.child("pts");
+                    std::vector<std::pair<double, double>> xy;
+                    if (pts)
+                        for (const auto& k : pts->kids)
+                            if (k.head() == "xy") xy.push_back({num(k.atom(1)), num(k.atom(2))});
+                    for (size_t i = 0; i + 1 < xy.size(); ++i) {
+                        const int n = node();
+                        join(n, point(xy[i].first, xy[i].second));
+                        join(n, point(xy[i + 1].first, xy[i + 1].second));
+                        wires.push_back({sheetNo, xy[i].first, xy[i].second, xy[i + 1].first, xy[i + 1].second, n});
+                    }
+                } else if (h == "junction" || h == "no_connect") {
+                    if (const SNode* a = item.child("at")) endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
+                } else if (h == "bus_entry") {  // bus members join by their labels' names; the entry only ends a wire
+                    const SNode *a = item.child("at"), *size = item.child("size");
+                    if (a && size) {
+                        endpoints.push_back(point(num(a->atom(1)), num(a->atom(2))));
+                        endpoints.push_back(point(num(a->atom(1)) + num(size->atom(1)), num(a->atom(2)) + num(size->atom(2))));
+                    }
+                } else if (h == "label" || h == "global_label" || h == "hierarchical_label") {
+                    const std::string name = unescape(item.atom(1));
+                    if (const SNode* a = item.child("at")) {
+                        const int n = point(num(a->atom(1)), num(a->atom(2)));
+                        named[h == "global_label" ? name : scope + name].push_back(n);
+                        if (h == "hierarchical_label") hier.emplace(name, n);
+                    }
+                } else if (h == "sheet") {
+                    std::string file, sheetName, uuid;
+                    for (const auto& k : item.kids)
+                        if (k.head() == "property" && (k.atom(1) == "Sheetfile" || k.atom(1) == "Sheet file")) file = k.atom(2);
+                        else if (k.head() == "property" && (k.atom(1) == "Sheetname" || k.atom(1) == "Sheet name")) sheetName = k.atom(2);
+                        else if (k.head() == "uuid") uuid = k.atom(1);
+                    const std::string childText = load && stack.size() < 16 && sheets < 500 ? load(file) : std::string();
+                    if (childText.empty()) {
+                        out.warnings.push_back("sub-sheet " + (file.empty() ? std::string("?") : file) +
+                                               (load ? " not found beside the schematic" : " not imported (open it on its own)"));
+                        continue;
+                    }
+                    if (std::find(stack.begin(), stack.end(), file) != stack.end()) {
+                        out.warnings.push_back("sub-sheet " + file + " includes itself: not followed");
+                        continue;
+                    }
+                    SNode child;
+                    try {
+                        child = SexprParser(childText).parse();
+                    } catch (const std::exception& e) {
+                        out.warnings.push_back("sub-sheet " + file + " not read: " + e.what());
+                        continue;
+                    }
+                    if (child.head() != "kicad_sch") {
+                        out.warnings.push_back("sub-sheet " + file + " is not a KiCad schematic");
+                        continue;
+                    }
+                    const int mine = sheetNo;
+                    sheetNo = ++sheets;
+                    stack.push_back(file);
+                    const auto labels = sheet(child, scope + "/" + (sheetName.empty() ? uuid : sheetName) + "/", path + "/" + uuid,
+                                              legacyPath + "/" + uuid);
+                    stack.pop_back();
+                    sheetNo = mine;
+                    // The sheet symbol's pins join the sub-sheet's hierarchical labels of the same name.
+                    for (const auto& pin : item.kids) {
+                        if (pin.head() != "pin") continue;
+                        const SNode* a = pin.child("at");
+                        const auto it = labels.find(unescape(pin.atom(1)));
+                        if (!a) continue;
+                        if (it == labels.end()) out.warnings.push_back("sheet pin " + pin.atom(1) + " of " + file + " has no hierarchical label");
+                        else join(point(num(a->atom(1)), num(a->atom(2))), it->second);
+                    }
+                } else if (h == "symbol") {
+                    const SNode *id = item.child("lib_id"), *a = item.child("at");
+                    if (!id || !a) continue;
+                    std::string ref, value, footprint;
+                    for (const auto& k : item.kids)
+                        if (k.head() == "property") {
+                            if (k.atom(1) == "Reference") ref = k.atom(2);
+                            else if (k.atom(1) == "Value") value = k.atom(2);
+                            else if (k.atom(1) == "Footprint") footprint = k.atom(2);
+                        }
+                    // This instance's reference: a repeated sheet numbers its copies apart.
+                    const SNode* symUuid = item.child("uuid");
+                    bool found = false;
+                    if (const SNode* inst = item.child("instances"))
+                        for (const auto& project : inst->kids)
+                            for (const auto& p : project.kids)
+                                if (const SNode* r = p.child("reference"); !found && p.head() == "path" && p.atom(1) == path && r)
+                                    ref = r->atom(1), found = true;
+                    if (!found && symUuid)
+                        if (const auto it = legacyRefs.find(legacyPath + "/" + symUuid->atom(1)); it != legacyRefs.end()) ref = it->second;
+                    const SNode* unitNode = item.child("unit");
+                    const SNode* styleNode = item.child("body_style") ? item.child("body_style") : item.child("convert");
+                    const int unit = unitNode ? std::atoi(unitNode->atom(1).c_str()) : 1, style = styleNode ? std::atoi(styleNode->atom(1).c_str()) : 1;
+                    const SNode* mirror = item.child("mirror");
+                    const std::string mir = mirror ? mirror->atom(1) : "";
+                    const double X = num(a->atom(1)), Y = num(a->atom(2));
+                    const int rot = ((static_cast<int>(std::lround(num(a->atom(3)))) % 360) + 360) % 360;
+                    const LibSym* ls = lib.count(id->atom(1)) ? &lib[id->atom(1)] : nullptr;
+                    if (ls && ls->pins.empty() && !ls->extends.empty())
+                        for (const auto& [name, other] : lib)
+                            if (name.size() >= ls->extends.size() && name.compare(name.size() - ls->extends.size(), std::string::npos, ls->extends) == 0)
+                                ls = &other;
+                    if (!ls) {
+                        out.warnings.push_back(ref + ": symbol " + id->atom(1) + " missing from the file's library");
+                        continue;
+                    }
+                    const bool power = ls->power || (!ref.empty() && ref[0] == '#');
+                    for (const auto& pin : ls->pins) {
+                        if ((pin.unit != 0 && pin.unit != unit) || (pin.style != 0 && pin.style != style)) continue;
+                        // Symbol space has Y up; the sheet Y down. Rotate by the symbol's angle, then mirror.
+                        // (Checked against KiCad's demo sheets: every wire end and pin meets something.)
+                        const double x = pin.x, y = -pin.y, r = rot * M_PI / 180.0, c = std::round(std::cos(r)), sn = std::round(std::sin(r));
+                        double rx = x * c + y * sn, ry = -x * sn + y * c;  // counter-clockwise on screen
+                        if (mir == "x") ry = -ry;
+                        if (mir == "y") rx = -rx;
+                        const int n = point(X + rx, Y + ry);
+                        if (power) {  // a power symbol names its net; a PWR_FLAG only marks a driven net for the ERC
+                            if (!value.empty() && value != "PWR_FLAG") named[value].push_back(n);
+                        } else {
+                            pins.push_back({ref, pin.number, n});
+                        }
+                    }
+                    if (power || ref.empty()) continue;
+                    if (!parts.count(ref)) {
+                        order.push_back(ref);
+                        NetlistPart np{ref, value, footprint, id->atom(1).substr(id->atom(1).find(':') == std::string::npos ? 0 : id->atom(1).find(':') + 1), {}, {}};
+                        for (const auto& pin : ls->pins)
+                            if (!pin.name.empty() && pin.name != "~") np.pinNames[pin.number] = pin.name;
+                        parts[ref] = std::move(np);
+                    }
                 }
             }
-            if (power || ref.empty()) continue;
-            if (!parts.count(ref)) {
-                order.push_back(ref);
-                NetlistPart np{ref, value, footprint, id->atom(1).substr(id->atom(1).find(':') == std::string::npos ? 0 : id->atom(1).find(':') + 1), {}, {}};
-                for (const auto& pin : ls->pins)
-                    if (!pin.name.empty() && pin.name != "~") np.pinNames[pin.number] = pin.name;
-                parts[ref] = std::move(np);
-            }
-        }
-    }
+            return hier;
+        };
+    const SNode* rootUuid = top.child("uuid");
+    sheet(top, "", rootUuid ? "/" + rootUuid->atom(1) : std::string(), "");
     // A point on a wire's span (not only its ends) joins it.
     for (const auto& [k, n] : at) {
-        const double x = k.first / 1000.0, y = k.second / 1000.0;
+        const double x = std::get<1>(k) / 1000.0, y = std::get<2>(k) / 1000.0;
         for (const auto& w : wires) {
+            if (w.sheet != std::get<0>(k)) continue;
             const double dx = w.x1 - w.x0, dy = w.y1 - w.y0, len2 = dx * dx + dy * dy;
             if (len2 < 1e-12) continue;
             const double t = ((x - w.x0) * dx + (y - w.y0) * dy) / len2;
@@ -2463,8 +2535,8 @@ ParsedNetlist parseKicadSchematic(const std::string& text) {
     // Wire ends that touch nothing but their own wire: a sign the symbols were placed wrong (or the sheet is unfinished).
     std::map<int, int> touches;  // point node → how many things meet there
     for (const auto& w : wires) {
-        ++touches[at[key(w.x0, w.y0)]];
-        ++touches[at[key(w.x1, w.y1)]];
+        ++touches[at[key(w.x0, w.y0, w.sheet)]];
+        ++touches[at[key(w.x1, w.y1, w.sheet)]];
     }
     for (const auto& p : pins) touches[p.node] += 2;
     for (int n : endpoints) touches[n] += 2;
@@ -2479,7 +2551,8 @@ ParsedNetlist parseKicadSchematic(const std::string& text) {
     for (const auto& [k, n] : at) {
         // A wire end on another wire's span is no dangling end either.
         bool onWire = false;
-        for (const auto& w : wires) onWire = onWire || (find(w.node) == find(n) && at[key(w.x0, w.y0)] != n && at[key(w.x1, w.y1)] != n);
+        for (const auto& w : wires)
+            onWire = onWire || (find(w.node) == find(n) && at[key(w.x0, w.y0, w.sheet)] != n && at[key(w.x1, w.y1, w.sheet)] != n);
         dangling += touches.count(n) && touches[n] == 1 && !onWire;
     }
     if (dangling) out.warnings.push_back(std::to_string(dangling) + " wire ends connect to nothing");
@@ -2510,6 +2583,99 @@ ParsedNetlist parseKicadSchematic(const std::string& text) {
     return out;
 }
 
+
+
+// ------------------------------------------------------------------ Eagle schematics (.sch)
+
+ParsedNetlist parseEagleSchematic(const std::string& text) {
+    if (text.size() > kMaxFileBytes) throw ImportError("the file is larger than 32 MB");
+    const XNode root = XmlParser(text).parse();
+    const XNode* drawing = root.tag == "eagle" ? root.child("drawing") : nullptr;
+    const XNode* sch = drawing ? drawing->child("schematic") : nullptr;
+    if (!sch) throw ImportError(drawing && drawing->child("board") ? "an Eagle board: import its schematic (.sch)" : "not an Eagle schematic");
+    ParsedNetlist out;
+    out.format = "eagle_sch";
+    // Each library device's pin → pads, by "library/deviceset/device" (a gate's pin may sit on several pads).
+    struct Device { std::string package; std::map<std::string, std::vector<std::string>> pads; std::map<std::string, std::string> pinOfPad; };
+    std::map<std::string, Device> devices;
+    if (const XNode* libs = sch->child("libraries"))
+        for (const auto& lib : libs->kids) {
+            if (lib.tag != "library") continue;
+            std::vector<const XNode*> sets;
+            collect(lib, "deviceset", sets);
+            for (const XNode* ds : sets) {
+                std::vector<const XNode*> devs;
+                collect(*ds, "device", devs);
+                for (const XNode* dev : devs) {
+                    Device& d = devices[lib.attr("name") + "/" + ds->attr("name") + "/" + dev->attr("name")];
+                    d.package = dev->attr("package");
+                    std::vector<const XNode*> connects;
+                    collect(*dev, "connect", connects);
+                    for (const XNode* c : connects) {
+                        const std::string pin = c->attr("gate") + "." + c->attr("pin"), pads = c->attr("pad");
+                        for (size_t pos = 0; pos < pads.size();) {
+                            const size_t end = std::min(pads.find(' ', pos), pads.size());
+                            if (end > pos) {
+                                d.pads[pin].push_back(clean(pads.substr(pos, end - pos), 16));
+                                d.pinOfPad[d.pads[pin].back()] = eaglePinName(c->attr("pin"));
+                            }
+                            pos = end + 1;
+                        }
+                    }
+                }
+            }
+        }
+    std::map<std::string, const Device*> partDevice;  // part name → its device (parts with a package only)
+    if (const XNode* ps = sch->child("parts"))
+        for (const auto& p : ps->kids) {
+            if (p.tag != "part") continue;
+            if (out.parts.size() >= 20000) throw ImportError("more than 20000 parts");
+            const auto it = devices.find(p.attr("library") + "/" + p.attr("deviceset") + "/" + p.attr("device"));
+            if (it == devices.end()) {
+                out.warnings.push_back(p.attr("name") + ": device " + p.attr("deviceset") + p.attr("device") + " missing from the file's libraries");
+                continue;
+            }
+            if (it->second.package.empty()) continue;  // a supply symbol or frame: no part on the board
+            std::string name = p.attr("deviceset"), variant = p.attr("device"), tech = p.attr("technology");
+            if (const size_t star = name.find('*'); star != std::string::npos) name.replace(star, 1, tech);
+            if (const size_t q = name.find('?'); q != std::string::npos) name.replace(q, 1, variant);
+            else name += variant;
+            NetlistPart np{clean(p.attr("name"), 40), clean(p.attr("value", name), 80), clean(it->second.package, 80), clean(name, 80), it->second.pinOfPad, {}};
+            partDevice[np.ref] = &it->second;
+            out.parts.push_back(std::move(np));
+        }
+    // Nets are global by name across the sheets; each pin reference joins its pads.
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> nets;
+    std::vector<std::string> order;
+    std::vector<const XNode*> netNodes;
+    if (const XNode* sheets = sch->child("sheets")) collect(*sheets, "net", netNodes);
+    size_t nodes = 0;
+    for (const XNode* net : netNodes) {
+        const std::string name = clean(net->attr("name"), 80);
+        if (!nets.count(name)) order.push_back(name);
+        auto& members = nets[name];
+        std::vector<const XNode*> refs;
+        collect(*net, "pinref", refs);
+        for (const XNode* r : refs) {
+            const auto dev = partDevice.find(r->attr("part"));
+            if (dev == partDevice.end()) continue;
+            const auto pads = dev->second->pads.find(r->attr("gate") + "." + r->attr("pin"));
+            if (pads == dev->second->pads.end()) continue;
+            for (const auto& pad : pads->second) {
+                if (++nodes > 200000) throw ImportError("too many connections");
+                members.push_back({r->attr("part"), pad});
+            }
+        }
+    }
+    for (const auto& name : order) {
+        auto members = nets[name];
+        std::sort(members.begin(), members.end());
+        members.erase(std::unique(members.begin(), members.end()), members.end());
+        if (!members.empty()) out.nets.push_back({name, members});
+    }
+    if (out.parts.empty()) throw ImportError("the schematic has no parts");
+    return out;
+}
 
 // ------------------------------------------------------------------ LTspice schematics (.asc)
 

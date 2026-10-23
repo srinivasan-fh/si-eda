@@ -39,7 +39,7 @@ struct SchematicEditorView: View {
     @State private var tool: SchematicTool = .select
     @State private var pickerKind: ComponentKind = .resistor
     @State private var showPicker = true
-    @State private var viewport = Viewport(scale: 1.6, offset: CGSize(width: 260, height: 260))
+    @State private var viewport = ViewMemory.value("sch.viewport", Viewport(scale: 1.6, offset: CGSize(width: 260, height: 260)))
     @State private var canvasSize: CGSize = .zero
     @State private var wireStart: String?
     /// What P (and the "Place selected device" tool) arms: the device or custom part last chosen in the picker.
@@ -298,6 +298,7 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .remembers(viewport, as: "sch.viewport")
         .sheet(isPresented: $updatingPCB) { UpdatePcbView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { eco != nil }, set: { if !$0 { eco = nil } })) {
             if let eco { EcoReviewView(title: eco.title, changes: eco.changes).environmentObject(store) }

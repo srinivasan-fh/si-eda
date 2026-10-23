@@ -154,6 +154,29 @@ struct FootprintEditorView: View {
                         }
                         .buttonStyle(.plain)
                         Spacer()
+                        let versions = UserFootprintLibrary.versions(name)
+                        if !versions.isEmpty {  // earlier versions: open one in the editor (save it to bring it back)
+                            Menu {
+                                ForEach(versions, id: \.self) { version in
+                                    Button(version.deletingPathExtension().lastPathComponent) {
+                                        guard let saved = UserFootprintLibrary.load(version) else { return }
+                                        selection = []
+                                        edit {
+                                            $0.pads = saved.lands.map { FootprintDraft.Pad(land: $0) }
+                                            $0.bodyW = saved.bodyW
+                                            $0.bodyD = saved.bodyD
+                                            $0.courtyardMargin = saved.courtyard
+                                            $0.graphics = saved.graphics
+                                        }
+                                        saveName = name
+                                        showLibrary = false
+                                    }
+                                }
+                            } label: { Image(systemName: "clock.arrow.circlepath") }
+                                .menuStyle(.borderlessButton)
+                                .fixedSize()
+                                .help("Earlier versions")
+                        }
                         Button { UserFootprintLibrary.remove(name); myFootprints = UserFootprintLibrary.names() } label: { Image(systemName: "trash") }
                             .buttonStyle(.borderless)
                             .accessibilityLabel("Remove from My Footprints")

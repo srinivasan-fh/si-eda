@@ -679,7 +679,20 @@ extension Viewport {
     }
 }
 
+/// Editor view state kept across window rebuilds (a new theme rebuilds the window roots, which resets `@State`):
+/// a view starts from the last value and writes it back with `remembers(_:as:)`.
+enum ViewMemory {
+    private static var values: [String: Any] = [:]
+    static func value<T>(_ key: String, _ fallback: T) -> T { values[key] as? T ?? fallback }
+    static func set(_ key: String, _ value: Any) { values[key] = value }
+}
+
 extension View {
+    /// Keeps `value` in `ViewMemory` under `key` whenever it changes.
+    func remembers<V: Equatable>(_ value: V, as key: String) -> some View {
+        onChange(of: value) { _, new in ViewMemory.set(key, new) }
+    }
+
     /// Writes a canvas's size to its editor once a panel's show / hide has settled, not on every frame of the slide:
     /// each write re-evaluates the whole editor (tool bars, device picker) while the canvas redraws anyway.
     func settledSize(_ size: CGSize, into target: Binding<CGSize>) -> some View {

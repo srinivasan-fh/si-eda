@@ -162,6 +162,7 @@
 		BD380793330A391C12C67523 = {isa = PBXBuildFile; fileRef = B216F8BE4FB9512FCEE1C947; };
 		BE6C4761295EB3ECD966260A = {isa = PBXBuildFile; fileRef = 7390FF29C91C1F7CA969E087; };
 		BEDD202DFD760BADC740A1A9 = {isa = PBXBuildFile; fileRef = 33851F402BB80C004C95B7EE; };
+		C0B98E55B9331039F0EE6826 = {isa = PBXBuildFile; fileRef = 2907BD48B53824C615A15782; };
 		C1512C5968EF4A24C368E681 = {isa = PBXBuildFile; fileRef = 7F594F5664EF7D8FB682ECA0; };
 		C22B231D09108E5DE6098FC1 = {isa = PBXBuildFile; fileRef = 0CFD6B6919610A29BB650C7E; };
 		C25C04B573D5668E271225D9 = {isa = PBXBuildFile; fileRef = 23615D21B117E2A85C546F98; };
@@ -189,6 +190,7 @@
 		D7DF1C1C815D245B80D2653D = {isa = PBXBuildFile; fileRef = 26947D07ECF33FE13550E88A; };
 		D7E4D8139A599D05BC61E412 = {isa = PBXBuildFile; fileRef = C37798F6F7C1119E0E0608AC; };
 		D955D5E0AF7F2908EFEC462B = {isa = PBXBuildFile; fileRef = 0F0833A5CA77AB73527A9023; };
+		DBB55302F2D7F9653B961339 = {isa = PBXBuildFile; fileRef = B3EC3424B9C42357AC722F73; };
 		DC5962006FC36ACECF2C7F34 = {isa = PBXBuildFile; fileRef = 262682BD136933576066443E; };
 		DC5EB9FE2D3D603EED35F32D = {isa = PBXBuildFile; fileRef = 22CD15B1A2CEBA2CB2CFE507; };
 		DC930E5139085C3D9454F757 = {isa = PBXBuildFile; fileRef = F5FB86B05BC4AEB24FCA3877; };
@@ -290,6 +292,7 @@
 		28B8FB83BF7C35C2362E414B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Mcp.cpp; sourceTree = "<group>"; };
 		28D52148C5EB40D809231A80 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FabOrderView.swift; sourceTree = "<group>"; };
 		28DA5CB541B843FE20EC60BA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardSetupPanel.swift; sourceTree = "<group>"; };
+		2907BD48B53824C615A15782 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinPlannerView.swift; sourceTree = "<group>"; };
 		294CA3D13E83A6848CF71840 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LengthMatch.hpp; sourceTree = "<group>"; };
 		2A6E9FA74463A506F384BA53 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2AAFA450E61112F050BC0428 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Variants.hpp; sourceTree = "<group>"; };
@@ -454,6 +457,7 @@
 		B2FEEB38AB0B19ADD19A0E30 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		B3A704C1C14460AAAB9247DD = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FabExchange.cpp; sourceTree = "<group>"; };
 		B3DB0B5C344C88E3947D835C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Directives.cpp; sourceTree = "<group>"; };
+		B3EC3424B9C42357AC722F73 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerGuide.swift; sourceTree = "<group>"; };
 		B3FB7A6C6435E513AE1809AC = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LossyLine.cpp; sourceTree = "<group>"; };
 		B46D2AEFEE0749D1F2AC3A2E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusMode.swift; sourceTree = "<group>"; };
 		B6CD4CB57F05C06F88DEAA2C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LossyLine.hpp; sourceTree = "<group>"; };
@@ -596,6 +600,7 @@
 			isa = PBXGroup;
 			children = (
 				80E8D809F4A6CA446F4FD5F8,
+				B3EC3424B9C42357AC722F73,
 				94AEA8010C28DCB7576B2C06,
 				7D38A642DF9EECA1FFA8CE5A,
 				B46D2AEFEE0749D1F2AC3A2E,
@@ -993,6 +998,7 @@
 			children = (
 				EBD63F285616B480506CE487,
 				0ED15CEF8193940CDDA7EDC4,
+				2907BD48B53824C615A15782,
 				DB5FB3116B534225DB0915D6,
 				301DAF4F2FC8D0083DFB1A0F,
 				7DDEDA65C884B2B1C2A90F7F,
@@ -1276,6 +1282,7 @@
 				93F543F5DF9687E3A93CCAA0,
 				BA6D45241A0139FD8B4C26A9,
 				D0BAFDEC616A80CA7ED031B6,
+				DBB55302F2D7F9653B961339,
 				E48F305C4B73F61ECE6D047C,
 				F84C75A40B9069298630ACE6,
 				939A303A77CE6A310EECDD00,
@@ -1306,6 +1313,7 @@
 				22409A8BB039D0E0CC2751CF,
 				9BCA7E409A5C888AD4015152,
 				2A26F5F10710C3605BCC92E7,
+				C0B98E55B9331039F0EE6826,
 				AB629F7484D25C40369EBA0F,
 				6821CCCDECA1EE3F41A956C7,
 				84CA39422965B664380F1742,

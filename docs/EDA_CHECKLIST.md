@@ -94,7 +94,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | 3D model attach / align / offset | ✅ | |
 | P1 | Lifecycle, MPN, supplier links | ✅ | `Suppliers.cpp` |
 | P1 | IPC-7352-aware land patterns | ✅ | IPC-7351 calculator |
-| P1 | Library versioning / history, alternative footprints | 🟡 | user footprint folder ✅; version history ⏳ |
+| P1 | Library versioning / history, alternative footprints | ✅ | user footprint folder, version history (last 20 saves per footprint), shared library / 3D model folder ✅ |
 | P1 | ➕ Library update notices with "update instances" preview | ✅ | File → Check Library Updates…, MCP `library_updates` (changes and placed count, then apply) |
 | P1 | ➕ Parametric search across the library | ✅ | |
 | P1 | ➕ Shared 3D model library | 🟡 | `Model3DRegistry` per project; a shared folder ⏳ |
@@ -233,7 +233,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
-| P1 | MCU / FPGA pin-planning view | 🟡 | pin map export / import (MCP `schematic_pin_map`); a graphical planner ⏳ |
+| P1 | MCU / FPGA pin-planning view | ✅ | pin map export / import (MCP `schematic_pin_map`), graphical planner (right-click a part → Plan Pins…) |
 | P1 | Pin swap within groups with back-annotation | ✅ | |
 | P1 | Import CubeMX / XDC / QSF pin assignments | ✅ | `parsePinAssignments`: .ioc labels / signals, XDC, QSF, CSV → net labels on the part's pins |
 | P2 | Export firmware headers / constraint files | ✅ | `exportPinMap`: C header (CubeMX-style for STM32), XDC, QSF, CSV |
@@ -282,8 +282,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Dark / light themes | ✅ | three app themes, 14 canvas schemes |
 | P0 | High-contrast, colour-blind-friendly layer colours | ✅ | Settings → Appearance → Layer Colours: Okabe–Ito palette |
 | P0 | Context help, offline docs, actionable errors, ➕ hover details | ✅ | |
-| P1 | Beginner / pro modes | ⏳ | |
-| P1 | Keyboard presets for KiCad / Altium / Eagle users | 🟡 | KiCad and Altium canvas presets ✅; two-key sequences ⏳ |
+| P1 | Beginner / pro modes | ✅ | Settings → Beginner mode: four-step guide bar, library workspace hidden |
+| P1 | Keyboard presets for KiCad / Altium / Eagle users | 🟡 | KiCad and Altium canvas presets, two-key sequences (p w) ✅ |
 | P1 | Tutorials, pre-manufacturing checklist, examples, layouts, accessibility | ✅ | |
 | P1 | ➕ Migration guides, ➕ pen / trackpad gestures | ✅ | trackpad; `docs/MIGRATING.md` |
 | P2–P3 | Personalised shortcuts, lessons, org training | ⏳ | |
@@ -296,8 +296,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | PDF / SVG / PNG documentation | ✅ | |
 | P0 | DXF import of outlines, ➕ DXF export | ✅ | `Documents.cpp`; File → Import Board Outline (DXF)…, Export → DXF |
 | P0 | STEP in / out, BOM and fab files | ✅ | |
-| P1 | KiCad project import (schematic + board) | 🟡 | libraries, schematic sheets and boards (.kicad_pcb: placement fitted to the pads, tracks, arcs, vias, zones, outline, fidelity report) ✅; hierarchical sub-sheets ⏳ |
-| P1 | EasyEDA / Eagle projects | 🟡 | Eagle libraries ✅ |
+| P1 | KiCad project import (schematic + board) | ✅ | libraries, schematic sheets and boards (.kicad_pcb: placement fitted to the pads, tracks, arcs, vias, zones, outline, fidelity report), hierarchical sub-sheets ✅ |
+| P1 | EasyEDA / Eagle projects | ✅ | Eagle libraries and schematics ✅; EasyEDA through its Protel netlist export |
 | P1 | Import-fidelity report, library mapping | 🟡 | library import notes ✅ |
 | P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
 | P1 | ➕ Gerber / ODB++ import as a reference layer | ✅ | Gerber, drill and ODB++ layer features files (saved with the project) |
@@ -386,7 +386,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 
 1. ~~Drawn drill map with drill symbols on the fabrication drawing (§10 P0)~~ ✅
 2. ~~Built-in Gerber / drill viewer and Gerber import as a reference layer (§9 P0, §17 P1)~~ ✅
-3. KiCad project import: ~~schematic~~ ✅ + ~~board~~ ✅ (§17 P1), sub-sheets, then EasyEDA / Eagle projects; ~~LTspice schematics~~ ✅
+3. ~~KiCad project import, sub-sheets, EasyEDA / Eagle projects, LTspice schematics (§17 P1)~~ ✅
 4. ~~Netlist import (§17 P0)~~ ✅
 5. ~~Dimension tools and a board drawing PDF with title block and revision table (§10 P0)~~ ✅
 6. ~~Schematic revision table and net-tie symbol / footprint (§2 P0)~~ ✅
@@ -395,10 +395,10 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 9. ~~Panel DRC (§6 P1)~~ ✅
 10. ~~Python API~~ ✅ (over MCP), ~~event hooks~~ ✅ (§18 P1)
 11. ~~Settings export / import, user project templates (§1 P1)~~ ✅
-12. ~~High-contrast / colour-blind layer palette~~ ✅; beginner / pro modes (§16)
-13. MCU / FPGA pin planner (graphical) with ~~CubeMX / XDC / QSF import and firmware header export~~ ✅ (§12)
+12. ~~High-contrast / colour-blind layer palette, beginner / pro modes (§16)~~ ✅
+13. ~~MCU / FPGA pin planner (graphical) with CubeMX / XDC / QSF import and firmware header export (§12)~~ ✅
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
-15. ~~Library update notices~~, library versions, ~~tags / favourites, CSV pin-table wizard, IPC zero-orientation check~~ (§3)
+15. ~~Library update notices, library versions, tags / favourites, CSV pin-table wizard, IPC zero-orientation check (§3)~~ ✅
 16. ~~Consolidated multi-board BOM, custom BOM columns, price alerts~~ ✅ (§11)
 17. In-app Git, browser viewer, ~~file locking~~ ✅, approvals (§15)
 18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)

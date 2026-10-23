@@ -23928,6 +23928,100 @@ TEST(schematic_import_kicad_sch_and_ltspice) {
     CHECK(m.project()->project.schematic.findByRef("R2")->value == "2k2");
 }
 
+TEST(kicad_sch_hierarchical_sub_sheets) {
+    // A root sheet using one sub-sheet file twice (sheets A and B): their hierarchical label SIG joins the root's sheet
+    // pins (one net with R1.2), the local label LOC stays per sheet (/A/LOC, /B/LOC), and each copy's part takes its
+    // instance reference (R10, R20).
+    const std::string lib = R"((lib_symbols (symbol "Device:R" (symbol "R_1_1"
+      (pin passive line (at 0 3.81 270) (length 1.27) (name "~") (number "1"))
+      (pin passive line (at 0 -3.81 90) (length 1.27) (name "~") (number "2"))))))";
+    const std::string root = "(kicad_sch (version 20231120) (uuid \"root\") " + lib + R"(
+  (symbol (lib_id "Device:R") (at 100 50 0) (unit 1) (property "Reference" "R1") (property "Value" "1k"))
+  (wire (pts (xy 100 53.81) (xy 150 53.81)))
+  (sheet (at 150 40) (size 20 20) (uuid "s1") (property "Sheetname" "A") (property "Sheetfile" "sub/sensor.kicad_sch")
+    (pin "SIG" input (at 150 53.81 180)))
+  (sheet (at 150 70) (size 20 20) (uuid "s2") (property "Sheetname" "B") (property "Sheetfile" "sub/sensor.kicad_sch")
+    (pin "SIG" input (at 150 53.81 180)))))";
+    const std::string sensor = "(kicad_sch (version 20231120) (uuid \"sens\") " + lib + R"(
+  (symbol (lib_id "Device:R") (at 50 50 0) (unit 1) (uuid "u1") (property "Reference" "R?") (property "Value" "10k")
+    (instances (project "demo" (path "/root/s1" (reference "R10") (unit 1)) (path "/root/s2" (reference "R20") (unit 1)))))
+  (hierarchical_label "SIG" (shape input) (at 50 46.19 0))
+  (label "LOC" (at 50 53.81 0))))";
+    const KicadSheetLoader load = [&](const std::string& file) { return file == "sub/sensor.kicad_sch" ? sensor : std::string(); };
+    const ParsedNetlist k = parseKicadSchematic(root, load);
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> nets(k.nets.begin(), k.nets.end());
+    using Pins = std::vector<std::pair<std::string, std::string>>;
+    CHECK(k.parts.size() == 3 && k.parts[1].ref == "R10" && k.parts[2].ref == "R20");
+    CHECK(nets["/A/SIG"] == (Pins{{"R1", "2"}, {"R10", "1"}, {"R20", "1"}}));
+    CHECK(nets["/A/LOC"] == (Pins{{"R10", "2"}}) && nets["/B/LOC"] == (Pins{{"R20", "2"}}));
+    // KiCad 6: the references in the root's symbol_instances.
+    std::string v6 = root;
+    v6.insert(v6.rfind(')'), R"( (symbol_instances (path "/s1/u1" (reference "R31")) (path "/s2/u1" (reference "R32"))))");
+    std::string sensor6 = sensor.substr(0, sensor.find("    (instances")) + ")\n  (hierarchical_label \"SIG\" (shape input) (at 50 46.19 0))\n  (label \"LOC\" (at 50 53.81 0)))";
+    const ParsedNetlist k6 = parseKicadSchematic(v6, [&](const std::string&) { return sensor6; });
+    CHECK(k6.parts.size() == 3 && k6.parts[1].ref == "R31" && k6.parts[2].ref == "R32");
+    // No loader: listed; a sheet that includes itself is refused.
+    const ParsedNetlist alone = parseKicadSchematic(root);
+    CHECK(alone.parts.size() == 1 && alone.warnings.size() >= 2 && alone.warnings[0].find("not imported") != std::string::npos);
+    const ParsedNetlist loop = parseKicadSchematic(root, [&](const std::string&) { return root; });
+    bool refused = false;
+    for (const auto& w : loop.warnings) refused = refused || w.find("includes itself") != std::string::npos;
+    CHECK(refused);
+    // Through the MCP import: the sub-sheet from sheets (by its file name) or beside the path.
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = root;
+    args["sheets"] = Json::object();
+    args["sheets"]["sensor.kicad_sch"] = sensor;
+    CHECK(mcpData(mcpTool(m, "schematic_import_netlist", args)).get("imported").get("parts").asInt() == 3);
+    CHECK(m.project()->project.schematic.findByRef("R20") != nullptr);
+}
+
+TEST(eagle_schematic_import) {
+    // Two sheets sharing net SIG by name; a dual op-amp (gates A, B) whose power pin sits on two pads; a GND supply
+    // symbol (no package) names the net but is no part.
+    const std::string sch = R"X(<?xml version="1.0" encoding="utf-8"?>
+<eagle version="9.6.2"><drawing><schematic><libraries>
+<library name="rcl"><devicesets><deviceset name="R-EU_" prefix="R"><gates><gate name="G$1" symbol="R"/></gates>
+<devices><device name="R0603" package="R0603"><connects><connect gate="G$1" pin="1" pad="1"/><connect gate="G$1" pin="2" pad="2"/></connects>
+<technologies><technology name=""/></technologies></device></devices></deviceset></devicesets></library>
+<library name="amp"><devicesets><deviceset name="LM358" prefix="U"><gates><gate name="A" symbol="OP"/><gate name="B" symbol="OP"/><gate name="P" symbol="PWR"/></gates>
+<devices><device name="D" package="SO8"><connects><connect gate="A" pin="OUT" pad="1"/><connect gate="B" pin="OUT" pad="7"/>
+<connect gate="P" pin="V-" pad="4 9"/></connects></device></devices></deviceset></devicesets></library>
+<library name="supply1"><devicesets><deviceset name="GND"><gates><gate name="1" symbol="GND"/></gates>
+<devices><device name=""/></devices></deviceset></devicesets></library>
+</libraries>
+<parts><part name="R1" library="rcl" deviceset="R-EU_" device="R0603" value="10k"/>
+<part name="U1" library="amp" deviceset="LM358" device="D"/>
+<part name="GND1" library="supply1" deviceset="GND" device=""/></parts>
+<sheets><sheet><nets><net name="SIG"><segment><pinref part="R1" gate="G$1" pin="1"/><pinref part="U1" gate="A" pin="OUT"/></segment></net>
+<net name="GND"><segment><pinref part="U1" gate="P" pin="V-"/><pinref part="GND1" gate="1" pin="GND"/><pinref part="R1" gate="G$1" pin="2"/></segment></net></nets></sheet>
+<sheet><nets><net name="SIG"><segment><pinref part="U1" gate="B" pin="OUT"/></segment></net></nets></sheet></sheets>
+</schematic></drawing></eagle>)X";
+    const ParsedNetlist e = parseNetlist(sch);
+    using Pins = std::vector<std::pair<std::string, std::string>>;
+    std::map<std::string, Pins> nets(e.nets.begin(), e.nets.end());
+    CHECK(e.format == "eagle_sch" && e.parts.size() == 2);
+    CHECK(e.parts[0].ref == "R1" && e.parts[0].value == "10k" && e.parts[0].footprint == "R0603" && e.parts[0].part == "R-EU_R0603");
+    CHECK(e.parts[1].value == "LM358D" && e.parts[1].pinNames.at("7") == "OUT");
+    CHECK(nets["SIG"] == (Pins{{"R1", "1"}, {"U1", "1"}, {"U1", "7"}}));
+    CHECK(nets["GND"] == (Pins{{"R1", "2"}, {"U1", "4"}, {"U1", "9"}}));
+    CHECK(e.warnings.empty());
+    bool refused = false;
+    try {
+        parseNetlist("<?xml version=\"1.0\"?><eagle><drawing><board/></drawing></eagle>");
+    } catch (const ImportError& err) {
+        refused = std::string(err.what()).find("board") != std::string::npos;
+    }
+    CHECK(refused);
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json args = Json::object();
+    args["text"] = sch;
+    CHECK(mcpData(mcpTool(m, "schematic_import_netlist", args)).get("imported").get("parts").asInt() == 2);
+}
+
 TEST(netlist_import_kicad_protel_csv) {
     // KiCad, Protel / Tango and CSV netlists read into parts and nets; the MCP import makes built-in passives,
     // catalog parts and library parts, wires unnamed two-pin nets, flags KiCad's unconnected pins and joins the nets.
@@ -24858,6 +24952,16 @@ TEST(pin_map_export_and_cubemx_xdc_qsf_assignments) {
                                        "set_location_assignment PIN_Y2 -to CLOCK_50\npin,net\n12,SDA\n");
     CHECK(x.size() == 4 && x[0] == std::make_pair(std::string("E3"), std::string("CLK100MHZ")) && x[1].second == "led[0]");
     CHECK(x[2] == std::make_pair(std::string("Y2"), std::string("CLOCK_50")) && x[3].second == "SDA");
+    // The pin planner's view: every pad of the LQFP-48 with its pin and net (PA5 now on LED_GREEN, a signal).
+    Json pa = Json::object();
+    pa["ref"] = "U1", pa["format"] = "plan";
+    const Json plan = mcpData(mcpTool(m, "schematic_pin_map", pa)).get("plan");
+    CHECK(plan.get("pads").size() >= 48 && plan.get("width").asNumber() > 7);
+    bool led = false;
+    for (const auto& pad : plan.get("pads").items())
+        led = led || (pad.get("name").asString() == "PA5" && pad.get("net").asString() == "LED_GREEN" && pad.get("role").asString() == "signal");
+    CHECK(led);
+    CHECK(pinPlanJson(m.project()->project.schematic, "U9").isNull());
 }
 
 TEST(bom_custom_columns_and_multi_board) {

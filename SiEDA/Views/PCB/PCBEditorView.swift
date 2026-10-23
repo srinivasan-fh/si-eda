@@ -92,10 +92,10 @@ enum PCBLayer: Hashable, Identifiable {
 /// PCB layout workspace: tool strip, options bar with design rules, canvas, Altium-style layer tabs.
 struct PCBEditorView: View {
     @EnvironmentObject private var store: DesignStore
-    @State private var viewport = Viewport(scale: 12, offset: CGSize(width: 80, height: 80))
+    @State private var viewport = ViewMemory.value("pcb.viewport", Viewport(scale: 12, offset: CGSize(width: 80, height: 80)))
     @State private var canvasSize: CGSize = .zero
-    @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
-    @State private var activeLayer: PCBLayer = .copper(0)
+    @State private var visible: Set<PCBLayer> = ViewMemory.value("pcb.visible", PCBLayer.defaultVisible)
+    @State private var activeLayer: PCBLayer = ViewMemory.value("pcb.activeLayer", .copper(0))
     @AppStorage("pcb.threeDBeside") private var show3DBeside = false
     @State private var panMode = false
     /// Route tool (X): interactive routing with walkaround / push-and-shove.
@@ -106,7 +106,7 @@ struct PCBEditorView: View {
     @State private var tuneTargetText = ""
     @State private var tuneAmplitudeText = ""
     @State private var tuneSpacingText = ""
-    @State private var showLayersPanel = true
+    @State private var showLayersPanel = ViewMemory.value("pcb.layersPanel", true)
     @State private var showBoardSetup = false
     @State private var showLengthRules = false
 
@@ -531,6 +531,10 @@ struct PCBEditorView: View {
             }
         }
         .background(Theme.pcbBackground)
+        .remembers(viewport, as: "pcb.viewport")
+        .remembers(visible, as: "pcb.visible")
+        .remembers(activeLayer, as: "pcb.activeLayer")
+        .remembers(showLayersPanel, as: "pcb.layersPanel")
         .onAppear { syncRuleFields() }
         .onDisappear { store.cancelRoute() }
         .onChange(of: store.snapshot.board) { old, board in
@@ -852,7 +856,7 @@ struct PCBCanvas: View {
     @State private var dragDelta: CGSize = .zero
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
-    @State private var didFit = false
+    @State private var didFit = ViewMemory.value("pcb.fitted", false)  // the first fit only, also across window rebuilds
     @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
     @State private var spaceHeld = false   // Space + left-drag pans; a Space tap rotates
     @State private var spaceUsedForPan = false
@@ -929,6 +933,7 @@ struct PCBCanvas: View {
                 .onKeyPress(phases: .down) { press in
                     guard press.modifiers.subtracting(.shift).isEmpty,
                           let key = ShortcutStore.shared.toolKey(press.characters, canvas: "pcb") else { return .ignored }
+                    if key == ShortcutStore.sequenceStarted { return .handled }  // the first key of a two-key tool sequence
                     if store.placementSession != nil, key == KeyEquivalent("r") || key == KeyEquivalent("f") {
                         // Placing new parts: R turns and F flips the part at the cursor.
                         if key == KeyEquivalent("r") { store.rotatePlacement() } else { store.flipPlacement() }
@@ -1013,6 +1018,7 @@ struct PCBCanvas: View {
                     focused = true
                     if !didFit {
                         didFit = true
+                        ViewMemory.set("pcb.fitted", true)
                         fit(geo.size)
                     }
                 }

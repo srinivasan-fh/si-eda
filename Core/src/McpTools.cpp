@@ -2001,6 +2001,20 @@ Json readFileArg(McpServer& s, const std::string& path) {
     return Json(ss.str());
 }
 
+/// Reads a KiCad schematic's sub-sheets: from `sheets` ({file: text}) first, else the file beside `from` (inside the
+/// root); "" when neither has it.
+KicadSheetLoader sheetLoader(McpServer& s, const Json& sheets, const std::string& from) {
+    return [&s, sheets, dir = fs::path(from).parent_path()](const std::string& file) -> std::string {
+        if (sheets.get(file).isString()) return sheets.get(file).asString();
+        if (const std::string base = fs::path(file).filename().string(); sheets.get(base).isString()) return sheets.get(base).asString();
+        try {
+            return readFileArg(s, (dir / file).string()).asString();
+        } catch (...) {
+            return {};
+        }
+    };
+}
+
 /// schematic_import_netlist's work on a read netlist (also the start of pcb_import_kicad): the schematic_build result
 /// with "imported" (what each designator became).
 Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
@@ -2684,7 +2698,8 @@ void schematicTools(Table& t) {
           "or path: an STM32CubeMX .ioc, .xdc, .qsf or two-column CSV (pin, net) whose nets are put on the part's "
           "pins with net labels (pins by name or number).",
           Schema().str("ref", "The MCU / FPGA designator", true)
-              .str("format", "Export: header, xdc, qsf or csv", false, {"header", "xdc", "qsf", "csv"})
+              .str("format", "Export: header, xdc, qsf or csv; plan = the package's pads with pin, net and role (pin planner)",
+                   false, {"header", "xdc", "qsf", "csv", "plan"})
               .str("assign", "Pin assignments to apply (file text)").str("path", "Pin assignment file in the root folder"),
           [](McpServer& s, const Json& a) {
               const std::string ref = requireStr(a, "ref");
@@ -2718,7 +2733,8 @@ void schematicTools(Table& t) {
                   j["assigned"] = assigned;
                   if (unknown.size()) j["unknownPins"] = unknown;
               }
-              if (a.has("format")) j["text"] = exportPinMap(proj(s).schematic, ref, argStr(a, "format"));
+              if (argStr(a, "format") == "plan") j["plan"] = pinPlanJson(proj(s).schematic, ref);
+              else if (a.has("format")) j["text"] = exportPinMap(proj(s).schematic, ref, argStr(a, "format"));
               check(a.has("format") || a.has("assign") || a.has("path"), "Give format to export, or assign / path to import");
               return out(j);
           });
@@ -3728,17 +3744,20 @@ void schematicTools(Table& t) {
           });
     t.add("schematic", "schematic_import_netlist", "Import a netlist", Kind::Edit, false,
           "Builds the schematic from another tool's schematic or netlist: a KiCad sheet (.kicad_sch: symbols, wires, "
-          "labels, power symbols; sub-sheets listed in warnings), an LTspice schematic (.asc: R, C, L, sources, diodes, "
+          "labels, power symbols; sub-sheets read from sheets or beside path, hierarchical labels joined to their sheet "
+          "pins, local labels named /Sheet/NAME), an Eagle schematic (.sch: every sheet, nets by name, gate pins on their "
+          "pads), an LTspice schematic (.asc: R, C, L, sources, diodes, "
           "LEDs), a KiCad netlist (.net), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV (Net, Designator, Pin). Two-pin R / C / L / D parts become built-in parts (package from the footprint's "
           "size), parts the catalog knows by part name or value come from it, the rest become library parts with the "
           "netlist's pins (package from the footprint name, else a header). Then works as schematic_build; imported "
           "lists what each designator became.",
-          Schema().str("text", "The netlist text").str("path", "Or the netlist file inside the root"),
+          Schema().str("text", "The netlist text").str("path", "Or the netlist file inside the root")
+              .object("sheets", "KiCad sub-sheets by file name: {\"power.kicad_sch\": \"(kicad_sch …)\"} (else read beside path)"),
           [](McpServer& s, const Json& a) {
               const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
               ParsedNetlist nl;
               try {
-                  nl = parseNetlist(text);
+                  nl = parseNetlist(text, sheetLoader(s, a.get("sheets"), argStr(a, "path")));
               } catch (const std::exception& e) {
                   throw ToolError(std::string("Netlist not read: ") + e.what());
               }
@@ -7018,15 +7037,17 @@ void teamTools(Table& t) {
           "KiCad's (offBy, mm), designators the schematic lacks and copper whose net could not be matched.",
           Schema().str("path", "The .kicad_pcb file inside the root").str("text", "Or the board's text")
               .str("schematic", "The project's .kicad_sch (inside the root): the circuit comes from it, each part with its board footprint")
-              .str("schematicText", "Or that schematic's text"),
+              .str("schematicText", "Or that schematic's text")
+              .object("sheets", "Its KiCad sub-sheets by file name (else read beside schematic)"),
           [](McpServer& s, const Json& a) {
               const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
               KicadBoard kb;
               ParsedNetlist nl;
               try {
                   kb = parseKicadPcb(text);
-                  nl = a.has("schematicText") ? parseNetlist(argStr(a, "schematicText"))
-                     : a.has("schematic")     ? parseNetlist(readFileArg(s, argStr(a, "schematic")).asString())
+                  const KicadSheetLoader load = sheetLoader(s, a.get("sheets"), argStr(a, "schematic"));
+                  nl = a.has("schematicText") ? parseNetlist(argStr(a, "schematicText"), load)
+                     : a.has("schematic")     ? parseNetlist(readFileArg(s, argStr(a, "schematic")).asString(), load)
                                               : kb.netlist;
               } catch (const std::exception& e) {
                   throw ToolError(std::string("Not read: ") + e.what());
