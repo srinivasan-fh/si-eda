@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "sieda/Geometry.hpp"
+#include "sieda/Json.hpp"
 
 namespace sieda {
 
@@ -86,6 +87,10 @@ std::string exportNetLengthReport(const Schematic& sch, const PcbLayout& pcb);
 /// set_location_assignment) or "csv" (pin, name, net). Power, ground and unnamed nets are left out. Empty when `ref`
 /// is not on the schematic or the format is unknown.
 std::string exportPinMap(const Schematic& sch, const std::string& ref, const std::string& format);
+/// The part's package for a graphical pin planner: {ref, package, width, height (courtyard, mm), pads:[{x, y, w, h, round
+/// (footprint frame, mm), number, name, type, net, role ("signal" / "power" / "ground" / "negative" / "none")}]}; null
+/// for an unknown part or one without a footprint. A pad with no pin (mechanical) has no number.
+Json pinPlanJson(const Schematic& sch, const std::string& ref);
 /// Pin → net assignments from an STM32CubeMX project (.ioc: PA5.GPIO_Label / .Signal), a Vivado .xdc, a Quartus .qsf or
 /// a two-column CSV (pin, net); pins as the file names them (a pin name such as PA5, or a package pin such as E3).
 std::vector<std::pair<std::string, std::string>> parsePinAssignments(const std::string& text);

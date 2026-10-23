@@ -38,7 +38,7 @@ struct SchematicCanvas: View {
     @State private var pendingWire: WireEnd?
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
-    @State private var didInitialFit = false
+    @State private var didInitialFit = ViewMemory.value("sch.fitted", false)  // the first fit only, also across window rebuilds
     @State private var placementRotation = 0  // Space / R rotate the part being placed (degrees)
     @State private var spaceHeld = false        // Space + left-drag pans; a Space tap rotates
     @State private var spaceUsedForPan = false
@@ -103,6 +103,7 @@ struct SchematicCanvas: View {
                 focused = true
                 if !didInitialFit {
                     didInitialFit = true
+                    ViewMemory.set("sch.fitted", true)
                     fitToContent(size: geo.size)
                 }
             }
@@ -235,6 +236,7 @@ struct SchematicCanvas: View {
             .onKeyPress(phases: .down) { press in
                 guard press.modifiers.subtracting(.shift).isEmpty,
                       let key = ShortcutStore.shared.toolKey(press.characters, canvas: "sch") else { return .ignored }
+                if key == ShortcutStore.sequenceStarted { return .handled }  // the first key of a two-key tool sequence
                 switch key {
                 case KeyEquivalent("r"): rotate()
                 case KeyEquivalent("x"): store.mirror(store.targets(hovered: hoveredComponent), vertical: false)
@@ -299,6 +301,7 @@ struct SchematicCanvas: View {
                 }]
             } ?? []
             let pinMap: [CanvasMenuItem] = c.pins.count >= 8 ? [  // MCU / FPGA: firmware and constraint files
+                CanvasMenuItem(title: String(localized: "Plan Pins…")) { store.pinPlannerRef = c.ref },
                 CanvasMenuItem(title: String(localized: "Export Pin Map…")) { store.exportPinMap(ref: c.ref) },
                 CanvasMenuItem(title: String(localized: "Assign Pins from File…")) { store.assignPins(ref: c.ref) },
             ] : []

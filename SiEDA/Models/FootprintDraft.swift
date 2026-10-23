@@ -384,12 +384,33 @@ enum UserFootprintLibrary {
         var graphics: [CustomPartSpec.Graphic]
     }
 
-    static var folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("SiEDA/Footprints", isDirectory: true)
+    /// The team's shared library folder (Settings → Library; a network drive or synced folder) or nil: it holds
+    /// Footprints/ and 3D Models/.
+    static var sharedFolder: URL? {
+        UserDefaults.standard.string(forKey: "library.sharedFolder").flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    /// My Footprints: in the shared library folder when one is set, else Application Support/SiEDA/Footprints (a
+    /// folder set here, e.g. by a test, wins).
+    static var folder: URL {
+        get {
+            chosenFolder ?? sharedFolder?.appendingPathComponent("Footprints", isDirectory: true)
+                ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("SiEDA/Footprints", isDirectory: true)
+        }
+        set { chosenFolder = newValue }
+    }
+    private static var chosenFolder: URL?
+
+    private static func safe(_ name: String) -> String { String(name.map { "/:\\".contains($0) ? "-" : $0 }) }
 
     private static func file(_ name: String) -> URL {
-        let safe = name.map { "/:\\".contains($0) ? "-" : $0 }
-        return folder.appendingPathComponent(String(safe)).appendingPathExtension("json")
+        folder.appendingPathComponent(safe(name)).appendingPathExtension("json")
+    }
+
+    /// Earlier versions of a footprint: each save that changed it keeps the one before (newest 20).
+    private static func historyFolder(_ name: String) -> URL {
+        folder.appendingPathComponent(".history", isDirectory: true).appendingPathComponent(safe(name), isDirectory: true)
     }
 
     static func names() -> [String] {
@@ -402,12 +423,33 @@ enum UserFootprintLibrary {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let saved = Saved(lands: draft.pads.map(\.land), bodyW: draft.bodyW, bodyD: draft.bodyD, courtyard: draft.courtyardMargin,
                           graphics: draft.graphics)
-        try JSONEncoder().encode(saved).write(to: file(name), options: .atomic)
+        let data = try JSONEncoder().encode(saved)
+        if let old = try? Data(contentsOf: file(name)), old != data {  // keep the version this one replaces
+            let history = historyFolder(name)
+            try FileManager.default.createDirectory(at: history, withIntermediateDirectories: true)
+            let format = DateFormatter()
+            format.dateFormat = "yyyy-MM-dd HH.mm.ss"
+            let stamp = format.string(from: Date())
+            try old.write(to: history.appendingPathComponent(stamp).appendingPathExtension("json"), options: .atomic)
+            for stale in versions(name).dropFirst(20) { try? FileManager.default.removeItem(at: stale) }
+        }
+        try data.write(to: file(name), options: .atomic)
     }
 
-    static func load(_ name: String) -> Saved? {
-        (try? Data(contentsOf: file(name))).flatMap { try? JSONDecoder().decode(Saved.self, from: $0) }
+    /// A footprint's earlier versions, newest first (file names are their save times).
+    static func versions(_ name: String) -> [URL] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: historyFolder(name), includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent > $1.lastPathComponent }
     }
 
-    static func remove(_ name: String) { try? FileManager.default.removeItem(at: file(name)) }
+    static func load(_ name: String) -> Saved? { load(file(name)) }
+
+    static func load(_ url: URL) -> Saved? {
+        (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Saved.self, from: $0) }
+    }
+
+    static func remove(_ name: String) {
+        try? FileManager.default.removeItem(at: file(name))
+        try? FileManager.default.removeItem(at: historyFolder(name))
+    }
 }

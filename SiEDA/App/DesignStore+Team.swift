@@ -56,11 +56,13 @@ extension DesignStore {
     /// Protel / Tango, CSV) through the core's
     /// schematic_import_netlist tool, one undo step.
     func importNetlist() {
-        guard let picked = chooseText("Choose a schematic or netlist: KiCad (.kicad_sch, .net), LTspice (.asc), Protel / Tango "
-                                      + "(Altium, OrCAD, EasyEDA, PADS) or CSV.",
-                                      extensions: ["kicad_sch", "asc", "net", "netlist", "csv", "txt"]) else { return }
+        guard let picked = chooseText("Choose a schematic or netlist: KiCad (.kicad_sch with its sub-sheets, .net), Eagle (.sch), "
+                                      + "LTspice (.asc), Protel / Tango (Altium, OrCAD, EasyEDA, PADS) or CSV.",
+                                      extensions: ["kicad_sch", "sch", "asc", "net", "netlist", "csv", "txt"]) else { return }
         let (url, text) = picked
-        let r = runTool("schematic_import_netlist", arguments: ["text": text])
+        var arguments: [String: Any] = ["text": text]
+        if url.pathExtension == "kicad_sch" { arguments["sheets"] = Self.kicadSheets(beside: url) }
+        let r = runTool("schematic_import_netlist", arguments: arguments)
         guard !r.isError, let data = r.text.data(using: .utf8),
               let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let imported = j["imported"] as? [String: Any] else {
@@ -73,6 +75,18 @@ extension DesignStore {
         requestView(.fit)
     }
 
+    /// The other KiCad sheets in a schematic's folder (its sub-sheets by file name): at most 200, each under 16 MB.
+    static func kicadSheets(beside url: URL) -> [String: String] {
+        let folder = url.deletingLastPathComponent()
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        var sheets: [String: String] = [:]
+        for file in files.filter({ $0.pathExtension == "kicad_sch" }).prefix(200)
+            where ((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) < 16 << 20 {
+            if let text = try? String(contentsOf: file, encoding: .utf8) { sheets[file.lastPathComponent] = text }
+        }
+        return sheets
+    }
+
     /// Brings a KiCad board in through the core's pcb_import_kicad tool, one undo step: on an empty project the
     /// circuit comes from the .kicad_sch of the same name beside the board when there is one, else from its pads.
     func importKicadBoard() {
@@ -81,6 +95,7 @@ extension DesignStore {
         var arguments: [String: Any] = ["text": text]
         if let sch = try? String(contentsOf: url.deletingPathExtension().appendingPathExtension("kicad_sch"), encoding: .utf8) {
             arguments["schematicText"] = sch
+            arguments["sheets"] = Self.kicadSheets(beside: url)
         }
         let r = runTool("pcb_import_kicad", arguments: arguments)
         guard !r.isError, let data = r.text.data(using: .utf8),

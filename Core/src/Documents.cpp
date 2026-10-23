@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "sieda/Bom.hpp"
+#include "sieda/CustomParts.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Project.hpp"
@@ -1000,6 +1001,31 @@ std::string gerberImageJson(const GerberImage& img) {
     for (const auto& w : img.warnings) o << sep << "\"" << w << "\"", sep = ",";
     o << "],\"error\":\"" << img.error << "\"}";
     return o.str();
+}
+
+Json pinPlanJson(const Schematic& sch, const std::string& ref) {
+    const Component* c = sch.findByRef(ref);
+    const FootprintDef* fp = c && c->hasFootprint() ? Library::instance().footprint(c->footprintName()) : nullptr;
+    if (!fp) return Json();
+    Json j = Json::object(), pads = Json::array();
+    j["ref"] = ref, j["package"] = fp->label.empty() ? fp->name : fp->label;
+    j["width"] = fp->courtyardW, j["height"] = fp->courtyardH;
+    const auto& pins = c->def().pins;
+    for (const PadDef& pd : fp->pads) {
+        Json e = Json::object();
+        e["x"] = pd.offset.x, e["y"] = pd.offset.y, e["w"] = pd.size.x, e["h"] = pd.size.y, e["round"] = pd.round;
+        if (pd.pinIndex >= 0 && pd.pinIndex < static_cast<int>(pins.size())) {
+            const PinDef& pin = pins[static_cast<size_t>(pd.pinIndex)];
+            const int n = sch.netOf({c->id, pd.pinIndex});
+            e["number"] = pin.number.empty() ? std::to_string(pd.pinIndex + 1) : pin.number, e["name"] = pin.name;
+            e["type"] = pinTypeName(static_cast<PinType>(pin.type));
+            e["net"] = n >= 0 ? sch.nets()[static_cast<size_t>(n)].name : "";
+            e["role"] = n < 0 ? "none" : netRoleName(sch.netRole(n));
+        }
+        pads.push(e);
+    }
+    j["pads"] = pads;
+    return j;
 }
 
 std::string exportPinMap(const Schematic& sch, const std::string& ref, const std::string& format) {

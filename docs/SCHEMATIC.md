@@ -534,6 +534,12 @@ Code: `SiEDA/Views/Schematic/SchematicPalette.swift` (palettes, schemes, grid st
 value the canvas draws with), `SchematicCustomTheme.swift` (named colours, roles, custom theme) and
 `SchematicAppearanceViews.swift` (menus, swatches, the Customise sheet).
 
+## Pin planner
+
+Right-click a part → **Plan Pins…** draws its package's pads, coloured by role (signal, power, ground, unused), with
+each pad's number, name, type and net (MCP `schematic_pin_map` format `plan`). Type in the filter to find a pin, click a
+pad and **Assign Net** to label it.
+
 ## Importing a netlist
 
 **File → Import Netlist…** (MCP `schematic_import_netlist`, core `parseNetlist` in `LibraryImport.cpp`) builds the
@@ -542,8 +548,12 @@ schematic from another tool's schematic or netlist:
 - a **KiCad sheet** (`.kicad_sch`, KiCad 6 – 10, `parseKicadSchematic`): each symbol's pins placed by its position,
   rotation and mirror (checked against KiCad's demo sheets: every wire end meets a pin, wire, label or flag), joined
   by wires, junctions, labels (by name) and power symbols (by value; PWR_FLAG only marks); multi-unit parts become one
-  part; sub-sheets are listed in `warnings` (import each on its own); wire ends or pins that meet nothing are counted
-  there too;
+  part; sub-sheets are read from the files beside the sheet (MCP: `sheets` or beside `path`; nested up to 16 deep,
+  repeated sheets get their own references from the `instances` paths), their hierarchical labels joined to the parent's
+  sheet pins and local labels named `/Sheet/NAME`; missing sheets, wire ends or pins that meet nothing are counted in
+  `warnings`;
+- an **Eagle schematic** (`.sch`, `parseEagleSchematic`): every sheet, nets joined by name, gate pins mapped to their
+  pads by the device's connects (EasyEDA: export a Protel netlist);
 - an **LTspice schematic** (`.asc`, `parseLtspiceSchematic`): resistors, capacitors, inductors, voltage and current
   sources, diodes and LEDs on the built-in symbols, any rotation or mirror, wires and flags (`0` = GND); plain values
   are kept (`{param}` and `SINE(…)` fall back to the default); other symbols are listed in `warnings`;

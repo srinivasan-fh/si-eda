@@ -8,9 +8,10 @@ enum Workspace: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Workspaces offered in the UI; the Super Intelligence workspace is hidden when AI assistance is off.
+    /// Workspaces offered in the UI; the Super Intelligence workspace is hidden when AI assistance is off, the Library
+    /// in beginner mode.
     static func visible(aiEnabled: Bool) -> [Workspace] {
-        aiEnabled ? allCases : allCases.filter { $0 != .promptStudio }
+        allCases.filter { ($0 != .promptStudio || aiEnabled) && ($0 != .library || !BeginnerMode.isOn) }
     }
 
     var title: String {
@@ -171,6 +172,7 @@ final class DesignStore: ObservableObject {
     @Published var showReview = false
     @Published var showGerberViewer = false
     @Published var showFabOrder = false  // File → Order Boards…
+    @Published var pinPlannerRef: String?  // the part the Pin Planner shows
     /// Reference layers' shapes, read once per layer ("index:name:bytes").
     var referenceArtworkCache: [String: GerberArtwork] = [:]
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.

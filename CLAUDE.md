@@ -12,7 +12,7 @@
   silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
   `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. More land checks in `landChecksMore` (LAND_PASTE /
   SILK_PAD / PIN1 / NUMBERING / COURTYARD, LAND_MASK_SLIVER in the pair loop) must stay quiet on every catalog part;
-  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift). Pad copper is measured only through
+  the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift: `.history/<name>/` keeps the last 20 saves, `library.sharedFolder` = a team folder with Footprints / 3D Models). Pad copper is measured only through
   `TrackGeometry.hpp` (`padPointDistance` / `padSegmentDistance` / `padTrackDistance` / `padPadDistance`: a round pad
   with w ≠ h is an oval = stadium round `padSpine`, circles keep their exact arithmetic; `padOnLayer` = the pad stack's
   `inner` / `solder` circle on that layer) in DRC, connectivity, pours and routers; ovals export as Gerber `O`,
@@ -78,7 +78,9 @@
   `tools/circuit_lm/` into `SiEDA/Resources/Models/sieda-circuit-v1.{gguf,json}` — regenerate, don't hand-edit; values the request fixes computed by `Core/src/CircuitValues.cpp` (`circuitPlanValues`)); guide in `docs/AI.md`.
 - Configurable menu shortcuts: `ShortcutStore` / `ShortcutSettings` in `SiEDA/Views/Settings/SettingsView.swift` (user
   defaults "app.shortcuts"; `SiEDACommands` reads `shortcuts.shortcut(id)`); canvas tool keys `ShortcutStore.toolKeys`
-  ("sch." / "pcb."), the canvases switch on `toolKey(_:canvas:)` (the tool's standard key).
+  ("sch." / "pcb."), the canvases switch on `toolKey(_:canvas:)` (the tool's standard key; a two-key sequence "p w"
+  returns `sequenceStarted` for its first key). Beginner mode `BeginnerMode` (`BeginnerGuide.swift`: guide bar, no library
+  workspace). Editor view state that must survive a theme switch's rebuild lives in `ViewMemory` (EditorChrome.swift, `.remembers`).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
@@ -94,7 +96,7 @@
   the PCB canvas overlay (`DesignStore.referenceArtwork`).
 - Netlist / schematic import: `parseNetlist` in `LibraryImport.cpp` (KiCad .net, Protel / Tango, CSV, and through it
   `parseKicadSchematic` (.kicad_sch: counter-clockwise turns, mirror after the turn, PWR_FLAG names nothing) and
-  `parseLtspiceSchematic` (.asc, built-in symbols' pin offsets); in the `library` fuzz target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
+  `parseLtspiceSchematic` (.asc, built-in symbols' pin offsets) and `parseEagleSchematic` (.sch, nets by name, gate pins by connects); KiCad sub-sheets through a `KicadSheetLoader` (MCP `sheets` / files beside `path`: hierarchical labels joined to sheet pins, local labels scoped `/Sheet/NAME`, refs from `instances` paths, depth 16); in the `library` fuzz target), MCP `schematic_import_netlist` (built-in passives, catalog parts, else library parts from the netlist's pins,
   then `schematic_build`; its work is `importNetlist` in `McpTools.cpp`), app File → Import Netlist… through `DesignStore.runTool`.
   KiCad boards: `parseKicadPcb` (`KicadBoard`: pads at KiCad's board positions, bottom footprints' stored-flipped pads
   turned back to a top view, lands centred on the courtyard; `library` fuzz target, fixture `two_parts.kicad_pcb`), MCP
@@ -260,7 +262,7 @@
   `<file>.lock` and event hooks (Application Support/SiEDA/Hooks: after-open / save / verify / export) in
   `SiEDA/App/ProjectHooks.swift` — hooks only from that folder, never from a project.
 - Integration: pin maps `exportPinMap` / `parsePinAssignments` (`Documents.cpp`, MCP `schematic_pin_map`: header /
-  XDC / QSF / CSV out, CubeMX .ioc / XDC / QSF / CSV in); Python client `python/sieda.py` over `sieda-mcp` (CTest
+  XDC / QSF / CSV out, CubeMX .ioc / XDC / QSF / CSV in; `plan` = `pinPlanJson` for the app's `PinPlannerView`); Python client `python/sieda.py` over `sieda-mcp` (CTest
   `sieda_python_api`); C API semver `SIEDA_API_VERSION_*` / `sieda_api_version()` (bump MINOR when adding functions);
   CI templates `docs/ci/` (GitHub, GitLab); BOM with chosen columns / per board `exportBomColumns` (MCP `output_bom`).
 - Library extras: CSV / TSV / CubeMX pin tables `parsePinTable` (`CustomParts.cpp`, MCP `library_create_part`

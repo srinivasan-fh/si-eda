@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -289,6 +290,8 @@ private struct AppearanceSettings: View {
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
     @AppStorage(DesignStore.autosaveKey) private var autosave = false
+    @AppStorage("library.sharedFolder") private var sharedLibrary = ""
+    @AppStorage(BeginnerMode.key) private var beginner = false
     @AppStorage(Theme.layerPaletteKey) private var layerPalette = ""
     @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"
     @State private var customisingSchematic = false
@@ -316,8 +319,26 @@ private struct AppearanceSettings: View {
                 Button("Import Settings…") { SettingsTransfer.importWithPanel() }
             }
             .help("Shortcuts, themes, colours, library favourites and tags, and other preferences as one file (keys and passwords stay in the Keychain)")
+            HStack {
+                Text("Shared Library Folder")
+                Text(verbatim: sharedLibrary.isEmpty ? "—" : (sharedLibrary as NSString).abbreviatingWithTildeInPath)
+                    .foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.middle)
+                Button("Choose…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    panel.canCreateDirectories = true
+                    if panel.runModal() == .OK, let url = panel.url { sharedLibrary = url.path }
+                }
+                if !sharedLibrary.isEmpty { Button("Clear") { sharedLibrary = "" } }
+            }
+            .help("A team folder (network drive or synced folder): My Footprints are kept in its Footprints folder with their version history, and 3D models are picked from its 3D Models folder")
             Button("Open Event Hooks Folder") { ProjectHooks.openFolder() }
                 .help("Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set")
+            Toggle("Beginner mode", isOn: $beginner)
+            Text("A bar over the workspace names the next step of the board (parts, board, routing, checks and order) with a button for it; the Library workspace is hidden.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
             Toggle("Save projects automatically", isOn: $autosave)
             Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                 .font(.caption)
@@ -446,13 +467,14 @@ final class ShortcutStore: ObservableObject {
     func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
 
     /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
-    /// Altium: the second key of its Place-menu sequences (P, W wire · P, N net label · P, O power port · P, T track),
-    /// L flips a part to the other side; two-key sequences themselves are not supported.
+    /// Altium: its Place-menu sequences (P, W wire · P, N net label · P, O power port · P, P part · P, T track), L flips a
+    /// part to the other side.
     static let toolPresetNames = ["SiEDA", "KiCad", "Altium"]
     static let toolPresets: [String: [String: String]] = [
         "SiEDA": [:],
         "KiCad": ["sch.place": "a", "sch.ground": "p", "sch.select": "", "sch.pan": "", "pcb.tune": "7", "pcb.pan": ""],
-        "Altium": ["sch.label": "n", "sch.ground": "o", "sch.pan": "", "pcb.route": "t", "pcb.tune": "", "pcb.flip": "l", "pcb.pan": ""],
+        "Altium": ["sch.wire": "p w", "sch.label": "p n", "sch.ground": "p o", "sch.place": "p p", "sch.text": "p t", "sch.pan": "",
+                   "pcb.route": "p t", "pcb.tune": "", "pcb.flip": "l", "pcb.pan": ""],
     ]
 
     func applyToolPreset(_ keys: [String: String]) {
@@ -460,12 +482,28 @@ final class ShortcutStore: ObservableObject {
         UserDefaults.standard.set(overrides, forKey: Self.key)
     }
 
-    /// The standard key of the `canvas` tool ("sch", "pcb") the typed key is set to; nil when no tool has it.
+    /// What `toolKey` gives for the first key of a two-key sequence: nothing to do yet (the canvas takes the key).
+    static let sequenceStarted = KeyEquivalent("\u{1}")
+    private var pendingKey: (key: String, canvas: String, at: Date)?
+
+    /// The standard key of the `canvas` tool ("sch", "pcb") the typed key is set to; nil when no tool has it. A tool
+    /// may take two keys typed one after the other ("p w", within 1.5 s): the first gives `sequenceStarted`.
     func toolKey(_ characters: String, canvas: String) -> KeyEquivalent? {
         let typed = characters.lowercased()
-        guard !typed.isEmpty, let tool = Self.toolKeys.first(where: { $0.id.hasPrefix(canvas + ".") && text($0.id).lowercased() == typed })
-        else { return nil }
-        return KeyEquivalent(Character(tool.standard))
+        guard !typed.isEmpty else { return nil }
+        let tools = Self.toolKeys.filter { $0.id.hasPrefix(canvas + ".") }
+        let keys = { (tool: Command) in self.text(tool.id).lowercased().replacingOccurrences(of: " ", with: "") }
+        if let pending = pendingKey, pending.canvas == canvas, Date().timeIntervalSince(pending.at) < 1.5 {
+            pendingKey = nil
+            if let tool = tools.first(where: { keys($0) == pending.key + typed }) { return KeyEquivalent(Character(tool.standard)) }
+        }
+        pendingKey = nil
+        if let tool = tools.first(where: { keys($0) == typed }) { return KeyEquivalent(Character(tool.standard)) }
+        if tools.contains(where: { keys($0).count == 2 && keys($0).hasPrefix(typed) }) {
+            pendingKey = (typed, canvas, Date())
+            return Self.sequenceStarted
+        }
+        return nil
     }
 
     /// "cmd+shift+k" (or ⌘⇧K-style symbols) → a shortcut; nil when there is no single key.
@@ -527,7 +565,7 @@ struct ShortcutSettings: View {
             }
             Text("Type the keys as cmd, shift, opt and ctrl plus one key, joined by +, e.g. cmd+shift+k. Leave empty for no shortcut.")
                 .font(.caption).foregroundStyle(.secondary)
-            Text("A canvas tool takes one key.").font(.caption).foregroundStyle(.secondary)
+            Text("A canvas tool takes one key, or two typed one after the other, e.g. p w.").font(.caption).foregroundStyle(.secondary)
             Picker("Canvas Key Preset", selection: Binding(get: { "" }, set: { name in
                 if let keys = ShortcutStore.toolPresets[name] { shortcuts.applyToolPreset(keys) }
             })) {

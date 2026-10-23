@@ -7,11 +7,12 @@ struct ContentView: View {
     @EnvironmentObject private var agents: AgentOrchestrator
     /// The inspector starts hidden on laptop-size screens (decided once at launch: measuring the window and
     /// toggling panels during layout makes AppKit loop on constraint updates and abort).
-    @State private var showInspector = ContentView.startsWithInspector
+    @State private var showInspector = ViewMemory.value("content.inspector", ContentView.startsWithInspector)
     /// The components / nets sidebar starts hidden (the toolbar's sidebar button shows it).
-    @State private var columns = NavigationSplitViewVisibility.detailOnly
+    @State private var columns = ViewMemory.value("content.columns", NavigationSplitViewVisibility.detailOnly)
     /// Whether the sidebar was shown when focus mode hid it (restored on leaving).
     @State private var columnsBeforeFocus = NavigationSplitViewVisibility.detailOnly
+    @AppStorage(BeginnerMode.key) private var beginner = false
     /// Whether the inspector was open when focus mode hid it (restored on leaving).
     @State private var inspectorBeforeFocus = false
 
@@ -26,6 +27,7 @@ struct ContentView: View {
                 .toolbar(removing: .sidebarToggle)  // our own button below shows / hides it without the slide
         } detail: {
             VStack(spacing: 0) {
+                if beginner && !store.focusMode { BeginnerGuide() }
                 workspaceView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .environment(\.editorFocusMode, store.focusMode)
@@ -43,6 +45,8 @@ struct ContentView: View {
             }
         }
         .navigationTitle(store.windowTitle)
+        .remembers(showInspector, as: "content.inspector")
+        .remembers(columns, as: "content.columns")
         .onChange(of: store.inspectorRevealToken) { _, _ in setInspector(true) }
         .toolbar { toolbarContent }
         .toolbar(store.focusMode ? .hidden : .visible, for: .windowToolbar)
@@ -57,6 +61,9 @@ struct ContentView: View {
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
         .sheet(isPresented: $store.showGerberViewer) { GerberViewerView().environmentObject(store) }
         .sheet(isPresented: $store.showFabOrder) { FabOrderView().environmentObject(store) }
+        .sheet(isPresented: Binding(get: { store.pinPlannerRef != nil }, set: { if !$0 { store.pinPlannerRef = nil } })) {
+            PinPlannerView(ref: store.pinPlannerRef ?? "").environmentObject(store)
+        }
         .sheet(isPresented: $store.showWelcomeTour) { WelcomeTourView() }
         .sheet(isPresented: $store.showShortcuts) { KeyboardShortcutsView() }
         .sheet(isPresented: $store.showPerformance) { PerformanceView().environmentObject(store) }

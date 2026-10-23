@@ -8,6 +8,7 @@
 // with its line number and the other files still import.
 #pragma once
 
+#include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -131,20 +132,27 @@ struct NetlistPart {
 };
 /// A netlist read from another tool: its parts and its nets, each a list of (designator, pin number).
 struct ParsedNetlist {
-    std::string format;  // "kicad", "protel", "csv", "kicad_sch", "ltspice"
+    std::string format;  // "kicad", "protel", "csv", "kicad_sch", "eagle_sch", "ltspice"
     std::vector<NetlistPart> parts;
     std::vector<std::pair<std::string, std::vector<std::pair<std::string, std::string>>>> nets;
     std::vector<std::string> warnings;  // what a schematic import could not carry over
 };
+/// A KiCad sub-sheet's text by its file name as the parent names it ("" when it cannot be read).
+using KicadSheetLoader = std::function<std::string(const std::string& file)>;
 /// Reads a KiCad netlist (.net, "(export …)"), a Protel / Tango netlist ([ part ] and ( net ) blocks, also written by
 /// Altium, OrCAD, EasyEDA and PADS) or a CSV with Net, Designator (Ref / Reference) and Pin columns. Parts the nets
 /// name but the file does not list are added with only their designator. Throws ImportError for anything else.
-ParsedNetlist parseNetlist(const std::string& text);
+ParsedNetlist parseNetlist(const std::string& text, const KicadSheetLoader& load = {});
 /// A KiCad schematic sheet (.kicad_sch, KiCad 6 – 10) read for its connectivity: each symbol's pins placed by its
 /// position, rotation and mirror, joined by wires (an end on another wire joins it), junctions, labels (local, global,
-/// hierarchical: by name) and power symbols (by value). Multi-unit parts become one part. Sub-sheets are not followed
-/// (listed in warnings). parseNetlist reads these too.
-ParsedNetlist parseKicadSchematic(const std::string& text);
+/// hierarchical: by name) and power symbols (by value). Multi-unit parts become one part. Sub-sheets are read through
+/// `load` (without one they are listed in warnings): each in its own coordinates, its local labels named "/Sheet/NAME",
+/// its hierarchical labels joined to the parent's sheet pins, its parts by their instance reference (a repeated sheet
+/// numbers its copies apart; KiCad 6's root symbol_instances too). parseNetlist reads these too.
+ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoader& load = {});
+/// An Eagle schematic (.sch, XML, every sheet): parts with a package (supply symbols and frames left out) by name,
+/// value and package, nets by name across the sheets, each gate pin on its device's pads. parseNetlist reads these too.
+ParsedNetlist parseEagleSchematic(const std::string& text);
 /// An LTspice schematic (.asc): resistors, capacitors, inductors, voltage and current sources, diodes and LEDs (the
 /// built-in symbols, any rotation / mirror) joined by wires and flags ("0" = GND). Parts carry their kind in `part`
 /// as "kind:<resistor|capacitor|inductor|voltage_source|current_source|diode|led>"; other symbols are listed in

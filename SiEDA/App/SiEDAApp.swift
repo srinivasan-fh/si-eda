@@ -274,6 +274,7 @@ struct SiEDACommands: Commands {
     @ObservedObject var agents: AgentOrchestrator
     @ObservedObject var settings: AISettings
     @ObservedObject var shortcuts = ShortcutStore.shared
+    @AppStorage(BeginnerMode.key) private var beginner = false  // the Workspace menu leaves the Library out
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
