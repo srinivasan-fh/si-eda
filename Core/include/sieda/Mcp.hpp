@@ -168,6 +168,9 @@ std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& la
 /// The assembled board in 3D (shaded, orthographic) as PNG: view iso (default), top, bottom, front, back, left, right.
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width);
 
+/// A read-only viewer for any browser: one HTML file with every schematic sheet and the board as SVG, pan / zoom.
+std::string viewerHtml(const SiedaProject& project);
+
 std::string base64Encode(const std::string& bytes);
 
 }  // namespace sieda::mcp

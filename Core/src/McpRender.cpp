@@ -885,6 +885,42 @@ std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& la
     return toPng(pcbScene(project.project, layers, pours), width);
 }
 
+std::string viewerHtml(const SiedaProject& project) {
+    const Project& p = project.project;
+    std::string tabs, pages;
+    auto page = [&](const std::string& title, const std::string& svg) {
+        tabs += "<button onclick=\"show(this)\">" + xmlEscape(title) + "</button>";
+        pages += "<div class=\"page\">" + svg + "</div>\n";
+    };
+    for (const Sheet& sheet : p.schematic.sheets())
+        page("Schematic: " + sheet.name, renderSchematicSvg(project, sheet.id, 1200));
+    if (p.pcb.settings.width > 0) {
+        page("Board", renderPcbSvg(project, {}, 1200));
+        page("Top copper", renderPcbSvg(project, {0}, 1200, false));
+        if (p.pcb.settings.layerCount > 1) page("Bottom copper", renderPcbSvg(project, {p.pcb.settings.bottomLayer()}, 1200, false));
+    }
+    // One file, no network: the SVGs are inline and the script only pans / zooms them (wheel, drag, double-click).
+    return "<!doctype html>\n<html><head><meta charset=\"utf-8\"><title>" + xmlEscape(p.name) +
+           " — SiEDA viewer</title>\n<style>body{margin:0;font:14px system-ui;background:#f4f5f7}"
+           "nav{padding:8px;background:#1c2b44;position:sticky;top:0}nav b{color:#fff;margin-right:12px}"
+           "nav button{margin:2px;border:0;border-radius:4px;padding:4px 10px;background:#dfe6f2}"
+           "nav button.on{background:#4f8cff;color:#fff}.page{display:none;height:calc(100vh - 48px);overflow:hidden;"
+           "cursor:grab}.page.on{display:block}.page svg{width:100%;height:100%}</style></head><body>\n<nav><b>" +
+           xmlEscape(p.name) + "</b>" + tabs + "</nav>\n" + pages +
+           "<script>\nconst tabs=[...document.querySelectorAll('nav button')],pages=[...document.querySelectorAll('.page')];\n"
+           "function show(b){const i=tabs.indexOf(b);tabs.forEach((t,j)=>t.classList.toggle('on',i==j));"
+           "pages.forEach((g,j)=>g.classList.toggle('on',i==j));}\nshow(tabs[0]);\n"
+           "pages.forEach(g=>{const s=g.querySelector('svg');if(!s)return;const v0=s.viewBox.baseVal;"
+           "let v=[v0.x,v0.y,v0.width,v0.height],d=null;const set=()=>s.setAttribute('viewBox',v.join(' '));\n"
+           "g.onwheel=e=>{e.preventDefault();const k=e.deltaY>0?1.15:1/1.15,r=s.getBoundingClientRect(),"
+           "x=v[0]+(e.clientX-r.left)/r.width*v[2],y=v[1]+(e.clientY-r.top)/r.height*v[3];"
+           "v=[x-(x-v[0])*k,y-(y-v[1])*k,v[2]*k,v[3]*k];set();};\n"
+           "g.onmousedown=e=>{d=[e.clientX,e.clientY];};onmouseup=()=>{d=null;};\n"
+           "g.onmousemove=e=>{if(!d)return;const r=s.getBoundingClientRect();v[0]-=(e.clientX-d[0])/r.width*v[2];"
+           "v[1]-=(e.clientY-d[1])/r.height*v[3];d=[e.clientX,e.clientY];set();};\n"
+           "g.ondblclick=()=>{v=[v0.x,v0.y,v0.width,v0.height];set();};});\n</script></body></html>\n";
+}
+
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width) {
     MeshOptions opt;
     opt.fold = true;  // a rigid-flex board as folded

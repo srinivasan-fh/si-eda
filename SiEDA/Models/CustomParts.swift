@@ -636,18 +636,44 @@ enum DatasheetSchema {
                     "items": [
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["number", "name", "type", "description"],
+                        "required": ["number", "name", "type", "description", "page", "confidence"],
                         "properties": [
                             "number": ["type": "string", "description": "Pin number as printed, e.g. 1 or EP"],
                             "name": ["type": "string"],
                             "type": ["type": "string", "enum": PinElectricalType.allCases.map(\.rawValue)] as [String: Any],
                             "description": ["type": "string"],
+                            "page": ["type": "integer", "description": "Datasheet page the pin is read from (0 = unknown)"],
+                            "confidence": ["type": "number", "description": "0 – 1: how sure the pin's name and type are"],
                         ] as [String: Any],
                     ] as [String: Any],
                 ] as [String: Any],
                 "notes": ["type": "array", "items": ["type": "string"]] as [String: Any],
             ] as [String: Any],
         ]
+    }
+
+    /// Where each extracted pin was read and how sure the reader is (the `page` / `confidence` of each pin).
+    struct Citations: Decodable {
+        struct Pin: Decodable {
+            var number: String?
+            var name: String?
+            var page: Int?
+            var confidence: Double?
+        }
+        var pins: [Pin]
+
+        /// One note per pin below 70 % confidence (or with no page), worst first, after a summary line.
+        var notes: [String] {
+            guard !pins.isEmpty else { return [] }
+            let weak = pins.filter { ($0.confidence ?? 0) < 0.7 }.sorted { ($0.confidence ?? 0) < ($1.confidence ?? 0) }
+            let cited = pins.filter { ($0.page ?? 0) > 0 }.count
+            var notes = ["Sources: \(cited) of \(pins.count) pins cite a datasheet page; \(weak.count) below 70 % confidence."]
+            for pin in weak.prefix(12) {
+                let page = (pin.page ?? 0) > 0 ? "page \(pin.page!)" : "no page"
+                notes.append("Check pin \(pin.number ?? "?") \(pin.name ?? ""): \(Int(((pin.confidence ?? 0) * 100).rounded())) % confident (\(page)).")
+            }
+            return notes
+        }
     }
 
     /// Model reply → editable spec.

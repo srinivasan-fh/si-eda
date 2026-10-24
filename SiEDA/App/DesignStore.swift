@@ -170,6 +170,7 @@ final class DesignStore: ObservableObject {
     @Published var designDiff: DesignDiff?
     @Published var variantMatrix: VariantMatrix?
     @Published var showReview = false
+    @Published var showGit = false
     @Published var showGerberViewer = false
     @Published var showFabOrder = false  // File → Order Boards…
     @Published var pinPlannerRef: String?  // the part the Pin Planner shows

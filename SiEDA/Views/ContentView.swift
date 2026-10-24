@@ -59,6 +59,7 @@ struct ContentView: View {
         .overlay { if store.showCommandPalette { CommandPaletteView() } }
         .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
+        .sheet(isPresented: $store.showGit) { GitView().environmentObject(store) }
         .sheet(isPresented: $store.showGerberViewer) { GerberViewerView().environmentObject(store) }
         .sheet(isPresented: $store.showFabOrder) { FabOrderView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { store.pinPlannerRef != nil }, set: { if !$0 { store.pinPlannerRef = nil } })) {

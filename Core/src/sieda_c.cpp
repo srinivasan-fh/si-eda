@@ -9,6 +9,7 @@
 #include "sieda/Retail.hpp"
 #include "sieda/Appliance.hpp"
 #include "sieda/Memory.hpp"
+#include "sieda/Mcp.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -1109,7 +1110,7 @@ int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t id, double x, do
     if (!project) return 0;
     Component* c = project->project.schematic.find(id);
     if (!c || !c->hasFootprint()) return 0;
-    c->pcb.position = {x, y};
+    c->pcb.position = {nm(x), nm(y)};
     c->pcb.placed = true;
     project->project.schematicChanged();
     return 1;
@@ -1669,7 +1670,7 @@ int32_t sieda_pcb_outline_preset(SiedaProject* project, const char* kind, double
 int32_t sieda_pcb_add_mounting_hole(SiedaProject* project, double x, double y, double drill_mm, double keepout_mm) {
     if (!project || !(drill_mm > 0)) return 0;
     MountingHole h;
-    h.position = {x, y};
+    h.position = {nm(x), nm(y)};
     h.drill = drill_mm;
     h.keepout = keepout_mm > 0 ? std::max(keepout_mm, drill_mm) : 2 * drill_mm;
     auto& holes = project->project.pcb.settings.holes;
@@ -1898,6 +1899,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "freecad" || f == "fusion") return dup(exportMcadScript(p.schematic, p.pcb, p.name, f));
         if (f == "testpoints") return dup(exportTestPointReport(p.schematic, p.pcb));
         if (f == "html_bom") return dup(exportHtmlBom(p));
+        if (f == "viewer") return dup(mcp::viewerHtml(*project));
         if (f == "bringup") return dup(bringUpChecklist(p));
         if (f == "fab_drawing") return dup(exportBoardDrawingPdf(p));
         if (f == "net_lengths") return dup(exportNetLengthReport(p.schematic, p.pcb));
@@ -2680,7 +2682,7 @@ char* sieda_router_begin(SiedaProject* project, const char* options_json, double
     if (!project) return nullptr;
     try {
         applyRouterOptions(project, options_json);
-        return routerPreview(project, routerOf(project).beginRoute({x, y}, layer));
+        return routerPreview(project, routerOf(project).beginRoute({nm(x), nm(y)}, layer));
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -2709,7 +2711,7 @@ char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, i
 char* sieda_router_move(SiedaProject* project, double x, double y) {
     if (!project) return nullptr;
     try {
-        routerOf(project).moveTo({x, y});
+        routerOf(project).moveTo({nm(x), nm(y)});
         return routerPreview(project, true);
     } catch (const std::exception& e) {
         return errorJson(e);
@@ -2857,7 +2859,7 @@ int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
 }
 
 int32_t sieda_pcb_split_track(SiedaProject* project, int32_t track_id, double x, double y) {
-    return project ? project->project.pcb.splitTrack(track_id, {x, y}) : -1;
+    return project ? project->project.pcb.splitTrack(track_id, {nm(x), nm(y)}) : -1;
 }
 
 int32_t sieda_pcb_merge_tracks(SiedaProject* project, const char* ids_json) {
@@ -2877,7 +2879,7 @@ int32_t sieda_pcb_move_footprint_with_tracks(SiedaProject* project, int32_t id, 
     if (!project) return 0;
     Component* c = project->project.schematic.find(id);
     if (!c || !c->hasFootprint()) return 0;
-    project->project.pcb.moveFootprintWithTracks(project->project.schematic, id, {x, y});
+    project->project.pcb.moveFootprintWithTracks(project->project.schematic, id, {nm(x), nm(y)});
     project->project.schematicChanged();
     return 1;
 }

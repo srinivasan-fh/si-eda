@@ -2016,8 +2016,9 @@ KicadSheetLoader sheetLoader(McpServer& s, const Json& sheets, const std::string
 }
 
 /// schematic_import_netlist's work on a read netlist (also the start of pcb_import_kicad): the schematic_build result
-/// with "imported" (what each designator became).
-Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
+/// with "imported" (what each designator became and a fidelity count). `map` = library mapping: the other tool's part
+/// name, value or footprint → a catalog / library part or a built-in kind (resistor, capacitor, inductor, diode, led).
+Json importNetlist(McpServer& s, const ParsedNetlist& nl, const Json& map = Json()) {
     auto upper = [](std::string v) {
         for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
         return v;
@@ -2033,6 +2034,12 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
     };
     Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
     std::set<std::string> made;
+    std::map<std::string, int> how;  // fidelity: built-in / catalog / mapped / library parts
+    auto mapping = [&](const NetlistPart& np) -> std::string {
+        for (const std::string& key : {np.part, np.value, np.footprint})
+            if (!key.empty() && map.get(key).isString()) return map.get(key).asString();
+        return {};
+    };
     for (const auto& np : nl.parts) {
         const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
         const auto& pins = pinsOf[ref];
@@ -2045,17 +2052,31 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
         const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
         const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
                          : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
-        if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+        const std::string to = mapping(np);
+        static const std::set<std::string> kinds = {"resistor", "capacitor", "inductor", "diode", "led"};
+        const bool inLibrary = std::any_of(proj(s).customLibrary.begin(), proj(s).customLibrary.end(), [&](const std::string& id) {
+            const CustomPart* cp = CustomPartRegistry::instance().find(id);
+            return id == to || (cp && cp->spec.name == to);
+        });
+        if (!to.empty() && (kinds.count(to) || findStandardPart(to) || inLibrary)) {
+            part[kinds.count(to) ? "kind" : "part"] = to;
+            if (!np.value.empty() && np.value != np.part && kinds.count(to)) part["value"] = np.value;
+            if (kinds.count(to) && !size.empty()) part["package"] = size;
+            ++how["mapped"];
+        } else if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+            ++how["builtIn"];
             part["kind"] = np.part.substr(5);
             static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
             if (std::regex_match(np.value, plain)) part["value"] = np.value;
         } else if (kind && (np.package.lands.empty() || !size.empty())) {  // a board's THT passive keeps its exact pads
+            ++how["builtIn"];
             part["kind"] = kind;
             if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
             if (!size.empty()) part["package"] = size;
         } else if (const StandardPart* sp = !np.package.lands.empty() ? nullptr : findStandardPart(np.part) ? findStandardPart(np.part)
                                                                                                          : findStandardPart(np.value)) {
             part["part"] = sp->spec.name;
+            ++how["catalog"];
         } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
             skipped.push(ref);
             continue;
@@ -2118,6 +2139,7 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
             }
             part["part"] = name;
             if (!np.value.empty()) part["value"] = np.value;
+            ++how["library"];
         }
         mapped[ref] = part.has("part") ? part.get("part") : part.get("kind");
         parts.push(part);
@@ -2153,6 +2175,16 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
     info["as"] = mapped;
     info["created"] = created;
     if (skipped.size()) info["skipped"] = skipped;
+    // Fidelity: how many parts came through as a known part (built-in, catalog or mapped) rather than a generic one
+    // made from the netlist's pins, and what the reader could not carry over (warnings).
+    Json fidelity = obj();
+    for (const char* k : {"builtIn", "catalog", "mapped", "library"}) fidelity[k] = how[k];
+    fidelity["skipped"] = static_cast<int>(skipped.size());
+    fidelity["warnings"] = static_cast<int>(nl.warnings.size());
+    const int placedParts = how["builtIn"] + how["catalog"] + how["mapped"] + how["library"];
+    fidelity["knownPercent"] = placedParts ? 100 * (placedParts - how["library"]) / placedParts : 100;
+    if (how["library"]) fidelity["next"] = "Give \"map\" ({\"their part or footprint\": \"catalog part or kind\"}) to use known parts for the generic ones";
+    info["fidelity"] = fidelity;
     if (!nl.warnings.empty()) {
         Json w = Json::array();
         for (const auto& x : nl.warnings) w.push(x);
@@ -3752,7 +3784,8 @@ void schematicTools(Table& t) {
           "netlist's pins (package from the footprint name, else a header). Then works as schematic_build; imported "
           "lists what each designator became.",
           Schema().str("text", "The netlist text").str("path", "Or the netlist file inside the root")
-              .object("sheets", "KiCad sub-sheets by file name: {\"power.kicad_sch\": \"(kicad_sch …)\"} (else read beside path)"),
+              .object("sheets", "KiCad sub-sheets by file name: {\"power.kicad_sch\": \"(kicad_sch …)\"} (else read beside path)")
+              .object("map", "Library mapping: their part name, value or footprint → a catalog / library part or a kind (resistor, capacitor, inductor, diode, led)"),
           [](McpServer& s, const Json& a) {
               const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
               ParsedNetlist nl;
@@ -3761,7 +3794,7 @@ void schematicTools(Table& t) {
               } catch (const std::exception& e) {
                   throw ToolError(std::string("Netlist not read: ") + e.what());
               }
-              return out(importNetlist(s, nl));
+              return out(importNetlist(s, nl, a.get("map")));
           });
     t.add("schematic", "schematic_set_erc_severity", "ERC severity", Kind::Edit, true,
           "Reports an ERC rule as error, warning, info or off (\"default\" restores it).",

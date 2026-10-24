@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             splash?.show { [weak self] in
                 self?.splash = nil
                 self?.activateStore()
+                Task { @MainActor in UpdateChecker.check(interactive: false) }
             }
         }
     }
@@ -236,6 +237,21 @@ struct SiEDAApp: App {
         .windowToolbarStyle(.unified)
         .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
 
+        // An editor in a window of its own (Window → Open in New Window), on the same design: for a second monitor.
+        WindowGroup("Editor", id: "editor", for: String.self) { $name in
+            ContentView.workspaceView(Workspace(rawValue: name ?? "") ?? .schematic)
+                .id(AppTheme.Shown.shared.theme)
+                .environmentObject(store)
+                .environmentObject(settings)
+                .environmentObject(agents)
+                .environmentObject(language)
+                .environment(\.locale, language.locale)
+                .preferredColorScheme(AppTheme.Shown.shared.theme.colorScheme)
+                .tint(Theme.blue)
+                .navigationTitle(Text(LocalizedStringKey((Workspace(rawValue: name ?? "") ?? .schematic).title)))
+        }
+        .defaultSize(width: 1100, height: 760)
+
         Window("Super Intelligence", id: "intelligence") {
             IntelligenceSetupView()
                 .id(AppTheme.Shown.shared.theme)  // a new app theme redraws the window
@@ -281,6 +297,11 @@ struct SiEDACommands: Commands {
         CommandGroup(after: .windowArrangement) {
             Button("Super Intelligence…") { openWindow(id: "intelligence") }
                 .keyboardShortcut("i", modifiers: [.command, .option])
+            Menu("Open in New Window") {
+                ForEach([Workspace.schematic, .pcb, .threeD, .simulation, .checks, .bom], id: \.self) { ws in
+                    Button(LocalizedStringKey(ws.title)) { openWindow(id: "editor", value: ws.rawValue) }
+                }
+            }
         }
         CommandGroup(replacing: .newItem) {
             Button("New Project") { store.newProject() }
@@ -344,6 +365,7 @@ struct SiEDACommands: Commands {
                 .help("Save each edit to the shared project file and merge teammates' saves automatically")
             Button("Compare with Another Version…") { store.compareWithFile() }
             Button("Design Review…") { store.showReview = true }
+            Button("Git…") { store.showGit = true }
         }
         CommandGroup(replacing: .undoRedo) {
             // While a text field is being edited, ⌘Z/⇧⌘Z belong to the text, not to the design.
@@ -361,6 +383,7 @@ struct SiEDACommands: Commands {
             Button("Keyboard Shortcuts") { store.showShortcuts = true }
                 .keyboardShortcut("/", modifiers: .command)
             Button("Performance…") { store.showPerformance = true }
+            Button("Check for Updates…") { UpdateChecker.check(interactive: true) }
             Divider()
             Button("Show Crash Reports") {
                 let folder = (CrashReporter.shared?.directory ?? CrashReporter.defaultDirectory)

@@ -1,0 +1,115 @@
+name: Release
+
+# A tag v<version> builds the release: the signed, notarised app as a DMG (when the signing secrets are set; ad-hoc
+# signed otherwise), the CLI / MCP server for Linux and macOS, an SBOM and SHA256SUMS. The Linux CLI is built twice in
+# different folders and must come out byte-identical (reproducible build).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cli-linux:
+    name: CLI and MCP server (Linux, reproducible)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build twice and compare
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
+          for dir in a b; do
+            cmake -S . -B "/tmp/$dir" -DCMAKE_BUILD_TYPE=Release -DSIEDA_BUILD_TESTS=OFF -DSIEDA_HARFBUZZ=OFF \
+              -DCMAKE_CXX_FLAGS="-ffile-prefix-map=$PWD=. -ffile-prefix-map=/tmp/$dir=build"
+            cmake --build "/tmp/$dir" --parallel --target sieda-cli sieda-mcp
+          done
+          for tool in sieda-cli sieda-mcp; do cmp "/tmp/a/$tool" "/tmp/b/$tool"; done
+          mkdir dist && cp /tmp/a/sieda-cli /tmp/a/sieda-mcp dist/
+          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
+            -czf sieda-cli-linux-x86_64.tar.gz -C dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-linux
+          path: sieda-cli-linux-x86_64.tar.gz
+
+  app-macos:
+    name: macOS app
+    runs-on: macos-15
+    needs: cli-linux
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: cli-linux
+      - name: Version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in v*) version="${tag#v}" ;; *) version="0.0.0-dev" ;; esac
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+      - name: Build the app
+        run: |
+          python3 tools/generate_xcodeproj.py && git diff --exit-code -- SiEDA.xcodeproj
+          xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Release -derivedDataPath dd \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" CODE_SIGNING_ALLOWED=NO build
+          mkdir -p dmg && cp -R dd/Build/Products/Release/SiEDA.app dmg/
+          ln -s /Applications dmg/Applications
+      - name: Sign
+        run: |
+          app=dmg/SiEDA.app
+          if [ -n "$MACOS_CERT_P12" ]; then
+            keychain="$RUNNER_TEMP/sign.keychain-db"
+            security create-keychain -p "" "$keychain"
+            security set-keychain-settings "$keychain"
+            security unlock-keychain -p "" "$keychain"
+            echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain"
+            security list-keychains -d user -s "$keychain"
+            codesign --force --options runtime --timestamp --entitlements SiEDA/SiEDA.entitlements \
+              --sign "$MACOS_SIGN_IDENTITY" "$app"
+          else
+            echo "::warning::No signing secrets: the app is ad-hoc signed (Gatekeeper will ask before opening it)."
+            codesign --force --sign - --entitlements SiEDA/SiEDA.entitlements "$app"
+          fi
+          codesign --verify --strict --verbose=2 "$app"
+      - name: Disk image, notarisation, SBOM and checksums
+        run: |
+          dmg="SiEDA-$VERSION.dmg"
+          hdiutil create -volname SiEDA -srcfolder dmg -ov -format UDZO "$dmg"
+          if [ -n "$MACOS_CERT_P12" ]; then codesign --timestamp --sign "$MACOS_SIGN_IDENTITY" "$dmg"; fi
+          if [ -n "$APPLE_ID" ] && [ -n "$MACOS_CERT_P12" ]; then
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" --wait
+            xcrun stapler staple "$dmg"
+          fi
+          cmake -S . -B cli -DCMAKE_BUILD_TYPE=Release -DSIEDA_BUILD_TESTS=OFF
+          cmake --build cli --parallel --target sieda-cli sieda-mcp
+          mkdir clidist && cp cli/sieda-cli cli/sieda-mcp clidist/
+          tar -czf sieda-cli-macos-arm64.tar.gz -C clidist .
+          python3 tools/make_sbom.py --version "$VERSION" "$dmg" sieda-cli-*.tar.gz > "sieda-$VERSION.cdx.json"
+          shasum -a 256 "$dmg" sieda-cli-*.tar.gz "sieda-$VERSION.cdx.json" > SHA256SUMS
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --generate-notes \
+            "SiEDA-$VERSION.dmg" sieda-cli-*.tar.gz "sieda-$VERSION.cdx.json" SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          name: release-dry-run
+          path: |
+            SiEDA-*.dmg
+            sieda-*.cdx.json
+            SHA256SUMS

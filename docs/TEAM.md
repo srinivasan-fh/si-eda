@@ -40,6 +40,12 @@ sieda-mcp --diff old.siedaproj new.siedaproj --json   # the JSON
 
 ## Git
 
+**File → Git…** works on the folder holding the project with the Mac's own `git`: it lists the changes and the last
+30 commits, **Save and Commit All** saves the project and commits everything with your message, and the branch picker,
+**New Branch**, **Tag**, **Pull** (fast-forward only) and **Push** do the rest. **Create Repository Here** starts one,
+and **Clone…** fetches a repository into a folder you pick and opens the project in it. Branch and tag names are
+checked before they reach git, and git never waits on a password prompt (use a credential helper or SSH keys).
+
 Project files are JSON, so Git stores and merges them as text. To make `git diff` and `git log -p` show the design
 changes instead of JSON lines, register SiEDA as the diff driver once:
 

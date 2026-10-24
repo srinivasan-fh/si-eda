@@ -8,6 +8,10 @@ namespace sieda {
 
 constexpr double kPi = 3.14159265358979323846;
 
+/// A length in mm on the 1 nm grid: user-entered coordinates land on whole nanometres, so they round-trip exactly
+/// through files and unit conversions (the file writes ≤ 6 decimals of mm for them).
+inline double nm(double mm) { return std::round(mm * 1e6) / 1e6; }
+
 struct Vec2 {
     double x = 0.0, y = 0.0;
     Vec2() = default;

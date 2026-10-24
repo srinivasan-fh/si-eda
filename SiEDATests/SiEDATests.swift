@@ -285,6 +285,10 @@ final class CustomPartAndLayerTests: XCTestCase {
         XCTAssertEqual(result.spec.pins.first?.type, .powerIn)
         XCTAssertEqual(result.spec.pins[6].type, .openCollector)
         XCTAssertTrue(result.spec.validationIssues.isEmpty)
+        // Each pin cites its page and a confidence; the notes summarise them.
+        XCTAssertEqual(PinTableParser.rows(in: "--- Page 3 ---\n" + text).first?.page, 3)
+        XCTAssertEqual(rows[2].confidence, 0.8, accuracy: 1e-9)
+        XCTAssertTrue(result.notes.contains { $0.hasPrefix("Sources: 0 of 8 pins") })
     }
 
     func testLayerStackUpRoutingAndMeshes() throws {
@@ -6693,6 +6697,32 @@ final class ArcRoutingTests: XCTestCase {
         var land = editable.package.lands![0]
         land.options.solder = 2.2
         XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land)).options.solder, 2.2)
+    }
+
+    func testUpdateVersionsCompareNumerically() {
+        XCTAssertTrue(UpdateChecker.isNewer("v1.10", than: "1.9"))
+        XCTAssertTrue(UpdateChecker.isNewer("1.2.0", than: "1.2.0-beta"))
+        XCTAssertFalse(UpdateChecker.isNewer("v1.2", than: "1.2.0"))
+        XCTAssertFalse(UpdateChecker.isNewer("1.2.0-beta", than: "1.2.0"))
+        XCTAssertFalse(UpdateChecker.isNewer("v0.9", than: "1.0"))
+    }
+
+    func testGitClientCommitsBranchesAndTags() throws {
+        XCTAssertTrue(GitClient.validRef("rev-b/fix"))
+        for bad in ["", "-f", "a..b", "a b", "x.lock", "a~1", "@{u}", "a:b"] { XCTAssertFalse(GitClient.validRef(bad), bad) }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        XCTAssertTrue(GitClient.run(["init", "-q"], in: folder).ok)
+        try "{}".write(to: folder.appendingPathComponent("board.siedaproj"), atomically: true, encoding: .utf8)
+        XCTAssertTrue(GitClient.run(["add", "-A"], in: folder).ok)
+        let commit = GitClient.run(["-c", "user.name=T", "-c", "user.email=t@example.com", "commit", "-q", "-m", "first"], in: folder)
+        XCTAssertTrue(commit.ok, commit.output)
+        XCTAssertTrue(GitClient.run(["switch", "-q", "-c", "rev-b"], in: folder).ok)
+        XCTAssertTrue(GitClient.run(["tag", "v1"], in: folder).ok)
+        XCTAssertEqual(GitClient.run(["branch", "--show-current"], in: folder).output.trimmingCharacters(in: .whitespacesAndNewlines), "rev-b")
+        XCTAssertTrue(GitClient.run(["log", "--oneline", "--decorate"], in: folder).output.contains("tag: v1"))
+        XCTAssertFalse(GitClient.run(["no-such-command"], in: folder).ok)
     }
 
     func testDocumentExportsDXFOutlineAndCanvasKeyPresets() throws {

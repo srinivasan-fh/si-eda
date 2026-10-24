@@ -122,13 +122,36 @@ struct NetNavigatorView: View {
     }
 }
 
-/// Title block fields printed on every schematic sheet.
+/// Title block fields printed on every schematic sheet and on the board's fabrication drawing.
 struct TitleBlockEditor: View {
     @EnvironmentObject private var store: DesignStore
     @State private var block = TitleBlockInfo()
+    /// Customer templates: the company / drawn-by fields kept by name (user defaults), applied to any project.
+    @AppStorage("titleBlock.customers") private var customersData = Data()
+
+    private var customers: [String: [String: String]] {
+        (try? JSONDecoder().decode([String: [String: String]].self, from: customersData)) ?? [:]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Menu("Customer Template") {
+                ForEach(customers.keys.sorted(), id: \.self) { name in
+                    Button(name) {
+                        block.company = customers[name]?["company"] ?? block.company
+                        block.drawnBy = customers[name]?["drawnBy"] ?? block.drawnBy
+                        commit()
+                    }
+                }
+                Divider()
+                Button("Save as Customer Template") {
+                    var all = customers
+                    all[block.company.isEmpty ? "Customer" : block.company] = ["company": block.company, "drawnBy": block.drawnBy]
+                    customersData = (try? JSONEncoder().encode(all)) ?? customersData
+                }
+                .disabled(block.company.isEmpty && block.drawnBy.isEmpty)
+            }
+            .controlSize(.small)
             TextField("Title", text: $block.title).textFieldStyle(.blue).onSubmit(commit)
             TextField("Company", text: $block.company).textFieldStyle(.blue).onSubmit(commit)
             HStack {
