@@ -6762,6 +6762,16 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(keys.toolKey("p", canvas: "sch"), ShortcutStore.sequenceStarted)
         XCTAssertEqual(keys.toolKey("p", canvas: "sch"), KeyEquivalent("p"))  // P, P places a part
         XCTAssertNil(keys.toolKey("w", canvas: "sch"))  // W alone is no Altium key
+        // Eagle: the first two letters of the command — NET is the wire tool, ROUTE and RATSNEST share R on the board.
+        let eagle = try XCTUnwrap(ShortcutStore.toolPresets["Eagle"])
+        XCTAssertEqual(Set(eagle.keys), Set(ShortcutStore.toolKeys.map(\.id)))  // no standard single key left over
+        keys.applyToolPreset(eagle)
+        XCTAssertEqual(keys.toolKey("n", canvas: "sch"), ShortcutStore.sequenceStarted)
+        XCTAssertEqual(keys.toolKey("e", canvas: "sch"), KeyEquivalent("w"))
+        XCTAssertEqual(keys.toolKey("r", canvas: "pcb"), ShortcutStore.sequenceStarted)
+        XCTAssertEqual(keys.toolKey("a", canvas: "pcb"), KeyEquivalent("b"))  // RATSNEST refills the pours
+        XCTAssertEqual(keys.toolKey("r", canvas: "pcb"), ShortcutStore.sequenceStarted)
+        XCTAssertEqual(keys.toolKey("o", canvas: "pcb"), KeyEquivalent("x"))  // ROUTE
         keys.applyToolPreset([:])
         XCTAssertEqual(keys.toolKey("h", canvas: "pcb"), KeyEquivalent("h"))
     }

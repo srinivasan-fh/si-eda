@@ -95,6 +95,13 @@
   (TeamViews.swift). Library quality `partQuality` (CustomParts.cpp). Plug-ins run under `sandbox-exec`
   (`ProjectPlugins.sandboxProfile`, setting "plugins.sandbox", on by default). AI audit log `AIAudit`
   (DesignStore+MCP.swift, ai-audit.log). Batch conversion `sieda-cli --convert` (CTest `sieda_cli_convert`).
+  Library: `library_bulk_edit` (re-registers the spec, `sieda_custom_part_replace` moves placed parts),
+  `library_compare_footprint` (`measureFootprint`, CustomParts.cpp). Blocks `schematic_block` (block file
+  "sieda.block/1": clip + FNV fingerprint + approver). Traceability `Project::requirementItems` (`verify_requirements`),
+  bench measurements `Project::measurements` (`verify_measurements`; both saved only when present, neither changes
+  `designHash`). Controlled release `output_release` (fabrication/, project copy, verification.md, evidence.json,
+  change_notice.md, MANIFEST.sha256 via `sha256Hex` in Documents.cpp). Pin / gate swaps skip pairs across I/O banks on
+  different VCCO nets (`crossesBankVoltage`, PcbSwap.cpp). Eagle canvas preset (two-letter command sequences).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`

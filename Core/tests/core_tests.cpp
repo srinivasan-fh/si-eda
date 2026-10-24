@@ -25252,3 +25252,183 @@ TEST(library_quality_score_names_what_is_missing) {
     for (auto& pin : spec.pins) pin.type = PinType::Passive;
     CHECK(partQuality(spec).score == 90);
 }
+
+TEST(library_bulk_edit_sets_fields_and_moves_placed_parts) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Json spec = Json::object(), pins = Json::array(), pkg = Json::object();
+    for (int i = 1; i <= 8; ++i) {
+        Json pj = Json::object();
+        pj["number"] = std::to_string(i), pj["name"] = "P" + std::to_string(i);
+        pins.push(pj);
+    }
+    pkg["type"] = "SOIC", pkg["pinCount"] = 8;
+    spec["name"] = "BULKTEST", spec["pins"] = pins, spec["package"] = pkg, spec["place"] = true;
+    CHECK(!mcpFailed(mcpTool(m, "library_create_part", spec)));
+    Json set = Json::object(), args = Json::object();
+    set["manufacturer"] = "Acme", set["datasheet"] = "bulktest.pdf";
+    args["match"] = "bulk", args["set"] = set;
+    const Json r = mcpData(mcpTool(m, "library_bulk_edit", args));
+    CHECK(r.get("changed").size() == 1 && r.get("changed")[0].get("replaced").asInt() == 1);
+    const Project& p = m.project()->project;
+    CHECK(p.customLibrary.size() == 1 && p.customLibrary[0] == r.get("changed")[0].get("to").asString());
+    const CustomPart* cp = CustomPartRegistry::instance().find(p.customLibrary[0]);
+    CHECK(cp && cp->spec.manufacturer == "Acme" && cp->spec.datasheet == "bulktest.pdf");
+    CHECK(p.schematic.findByRef("U1") != nullptr);
+    Json bad = Json::object(), badSet = Json::object();
+    badSet["pins"] = "x";
+    bad["set"] = badSet;
+    CHECK(mcpFailed(mcpTool(m, "library_bulk_edit", bad)));  // only the metadata fields
+}
+
+TEST(footprint_compared_with_the_datasheet_land_pattern) {
+    const StandardPart* sp = findStandardPart("NE555D");
+    CHECK(sp != nullptr);
+    if (!sp) return;
+    const FootprintDims d = measureFootprint(sp->spec);
+    CHECK(d.pads == 8 && std::abs(d.pitch - 1.27) < 1e-6 && d.padLength > d.padWidth && d.span > 5);
+    mcp::McpServer m;
+    Json args = Json::object(), ds = Json::object();
+    args["spec"] = customPartSpecToJson(sp->spec);
+    ds["pads"] = 8, ds["pitch"] = 1.27;
+    args["datasheet"] = ds;
+    CHECK(mcpData(mcpTool(m, "library_compare_footprint", args)).get("matches").asBool());
+    ds["pitch"] = 0.65, ds["span"] = d.span + 1;
+    args["datasheet"] = ds;
+    const Json r = mcpData(mcpTool(m, "library_compare_footprint", args));
+    CHECK(!r.get("matches").asBool(true) && r.get("mismatches").size() == 2);
+}
+
+TEST(approved_blocks_and_requirements_traceability) {
+    const auto root = mcpRoot("blocks");
+    mcp::McpServer m(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Schematic& sch = m.project()->project.schematic;
+    const int r1 = sch.addComponent(ComponentKind::Resistor, "10k", {0, 0});
+    const int c1 = sch.addComponent(ComponentKind::Capacitor, "100n", {40, 0});
+    sch.connect({r1, 1}, {c1, 0});
+    // Save an approved block, place it again: new designators, still the approved block.
+    Json save = Json::object(), refs = Json::array();
+    refs.push(sch.find(r1)->ref), refs.push(sch.find(c1)->ref);
+    save["action"] = "save", save["path"] = "rc.block", save["refs"] = refs, save["approvedBy"] = "Lead";
+    CHECK(mcpData(mcpTool(m, "schematic_block", save)).get("approved").asBool());
+    Json place = Json::object();
+    place["action"] = "place", place["path"] = "rc.block", place["y"] = 100;
+    Json r = mcpData(mcpTool(m, "schematic_block", place));
+    CHECK(r.get("placed").size() == 2 && r.get("approved").asBool() && sch.components().size() == 4);
+    // A block edited by hand is no longer the approved one.
+    {
+        std::ifstream in(root / "rc.block");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string text = ss.str();
+        text.replace(text.find("100n"), 4, "220n");
+        std::ofstream(root / "rc.block") << text;
+    }
+    r = mcpData(mcpTool(m, "schematic_block", place));
+    CHECK(!r.get("intact").asBool(true) && !r.get("approved").asBool(true));
+    // Traceability: one requirement traced, one naming a part that is not there; untraced parts listed.
+    Json reqs = Json::array(), a = Json::object(), b = Json::object(), ra = Json::array(), rb = Json::array();
+    ra.push(sch.find(r1)->ref), rb.push("U9");
+    a["id"] = "REQ-1", a["text"] = "Filter the input", a["refs"] = ra;
+    b["id"] = "REQ-2", b["text"] = "Regulate 3.3 V", b["refs"] = rb;
+    reqs.push(a), reqs.push(b);
+    Json args = Json::object();
+    args["requirements"] = reqs;
+    const Json t = mcpData(mcpTool(m, "verify_requirements", args));
+    CHECK(t.get("requirements")[0].get("status").asString() == "traced");
+    CHECK(t.get("requirements")[1].get("status").asString() == "missing");
+    CHECK(t.get("partsNotTraced").size() == 5);  // six parts (two blocks placed), only R1 named
+    const Project back = Project::fromJson(Json::parse(m.project()->project.toJson().dump()));
+    CHECK(back.requirementItems.size() == 2 && back.requirementItems[1].refs[0] == "U9");
+}
+
+TEST(pin_swaps_stay_inside_a_bank_voltage) {
+    // An FPGA-style gate: three swappable I/O pins in banks 34, 35, 34; a swap across banks is offered only while
+    // both banks' VCCO pins are on one supply net.
+    CustomPartSpec spec;
+    spec.name = "FPGA-BANK-TEST";
+    spec.package.type = "SOIC";
+    const char* names[] = {"IO_L1P_T0_34", "IO_L2P_T0_35", "IO_L3P_T0_34", "VCCO_34", "VCCO_35", "GND"};
+    for (int i = 0; i < 6; ++i) {
+        CustomPin pin;
+        pin.number = std::to_string(i + 1);
+        pin.name = names[i];
+        pin.type = i < 3 ? PinType::Bidirectional : PinType::PowerIn;
+        spec.pins.push_back(pin);
+    }
+    spec.units = {{"A", {"1", "2", "3", "4", "5"}}};
+    spec.units[0].pinSwap = {{"1", "2", "3"}};
+    const auto part = CustomPartRegistry::instance().registerPart(spec);
+    for (bool shared : {false, true}) {
+        Project p;
+        Schematic& s = p.schematic;
+        const int a = s.addCustomUnits(part->id, "FPGA", {0, 0});
+        const int pkg = s.unitPackage(a);
+        const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+        const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 100});
+        CHECK(s.connect({r1, 0}, {a, 3}) >= 0);                     // VCCO_34
+        CHECK(s.connect({shared ? r1 : r2, 0}, {a, 4}) >= 0);       // VCCO_35: the same supply or its own
+        p.schematicChanged();
+        s.find(pkg)->pcb = PcbPlacement{{20, 20}, 0, false, true};
+        s.find(r1)->pcb = PcbPlacement{{5, 5}, 0, false, true};
+        s.find(r2)->pcb = PcbPlacement{{5, 35}, 0, false, true};
+        p.pcbSync = p.currentSync();
+        int pinSwaps = 0;
+        for (const auto& o : p.pcbSwapOptions(pkg)) pinSwaps += o.kind == "pin";
+        CHECK(pinSwaps == (shared ? 3 : 1));  // separate supplies: only IO 1 ↔ 3 (both bank 34)
+    }
+}
+
+TEST(controlled_release_with_evidence_change_notice_and_manifest) {
+    CHECK(sha256Hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    CHECK(sha256Hex("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    const auto root = mcpRoot("release");
+    mcp::McpServer m(mcpOptions(root));
+    Json ex = Json::object();
+    ex["id"] = "led_indicator";
+    CHECK(!mcpFailed(mcpTool(m, "project_load_example", ex)));
+    Json save = Json::object();
+    save["path"] = "rev-a.siedaproj";
+    CHECK(!mcpFailed(mcpTool(m, "project_save", save)));
+    Json approve = Json::object();
+    approve["action"] = "approve", approve["by"] = "Lead";
+    CHECK(!mcpFailed(mcpTool(m, "verify_approvals", approve)));
+    Json args = Json::object();
+    args["dir"] = "release/B", args["revision"] = "B", args["previous"] = "rev-a.siedaproj";
+    const Json r = mcpData(mcpTool(m, "output_release", args));
+    CHECK(r.get("approvedNow").asInt() == 1 && r.get("files").asInt() > 10);
+    const auto dir = root / "release" / "B";
+    for (const char* f : {"MANIFEST.sha256", "evidence.json", "verification.md", "change_notice.md"})
+        CHECK(std::filesystem::exists(dir / f));
+    // The manifest's line for the evidence file holds that file's SHA-256.
+    std::ifstream ev(dir / "evidence.json", std::ios::binary), mf(dir / "MANIFEST.sha256");
+    std::stringstream e, man;
+    e << ev.rdbuf(), man << mf.rdbuf();
+    CHECK(man.str().find(sha256Hex(e.str()) + "  evidence.json\n") != std::string::npos);
+    CHECK(Json::parse(e.str()).get("approvals").get("approvedNow").asInt() == 1);
+}
+
+TEST(bench_measurements_link_to_the_design_revision) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Project& p = m.project()->project;
+    p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const std::string before = p.designHash();
+    Json add = Json::object(), x = Json::object();
+    x["what"] = "+3V3 rail", x["value"] = 3.28, x["unit"] = "V", x["min"] = 3.2, x["max"] = 3.4;
+    add["add"] = x;
+    Json r = mcpData(mcpTool(m, "verify_measurements", add));
+    CHECK(r.get("measurements")[0].get("pass").asBool() && r.get("measurements")[0].get("current").asBool());
+    CHECK(p.designHash() == before);  // a measurement is not a design change
+    x["what"] = "Idle current", x["value"] = 0.05, x["unit"] = "A", x["max"] = 0.02;
+    x["min"] = Json();
+    add["add"] = x;
+    r = mcpData(mcpTool(m, "verify_measurements", add));
+    CHECK(r.get("failed").asInt() == 1 && !r.get("measurements")[1].get("pass").asBool(true));
+    p.schematic.addComponent(ComponentKind::Capacitor, "1u", {20, 0});
+    r = mcpData(mcpTool(m, "verify_measurements", Json::object()));
+    CHECK(!r.get("measurements")[0].get("current").asBool(true));  // taken on an earlier revision
+    const Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(back.measurements.size() == 2 && back.measurements[1].hasMax && !back.measurements[1].hasMin);
+}

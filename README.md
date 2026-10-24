@@ -11,7 +11,7 @@ a routed board, a 3D assembly and fabrication-ready files, and every step stays 
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-1f6feb">
 <img alt="SwiftUI" src="https://img.shields.io/badge/app-SwiftUI-f05138">
 <img alt="C++17 engine" src="https://img.shields.io/badge/engine-C%2B%2B17-00599c">
-<img alt="MCP server" src="https://img.shields.io/badge/MCP-160%20tools-6e40c9">
+<img alt="MCP server" src="https://img.shields.io/badge/MCP-166%20tools-6e40c9">
 <img alt="Interface languages" src="https://img.shields.io/badge/languages-20-2ea043">
 <img alt="License" src="https://img.shields.io/badge/license-proprietary-555">
 </p>
@@ -38,7 +38,7 @@ a routed board, a 3D assembly and fabrication-ready files, and every step stays 
 
 <table>
 <tr>
-<td align="center" width="25%"><h3>160</h3>MCP tools any AI client can call</td>
+<td align="center" width="25%"><h3>166</h3>MCP tools any AI client can call</td>
 <td align="center" width="25%"><h3>1,675</h3>catalog parts with real pinouts and footprints</td>
 <td align="center" width="25%"><h3>465</h3>core test suites, 1.2 million checks</td>
 <td align="center" width="25%"><h3>20</h3>interface languages</td>

@@ -42,6 +42,8 @@ std::string exportTestPointReport(const Schematic& sch, const PcbLayout& pcb);
 /// BOM grouped by value and footprint; clicking a BOM line highlights its parts, a checkbox per line tracks hand
 /// assembly.
 std::string exportHtmlBom(const Project& project);
+/// SHA-256 of `data` as 64 lower-case hex digits (release manifests, `shasum -a 256` compatible).
+std::string sha256Hex(const std::string& data);
 
 /// Bring-up checklist (Markdown): safety first (shorts on every rail before power), then rails with their expected
 /// voltage and source, clocks, reset / enable / boot nets, programming and bus interfaces, each with what to measure.

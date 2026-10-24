@@ -484,12 +484,20 @@ final class ShortcutStore: ObservableObject {
     /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
     /// Altium: its Place-menu sequences (P, W wire · P, N net label · P, O power port · P, P part · P, T track), L flips a
     /// part to the other side.
-    static let toolPresetNames = ["SiEDA", "KiCad", "Altium"]
+    /// Eagle: tools take the first two letters of Eagle's command names, typed one after the other — MOVE, NET, BUS,
+    /// LABEL, SUPPLY (ground), ADD, TEXT, ROTATE, MIRROR on the schematic; MOVE, ROUTE, MEANDER, MIRROR (other side),
+    /// RATSNEST (refill pours) and RT (rotate) on the board.
+    static let toolPresetNames = ["SiEDA", "KiCad", "Altium", "Eagle"]
     static let toolPresets: [String: [String: String]] = [
         "SiEDA": [:],
         "KiCad": ["sch.place": "a", "sch.ground": "p", "sch.select": "", "sch.pan": "", "pcb.tune": "7", "pcb.pan": ""],
         "Altium": ["sch.wire": "p w", "sch.label": "p n", "sch.ground": "p o", "sch.place": "p p", "sch.text": "p t", "sch.pan": "",
                    "pcb.route": "p t", "pcb.tune": "", "pcb.flip": "l", "pcb.pan": ""],
+        "Eagle": ["sch.select": "m o", "sch.wire": "n e", "sch.bus": "b u", "sch.noConnect": "", "sch.label": "l a",
+                  "sch.ground": "s u", "sch.place": "a d", "sch.text": "t e", "sch.pan": "", "sch.rotate": "r o",
+                  "sch.mirrorX": "m i", "sch.mirrorY": "", "sch.corner": "",
+                  "pcb.select": "m o", "pcb.route": "r o", "pcb.tune": "m e", "pcb.pan": "", "pcb.rotate": "r t",
+                  "pcb.flip": "m i", "pcb.refill": "r a"],
     ]
 
     func applyToolPreset(_ keys: [String: String]) {

@@ -74,7 +74,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Bus rip / entries, `DATA[0..7]` | ✅ | `Buses.cpp` |
 | P1 | ➕ Sheet instancing with per-instance designators | ✅ | `Instances.cpp` |
 | P2 | Draft schematic from a written spec, functional grouping, review rules, NL editing, reference architectures | ✅ | AI plans, `designReview`, MCP |
-| P3 | Approved blocks, review / approval workflow, requirements traceability | 🟡 | review comments, approvals per design revision (Design Review → Approvals, MCP `verify_approvals`) ✅; approved blocks and traceability ⏳ |
+| P3 | Approved blocks, review / approval workflow, requirements traceability | ✅ | review comments, approvals per design revision (Design Review → Approvals, MCP `verify_approvals`), approved blocks (`schematic_block`: block files with approver and fingerprint, tamper check on place), requirements traceability (`verify_requirements`) |
 
 ## 3. Component, symbol and footprint libraries
 
@@ -98,8 +98,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Library update notices with "update instances" preview | ✅ | File → Check Library Updates…, MCP `library_updates` (changes and placed count, then apply) |
 | P1 | ➕ Parametric search across the library | ✅ | |
 | P1 | ➕ Shared 3D model library | ✅ | `Model3DRegistry` per project; the shared library folder's 3D Models |
-| P2 | AI datasheet extraction, footprint-vs-datasheet comparison | 🟡 | pin tables from datasheets ✅; dimension comparison ⏳ |
-| P2 | Library quality score, bulk edit, supplier-neutral catalog | 🟡 | catalog, quality score 0 – 100 (`partQuality`, MCP `library_check_part` `quality`) ✅; bulk edit ⏳ |
+| P2 | AI datasheet extraction, footprint-vs-datasheet comparison | ✅ | pin tables from datasheets with page and confidence; footprint vs the datasheet's land pattern (`measureFootprint`, MCP `library_compare_footprint`: pads, pitch, pad size, span) |
+| P2 | Library quality score, bulk edit, supplier-neutral catalog | ✅ | catalog, quality score 0 – 100 (`partQuality`), bulk edit of library metadata (MCP `library_bulk_edit`, placed parts follow) |
 | P2 | ➕ Least / Nominal / Most density variants | ✅ | IPC calculator density |
 | P3 | Company library, librarian roles, approved alternates, releases | ⏳ | |
 
@@ -157,7 +157,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
 | P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
 | P2 | SI / return path / PI / thermal / assembly checks, rule scripting | ✅ | rule scripting: custom DRC rules (Board Setup → Custom Rules, MCP `pcb_custom_rules`) |
-| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report, waivers, approvals tied to the design fingerprint ✅; org rule packs ⏳ |
+| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report, waivers, approvals tied to the design fingerprint, release package with evidence (`output_release`) ✅; org rule packs ⏳ |
 
 ## 7. Simulation and analysis
 
@@ -171,7 +171,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Monte Carlo, differential impedance, SI pre-analysis, IBIS | ✅ | |
 | P2 | ➕ Touchstone S-parameters, mixed-signal / MCU co-simulation | ✅ | firmware on the MCU |
 | P2 | IR drop, current density, thermal estimates, result comparison | ✅ | |
-| P3 | Field solver and thermal integrations, evidence tied to releases | 🟡 | 2D field solver ✅; evidence ⏳ |
+| P3 | Field solver and thermal integrations, evidence tied to releases | 🟡 | 2D field solver, evidence in every release (`output_release` evidence.json) ✅; thermal integration ⏳ |
 
 ## 8. 3D viewer and ECAD–MCAD
 
@@ -201,7 +201,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Panels, fiducials, release checklist, ➕ stack-up docs, per-variant outputs | ✅ | |
 | P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab order form + estimate from your price table ✅; live quote APIs ⏳ (partner keys) |
 | P2 | ➕ Direct order / quote APIs (incl. Indian vendors) | 🟡 | File → Order Boards: order form, published-limit check, order page (JLCPCB, PCBWay, OSH Park, Eurocircuits, Lion Circuits, PCB Power) ✅; vendors' partner APIs ⏳ |
-| P3 | Release signatures, change notices, MES / QMS | ⏳ | |
+| P3 | Release signatures, change notices, MES / QMS | 🟡 | release manifest of SHA-256 hashes and a change notice against the previous revision (`output_release`) ✅; MES / QMS ⏳ |
 
 ## 10. Documentation and drawings
 
@@ -214,7 +214,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | ✅ | change report, layer legend, net-length and test-point reports, customer templates (title block → Customer Template) ✅ |
 | P2 | Interactive HTML BOM / board viewer | ✅ | `exportHtmlBom` (one offline file, in the package) |
 | P2 | 3D / exploded / section views in drawings | ✅ | fabrication drawing sheet 2 |
-| P3 | Controlled drawing release, PLM numbering | ⏳ | |
+| P3 | Controlled drawing release, PLM numbering | 🟡 | drawings and pin maps released with the package, the revision and the manifest (`output_release`) ✅; PLM numbering ⏳ |
 
 ## 11. BOM, sourcing and cost
 
@@ -237,8 +237,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Pin swap within groups with back-annotation | ✅ | |
 | P1 | Import CubeMX / XDC / QSF pin assignments | ✅ | `parsePinAssignments`: .ioc labels / signals, XDC, QSF, CSV → net labels on the part's pins |
 | P2 | Export firmware headers / constraint files | ✅ | `exportPinMap`: C header (CubeMX-style for STM32), XDC, QSF, CSV |
-| P2 | Bank-voltage checks while swapping, mating connector pin-outs | 🟡 | harness pin-outs ✅ |
-| P3 | Controlled pin-map releases | ⏳ | |
+| P2 | Bank-voltage checks while swapping, mating connector pin-outs | ✅ | harness pin-outs; pin / gate swaps never move a signal to an I/O bank on another VCCO supply (`crossesBankVoltage`) |
+| P3 | Controlled pin-map releases | ✅ | the pin map ships with each controlled release (`output_release`, hashed in its manifest) |
 
 ## 13. High-voltage, power, RF, specialty
 
@@ -249,7 +249,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Flex / rigid-flex stack-ups, bend radius, coverlay | ✅ | flex regions (IPC-2223 bend radius, no vias / parts / sharp corners in the bend) |
 | P2 | Metal-core / ceramic | ✅ | |
 | P2 | Isolation barriers as checkable objects | ✅ | barrier keep-outs (DRC_BARRIER_WIDTH / _PAD, no copper on any layer) |
-| P3 | Certification evidence packs | ⏳ | |
+| P3 | Certification evidence packs | ✅ | `output_release` evidence.json: design fingerprint, verification verdict, approvals, requirements trace, waivers, bench measurements |
 
 ## 14. AI-assisted engineering
 
@@ -283,7 +283,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | High-contrast, colour-blind-friendly layer colours | ✅ | Settings → Appearance → Layer Colours: Okabe–Ito palette |
 | P0 | Context help, offline docs, actionable errors, ➕ hover details | ✅ | |
 | P1 | Beginner / pro modes | ✅ | Settings → Beginner mode: four-step guide bar, library workspace hidden |
-| P1 | Keyboard presets for KiCad / Altium / Eagle users | 🟡 | KiCad and Altium canvas presets, two-key sequences (p w) ✅ |
+| P1 | Keyboard presets for KiCad / Altium / Eagle users | ✅ | KiCad, Altium and Eagle canvas presets (Eagle: the first two letters of its commands — n e NET, a d ADD, r o ROUTE, r a RATSNEST), two-key sequences |
 | P1 | Tutorials, pre-manufacturing checklist, examples, layouts, accessibility | ✅ | |
 | P1 | ➕ Migration guides, ➕ pen / trackpad gestures | ✅ | trackpad; `docs/MIGRATING.md` |
 | P2–P3 | Personalised shortcuts, lessons, org training | ⏳ | |
@@ -348,7 +348,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Interactive BOM / board viewer for hand assembly | ✅ | `exportHtmlBom` |
 | P1 | Bring-up checklist from rails, clocks, interfaces | ✅ | `bringUpChecklist` (Markdown, in the package) |
 | P2 | Flying-probe / bed-of-nails export | 🟡 | IPC-D-356 ✅ |
-| P2 | Measured results and field failures linked to the design | ⏳ | |
+| P2 | Measured results and field failures linked to the design | ✅ | bench measurements with limits on the design revision (MCP `verify_measurements`), in the release evidence |
 | P3 | Test-management / QMS integration | ⏳ | |
 
 ## 22–23. Editions, monetisation, community

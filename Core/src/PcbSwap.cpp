@@ -75,6 +75,37 @@ struct SwapCandidate {
 };
 
 /// Every pin / gate swap the package of `componentId` allows (unsorted); `gains`: estimate each one's gain.
+/// An FPGA I/O pin's bank from its name (Xilinx style "IO_L12P_T1_34" → "34"); "" for other pins.
+std::string ioBank(const std::string& name) {
+    if (name.rfind("IO_", 0) != 0) return {};
+    const size_t us = name.rfind('_');
+    const std::string tail = name.substr(us + 1);
+    return !tail.empty() && std::all_of(tail.begin(), tail.end(), ::isdigit) ? tail : std::string();
+}
+
+/// True when a swap would move a signal to a pin of another I/O bank whose VCCO is not on the same supply net
+/// (a 1.8 V bank's pin taking a 3.3 V signal): such swaps are not offered.
+bool crossesBankVoltage(const CustomPart& part, const std::map<PadKey, PadInfo>& pads,
+                        const std::vector<std::pair<PadKey, PadKey>>& pairs) {
+    const auto& pins = part.def.pins;
+    auto vcco = [&](int pkg, const std::string& bank) {
+        for (size_t i = 0; i < pins.size(); ++i)
+            if (pins[i].name == "VCCO_" + bank) {
+                const auto it = pads.find({pkg, static_cast<int>(i)});
+                return it == pads.end() ? -1 : it->second.net;
+            }
+        return -1;
+    };
+    for (const auto& [a, b] : pairs) {
+        if (a.second < 0 || b.second < 0 || a.second >= static_cast<int>(pins.size()) || b.second >= static_cast<int>(pins.size())) continue;
+        const std::string ba = ioBank(pins[static_cast<size_t>(a.second)].name), bb = ioBank(pins[static_cast<size_t>(b.second)].name);
+        if (ba.empty() || bb.empty() || (ba == bb && a.first == b.first)) continue;
+        const int na = vcco(a.first, ba), nb = vcco(b.first, bb);
+        if (na < 0 || na != nb) return true;
+    }
+    return false;
+}
+
 std::vector<SwapCandidate> swapCandidates(const Schematic& s, int componentId, const std::map<PadKey, PadInfo>& pads, bool gains) {
     std::vector<SwapCandidate> out;
     const int pkg = s.unitPackage(componentId);
@@ -108,6 +139,7 @@ std::vector<SwapCandidate> swapCandidates(const Schematic& s, int componentId, c
                     o.pinB = b;
                     o.label = s.displayRef(*u) + ": pins " + pinNumber(pa) + " \xE2\x86\x94 " + pinNumber(pb);
                     c.pairs = {{{pkg, pa}, {pkg, pb}}};
+                    if (crossesBankVoltage(*part, pads, c.pairs)) continue;
                     if (gains) o.gain = swapGain(pads, c.pairs);
                     out.push_back(std::move(c));
                 }
@@ -121,6 +153,7 @@ std::vector<SwapCandidate> swapCandidates(const Schematic& s, int componentId, c
             if (!unitsInterchangeable(def, od) || od.pins.size() != def.pins.size()) continue;
             SwapCandidate c;
             for (size_t k = 0; k < def.pins.size(); ++k) c.pairs.push_back({{pkg, def.pins[k]}, {other.unitOf, od.pins[k]}});
+            if (crossesBankVoltage(*part, pads, c.pairs)) continue;
             PcbSwapOption& o = c.option;
             o.kind = "gate";
             o.component = uid;

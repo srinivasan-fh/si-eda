@@ -3859,6 +3859,64 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_sheets", "Sheets", Kind::Read, true,
           "The sheets with hierarchy (parent, depth), component counts, ports and the active sheet.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_sheets_json(P(s)))); });
+    t.add("schematic", "schematic_block", "Approved design blocks", Kind::Files, false,
+          "Reusable design blocks. save writes the parts refs (with the wires between them, labels, directives) to a "
+          "block file at path inside the root, approved by approvedBy (optional) with a fingerprint of its content. "
+          "place puts a block file's parts on the active sheet, offset by x / y (new designators), and says whether "
+          "it is still the approved block (approved false when unapproved or changed since).",
+          Schema().str("action", "save or place", true).str("path", "Block file inside the root", true)
+              .array("refs", "save: the parts' designators", "string").str("approvedBy", "save: who approved the block")
+              .num("x", "place: offset x").num("y", "place: offset y"),
+          [](McpServer& s, const Json& a) {
+              auto fingerprint = [](const Json& clip) {
+                  uint64_t h = 1469598103934665603ull;  // FNV-1a
+                  for (const unsigned char ch : clip.dump()) h = (h ^ ch) * 1099511628211ull;
+                  char text[17];
+                  std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+                  return std::string(text);
+              };
+              Schematic& sch = P(s)->project.schematic;
+              const std::string action = requireStr(a, "action"), path = requireStr(a, "path");
+              Json j = obj();
+              if (action == "save") {
+                  std::vector<int> ids;
+                  for (const auto& r : a.get("refs").items()) {
+                      const Component* c = sch.findByRef(r.asString(""));
+                      check(c != nullptr, "No part " + r.asString(""));
+                      ids.push_back(c->id);
+                  }
+                  check(!ids.empty(), "save needs refs");
+                  const Json clip = sch.copyComponents(ids);
+                  Json block = obj();
+                  block["format"] = "sieda.block/1", block["clip"] = clip, block["hash"] = fingerprint(clip);
+                  const std::string by = argStr(a, "approvedBy", "");
+                  if (!by.empty()) {
+                      const std::time_t now = std::time(nullptr);
+                      char date[11];
+                      std::strftime(date, sizeof date, "%Y-%m-%d", std::gmtime(&now));
+                      block["approvedBy"] = by, block["approvedDate"] = date;
+                  }
+                  j["written"] = s.writeFile(path, block.dump(true));
+                  j["parts"] = static_cast<int>(ids.size()), j["hash"] = fingerprint(clip), j["approved"] = !by.empty();
+              } else if (action == "place") {
+                  const Json block = Json::parse(readFileArg(s, path).asString());
+                  check(block.get("format").asString("") == "sieda.block/1", path + " is not a SiEDA block file");
+                  const Json& clip = block.get("clip");
+                  const bool intact = fingerprint(clip) == block.get("hash").asString("");
+                  PasteOptions options;
+                  options.offset = {argNum(a, "x", 0), argNum(a, "y", 0)};
+                  Json refs = Json::array();
+                  for (int id : sch.pasteComponents(clip, options))
+                      if (const Component* c = sch.find(id)) refs.push(c->ref);
+                  P(s)->project.schematicChanged();
+                  j["placed"] = refs, j["intact"] = intact;
+                  j["approved"] = intact && block.has("approvedBy");
+                  if (block.has("approvedBy")) j["approvedBy"] = block.get("approvedBy"), j["approvedDate"] = block.get("approvedDate");
+              } else {
+                  throw ToolError("action is save or place");
+              }
+              return out(j);
+          });
     t.add("schematic", "schematic_sheet_edit", "Edit sheets", Kind::Edit, false,
           "Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new "
           "parts go to), rename (sheet, name), activate (sheet: new parts go there), remove "
@@ -4484,6 +4542,85 @@ void libraryTools(Table& t) {
               }
               Json j = obj();
               j["parts"] = list;
+              return out(j);
+          });
+    t.add("library", "library_compare_footprint", "Footprint vs datasheet", Kind::Read, true,
+          "Holds a part's footprint against the datasheet's recommended land pattern: give the datasheet's pads, pitch, "
+          "padWidth, padLength and span (outer pad edge to outer pad edge, mm), any of them. Returns what the footprint "
+          "measures and each value off by more than tolerance (mm, default 0.05; pads must match exactly).",
+          Schema().object("spec", "Part spec (as library_create_part takes)").str("partId", "Or a project library part id")
+              .object("datasheet", "{pads, pitch, padWidth, padLength, span}", true).num("tolerance", "mm (default 0.05)"),
+          [](McpServer& s, const Json& a) {
+              CustomPartSpec spec;
+              if (a.has("spec")) {
+                  spec = customPartSpecFromJson(a.get("spec"));
+              } else {
+                  const CustomPart* cp = CustomPartRegistry::instance().find(requireStr(a, "partId"));
+                  check(cp != nullptr, "No library part with that id");
+                  spec = cp->spec;
+              }
+              (void)s;
+              const FootprintDims d = measureFootprint(spec);
+              const double tol = argNum(a, "tolerance", 0.05);
+              Json measured = obj(), off = Json::array();
+              const std::pair<const char*, double> values[] = {{"pads", d.pads}, {"pitch", d.pitch}, {"padWidth", d.padWidth},
+                                                               {"padLength", d.padLength}, {"span", d.span}};
+              for (const auto& [key, value] : values) {
+                  measured[key] = value;
+                  const Json& want = a.get("datasheet").get(key);
+                  if (!want.isNumber()) continue;
+                  const double diff = value - want.asNumber();
+                  if (std::abs(diff) > (std::string(key) == "pads" ? 0.5 : tol)) {
+                      Json m = obj();
+                      m["field"] = key, m["footprint"] = value, m["datasheet"] = want.asNumber(), m["diff"] = diff;
+                      off.push(m);
+                  }
+              }
+              Json j = obj();
+              j["measured"] = measured, j["mismatches"] = off, j["matches"] = off.size() == 0;
+              return out(j);
+          });
+    t.add("library", "library_bulk_edit", "Bulk edit library parts", Kind::Edit, false,
+          "Sets the same fields on every project library part whose name holds match (case-insensitive; \"\" = all): "
+          "manufacturer, description, datasheet, refPrefix, defaultValue. Placed parts move to the edited part (wires "
+          "kept). Returns each part changed with its old and new id and quality score.",
+          Schema().str("match", "Part name filter (\"\" = every part)").object("set", "Fields to set, e.g. {\"manufacturer\": \"TI\"}", true),
+          [](McpServer& s, const Json& a) {
+              static const std::set<std::string> fields = {"manufacturer", "description", "datasheet", "refPrefix", "defaultValue"};
+              const Json& set = a.get("set");
+              check(set.isObject() && set.fields().size() > 0, "set needs at least one field");
+              for (const auto& [key, value] : set.fields())
+                  check(fields.count(key) && value.isString(), "set takes string fields: manufacturer, description, datasheet, refPrefix, defaultValue");
+              auto lower = [](std::string v) {
+                  for (auto& ch : v) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                  return v;
+              };
+              const std::string match = lower(argStr(a, "match", ""));
+              Json changed = Json::array();
+              const std::vector<std::string> ids = proj(s).customLibrary;  // the list changes below
+              for (const auto& id : ids) {
+                  const CustomPart* cp = CustomPartRegistry::instance().find(id);
+                  if (!cp || lower(cp->spec.name).find(match) == std::string::npos) continue;
+                  Json spec = customPartSpecToJson(cp->spec);
+                  for (const auto& [key, value] : set.fields()) spec[key] = value;
+                  char* error = nullptr;
+                  const Json made = takeJson(sieda_custom_part_register(P(s), spec.dump().c_str(), &error));
+                  if (error) {
+                      const std::string why = error;
+                      sieda_string_free(error);
+                      throw ToolError(cp->spec.name + ": " + why);
+                  }
+                  const std::string to = made.get("id").asString("");
+                  if (to.empty() || to == id) continue;
+                  Json j = obj();
+                  j["name"] = cp->spec.name, j["from"] = id, j["to"] = to;
+                  j["replaced"] = sieda_custom_part_replace(P(s), id.c_str(), to.c_str());
+                  sieda_custom_part_remove(P(s), id.c_str());
+                  if (const CustomPart* now = CustomPartRegistry::instance().find(to)) j["quality"] = partQuality(now->spec).score;
+                  changed.push(j);
+              }
+              Json j = obj();
+              j["changed"] = changed;
               return out(j);
           });
     t.add("library", "library_check_part", "Check part spec", Kind::Read, true,
@@ -6664,6 +6801,88 @@ void verifyTools(Table& t) {
               if (a.has("waivers")) check(sieda_set_waivers(P(s), a.get("waivers").dump().c_str()) == 1, "Each waiver needs a code");
               return out(takeJson(sieda_waivers_json(P(s))));
           });
+    t.add("verify", "verify_requirements", "Requirements traceability", Kind::Edit, false,
+          "Requirements traceability: each requirement (id, text) names the parts that meet it (refs). With "
+          "requirements: replaces the list. Returns each requirement's status (traced: every ref is in the design; "
+          "missing: a ref is not; untraced: no refs) and the parts no requirement names.",
+          Schema().array("requirements", "[{id, text, refs: [\"U1\", …]}]", "object"),
+          [](McpServer& s, const Json& a) {
+              Project& p = P(s)->project;
+              if (a.get("requirements").isArray()) {
+                  std::vector<Project::RequirementItem> items;
+                  for (const auto& r : a.get("requirements").items()) {
+                      check(r.get("id").isString() && !r.get("id").asString().empty(), "Each requirement needs an id");
+                      Project::RequirementItem item{r.get("id").asString(), r.get("text").asString(""), {}};
+                      for (const auto& ref : r.get("refs").items())
+                          if (ref.isString()) item.refs.push_back(ref.asString());
+                      items.push_back(item);
+                  }
+                  p.requirementItems = items;
+              }
+              std::set<std::string> named;
+              Json list = Json::array();
+              for (const auto& r : p.requirementItems) {
+                  Json j = obj(), missing = Json::array(), refs = Json::array();
+                  for (const auto& ref : r.refs) {
+                      refs.push(ref);
+                      named.insert(ref);
+                      if (!p.schematic.findByRef(ref)) missing.push(ref);
+                  }
+                  j["id"] = r.id, j["text"] = r.text, j["refs"] = refs;
+                  j["status"] = r.refs.empty() ? "untraced" : missing.size() ? "missing" : "traced";
+                  if (missing.size()) j["missing"] = missing;
+                  list.push(j);
+              }
+              Json unnamed = Json::array();
+              for (const auto& c : p.schematic.components())
+                  if (!c.ref.empty() && !c.packageOnly && c.hasFootprint() && !named.count(c.ref)) unnamed.push(c.ref);
+              Json j = obj();
+              j["requirements"] = list, j["partsNotTraced"] = unnamed;
+              return out(j);
+          });
+    t.add("verify", "verify_measurements", "Bench measurements", Kind::Edit, false,
+          "Measured results on built boards, linked to the design: add records what was measured (a net, a rail, a "
+          "test point), its value and unit, optional min / max limits and a note, with today's date and the design "
+          "fingerprint. Returns every measurement with pass (inside its limits) and current (taken on this revision).",
+          Schema().object("add", "{what, value, unit, min, max, note}").integer("remove", "Position of a measurement to remove"),
+          [](McpServer& s, const Json& a) {
+              Project& p = P(s)->project;
+              if (a.get("add").isObject()) {
+                  const Json& x = a.get("add");
+                  check(x.get("what").isString() && x.get("value").isNumber(), "add needs what and a numeric value");
+                  Project::Measurement m;
+                  m.what = x.get("what").asString(), m.value = x.get("value").asNumber(), m.unit = x.get("unit").asString("");
+                  m.note = x.get("note").asString("");
+                  m.hasMin = x.get("min").isNumber(), m.min = x.get("min").asNumber(0);
+                  m.hasMax = x.get("max").isNumber(), m.max = x.get("max").asNumber(0);
+                  const std::time_t now = std::time(nullptr);
+                  char date[11];
+                  std::strftime(date, sizeof date, "%Y-%m-%d", std::gmtime(&now));
+                  m.date = date, m.revision = p.designHash();
+                  p.measurements.push_back(m);
+              }
+              if (a.has("remove")) {
+                  const int i = a.get("remove").asInt(-1);
+                  check(i >= 0 && i < static_cast<int>(p.measurements.size()), "No measurement at that position");
+                  p.measurements.erase(p.measurements.begin() + i);
+              }
+              const std::string revision = p.designHash();
+              Json list = Json::array();
+              int failed = 0;
+              for (const auto& m : p.measurements) {
+                  Json j = obj();
+                  const bool pass = (!m.hasMin || m.value >= m.min) && (!m.hasMax || m.value <= m.max);
+                  failed += !pass;
+                  j["what"] = m.what, j["value"] = m.value, j["unit"] = m.unit, j["date"] = m.date, j["note"] = m.note;
+                  if (m.hasMin) j["min"] = m.min;
+                  if (m.hasMax) j["max"] = m.max;
+                  j["pass"] = pass, j["current"] = m.revision == revision;
+                  list.push(j);
+              }
+              Json j = obj();
+              j["measurements"] = list, j["failed"] = failed;
+              return out(j);
+          });
     t.add("verify", "verify_approvals", "Sign-off approvals", Kind::Edit, false,
           "Approvals of this design revision (release sign-off). approve records who approved it (by, role, note) "
           "against the design's fingerprint; any later change to the design makes it stale (current false). revoke "
@@ -6756,6 +6975,69 @@ void outputTools(Table& t) {
               if (!r.get("ok").asBool(false)) throw ToolError("Writing the package failed: " + r.get("error").asString("?"));
               r["dir"] = dir;
               return out(r);
+          });
+    t.add("output", "output_release", "Controlled release", Kind::Files, false,
+          "A controlled release in a folder inside the root: the fabrication package (fabrication/), the project as "
+          "released (<name>-rev<revision>.siedaproj), the verification report, the evidence (design fingerprint, "
+          "approvals of this revision, requirements trace, waivers, bench measurements), a change notice against previous (an older "
+          ".siedaproj) and MANIFEST.sha256 with every file's SHA-256 (check with shasum -a 256 -c). ready = "
+          "verification not failed, at least one current approval and no requirement missing its parts.",
+          Schema().str("dir", "Release folder inside the root, e.g. \"release/B\"", true).str("revision", "Revision, e.g. B", true)
+              .str("previous", "Older .siedaproj inside the root for the change notice"),
+          [](McpServer& s, const Json& a) {
+              auto tool = [&](const char* name, const Json& args) {
+                  for (const auto& t : mcpTools())
+                      if (t.name == name) return t.handler(s, args).data;
+                  throw ToolError(std::string("missing tool ") + name);
+              };
+              const std::string dir = s.resolvePath(requireStr(a, "dir"), true), revision = requireStr(a, "revision");
+              std::error_code ec;
+              fs::create_directories(fs::path(dir) / "fabrication", ec);
+              Json fab = takeJson(sieda_write_fabrication_package(P(s), (fs::path(dir) / "fabrication").string().c_str(), nullptr));
+              if (!fab.get("ok").asBool(false)) throw ToolError("Writing the package failed: " + fab.get("error").asString("?"));
+              std::string base = proj(s).name.empty() ? "board" : proj(s).name;
+              for (auto& c : base)
+                  if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') c = '_';
+              const std::string saved = takeText(sieda_project_save_json(P(s)));
+              auto write = [&](const std::string& name, const std::string& text) { s.writeFile((fs::path(dir) / name).string(), text); };
+              write(base + "-rev" + revision + ".siedaproj", saved);
+              const Json verification = takeJson(sieda_run_verification(P(s)));
+              write("verification.md", verification.get("markdown").asString(""));
+              Json evidence = obj();
+              evidence["revision"] = revision, evidence["designHash"] = proj(s).designHash();
+              evidence["verdict"] = verification.get("verdict");
+              evidence["approvals"] = tool("verify_approvals", obj());
+              evidence["requirements"] = tool("verify_requirements", obj());
+              evidence["waivers"] = takeJson(sieda_waivers_json(P(s)));
+              evidence["measurements"] = tool("verify_measurements", obj());
+              write("evidence.json", evidence.dump(true));
+              if (a.has("previous")) {
+                  const std::string before = readFileArg(s, requireStr(a, "previous")).asString();
+                  write("change_notice.md", "# Change notice: revision " + revision + "\n\n" +
+                                                takeText(sieda_diff_projects(before.c_str(), saved.c_str(), 1)));
+              }
+              // The manifest last: every file written above, sorted, as shasum -a 256 prints them.
+              std::vector<std::string> files;
+              for (const auto& e : fs::recursive_directory_iterator(dir, ec))
+                  if (e.is_regular_file() && e.path().filename() != "MANIFEST.sha256")
+                      files.push_back(fs::relative(e.path(), dir).generic_string());
+              std::sort(files.begin(), files.end());
+              std::string manifest;
+              for (const auto& f : files) {
+                  std::ifstream in(fs::path(dir) / f, std::ios::binary);
+                  std::stringstream ss;
+                  ss << in.rdbuf();
+                  manifest += sha256Hex(ss.str()) + "  " + f + "\n";
+              }
+              write("MANIFEST.sha256", manifest);
+              bool missing = false;
+              for (const auto& r : evidence.get("requirements").get("requirements").items()) missing |= r.get("status").asString("") == "missing";
+              Json j = obj();
+              j["dir"] = dir, j["files"] = static_cast<int>(files.size()) + 1, j["designHash"] = proj(s).designHash();
+              j["verdict"] = verification.get("verdict");
+              j["approvedNow"] = evidence.get("approvals").get("approvedNow");
+              j["ready"] = verification.get("verdict").asString("") != "fail" && evidence.get("approvals").get("approvedNow").asInt(0) > 0 && !missing;
+              return out(j);
           });
     t.add("output", "output_gerbers", "Gerbers and drill", Kind::Files, false,
           "Writes RS-274X Gerbers (every copper layer, masks, silkscreens, paste, outline) and Excellon drill files "

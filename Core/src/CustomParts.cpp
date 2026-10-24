@@ -1724,6 +1724,28 @@ bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b) {
     return unitShape(a) == unitShape(b);
 }
 
+FootprintDims measureFootprint(const CustomPartSpec& spec) {
+    FootprintDims d;
+    const CustomPartSpec lands = landPatternFromFootprint(spec);
+    std::vector<PackageSpec::Land> pads;
+    for (const auto& l : lands.package.lands)
+        if (l.pin != "-") pads.push_back(l);
+    d.pads = static_cast<int>(pads.size());
+    if (pads.empty()) return d;
+    d.padWidth = std::min(pads[0].w, pads[0].h);
+    d.padLength = std::max(pads[0].w, pads[0].h);
+    double lo = 1e9, hi = -1e9;
+    for (size_t i = 0; i < pads.size(); ++i) {
+        lo = std::min(lo, pads[i].x - pads[i].w / 2), hi = std::max(hi, pads[i].x + pads[i].w / 2);
+        for (size_t j = i + 1; j < pads.size(); ++j) {
+            const double gap = std::hypot(pads[i].x - pads[j].x, pads[i].y - pads[j].y);
+            if (gap > 0.01 && (d.pitch == 0 || gap < d.pitch)) d.pitch = gap;
+        }
+    }
+    d.span = hi - lo;
+    return d;
+}
+
 PartQuality partQuality(const CustomPartSpec& spec) {
     PartQuality q;
     auto score = [&](bool ok, int points, const char* what) {
