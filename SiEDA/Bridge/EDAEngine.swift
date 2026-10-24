@@ -1631,6 +1631,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case fusion
     case testPoints = "testpoints"
     case htmlBom = "html_bom"
+    case viewer
     case bringUp = "bringup"
     case fabDrawing = "fab_drawing"
     case netLengths = "net_lengths"
@@ -1673,6 +1674,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .fusion: return "board.py"
         case .testPoints: return "test_points.csv"
         case .htmlBom: return "interactive_bom.html"
+        case .viewer: return "viewer.html"
         case .bringUp: return "bring_up_checklist.md"
         case .fabDrawing: return "fab_drawing.pdf"
         case .netLengths: return "net_lengths.csv"
@@ -1715,6 +1717,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .fusion: return "Autodesk Fusion Script — Board and Parts, Placement Back (MCAD)"
         case .testPoints: return "Test-Point Report for Fixtures (CSV)"
         case .htmlBom: return "Interactive BOM and Board Viewer (HTML)"
+        case .viewer: return "Read-Only Design Viewer (HTML)"
         case .bringUp: return "Bring-Up Checklist (Markdown)"
         case .fabDrawing: return "Fabrication Drawing — Dimensions, Drill Map, Stack-up (PDF)"
         case .netLengths: return "Net-Length Report (CSV)"

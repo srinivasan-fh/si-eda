@@ -1724,6 +1724,34 @@ bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b) {
     return unitShape(a) == unitShape(b);
 }
 
+PartQuality partQuality(const CustomPartSpec& spec) {
+    PartQuality q;
+    auto score = [&](bool ok, int points, const char* what) {
+        if (ok) q.score += points;
+        else q.missing.push_back(what);
+    };
+    auto count = [](const auto& issues, const char* severity) {
+        return std::count_if(issues.begin(), issues.end(), [&](const auto& i) { return i.severity == severity; });
+    };
+    const auto symbol = checkSymbol(spec);
+    std::vector<LandIssue> lands;
+    try {
+        lands = checkLandPattern(landPatternFromFootprint(spec), 0.15);
+    } catch (const std::exception&) {
+        lands.push_back({"error", "LAND_INVALID", "the footprint cannot be built", {}});
+    }
+    score(count(symbol, "error") == 0, 25, "symbol errors");
+    score(count(lands, "error") == 0, 25, "land pattern errors");
+    score(count(lands, "warning") == 0, 10, "land pattern warnings");
+    score(!spec.datasheet.empty(), 10, "datasheet");
+    score(!spec.manufacturer.empty() && !spec.description.empty(), 10, "manufacturer and description");
+    score(spec.pins.size() <= 2 || std::any_of(spec.pins.begin(), spec.pins.end(), [](const CustomPin& p) {
+              return p.type != PinType::Passive;
+          }), 10, "pin types (all passive)");
+    score(!spec.model3d.id.empty(), 10, "3D model");
+    return q;
+}
+
 std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec) {
     std::vector<SymbolIssue> out;
     if (spec.units.empty()) return out;

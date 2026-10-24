@@ -631,7 +631,7 @@ final class MCPLiveServer: ObservableObject {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         let outcomes = await bridge.handleLive(body, store: store)
         for outcome in outcomes {
-            if let tool = outcome.tool { record(tool, changed: outcome.changed) }
+            if let tool = outcome.tool { record(tool, changed: outcome.changed, project: store.documentURL?.lastPathComponent ?? "") }
         }
         let text = MCPStoreBridge.responseBody(outcomes, batch: trimmed.hasPrefix("["))
         guard !text.isEmpty else { return MCPHTTPResponse(status: 202) }
@@ -658,10 +658,11 @@ final class MCPLiveServer: ObservableObject {
         return message?["method"] as? String == "initialize"
     }
 
-    private func record(_ tool: String, changed: Bool) {
+    private func record(_ tool: String, changed: Bool, project: String) {
         lastCall = CallRecord(tool: tool, date: Date(), changed: changed)
         callCount += 1
         CrashReporter.note("MCP: \(tool)")
+        AIAudit.append(tool: tool, changed: changed, project: project)
     }
 
     // MARK: - Client configuration snippets
@@ -731,5 +732,31 @@ extension DesignStore {
               let result = reply["result"] as? [String: Any] else { return ("The core did not answer", true) }
         let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         return (text, result["isError"] as? Bool ?? false)
+    }
+}
+
+/// Audit of AI use: every tool an AI client called through the live endpoint, one line each (UTC time, tool, whether
+/// it changed the design, the project file) in Application Support/SiEDA/ai-audit.log; kept under 5 MB (the older
+/// half moves to ai-audit.log.1).
+enum AIAudit {
+    static var file: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SiEDA/ai-audit.log")
+    }
+
+    static func append(tool: String, changed: Bool, project: String, to file: URL = file) {
+        let line = "\(ISO8601DateFormatter().string(from: Date()))\t\(tool)\t\(changed ? "changed" : "read")\t\(project)\n"
+        let fm = FileManager.default
+        try? fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let size = (try? fm.attributesOfItem(atPath: file.path))?[.size] as? Int, size > 5 << 20 {
+            let old = file.appendingPathExtension("1")
+            try? fm.removeItem(at: old)
+            try? fm.moveItem(at: file, to: old)
+        }
+        if !fm.fileExists(atPath: file.path) { fm.createFile(atPath: file.path, contents: nil) }
+        guard let handle = try? FileHandle(forWritingTo: file) else { return }
+        defer { try? handle.close() }
+        handle.seekToEndOfFile()
+        handle.write(Data(line.utf8))
     }
 }

@@ -144,6 +144,7 @@ struct DesignReviewView: View {
                 }
                 .padding(.vertical, 2)
             }
+            ApprovalsSection(author: author)
             HStack {
                 Button("Copy as Markdown") {
                     NSPasteboard.general.clearContents()
@@ -155,5 +156,49 @@ struct DesignReviewView: View {
         }
         .padding(20)
         .frame(minWidth: 620, minHeight: 420)
+    }
+}
+
+/// Release sign-off: who approved this design revision (MCP verify_approvals); a later change makes an approval stale.
+struct ApprovalsSection: View {
+    @EnvironmentObject private var store: DesignStore
+    var author: String
+    @State private var role = ""
+    @State private var approvals: [[String: Any]] = []
+    @State private var revision = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Approvals").font(.subheadline.weight(.semibold))
+                Text(verbatim: revision).font(.caption.monospaced()).foregroundStyle(Theme.textSecondary)
+                Spacer()
+                TextField("Role", text: $role).textFieldStyle(.roundedBorder).frame(width: 120)
+                Button("Approve This Revision") { call(["action": "approve", "by": author, "role": role]) }
+                    .disabled(author.isEmpty)
+            }
+            ForEach(Array(approvals.enumerated()), id: \.offset) { i, a in
+                let current = a["current"] as? Bool ?? false
+                HStack {
+                    Image(systemName: current ? "checkmark.seal.fill" : "clock.arrow.circlepath")
+                        .foregroundStyle(current ? Theme.success : Theme.warning)
+                    Text(verbatim: "\(a["by"] as? String ?? "") · \(a["role"] as? String ?? "") · \(a["date"] as? String ?? "")")
+                    Text(current ? LocalizedStringKey("approves this revision") : LocalizedStringKey("approved an earlier revision"))
+                        .font(.caption).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Button(role: .destructive) { call(["action": "revoke", "index": i]) } label: { Image(systemName: "xmark.circle") }
+                        .buttonStyle(.borderless)
+                        .help("Revoke this approval")
+                }
+            }
+        }
+        .onAppear { call([:]) }
+    }
+
+    private func call(_ arguments: [String: Any]) {
+        let reply = store.runTool("verify_approvals", arguments: arguments)
+        guard !reply.isError, let j = try? JSONSerialization.jsonObject(with: Data(reply.text.utf8)) as? [String: Any] else { return }
+        approvals = j["approvals"] as? [[String: Any]] ?? []
+        revision = j["revision"] as? String ?? ""
     }
 }

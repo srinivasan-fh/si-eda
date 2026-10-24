@@ -191,6 +191,7 @@ enum DatasheetAnalyst {
         if let forced = PackageKind.guess(hint) { spec.package.type = forced.rawValue }
         // With no pins the draft still carries the part name and the parser's notes; the editor asks for pins.
         var notes = extraction.notes ?? []
+        notes += (try? JSONExtraction.decode(DatasheetSchema.Citations.self, from: text))?.notes ?? []
         if spec.pins.isEmpty, notes.isEmpty { notes = ["No pins were found in the datasheet. Add them in the pin table."] }
         return Result(spec: spec, notes: notes, notice: notice)
     }
@@ -202,6 +203,9 @@ enum PinTableParser {
         var number: Int
         var name: String
         var description: String
+        var page = 0
+        /// Pin number first with a description reads surest; a name-first or bare row less so.
+        var confidence = 0.5
     }
 
     private static let stopWords: Set<String> = ["FIGURE", "TABLE", "PAGE", "SECTION", "NOTE", "NOTES", "V", "MA", "MHZ", "KHZ",
@@ -212,8 +216,10 @@ enum PinTableParser {
                                                    options: [.caseInsensitive])
         let nameFirst = try? NSRegularExpression(pattern: #"^\s*([A-Za-z][A-Za-z0-9_/+\-#~]{0,15})[\s|]+(\d{1,3})\b\s*[|:\-–]?\s*(.*)$"#)
         var found: [Int: Row] = [:]
+        var page = 0
         for raw in text.components(separatedBy: .newlines) {
             let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("--- Page "), let n = Int(line.dropFirst(9).prefix { $0.isNumber }) { page = n; continue }
             guard !line.isEmpty, line.count < 240 else { continue }
             let range = NSRange(line.startIndex..., in: line)
             func group(_ m: NSTextCheckingResult, _ i: Int) -> String {
@@ -223,17 +229,21 @@ enum PinTableParser {
             var number: Int?
             var name = ""
             var description = ""
+            var confidence = 0.5
             if let m = numberFirst?.firstMatch(in: line, range: range) {
                 number = Int(group(m, 1))
                 name = group(m, 2)
                 description = group(m, 3)
+                confidence = 0.6
             } else if let m = nameFirst?.firstMatch(in: line, range: range) {
                 name = group(m, 1)
                 number = Int(group(m, 2))
                 description = group(m, 3)
             }
             guard let n = number, n >= 1, n <= 256, !stopWords.contains(name.uppercased()), found[n] == nil else { continue }
-            found[n] = Row(number: n, name: name, description: description.trimmingCharacters(in: .whitespaces))
+            let text = description.trimmingCharacters(in: .whitespaces)
+            found[n] = Row(number: n, name: name, description: text, page: page,
+                           confidence: confidence + (text.count >= 8 ? 0.2 : 0))
         }
         // Keep the longest run of consecutive pin numbers starting at 1.
         var run = 0
@@ -261,7 +271,7 @@ enum PinTableParser {
         let pins: [[String: Any]] = rows.map {
             ["number": String($0.number), "name": $0.name.uppercased(),
              "type": PinElectricalType.infer(name: $0.name, description: $0.description).rawValue,
-             "description": $0.description]
+             "description": $0.description, "page": $0.page, "confidence": $0.confidence]
         }
         let object: [String: Any] = [
             "name": name,

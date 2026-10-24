@@ -23,7 +23,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Unified database: schematic, PCB, footprints, parts, constraints, BOM, 3D | ✅ | `Project` (one JSON document) |
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
-| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; a fixed-point (nm) database ⏳ |
+| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; an integer database for computed geometry ⏳ |
 | P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | core, CLI and MCP server build on Linux / macOS; the app is macOS only |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
@@ -40,7 +40,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Custom shortcuts and command palette | ✅ | ⌘K palette, Settings → Shortcuts (menus and canvas tool keys) |
 | P1 | Incremental updates | ✅ | delta snapshots, cached pours / board mask |
 | P1 | ➕ Settings export / import (rules, colours, shortcuts) | ✅ | Settings → Appearance → Export / Import Settings… (rules travel in templates) |
-| P1 | ➕ Multi-monitor, detachable editor windows | ⏳ | |
+| P1 | ➕ Multi-monitor, detachable editor windows | ✅ | Window → Open in New Window: schematic, board, 3D, simulation, checks or BOM in a window of its own on the same design |
 | P2 | Multi-board system projects | ✅ | `Project::boardNames`, parked boards |
 | P2 | Harness and connector system design | ✅ | `Harnesses.cpp` |
 | P2 | Localisation and accessibility | ✅ | 20 languages, accessibility labels |
@@ -74,7 +74,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Bus rip / entries, `DATA[0..7]` | ✅ | `Buses.cpp` |
 | P1 | ➕ Sheet instancing with per-instance designators | ✅ | `Instances.cpp` |
 | P2 | Draft schematic from a written spec, functional grouping, review rules, NL editing, reference architectures | ✅ | AI plans, `designReview`, MCP |
-| P3 | Approved blocks, review / approval workflow, requirements traceability | 🟡 | review comments ✅; approvals and traceability ⏳ |
+| P3 | Approved blocks, review / approval workflow, requirements traceability | 🟡 | review comments, approvals per design revision (Design Review → Approvals, MCP `verify_approvals`) ✅; approved blocks and traceability ⏳ |
 
 ## 3. Component, symbol and footprint libraries
 
@@ -97,9 +97,9 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Library versioning / history, alternative footprints | ✅ | user footprint folder, version history (last 20 saves per footprint), shared library / 3D model folder ✅ |
 | P1 | ➕ Library update notices with "update instances" preview | ✅ | File → Check Library Updates…, MCP `library_updates` (changes and placed count, then apply) |
 | P1 | ➕ Parametric search across the library | ✅ | |
-| P1 | ➕ Shared 3D model library | 🟡 | `Model3DRegistry` per project; a shared folder ⏳ |
+| P1 | ➕ Shared 3D model library | ✅ | `Model3DRegistry` per project; the shared library folder's 3D Models |
 | P2 | AI datasheet extraction, footprint-vs-datasheet comparison | 🟡 | pin tables from datasheets ✅; dimension comparison ⏳ |
-| P2 | Library quality score, bulk edit, supplier-neutral catalog | 🟡 | catalog ✅; quality score ⏳ |
+| P2 | Library quality score, bulk edit, supplier-neutral catalog | 🟡 | catalog, quality score 0 – 100 (`partQuality`, MCP `library_check_part` `quality`) ✅; bulk edit ⏳ |
 | P2 | ➕ Least / Nominal / Most density variants | ✅ | IPC calculator density |
 | P3 | Company library, librarian roles, approved alternates, releases | ⏳ | |
 
@@ -157,7 +157,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
 | P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
 | P2 | SI / return path / PI / thermal / assembly checks, rule scripting | ✅ | rule scripting: custom DRC rules (Board Setup → Custom Rules, MCP `pcb_custom_rules`) |
-| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report ✅; approvals ⏳ |
+| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report, waivers, approvals tied to the design fingerprint ✅; org rule packs ⏳ |
 
 ## 7. Simulation and analysis
 
@@ -211,7 +211,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Assembly drawing with designators, polarity, variants | ✅ | assembly SVG |
 | P0 | Dimension tools | ✅ | ruler tool in the PCB editor; on the drawing, the DXF and the board view |
 | P0 | Title blocks, revision tables, templates; PDF of drawings | ✅ | schematic PDF and the board's fabrication drawing PDF, both with the revision table |
-| P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | 🟡 | change report, layer legend, net-length and test-point reports ✅; customer templates ⏳ |
+| P1 | Customer / fab templates, layer legend, net-length and test-point reports, change report | ✅ | change report, layer legend, net-length and test-point reports, customer templates (title block → Customer Template) ✅ |
 | P2 | Interactive HTML BOM / board viewer | ✅ | `exportHtmlBom` (one offline file, in the package) |
 | P2 | 3D / exploded / section views in drawings | ✅ | fabrication drawing sheet 2 |
 | P3 | Controlled drawing release, PLM numbering | ⏳ | |
@@ -256,10 +256,10 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
 | P0 | Optional AI, reviewable proposals, full undo, facts vs suggestions | ✅ | built-in model, MCP `project_undo` |
-| P0 | ➕ Every extracted value cites its source and confidence | 🟡 | datasheet pins cite the page; confidence ⏳ |
+| P0 | ➕ Every extracted value cites its source and confidence | ✅ | each datasheet pin carries its page and a 0 – 1 confidence; the import notes list the pins below 70 % |
 | P1 | Explain violations, suggested fixes, datasheet drafts, alternates, NL edits, review lists, change summaries | ✅ | |
 | P2 | Draft schematics, placement, routing hints, protection, BOM optimisation, review, agent interface | ✅ | MCP |
-| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model ✅ |
+| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model, AI audit log of every live-endpoint tool call ✅; org policies, knowledge bases ⏳ |
 | — | Safety: no silent net changes, diffs, re-run checks, fail safe offline | ✅ | `schematic_connect` refuses merges without `merge` |
 
 ## 15. Collaboration, versioning, review
@@ -267,12 +267,12 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
 | P0 | Local history / VCS, backup, diffable files | ✅ | |
-| P0 | ➕ In-app Git: clone, commit, branch, tag | ⏳ | Git drivers exist |
+| P0 | ➕ In-app Git: clone, commit, branch, tag | ✅ | File → Git… (status, history, commit, branch, tag, pull, push, clone) and the Git drivers |
 | P1 | Named revisions, visual diff, comments, review summaries | ✅ | |
-| P1 | Browser read-only viewer, cloud sync, share links | ⏳ | |
+| P1 | Browser read-only viewer, cloud sync, share links | 🟡 | read-only viewer: export "viewer" (one offline HTML file, every sheet and the board, pan / zoom) ✅; cloud sync and share links ⏳ (a synced folder with Live Collaboration works) |
 | P1 | ➕ File locking / check-out | ✅ | `<file>.lock` beside an open project: who has it open, where, since when (Live Collaboration does not lock) |
-| P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | 🟡 | three-way merge and co-editing ✅ |
-| P3 | Permissions, sign-off, audit, identity | ⏳ | |
+| P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | ✅ | approvals, in-app Git branches, three-way merge, shared library folder, co-editing |
+| P3 | Permissions, sign-off, audit, identity | 🟡 | sign-off (approvals), AI audit log ✅; permissions and identity ⏳ (need a server) |
 
 ## 16. Usability and learning
 
@@ -298,11 +298,11 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | STEP in / out, BOM and fab files | ✅ | |
 | P1 | KiCad project import (schematic + board) | ✅ | libraries, schematic sheets and boards (.kicad_pcb: placement fitted to the pads, tracks, arcs, vias, zones, outline, fidelity report), hierarchical sub-sheets ✅ |
 | P1 | EasyEDA / Eagle projects | ✅ | Eagle libraries and schematics ✅; EasyEDA through its Protel netlist export |
-| P1 | Import-fidelity report, library mapping | 🟡 | library import notes ✅ |
+| P1 | Import-fidelity report, library mapping | ✅ | library import notes; netlist / schematic import `fidelity` (built-in / catalog / mapped / generic parts, `knownPercent`) and `map` (their part → catalog part or kind) |
 | P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
 | P1 | ➕ Gerber / ODB++ import as a reference layer | ✅ | Gerber, drill and ODB++ layer features files (saved with the project) |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
-| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ⏳ | |
+| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | 🟡 | batch conversion `sieda-cli --convert` (KiCad, Eagle, LTspice, Protel / PADS / OrCAD netlists, KiCad boards) ✅; PADS / OrCAD board routes, HyperLynx ⏳ |
 | P3 | Enterprise migration, PLM / ERP, archival | ⏳ | |
 
 ## 18. Scripting, automation, extensibility
@@ -315,7 +315,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | CLI ERC / DRC, automated outputs | ✅ | |
 | P1 | CI templates (GitHub Actions / GitLab) | ✅ | `docs/ci/sieda-check.yml` (GitHub Actions), `docs/ci/sieda-check.gitlab-ci.yml` (GitLab) |
 | P1 | ➕ Event hooks | ✅ | after-open / save / verify / export scripts in Application Support/SiEDA/Hooks |
-| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface, plug-ins (Design → Plug-ins), custom rules ✅; sandboxing ⏳ |
+| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | ✅ | MCP agent interface, plug-ins (Design → Plug-ins), custom rules, plug-in sandbox (no network, writes only to the project copy) ✅ |
 | P3 | REST, PLM / ERP, plug-in governance | ⏳ | |
 
 ## 19. Enterprise, security, compliance
@@ -323,7 +323,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P | Item | Status | Where / what is missing |
 |---|---|---|---|
 | P0 | Secure storage, privacy, backups, dependency security | ✅ | Keychain keys, sandboxed MCP, local only |
-| P0 | ➕ Signed installers with auto-update | ⏳ | |
+| P0 | ➕ Signed installers with auto-update | ✅ | release workflow: Developer ID signed, notarised DMG (secrets), Help → Check for Updates… / daily check |
 | P0 | ➕ Vulnerability-disclosure process | ✅ | `SECURITY.md` |
 | P0 | ➕ Telemetry opt-in | ✅ | no telemetry leaves the machine |
 | P1–P3 | Teams, RBAC, audit, licensing, SBOM, SSO, self-hosting, ITAR | ⏳ ⚪ | |
@@ -336,9 +336,9 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Golden tests for Gerber / drill / assembly, integrity checks, crash diagnostics | ✅ | |
 | P0 | ➕ Byte-identical outputs | ✅ | deterministic routers and fills |
 | P1 | Incremental DRC / rendering, large-board tests, fuzzing, profiling, OS matrix | ✅ | CTest budgets, libFuzzer, Ubuntu / macOS CI |
-| P1 | ➕ GPU rendering, ➕ multithreaded fill / DRC / 3D | 🟡 | threaded fills and routing ✅; GPU canvas ⏳ |
+| P1 | ➕ GPU rendering, ➕ multithreaded fill / DRC / 3D | ✅ | threaded fills and routing; Settings → GPU canvas rendering (Metal) |
 | P2 | Large-design optimisation, stress tests, ➕ public benchmarks | ✅ | `sieda_route_bench` |
-| P3 | Signed / reproducible builds, change control, LTS | ⏳ | |
+| P3 | Signed / reproducible builds, change control, LTS | 🟡 | signed release, SBOM, byte-identical CLI rebuild ✅; LTS ⏳ |
 
 ## 21. Hardware bring-up and test
 
@@ -400,10 +400,10 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 14. ~~Copper thieving generation, CPWG geometry, flex bend-radius rule, isolation-barrier object (§4, §5, §13)~~ ✅
 15. ~~Library update notices, library versions, tags / favourites, CSV pin-table wizard, IPC zero-orientation check (§3)~~ ✅
 16. ~~Consolidated multi-board BOM, custom BOM columns, price alerts~~ ✅ (§11)
-17. In-app Git, browser viewer, ~~file locking~~ ✅, approvals (§15)
-18. Fixed-point (nm) geometry database, ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
+17. ~~In-app Git~~ ✅, ~~browser viewer~~ ✅, ~~file locking~~ ✅, approvals (§15)
+18. Fixed-point (nm) geometry database (~~user coordinates on a 1 nm grid~~ ✅), ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
 19. ~~Rigid-flex folding in 3D~~ ✅, native MCAD connectors (~~FreeCAD, Fusion~~ ✅; SolidWorks, Onshape) (§8)
 20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), Gerber-level package comparison (§9 P2)
 21. Windows / Linux app (§1 P0) — the core already builds there; the app is SwiftUI
-22. Signed installers and auto-update, SBOM, reproducible builds (§19, §20)
+22. ~~Signed installers and auto-update, SBOM, reproducible builds (§19, §20)~~ ✅
 23. Enterprise: teams, RBAC, SSO, audit, self-hosting, PLM / ERP (§15, §19 P3)

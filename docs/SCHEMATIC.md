@@ -560,6 +560,10 @@ schematic from another tool's schematic or netlist:
 - a **netlist**: KiCad (`.net`, KiCad 5 – 8), Protel / Tango (`[ part ]` and `( net )` blocks, written by Altium,
   OrCAD, EasyEDA and PADS) or a CSV with Net, Designator and Pin columns.
 
+The reply's `imported.fidelity` counts how the parts came through (built-in, catalog, mapped, generic library parts
+made from the netlist's pins, skipped) with `knownPercent`; MCP `map` ({"their part, value or footprint": "catalog
+part, library part or kind"}) maps the generic ones to known parts.
+
 Each part becomes:
 
 - a built-in resistor, capacitor, inductor, diode or LED when its designator is R / C / L / D and it has two pins (the

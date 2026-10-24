@@ -43,6 +43,9 @@ struct MCPSettingsView: View {
             Toggle("Read-only (the AI can inspect and check, not change)", isOn: $mcp.readOnly)
             folderRow
             statusRow
+            Button("Show AI Audit Log") { NSWorkspace.shared.activateFileViewerSelecting([AIAudit.file]) }
+                .disabled(!FileManager.default.fileExists(atPath: AIAudit.file.path))
+                .help("Every tool an AI client called here: time, tool, whether it changed the design, the project")
         } header: {
             Text("Live server")
         }

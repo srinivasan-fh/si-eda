@@ -25167,3 +25167,88 @@ TEST(npth_holes_have_no_annular_ring) {
         if (row.get("rule").asString() == "Smallest annular ring") ring = row.get("actual").asString();
     CHECK(ring == "0.30 mm");
 }
+
+TEST(user_coordinates_land_on_the_nanometre_grid) {
+    // A footprint moved through the C API lands on whole nanometres, so it saves and reloads exactly.
+    CHECK(nm(1.23456789) == 1.234568 && nm(-0.0000004) == 0 && nm(25.4) == 25.4);
+    SiedaProject* p = sieda_project_new("nm");
+    int r = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    CHECK(sieda_pcb_move_footprint(p, r, 10.0000004, 1.0 / 3.0));
+    Vec2 at = p->project.schematic.find(r)->pcb.position;
+    CHECK(at.x == 10.0 && at.y == 0.333333);
+    sieda_project_free(p);
+}
+
+TEST(viewer_export_is_one_html_file_with_every_sheet_and_the_board) {
+    SiedaProject* p = sieda_project_new("viewer");
+    sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    char* html = sieda_export(p, "viewer");
+    CHECK(html != nullptr);
+    const std::string v = html ? html : "";
+    sieda_string_free(html);
+    CHECK(v.rfind("<!doctype html>", 0) == 0 && v.find("Schematic: Main") != std::string::npos);
+    CHECK(v.find(">Board<") != std::string::npos && v.find("<svg") != std::string::npos);
+    CHECK(v.find("http") == std::string::npos || v.find("src=\"http") == std::string::npos);  // nothing fetched
+    sieda_project_free(p);
+}
+
+TEST(netlist_import_maps_library_parts_and_reports_fidelity) {
+    const std::string protel = "[\nX1\nAXIAL\nXRES\n]\n[\nX2\nAXIAL\nXRES\n]\n(\nN1\nX1-1\nX2-1\n)\n(\nN2\nX1-2\nX2-2\n)\n";
+    for (bool mapped : {false, true}) {
+        mcp::McpServer m;
+        CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+        Json args = Json::object();
+        args["text"] = protel;
+        if (mapped) {
+            Json map = Json::object();
+            map["XRES"] = "resistor";  // their part, by value → the built-in resistor
+            args["map"] = map;
+        }
+        const Json f = mcpData(mcpTool(m, "schematic_import_netlist", args)).get("imported").get("fidelity");
+        CHECK(f.get("mapped").asInt(-1) == (mapped ? 2 : 0) && f.get("library").asInt(-1) == (mapped ? 0 : 2));
+        CHECK(f.get("knownPercent").asInt(-1) == (mapped ? 100 : 0) && f.has("next") == !mapped);
+        CHECK(m.project()->project.schematic.findByRef("X1") != nullptr);
+    }
+}
+
+TEST(approvals_hold_for_the_approved_revision_only) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Project& p = m.project()->project;
+    p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    Json a = Json::object();
+    a["action"] = "approve", a["by"] = "Asha", a["role"] = "design";
+    Json r = mcpData(mcpTool(m, "verify_approvals", a));
+    CHECK(r.get("approvedNow").asInt(-1) == 1 && r.get("approvals")[0].get("current").asBool());
+    const std::string approved = r.get("revision").asString();
+    CHECK(p.designHash() == approved);  // the approval itself is not part of the design
+    // It survives a save / load, then any design change makes it stale.
+    Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(back.approvals.size() == 1 && back.approvals[0].by == "Asha" && back.designHash() == approved);
+    p.schematic.addComponent(ComponentKind::Capacitor, "100n", {10, 0});
+    r = mcpData(mcpTool(m, "verify_approvals", Json::object()));
+    CHECK(r.get("approvedNow").asInt(-1) == 0 && !r.get("approvals")[0].get("current").asBool(true));
+    Json revoke = Json::object();
+    revoke["action"] = "revoke", revoke["index"] = 0;
+    CHECK(mcpData(mcpTool(m, "verify_approvals", revoke)).get("approvals").size() == 0);
+    Json bad = Json::object();
+    bad["action"] = "approve";
+    CHECK(mcpFailed(mcpTool(m, "verify_approvals", bad)));  // who approves is required
+}
+
+TEST(library_quality_score_names_what_is_missing) {
+    const StandardPart* sp = findStandardPart("NE555");
+    CHECK(sp != nullptr);
+    if (!sp) return;
+    CustomPartSpec spec = sp->spec;
+    spec.datasheet = spec.manufacturer = spec.description = "";
+    spec.model3d = {};
+    const PartQuality bare = partQuality(spec);
+    CHECK(bare.score == 70 && bare.missing.size() == 3);  // clean symbol and pads, typed pins; no metadata, no model
+    spec.datasheet = "ne555.pdf", spec.manufacturer = "TI", spec.description = "Timer";
+    spec.model3d.id = "model";
+    const PartQuality full = partQuality(spec);
+    CHECK(full.score == 100 && full.missing.empty());
+    for (auto& pin : spec.pins) pin.type = PinType::Passive;
+    CHECK(partQuality(spec).score == 90);
+}

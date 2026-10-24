@@ -693,6 +693,13 @@ extension View {
         onChange(of: value) { _, new in ViewMemory.set(key, new) }
     }
 
+    /// Settings → GPU canvas rendering: the canvas is drawn into a Metal-backed layer (`drawingGroup`) — faster on a
+    /// large board with many shapes, the same picture. Off = the standard Core Graphics path.
+    @ViewBuilder
+    func gpuRendered(_ on: Bool) -> some View {
+        if on { drawingGroup() } else { self }
+    }
+
     /// Writes a canvas's size to its editor once a panel's show / hide has settled, not on every frame of the slide:
     /// each write re-evaluates the whole editor (tool bars, device picker) while the canvas redraws anyway.
     func settledSize(_ size: CGSize, into target: Binding<CGSize>) -> some View {

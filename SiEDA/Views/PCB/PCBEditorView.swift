@@ -863,12 +863,14 @@ struct PCBCanvas: View {
     @State private var zoomRect: CGRect?   // screen space, while dragging a zoom area
     @State private var shapePoints: [CGPoint] = []  // corners of the pour / outline / cutout being drawn
     @FocusState private var focused: Bool
+    @AppStorage("canvas.gpu") private var gpuCanvas = false
 
     private let limits = Viewport.pcbLimits
 
     var body: some View {
         GeometryReader { geo in
             Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size: size) }
+                .gpuRendered(gpuCanvas)
                 .contentShape(Rectangle())
                 .accessibilityElement()
                 .accessibilityLabel("PCB layout canvas")

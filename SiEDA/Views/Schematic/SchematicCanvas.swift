@@ -58,6 +58,7 @@ struct SchematicCanvas: View {
     @AppStorage(SchematicGrid.stepKey) private var gridStep = 10.0
     @State private var moveAlone = false      // ⌥-drag: the parts move without their wires
     @FocusState private var focused: Bool
+    @AppStorage("canvas.gpu") private var gpuCanvas = false
 
     private let scaleLimits = Viewport.schematicLimits
 
@@ -129,6 +130,7 @@ struct SchematicCanvas: View {
             Canvas(rendersAsynchronously: false) { ctx, size in
                 draw(&ctx, size: size)
             }
+            .gpuRendered(gpuCanvas)
             .contentShape(Rectangle())
             .accessibilityElement()
             .accessibilityLabel("Schematic canvas")

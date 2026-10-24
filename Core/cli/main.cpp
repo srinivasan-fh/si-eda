@@ -8,7 +8,11 @@
 //   sieda-cli --circuit model.gguf "request"  SiEDA's circuit model: its plan with the request's values computed
 //   sieda-cli --upgrade a.siedaproj …          rewrite project files in this version's format (docs/FILE_FORMAT.md);
 //                                              a file that would lose settings (newer, unknown fields) is left alone
+//   sieda-cli --convert out/ a.kicad_sch b.sch c.net …  batch conversion: each schematic / netlist (KiCad with its
+//                                              sub-sheets, Eagle, LTspice, Protel, CSV) or KiCad board becomes
+//                                              out/<name>.siedaproj; prints each one's import fidelity
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -16,6 +20,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/LocalModel.hpp"
+#include "sieda/Mcp.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -95,6 +100,44 @@ int main(int argc, char** argv) {
                 const std::string text = p.toJson().dump(true);
                 if (text != ss.str()) std::ofstream(argv[i], std::ios::binary) << text;
                 std::printf("%s: %s\n", argv[i], text == ss.str() ? "already current" : "upgraded");
+            } catch (const std::exception& e) {
+                std::fprintf(stderr, "%s: %s\n", argv[i], e.what());
+                ++failed;
+            }
+        }
+        return failed ? 1 : 0;
+    }
+    if (argc >= 4 && std::string(argv[1]) == "--convert") {
+        namespace fs = std::filesystem;
+        const fs::path out = fs::absolute(argv[2]);
+        fs::create_directories(out);
+        int failed = 0;
+        for (int i = 3; i < argc; ++i) {
+            const fs::path in = fs::absolute(argv[i]);
+            mcp::McpOptions options;
+            options.allowedRoot = "/";  // the command line's own files, read and written where it names them
+            mcp::McpServer server(options);
+            auto call = [&](const std::string& tool, const Json& args) {
+                Json request = Json::object(), params = Json::object();
+                request["jsonrpc"] = "2.0", request["id"] = 1, request["method"] = "tools/call";
+                params["name"] = tool, params["arguments"] = args, request["params"] = params;
+                const Json result = Json::parse(server.handle(request.dump())).get("result");
+                const std::string text = result.get("content")[0].get("text").asString("");
+                if (result.get("isError").asBool(false)) throw std::runtime_error(text);
+                return Json::parse(text);
+            };
+            try {
+                Json args = Json::object();
+                args["path"] = in.string();
+                call("project_new", Json::object());
+                const bool board = in.extension() == ".kicad_pcb";
+                const Json r = call(board ? "pcb_import_kicad" : "schematic_import_netlist", args);
+                Json save = Json::object();
+                save["path"] = (out / in.stem()).string() + ".siedaproj";
+                call("project_save", save);
+                const Json& f = (board ? r.get("built") : r).get("imported").get("fidelity");
+                std::printf("%s: %s.siedaproj (%d%% known parts, %d generic, %d warnings)\n", argv[i], in.stem().string().c_str(),
+                            f.get("knownPercent").asInt(100), f.get("library").asInt(0), f.get("warnings").asInt(0));
             } catch (const std::exception& e) {
                 std::fprintf(stderr, "%s: %s\n", argv[i], e.what());
                 ++failed;

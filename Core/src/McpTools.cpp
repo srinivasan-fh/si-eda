@@ -5,6 +5,7 @@
 #include <array>
 #include <regex>
 #include <cmath>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -2016,8 +2017,9 @@ KicadSheetLoader sheetLoader(McpServer& s, const Json& sheets, const std::string
 }
 
 /// schematic_import_netlist's work on a read netlist (also the start of pcb_import_kicad): the schematic_build result
-/// with "imported" (what each designator became).
-Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
+/// with "imported" (what each designator became and a fidelity count). `map` = library mapping: the other tool's part
+/// name, value or footprint → a catalog / library part or a built-in kind (resistor, capacitor, inductor, diode, led).
+Json importNetlist(McpServer& s, const ParsedNetlist& nl, const Json& map = Json()) {
     auto upper = [](std::string v) {
         for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
         return v;
@@ -2033,6 +2035,12 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
     };
     Json parts = Json::array(), mapped = obj(), created = Json::array(), skipped = Json::array();
     std::set<std::string> made;
+    std::map<std::string, int> how;  // fidelity: built-in / catalog / mapped / library parts
+    auto mapping = [&](const NetlistPart& np) -> std::string {
+        for (const std::string& key : {np.part, np.value, np.footprint})
+            if (!key.empty() && map.get(key).isString()) return map.get(key).asString();
+        return {};
+    };
     for (const auto& np : nl.parts) {
         const std::string ref = np.ref, prefix = upper(ref.substr(0, ref.find_first_of("0123456789")));
         const auto& pins = pinsOf[ref];
@@ -2045,17 +2053,31 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
         const bool led = upper(np.value + fp + prefix).find("LED") != std::string::npos;
         const char* kind = pins.size() > 2 ? nullptr : prefix == "R" ? "resistor" : prefix == "C" ? "capacitor"
                          : prefix == "L" ? "inductor" : prefix == "D" || prefix == "LED" ? (led ? "led" : "diode") : nullptr;
-        if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+        const std::string to = mapping(np);
+        static const std::set<std::string> kinds = {"resistor", "capacitor", "inductor", "diode", "led"};
+        const bool inLibrary = std::any_of(proj(s).customLibrary.begin(), proj(s).customLibrary.end(), [&](const std::string& id) {
+            const CustomPart* cp = CustomPartRegistry::instance().find(id);
+            return id == to || (cp && cp->spec.name == to);
+        });
+        if (!to.empty() && (kinds.count(to) || findStandardPart(to) || inLibrary)) {
+            part[kinds.count(to) ? "kind" : "part"] = to;
+            if (!np.value.empty() && np.value != np.part && kinds.count(to)) part["value"] = np.value;
+            if (kinds.count(to) && !size.empty()) part["package"] = size;
+            ++how["mapped"];
+        } else if (np.part.rfind("kind:", 0) == 0) {  // a schematic import that knows the kind (LTspice)
+            ++how["builtIn"];
             part["kind"] = np.part.substr(5);
             static const std::regex plain(R"(^[0-9.]+[a-zA-Z\xC2\xB5]*[0-9]*$)");  // "1k", "2k2", "10µ" — not "{res}"
             if (std::regex_match(np.value, plain)) part["value"] = np.value;
         } else if (kind && (np.package.lands.empty() || !size.empty())) {  // a board's THT passive keeps its exact pads
+            ++how["builtIn"];
             part["kind"] = kind;
             if (!np.value.empty() && np.value != np.part) part["value"] = np.value;
             if (!size.empty()) part["package"] = size;
         } else if (const StandardPart* sp = !np.package.lands.empty() ? nullptr : findStandardPart(np.part) ? findStandardPart(np.part)
                                                                                                          : findStandardPart(np.value)) {
             part["part"] = sp->spec.name;
+            ++how["catalog"];
         } else if (pins.empty()) {  // a drawing, logo or unconnected mounting hole: nothing to wire
             skipped.push(ref);
             continue;
@@ -2118,6 +2140,7 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
             }
             part["part"] = name;
             if (!np.value.empty()) part["value"] = np.value;
+            ++how["library"];
         }
         mapped[ref] = part.has("part") ? part.get("part") : part.get("kind");
         parts.push(part);
@@ -2153,6 +2176,16 @@ Json importNetlist(McpServer& s, const ParsedNetlist& nl) {
     info["as"] = mapped;
     info["created"] = created;
     if (skipped.size()) info["skipped"] = skipped;
+    // Fidelity: how many parts came through as a known part (built-in, catalog or mapped) rather than a generic one
+    // made from the netlist's pins, and what the reader could not carry over (warnings).
+    Json fidelity = obj();
+    for (const char* k : {"builtIn", "catalog", "mapped", "library"}) fidelity[k] = how[k];
+    fidelity["skipped"] = static_cast<int>(skipped.size());
+    fidelity["warnings"] = static_cast<int>(nl.warnings.size());
+    const int placedParts = how["builtIn"] + how["catalog"] + how["mapped"] + how["library"];
+    fidelity["knownPercent"] = placedParts ? 100 * (placedParts - how["library"]) / placedParts : 100;
+    if (how["library"]) fidelity["next"] = "Give \"map\" ({\"their part or footprint\": \"catalog part or kind\"}) to use known parts for the generic ones";
+    info["fidelity"] = fidelity;
     if (!nl.warnings.empty()) {
         Json w = Json::array();
         for (const auto& x : nl.warnings) w.push(x);
@@ -3752,7 +3785,8 @@ void schematicTools(Table& t) {
           "netlist's pins (package from the footprint name, else a header). Then works as schematic_build; imported "
           "lists what each designator became.",
           Schema().str("text", "The netlist text").str("path", "Or the netlist file inside the root")
-              .object("sheets", "KiCad sub-sheets by file name: {\"power.kicad_sch\": \"(kicad_sch …)\"} (else read beside path)"),
+              .object("sheets", "KiCad sub-sheets by file name: {\"power.kicad_sch\": \"(kicad_sch …)\"} (else read beside path)")
+              .object("map", "Library mapping: their part name, value or footprint → a catalog / library part or a kind (resistor, capacitor, inductor, diode, led)"),
           [](McpServer& s, const Json& a) {
               const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
               ParsedNetlist nl;
@@ -3761,7 +3795,7 @@ void schematicTools(Table& t) {
               } catch (const std::exception& e) {
                   throw ToolError(std::string("Netlist not read: ") + e.what());
               }
-              return out(importNetlist(s, nl));
+              return out(importNetlist(s, nl, a.get("map")));
           });
     t.add("schematic", "schematic_set_erc_severity", "ERC severity", Kind::Edit, true,
           "Reports an ERC rule as error, warning, info or off (\"default\" restores it).",
@@ -4453,7 +4487,8 @@ void libraryTools(Table& t) {
               return out(j);
           });
     t.add("library", "library_check_part", "Check part spec", Kind::Read, true,
-          "Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks.",
+          "Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, "
+          "and its library quality score (0 – 100, with what is missing).",
           Schema().object("spec", "Part spec", true).num("minGap", "Copper gap limit for pads (mm, default 0.15)"),
           [](McpServer&, const Json& a) {
               const std::string spec = a.get("spec").dump();
@@ -4466,6 +4501,13 @@ void libraryTools(Table& t) {
               j["symbol"] = takeJson(sieda_check_symbol(spec.c_str()));
               j["landPattern"] = takeJson(sieda_check_land_pattern(lands.c_str(), argNum(a, "minGap", 0.15)));
               j["units"] = takeJson(sieda_check_units(spec.c_str()));
+              try {
+                  const PartQuality q = partQuality(customPartSpecFromJson(a.get("spec")));
+                  Json quality = obj(), missing = Json::array();
+                  for (const auto& m : q.missing) missing.push(m);
+                  quality["score"] = q.score, quality["missing"] = missing;
+                  j["quality"] = quality;
+              } catch (const std::exception&) {}  // an invalid spec: the checks above say why
               return out(j);
           });
     t.add("library", "library_import", "Import library files", Kind::Edit, false,
@@ -6621,6 +6663,43 @@ void verifyTools(Table& t) {
           [](McpServer& s, const Json& a) {
               if (a.has("waivers")) check(sieda_set_waivers(P(s), a.get("waivers").dump().c_str()) == 1, "Each waiver needs a code");
               return out(takeJson(sieda_waivers_json(P(s))));
+          });
+    t.add("verify", "verify_approvals", "Sign-off approvals", Kind::Edit, false,
+          "Approvals of this design revision (release sign-off). approve records who approved it (by, role, note) "
+          "against the design's fingerprint; any later change to the design makes it stale (current false). revoke "
+          "removes approval number index. Without action: lists them with the current revision.",
+          Schema().str("action", "approve, revoke or none (list)").str("by", "Who approves").str("role", "Their role (e.g. design, test, quality)")
+              .str("note", "Optional note").integer("index", "revoke: the approval's position (0 = first)"),
+          [](McpServer& s, const Json& a) {
+              Project& p = P(s)->project;
+              const std::string action = argStr(a, "action", "");
+              if (action == "approve") {
+                  const std::string by = argStr(a, "by", "");
+                  check(!by.empty(), "approve needs by (who approves)");
+                  const std::time_t now = std::time(nullptr);
+                  char date[11];
+                  std::strftime(date, sizeof date, "%Y-%m-%d", std::gmtime(&now));
+                  p.approvals.push_back({by, argStr(a, "role", ""), date, p.designHash(), argStr(a, "note", "")});
+              } else if (action == "revoke") {
+                  const int i = a.get("index").asInt(-1);
+                  check(i >= 0 && i < static_cast<int>(p.approvals.size()), "No approval at that index");
+                  p.approvals.erase(p.approvals.begin() + i);
+              } else {
+                  check(action.empty() || action == "none", "action is approve, revoke or none");
+              }
+              const std::string revision = p.designHash();
+              Json list = Json::array();
+              int current = 0;
+              for (const auto& x : p.approvals) {
+                  Json j = obj();
+                  j["by"] = x.by, j["role"] = x.role, j["date"] = x.date, j["revision"] = x.revision, j["note"] = x.note;
+                  j["current"] = x.revision == revision;
+                  current += x.revision == revision;
+                  list.push(j);
+              }
+              Json j = obj();
+              j["revision"] = revision, j["approvals"] = list, j["approvedNow"] = current;
+              return out(j);
           });
     t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
           "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "
