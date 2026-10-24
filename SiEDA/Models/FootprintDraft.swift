@@ -423,14 +423,22 @@ enum UserFootprintLibrary {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let saved = Saved(lands: draft.pads.map(\.land), bodyW: draft.bodyW, bodyD: draft.bodyD, courtyard: draft.courtyardMargin,
                           graphics: draft.graphics)
-        let data = try JSONEncoder().encode(saved)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys  // the same footprint always gives the same bytes
+        let data = try encoder.encode(saved)
         if let old = try? Data(contentsOf: file(name)), old != data {  // keep the version this one replaces
             let history = historyFolder(name)
             try FileManager.default.createDirectory(at: history, withIntermediateDirectories: true)
             let format = DateFormatter()
             format.dateFormat = "yyyy-MM-dd HH.mm.ss"
             let stamp = format.string(from: Date())
-            try old.write(to: history.appendingPathComponent(stamp).appendingPathExtension("json"), options: .atomic)
+            var target = history.appendingPathComponent(stamp).appendingPathExtension("json")
+            var n = 2
+            while FileManager.default.fileExists(atPath: target.path) {  // two saves in one second: "~2" sorts newer
+                target = history.appendingPathComponent("\(stamp)~\(n)").appendingPathExtension("json")
+                n += 1
+            }
+            try old.write(to: target, options: .atomic)
             for stale in versions(name).dropFirst(20) { try? FileManager.default.removeItem(at: stale) }
         }
         try data.write(to: file(name), options: .atomic)
