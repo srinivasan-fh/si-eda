@@ -608,7 +608,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_place_custom_part` | edit | Places another instance of a part already in the project library (library_project_parts lists ids). |
 | `library_updates` | edit | Project parts whose catalog part has changed since they were added (pins, package, footprint), with how many placed instances use each. |
 | `library_project_parts` | read | The custom and catalog parts in the project's library (ids, names, pin counts). |
-| `library_check_part` | read | Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks. |
+| `library_check_part` | read | Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, and its library quality score (0 – 100, with what is missing). |
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
@@ -709,7 +709,7 @@ Signal and power integrity: impedance, lengths, crosstalk, channels, PDN, memory
 | `pi_ir_drop` | read | DC IR drop of a rail on the board: worst drop against the limit, current density, hot spots. |
 | `si_memory_checks` | read | The memory (SDRAM / DDR / LPDDR / DIMM) design segments checked on the design (set the type with design_set_domain domain memory). |
 
-### verify (5)
+### verify (6)
 
 Design verification and domain (industry) checks.
 
@@ -718,6 +718,7 @@ Design verification and domain (industry) checks.
 | `verify_design` | read | Full design verification: ERC, DC operating point, validation, placement, routing, DRC, manufacturing outputs (and SI/PI when signed off). |
 | `design_segments` | read | The design segments of a domain checked on the design: robot, ecu (automotive), aerospace, naval, medical, retail, appliance or memory. |
 | `verify_waivers` | edit | Findings accepted at sign-off: each waiver names a check code (e.g. |
+| `verify_approvals` | edit | Approvals of this design revision (release sign-off). |
 | `memory_layout_limits` | edit | DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, data impedance tolerance, via spread). |
 | `design_set_domain` | edit | Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, military, commercial), naval (combatant, carrier, submarine, patrol, commercial), medical (bf, cf, life, implant, home), retail (countertop, unattended, mpos, kiosk, printer), appliance (laundry, kitchen, refrigeration, hvac, small), memory (sdram, ddr, lpddr, dimm, rdimm). |
 

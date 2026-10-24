@@ -202,6 +202,14 @@ public:
         std::string code, ref, reason;
     };
     std::vector<Waiver> waivers;
+    /// Sign-off approvals: who approved which design revision (`revision` = designHash() then); one holds while the
+    /// design still has that hash. Saved only when present.
+    struct Approval {
+        std::string by, role, date, revision, note;
+    };
+    std::vector<Approval> approvals;
+    /// Fingerprint (16 hex digits) of everything saved except the approvals and review comments.
+    std::string designHash() const;
     /// Schematic title block (empty = the title is the project name).
     TitleBlock titleBlock;
     /// Revision history, oldest first. JSON "revisions", written only when present.

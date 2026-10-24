@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU কেনভাছ ৰেণ্ডাৰিং";
 "Open in New Window" = "নতুন উইণ্ড'ত খোলক";
 "Save as Customer Template" = "গ্ৰাহক সাঁচ হিচাপে সাঁচি থওক";
+"A plug-in runs with no network access and may write only to its copy of the project." = "প্লাগ-ইন নেটৱৰ্কৰ অবিহনে চলে আৰু কেৱল প্ৰকল্পৰ নিজৰ কপিতহে লিখিব পাৰে।";
+"Approvals" = "অনুমোদন";
+"Approve This Revision" = "এই সংশোধন অনুমোদন কৰক";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "ইয়াত AI ক্লায়েণ্টে মতা প্ৰতিটো সঁজুলি: সময়, সঁজুলি, ডিজাইন সলনি কৰিলে নে, প্ৰকল্প";
+"Revoke this approval" = "এই অনুমোদন প্ৰত্যাহাৰ কৰক";
+"Role" = "ভূমিকা";
+"Sandbox plug-ins" = "প্লাগ-ইন ছেণ্ডবক্সত চলাওক";
+"Show AI Audit Log" = "AI অডিট লগ দেখুৱাওক";
+"approves this revision" = "এই সংশোধন অনুমোদন কৰে";
+"approved an earlier revision" = "আগৰ সংশোধন অনুমোদন কৰিছিল";

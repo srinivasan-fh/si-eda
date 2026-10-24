@@ -115,6 +115,13 @@ Turn it off to go back to saving by hand. Code: `SiEDA/App/LiveCollaboration.swi
   - Only that folder is used, so a project never brings scripts of its own.
 - **Code:** `SiEDA/App/ProjectHooks.swift` (`ProjectLock`, `ProjectHooks`).
 
+## Approvals
+
+**Design Review → Approvals**: **Approve This Revision** records who approved the design (name, role, date) against
+its fingerprint (16 hex digits of everything saved except approvals and review comments; MCP `verify_approvals`). Any
+later change makes the approval stale, shown with a clock, so a release is approved only while every approval is
+current. Approvals are saved in the project only when there are any.
+
 ## Design review
 
 **File → Design Review…** lists comments pinned to a part (or to a place on the board or a sheet). Open comments are

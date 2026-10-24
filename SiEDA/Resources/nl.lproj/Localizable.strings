@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU-weergave van canvas";
 "Open in New Window" = "Openen in nieuw venster";
 "Save as Customer Template" = "Bewaar als klantsjabloon";
+"A plug-in runs with no network access and may write only to its copy of the project." = "Een plug-in draait zonder netwerktoegang en mag alleen naar zijn kopie van het project schrijven.";
+"Approvals" = "Goedkeuringen";
+"Approve This Revision" = "Deze revisie goedkeuren";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Elk gereedschap dat een AI-client hier aanriep: tijd, gereedschap, of het het ontwerp wijzigde, het project";
+"Revoke this approval" = "Deze goedkeuring intrekken";
+"Role" = "Rol";
+"Sandbox plug-ins" = "Plug-ins in een sandbox";
+"Show AI Audit Log" = "AI-auditlog tonen";
+"approves this revision" = "keurt deze revisie goed";
+"approved an earlier revision" = "keurde een eerdere revisie goed";

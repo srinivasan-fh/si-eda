@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU-Darstellung der Zeichenfläche";
 "Open in New Window" = "In neuem Fenster öffnen";
 "Save as Customer Template" = "Als Kundenvorlage sichern";
+"A plug-in runs with no network access and may write only to its copy of the project." = "Ein Plug-in läuft ohne Netzwerkzugriff und darf nur in seine Kopie des Projekts schreiben.";
+"Approvals" = "Freigaben";
+"Approve This Revision" = "Diese Revision freigeben";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Jedes Werkzeug, das ein KI-Client hier aufgerufen hat: Zeit, Werkzeug, ob es das Design änderte, das Projekt";
+"Revoke this approval" = "Diese Freigabe zurückziehen";
+"Role" = "Rolle";
+"Sandbox plug-ins" = "Plug-ins in einer Sandbox ausführen";
+"Show AI Audit Log" = "KI-Prüfprotokoll anzeigen";
+"approves this revision" = "gibt diese Revision frei";
+"approved an earlier revision" = "hat eine frühere Revision freigegeben";

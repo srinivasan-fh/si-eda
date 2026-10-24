@@ -5,6 +5,7 @@
 #include <array>
 #include <regex>
 #include <cmath>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -4486,7 +4487,8 @@ void libraryTools(Table& t) {
               return out(j);
           });
     t.add("library", "library_check_part", "Check part spec", Kind::Read, true,
-          "Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks.",
+          "Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, "
+          "and its library quality score (0 – 100, with what is missing).",
           Schema().object("spec", "Part spec", true).num("minGap", "Copper gap limit for pads (mm, default 0.15)"),
           [](McpServer&, const Json& a) {
               const std::string spec = a.get("spec").dump();
@@ -4499,6 +4501,13 @@ void libraryTools(Table& t) {
               j["symbol"] = takeJson(sieda_check_symbol(spec.c_str()));
               j["landPattern"] = takeJson(sieda_check_land_pattern(lands.c_str(), argNum(a, "minGap", 0.15)));
               j["units"] = takeJson(sieda_check_units(spec.c_str()));
+              try {
+                  const PartQuality q = partQuality(customPartSpecFromJson(a.get("spec")));
+                  Json quality = obj(), missing = Json::array();
+                  for (const auto& m : q.missing) missing.push(m);
+                  quality["score"] = q.score, quality["missing"] = missing;
+                  j["quality"] = quality;
+              } catch (const std::exception&) {}  // an invalid spec: the checks above say why
               return out(j);
           });
     t.add("library", "library_import", "Import library files", Kind::Edit, false,
@@ -6654,6 +6663,43 @@ void verifyTools(Table& t) {
           [](McpServer& s, const Json& a) {
               if (a.has("waivers")) check(sieda_set_waivers(P(s), a.get("waivers").dump().c_str()) == 1, "Each waiver needs a code");
               return out(takeJson(sieda_waivers_json(P(s))));
+          });
+    t.add("verify", "verify_approvals", "Sign-off approvals", Kind::Edit, false,
+          "Approvals of this design revision (release sign-off). approve records who approved it (by, role, note) "
+          "against the design's fingerprint; any later change to the design makes it stale (current false). revoke "
+          "removes approval number index. Without action: lists them with the current revision.",
+          Schema().str("action", "approve, revoke or none (list)").str("by", "Who approves").str("role", "Their role (e.g. design, test, quality)")
+              .str("note", "Optional note").integer("index", "revoke: the approval's position (0 = first)"),
+          [](McpServer& s, const Json& a) {
+              Project& p = P(s)->project;
+              const std::string action = argStr(a, "action", "");
+              if (action == "approve") {
+                  const std::string by = argStr(a, "by", "");
+                  check(!by.empty(), "approve needs by (who approves)");
+                  const std::time_t now = std::time(nullptr);
+                  char date[11];
+                  std::strftime(date, sizeof date, "%Y-%m-%d", std::gmtime(&now));
+                  p.approvals.push_back({by, argStr(a, "role", ""), date, p.designHash(), argStr(a, "note", "")});
+              } else if (action == "revoke") {
+                  const int i = a.get("index").asInt(-1);
+                  check(i >= 0 && i < static_cast<int>(p.approvals.size()), "No approval at that index");
+                  p.approvals.erase(p.approvals.begin() + i);
+              } else {
+                  check(action.empty() || action == "none", "action is approve, revoke or none");
+              }
+              const std::string revision = p.designHash();
+              Json list = Json::array();
+              int current = 0;
+              for (const auto& x : p.approvals) {
+                  Json j = obj();
+                  j["by"] = x.by, j["role"] = x.role, j["date"] = x.date, j["revision"] = x.revision, j["note"] = x.note;
+                  j["current"] = x.revision == revision;
+                  current += x.revision == revision;
+                  list.push(j);
+              }
+              Json j = obj();
+              j["revision"] = revision, j["approvals"] = list, j["approvedNow"] = current;
+              return out(j);
           });
     t.add("verify", "memory_layout_limits", "DDR layout limits", Kind::Edit, true,
           "DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, "

@@ -90,6 +90,23 @@ enum ProjectPlugins {
             .appendingPathComponent("SiEDA/Plugins", isDirectory: true)
     }
 
+    /// Settings → Sandbox plug-ins (on unless turned off): a plug-in runs under `sandbox-exec` with no network and
+    /// may write only in its project copy's folder.
+    static let sandboxKey = "plugins.sandbox"
+    static var sandboxed: Bool { UserDefaults.standard.object(forKey: sandboxKey) as? Bool ?? true }
+
+    /// The sandbox profile: everything a script needs to run, but no network and no writes outside `writable`.
+    static func sandboxProfile(writable: URL) -> String {
+        let path = writable.standardizedFileURL.path.replacingOccurrences(of: "\"", with: "")
+        return """
+        (version 1)
+        (allow default)
+        (deny network*)
+        (deny file-write*)
+        (allow file-write* (subpath "\(path)") (subpath "/private\(path)") (literal "/dev/null") (literal "/dev/tty"))
+        """
+    }
+
     static func list(in folder: URL = folder) -> [URL] {
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
         return files.filter { !$0.hasDirectoryPath && FileManager.default.isExecutableFile(atPath: $0.path) }
@@ -97,7 +114,7 @@ enum ProjectPlugins {
     }
 
     /// Runs `plugin` on `json` (the project's text): what it printed (first 64 KB) and the project if it changed it.
-    static func run(_ plugin: URL, json: String) async -> (output: String, json: String?) {
+    static func run(_ plugin: URL, json: String, sandboxed: Bool = sandboxed) async -> (output: String, json: String?) {
         await Task.detached { () -> (String, String?) in
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-plugin-\(UUID().uuidString)", isDirectory: true)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -105,7 +122,12 @@ enum ProjectPlugins {
             let file = dir.appendingPathComponent("project.siedaproj")
             guard (try? json.write(to: file, atomically: true, encoding: .utf8)) != nil else { return ("Could not write the project copy.", nil) }
             let process = Process()
-            process.executableURL = plugin
+            if sandboxed {
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
+                process.arguments = ["-p", sandboxProfile(writable: dir), plugin.path]
+            } else {
+                process.executableURL = plugin
+            }
             process.currentDirectoryURL = dir
             var env = ProcessInfo.processInfo.environment
             env["SIEDA_PROJECT"] = file.path

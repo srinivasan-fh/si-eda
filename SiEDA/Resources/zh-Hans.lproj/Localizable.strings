@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU 画布渲染";
 "Open in New Window" = "在新窗口中打开";
 "Save as Customer Template" = "存储为客户模板";
+"A plug-in runs with no network access and may write only to its copy of the project." = "插件在无网络访问下运行，只能写入其项目副本。";
+"Approvals" = "批准";
+"Approve This Revision" = "批准此修订";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "AI 客户端在此调用的每个工具：时间、工具、是否更改设计、项目";
+"Revoke this approval" = "撤销此批准";
+"Role" = "角色";
+"Sandbox plug-ins" = "沙盒运行插件";
+"Show AI Audit Log" = "显示 AI 审计日志";
+"approves this revision" = "批准此修订";
+"approved an earlier revision" = "批准了较早的修订";

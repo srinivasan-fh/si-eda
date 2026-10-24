@@ -90,7 +90,11 @@
   in SiEDAApp.swift (Window → Open in New Window, same store). Read-only browser viewer: `mcp::viewerHtml`
   (McpRender.cpp, export "viewer"). Customer templates: `TitleBlockEditor` (user defaults "titleBlock.customers").
   Netlist import `map` / `fidelity` in `importNetlist` (McpTools.cpp). GPU canvas: `gpuRendered` (EditorChrome.swift,
-  user defaults "canvas.gpu", off = today's drawing).
+  user defaults "canvas.gpu", off = today's drawing). Approvals `Project::approvals` + `designHash()` (FNV-1a of
+  the saved JSON without approvals / review; saved only when present), MCP `verify_approvals`, app `ApprovalsSection`
+  (TeamViews.swift). Library quality `partQuality` (CustomParts.cpp). Plug-ins run under `sandbox-exec`
+  (`ProjectPlugins.sandboxProfile`, setting "plugins.sandbox", on by default). AI audit log `AIAudit`
+  (DesignStore+MCP.swift, ai-audit.log). Batch conversion `sieda-cli --convert` (CTest `sieda_cli_convert`).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`

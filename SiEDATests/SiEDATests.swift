@@ -6699,6 +6699,17 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.Land.self, from: JSONEncoder().encode(land)).options.solder, 2.2)
     }
 
+    func testAIAuditLogAppendsOneLinePerCall() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("audit-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: file) }
+        AIAudit.append(tool: "pcb_autoroute", changed: true, project: "board.siedaproj", to: file)
+        AIAudit.append(tool: "pcb_drc", changed: false, project: "board.siedaproj", to: file)
+        let lines = try String(contentsOf: file, encoding: .utf8).split(separator: "\n")
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertTrue(lines[0].hasSuffix("\tpcb_autoroute\tchanged\tboard.siedaproj"), String(lines[0]))
+        XCTAssertTrue(lines[1].contains("\tpcb_drc\tread\t"))
+    }
+
     func testUpdateVersionsCompareNumerically() {
         XCTAssertTrue(UpdateChecker.isNewer("v1.10", than: "1.9"))
         XCTAssertTrue(UpdateChecker.isNewer("1.2.0", than: "1.2.0-beta"))
@@ -6906,6 +6917,17 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.alert?.message.hasPrefix("checked") ?? false)
         store.undo()
         XCTAssertEqual(store.snapshot.components.count, before)
+        // Sandboxed (the default), a plug-in cannot write outside its project copy's folder.
+        let escape = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-escape-\(UUID().uuidString)")
+        let writer = dir.appendingPathComponent("writer")
+        try "#!/bin/sh\necho x > \"\(escape.path)\"\necho tried\n".write(to: writer, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: writer.path)
+        let sandboxed = await ProjectPlugins.run(writer, json: "{}", sandboxed: true)
+        XCTAssertTrue(sandboxed.output.contains("tried"), sandboxed.output)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: escape.path))
+        _ = await ProjectPlugins.run(writer, json: "{}", sandboxed: false)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: escape.path))
+        try? FileManager.default.removeItem(at: escape)
         // Custom rules: a rule that cannot be read is reported; not-an-array text changes nothing.
         store.setCustomRules(#"[{"name": "w", "object": "track", "when": "", "require": "width >= 0.1mm", "severity": "warning"},"#
             + #"{"name": "x", "object": "via", "when": "", "require": "colour == 1", "severity": "error"}]"#)

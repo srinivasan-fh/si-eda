@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU ക്യാൻവാസ് റെൻഡറിംഗ്";
 "Open in New Window" = "പുതിയ വിൻഡോയിൽ തുറക്കുക";
 "Save as Customer Template" = "ഉപഭോക്തൃ ടെംപ്ലേറ്റായി സേവ് ചെയ്യുക";
+"A plug-in runs with no network access and may write only to its copy of the project." = "പ്ലഗ്-ഇൻ നെറ്റ്‌വർക്ക് ഇല്ലാതെ പ്രവർത്തിക്കുന്നു, പ്രോജക്ടിന്റെ സ്വന്തം പകർപ്പിലേക്ക് മാത്രം എഴുതാം.";
+"Approvals" = "അംഗീകാരങ്ങൾ";
+"Approve This Revision" = "ഈ പുനരവലോകനം അംഗീകരിക്കുക";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "ഇവിടെ ഒരു AI ക്ലയന്റ് വിളിച്ച ഓരോ ടൂളും: സമയം, ടൂൾ, ഡിസൈൻ മാറ്റിയോ, പ്രോജക്ട്";
+"Revoke this approval" = "ഈ അംഗീകാരം പിൻവലിക്കുക";
+"Role" = "പങ്ക്";
+"Sandbox plug-ins" = "പ്ലഗ്-ഇന്നുകൾ സാൻഡ്ബോക്സിൽ";
+"Show AI Audit Log" = "AI ഓഡിറ്റ് ലോഗ് കാണിക്കുക";
+"approves this revision" = "ഈ പുനരവലോകനം അംഗീകരിക്കുന്നു";
+"approved an earlier revision" = "മുമ്പത്തെ പുനരവലോകനം അംഗീകരിച്ചു";

@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU canvas rendering";
 "Open in New Window" = "Open in New Window";
 "Save as Customer Template" = "Save as Customer Template";
+"A plug-in runs with no network access and may write only to its copy of the project." = "A plug-in runs with no network access and may write only to its copy of the project.";
+"Approvals" = "Approvals";
+"Approve This Revision" = "Approve This Revision";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Every tool an AI client called here: time, tool, whether it changed the design, the project";
+"Revoke this approval" = "Revoke this approval";
+"Role" = "Role";
+"Sandbox plug-ins" = "Sandbox plug-ins";
+"Show AI Audit Log" = "Show AI Audit Log";
+"approves this revision" = "approves this revision";
+"approved an earlier revision" = "approved an earlier revision";

@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU ಕ್ಯಾನ್ವಾಸ್ ರೆಂಡರಿಂಗ್";
 "Open in New Window" = "ಹೊಸ ವಿಂಡೋದಲ್ಲಿ ತೆರೆಯಿರಿ";
 "Save as Customer Template" = "ಗ್ರಾಹಕ ಟೆಂಪ್ಲೇಟ್ ಆಗಿ ಉಳಿಸಿ";
+"A plug-in runs with no network access and may write only to its copy of the project." = "ಪ್ಲಗ್-ಇನ್ ನೆಟ್‌ವರ್ಕ್ ಇಲ್ಲದೆ ಚಲಿಸುತ್ತದೆ ಮತ್ತು ಯೋಜನೆಯ ತನ್ನ ಪ್ರತಿಯಲ್ಲಿ ಮಾತ್ರ ಬರೆಯಬಹುದು.";
+"Approvals" = "ಅನುಮೋದನೆಗಳು";
+"Approve This Revision" = "ಈ ಪರಿಷ್ಕರಣೆಯನ್ನು ಅನುಮೋದಿಸಿ";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "ಇಲ್ಲಿ AI ಕ್ಲೈಂಟ್ ಕರೆದ ಪ್ರತಿಯೊಂದು ಸಾಧನ: ಸಮಯ, ಸಾಧನ, ವಿನ್ಯಾಸ ಬದಲಾಯಿಸಿತೇ, ಯೋಜನೆ";
+"Revoke this approval" = "ಈ ಅನುಮೋದನೆಯನ್ನು ಹಿಂಪಡೆಯಿರಿ";
+"Role" = "ಪಾತ್ರ";
+"Sandbox plug-ins" = "ಪ್ಲಗ್-ಇನ್‌ಗಳನ್ನು ಸ್ಯಾಂಡ್‌ಬಾಕ್ಸ್‌ನಲ್ಲಿ ಚಲಾಯಿಸಿ";
+"Show AI Audit Log" = "AI ಆಡಿಟ್ ಲಾಗ್ ತೋರಿಸಿ";
+"approves this revision" = "ಈ ಪರಿಷ್ಕರಣೆಯನ್ನು ಅನುಮೋದಿಸುತ್ತದೆ";
+"approved an earlier revision" = "ಹಿಂದಿನ ಪರಿಷ್ಕರಣೆಯನ್ನು ಅನುಮೋದಿಸಿತು";

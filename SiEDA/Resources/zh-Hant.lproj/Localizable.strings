@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU 畫布繪製";
 "Open in New Window" = "在新視窗中打開";
 "Save as Customer Template" = "儲存為客戶範本";
+"A plug-in runs with no network access and may write only to its copy of the project." = "外掛在無網路存取下執行，只能寫入其專案副本。";
+"Approvals" = "核准";
+"Approve This Revision" = "核准此修訂";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "AI 用戶端在此呼叫的每個工具：時間、工具、是否變更設計、專案";
+"Revoke this approval" = "撤銷此核准";
+"Role" = "角色";
+"Sandbox plug-ins" = "沙盒執行外掛";
+"Show AI Audit Log" = "顯示 AI 稽核記錄";
+"approves this revision" = "核准此修訂";
+"approved an earlier revision" = "核准了較早的修訂";

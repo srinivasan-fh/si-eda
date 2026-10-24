@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU कॅनव्हास रेंडरिंग";
 "Open in New Window" = "नवीन विंडोमध्ये उघडा";
 "Save as Customer Template" = "ग्राहक साचा म्हणून जतन करा";
+"A plug-in runs with no network access and may write only to its copy of the project." = "प्लग-इन नेटवर्कशिवाय चालते आणि फक्त प्रकल्पाच्या स्वतःच्या प्रतीमध्ये लिहू शकते.";
+"Approvals" = "मंजुरी";
+"Approve This Revision" = "ही आवृत्ती मंजूर करा";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "येथे AI क्लायंटने बोलावलेले प्रत्येक साधन: वेळ, साधन, डिझाइन बदलले का, प्रकल्प";
+"Revoke this approval" = "ही मंजुरी मागे घ्या";
+"Role" = "भूमिका";
+"Sandbox plug-ins" = "प्लग-इन सँडबॉक्समध्ये चालवा";
+"Show AI Audit Log" = "AI ऑडिट लॉग दाखवा";
+"approves this revision" = "ही आवृत्ती मंजूर करते";
+"approved an earlier revision" = "आधीची आवृत्ती मंजूर केली";

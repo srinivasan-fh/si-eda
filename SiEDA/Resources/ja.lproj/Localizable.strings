@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU キャンバス描画";
 "Open in New Window" = "新しいウインドウで開く";
 "Save as Customer Template" = "顧客テンプレートとして保存";
+"A plug-in runs with no network access and may write only to its copy of the project." = "プラグインはネットワークなしで動作し、プロジェクトのコピーにだけ書き込めます。";
+"Approvals" = "承認";
+"Approve This Revision" = "このリビジョンを承認";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "AI クライアントがここで呼んだすべてのツール：時刻、ツール、設計を変えたか、プロジェクト";
+"Revoke this approval" = "この承認を取り消す";
+"Role" = "役割";
+"Sandbox plug-ins" = "プラグインをサンドボックスで実行";
+"Show AI Audit Log" = "AI 監査ログを表示";
+"approves this revision" = "このリビジョンを承認";
+"approved an earlier revision" = "以前のリビジョンを承認";

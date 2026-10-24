@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "Pemaparan kanvas GPU";
 "Open in New Window" = "Buka dalam Tetingkap Baharu";
 "Save as Customer Template" = "Simpan sebagai Templat Pelanggan";
+"A plug-in runs with no network access and may write only to its copy of the project." = "Pemalam berjalan tanpa akses rangkaian dan hanya boleh menulis ke salinan projeknya.";
+"Approvals" = "Kelulusan";
+"Approve This Revision" = "Luluskan Semakan Ini";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Setiap alat yang dipanggil klien AI di sini: masa, alat, sama ada ia mengubah reka bentuk, projek";
+"Revoke this approval" = "Batalkan kelulusan ini";
+"Role" = "Peranan";
+"Sandbox plug-ins" = "Kotak pasir pemalam";
+"Show AI Audit Log" = "Tunjukkan Log Audit AI";
+"approves this revision" = "meluluskan semakan ini";
+"approved an earlier revision" = "meluluskan semakan terdahulu";

@@ -25210,3 +25210,45 @@ TEST(netlist_import_maps_library_parts_and_reports_fidelity) {
         CHECK(m.project()->project.schematic.findByRef("X1") != nullptr);
     }
 }
+
+TEST(approvals_hold_for_the_approved_revision_only) {
+    mcp::McpServer m;
+    CHECK(!mcpFailed(mcpTool(m, "project_new", Json::object())));
+    Project& p = m.project()->project;
+    p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    Json a = Json::object();
+    a["action"] = "approve", a["by"] = "Asha", a["role"] = "design";
+    Json r = mcpData(mcpTool(m, "verify_approvals", a));
+    CHECK(r.get("approvedNow").asInt(-1) == 1 && r.get("approvals")[0].get("current").asBool());
+    const std::string approved = r.get("revision").asString();
+    CHECK(p.designHash() == approved);  // the approval itself is not part of the design
+    // It survives a save / load, then any design change makes it stale.
+    Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(back.approvals.size() == 1 && back.approvals[0].by == "Asha" && back.designHash() == approved);
+    p.schematic.addComponent(ComponentKind::Capacitor, "100n", {10, 0});
+    r = mcpData(mcpTool(m, "verify_approvals", Json::object()));
+    CHECK(r.get("approvedNow").asInt(-1) == 0 && !r.get("approvals")[0].get("current").asBool(true));
+    Json revoke = Json::object();
+    revoke["action"] = "revoke", revoke["index"] = 0;
+    CHECK(mcpData(mcpTool(m, "verify_approvals", revoke)).get("approvals").size() == 0);
+    Json bad = Json::object();
+    bad["action"] = "approve";
+    CHECK(mcpFailed(mcpTool(m, "verify_approvals", bad)));  // who approves is required
+}
+
+TEST(library_quality_score_names_what_is_missing) {
+    const StandardPart* sp = findStandardPart("NE555");
+    CHECK(sp != nullptr);
+    if (!sp) return;
+    CustomPartSpec spec = sp->spec;
+    spec.datasheet = spec.manufacturer = spec.description = "";
+    spec.model3d = {};
+    const PartQuality bare = partQuality(spec);
+    CHECK(bare.score == 70 && bare.missing.size() == 3);  // clean symbol and pads, typed pins; no metadata, no model
+    spec.datasheet = "ne555.pdf", spec.manufacturer = "TI", spec.description = "Timer";
+    spec.model3d.id = "model";
+    const PartQuality full = partQuality(spec);
+    CHECK(full.score == 100 && full.missing.empty());
+    for (auto& pin : spec.pins) pin.type = PinType::Passive;
+    CHECK(partQuality(spec).score == 90);
+}

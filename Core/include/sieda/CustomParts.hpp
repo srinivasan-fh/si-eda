@@ -274,6 +274,14 @@ std::vector<SymbolIssue> checkSymbol(const CustomPartSpec& spec);
 /// signal pins shared by several units, swap groups whose gates differ, pin-swap groups across pin types
 /// (warnings); the power unit the part will get (info). Codes "UNIT_*"; `pins` are pin numbers.
 std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec);
+/// Library quality score of a part, 0 – 100: clean symbol (25) and land pattern (25 for no errors, 10 more for no
+/// warnings), a datasheet (10), manufacturer and description (10), pin types beyond passive (10), a 3D model (10).
+/// `missing` names what took points off.
+struct PartQuality {
+    int score = 0;
+    std::vector<std::string> missing;
+};
+PartQuality partQuality(const CustomPartSpec& spec);
 /// True when two units of a part may be swapped (gate swap): see UnitSpec::swapGroup.
 bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b);
 

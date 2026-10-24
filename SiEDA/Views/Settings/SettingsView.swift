@@ -294,6 +294,7 @@ private struct AppearanceSettings: View {
     @AppStorage(BeginnerMode.key) private var beginner = false
     @AppStorage(UpdateChecker.autoKey) private var checkUpdates = false
     @AppStorage("canvas.gpu") private var gpuCanvas = false
+    @AppStorage(ProjectPlugins.sandboxKey) private var sandboxPlugins = true
     @AppStorage(Theme.layerPaletteKey) private var layerPalette = ""
     @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"
     @State private var customisingSchematic = false
@@ -339,6 +340,10 @@ private struct AppearanceSettings: View {
                 .help("Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set")
             Toggle("Beginner mode", isOn: $beginner)
             Text("A bar over the workspace names the next step of the board (parts, board, routing, checks and order) with a button for it; the Library workspace is hidden.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+            Toggle("Sandbox plug-ins", isOn: $sandboxPlugins)
+            Text("A plug-in runs with no network access and may write only to its copy of the project.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             Toggle("GPU canvas rendering", isOn: $gpuCanvas)

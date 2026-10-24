@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU கேன்வாஸ் வரைதல்";
 "Open in New Window" = "புதிய சாளரத்தில் திற";
 "Save as Customer Template" = "வாடிக்கையாளர் வார்ப்புருவாகச் சேமி";
+"A plug-in runs with no network access and may write only to its copy of the project." = "செருகுநிரல் நெட்வொர்க் இல்லாமல் இயங்கும், திட்டத்தின் தன் நகலில் மட்டுமே எழுத முடியும்.";
+"Approvals" = "ஒப்புதல்கள்";
+"Approve This Revision" = "இந்தத் திருத்தத்தை அங்கீகரி";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "இங்கே AI கிளையன்ட் அழைத்த ஒவ்வொரு கருவியும்: நேரம், கருவி, வடிவமைப்பை மாற்றியதா, திட்டம்";
+"Revoke this approval" = "இந்த ஒப்புதலைத் திரும்பப் பெறு";
+"Role" = "பங்கு";
+"Sandbox plug-ins" = "செருகுநிரல்களைச் சாண்ட்பாக்ஸில் இயக்கு";
+"Show AI Audit Log" = "AI தணிக்கைப் பதிவைக் காட்டு";
+"approves this revision" = "இந்தத் திருத்தத்தை அங்கீகரிக்கிறது";
+"approved an earlier revision" = "முந்தைய திருத்தத்தை அங்கீகரித்தது";

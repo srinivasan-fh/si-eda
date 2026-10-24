@@ -1,4 +1,6 @@
 #include "sieda/Project.hpp"
+#include <cstdint>
+#include <cstdio>
 #include "sieda/CustomRules.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Panel.hpp"
@@ -764,6 +766,16 @@ Json Project::toJson(bool meshes) const {
         }
         root["waivers"] = w;
     }
+    if (!approvals.empty()) {
+        Json list = Json::array();
+        for (const auto& x : approvals) {
+            Json j = Json::object();
+            j["by"] = x.by, j["role"] = x.role, j["date"] = x.date, j["revision"] = x.revision;
+            if (!x.note.empty()) j["note"] = x.note;
+            list.push(j);
+        }
+        root["approvals"] = list;
+    }
     if (!titleBlock.empty()) {
         Json tb = Json::object();
         tb["title"] = titleBlock.title;
@@ -1229,6 +1241,10 @@ Project Project::fromJson(const Json& root) {
     for (const auto& w : root.get("waivers").items())
         if (w.get("code").isString() && !w.get("code").asString().empty() && p.waivers.size() < 1000)
             p.waivers.push_back({w.get("code").asString(), w.get("ref").asString(""), w.get("reason").asString("")});
+    for (const auto& a : root.get("approvals").items())
+        if (a.get("by").isString() && p.approvals.size() < 1000)
+            p.approvals.push_back({a.get("by").asString(), a.get("role").asString(""), a.get("date").asString(""),
+                                   a.get("revision").asString(""), a.get("note").asString("")});
     {
         const Json& tb = root.get("titleBlock");
         auto field = [&](const char* key) {
@@ -1962,4 +1978,16 @@ bool Project::removeBoard(int index) {
     schematicChanged();
     return true;
 }
+std::string Project::designHash() const {
+    const Json all = toJson(false);
+    Json design = Json::object();
+    for (const auto& [key, value] : all.fields())
+        if (key != "approvals" && key != "review") design[key] = value;
+    uint64_t h = 1469598103934665603ull;  // FNV-1a
+    for (const unsigned char ch : design.dump()) h = (h ^ ch) * 1099511628211ull;
+    char text[17];
+    std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+    return text;
+}
+
 }  // namespace sieda

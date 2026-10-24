@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "Kết xuất khung vẽ bằng GPU";
 "Open in New Window" = "Mở trong cửa sổ mới";
 "Save as Customer Template" = "Lưu làm mẫu khách hàng";
+"A plug-in runs with no network access and may write only to its copy of the project." = "Trình cắm chạy không có mạng và chỉ được ghi vào bản sao dự án của nó.";
+"Approvals" = "Phê duyệt";
+"Approve This Revision" = "Phê duyệt bản sửa đổi này";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Mọi công cụ một máy khách AI đã gọi tại đây: thời gian, công cụ, có đổi thiết kế không, dự án";
+"Revoke this approval" = "Thu hồi phê duyệt này";
+"Role" = "Vai trò";
+"Sandbox plug-ins" = "Chạy trình cắm trong hộp cát";
+"Show AI Audit Log" = "Hiện nhật ký kiểm tra AI";
+"approves this revision" = "phê duyệt bản sửa đổi này";
+"approved an earlier revision" = "đã phê duyệt bản sửa đổi trước";

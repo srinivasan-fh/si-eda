@@ -1832,3 +1832,13 @@
 "GPU canvas rendering" = "GPU rendering ng canvas";
 "Open in New Window" = "Buksan sa Bagong Window";
 "Save as Customer Template" = "I-save bilang Template ng Customer";
+"A plug-in runs with no network access and may write only to its copy of the project." = "Tumatakbo ang plug-in nang walang network at sa sarili nitong kopya lang ng proyekto makakasulat.";
+"Approvals" = "Mga pag-apruba";
+"Approve This Revision" = "Aprubahan ang Rebisyong Ito";
+"Every tool an AI client called here: time, tool, whether it changed the design, the project" = "Bawat tool na tinawag ng AI client dito: oras, tool, kung binago nito ang disenyo, ang proyekto";
+"Revoke this approval" = "Bawiin ang pag-aprubang ito";
+"Role" = "Tungkulin";
+"Sandbox plug-ins" = "I-sandbox ang mga plug-in";
+"Show AI Audit Log" = "Ipakita ang AI Audit Log";
+"approves this revision" = "inaaprubahan ang rebisyong ito";
+"approved an earlier revision" = "nag-apruba ng naunang rebisyon";

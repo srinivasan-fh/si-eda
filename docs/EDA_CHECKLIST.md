@@ -74,7 +74,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Bus rip / entries, `DATA[0..7]` | ✅ | `Buses.cpp` |
 | P1 | ➕ Sheet instancing with per-instance designators | ✅ | `Instances.cpp` |
 | P2 | Draft schematic from a written spec, functional grouping, review rules, NL editing, reference architectures | ✅ | AI plans, `designReview`, MCP |
-| P3 | Approved blocks, review / approval workflow, requirements traceability | 🟡 | review comments ✅; approvals and traceability ⏳ |
+| P3 | Approved blocks, review / approval workflow, requirements traceability | 🟡 | review comments, approvals per design revision (Design Review → Approvals, MCP `verify_approvals`) ✅; approved blocks and traceability ⏳ |
 
 ## 3. Component, symbol and footprint libraries
 
@@ -99,7 +99,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Parametric search across the library | ✅ | |
 | P1 | ➕ Shared 3D model library | ✅ | `Model3DRegistry` per project; the shared library folder's 3D Models |
 | P2 | AI datasheet extraction, footprint-vs-datasheet comparison | 🟡 | pin tables from datasheets ✅; dimension comparison ⏳ |
-| P2 | Library quality score, bulk edit, supplier-neutral catalog | 🟡 | catalog ✅; quality score ⏳ |
+| P2 | Library quality score, bulk edit, supplier-neutral catalog | 🟡 | catalog, quality score 0 – 100 (`partQuality`, MCP `library_check_part` `quality`) ✅; bulk edit ⏳ |
 | P2 | ➕ Least / Nominal / Most density variants | ✅ | IPC calculator density |
 | P3 | Company library, librarian roles, approved alternates, releases | ⏳ | |
 
@@ -157,7 +157,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
 | P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
 | P2 | SI / return path / PI / thermal / assembly checks, rule scripting | ✅ | rule scripting: custom DRC rules (Board Setup → Custom Rules, MCP `pcb_custom_rules`) |
-| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report ✅; approvals ⏳ |
+| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report, waivers, approvals tied to the design fingerprint ✅; org rule packs ⏳ |
 
 ## 7. Simulation and analysis
 
@@ -259,7 +259,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Every extracted value cites its source and confidence | ✅ | each datasheet pin carries its page and a 0 – 1 confidence; the import notes list the pins below 70 % |
 | P1 | Explain violations, suggested fixes, datasheet drafts, alternates, NL edits, review lists, change summaries | ✅ | |
 | P2 | Draft schematics, placement, routing hints, protection, BOM optimisation, review, agent interface | ✅ | MCP |
-| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model ✅ |
+| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model, AI audit log of every live-endpoint tool call ✅; org policies, knowledge bases ⏳ |
 | — | Safety: no silent net changes, diffs, re-run checks, fail safe offline | ✅ | `schematic_connect` refuses merges without `merge` |
 
 ## 15. Collaboration, versioning, review
@@ -271,8 +271,8 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Named revisions, visual diff, comments, review summaries | ✅ | |
 | P1 | Browser read-only viewer, cloud sync, share links | 🟡 | read-only viewer: export "viewer" (one offline HTML file, every sheet and the board, pan / zoom) ✅; cloud sync and share links ⏳ (a synced folder with Live Collaboration works) |
 | P1 | ➕ File locking / check-out | ✅ | `<file>.lock` beside an open project: who has it open, where, since when (Live Collaboration does not lock) |
-| P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | 🟡 | three-way merge and co-editing ✅ |
-| P3 | Permissions, sign-off, audit, identity | ⏳ | |
+| P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | ✅ | approvals, in-app Git branches, three-way merge, shared library folder, co-editing |
+| P3 | Permissions, sign-off, audit, identity | 🟡 | sign-off (approvals), AI audit log ✅; permissions and identity ⏳ (need a server) |
 
 ## 16. Usability and learning
 
@@ -302,7 +302,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
 | P1 | ➕ Gerber / ODB++ import as a reference layer | ✅ | Gerber, drill and ODB++ layer features files (saved with the project) |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
-| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ⏳ | |
+| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | 🟡 | batch conversion `sieda-cli --convert` (KiCad, Eagle, LTspice, Protel / PADS / OrCAD netlists, KiCad boards) ✅; PADS / OrCAD board routes, HyperLynx ⏳ |
 | P3 | Enterprise migration, PLM / ERP, archival | ⏳ | |
 
 ## 18. Scripting, automation, extensibility
@@ -315,7 +315,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | CLI ERC / DRC, automated outputs | ✅ | |
 | P1 | CI templates (GitHub Actions / GitLab) | ✅ | `docs/ci/sieda-check.yml` (GitHub Actions), `docs/ci/sieda-check.gitlab-ci.yml` (GitLab) |
 | P1 | ➕ Event hooks | ✅ | after-open / save / verify / export scripts in Application Support/SiEDA/Hooks |
-| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | 🟡 | MCP agent interface, plug-ins (Design → Plug-ins), custom rules ✅; sandboxing ⏳ |
+| P2 | Plug-ins, custom rules / reports, agent interface, webhooks, sandboxing | ✅ | MCP agent interface, plug-ins (Design → Plug-ins), custom rules, plug-in sandbox (no network, writes only to the project copy) ✅ |
 | P3 | REST, PLM / ERP, plug-in governance | ⏳ | |
 
 ## 19. Enterprise, security, compliance
