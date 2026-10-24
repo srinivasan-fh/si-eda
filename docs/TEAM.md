@@ -122,6 +122,21 @@ its fingerprint (16 hex digits of everything saved except approvals and review c
 later change makes the approval stale, shown with a clock, so a release is approved only while every approval is
 current. Approvals are saved in the project only when there are any.
 
+## Controlled release
+
+MCP `output_release` (`dir`, `revision`, optional `previous`) writes a release folder: the fabrication package, the
+project as released, the verification report, `evidence.json` (design fingerprint, verdict, approvals of this revision,
+requirements trace, waivers, bench measurements), a change notice against the previous revision and
+`MANIFEST.sha256` (check it with `shasum -a 256 -c MANIFEST.sha256`). `ready` is true when the verification did not
+fail, at least one approval is current and no requirement is missing its parts.
+
+- **Requirements** (`verify_requirements`): each requirement names the parts that meet it; the trace says which are
+  traced, which name a part that is gone, and which parts no requirement names.
+- **Bench measurements** (`verify_measurements`): values measured on built boards with min / max limits, stamped with
+  the design revision they were taken on.
+- **Approved blocks** (`schematic_block`): save parts and their wiring as a block file signed off by an approver;
+  placing it again says whether it is still the approved block (a hand-edited file is not).
+
 ## Design review
 
 **File → Design Review…** lists comments pinned to a part (or to a place on the board or a sheet). Open comments are

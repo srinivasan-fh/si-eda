@@ -208,6 +208,20 @@ public:
         std::string by, role, date, revision, note;
     };
     std::vector<Approval> approvals;
+    /// Requirements traceability: each requirement (id, text) names the parts that meet it. Saved only when present.
+    struct RequirementItem {
+        std::string id, text;
+        std::vector<std::string> refs;
+    };
+    std::vector<RequirementItem> requirementItems;
+    /// Bench measurements on built boards (what was measured, value, unit, optional min / max, note) with the design
+    /// fingerprint they were taken on. Saved only when present.
+    struct Measurement {
+        std::string what, unit, note, revision, date;
+        double value = 0, min = 0, max = 0;
+        bool hasMin = false, hasMax = false;
+    };
+    std::vector<Measurement> measurements;
     /// Fingerprint (16 hex digits) of everything saved except the approvals and review comments.
     std::string designHash() const;
     /// Schematic title block (empty = the title is the project name).

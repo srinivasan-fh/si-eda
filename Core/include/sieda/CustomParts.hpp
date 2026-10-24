@@ -277,6 +277,15 @@ std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec);
 /// Library quality score of a part, 0 – 100: clean symbol (25) and land pattern (25 for no errors, 10 more for no
 /// warnings), a datasheet (10), manufacturer and description (10), pin types beyond passive (10), a 3D model (10).
 /// `missing` names what took points off.
+/// What a footprint measures, to hold against the datasheet's recommended land pattern: pads with a pin, the smallest
+/// pad-to-pad pitch, the first pad's width (short side) and length (long side), and the span (outer pad edge to outer
+/// pad edge across x). mm.
+struct FootprintDims {
+    int pads = 0;
+    double pitch = 0, padWidth = 0, padLength = 0, span = 0;
+};
+FootprintDims measureFootprint(const CustomPartSpec& spec);
+
 struct PartQuality {
     int score = 0;
     std::vector<std::string> missing;

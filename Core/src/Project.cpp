@@ -776,6 +776,28 @@ Json Project::toJson(bool meshes) const {
         }
         root["approvals"] = list;
     }
+    if (!requirementItems.empty()) {
+        Json list = Json::array();
+        for (const auto& r : requirementItems) {
+            Json j = Json::object(), refs = Json::array();
+            for (const auto& ref : r.refs) refs.push(ref);
+            j["id"] = r.id, j["text"] = r.text, j["refs"] = refs;
+            list.push(j);
+        }
+        root["requirementItems"] = list;
+    }
+    if (!measurements.empty()) {
+        Json list = Json::array();
+        for (const auto& x : measurements) {
+            Json j = Json::object();
+            j["what"] = x.what, j["value"] = x.value, j["unit"] = x.unit, j["revision"] = x.revision, j["date"] = x.date;
+            if (x.hasMin) j["min"] = x.min;
+            if (x.hasMax) j["max"] = x.max;
+            if (!x.note.empty()) j["note"] = x.note;
+            list.push(j);
+        }
+        root["measurements"] = list;
+    }
     if (!titleBlock.empty()) {
         Json tb = Json::object();
         tb["title"] = titleBlock.title;
@@ -1241,6 +1263,22 @@ Project Project::fromJson(const Json& root) {
     for (const auto& w : root.get("waivers").items())
         if (w.get("code").isString() && !w.get("code").asString().empty() && p.waivers.size() < 1000)
             p.waivers.push_back({w.get("code").asString(), w.get("ref").asString(""), w.get("reason").asString("")});
+    for (const auto& x : root.get("measurements").items()) {
+        if (!x.get("what").isString() || p.measurements.size() >= 10000) continue;
+        Project::Measurement m;
+        m.what = x.get("what").asString(), m.value = x.get("value").asNumber(0), m.unit = x.get("unit").asString("");
+        m.note = x.get("note").asString(""), m.revision = x.get("revision").asString(""), m.date = x.get("date").asString("");
+        m.hasMin = x.get("min").isNumber(), m.min = x.get("min").asNumber(0);
+        m.hasMax = x.get("max").isNumber(), m.max = x.get("max").asNumber(0);
+        p.measurements.push_back(m);
+    }
+    for (const auto& r : root.get("requirementItems").items()) {
+        if (!r.get("id").isString() || p.requirementItems.size() >= 10000) continue;
+        Project::RequirementItem item{r.get("id").asString(), r.get("text").asString(""), {}};
+        for (const auto& ref : r.get("refs").items())
+            if (ref.isString()) item.refs.push_back(ref.asString());
+        p.requirementItems.push_back(item);
+    }
     for (const auto& a : root.get("approvals").items())
         if (a.get("by").isString() && p.approvals.size() < 1000)
             p.approvals.push_back({a.get("by").asString(), a.get("role").asString(""), a.get("date").asString(""),
@@ -1982,7 +2020,7 @@ std::string Project::designHash() const {
     const Json all = toJson(false);
     Json design = Json::object();
     for (const auto& [key, value] : all.fields())
-        if (key != "approvals" && key != "review") design[key] = value;
+        if (key != "approvals" && key != "review" && key != "measurements") design[key] = value;
     uint64_t h = 1469598103934665603ull;  // FNV-1a
     for (const unsigned char ch : design.dump()) h = (h ^ ch) * 1099511628211ull;
     char text[17];

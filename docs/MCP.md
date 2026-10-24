@@ -550,7 +550,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
-### schematic (37)
+### schematic (38)
 
 Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC, variants.
 
@@ -581,6 +581,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_replace` | edit | Replaces text in part values and net label names. |
 | `schematic_align` | edit | Aligns or distributes parts: left, right, top, bottom, centerX, centerY, distributeX, distributeY. |
 | `schematic_sheets` | read | The sheets with hierarchy (parent, depth), component counts, ports and the active sheet. |
+| `schematic_block` | writes files | Reusable design blocks. |
 | `schematic_sheet_edit` | edit | Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new parts go to), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
 | `schematic_move_to_sheet` | edit | Moves parts to another sheet (wires that would cross sheets are removed; join them with labels). |
 | `schematic_set_label_scope` | edit | Sets a net label's scope: global, local (its sheet), port (hierarchical port) or entry (sheet entry into targetSheet). |
@@ -594,7 +595,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_variant_matrix` | read | Variants side by side: every part a variant changes with its fitting and value in each variant, and per-variant totals (fitted, not fitted, value changes). |
 | `schematic_variant_edit` | edit | Variant commands: add (name, copyFrom), remove (name), rename (name, newName), describe (name, description), activate (name; "" = base design), set_part (name, ref, fitted true/false/null, value). |
 
-### library (11)
+### library (13)
 
 Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library import.
 
@@ -608,6 +609,8 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_place_custom_part` | edit | Places another instance of a part already in the project library (library_project_parts lists ids). |
 | `library_updates` | edit | Project parts whose catalog part has changed since they were added (pins, package, footprint), with how many placed instances use each. |
 | `library_project_parts` | read | The custom and catalog parts in the project's library (ids, names, pin counts). |
+| `library_compare_footprint` | read | Holds a part's footprint against the datasheet's recommended land pattern: give the datasheet's pads, pitch, padWidth, padLength and span (outer pad edge to outer pad edge, mm), any of them. |
+| `library_bulk_edit` | edit | Sets the same fields on every project library part whose name holds match (case-insensitive; "" = all): manufacturer, description, datasheet, refPrefix, defaultValue. |
 | `library_check_part` | read | Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, and its library quality score (0 – 100, with what is missing). |
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
@@ -709,7 +712,7 @@ Signal and power integrity: impedance, lengths, crosstalk, channels, PDN, memory
 | `pi_ir_drop` | read | DC IR drop of a rail on the board: worst drop against the limit, current density, hot spots. |
 | `si_memory_checks` | read | The memory (SDRAM / DDR / LPDDR / DIMM) design segments checked on the design (set the type with design_set_domain domain memory). |
 
-### verify (6)
+### verify (8)
 
 Design verification and domain (industry) checks.
 
@@ -718,17 +721,20 @@ Design verification and domain (industry) checks.
 | `verify_design` | read | Full design verification: ERC, DC operating point, validation, placement, routing, DRC, manufacturing outputs (and SI/PI when signed off). |
 | `design_segments` | read | The design segments of a domain checked on the design: robot, ecu (automotive), aerospace, naval, medical, retail, appliance or memory. |
 | `verify_waivers` | edit | Findings accepted at sign-off: each waiver names a check code (e.g. |
+| `verify_requirements` | edit | Requirements traceability: each requirement (id, text) names the parts that meet it (refs). |
+| `verify_measurements` | edit | Measured results on built boards, linked to the design: add records what was measured (a net, a rail, a test point), its value and unit, optional min / max limits and a note, with today's date and the design fingerprint. |
 | `verify_approvals` | edit | Approvals of this design revision (release sign-off). |
 | `memory_layout_limits` | edit | DDR layout limits checked on the routed memory bus (byte-lane skew, DQ to DQS, command / address to clock, data impedance tolerance, via spread). |
 | `design_set_domain` | edit | Sets the design's domain type, which turns on its checks: robot (rover, fpv, arm, quadruped, humanoid, printer3d, cnc), ecu (bcm, powertrain, adas, ev, chassis, gateway), aerospace (leo, geo, launcher, military, commercial), naval (combatant, carrier, submarine, patrol, commercial), medical (bf, cf, life, implant, home), retail (countertop, unattended, mpos, kiosk, printer), appliance (laundry, kitchen, refrigeration, hvac, small), memory (sdram, ddr, lpddr, dimm, rdimm). |
 
-### output (10)
+### output (11)
 
 Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D models.
 
 | Tool | Kind | What it does |
 |---|---|---|
 | `output_fabrication_package` | writes files | Writes the complete fabrication package into a folder inside the root: gerbers/ (every layer, drills, job file, IPC-D-356A), assembly/ (BOMs, CPL, pick-and-place, drawings), fab notes, a gerber zip, netlist and 3D STL. |
+| `output_release` | writes files | A controlled release in a folder inside the root: the fabrication package (fabrication/), the project as released (<name>-rev<revision>.siedaproj), the verification report, the evidence (design fingerprint, approvals of this revision, requirements trace, waivers, bench measurements), a change notice against previous (an older .siedaproj) and MANIFEST.sha256 with every file's SHA-256 (check with shasum -a 256 -c). |
 | `output_gerbers` | writes files | Writes RS-274X Gerbers (every copper layer, masks, silkscreens, paste, outline) and Excellon drill files into a folder inside the root. |
 | `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, revisions), net_lengths (routed length per net, CSV). |
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
