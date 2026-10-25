@@ -38,6 +38,9 @@ Json vec(Vec2 p) {
     j["y"] = p.y;
     return j;
 }
+/// Computed copper (router tracks, vias) saved on the 1 nm grid, as user-entered coordinates are: files hold exact
+/// integer nanometres, whatever the floating-point geometry was.
+Json nmVec(Vec2 p) { return vec({nm(p.x), nm(p.y)}); }
 Json pinRef(PinRef p) {
     Json j = Json::object();
     j["component"] = p.component;
@@ -576,11 +579,11 @@ static Json boardContentJson(const PcbLayout& pcb) {
     for (const auto& t : pcb.tracks) {
         Json j = Json::object();
         j["layer"] = static_cast<int>(t.layer);
-        j["width"] = t.width;
-        j["a"] = vec(t.a);
-        j["b"] = vec(t.b);
+        j["width"] = nm(t.width);
+        j["a"] = nmVec(t.a);
+        j["b"] = nmVec(t.b);
         if (t.locked) j["locked"] = true;
-        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
+        if (t.arc) j["mid"] = nmVec(t.mid);  // true arc a → mid → b (older files have none: straight)
         if (t.teardrop) j["teardrop"] = true;
         tracks.push(j);
     }
@@ -589,9 +592,9 @@ static Json boardContentJson(const PcbLayout& pcb) {
     Json vias = Json::array();
     vias.reserve(pcb.vias.size());
     for (const auto& v : pcb.vias) {
-        Json j = vec(v.position);
-        j["drill"] = v.drill;
-        j["diameter"] = v.diameter;
+        Json j = nmVec(v.position);
+        j["drill"] = nm(v.drill);
+        j["diameter"] = nm(v.diameter);
         if (!v.isThrough()) {
             j["fromLayer"] = v.fromLayer;
             j["toLayer"] = v.toLayer;
@@ -785,6 +788,19 @@ Json Project::toJson(bool meshes) const {
             list.push(j);
         }
         root["requirementItems"] = list;
+    }
+    if (!pluginObjects.empty()) {
+        Json list = Json::array();
+        for (const auto& o : pluginObjects) {
+            Json j = Json::object(), pts = Json::array();
+            for (const auto& v : o.points) pts.push(v.x), pts.push(v.y);
+            j["id"] = o.id, j["type"] = o.type, j["plugin"] = o.plugin;
+            if (!o.layer.empty()) j["layer"] = o.layer;
+            if (!o.points.empty()) j["points"] = pts;
+            if (o.props.isObject() && !o.props.fields().empty()) j["props"] = o.props;
+            list.push(j);
+        }
+        root["pluginObjects"] = list;
     }
     if (!measurements.empty()) {
         Json list = Json::array();
@@ -1041,8 +1057,8 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
         v.drill = j.get("drill").asNumber(s.viaDrill);
         v.diameter = j.get("diameter").asNumber(s.viaDiameter);
         const int last = std::max(0, s.layerCount - 1);
-        v.fromLayer = std::clamp(static_cast<int>(j.get("fromLayer").asNumber(0)), 0, last);
-        v.toLayer = static_cast<int>(j.get("toLayer").asNumber(-1));
+        v.fromLayer = std::clamp(j.get("fromLayer").asInt(0), 0, last);
+        v.toLayer = j.get("toLayer").asInt(-1);  // asInt saturates: a huge number is not undefined behaviour
         if (v.toLayer >= last || v.toLayer < v.fromLayer) v.toLayer = -1;
         pcb.addVia(v);
     }
@@ -1271,6 +1287,15 @@ Project Project::fromJson(const Json& root) {
         m.hasMin = x.get("min").isNumber(), m.min = x.get("min").asNumber(0);
         m.hasMax = x.get("max").isNumber(), m.max = x.get("max").asNumber(0);
         p.measurements.push_back(m);
+    }
+    for (const auto& o : root.get("pluginObjects").items()) {
+        if (!o.get("id").isString() || !o.get("type").isString() || p.pluginObjects.size() >= 10000) continue;
+        Project::PluginObject po{o.get("id").asString(), o.get("type").asString(), o.get("plugin").asString(""), o.get("layer").asString(""), {}, {}};
+        const auto& v = o.get("points").items();
+        for (size_t i = 0; i + 1 < v.size() && po.points.size() < 100000; i += 2)
+            if (std::isfinite(v[i].asNumber(NAN)) && std::isfinite(v[i + 1].asNumber(NAN))) po.points.push_back({v[i].asNumber(), v[i + 1].asNumber()});
+        po.props = o.get("props").isObject() ? o.get("props") : Json::object();
+        p.pluginObjects.push_back(std::move(po));
     }
     for (const auto& r : root.get("requirementItems").items()) {
         if (!r.get("id").isString() || p.requirementItems.size() >= 10000) continue;

@@ -332,19 +332,14 @@ std::string exportTestPointReport(const Schematic& sch, const PcbLayout& pcb) {
     const auto pads = pcb.pads(sch);
     const double h = pcb.settings.height;
     std::ostringstream o;
-    o << "type,designator,net,pad,x_mm,y_mm,side,size_mm,access\n";
-    auto row = [&](const char* type, const Pad& p, const std::string& access) {
-        const Component* c = sch.find(p.componentId);
-        const std::string side = p.throughHole ? "both" : (p.bottom ? "bottom" : "top");
-        o << type << "," << csv(c ? c->ref : "") << "," << csv(sch.nets()[static_cast<size_t>(p.net)].name) << ","
-          << p.padNumber << "," << num(p.position.x) << "," << num(h - p.position.y) << "," << side << ","
-          << num(std::min(p.size.x, p.size.y)) << "," << access << "\n";
-    };
+    o << "type,designator,net,pad,x_mm,y_mm,side,size_mm,access,nearest_mm,probe\n";
+    struct Probe { const char* type; const Pad* pad; std::string access; };
+    std::vector<Probe> probes;
     std::set<int> covered;
     for (const Pad& p : pads) {  // dedicated test points
         const Component* c = sch.find(p.componentId);
         if (!c || !isTestPoint(*c) || p.net < 0) continue;
-        row("testpoint", p, p.throughHole ? "both sides" : (p.bottom ? "bottom" : "top"));
+        probes.push_back({"testpoint", &p, p.throughHole ? "both sides" : (p.bottom ? "bottom" : "top")});
         covered.insert(p.net);
     }
     std::map<int, const Pad*> best;  // per net: a through-hole pad, else the largest probe-able SMD pad
@@ -358,15 +353,33 @@ std::string exportTestPointReport(const Schematic& sch, const PcbLayout& pcb) {
     std::set<int> padNets;
     for (const Pad& p : pads)
         if (p.net >= 0) padNets.insert(p.net);
+    std::vector<int> noAccess;
     for (int net : padNets) {
         if (covered.count(net)) continue;
-        if (auto it = best.find(net); it != best.end() && it->second) {
-            row("pad", *it->second, it->second->throughHole ? "both sides" : "probe on pad");
-        } else {
-            o << "no-access,," << csv(sch.nets()[static_cast<size_t>(net)].name)
-              << ",,,,,,add a test point (no through-hole pad or SMD pad of 0.6 mm)\n";
-        }
+        if (auto it = best.find(net); it != best.end() && it->second)
+            probes.push_back({"pad", it->second, it->second->throughHole ? "both sides" : "probe on pad"});
+        else
+            noAccess.push_back(net);
     }
+    // A fixture's spring probes need room: the nearest other probe reached from the same side picks the probe size
+    // (100 mil needs 2.54 mm centre to centre, 75 mil 1.91, 50 mil 1.27).
+    for (const Probe& pr : probes) {
+        const Pad& p = *pr.pad;
+        double nearest = 1e9;
+        for (const Probe& q : probes)
+            if (q.pad != &p && (p.throughHole || q.pad->throughHole || p.bottom == q.pad->bottom))
+                nearest = std::min(nearest, std::hypot(q.pad->position.x - p.position.x, q.pad->position.y - p.position.y));
+        const char* probe = nearest >= 2.54 - 1e-9 ? "100 mil" : nearest >= 1.91 - 1e-9 ? "75 mil" : nearest >= 1.27 - 1e-9 ? "50 mil" : "too close";
+        const Component* c = sch.find(p.componentId);
+        const std::string side = p.throughHole ? "both" : (p.bottom ? "bottom" : "top");
+        o << pr.type << "," << csv(c ? c->ref : "") << "," << csv(sch.nets()[static_cast<size_t>(p.net)].name) << ","
+          << p.padNumber << "," << num(p.position.x) << "," << num(h - p.position.y) << "," << side << ","
+          << num(std::min(p.size.x, p.size.y)) << "," << pr.access << "," << (nearest < 1e9 ? num(nearest) : std::string()) << ","
+          << probe << "\n";
+    }
+    for (int net : noAccess)
+        o << "no-access,," << csv(sch.nets()[static_cast<size_t>(net)].name)
+          << ",,,,,,add a test point (no through-hole pad or SMD pad of 0.6 mm),,\n";
     return o.str();
 }
 

@@ -15,6 +15,8 @@ namespace sieda {
 enum class GerberLayer { TopCopper, BottomCopper, TopMask, BottomMask, TopSilk, EdgeCuts, TopPaste, BottomPaste, BottomSilk };
 
 std::string exportSpiceNetlist(const Schematic& sch, const std::string& title);
+/// SPICE model text without `.control … .endc` blocks (simulator commands such as `shell`, not part of a model).
+std::string withoutControlBlocks(const std::string& text);
 std::string exportBomCsv(const Schematic& sch);
 /// Pick and place, every column: lower-left origin (Y up), rotation counter-clockwise from the top; no DNP parts.
 std::string exportPickAndPlaceCsv(const Schematic& sch, const PcbLayout& pcb);

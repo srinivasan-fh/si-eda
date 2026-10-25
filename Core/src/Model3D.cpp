@@ -378,9 +378,11 @@ private:
 struct VrmlFlattener {
     Model3DMesh& mesh;
     int otherGeometry = 0, badFaces = 0, inlines = 0;
+    /// Nodes left to visit: a USE repeats its node, so a few lines nesting USEs can mean 2^40 visits.
+    long long visitsLeft = 1000000;
 
     void walk(const VNodePtr& n, const Affine& m, int depth) {
-        if (!n || depth > Model3DLimits::maxDepth) return;
+        if (!n || depth > Model3DLimits::maxDepth || --visitsLeft < 0) return;
         const std::string& t = n->type;
         if (t == "Transform") {
             const double tx = n->num("translation", 0, 0), ty = n->num("translation", 1, 0), tz = n->num("translation", 2, 0);
@@ -1829,6 +1831,7 @@ Model3DMesh parseVrml(const std::string& text, const std::string& name) {
     if (flat.inlines) mesh.warnings.push_back(std::to_string(flat.inlines) + " Inline reference(s) to other files not followed");
     if (reader.skippedProtos()) mesh.warnings.push_back(std::to_string(reader.skippedProtos()) + " PROTO definition(s) skipped");
     if (reader.missingUses()) mesh.warnings.push_back(std::to_string(reader.missingUses()) + " USE of an undefined name skipped");
+    if (flat.visitsLeft < 0) mesh.warnings.push_back("stopped after 1 000 000 nodes (nodes reused by USE many times over)");
     finishGroups(mesh);
     return mesh;
 }
