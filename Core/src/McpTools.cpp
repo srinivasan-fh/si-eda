@@ -5477,16 +5477,17 @@ void pcbTools(Table& t) {
               }
               // Unpoured power / ground nets with no width of their own route 0.4 mm wide (a connector-fed board gives
               // the current sizing no source to measure); again at the board's width if that leaves anything open. A net
-              // with a pad narrower than 0.4 mm + clearance (a fine-pitch pin a wide track cannot escape) keeps its width.
-              std::vector<std::string> widened;
+              // with a pad narrower than 0.4 mm + clearance (a fine-pitch pin) is widened too, necked down at that pad, unless
+              // that leaves more open than widening only the others.
+              std::vector<std::string> widened, fineNets;
               if (!ar.scoped() && !ar.fanoutOnly && p->project.pcb.settings.trackWidth < 0.4 && argBool(a, "powerWidths", true)) {
                   std::set<int> fine;
                   for (const auto& pad : p->project.pcb.pads(p->project.schematic))
                       if (std::min(pad.size.x, pad.size.y) < 0.4 + p->project.pcb.settings.clearance - 1e-9) fine.insert(pad.net);
                   for (const auto& n : p->project.schematic.nets())
-                      if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() && !fine.count(n.index) &&
+                      if (p->project.schematic.netRole(n.index) != NetRole::Signal && !n.name.empty() &&
                           !p->project.pcb.settings.netWidths.count(n.name) && !p->project.pcb.isZoneNet(p->project.schematic, n.index))
-                          widened.push_back(n.name);
+                          (fine.count(n.index) ? fineNets : widened).push_back(n.name);
               }
               // A route with coupled pairs pairs X_DP / X_DM (USB) nets by a directive, as a designer would.
               Json pairedByName = Json::array();
@@ -5516,20 +5517,27 @@ void pcbTools(Table& t) {
                   }
               }
               const Project unrouted = p->project;
-              for (const auto& n : widened) p->project.pcb.settings.netWidths[n] = 0.4;
-              Json stats = takeJson(sieda_pcb_autoroute(p));
-              Json j = obj();
-              // Widened power left something open: routed again at the board's width, and the one with fewer connections
-              // open goes on to the (costly) completion, once.
-              if (const size_t wide = widened.empty() ? 0 : p->project.pcb.ratsnest(p->project.schematic).size()) {
-                  Project widenedRoute = std::move(p->project);
-                  const Json widenedStats = stats;
+              // Tried widest first (every power net, then those without a fine pin, then none); the first with the fewest
+              // connections open goes on to the (costly) completion, once.
+              std::vector<std::vector<std::string>> tiers;
+              if (!fineNets.empty()) tiers.push_back(widened), tiers.back().insert(tiers.back().end(), fineNets.begin(), fineNets.end());
+              if (!widened.empty()) tiers.push_back(widened);
+              tiers.push_back({});
+              Json stats;
+              size_t bestOpen = SIZE_MAX;
+              Project best;
+              for (const auto& tier : tiers) {
                   p->project = unrouted;
                   p->router.reset();
-                  stats = takeJson(sieda_pcb_autoroute(p));
-                  if (p->project.pcb.ratsnest(p->project.schematic).size() <= wide) widened.clear();
-                  else p->project = std::move(widenedRoute), p->router.reset(), stats = widenedStats;
+                  for (const auto& n : tier) p->project.pcb.settings.netWidths[n] = 0.4;
+                  Json s = takeJson(sieda_pcb_autoroute(p));
+                  if (const size_t open = p->project.pcb.ratsnest(p->project.schematic).size(); open < bestOpen)
+                      bestOpen = open, best = std::move(p->project), stats = s, widened = tier;
+                  if (bestOpen == 0) break;
               }
+              p->project = std::move(best);
+              p->router.reset();
+              Json j = obj();
               Json repairs = finishRouting(p, &stats);
               // A pair the top pour left uncoupled: routed again with the bottom pour only, kept if more pairs couple.
               auto uncoupledPairs = [&] {
@@ -7073,7 +7081,7 @@ void outputTools(Table& t) {
           "One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, "
           "pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / "
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
-          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), "
+          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), hyperlynx (HyperLynx .hyp for signal-integrity tools), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), "
           "freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the "
           "moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
           "checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, "
@@ -7385,6 +7393,20 @@ void teamTools(Table& t) {
               const std::string dxf = readFileArg(s, requireStr(a, "path")).asString();
               Json j = takeJson(sieda_pcb_import_dxf(P(s), dxf.c_str()));
               if (!j.get("ok").asBool(false)) throw ToolError("DXF not imported: " + j.get("error").asString("unreadable"));
+              return out(j);
+          });
+    t.add("pcb", "pcb_import_routes", "Import routes (PADS / HyperLynx / IPC-2581)", Kind::Edit, false,
+          "Takes the routed copper (tracks, arcs, vias) of another tool's board onto this one: PADS ASCII (.asc), "
+          "HyperLynx (.hyp) or IPC-2581 (.xml / .cvg, as Allegro and OrCAD PCB Editor export it), detected from the text. "
+          "The parts must already be placed as in that design: nets match by name, and the file's frame is fitted to "
+          "this board by its named pins (HyperLynx, IPC-2581), else by the track ends that land on pads of their net. Replaces the board's routing unless replace is "
+          "false. padHits / ends says how many track ends reach a pad of their net; run pcb_drc after.",
+          Schema().str("path", "The route file inside the root").str("text", "The file's text (instead of path)")
+              .boolean("replace", "Replace the board's tracks and vias (default true)"),
+          [](McpServer& s, const Json& a) {
+              const std::string text = a.has("text") ? argStr(a, "text") : readFileArg(s, requireStr(a, "path")).asString();
+              Json j = takeJson(sieda_pcb_import_routes(P(s), text.c_str(), argBool(a, "replace", true)));
+              if (j.has("error")) throw ToolError("Routes not imported: " + j.get("error").asString());
               return out(j);
           });
     t.add("pcb", "pcb_import_kicad", "Import a KiCad board", Kind::Edit, false,

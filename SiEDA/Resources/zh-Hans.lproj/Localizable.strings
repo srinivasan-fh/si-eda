@@ -1842,3 +1842,4 @@
 "Show AI Audit Log" = "显示 AI 审计日志";
 "approves this revision" = "批准此修订";
 "approved an earlier revision" = "批准了较早的修订";
+"Import Routes (PADS / HyperLynx / IPC-2581)…" = "导入布线（PADS / HyperLynx / IPC-2581）…";

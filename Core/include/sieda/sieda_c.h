@@ -28,7 +28,7 @@ typedef struct SiedaLiveSim SiedaLiveSim;
  * PATCH for fixes. JSON results only gain fields within a major version. Check SIEDA_API_VERSION_MAJOR at build time
  * and sieda_api_version() at run time when the library is loaded dynamically. */
 #define SIEDA_API_VERSION_MAJOR 1
-#define SIEDA_API_VERSION_MINOR 2
+#define SIEDA_API_VERSION_MINOR 3
 #define SIEDA_API_VERSION_PATCH 0
 /* MAJOR * 10000 + MINOR * 100 + PATCH of the library itself (10100 = 1.1.0). */
 int32_t sieda_api_version(void);
@@ -432,6 +432,10 @@ int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill
 /// Board outline and cutouts from a DXF (closed loops of lines, arcs, polylines, circles; mm or $INSUNITS inches):
 /// {"ok", "error", "width", "height", "corners", "cutouts"}; the board is unchanged when ok is false.
 char* sieda_pcb_import_dxf(SiedaProject* project, const char* dxf_text);
+/// Routes (tracks, arcs, vias) from PADS ASCII, HyperLynx .hyp or IPC-2581 text, fitted to this board's pads and
+/// matched to its nets by name; replaces the board's routing when replace != 0. {"format","tracks","vias","nets",
+/// "unknownNets","offset","ends","padHits"} or {"error"}.
+char* sieda_pcb_import_routes(SiedaProject* project, const char* text, int32_t replace);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
 char* sieda_design_rule_presets_json(void);

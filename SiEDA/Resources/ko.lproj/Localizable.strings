@@ -1842,3 +1842,4 @@
 "Show AI Audit Log" = "AI 감사 로그 보기";
 "approves this revision" = "이 리비전을 승인함";
 "approved an earlier revision" = "이전 리비전을 승인함";
+"Import Routes (PADS / HyperLynx / IPC-2581)…" = "배선 가져오기(PADS / HyperLynx / IPC-2581)…";

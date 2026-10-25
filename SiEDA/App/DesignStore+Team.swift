@@ -110,6 +110,21 @@ extension DesignStore {
         requestView(.fit)
     }
 
+    /// Another tool's routing (PADS ASCII, HyperLynx, IPC-2581 from Allegro / OrCAD) onto this board's placed parts.
+    func importRoutes() {
+        guard let (url, text) = chooseText("Choose a PADS ASCII (.asc), HyperLynx (.hyp) or IPC-2581 (.xml / .cvg) file. Its "
+                                           + "parts must be placed here as in that design.", extensions: ["asc", "hyp", "xml", "cvg"]) else { return }
+        let r = runTool("pcb_import_routes", arguments: ["text": text])
+        guard !r.isError, let data = r.text.data(using: .utf8),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            statusMessage = "\(url.lastPathComponent): \(r.text)"
+            return
+        }
+        statusMessage = "\(url.lastPathComponent): \(j["tracks"] as? Int ?? 0) tracks, \(j["vias"] as? Int ?? 0) vias; "
+            + "\(j["padHits"] as? Int ?? 0) of \(j["ends"] as? Int ?? 0) track ends on pads, "
+            + "\((j["unknownNets"] as? [Any])?.count ?? 0) net(s) not in this design"
+    }
+
     /// Keeps a Gerber, drill or ODB++ features file over the board as a reference layer (never fabricated), one undo step.
     func importReferenceLayer() {
         guard let picked = chooseText("Choose a Gerber, drill or ODB++ layer features file to show over the board.",

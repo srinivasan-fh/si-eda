@@ -69,6 +69,7 @@ add_library(sieda_core STATIC
     Core/src/Documents.cpp
     Core/src/Fabrication.cpp
     Core/src/FabExchange.cpp
+    Core/src/RouteExchange.cpp
     Core/src/Panel.cpp
     Core/src/Dfm.cpp
     Core/src/FieldSolver.cpp

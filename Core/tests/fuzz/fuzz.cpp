@@ -13,6 +13,7 @@
 #include "sieda/LibraryImport.hpp"
 #include "sieda/Mechanical.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/RouteExchange.hpp"
 #include "sieda/SpiceModels.hpp"
 
 using namespace sieda;
@@ -56,6 +57,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)idxResponse(text, true);
         (void)importDxfOutline(text);  // DXF board outlines from the same MCAD side
         (void)gerberImageJson(parseGerber(text));  // Gerber / Excellon reference layers
+        Project routed;  // routes from PADS ASCII, HyperLynx and IPC-2581 (each reader reached by its header)
+        routed.schematic = sch;
+        for (const char* head : {"", "!PADS-POWERPCB-V9.4-MILS!\n", "{VERSION=2.14}\n", "<IPC-2581>"}) (void)importRoutes(routed, head + text);
 #else
 #error "Define one SIEDA_FUZZ_<TARGET>"
 #endif

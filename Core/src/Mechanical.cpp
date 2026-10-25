@@ -14,6 +14,7 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Model3D.hpp"
+#include "XmlRead.hpp"
 
 namespace sieda {
 
@@ -815,26 +816,6 @@ def run(context):
 // ------------------------------------------------------------------------------------------------ IDX (EDMD)
 namespace {
 
-/// Minimal XML reader for IDX: elements by local name (namespace prefixes dropped), attributes, text. Comments,
-/// declarations and processing instructions are skipped; CDATA is text. Nesting is capped (hostile files).
-struct XmlNode {
-    std::string name, text;
-    std::map<std::string, std::string> attrs;
-    std::vector<XmlNode> kids;
-    const XmlNode* child(const std::string& n) const {
-        for (const auto& k : kids)
-            if (k.name == n) return &k;
-        return nullptr;
-    }
-    /// The element's number: its text, or its Value child's (IDX writes <tx><Value>1.5</Value></tx>).
-    double number(double fallback = 0) const {
-        const std::string& t = text.find_first_not_of(" \t\r\n") != std::string::npos ? text : (child("Value") ? child("Value")->text : text);
-        char* end = nullptr;
-        const double v = std::strtod(t.c_str(), &end);
-        return end != t.c_str() && std::isfinite(v) ? v : fallback;
-    }
-};
-
 std::string localName(const std::string& n) {
     const size_t c = n.rfind(':');
     return c == std::string::npos ? n : n.substr(c + 1);
@@ -860,6 +841,8 @@ std::string xmlDecode(const std::string& s) {
     }
     return o;
 }
+
+}  // namespace
 
 bool parseXml(const std::string& s, XmlNode& root) {
     std::vector<XmlNode*> stack{&root};
@@ -926,6 +909,8 @@ bool parseXml(const std::string& s, XmlNode& root) {
     }
     return stack.size() == 1;
 }
+
+namespace {
 
 /// A part's placement as IDX writes it: MCAD position (Y up), counter-clockwise rotation, side.
 struct IdxPlacement {
