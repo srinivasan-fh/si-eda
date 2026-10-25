@@ -76,6 +76,13 @@ class Endpoint(BaseHTTPRequestHandler):
         if method == "chunked":
             event = json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {"via": "chunked", "pad": "x" * 100}})
             return self.reply(200, event.encode(), chunked=True)
+        if method == "hugechunk":  # a chunk size near 2^64: must be refused, not wrap round and loop
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            self.wfile.write(b"fffffffffffffffe\r\nAB\r\n0\r\n\r\n")
+            return
         echo = {"jsonrpc": "2.0", "id": msg["id"], "result": {"echo": method}}
         return self.reply(200, json.dumps(echo).encode())
 
@@ -120,6 +127,11 @@ def main():
     sessions = [s for (m, s) in Endpoint.seen if m != "initialize"]
     if Endpoint.seen[0] != ("initialize", None) or any(s != SESSION for s in sessions):
         fail(f"Mcp-Session-Id not carried after initialize: {Endpoint.seen}")
+
+    # A hostile chunk size: an error for that request, nothing looping or growing.
+    huge = run_bridge(exe, url, [lines[0], json.dumps({"jsonrpc": "2.0", "id": 5, "method": "hugechunk"})], TOKEN)
+    if [m.get("id") for m in huge] != [1, 5] or "error" not in huge[1]:
+        fail(f"a hostile chunk size should give an error: {huge}")
 
     # A wrong token: each request gets a JSON-RPC error, the notification nothing.
     bad = run_bridge(exe, url, lines[:3], "wrong")

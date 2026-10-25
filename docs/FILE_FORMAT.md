@@ -37,7 +37,7 @@ order, so files diff cleanly in Git (`docs/TEAM.md` covers the merge drivers).
 | `buildQuantity` | quantity for BOM costing |
 
 Written only when used: `titleBlock`, `revisions`, `variants`, `reviewComments`, `referenceLayers`, `models3d`,
-`partModels`, `memoryLimits`, `signalIntegrity`, the extra boards of a multi-board project, and others.
+`partModels`, `memoryLimits`, `signalIntegrity`, `pluginObjects` (plug-in objects: id, type, plugin, layer, flat `points`, `props`), the extra boards of a multi-board project, and others.
 
 ## `board`
 
@@ -68,7 +68,8 @@ Written only when used:
 
 ## Units and coordinates
 
-- **Board:** millimetres, origin top-left, Y down. Gerbers flip Y to the usual bottom-left origin.
+- **Board:** millimetres, origin top-left, Y down. Gerbers flip Y to the usual bottom-left origin. Track and via
+  coordinates, widths and drills are saved on a 1 nm grid, so a file reads back exactly.
 - **Schematic:** grid units (10 per 0.1 inch pin pitch).
 - **Angles:** degrees, counter-clockwise.
 

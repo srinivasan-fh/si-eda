@@ -12942,6 +12942,10 @@ TEST(supplier_merge_rollup_and_catalog_match) {
               !l2.get("offers")[0].get("inStock").asBool());
         CHECK(r.get("lines")[2].get("status").asString() == "no_mpn");
         CHECK(r.get("lines")[3].get("status").asString() == "not_found");
+        // Supply risk: the NRND part nobody stocks is high, an unknown part medium; a DNP line has none.
+        CHECK(l2.get("riskLevel").asString() == "high" && l2.get("sources").asInt() == 0);
+        CHECK(r.get("lines")[3].get("riskLevel").asString() == "medium" && !r.get("lines")[4].has("risk"));
+        CHECK(r.get("highRiskLines").asInt() >= 1);
         CHECK(r.get("lines")[4].get("status").asString() == "dnp" && r.get("lines")[4].get("offers").size() == 0);
     }
     if (r.get("totals").size() == 3) {
@@ -15628,7 +15632,7 @@ TEST(arc_tracks_export_save_and_draw) {
     const Json j = p.toJson();
     Project back = Project::fromJson(j);
     CHECK(back.pcb.tracks.size() == 2);
-    CHECK(back.pcb.tracks[0].arc && back.pcb.tracks[0].mid == p.pcb.tracks[0].mid);
+    CHECK(back.pcb.tracks[0].arc && std::hypot(back.pcb.tracks[0].mid.x - p.pcb.tracks[0].mid.x, back.pcb.tracks[0].mid.y - p.pcb.tracks[0].mid.y) < 1e-6);
     CHECK(back.toJson().dump() == j.dump());
     std::string old = j.dump();
     for (size_t at; (at = old.find("\"mid\":")) != std::string::npos;) {
@@ -24471,6 +24475,7 @@ TEST(documents_dxf_test_points_html_bom_and_bring_up) {
     const std::string tp = exportTestPointReport(p.schematic, p.pcb);
     CHECK(tp.find("testpoint,TP1,NRST") != std::string::npos);
     CHECK(tp.find(",SDA,") != std::string::npos && tp.find(",+5V,") != std::string::npos);
+    CHECK(tp.find("nearest_mm,probe") != std::string::npos && (tp.find(" mil\n") != std::string::npos || tp.find("too close\n") != std::string::npos));
     // Interactive BOM: one self-contained file with both sides and the parts.
     const std::string bom = exportHtmlBom(p);
     CHECK(bom.find("<svg") != std::string::npos && bom.find("data-ref=\"R1\"") != std::string::npos);
@@ -25556,4 +25561,128 @@ TEST(mcp_exports_hyperlynx_and_imports_routes_back) {
     CHECK(mcpData(mcpTool(s, "pcb_drc", Json::object())).get("unrouted").size() == 0);
     std::ofstream(root / "bad.asc") << "!PADS-POWERPCB-V9.4-MILS!\n*END*\n";
     CHECK(mcpFailed(mcpTool(s, "pcb_import_routes", Json::parse(R"({"path": "bad.asc"})"))));
+}
+
+TEST(mcp_refuses_symbolic_links_out_of_the_root) {
+    // A link inside the root whose target is outside it and does not exist yet, a link inside an output folder and a
+    // link in place of the undo file: none of them lets a write leave the root.
+    namespace fs = std::filesystem;
+    const auto root = mcpRoot("links");
+    const auto outside = mcpRoot("links_outside");
+    std::error_code ec;
+    fs::create_symlink(outside / "planted.txt", root / "dangling.txt", ec);
+    if (ec) return;  // no symlinks on this file system
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(mcpFailed(mcpTool(s, "output_export", Json::parse(R"({"format": "bom", "path": "dangling.txt"})"))));
+    CHECK(!fs::exists(outside / "planted.txt"));
+    fs::create_directories(root / "fab");
+    fs::create_directory_symlink(outside, root / "fab" / "gerbers", ec);
+    CHECK(mcpFailed(mcpTool(s, "output_fabrication_package", Json::parse(R"({"dir": "fab"})"))));
+    CHECK(fs::is_empty(outside));
+    CHECK(!mcpFailed(mcpTool(s, "project_save", Json::parse(R"({"path": "b.siedaproj"})"))));
+    fs::create_symlink(outside / "undo.txt", root / ".b.siedaproj.undo", ec);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::parse(R"({"pour": false})"))));
+    CHECK(!mcpFailed(mcpTool(s, "project_save", Json::object())));
+    CHECK(!fs::exists(outside / "undo.txt"));
+}
+
+TEST(project_numbers_out_of_int_range_load_safely) {
+    // Layer numbers far outside int range (a damaged or hostile file) load clamped, never as an overflowing cast.
+    Project p = amplifierProject();
+    p.pcb.settings.layerCount = 4;
+    Via v;
+    v.position = {5, 5};
+    v.fromLayer = 1, v.toLayer = 2;
+    p.pcb.addVia(v);
+    std::string text = p.toJson().dump();
+    for (const char* key : {"\"fromLayer\":1", "\"toLayer\":2"}) {
+        const size_t at = text.find(key);
+        CHECK(at != std::string::npos);
+        text.replace(at, std::strlen(key), std::string(key).substr(0, std::strlen(key) - 1) + (key[2] == 'f' ? "1e300" : "-1e300"));
+    }
+    const Project q = Project::fromJson(Json::parse(text));
+    for (const auto& w : q.pcb.vias) CHECK(w.fromLayer >= 0 && w.fromLayer <= 3 && w.toLayer >= -1 && w.toLayer <= 3);
+}
+
+TEST(schematic_import_survives_a_long_wire_chain) {
+    // 300 000 wires end to end (a hostile or generated file): joined without recursing once per wire.
+    std::string asc = "Version 4\nSHEET 1 880 680\n";
+    for (int i = 0; i < 300000; ++i) asc += "WIRE " + std::to_string(i * 16) + " 96 " + std::to_string(i * 16 + 16) + " 96\n";
+    asc += "FLAG 0 96 IN\nSYMBOL res 4800000 80 R0\nSYMATTR InstName R1\n";
+    const ParsedNetlist l = parseNetlist(asc);
+    CHECK(l.format == "ltspice" && l.parts.size() == 1);
+}
+
+TEST(vrml_nested_uses_stop_at_a_node_budget) {
+    // 40 groups each using the one before twice: 2^40 visits if expanded, stopped at the budget with a warning.
+    // The reused group has no geometry (no triangle limit to stop it); one box keeps the model non-empty.
+    std::string wrl = "#VRML V2.0 utf8\nShape { geometry Box { size 1 1 1 } }\nDEF G0 Group { }\n";
+    for (int i = 1; i <= 40; ++i)
+        wrl += "DEF G" + std::to_string(i) + " Group { children [ USE G" + std::to_string(i - 1) + " USE G" + std::to_string(i - 1) + " ] }\n";
+    const Model3DMesh m = parseVrml(wrl);
+    CHECK(std::any_of(m.warnings.begin(), m.warnings.end(), [](const std::string& w) { return w.find("stopped after") != std::string::npos; }));
+}
+
+TEST(spice_netlist_keeps_every_field_on_its_line) {
+    // A value or designator holding a line break cannot add a line (an ngspice .control block runs commands), and an
+    // imported model's .control block is not carried into the netlist.
+    Schematic sch;
+    const int r = sch.addComponent(ComponentKind::Resistor, "1k\n.control\nshell touch /tmp/x\n.endc", {0, 0});
+    sch.find(r)->ref = "R1\n.control";
+    const std::string net = exportSpiceNetlist(sch, "title\n.control");
+    std::istringstream lines(net);
+    for (std::string line; std::getline(lines, line);) CHECK(line.rfind(".control", 0) != 0 && line.rfind("shell", 0) != 0);
+    CHECK(withoutControlBlocks(".model D1 D(Is=1n)\n.control\nshell rm -rf x\n.endc\n.ends\n") == ".model D1 D(Is=1n)\n.ends\n");
+}
+
+TEST(plugin_objects_are_kept_with_the_design) {
+    // A plug-in's own objects: added, updated, saved, loaded and part of the design fingerprint.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const std::string before = s.project()->project.designHash();
+    const Json added = mcpData(mcpTool(s, "project_plugin_objects", Json::parse(
+        R"({"add": {"type": "acme.shield-can", "plugin": "acme", "layer": "top", "points": [[1, 1], [11, 1], [11, 9], [1, 9]], "props": {"height": 2.5}}})")));
+    CHECK(added.get("objects").size() == 1 && added.get("objects")[0].get("id").asString() == "PO1");
+    CHECK(!mcpFailed(mcpTool(s, "project_plugin_objects", Json::parse(R"({"update": {"id": "PO1", "props": {"vendor": "X"}}})"))));
+    CHECK(s.project()->project.designHash() != before);
+    const Project q = Project::fromJson(s.project()->project.toJson());
+    CHECK(q.pluginObjects.size() == 1 && q.pluginObjects[0].points.size() == 4 && q.pluginObjects[0].props.get("height").asNumber() == 2.5 &&
+          q.pluginObjects[0].props.get("vendor").asString() == "X" && q.pluginObjects[0].layer == "top");
+    CHECK(mcpFailed(mcpTool(s, "project_plugin_objects", Json::parse(R"({"remove": "PO9"})"))));
+    CHECK(mcpData(mcpTool(s, "project_plugin_objects", Json::parse(R"({"remove": "PO1"})"))).get("objects").size() == 0);
+}
+
+TEST(mcp_route_compare_reports_before_and_after) {
+    // Strategies routed on copies: the board is unchanged until one is applied; the recommendation leaves nothing open.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::object())));
+    const size_t tracksBefore = s.project()->project.pcb.tracks.size();
+    const Json c = mcpData(mcpTool(s, "pcb_route_compare", Json::parse(R"({"strategies": ["default", "fast"]})")));
+    CHECK(c.get("results").size() == 2 && c.get("before").get("open").asInt() > 0);
+    CHECK(s.project()->project.pcb.tracks.size() == tracksBefore);
+    const std::string best = c.get("recommended").asString();
+    CHECK(best == "default" || best == "fast");
+    Json apply = Json::object();
+    apply["strategies"] = Json::parse(R"(["default", "fast"])"), apply["apply"] = best;
+    const Json applied = mcpData(mcpTool(s, "pcb_route_compare", apply));
+    CHECK(applied.get("applied").asString() == best && s.project()->project.pcb.ratsnest(s.project()->project.schematic).empty());
+}
+
+TEST(saved_copper_lies_on_the_nanometre_grid) {
+    // Router geometry is floating point; the saved file holds it in whole nanometres, and the board checks the same
+    // after a reload.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    const Json saved = Json::parse(p.toJson().dump());
+    auto onGrid = [](const Json& v) { const double n = v.asNumber() * 1e6; return std::fabs(n - std::round(n)) < 1e-6; };
+    CHECK(!saved.get("tracks").items().empty());
+    for (const auto& t : saved.get("tracks").items())
+        CHECK(onGrid(t.get("a").get("x")) && onGrid(t.get("a").get("y")) && onGrid(t.get("b").get("x")) && onGrid(t.get("b").get("y")) &&
+              onGrid(t.get("width")));
+    for (const auto& v : saved.get("vias").items()) CHECK(onGrid(v.get("x")) && onGrid(v.get("y")));
+    const Project q = Project::fromJson(saved);
+    CHECK(q.pcb.runDRC(q.schematic).size() == p.pcb.runDRC(p.schematic).size());
 }

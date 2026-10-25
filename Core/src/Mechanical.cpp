@@ -498,7 +498,7 @@ void mechanicalLimitsFromJson(const Json& j, BoardSettings& s) {
         f.area = Rect(std::min(x0, x1), std::min(y0, y1), std::max(x0, x1), std::max(y0, y1));
         f.bendRadius = std::clamp(e.get("bendRadius").asNumber(0), 0.0, 1000.0);
         f.thickness = std::clamp(e.get("thickness").asNumber(0.11), 0.01, 5.0);
-        f.layers = std::clamp(static_cast<int>(e.get("layers").asNumber(2)), 1, 32);
+        f.layers = std::clamp(e.get("layers").asInt(2), 1, 32);
         f.dynamic = e.get("dynamic").asBool(false);
         f.bendAngle = std::clamp(e.get("bendAngle").asNumber(0), -180.0, 180.0);
         if (!std::isfinite(f.bendAngle)) f.bendAngle = 0;

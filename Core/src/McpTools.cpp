@@ -6891,6 +6891,70 @@ void verifyTools(Table& t) {
               j["measurements"] = list, j["failed"] = failed;
               return out(j);
           });
+    t.add("project", "project_plugin_objects", "Plug-in objects", Kind::Edit, false,
+          "Objects of a plug-in's own type kept in the design (saved, diffed, merged and undone with it; SiEDA does not "
+          "interpret them): add {type, plugin, id?, layer?, points: [[x, y], …] in mm, props: {…}}, update {id, layer?, "
+          "points?, props?} (props merged), remove id. Lists them (type filters).",
+          Schema().object("add", "{type, plugin, id, layer, points, props}").object("update", "{id, layer, points, props}")
+              .str("remove", "Id of an object to remove").str("type", "List only this type"),
+          [](McpServer& s, const Json& a) {
+              Project& p = P(s)->project;
+              auto find = [&](const std::string& id) {
+                  for (auto& o : p.pluginObjects)
+                      if (o.id == id) return &o;
+                  return static_cast<Project::PluginObject*>(nullptr);
+              };
+              auto setFields = [](Project::PluginObject& o, const Json& x) {
+                  if (x.get("layer").isString()) o.layer = x.get("layer").asString();
+                  if (x.get("points").isArray()) {
+                      o.points.clear();
+                      for (const auto& pt : x.get("points").items()) {
+                          check(pt.isArray() && pt.size() == 2 && pt[0].isNumber() && pt[1].isNumber(), "points are [x, y] pairs in mm");
+                          o.points.push_back({pt[0].asNumber(), pt[1].asNumber()});
+                      }
+                  }
+                  if (x.get("props").isObject())
+                      for (const auto& [k, v] : x.get("props").fields()) o.props[k] = v;
+              };
+              if (a.get("add").isObject()) {
+                  const Json& x = a.get("add");
+                  check(x.get("type").isString() && !x.get("type").asString().empty(), "add needs a type");
+                  check(p.pluginObjects.size() < 10000, "At most 10000 plug-in objects");
+                  Project::PluginObject o;
+                  o.type = x.get("type").asString(), o.plugin = x.get("plugin").asString("");
+                  o.id = x.get("id").asString("");
+                  for (int n = 1; o.id.empty() || (find(o.id) && !x.get("id").isString()); ++n) o.id = "PO" + std::to_string(n);
+                  check(!find(o.id), "An object " + o.id + " exists already");
+                  setFields(o, x);
+                  p.pluginObjects.push_back(std::move(o));
+              }
+              if (a.get("update").isObject()) {
+                  Project::PluginObject* o = find(a.get("update").get("id").asString(""));
+                  check(o != nullptr, "No plug-in object with that id");
+                  setFields(*o, a.get("update"));
+              }
+              if (a.has("remove")) {
+                  const std::string id = argStr(a, "remove");
+                  check(find(id) != nullptr, "No plug-in object " + id);
+                  p.pluginObjects.erase(std::remove_if(p.pluginObjects.begin(), p.pluginObjects.end(), [&](const auto& o) { return o.id == id; }),
+                                        p.pluginObjects.end());
+              }
+              Json list = Json::array();
+              for (const auto& o : p.pluginObjects) {
+                  if (a.has("type") && o.type != argStr(a, "type")) continue;
+                  Json j = obj(), pts = Json::array();
+                  for (const auto& v : o.points) {
+                      Json pt = Json::array();
+                      pt.push(v.x), pt.push(v.y);
+                      pts.push(pt);
+                  }
+                  j["id"] = o.id, j["type"] = o.type, j["plugin"] = o.plugin, j["layer"] = o.layer, j["points"] = pts, j["props"] = o.props;
+                  list.push(j);
+              }
+              Json j = obj();
+              j["objects"] = list;
+              return out(j);
+          });
     t.add("verify", "verify_approvals", "Sign-off approvals", Kind::Edit, false,
           "Approvals of this design revision (release sign-off). approve records who approved it (by, role, note) "
           "against the design's fingerprint; any later change to the design makes it stale (current false). revoke "
@@ -6978,6 +7042,7 @@ void outputTools(Table& t) {
               const std::string dir = s.resolvePath(requireStr(a, "dir"), true);
               std::error_code ec;
               fs::create_directories(dir, ec);
+              s.checkLinksInside(dir);
               const std::string base = argStr(a, "base", "");
               Json r = takeJson(sieda_write_fabrication_package(P(s), dir.c_str(), base.empty() ? nullptr : base.c_str()));
               if (!r.get("ok").asBool(false)) throw ToolError("Writing the package failed: " + r.get("error").asString("?"));
@@ -7001,6 +7066,7 @@ void outputTools(Table& t) {
               const std::string dir = s.resolvePath(requireStr(a, "dir"), true), revision = requireStr(a, "revision");
               std::error_code ec;
               fs::create_directories(fs::path(dir) / "fabrication", ec);
+              s.checkLinksInside(dir);
               Json fab = takeJson(sieda_write_fabrication_package(P(s), (fs::path(dir) / "fabrication").string().c_str(), nullptr));
               if (!fab.get("ok").asBool(false)) throw ToolError("Writing the package failed: " + fab.get("error").asString("?"));
               std::string base = proj(s).name.empty() ? "board" : proj(s).name;
@@ -7383,6 +7449,73 @@ void teamTools(Table& t) {
           [](McpServer& s, const Json& a) {
               const std::string idx = readFileArg(s, requireStr(a, "path")).asString();
               return out(takeJson(sieda_import_idx(P(s), idx.c_str())));
+          });
+    t.add("pcb", "pcb_route_compare", "Compare routing strategies", Kind::Edit, false,
+          "Routes copies of the board with each strategy (pcb_autoroute presets; default: default, fast and quality) and "
+          "compares them with the board as it is now (before): connections left open, DRC errors and warnings, vias and "
+          "track length. recommended = fewest open, then fewest DRC errors, warnings, vias, shortest copper. apply: a "
+          "strategy name keeps that result on the board (project_undo goes back); otherwise the board is unchanged.",
+          Schema().array("strategies", "Preset names to compare", "string").str("apply", "Keep this strategy's result"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              auto tool = [&](const char* name, const Json& args) {
+                  for (const auto& t : mcpTools())
+                      if (t.name == name) return t.handler(s, args).data;
+                  throw ToolError(std::string("missing tool ") + name);
+              };
+              auto metrics = [&](const char* name) {
+                  Json m = obj();
+                  int errors = 0, warnings = 0;
+                  const Json drc = takeJson(sieda_pcb_run_drc(p));
+                  for (const auto& v : drc.items()) {
+                      errors += v.get("severity").asString() == "error";
+                      warnings += v.get("severity").asString() == "warning";
+                  }
+                  double length = 0;
+                  for (const auto& t : p->project.pcb.tracks) length += trackLength(t);
+                  m["strategy"] = name;
+                  m["open"] = static_cast<int>(p->project.pcb.ratsnest(p->project.schematic).size());
+                  m["drcErrors"] = errors, m["drcWarnings"] = warnings;
+                  m["vias"] = static_cast<int>(p->project.pcb.vias.size());
+                  m["trackLength"] = std::round(length * 100) / 100;
+                  return m;
+              };
+              std::vector<std::string> names;
+              for (const auto& n : a.get("strategies").items()) names.push_back(n.asString());
+              if (names.empty()) names = {"default", "fast", "quality"};
+              check(names.size() <= 6, "Compare at most 6 strategies");
+              const Project before = p->project;
+              Json results = Json::array();
+              std::map<std::string, Project> routed;
+              std::string best;
+              std::tuple<int, int, int, int, double> bestKey{0, 0, 0, 0, 0.0};
+              for (const auto& n : names) {
+                  p->project = before;
+                  p->router.reset();
+                  Json args = obj();
+                  args["preset"] = n;
+                  tool("pcb_autoroute", args);
+                  Json m = metrics(n.c_str());
+                  const std::tuple<int, int, int, int, double> key{m.get("open").asInt(), m.get("drcErrors").asInt(), m.get("drcWarnings").asInt(),
+                                                                   m.get("vias").asInt(), m.get("trackLength").asNumber()};
+                  if (best.empty() || key < bestKey) best = n, bestKey = key;
+                  routed[n] = p->project;
+                  results.push(m);
+              }
+              p->project = before;
+              p->router.reset();
+              Json j = obj();
+              j["before"] = metrics("before");
+              j["results"] = results;
+              j["recommended"] = best;
+              if (a.has("apply")) {
+                  const std::string keep = argStr(a, "apply");
+                  check(routed.count(keep), "apply must name one of the compared strategies");
+                  p->project = routed[keep];
+                  p->router.reset();
+                  j["applied"] = keep;
+              }
+              return out(j);
           });
     t.add("pcb", "pcb_import_dxf", "Import board outline (DXF)", Kind::Edit, false,
           "Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) "

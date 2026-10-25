@@ -222,6 +222,15 @@ public:
         bool hasMin = false, hasMax = false;
     };
     std::vector<Measurement> measurements;
+    /// Objects a plug-in or AI client keeps in the design (a type of its own, e.g. "acme.shield-can"): an optional
+    /// layer and outline (mm, board coordinates) and free properties. SiEDA keeps them with the design (saved, diffed,
+    /// merged, undone) without interpreting them. Saved only when present.
+    struct PluginObject {
+        std::string id, type, plugin, layer;
+        std::vector<Vec2> points;
+        Json props = Json::object();
+    };
+    std::vector<PluginObject> pluginObjects;
     /// Fingerprint (16 hex digits) of everything saved except the approvals and review comments.
     std::string designHash() const;
     /// Schematic title block (empty = the title is the project name).

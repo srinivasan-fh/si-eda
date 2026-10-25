@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <tuple>
+#include <utility>
 #include <memory>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -2305,6 +2307,57 @@ ParsedNetlist parseNetlist(const std::string& text, const KicadSheetLoader& load
 
 // ------------------------------------------------------------------ KiCad schematics (.kicad_sch)
 
+namespace {
+
+struct SpanPoint { int group; long long x, y; int node; };
+struct SpanWire { int group; long long x0, y0, x1, y1; };
+
+/// Calls join(node, wire index) for every point strictly between a wire's ends (a T-junction), points and wires in
+/// whole units per group (a sheet). A horizontal or vertical wire looks up only the points on its own row / column, so
+/// a long chain of wires stays fast; any other wire scans its group's points between its x ends in floating point (no
+/// overflow on huge coordinates), all such scans stopping after 50 M steps (a hostile file cannot hang the import).
+template <class Join>
+void joinSpans(const std::vector<SpanPoint>& pts, const std::vector<SpanWire>& wires, double tolerance, Join&& join) {
+    using Line = std::vector<std::pair<long long, int>>;
+    std::map<std::pair<int, long long>, Line> rows, cols, byX;
+    for (const auto& p : pts) {
+        rows[{p.group, p.y}].push_back({p.x, p.node});
+        cols[{p.group, p.x}].push_back({p.y, p.node});
+    }
+    std::map<int, std::vector<const SpanPoint*>> groups;
+    for (const auto& p : pts) groups[p.group].push_back(&p);
+    for (auto* m : {&rows, &cols})
+        for (auto& [k, v] : *m) std::sort(v.begin(), v.end());
+    for (auto& [g, v] : groups) std::sort(v.begin(), v.end(), [](const SpanPoint* a, const SpanPoint* b) { return a->x < b->x; });
+    long long budget = 50000000;
+    for (size_t i = 0; i < wires.size(); ++i) {
+        const SpanWire& w = wires[i];
+        if (w.x0 == w.x1 && w.y0 == w.y1) continue;
+        if (w.y0 == w.y1 || w.x0 == w.x1) {
+            const bool horizontal = w.y0 == w.y1;
+            const auto& lines = horizontal ? rows : cols;
+            const auto it = lines.find({w.group, horizontal ? w.y0 : w.x0});
+            if (it == lines.end()) continue;
+            const long long lo = horizontal ? std::min(w.x0, w.x1) : std::min(w.y0, w.y1), hi = horizontal ? std::max(w.x0, w.x1) : std::max(w.y0, w.y1);
+            for (auto p = std::upper_bound(it->second.begin(), it->second.end(), std::make_pair(lo, INT_MAX)); p != it->second.end() && p->first < hi; ++p)
+                join(p->second, i);
+            continue;
+        }
+        const auto g = groups.find(w.group);
+        if (g == groups.end()) continue;
+        const double dx = double(w.x1) - double(w.x0), dy = double(w.y1) - double(w.y0), len2 = dx * dx + dy * dy;
+        const auto first = std::lower_bound(g->second.begin(), g->second.end(), std::min(w.x0, w.x1),
+                                            [](const SpanPoint* a, long long x) { return a->x < x; });
+        for (auto p = first; p != g->second.end() && (*p)->x <= std::max(w.x0, w.x1) && --budget > 0; ++p) {
+            const double px = double((*p)->x) - double(w.x0), py = double((*p)->y) - double(w.y0), t = (px * dx + py * dy) / len2;
+            const double ex = px - t * dx, ey = py - t * dy;
+            if (t > 0 && t < 1 && ex * ex + ey * ey < tolerance * tolerance) join((*p)->node, i);
+        }
+    }
+}
+
+}  // namespace
+
 ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoader& load) {
     const SNode top = SexprParser(text).parse();
     if (top.head() != "kicad_sch") throw ImportError("not a KiCad schematic");
@@ -2325,7 +2378,12 @@ ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoade
     auto key = [&](double x, double y, int sheet = -1) { return Key{sheet < 0 ? sheetNo : sheet, std::llround(x * 1000), std::llround(y * 1000)}; };
     std::vector<int> parent;
     auto node = [&]() { parent.push_back(static_cast<int>(parent.size())); return static_cast<int>(parent.size()) - 1; };
-    std::function<int(int)> find = [&](int i) { return parent[static_cast<size_t>(i)] == i ? i : parent[static_cast<size_t>(i)] = find(parent[static_cast<size_t>(i)]); };
+    auto find = [&](int i) {  // iterative: a long wire chain must not recurse once per wire
+        int r = i;
+        while (parent[static_cast<size_t>(r)] != r) r = parent[static_cast<size_t>(r)];
+        while (parent[static_cast<size_t>(i)] != r) i = std::exchange(parent[static_cast<size_t>(i)], r);
+        return r;
+    };
     auto join = [&](int a, int b) { parent[static_cast<size_t>(find(a))] = find(b); };
     std::map<Key, int> at;  // a point → the node everything touching it joins
     auto point = [&](double x, double y) {
@@ -2518,18 +2576,12 @@ ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoade
     const SNode* rootUuid = top.child("uuid");
     sheet(top, "", rootUuid ? "/" + rootUuid->atom(1) : std::string(), "");
     // A point on a wire's span (not only its ends) joins it.
-    for (const auto& [k, n] : at) {
-        const double x = std::get<1>(k) / 1000.0, y = std::get<2>(k) / 1000.0;
-        for (const auto& w : wires) {
-            if (w.sheet != std::get<0>(k)) continue;
-            const double dx = w.x1 - w.x0, dy = w.y1 - w.y0, len2 = dx * dx + dy * dy;
-            if (len2 < 1e-12) continue;
-            const double t = ((x - w.x0) * dx + (y - w.y0) * dy) / len2;
-            if (t <= 0 || t >= 1) continue;
-            const double px = w.x0 + t * dx - x, py = w.y0 + t * dy - y;
-            if (px * px + py * py < 1e-6) join(n, w.node);
-        }
-    }
+    std::vector<SpanPoint> spanPoints;
+    for (const auto& [k, n] : at) spanPoints.push_back({std::get<0>(k), std::get<1>(k), std::get<2>(k), n});
+    std::vector<SpanWire> spanWires;
+    for (const auto& w : wires)
+        spanWires.push_back({w.sheet, std::llround(w.x0 * 1000), std::llround(w.y0 * 1000), std::llround(w.x1 * 1000), std::llround(w.y1 * 1000)});
+    joinSpans(spanPoints, spanWires, 1.0, [&](int n, size_t w) { join(n, wires[w].node); });
     for (auto& [name, nodes] : named)
         for (size_t i = 1; i < nodes.size(); ++i) join(nodes[0], nodes[i]);
     // Wire ends that touch nothing but their own wire: a sign the symbols were placed wrong (or the sheet is unfinished).
@@ -2547,12 +2599,18 @@ ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoade
             const int r = find(n);
             if (!nameOf.count(r) || name.size() < nameOf[r].size()) nameOf[r] = name;
         }
+    // Wires per joined group, and the wires ending at each point (counted once per wire).
+    std::map<int, int> wiresIn, wireEnds;
+    for (const auto& w : wires) {
+        ++wiresIn[find(w.node)];
+        const int a = at[key(w.x0, w.y0, w.sheet)], b = at[key(w.x1, w.y1, w.sheet)];
+        ++wireEnds[a];
+        if (b != a) ++wireEnds[b];
+    }
     int dangling = 0;
     for (const auto& [k, n] : at) {
-        // A wire end on another wire's span is no dangling end either.
-        bool onWire = false;
-        for (const auto& w : wires)
-            onWire = onWire || (find(w.node) == find(n) && at[key(w.x0, w.y0, w.sheet)] != n && at[key(w.x1, w.y1, w.sheet)] != n);
+        // A wire end on another wire's span is no dangling end either: its group holds a wire not ending here.
+        const bool onWire = wiresIn[find(n)] > wireEnds[n];
         dangling += touches.count(n) && touches[n] == 1 && !onWire;
     }
     if (dangling) out.warnings.push_back(std::to_string(dangling) + " wire ends connect to nothing");
@@ -2560,8 +2618,7 @@ ParsedNetlist parseKicadSchematic(const std::string& text, const KicadSheetLoade
     for (const auto& p : pins) ++pinsAt[p.node];
     int lonely = 0;  // pins with nothing on them (no wire, label, flag or other pin)
     for (const auto& p : pins) {
-        bool onWire = false;
-        for (const auto& w : wires) onWire = onWire || find(w.node) == find(p.node);
+        const bool onWire = wiresIn[find(p.node)] > 0;
         lonely += !onWire && pinsAt[p.node] == 1 && touches[p.node] == 2;
     }
     if (lonely) out.warnings.push_back(std::to_string(lonely) + " pins connect to nothing");
@@ -2694,7 +2751,12 @@ ParsedNetlist parseLtspiceSchematic(const std::string& text) {
         {"zener", {"diode", {{"A", 16, 0}, {"K", 16, 64}}}},            {"led", {"led", {{"A", 16, 0}, {"K", 16, 64}}}},
     };
     std::vector<int> parent;
-    std::function<int(int)> find = [&](int i) { return parent[static_cast<size_t>(i)] == i ? i : parent[static_cast<size_t>(i)] = find(parent[static_cast<size_t>(i)]); };
+    auto find = [&](int i) {  // iterative: a long wire chain must not recurse once per wire
+        int r = i;
+        while (parent[static_cast<size_t>(r)] != r) r = parent[static_cast<size_t>(r)];
+        while (parent[static_cast<size_t>(i)] != r) i = std::exchange(parent[static_cast<size_t>(i)], r);
+        return r;
+    };
     auto join = [&](int a, int b) { parent[static_cast<size_t>(find(a))] = find(b); };
     std::map<std::pair<long, long>, int> at;
     auto point = [&](long x, long y) {
@@ -2768,13 +2830,13 @@ ParsedNetlist parseLtspiceSchematic(const std::string& text) {
         p.part.part = std::string("kind:") + p.sym->kind;
         out.parts.push_back(p.part);
     }
-    for (const auto& [k, n] : at)
-        for (const auto& w : wires) {
-            const long dx = w.x1 - w.x0, dy = w.y1 - w.y0, px = k.first - w.x0, py = k.second - w.y0;
-            if (px * dy != py * dx) continue;  // not on the line
-            const long dot = px * dx + py * dy, len2 = dx * dx + dy * dy;
-            if (dot > 0 && dot < len2) join(n, point(w.x0, w.y0));
-        }
+    std::vector<SpanPoint> spanPoints;
+    for (const auto& [k, n] : at) spanPoints.push_back({0, k.first, k.second, n});
+    std::vector<SpanWire> spanWires;
+    for (const auto& w : wires) spanWires.push_back({0, w.x0, w.y0, w.x1, w.y1});
+    std::vector<int> wireStart;
+    for (const auto& w : wires) wireStart.push_back(point(w.x0, w.y0));
+    joinSpans(spanPoints, spanWires, 0.5, [&](int n, size_t w) { join(n, wireStart[w]); });
     for (auto& [name, nodes] : named)
         for (size_t i = 1; i < nodes.size(); ++i) join(nodes[0], nodes[i]);
     std::map<int, std::string> nameOf;
@@ -2782,10 +2844,11 @@ ParsedNetlist parseLtspiceSchematic(const std::string& text) {
         if (!nodes.empty()) nameOf[find(nodes[0])] = name;
     std::map<int, std::vector<std::pair<std::string, std::string>>> nets;
     for (const auto& p : pins) nets[find(p.node)].push_back({p.ref, p.name});
+    std::set<int> wiredRoots;
+    for (int n : wireStart) wiredRoots.insert(find(n));
     int lonely = 0;
     for (const auto& [root, members] : nets) {
-        bool wired = nameOf.count(root);
-        for (const auto& w : wires) wired = wired || find(point(w.x0, w.y0)) == root;
+        const bool wired = nameOf.count(root) || wiredRoots.count(root);
         lonely += !wired && members.size() == 1;
         const auto& [ref, pin] = members.front();
         out.nets.push_back({nameOf.count(root) ? nameOf[root] : "Net-(" + ref + "-" + pin + ")", members});

@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 133 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 169 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -526,7 +526,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (17)
+### project (18)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -545,6 +545,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
 | `project_undo` | edit | Takes back the last tool call that changed the design (up to 30 steps; steps: n takes back several). |
 | `project_quickstart` | read | The quick start: units, pin addressing, what results carry, the usual flow (the resource sieda://docs/mcp-quickstart, for clients that cannot read resources). |
+| `project_plugin_objects` | edit | Objects of a plug-in's own type kept in the design (saved, diffed, merged and undone with it; SiEDA does not interpret them): add {type, plugin, id?, layer?, points: [[x, y], …] in mm, props: {…}}, update {id, layer?, points?, props?} (props merged), remove id. |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
 | `project_review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
 | `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
@@ -615,7 +616,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (48)
+### pcb (49)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -665,6 +666,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_panel` | edit | Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, separated by V-score lines or routed gaps with breakaway tabs and mouse bites. |
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
+| `pcb_route_compare` | edit | Routes copies of the board with each strategy (pcb_autoroute presets; default: default, fast and quality) and compares them with the board as it is now (before): connections left open, DRC errors and warnings, vias and track length. |
 | `pcb_import_dxf` | edit | Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) and circles, on outline-like layers when the file names them (OUTLINE, Edge.Cuts, BOARD …); millimetres, or inches by $INSUNITS. |
 | `pcb_import_routes` | edit | Takes the routed copper (tracks, arcs, vias) of another tool's board onto this one: PADS ASCII (.asc), HyperLynx (.hyp) or IPC-2581 (.xml / .cvg, as Allegro and OrCAD PCB Editor export it), detected from the text. |
 | `pcb_import_kicad` | edit | Brings a KiCad board (.kicad_pcb, KiCad 6 – 10) into the project. |

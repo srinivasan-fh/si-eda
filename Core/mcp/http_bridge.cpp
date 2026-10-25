@@ -58,7 +58,7 @@ bool dechunk(const std::string& in, std::string* out) {
         }
         at = eol + 2;
         if (size == 0) return true;  // trailers ignored
-        if (at + size > in.size()) return false;
+        if (size > in.size() - at || in.size() - at - size < 2) return false;  // never `at + size`: it can wrap
         out->append(in, at, size);
         at += size + 2;  // data + CRLF
     }

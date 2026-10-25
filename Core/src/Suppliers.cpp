@@ -961,6 +961,7 @@ Json supplierBomRollup(const Json& request) {
     const double swing = std::clamp(request.get("priceChangePercent").asNumber(10), 0.1, 1000.0);
     Json baseline = watch ? request.get("baseline") : Json::object(), alerts = Json::array();
     size_t lineCount = 0;
+    int riskHigh = 0;
     for (const auto& lj : request.get("lines").items()) {
         if (++lineCount > 5000) break;
         Json line = Json::object();
@@ -1039,6 +1040,31 @@ Json supplierBomRollup(const Json& request) {
                           " for " + std::to_string(needed) + " needed";
         }
         if (status == "priced" && !anyPrice) status = "unpriced";
+        // Supply risk (0 – 100): the part's lifecycle, how many distributors stock it, a shortage at the build
+        // quantity, no price; same-family catalog parts (another package) as alternates to check.
+        if (!skip) {
+            std::set<std::string> stocking;
+            if (part)
+                for (const auto& o : part->offers)
+                    if (o.stock > 0) stocking.insert(o.supplier);
+            int risk = !part ? 40 : part->lifecycle == PartLifecycle::Obsolete ? 80 : part->lifecycle == PartLifecycle::Eol ? 50
+                                  : part->lifecycle == PartLifecycle::Nrnd ? 30 : part->lifecycle == PartLifecycle::Unknown ? 10 : 0;
+            risk += part ? (stocking.empty() ? 40 : stocking.size() == 1 ? 20 : 0) : 0;
+            risk += (atBuild.isObject() && !atBuild.get("inStock").asBool(true)) ? 30 : 0;
+            risk += status == "unpriced" ? 10 : 0;
+            risk = std::min(risk, 100);
+            line["sources"] = static_cast<int>(stocking.size());
+            line["risk"] = risk;
+            line["riskLevel"] = risk >= 50 ? "high" : risk >= 25 ? "medium" : "low";
+            riskHigh += risk >= 50;
+            if (!mpn.empty() && (risk >= 25 || stocking.size() < 2)) {
+                Json alternates = Json::array();
+                const Json match = catalogMatchForMpn(mpn);
+                for (const auto& c : match.get("candidates").items())
+                    if (alternates.size() < 8) alternates.push(c);
+                if (alternates.size()) line["alternates"] = alternates;
+            }
+        }
         line["status"] = status;
         line["warning"] = warning;
         line["offers"] = offers;
@@ -1107,6 +1133,7 @@ Json supplierBomRollup(const Json& request) {
     out["lines"] = lines;
     out["totals"] = tj;
     out["warnings"] = warnings;
+    out["highRiskLines"] = riskHigh;
     out["mixedCurrency"] = mixed;
     out["buildQuantity"] = buildBoards;
     if (watch) out["alerts"] = alerts, out["baseline"] = baseline;

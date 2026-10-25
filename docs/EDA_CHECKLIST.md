@@ -23,7 +23,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Unified database: schematic, PCB, footprints, parts, constraints, BOM, 3D | ✅ | `Project` (one JSON document) |
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
-| P0 | Accurate coordinates and units (mm / mil / inch) | 🟡 | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; an integer database for computed geometry ⏳ |
+| P0 | Accurate coordinates and units (mm / mil / inch) | ✅ | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; computed copper (tracks, vias) saved on the same grid, so a reopened board checks the same ✅ |
 | P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | core, CLI and MCP server build on Linux / macOS; the app is macOS only |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
@@ -44,7 +44,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Multi-board system projects | ✅ | `Project::boardNames`, parked boards |
 | P2 | Harness and connector system design | ✅ | `Harnesses.cpp` |
 | P2 | Localisation and accessibility | ✅ | 20 languages, accessibility labels |
-| P2 | Extensible design object model | 🟡 | C API / MCP; plug-in objects ⏳ |
+| P2 | Extensible design object model | ✅ | C API / MCP; plug-in objects kept with the design (`pluginObjects`, MCP `project_plugin_objects`) ✅ |
 | P2 | ➕ Embedded components / cavities | ✅ | embedded passives |
 | P3 | Company-wide database, managed templates, multi-site | ⏳ | |
 
@@ -137,7 +137,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Gloss, impedance widths, stitching / fencing, completion stats | ✅ | |
 | P1 | ➕ Pin-swap-aware routing | ✅ | |
 | P2 | Constraint-aware autorouter, return paths, HS constraints, phase tuning, escape | ✅ | |
-| P2 | AI routing recommendations with before / after | 🟡 | routing report; an AI "compare" view ⏳ |
+| P2 | AI routing recommendations with before / after | ✅ | routing report; MCP `pcb_route_compare`: each strategy routed on a copy, before / after metrics and a recommendation ✅ |
 | P2 | ➕ Coplanar waveguide geometries | ✅ | field solver `FieldGeometry::cpw` (grounded CPW, coplanar stripline), MCP `si_field_solver` `cpwGap` |
 | P3 | Routing policies, batch routing over variants | ⏳ | |
 
@@ -224,7 +224,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Custom columns, grouping, templates | ✅ | grouping; MCP `output_bom` columns in any order (`exportBomColumns`); BOM layout travels in project templates |
 | P1 | Supplier catalogs, price breaks, INR / USD, stock / lead time, EOL, alternates | ✅ | Nexar, DigiKey, Mouser |
 | P1 | ➕ MOQ, packaging, attrition | ✅ | |
-| P2 | Build cost, layer / material cost, second sources, risk scores, alerts | 🟡 | cost roll-up and price / stock / lifecycle alerts ✅ |
+| P2 | Build cost, layer / material cost, second sources, risk scores, alerts | ✅ | cost roll-up and price / stock / lifecycle alerts ✅; per-line sources, risk score / level and catalog alternates (`highRiskLines`) ✅ |
 | P2 | Indian suppliers, ➕ duty / GST / landed cost | ✅ | |
 | P2 | ➕ Consolidated BOM across boards | ✅ | `exportBomColumns`: one BOM across every board with a Boards column, or one board's |
 | P3 | AVL, procurement rules, RoHS / REACH, origin, ERP | 🟡 | compliance fields ✅; ERP ⏳ |
@@ -347,7 +347,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Test-point report for fixture builders | ✅ | `exportTestPointReport` (CSV, in the package) |
 | P1 | Interactive BOM / board viewer for hand assembly | ✅ | `exportHtmlBom` |
 | P1 | Bring-up checklist from rails, clocks, interfaces | ✅ | `bringUpChecklist` (Markdown, in the package) |
-| P2 | Flying-probe / bed-of-nails export | 🟡 | IPC-D-356 ✅ |
+| P2 | Flying-probe / bed-of-nails export | ✅ | IPC-D-356 ✅; test-point report with the nearest probe on the same side and its probe class (100 / 75 / 50 mil) ✅ |
 | P2 | Measured results and field failures linked to the design | ✅ | bench measurements with limits on the design revision (MCP `verify_measurements`), in the release evidence |
 | P3 | Test-management / QMS integration | ⏳ | |
 
@@ -364,7 +364,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 | Deterministic, validated manufacturing outputs | ✅ |
 | Connectivity is the source of truth (no silent net changes) | ✅ |
 | Works fully offline | ✅ |
-| Open, documented file format | 🟡 (format reference ⏳) |
+| Open, documented file format | ✅ (`docs/FILE_FORMAT.md`) |
 | Free tier usable for real boards | ⚪ |
 
 ---

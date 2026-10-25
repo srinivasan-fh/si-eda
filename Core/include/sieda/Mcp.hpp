@@ -116,6 +116,9 @@ public:
     /// symbolic links out of the root are refused). `write` also requires the server not to be read-only. Throws
     /// ToolError.
     std::string resolvePath(const std::string& path, bool write) const;
+    /// Throws ToolError when a folder inside the root holds a symbolic link leading out of it or nowhere (outputs that write
+    /// many files into the folder would follow it).
+    void checkLinksInside(const std::string& dir) const;
     /// Writes a file inside the root (parent folders created). Returns the absolute path. Throws ToolError.
     std::string writeFile(const std::string& path, const std::string& content) const;
 

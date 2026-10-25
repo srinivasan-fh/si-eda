@@ -211,7 +211,7 @@ double argNum(const Json& a, const std::string& key, double def) {
 int argInt(const Json& a, const std::string& key, int def) {
     const double d = argNum(a, key, def);
     if (!std::isfinite(d)) throw ToolError("\"" + key + "\" must be finite");
-    return static_cast<int>(std::lround(d));
+    return static_cast<int>(std::lround(std::clamp(d, -2147483648.0, 2147483647.0)));
 }
 
 bool argBool(const Json& a, const std::string& key, bool def) {
@@ -764,7 +764,24 @@ std::string McpServer::resolvePath(const std::string& path, bool write) const {
     const fs::path rel = canon.lexically_relative(root);
     if (rel.empty() || *rel.begin() == "..")
         throw ToolError("Access outside the root folder is refused: " + path + " (root: " + root.string() + ")");
+    // weakly_canonical resolves only the existing part: a link left in the rest dangles (its target does not exist
+    // yet) and a write would follow it out of the root.
+    fs::path at = root;
+    for (const auto& part : rel)
+        if (fs::is_symlink(at /= part, ec)) throw ToolError("Refused: " + path + " goes through a symbolic link that leads nowhere");
     return canon.string();
+}
+
+void McpServer::checkLinksInside(const std::string& dir) const {
+    std::error_code ec;
+    const fs::path root = fs::weakly_canonical(fs::absolute(fs::path(options_.allowedRoot), ec), ec);
+    for (fs::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        if (!it->is_symlink(ec)) continue;
+        const fs::path target = fs::weakly_canonical(it->path(), ec);
+        const fs::path rel = target.lexically_relative(root);
+        if (ec || rel.empty() || *rel.begin() == ".." || !fs::exists(target, ec))
+            throw ToolError("Refused: " + it->path().string() + " is a symbolic link out of the root folder");
+    }
 }
 
 std::string McpServer::writeFile(const std::string& path, const std::string& content) const {
@@ -906,6 +923,7 @@ void McpServer::saveUndoHistory() const {
         fs::remove(undoFile(projectPath_), ec);
         return;
     }
+    if (fs::is_symlink(undoFile(projectPath_), ec)) return;  // never written through a link (it may lead out of the root)
     std::ofstream(undoFile(projectPath_), std::ios::binary | std::ios::trunc) << j.dump();
 }
 
