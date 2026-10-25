@@ -302,7 +302,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ LTspice / SPICE netlist import | ✅ | SPICE models; LTspice schematics (.asc) into a schematic |
 | P1 | ➕ Gerber / ODB++ import as a reference layer | ✅ | Gerber, drill and ODB++ layer features files (saved with the project) |
 | P2 | Altium libraries, IDF / IDX | ✅ | |
-| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | 🟡 | batch conversion `sieda-cli --convert` (KiCad, Eagle, LTspice, Protel / PADS / OrCAD netlists, KiCad boards) ✅; PADS / OrCAD board routes, HyperLynx ⏳ |
+| P2 | PADS / OrCAD routes, batch conversion, ➕ HyperLynx export | ✅ | batch conversion `sieda-cli --convert` (KiCad, Eagle, LTspice, Protel / PADS / OrCAD netlists, KiCad boards); routes (tracks, arcs, vias) from PADS ASCII, HyperLynx and IPC-2581 (Allegro / OrCAD PCB Editor) fitted onto the placed board (`importRoutes`, MCP `pcb_import_routes`, File → Import Routes…); HyperLynx `.hyp` export (outline, stack-up, pad stacks, pins, tracks, arcs, vias, pours) |
 | P3 | Enterprise migration, PLM / ERP, archival | ⏳ | |
 
 ## 18. Scripting, automation, extensibility

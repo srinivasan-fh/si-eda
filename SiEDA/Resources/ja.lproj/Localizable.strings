@@ -1842,3 +1842,4 @@
 "Show AI Audit Log" = "AI 監査ログを表示";
 "approves this revision" = "このリビジョンを承認";
 "approved an earlier revision" = "以前のリビジョンを承認";
+"Import Routes (PADS / HyperLynx / IPC-2581)…" = "配線をインポート（PADS / HyperLynx / IPC-2581）…";

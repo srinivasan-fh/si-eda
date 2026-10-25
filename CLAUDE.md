@@ -102,6 +102,10 @@
   `designHash`). Controlled release `output_release` (fabrication/, project copy, verification.md, evidence.json,
   change_notice.md, MANIFEST.sha256 via `sha256Hex` in Documents.cpp). Pin / gate swaps skip pairs across I/O banks on
   different VCCO nets (`crossesBankVoltage`, PcbSwap.cpp). Eagle canvas preset (two-letter command sequences).
+  Route exchange `Core/src/RouteExchange.cpp`: `exportHyperlynx` (export "hyperlynx": inches, Y up, ARC clockwise) and
+  `importRoutes` (PADS ASCII / HyperLynx (METRIC = cm) / IPC-2581 detected from the text; frame fitted by named pins, else
+  by track ends landing in pads of their net; MCP `pcb_import_routes`, C `sieda_pcb_import_routes`, `idf` fuzz target);
+  the XML reader is shared through `Core/src/XmlRead.hpp`.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
@@ -200,8 +204,8 @@
   reference designs draw L-routes over pins); snapshot tracks / vias carry `netName`; `pcb_eco_preview`
   counts single-pin nets (`singlePinNets`); `pcb_autoplace` re-places the edge parts once when Auto Place grew the board;
   `stitchingVias` skips vias by a part (the router's pour fan-out); route results give `viasOnBoard`; MCP whole-board
-  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`; not a net with a pad narrower than 0.4 mm + clearance; if that leaves anything open
-  the board-width route is tried too and only the one with fewer open goes through `finishRouting`, once) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
+  routes route unpoured power / ground nets with no width of their own 0.4 mm wide (`powerWidths`; tiers: every such net (necked down at a pad narrower than 0.4 mm + clearance), then those without
+  such a pad, then none, until nothing is left open; only the one with the fewest open goes through `finishRouting`, once) and without a preset take the quality preset's options (gloss, fewer vias, coupled pairs, lengths; ≤ 300 parts); a later `schematic_build` anchors new parts by the pin
   of a part drawn before (`layoutBuilt` `anchor`), a grounded two-pin part above an upward pin stands upright with labels
   (`grounded`); McpRender keeps side pin names inside their half of the body, a lead-less pin's no-connect X outside it,
   and draws every pour under every track (bottom first, each in a light tint of its layer colour; no blend) with light spokes from each pad joined to a pour of its net; `pcb_summary` footprints carry `kicadFootprint` (the catalog's library name); a label splitting a wire is drawn as text along it, catalog D / SW / Y parts

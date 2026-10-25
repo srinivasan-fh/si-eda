@@ -48,6 +48,7 @@
 #include "sieda/Json.hpp"
 #include "sieda/Mcp.hpp"
 #include "sieda/Mechanical.hpp"
+#include "sieda/RouteExchange.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/CustomRules.hpp"
 #include "sieda/ProjectDiff.hpp"
@@ -21363,6 +21364,8 @@ TEST(mcp_usb_pair_stays_coupled_through_an_esd_part) {
     CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"J({"all": true})J"))));
     const Json routed = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
     CHECK(routed.get("pairsCoupled").dump().find("USB_DP") != std::string::npos);
+    // VBUS reaches the module's narrow 3V3 pad and is still routed wide, necked down at that pad.
+    CHECK(routed.get("powerWidths").asString().find("VBUS") != std::string::npos);
     const Json drc = mcpData(mcpTool(s, "pcb_drc", Json::object()));
     CHECK(routed.get("unroutedConnections").asInt(-1) == 0 && drc.get("clean").asBool(false));
 }
@@ -25431,4 +25434,126 @@ TEST(bench_measurements_link_to_the_design_revision) {
     CHECK(!r.get("measurements")[0].get("current").asBool(true));  // taken on an earlier revision
     const Project back = Project::fromJson(Json::parse(p.toJson().dump()));
     CHECK(back.measurements.size() == 2 && back.measurements[1].hasMax && !back.measurements[1].hasMin);
+}
+
+TEST(routes_round_trip_through_hyperlynx_ipc2581_and_pads) {
+    // A routed board's copper exported as HyperLynx / IPC-2581, or written as PADS ASCII in mils with its own origin,
+    // comes back onto the same placed board: every track and via where it was, nothing left unrouted.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK(!p.pcb.tracks.empty());
+    const double H = p.pcb.settings.height;
+    auto sameCopper = [&](const Project& q, bool extra = false) {
+        size_t found = 0;
+        for (const auto& t : p.pcb.tracks)
+            for (const auto& u : q.pcb.tracks)
+                if (u.net == t.net && u.layer == t.layer && std::abs(u.width - t.width) < 1e-4 &&
+                    ((std::hypot(u.a.x - t.a.x, u.a.y - t.a.y) < 1e-4 && std::hypot(u.b.x - t.b.x, u.b.y - t.b.y) < 1e-4) ||
+                     (std::hypot(u.a.x - t.b.x, u.a.y - t.b.y) < 1e-4 && std::hypot(u.b.x - t.a.x, u.b.y - t.a.y) < 1e-4))) {
+                    ++found;
+                    break;
+                }
+        size_t vias = 0;
+        for (const auto& v : p.pcb.vias)
+            for (const auto& w : q.pcb.vias)
+                if (w.net == v.net && std::hypot(w.position.x - v.position.x, w.position.y - v.position.y) < 1e-4 &&
+                    std::abs(w.drill - v.drill) < 1e-4 && std::abs(w.diameter - v.diameter) < 1e-4) {
+                    ++vias;
+                    break;
+                }
+        return found == p.pcb.tracks.size() && (extra || q.pcb.tracks.size() == p.pcb.tracks.size()) && vias == p.pcb.vias.size() &&
+               q.pcb.vias.size() == p.pcb.vias.size() && q.pcb.ratsnest(q.schematic).empty();
+    };
+    {
+        Track arc = p.pcb.tracks.front();  // an arc over the first track, bulging 0.3 mm to its side
+        const Vec2 d{arc.b.x - arc.a.x, arc.b.y - arc.a.y};
+        const double len = std::hypot(d.x, d.y);
+        arc.arc = true, arc.mid = {(arc.a.x + arc.b.x) / 2 - d.y / len * 0.3, (arc.a.y + arc.b.y) / 2 + d.x / len * 0.3};
+        p.pcb.addTrack(arc);
+    }
+    auto sameArc = [&](const Project& q) {
+        const Track& a = p.pcb.tracks.back();
+        return std::any_of(q.pcb.tracks.begin(), q.pcb.tracks.end(), [&](const Track& t) {
+            return t.arc && std::hypot(t.mid.x - a.mid.x, t.mid.y - a.mid.y) < 1e-4 &&
+                   std::hypot(t.a.x + t.b.x - a.a.x - a.b.x, t.a.y + t.b.y - a.a.y - a.b.y) < 1e-4;
+        });
+    };
+    const std::string hyp = exportHyperlynx(p);
+    CHECK(hyp.find("{UNITS=ENGLISH LENGTH}") != std::string::npos && hyp.find("(SEG X1=") != std::string::npos);
+    CHECK(hyp.find("(PIN X=") != std::string::npos && hyp.find("{STACKUP") != std::string::npos);
+    for (const std::string& text : {hyp, exportIpc2581(p)}) {
+        Project q = p;
+        q.pcb.clearRouting();
+        const Json r = importRoutes(q, text);
+        CHECK(!r.has("error") && r.get("unknownNets").size() == 0);
+        CHECK(sameCopper(q) && sameArc(q));
+    }
+    // PADS ASCII in mils, origin 25 / 50 mm away: the fit finds the board's frame from the pads.
+    std::ostringstream pads;
+    pads << "!PADS-POWERPCB-V9.4-MILS!\n*PCB*        GENERAL PARAMETERS\nUNITS        0\nMAXIMUMLAYER 2\n*VIA*\n";
+    std::map<std::pair<long, long>, std::string> viaNames;
+    for (const auto& v : p.pcb.vias) {
+        const std::string name = "V" + std::to_string(viaNames.size());
+        if (!viaNames.emplace(std::make_pair(std::lround(v.drill * 1e4), std::lround(v.diameter * 1e4)), name).second) continue;
+        pads << name << " " << v.drill / 0.0254 << " 2\n-2 " << v.diameter / 0.0254 << " R\n0 " << v.diameter / 0.0254 << " R\n";
+    }
+    const auto padList = p.pcb.pads(p.schematic);
+    auto mil = [&](Vec2 v) { return std::to_string((v.x + 25) / 0.0254) + " " + std::to_string((H - v.y + 50) / 0.0254); };
+    pads << "*ROUTE*\n";
+    for (const auto& net : p.schematic.nets()) {
+        pads << "*SIGNAL* " << net.name << "\n";
+        // PADS runs go pin centre to pin centre: a track end inside a pad gets a stub from that pad's centre.
+        for (const auto& t : p.pcb.tracks) {
+            if (t.net != net.index) continue;
+            const Pad *from = nullptr, *to = nullptr;
+            for (const auto& pad : padList)
+                if (pad.net == t.net && pad.onLayer(t.layer)) {
+                    if (pad.bounds().contains(t.a)) from = &pad;
+                    if (pad.bounds().contains(t.b)) to = &pad;
+                }
+            auto pin = [&](const Pad* pad) { return pad ? p.schematic.find(pad->componentId)->ref + "." + std::to_string(pad->padNumber) : std::string("X.1"); };
+            const std::string layer = " " + std::to_string(t.layer == 0 ? 1 : 2) + " " + std::to_string(t.width / 0.0254) + " 0\n";
+            pads << pin(from) << " " << pin(to) << "\n";
+            if (from) pads << mil(from->position) << layer;
+            pads << mil(t.a) << layer;
+            if (t.arc) {  // centre line with the turn (Y up) between the arc's ends
+                const Vec2 a{t.a.x, H - t.a.y}, m{t.mid.x, H - t.mid.y}, e{t.b.x, H - t.b.y};
+                const double dd = 2 * (a.x * (m.y - e.y) + m.x * (e.y - a.y) + e.x * (a.y - m.y));
+                auto sq = [](Vec2 v) { return v.x * v.x + v.y * v.y; };
+                const Vec2 c{(sq(a) * (m.y - e.y) + sq(m) * (e.y - a.y) + sq(e) * (a.y - m.y)) / dd,
+                             (sq(a) * (e.x - m.x) + sq(m) * (a.x - e.x) + sq(e) * (m.x - a.x)) / dd};
+                const bool ccw = (m.x - a.x) * (e.y - m.y) - (m.y - a.y) * (e.x - m.x) > 0;
+                pads << mil({c.x, H - c.y}) << layer.substr(0, layer.size() - 1) << (ccw ? " CCW\n" : " CW\n");
+            }
+            pads << mil(t.b) << (to ? layer + mil(to->position) + " 65 0 0\n" : " 65 0 0\n");
+        }
+        for (const auto& v : p.pcb.vias)
+            if (v.net == net.index)
+                pads << "A.1 B.2\n" << mil(v.position) << " 1 10 0 "
+                     << viaNames[{std::lround(v.drill * 1e4), std::lround(v.diameter * 1e4)}] << "\n";
+    }
+    pads << "*END*\n";
+    Project q = p;
+    q.pcb.clearRouting();
+    const Json r = importRoutes(q, pads.str());
+    CHECK(r.get("format").asString() == "pads" && r.get("padHits").asInt() > 0);
+    CHECK(std::abs(r.get("offset").get("x").asNumber() + 25) < 1e-3);
+    CHECK(sameCopper(q, true) && sameArc(q));
+    CHECK(importRoutes(q, "hello").has("error"));
+}
+
+TEST(mcp_exports_hyperlynx_and_imports_routes_back) {
+    // output_export hyperlynx writes the routed board; pcb_import_routes puts the same copper back after it is ripped up.
+    const auto root = mcpRoot("routes");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::parse(R"({"pour": false})"))));
+    CHECK(!mcpFailed(mcpTool(s, "output_export", Json::parse(R"({"format": "hyperlynx", "path": "board.hyp"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_remove_copper", Json::object())));
+    const Json r = mcpData(mcpTool(s, "pcb_import_routes", Json::parse(R"({"path": "board.hyp"})")));
+    CHECK(r.get("format").asString() == "hyperlynx" && r.get("tracks").asInt() > 0);
+    CHECK(mcpData(mcpTool(s, "pcb_drc", Json::object())).get("unrouted").size() == 0);
+    std::ofstream(root / "bad.asc") << "!PADS-POWERPCB-V9.4-MILS!\n*END*\n";
+    CHECK(mcpFailed(mcpTool(s, "pcb_import_routes", Json::parse(R"({"path": "bad.asc"})"))));
 }

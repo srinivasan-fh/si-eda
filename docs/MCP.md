@@ -615,7 +615,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (47)
+### pcb (48)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -666,6 +666,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 | `pcb_import_idx` | edit | Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs (height zones). |
 | `pcb_import_dxf` | edit | Sets the board outline and cutouts from a DXF drawing: closed loops of lines, arcs, polylines (with bulges) and circles, on outline-like layers when the file names them (OUTLINE, Edge.Cuts, BOARD …); millimetres, or inches by $INSUNITS. |
+| `pcb_import_routes` | edit | Takes the routed copper (tracks, arcs, vias) of another tool's board onto this one: PADS ASCII (.asc), HyperLynx (.hyp) or IPC-2581 (.xml / .cvg, as Allegro and OrCAD PCB Editor export it), detected from the text. |
 | `pcb_import_kicad` | edit | Brings a KiCad board (.kicad_pcb, KiCad 6 – 10) into the project. |
 | `pcb_reference_layer` | edit | Keeps a Gerber or Excellon drill file over the board as a reference layer (origin at the board's lower-left corner, never fabricated): path adds one; index with visible shows / hides it, with remove deletes it. |
 
@@ -736,7 +737,7 @@ Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D mode
 | `output_fabrication_package` | writes files | Writes the complete fabrication package into a folder inside the root: gerbers/ (every layer, drills, job file, IPC-D-356A), assembly/ (BOMs, CPL, pick-and-place, drawings), fab notes, a gerber zip, netlist and 3D STL. |
 | `output_release` | writes files | A controlled release in a folder inside the root: the fabrication package (fabrication/), the project as released (<name>-rev<revision>.siedaproj), the verification report, the evidence (design fingerprint, approvals of this revision, requirements trace, waivers, bench measurements), a change notice against previous (an older .siedaproj) and MANIFEST.sha256 with every file's SHA-256 (check with shasum -a 256 -c). |
 | `output_gerbers` | writes files | Writes RS-274X Gerbers (every copper layer, masks, silkscreens, paste, outline) and Excellon drill files into a folder inside the root. |
-| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, revisions), net_lengths (routed length per net, CSV). |
+| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), hyperlynx (HyperLynx .hyp for signal-integrity tools), fab_notes, stl, obj, dxf (outline, holes, silk, courtyards), freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, revisions), net_lengths (routed length per net, CSV). |
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
 | `output_pick_and_place` | writes files | Pick-and-place / centroid file (designator, x, y, rotation, side) as CSV, inline or written to path. |
 | `output_schematic_pdf` | writes files | The schematic as a PDF (one page per sheet with frame and title block, bookmarks by hierarchy), written to path inside the root, or returned as an embedded PDF resource. |

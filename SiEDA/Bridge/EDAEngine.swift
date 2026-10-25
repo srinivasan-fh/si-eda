@@ -1626,6 +1626,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case idfLibrary = "idf_library"
     case idx
     case ipc2581
+    case hyperlynx
     case dxf
     case freecad
     case fusion
@@ -1669,6 +1670,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idfLibrary: return "board.emp"
         case .idx: return "board.idx"
         case .ipc2581: return "board-ipc2581.xml"
+        case .hyperlynx: return "board.hyp"
         case .dxf: return "board.dxf"
         case .freecad: return "board.FCMacro"
         case .fusion: return "board.py"
@@ -1712,6 +1714,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .idfLibrary: return "IDF 3.0 Library (.emp)"
         case .idx: return "IDX / EDMD Baseline for MCAD (.idx)"
         case .ipc2581: return "IPC-2581C — Layers, Nets, Parts and BOM (XML)"
+        case .hyperlynx: return "HyperLynx Board (.hyp) for Signal Integrity"
         case .dxf: return "DXF — Outline, Holes, Silk and Courtyards (MCAD)"
         case .freecad: return "FreeCAD Macro — Board and Parts, Placement Back (MCAD)"
         case .fusion: return "Autodesk Fusion Script — Board and Parts, Placement Back (MCAD)"

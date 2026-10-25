@@ -1842,3 +1842,4 @@
 "Show AI Audit Log" = "KI-Prüfprotokoll anzeigen";
 "approves this revision" = "gibt diese Revision frei";
 "approved an earlier revision" = "hat eine frühere Revision freigegeben";
+"Import Routes (PADS / HyperLynx / IPC-2581)…" = "Leiterbahnen importieren (PADS / HyperLynx / IPC-2581)…";

@@ -39,6 +39,7 @@
 #include "sieda/LengthMatch.hpp"
 #include "sieda/LibraryImport.hpp"
 #include "sieda/Mechanical.hpp"
+#include "sieda/RouteExchange.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/ProjectDiff.hpp"
 #include "sieda/PowerIntegrity.hpp"
@@ -1453,6 +1454,15 @@ char* sieda_pcb_import_dxf(SiedaProject* project, const char* dxf_text) {
     }
 }
 
+char* sieda_pcb_import_routes(SiedaProject* project, const char* text, int32_t replace) {
+    if (!project || !text) return nullptr;
+    try {
+        return dup(importRoutes(project->project, text, replace != 0).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 int32_t sieda_pcb_hold_pours(SiedaProject* project, int32_t hold, int32_t refill) {
     if (!project) return 0;
     PcbLayout& pcb = project->project.pcb;
@@ -1891,6 +1901,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "vrml") return dup(exportVrml(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
         if (f == "ipc2581") return dup(exportIpc2581(p));
+        if (f == "hyperlynx") return dup(exportHyperlynx(p));
         if (f == "review") return dup(reviewMarkdown(p));
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
