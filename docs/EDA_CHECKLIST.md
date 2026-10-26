@@ -24,7 +24,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
 | P0 | Accurate coordinates and units (mm / mil / inch) | ✅ | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; computed copper (tracks, vias) saved on the same grid, so a reopened board checks the same ✅ |
-| P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | core, CLI and MCP server build on Linux / macOS; the app is macOS only |
+| P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | SiEDA Studio on Linux and Windows ([STUDIO.md](STUDIO.md)): open / save, schematic, board and 3D views, checks, BOM, Auto Place / Route, fabrication outputs, every MCP tool, GitHub sync; core tests pass on Linux, macOS and Windows CI ✅; the interactive drawing editors (schematic capture, interactive router, footprint / symbol editors) are macOS-only ⏳ |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
 | P0 | Human-readable, documented project file | ✅ | indented JSON; `docs/FILE_FORMAT.md` |
@@ -34,7 +34,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Stable object IDs and references | ✅ | |
 | P0 | ➕ Grids, snapping, origin per editor | ✅ | schematic grid / snap, PCB grid, footprint grid and origin |
 | P0 | ➕ Object locking | ✅ | schematic `locked`, locked tracks kept by the router |
-| P1 | Offline-first, optional cloud sync | 🟡 | fully offline; cloud sync ⏳ (shared-folder live co-editing exists) |
+| P1 | Offline-first, optional cloud sync | ✅ | fully offline; optional GitHub cloud sync (MCP `project_cloud`, Studio → Cloud: connect / pull / push, project files merged field by field) ✅; shared-folder live co-editing |
 | P1 | Project templates and reusable settings | ✅ | reference designs, rule presets, DFM packs; File → Save as Template… / New from Template |
 | P1 | Versioned database and migration tools | ✅ | format version, load notes for newer files, `sieda-cli --upgrade` rewrites files in the current format |
 | P1 | Custom shortcuts and command palette | ✅ | ⌘K palette, Settings → Shortcuts (menus and canvas tool keys) |
@@ -269,7 +269,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Local history / VCS, backup, diffable files | ✅ | |
 | P0 | ➕ In-app Git: clone, commit, branch, tag | ✅ | File → Git… (status, history, commit, branch, tag, pull, push, clone) and the Git drivers |
 | P1 | Named revisions, visual diff, comments, review summaries | ✅ | |
-| P1 | Browser read-only viewer, cloud sync, share links | 🟡 | read-only viewer: export "viewer" (one offline HTML file, every sheet and the board, pan / zoom) ✅; cloud sync and share links ⏳ (a synced folder with Live Collaboration works) |
+| P1 | Browser read-only viewer, cloud sync, share links | ✅ | read-only viewer: export "viewer" (one offline HTML file, every sheet and the board, pan / zoom) ✅; GitHub sync and share links (file, history, raw, Pages viewer; public repository = anyone, private = collaborators) ✅ |
 | P1 | ➕ File locking / check-out | ✅ | `<file>.lock` beside an open project: who has it open, where, since when (Live Collaboration does not lock) |
 | P2 | Approvals, branch compare / merge, integrations, shared libraries, co-editing | ✅ | approvals, in-app Git branches, three-way merge, shared library folder, co-editing |
 | P3 | Permissions, sign-off, audit, identity | 🟡 | sign-off (approvals), AI audit log ✅; permissions and identity ⏳ (need a server) |
@@ -404,6 +404,6 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 18. Fixed-point (nm) geometry database (~~user coordinates on a 1 nm grid~~ ✅), ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
 19. ~~Rigid-flex folding in 3D~~ ✅, native MCAD connectors (~~FreeCAD, Fusion~~ ✅; SolidWorks, Onshape) (§8)
 20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), Gerber-level package comparison (§9 P2)
-21. Windows / Linux app (§1 P0) — the core already builds there; the app is SwiftUI
+21. Windows / Linux app (§1 P0): ~~SiEDA Studio (views, checks, outputs, every tool, GitHub sync)~~ ✅; interactive drawing editors
 22. ~~Signed installers and auto-update, SBOM, reproducible builds (§19, §20)~~ ✅
 23. Enterprise: teams, RBAC, SSO, audit, self-hosting, PLM / ERP (§15, §19 P3)

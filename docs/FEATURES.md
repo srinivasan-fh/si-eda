@@ -28,7 +28,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 `sieda-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, Claude Desktop, Claude Code,
 Cursor, VS Code, ChatGPT desktop or a local LLM can drive SiEDA completely. The AI can capture schematics, search the
 catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at PNG renders and write Gerbers.
-It has 169 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
+It has 170 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
 and `--read-only` lets the AI inspect without changing anything.
 
 ```bash
@@ -492,6 +492,12 @@ Command-line build and test:
 ```bash
 xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -destination 'platform=macOS' test
 ```
+
+### SiEDA Studio (Linux, Windows)
+
+`sieda-studio` opens the app in your browser: schematic, board and 3D views, checks, BOM, Auto Place / Route,
+fabrication outputs, every MCP tool and GitHub cloud sync with share links (public or private repositories). See
+[STUDIO.md](STUDIO.md).
 
 ### C++ core (any platform)
 

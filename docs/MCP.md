@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 169 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 170 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -50,6 +50,9 @@ failures (an unknown designator, a pin that does not exist, a refused path) come
 | Good for | Batch jobs, CI, scripted designs, Linux / Windows | Pair-designing: you and the AI on the same board |
 
 The tools, resources and prompts are the same in both modes (one engine, `Core/src/Mcp.cpp`).
+
+On Linux and Windows, SiEDA Studio serves the live mode too: `sieda-mcp --connect http://127.0.0.1:<port>/mcp --token
+<token>` with the address and token it prints at start ([STUDIO.md](STUDIO.md)).
 
 ## Build and run
 
@@ -526,7 +529,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (18)
+### project (19)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -536,6 +539,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_open` | edit (destructive) | Opens a .siedaproj file from the server's root folder (relative paths resolve against it), replacing the open project. |
 | `project_save` | writes files | Saves the project to the file it was opened from / last saved to (or to "path"), inside the root folder. |
 | `project_save_as` | writes files | Saves the project to a new .siedaproj file inside the root folder; later saves go there. |
+| `project_cloud` | edit (destructive) | A GitHub repository as the project's cloud, through your own git and its sign-in (Git Credential Manager, gh auth login or SSH keys; SiEDA keeps no token). |
 | `project_export_json` | read | The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants. |
 | `project_list_examples` | read | The built-in example designs (ids for project_load_example). |
 | `project_load_example` | edit (destructive) | Replaces the open project with a built-in example design (schematic and board size; route it with pcb_update_from_schematic and pcb_autoroute). |

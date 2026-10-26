@@ -140,9 +140,9 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
 - [ ] Optional: real-time multi-user editing (needs a sync server) — ~0.8M–1.5M+
 
 ### 5. Platforms (on hold — plan later)
-- [ ] Windows: build the C++ engine with MSVC in CI (Ubuntu, macOS, Windows)
-- [ ] Choose the Windows / Linux UI framework (Qt 6 recommended; or web / .NET)
-- [ ] App skeleton: open / save, schematic and PCB canvases, zoom, selection
+- [x] Windows: build the C++ engine in CI (Ubuntu, macOS, Windows with MinGW)
+- [x] Choose the Windows / Linux UI framework: SiEDA Studio, a local web UI served by the core (docs/STUDIO.md)
+- [x] App skeleton: open / save, schematic and PCB views, zoom, checks, outputs, every MCP tool, GitHub sync
 - [ ] Port the editors one area per PR
 
 ## Long-term archival ("1,000-year" designs) — plan later

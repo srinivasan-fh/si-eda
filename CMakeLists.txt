@@ -49,6 +49,7 @@ add_library(sieda_core STATIC
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp
     Core/src/ProjectDiff.cpp
+    Core/src/CloudSync.cpp
     Core/src/Mechanical.cpp
     Core/src/CustomRules.cpp
     Core/src/Simulator.cpp
@@ -126,6 +127,12 @@ if(SIEDA_HARFBUZZ AND PkgConfig_FOUND)
         target_compile_definitions(sieda_core PRIVATE SIEDA_HAVE_HARFBUZZ)
     endif()
 endif()
+if(MINGW)  # self-contained .exe files: no MinGW runtime DLLs to ship beside them
+    add_link_options(-static)
+endif()
+if(WIN32)  # M_PI and friends from <cmath>; no min / max macros from <windows.h>
+    target_compile_definitions(sieda_core PUBLIC _USE_MATH_DEFINES NOMINMAX)
+endif()
 if(MSVC)
     target_compile_options(sieda_core PRIVATE /W4)
 else()
@@ -142,10 +149,32 @@ target_link_libraries(sieda-cli PRIVATE sieda_core)
 add_executable(sieda-mcp Core/mcp/main.cpp Core/mcp/http_bridge.cpp)
 target_link_libraries(sieda-mcp PRIVATE sieda_core)
 target_compile_definitions(sieda-mcp PRIVATE SIEDA_DOCS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/docs")
+if(WIN32)
+    target_link_libraries(sieda-mcp PRIVATE ws2_32)
+endif()
 if(NOT MSVC)
     target_compile_options(sieda-mcp PRIVATE -Wall -Wextra -Wpedantic)
     if(SIEDA_WARNINGS_AS_ERRORS)
         target_compile_options(sieda-mcp PRIVATE -Werror)
+    endif()
+endif()
+
+# SiEDA Studio: the desktop app on Linux and Windows, served by the core to the system browser (docs/STUDIO.md).
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp
+                   COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/ui.html
+                           -DOUT=${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp -DNAME=kStudioHtml -P ${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/embed.cmake
+                   DEPENDS Core/studio/ui.html Core/studio/embed.cmake)
+add_executable(sieda-studio Core/studio/main.cpp ${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp)
+target_link_libraries(sieda-studio PRIVATE sieda_core)
+target_compile_definitions(sieda-studio PRIVATE SIEDA_STUDIO_VERSION="${PROJECT_VERSION}")
+if(WIN32)
+    target_link_libraries(sieda-studio PRIVATE ws2_32 shell32)
+    set_target_properties(sieda-studio PROPERTIES WIN32_EXECUTABLE OFF)
+endif()
+if(NOT MSVC)
+    target_compile_options(sieda-studio PRIVATE -Wall -Wextra -Wpedantic)
+    if(SIEDA_WARNINGS_AS_ERRORS)
+        target_compile_options(sieda-studio PRIVATE -Werror)
     endif()
 endif()
 
@@ -165,6 +194,9 @@ if(SIEDA_BUILD_TESTS)
         # The Python API (python/sieda.py) drives sieda-mcp end to end.
         add_test(NAME sieda_python_api
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_sieda.py $<TARGET_FILE:sieda-mcp>)
+        # SiEDA Studio's server: token and Host checks, tool calls, /state, /quit.
+        add_test(NAME sieda_studio
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/studio_test.py $<TARGET_FILE:sieda-studio>)
         # sieda-mcp --connect (stdio to the app's live HTTP endpoint) against a small in-process HTTP server.
         if(NOT WIN32)
             add_test(NAME sieda_mcp_connect
