@@ -203,12 +203,11 @@ bool commit(const std::string& dir, const std::vector<std::string>& files, const
 
 Json connect(const std::string& dir, const std::string& remote, const std::string& branch,
              const std::vector<std::string>& files) {
-    const GitRun top = git(dir, {"rev-parse", "--show-toplevel"});
+    // --show-cdup ("../" up to the top, "" at it) rather than --show-toplevel: MSYS2's git prints POSIX paths.
+    const GitRun top = git(dir, {"rev-parse", "--show-cdup"});
     if (top.code == -1) throw std::runtime_error("git is not installed (install Git, then try again)");
-    std::error_code ec;
-    if (top.ok() && !fs::equivalent(trim(top.output), dir, ec))
-        throw std::runtime_error("this folder is inside another Git repository (" + trim(top.output) +
-                                 "): keep the project in a folder of its own");
+    if (top.ok() && !trim(top.output).empty())
+        throw std::runtime_error("this folder is inside another Git repository: keep the project in a folder of its own");
     if (!top.ok()) {
         must(dir, {"init", "-q"});
         must(dir, {"symbolic-ref", "HEAD", "refs/heads/" + branch});
@@ -272,7 +271,7 @@ Json pull(const std::string& dir, const std::string& branch) {
             git(dir, {"merge", "--abort"});
             throw std::runtime_error("the remote changed the same files as you (not project files); nothing was merged");
         }
-        const std::string top = trim(must(dir, {"rev-parse", "--show-toplevel"}).output);
+        const std::string top = (fs::path(dir) / trim(must(dir, {"rev-parse", "--show-cdup"}).output)).string();
         for (const auto& f : files) {
             // Three stages as temporary files: "base ours theirs<TAB>path" ("." for a missing stage).
             const std::string line = trim(must(dir, {"-C", top, "checkout-index", "--stage=all", "--temp", "--", f}).output);

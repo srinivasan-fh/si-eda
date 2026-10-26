@@ -25688,6 +25688,15 @@ TEST(saved_copper_lies_on_the_nanometre_grid) {
     CHECK(q.pcb.runDRC(q.schematic).size() == p.pcb.runDRC(p.schematic).size());
 }
 
+/// Removes a folder git has used: its object files are read-only on Windows, where remove_all refuses them.
+void removeRepositoryFolder(const std::filesystem::path& root) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec))
+        fs::permissions(it->path(), fs::perms::owner_write, fs::perm_options::add, ec);
+    fs::remove_all(root, ec);
+}
+
 TEST(cloud_sync_pushes_pulls_and_merges_through_a_repository) {
     // GitHub stand-in: a bare repository on disk. Two copies change different fields of the same project; the second
     // push is rejected, merges field by field and goes through, and the first copy pulls both changes.
@@ -25701,7 +25710,7 @@ TEST(cloud_sync_pushes_pulls_and_merges_through_a_repository) {
     if (cloud::git(".", {"--version"}).code == -1) return;  // no git on this machine
     namespace fs = std::filesystem;
     const fs::path root = fs::temp_directory_path() / "sieda_cloud_test";
-    fs::remove_all(root);
+    removeRepositoryFolder(root);
     fs::create_directories(root / "a");
     fs::create_directories(root / "b");
     CHECK(cloud::git(root.string(), {"init", "-q", "--bare", "remote.git"}).ok());
@@ -25743,7 +25752,7 @@ TEST(cloud_sync_pushes_pulls_and_merges_through_a_repository) {
     const Project merged = load(root / "a" / "amp.siedaproj");
     CHECK(merged.name == "Amp A" && merged.buildQuantity == 250);
     CHECK(cloud::status((root / "a").string()).get("changed").items().empty());
-    fs::remove_all(root);
+    removeRepositoryFolder(root);
 }
 
 TEST(mcp_project_cloud_refuses_what_it_cannot_sync) {
@@ -25753,7 +25762,7 @@ TEST(mcp_project_cloud_refuses_what_it_cannot_sync) {
     CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "status"})"))));
     namespace fs = std::filesystem;
     const fs::path root = fs::temp_directory_path() / "sieda_cloud_mcp";
-    fs::remove_all(root);
+    removeRepositoryFolder(root);
     fs::create_directories(root / "led");
     mcp::McpOptions o;
     o.allowedRoot = root.string();
@@ -25765,5 +25774,5 @@ TEST(mcp_project_cloud_refuses_what_it_cannot_sync) {
         CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "share"})"))));
         CHECK(!mcpData(mcpTool(s, "project_cloud", Json::parse(R"({"action": "status"})"))).get("repository").asBool());
     }
-    fs::remove_all(root);
+    removeRepositoryFolder(root);
 }
