@@ -866,19 +866,21 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     if (!problem.empty()) return toolErrorResult("Invalid arguments for " + name + ": " + problem);
     // Undo history: the state before each call that changes the design (not the undo itself), for this project only.
     if (undoOf_ != (project_ ? project_->serial : 0)) undo_.clear(), undoOf_ = project_ ? project_->serial : 0;
+    // A live route's steps work on the router's copy: only its commit changes the design.
+    const bool changes = tool->mutates && (name != "pcb_route_live" || args.get("action").asString("") == "commit");
     std::string before;
-    if (tool->mutates && name != "project_undo" && project_)
+    if (changes && name != "project_undo" && project_)
         before = project_->project.toJson().dump();
     ToolOutput out;
     try {
         out = tool->handler(*this, args);
     } catch (const ToolError& e) {
-        if (tool->mutates && onChange_) onChange_(name);
+        if (changes && onChange_) onChange_(name);
         return toolErrorResult(e.what());
     } catch (const JsonError& e) {
         return toolErrorResult(std::string("Invalid JSON: ") + e.what());
     } catch (const std::exception& e) {
-        if (tool->mutates && onChange_) onChange_(name);
+        if (changes && onChange_) onChange_(name);
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
     if (name == "project_open" || name == "project_new" || name == "project_load_example") {
@@ -889,7 +891,7 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         if (undo_.size() > kUndoHistory) undo_.erase(undo_.begin(), undo_.end() - kUndoHistory);
     }
     if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
-    if (tool->mutates && onChange_) onChange_(name);
+    if (changes && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
     if (out.content.isArray())

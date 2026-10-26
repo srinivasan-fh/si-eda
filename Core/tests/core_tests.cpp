@@ -21235,6 +21235,10 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     Json chk = Json::object();
     chk["spec"] = spec;
     CHECK(mcpData(mcpTool(s, "library_check_part", chk)).get("landPattern").size() == 0);
+    chk["preview"] = true;  // editors draw the part and edit its pads as lands
+    const Json pv = mcpData(mcpTool(s, "library_check_part", chk));
+    CHECK(pv.get("part").get("symbol").get("pins").size() == 2 && pv.get("part").get("footprintGeometry").get("pads").size() == 8);
+    CHECK(pv.get("customPackage").get("type").asString("") == "CUSTOM" && pv.get("customPackage").get("lands").size() == 8);
     // A project-library part builds like a catalog one; removing a part takes its own labels with it; the DRC names
     // each unrouted connection.
     CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
@@ -21264,6 +21268,40 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
         if (c.get("kind").asString("") == "net_label" && c.get("value").asString("") == "A")
             near |= std::fabs(c.get("x").asNumber() - 900) < 100 && std::fabs(c.get("y").asNumber() - 900) < 100;
     CHECK(near);
+}
+
+TEST(mcp_route_live_steps_change_the_board_only_on_commit) {
+    const auto root = mcpRoot("route_live");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object(), all = Json::object(), step = Json::object();
+    ex["id"] = "led_indicator";
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    step["action"] = "move";
+    CHECK(mcpFailed(mcpTool(s, "pcb_route_live", step)));  // nothing begun
+    const PcbLayout& pcb = s.project()->project.pcb;
+    const std::vector<Pad> pads = pcb.pads(s.project()->project.schematic);
+    const Pad *a = nullptr, *b = nullptr;
+    for (const Pad& p : pads)
+        for (const Pad& q : pads)
+            if (!a && p.net >= 0 && p.net == q.net && p.componentId != q.componentId) a = &p, b = &q;
+    CHECK(a && b);
+    const Vec2 from = a->position, to = b->position;
+    const size_t undoBefore = s.undoSteps();
+    step["action"] = "begin", step["x"] = from.x, step["y"] = from.y, step["layer"] = 0;
+    CHECK(mcpData(mcpTool(s, "pcb_route_live", step)).get("active").asBool(false));
+    step["action"] = "move", step["x"] = to.x, step["y"] = to.y;
+    const Json pv = mcpData(mcpTool(s, "pcb_route_live", step));
+    CHECK(pv.get("head").size() > 0 && pv.get("reachedTarget").asBool(false));
+    CHECK(pcb.tracks.empty() && s.undoSteps() == undoBefore);  // the steps work on the router's copy
+    step["action"] = "commit";
+    CHECK(mcpData(mcpTool(s, "pcb_route_live", step)).get("addedTracks").size() > 0);
+    CHECK(!s.project()->project.pcb.tracks.empty() && s.undoSteps() == undoBefore + 1);
+    CHECK(!mcpFailed(mcpTool(s, "project_undo")));
+    CHECK(s.project()->project.pcb.tracks.empty());
+    step["action"] = "begin", step["x"] = -50.0, step["y"] = -50.0;
+    CHECK(mcpFailed(mcpTool(s, "pcb_route_live", step)));  // no copper there
 }
 
 TEST(mcp_undo_batch_placement_decoupling_and_drawn_nets) {

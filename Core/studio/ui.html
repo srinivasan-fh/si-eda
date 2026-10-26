@@ -50,9 +50,18 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <section data-tab="Board"><div class="row"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
 <button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
 <button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button></div>
-<div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route: click a pad, then another (X)">Route</button>
-<button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button><span class="info" id="pcbHint"></span></div>
+<div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)">Route</button>
+<button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
 <div class="work"><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Part</b><div id="pcbSel" class="info">Click a part to select it.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
+<section data-tab="Library"><div class="row"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
+<label>Package</label><select id="lpPkg" onchange="lp.custom=null;lpUpdate()"></select><label>Pads</label><input id="lpCount" type="number" min="1" max="1024" value="8" style="width:70px" onchange="lp.custom=null;lpPinCount();lpUpdate()">
+<label>Pitch</label><input id="lpPitch" placeholder="auto" style="width:70px" onchange="lp.custom=null;lpUpdate()"><button onclick="lpEditPads()" title="Turn the package into pads you can drag and edit">Edit pads</button>
+<button class="primary" onclick="lpCreate()">Create and place</button><span id="lpScore" class="info"></span></div>
+<div class="work"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="row"><b>Symbol</b><span class="info">Drag a pin to another side of the body.</span><button onclick="lp.layout=null;lpUpdate()">Auto-arrange</button></div>
+<svg id="lpSym" class="plot" style="height:300px"></svg><div class="row"><b>Footprint</b><span class="info" id="lpFpHint">Choose Edit pads to move, resize, add or remove pads.</span></div><svg id="lpFp" class="plot" style="height:300px;background:#1b2230"></svg></div>
+<div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
+<div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
+<div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
 <section data-tab="3D"><div class="row"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
 <section data-tab="Simulate"><div class="row"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option></select>
 <span id="simArgs"></span><button class="primary" onclick="simulate()">Run</button></div><div id="simOut"></div></section>
@@ -89,15 +98,15 @@ function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fi
  el.onwheel=e=>{e.preventDefault();const r=el.getBoundingClientRect(),f=e.deltaY>0?1/1.15:1.15,mx=e.clientX-r.left,my=e.clientY-r.top;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;apply();};
  el.onmousedown=e=>{if(e.button===0&&el.onpress&&el.onpress(v.at(e),e))return;pan=[e.clientX,e.clientY];el.style.cursor="grabbing";};
  addEventListener("mouseup",e=>{if(drag&&drag.el===el){const d=drag;drag=null;el.onrelease&&el.onrelease(v.at(e),d);}pan=null;el.style.cursor="";});
- el.onmousemove=e=>{if(drag&&drag.el===el){drag.at=v.at(e);overlay(el);return;}if(!pan)return;v.x+=e.clientX-pan[0];v.y+=e.clientY-pan[1];pan=[e.clientX,e.clientY];v.fit=false;apply();};
- el.ondblclick=()=>{v.fit=true;v.doFit();};return v;}
+ el.onmousemove=e=>{if(el.onhover&&el.onhover(v.at(e)))return;if(drag&&drag.el===el){drag.at=v.at(e);overlay(el);return;}if(!pan)return;v.x+=e.clientX-pan[0];v.y+=e.clientY-pan[1];pan=[e.clientX,e.clientY];v.fit=false;apply();};
+ el.ondblclick=()=>{if(el.ondbl&&el.ondbl())return;v.fit=true;v.doFit();};return v;}
 function showImage(id,src,vb){const el=$(id),v=panZoom(el),i=new Image();if(vb)v.vb=vb;i.onload=()=>{const st=document.createElement("div");st.className="stage";
  const o=document.createElementNS("http://www.w3.org/2000/svg","svg");o.setAttribute("class","over");o.setAttribute("viewBox",v.vb.join(" "));o.setAttribute("preserveAspectRatio","none");
  st.append(i,o);el.replaceChildren(st);v.fit?v.doFit():v.apply();overlay(el);};i.src=src;}
 const svgSrc=t=>"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(t)));
 const viewBox=t=>{const m=/viewBox="([^"]+)"/.exec(t);return m?m[1].trim().split(/[ ,]+/).map(Number):null;};
 const NS="http://www.w3.org/2000/svg";function shape(o,tag,a){const n=document.createElementNS(NS,tag);for(const k in a)n.setAttribute(k,a[k]);o.append(n);return n;}
-async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets"]});snap=r.data;status("Ready.");}
+async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets","tracks","vias"]});snap=r.data;status("Ready.");}
 const sheetParts=()=>(snap.components||[]).filter(c=>c.sheet===(+$("sheet").value||1));
 function schBox(c){let xs=[c.x],ys=[c.y];for(const p of c.pins||[]){xs.push(p.x);ys.push(p.y);}const m=12;return[Math.min(...xs)-m,Math.min(...ys)-m,Math.max(...xs)+m,Math.max(...ys)+m];}
 function nearPin(pt,lim){let best=null,d0=lim;for(const c of sheetParts())for(const p of c.pins||[]){const d=Math.hypot(p.x-pt[0],p.y-pt[1]);if(d<d0){d0=d;best={ref:c.ref,pin:p.name,x:p.x,y:p.y,net:p.net};}}return best;}
@@ -113,11 +122,12 @@ function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChi
  if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
   if(sch){const c=sheetParts().find(c=>c.ref===drag.ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0]+dx,y:b[1]+dy,width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2});}}
   else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.2)",stroke:"#5b8dff","stroke-width":0.2});}}
+ if(!sch&&live&&live.pv)drawLive(o,live.pv);
  if(!sch)for(const m of marks)shape(o,"circle",{cx:m.x,cy:m.y,r:0.8,fill:"none",stroke:m.severity==="error"?"#ff3b3b":"#ffb300","stroke-width":0.25});}
 const snapTo=(v,g)=>Math.round(v/g)*g;
 function hint(id,t){$(id).textContent=t;}
 function setTool(kind,t){tool[kind]=t;pend=null;document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t));
- hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click the first pad, then the second.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
+ hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules; drag a track or via to push it and its neighbours); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click a pad and move: the track follows the mouse and pushes other nets aside. Click fixes a corner, V drops a via, double-click or Enter finishes, Esc cancels.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
 function selectPart(kind,ref){sel[kind]=ref;const box=$(kind+"Sel");if(!ref){box.textContent="Click a part to select it.";}else if(kind==="sch"){const c=sheetParts().find(c=>c.ref===ref)||{};
  box.innerHTML=`<div><b>${esc(ref)}</b></div><label>Value</label><input id="selVal" value="${esc(c.value)}"><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('mirror')">Mirror</button><button onclick="partOp('delete')">Delete</button></div>`;
  $("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});}else{const c=(snap.components||[]).find(c=>c.ref===ref)||{},b=c.pcb||{};
@@ -138,13 +148,96 @@ async function schPress(pt,e){const t=tool.sch;
  if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}return false;}
 async function schRelease(pt,d){const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
 async function pcbPress(pt,e){const t=tool.pcb;
- if(t==="select"){const c=boardPart(pt);selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
+ if(t==="select"){const c=boardPart(pt),w=!c&&wireAt(pt);if(w){liveBegin(w.via?{action:"via_drag",id:w.id,x:pt[0],y:pt[1]}:{action:"drag",id:w.id,x:pt[0],y:pt[1]});drag={el:$("pcbView"),live:true,from:pt};return true;}selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
  const p=padAt(pt,2);
- if(t==="route"){if(!p){status("No pad there.","warning");return true;}if(!pend){pend={el:$("pcbView"),x:p.x,y:p.y,name:padName(p)};overlay($("pcbView"));return true;}const a=pend;pend=null;
-  const layer=$("layers").value==="b"?(state.layers||2)-1:0;await act("pcb_route",{from:a.name,to:padName(p),layer});return true;}
+ if(t==="route"){if(live){liveMove(pt);await liveStep(live.pv&&live.pv.reachedTarget?"commit":"fix");return true;}
+  const w=wireAt(pt),at=p?[p.x,p.y]:w?pt:null;if(!at){status("Start on a pad or a track.","warning");return true;}
+  liveBegin({action:"begin",x:at[0],y:at[1],layer:w&&!p&&!w.via?w.layer:$("layers").value==="b"?(state.layers||2)-1:0});return true;}
  if(t==="via"){if(!p){status("Click near a pad of the net.","warning");return true;}await act("pcb_add_via",{net:netName(p.net),x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
  if(t==="rip"){if(p&&confirm("Remove every track and via of "+netName(p.net)+"?"))await act("pcb_remove_copper",{net:netName(p.net)});return true;}return false;}
-async function pcbRelease(pt,d){const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
+async function pcbRelease(pt,d){if(d.live){await liveStep(Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1])>0.02?"commit":"cancel");return;}const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
+// Live routing (pcb_route_live): the router works on a copy; moves are coalesced so the head keeps up with the mouse.
+let live=null,liveQ=Promise.resolve(),liveAt=null;
+const liveQueue=f=>(liveQ=liveQ.then(f).catch(e=>{status(e.message,"warning");}));
+async function liveCall(args){const r=await rpc("tools/call",{name:"pcb_route_live",arguments:args}),t=((r.content||[])[0]||{}).text||"";if(r.isError)throw new Error(t);try{return JSON.parse(t);}catch{return{};}}
+const r3=v=>+(+v).toFixed(3);
+function liveNote(pv){status((pv.blocked?"Blocked: ":"")+(pv.status||"Routing")+(pv.length?` · ${(+pv.length).toFixed(2)} mm`:"")+(pv.reachedTarget?" · on target: click or Enter to finish":""),pv.blocked?"warning":"");}
+function liveBegin(args){live={pv:null};const mode=$("routeMode")?$("routeMode").value:"shove";
+ liveQueue(async()=>{try{live.pv=await liveCall({...args,x:r3(args.x),y:r3(args.y),mode});liveNote(live.pv);}catch(e){live=null;throw e;}overlay($("pcbView"));});}
+function liveMove(pt){if(!live)return;const queued=!!liveAt;liveAt=pt;if(queued)return;
+ liveQueue(async()=>{const q=liveAt;liveAt=null;if(!live||!live.pv||!q)return;live.pv=await liveCall({action:"move",x:r3(q[0]),y:r3(q[1])});liveNote(live.pv);overlay($("pcbView"));});}
+function liveStep(action){if(!live)return liveQ;return liveQueue(async()=>{if(!live||!live.pv)return;
+ if(action==="cancel"){await liveCall({action});live=null;status("Route cancelled.");overlay($("pcbView"));return;}
+ if(action!=="commit"){live.pv=await liveCall({action});liveNote(live.pv);overlay($("pcbView"));return;}
+ let note="";try{const r=await liveCall({action});note=`Routed: ${(r.addedTracks||[]).length} tracks, ${(r.addedVias||[]).length} vias${(r.removedTracks||[]).length?", "+(r.removedTracks||[]).length+" moved":""}.`;}
+ finally{live=null;await refresh(true);if(note)status(note,"okc");}});}
+function segDist(p,t){const dx=t.bx-t.ax,dy=t.by-t.ay,l=dx*dx+dy*dy,u=l?Math.max(0,Math.min(1,((p[0]-t.ax)*dx+(p[1]-t.ay)*dy)/l)):0;return Math.hypot(p[0]-t.ax-u*dx,p[1]-t.ay-u*dy);}
+function wireAt(pt){const lay=$("layers").value,last=(state.layers||2)-1,shown=l=>!lay||(lay==="b"?l===last:l===0);
+ for(const v of snap.vias||[])if(Math.hypot(v.x-pt[0],v.y-pt[1])<=(v.diameter||0.6)/2+0.1)return{via:true,id:v.id};
+ let best=null,d0=1e9;for(const t of snap.tracks||[]){if(!shown(t.layer))continue;const d=segDist(pt,t);if(d<=(t.width||0.25)/2+0.15&&d<d0){d0=d;best=t;}}return best;}
+const layerColour=l=>l===0?"#ff5a4a":l===(state.layers||2)-1?"#4a8dff":"#e0c040";
+function drawLive(o,pv){const hidden=new Set(pv.hiddenTracks||[]),line=(t,c,op,dash)=>shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:c,"stroke-width":Math.max(t.width||0.2,0.1),"stroke-linecap":"round",opacity:op,...(dash?{"stroke-dasharray":dash}:{})});
+ for(const t of snap.tracks||[])if(hidden.has(t.id))line({...t,width:(t.width||0.2)+0.1},"#10141c",0.9);
+ for(const v of snap.vias||[])if((pv.hiddenVias||[]).includes(v.id))shape(o,"circle",{cx:v.x,cy:v.y,r:(v.diameter||0.6)/2+0.05,fill:"#10141c"});
+ for(const t of pv.shovedTracks||[])line(t,"#ff9f1a",0.95);
+ for(const t of pv.placed||[])line(t,layerColour(t.layer),0.95);
+ for(const t of pv.head||[])line(t,pv.blocked?"#ff3b3b":layerColour(t.layer),0.75,"0.5 0.25");
+ for(const v of [...(pv.shovedVias||[]),...(pv.vias||[])])shape(o,"circle",{cx:v.x,cy:v.y,r:(v.diameter||0.6)/2,fill:"#c8c8c8",stroke:"#555","stroke-width":0.05});
+ if(pv.endX!==undefined)shape(o,"circle",{cx:pv.endX,cy:pv.endY,r:0.35,fill:"none",stroke:"#fff","stroke-width":0.08});}
+// Library editor: the part is checked and drawn after every change (library_check_part preview) and added by library_create_part.
+let lp={pins:[],layout:null,custom:null,part:null,sel:-1},lpTimer=0;
+const PIN_TYPES=["input","output","bidirectional","passive","power_in","power_out","open_collector","no_connect"];
+function lpSpec(){const pkg=lp.custom||{type:$("lpPkg").value||"SOIC",pinCount:+$("lpCount").value||1};if(!lp.custom&&+$("lpPitch").value)pkg.pitch=+$("lpPitch").value;
+ const s={name:$("lpName").value||"NEWPART",refPrefix:$("lpPrefix").value||"U",package:pkg,pins:lp.pins.map(p=>({number:p.number,name:p.name,type:p.type}))};if(lp.layout)s.symbolLayout={pins:lp.layout};return s;}
+function lpPinCount(){const n=+$("lpCount").value||1;while(lp.pins.length<n)lp.pins.push({number:String(lp.pins.length+1),name:"PIN"+(lp.pins.length+1),type:"passive"});lp.pins.length=Math.min(lp.pins.length,n);lp.layout=null;lpPins();}
+function lpPins(){$("lpPins").innerHTML=lp.pins.map((p,i)=>`<div class="row" style="flex-wrap:nowrap;margin:2px 0"><input value="${esc(p.number)}" style="width:52px" onchange="lp.pins[${i}].number=this.value;lp.layout=null;lpUpdate()"><input value="${esc(p.name)}" style="flex:1;min-width:0" onchange="lp.pins[${i}].name=this.value;lpUpdate()"><select onchange="lp.pins[${i}].type=this.value;lpUpdate()">${PIN_TYPES.map(t=>`<option${t===p.type?" selected":""}>${t}</option>`).join("")}</select><button title="Remove" onclick="lp.pins.splice(${i},1);lp.layout=null;lpPins();lpUpdate()">×</button></div>`).join("");}
+function lpAddPin(){lp.pins.push({number:String(lp.pins.length+1),name:"PIN"+(lp.pins.length+1),type:"passive"});lp.layout=null;lpPins();lpUpdate();}
+function lpPaste(){const rows=$("lpTableText").value.split(/\r?\n/).map(l=>l.split(/\t|,|;/).map(c=>c.trim())).filter(c=>c[0]&&c[0].toLowerCase()!=="number"&&c[0].toLowerCase()!=="pin");
+ if(!rows.length)return status("No pins in the table.","warning");lp.pins=rows.map(c=>({number:c[0],name:c[1]||c[0],type:PIN_TYPES.includes((c[2]||"").toLowerCase())?c[2].toLowerCase():"passive"}));
+ lp.layout=null;if(!lp.custom)$("lpCount").value=lp.pins.length;$("lpTable").hidden=true;lpPins();lpUpdate();}
+function lpUpdate(){clearTimeout(lpTimer);lpTimer=setTimeout(lpCheck,200);}
+async function lpCheck(){let r;try{r=await rpc("tools/call",{name:"library_check_part",arguments:{spec:lpSpec(),preview:true}});}catch(e){return;}const t=((r.content||[])[0]||{}).text||"";
+ if(r.isError){$("lpChecks").innerHTML=`<div class=error>${esc(t)}</div>`;return;}const d=JSON.parse(t);lp.part=d.part;lp.lastPackage=d.customPackage;
+ const items=[...(d.symbol||[]),...(d.landPattern||[]),...(d.units||[])];$("lpChecks").innerHTML=items.length?items.map(c=>`<div class="${esc(c.severity)}">${esc(c.code)}: ${esc(c.message)}</div>`).join(""):"<span class=okc>No problems.</span>";
+ $("lpScore").textContent=d.quality?`Library quality ${d.quality.score} / 100`+(d.quality.missing&&d.quality.missing.length?" — missing: "+d.quality.missing.join(", "):""):"";lpDraw();}
+function svgPoint(svg,e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return[q.x,q.y];}
+function lpFit(svg,x0,y0,x1,y1,m){svg.setAttribute("viewBox",`${x0-m} ${y0-m} ${x1-x0+2*m} ${y1-y0+2*m}`);svg.replaceChildren();}
+function lpDraw(){const part=lp.part;if(!part)return;const sym=part.symbol||{},hw=sym.halfWidth||30,hh=sym.halfHeight||20,S=$("lpSym");
+ const ys=(sym.pins||[]).map(p=>p.y).concat([-hh,hh]),xs=(sym.pins||[]).map(p=>p.x).concat([-hw,hw]),top=Math.min(...ys)-12;lpFit(S,Math.min(...xs)-30,top-4,Math.max(...xs)+30,Math.max(...ys)+12,6);shape(S,"rect",{x:-hw,y:-hh,width:2*hw,height:2*hh,fill:"#fff8dc",stroke:"#8a1c1c","stroke-width":1.5});
+ const tip={L:[-hw,0],R:[hw,0],T:[0,-hh],B:[0,hh]};
+ for(const p of sym.pins||[]){const e=p.side==="L"||p.side==="R"?[tip[p.side][0],p.y]:[p.x,tip[p.side][1]];shape(S,"line",{x1:p.x,y1:p.y,x2:e[0],y2:e[1],stroke:"#8a1c1c","stroke-width":1.5});
+  const dot=shape(S,"circle",{cx:p.x,cy:p.y,r:3.5,fill:"#3b6fe0",style:"cursor:grab"});dot.onmousedown=ev=>{ev.preventDefault();lpDragPin(p,ev);};
+  const inX=p.side==="L"?e[0]+4:p.side==="R"?e[0]-4:e[0],inY=p.side==="T"?e[1]+10:p.side==="B"?e[1]-4:e[1]+3.5;
+  shape(S,"text",{x:inX,y:inY,"font-size":9,"text-anchor":p.side==="L"?"start":p.side==="R"?"end":"middle",fill:"#17202e"}).textContent=p.name;
+  shape(S,"text",{x:(p.x+e[0])/2,y:(p.y+e[1])/2-3,"font-size":7,"text-anchor":"middle",fill:"#5d6b80"}).textContent=p.number;}
+ shape(S,"text",{x:0,y:top,"font-size":10,"text-anchor":"middle",fill:"#17202e"}).textContent=(part.refPrefix||"U")+"? "+part.name;
+ const fp=part.footprintGeometry||{},F=$("lpFp"),cw=(fp.courtyardW||5)/2,ch=(fp.courtyardH||5)/2;lpFit(F,-cw,-ch,cw,ch,1);
+ shape(F,"rect",{x:-cw,y:-ch,width:2*cw,height:2*ch,fill:"none",stroke:"#e0e0e0","stroke-width":0.05,"stroke-dasharray":"0.3 0.2"});
+ if(fp.bodyW)shape(F,"rect",{x:-fp.bodyW/2,y:-fp.bodyD/2,width:fp.bodyW,height:fp.bodyD,fill:"none",stroke:"#f5d742","stroke-width":0.08});
+ (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,a={fill:q.number===1?"#e8b84a":"#c9a227",stroke:sel?"#5b8dff":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
+  const el=q.round?shape(F,"ellipse",{cx:q.x,cy:q.y,rx:q.w/2,ry:q.h/2,...a}):shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,...a});
+  if(q.throughHole)shape(F,"circle",{cx:q.x,cy:q.y,r:Math.min(q.w,q.h)/4,fill:"#1b2230"});
+  shape(F,"text",{x:q.x,y:q.y+Math.min(q.w,q.h)/5,"font-size":Math.min(q.w,q.h)*0.55,"text-anchor":"middle",fill:"#1b2230","pointer-events":"none"}).textContent=q.number;
+  if(lp.custom)el.onmousedown=ev=>{ev.preventDefault();lpDragPad(i,ev);};});}
+function lpDragPin(p,ev){const S=$("lpSym");let at=svgPoint(S,ev);const move=e=>{at=svgPoint(S,e);},up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);
+  const sym=lp.part.symbol,hw=sym.halfWidth,hh=sym.halfHeight,d={L:Math.abs(at[0]+hw),R:Math.abs(at[0]-hw),T:Math.abs(at[1]+hh),B:Math.abs(at[1]-hh)},side=Object.keys(d).sort((a,b)=>d[a]-d[b])[0];
+  const pins=sym.pins.map(q=>({number:q.number,side:q===p?side:q.side,along:q===p?(side==="L"||side==="R"?at[1]:at[0]):(q.side==="L"||q.side==="R"?q.y:q.x)}));
+  lp.layout=[];for(const s of["L","R","T","B"]){const on=pins.filter(q=>q.side===s).sort((a,b)=>a.along-b.along);let slot=-1,last=null;
+   for(const q of on){if(last===null||Math.abs(q.along-last)>1)slot++;last=q.along;lp.layout.push({number:q.number,side:s,slot});}}lpCheck();};
+ addEventListener("mousemove",move);addEventListener("mouseup",up);}
+function lpDragPad(i,ev){const F=$("lpFp"),from=svgPoint(F,ev),l=lp.custom.lands[i],x0=l[0],y0=l[1];lp.sel=i;lpPad();lpDraw();
+ const move=e=>{const at=svgPoint(F,e);l[0]=+(x0+snapTo(at[0]-from[0],0.05)).toFixed(3);l[1]=+(y0+snapTo(at[1]-from[1],0.05)).toFixed(3);const q=lp.part.footprintGeometry.pads[i];q.x=l[0];q.y=l[1];lpDraw();},
+  up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);lpPad();lpCheck();};addEventListener("mousemove",move);addEventListener("mouseup",up);}
+function lpEditPads(){if(lp.custom||!lp.lastPackage)return;lp.custom=JSON.parse(JSON.stringify(lp.lastPackage));lp.custom.lands=lp.custom.lands.map(l=>{const a=[...l];while(a.length<7)a.push(a.length===6?"":0);return a;});
+ $("lpFpHint").textContent="Drag pads to move them (0.05 mm grid); click one to edit it.";lp.sel=0;lpPad();lpCheck();}
+function lpPad(){const l=lp.custom&&lp.custom.lands[lp.sel];if(!l){$("lpPad").textContent=lp.custom?"Click a pad.":"Choose Edit pads, then click a pad.";return;}
+ const f=(k,lbl)=>`<label>${lbl}</label><input type="number" step="0.05" value="${l[k]}" onchange="lp.custom.lands[${lp.sel}][${k}]=+this.value;lpCheck()">`;
+ $("lpPad").innerHTML=`<div><b>Pad ${lp.sel+1}</b></div>${f(0,"x (mm)")}${f(1,"y (mm)")}${f(2,"Width")}${f(3,"Height")}${f(4,"Drill (0 = SMD)")}<label>Pin (blank = by order, - = none)</label><input value="${esc(l[6])}" onchange="lp.custom.lands[${lp.sel}][6]=this.value;lpCheck()">
+ <label><input type="checkbox" style="width:auto"${l[5]?" checked":""} onchange="lp.custom.lands[${lp.sel}][5]=this.checked?1:0;lpCheck()"> Round</label><div class="row" style="margin-top:6px"><button onclick="lpAddPad()">Add pad</button><button onclick="lpDelPad()">Delete pad</button></div>`;}
+function lpAddPad(){const L=lp.custom.lands,l=[...L[lp.sel]];l[0]=+(l[0]+1).toFixed(3);l[6]="";L.push(l);lp.custom.pinCount=L.length;lp.sel=L.length-1;lpPad();lpCheck();}
+function lpDelPad(){const L=lp.custom.lands;if(L.length<2)return;L.splice(lp.sel,1);lp.custom.pinCount=L.length;lp.sel=Math.min(lp.sel,L.length-1);lpPad();lpCheck();}
+async function lpCreate(){const r=await act("library_create_part",{...lpSpec(),place:true});if(r&&r.data.component)status(`${$("lpName").value} added to the project library and placed as ${r.data.component.ref}.`,"okc");}
+async function lpInit(){if($("lpPkg").options.length)return;try{const r=await run("library_packages");$("lpPkg").innerHTML=r.data.packages.filter(p=>p!=="CUSTOM").map(p=>`<option>${esc(p)}</option>`).join("");}catch{}lpPinCount();lpCheck();}
 async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
  $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
 async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
@@ -154,7 +247,7 @@ async function draw(){try{
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
- if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();}catch(e){}}
+ if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
 function simForm(){const k=$("simKind").value;$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
  :k==="ac"?`<label>From</label> <input id="simStart" value="1" style="width:80px"> <label>To</label> <input id="simStop" value="1MEG" style="width:90px">`:"";}
 const fmt=v=>{const a=Math.abs(v);if(!isFinite(v))return"—";if(a!==0&&(a<1e-3||a>=1e4))return v.toExponential(3);return(+v.toPrecision(5)).toString();};
@@ -203,6 +296,7 @@ function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s
 document.querySelectorAll("section").forEach(s=>{const b=document.createElement("button");b.textContent=s.dataset.tab;b.onclick=()=>selectTab(s.dataset.tab);$("nav").append(b);});
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
+  if(k==="pcb"&&live){if(e.key==="Escape")liveStep("cancel");if(e.key==="Enter")liveStep("commit");if(key==="v")liveStep("via");if(key==="backspace"||key==="escape"||key==="enter"||key==="v")return;}
   if(k){if(e.key==="Escape"){pend=null;drag=null;setTool(k,"select");}
    if(key==="r"&&sel[k])partOp("rotate");if((e.key==="Delete"||e.key==="Backspace")&&k==="sch"&&sel.sch)partOp("delete");
    const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",v:"via",s:"select"};if(keys[key])setTool(k,keys[key]);
@@ -210,6 +304,7 @@ addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(documen
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
 panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
 panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||!!boardPart(pt);};$("pcbView").onrelease=pcbRelease;
+$("pcbView").onhover=pt=>{if(!live)return false;liveMove(pt);return true;};$("pcbView").ondbl=()=>{if(!live)return false;liveStep("commit");return true;};
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
 (async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
  try{const r=await run("library_builtin_kinds");$("kind").innerHTML=r.data.kinds.map(k=>`<option value="${esc(k.kind)}">${esc(k.name)} (${esc(k.defaultValue)})</option>`).join("");}catch{}

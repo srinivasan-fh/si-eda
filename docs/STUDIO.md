@@ -41,7 +41,8 @@ sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--li
 |---|---|
 | **File** | New, Open (lists the projects under the root folder), Save, Save As, built-in examples, Undo (Ctrl+Z), Ctrl+S. |
 | **Schematic** | Every sheet (wheel zoom, drag to pan, double-click fits). Edit by hand: **Select** (drag a part to move it, R rotates, Delete removes, value / rotate / mirror in the side panel), **Wire** (click a pin, then another), **Label** and **Ground** (click a pin), **Place** (a built-in part or a catalog search hit, then click the sheet; P). ERC. |
-| **Board** | All layers, or top / bottom copper. Auto Place (with decoupling), Auto Route, Fit Board. Edit by hand: **Select** (drag a part; R rotates, F flips side, K locks; a move closer than the assembly spacing is refused with the reason, Alt-drag places it anyway), **Route** (click a pad, then another: the interactive router pushes other nets aside), **Via** and **Rip net**. DRC marks each located problem on the board. |
+| **Board** | All layers, or top / bottom copper. Auto Place (with decoupling), Auto Route, Fit Board. Edit by hand: **Select** (drag a part; R rotates, F flips side, K locks; a move closer than the assembly spacing is refused with the reason, Alt-drag places it anyway), **Route** (live: click a pad and move, the track follows the mouse and pushes other nets' tracks and vias aside as you go; click fixes a corner, V drops a via and changes layer, double-click or Enter finishes, Esc cancels; or walk around / highlight collisions instead), **Via** and **Rip net**. In Select, drag a track or a via: it moves with its neighbours and pushes other nets aside. DRC marks each located problem on the board. |
+| **Library** | Make a part for the project library: name, package and pins (type them, or paste a datasheet's pin table). The symbol and footprint are drawn and checked as you type, with the library quality score. Drag a symbol pin to another side of the body (Auto-arrange puts them back). **Edit pads** turns the package into pads you drag on a 0.05 mm grid, resize, drill, add and delete. **Create and place** adds the part and puts it on the schematic. |
 | **3D** | The assembly from seven views. |
 | **Simulate** | DC operating point (net voltages, part currents and power), transient (waveform plot plus min / max / RMS / frequency per net) and AC sweep (gain plot, −3 dB, peak, phase margin). |
 | **Checks** | ERC, DRC and the full design verification, as a table. |
@@ -49,8 +50,7 @@ sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--li
 | **Cloud** | GitHub sync and share links (see below). |
 | **Tools** | Every one of SiEDA's MCP tools ([MCP.md](MCP.md)), with its description and arguments. Run any of them to edit the design: add parts, connect pins, set rules, simulate, export. |
 
-The macOS app adds what Studio does not have yet: the footprint and symbol editors, live push-and-shove drag routing
-and the advanced panels. Those features are reachable on Linux and Windows through the Tools tab or an AI client.
+The macOS app adds what Studio does not have yet: symbol graphics, pad shapes beyond rectangles and circles, 3D models in the part editor and the advanced panels. Those features are reachable on Linux and Windows through the Tools tab or an AI client.
 
 ## Let an AI client edit the open design
 

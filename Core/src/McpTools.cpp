@@ -4736,8 +4736,10 @@ void libraryTools(Table& t) {
           });
     t.add("library", "library_check_part", "Check part spec", Kind::Read, true,
           "Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, "
-          "and its library quality score (0 – 100, with what is missing).",
-          Schema().object("spec", "Part spec", true).num("minGap", "Copper gap limit for pads (mm, default 0.15)"),
+          "and its library quality score (0 – 100, with what is missing). preview: true adds the part as it would be "
+          "drawn (part: symbol pins and footprint pads) and its footprint as editable lands (customPackage: package type CUSTOM).",
+          Schema().object("spec", "Part spec", true).num("minGap", "Copper gap limit for pads (mm, default 0.15)")
+              .boolean("preview", "Also return the drawn part and its lands"),
           [](McpServer&, const Json& a) {
               const std::string spec = a.get("spec").dump();
               // A parametric package (SOIC, QFN …) is checked on the footprint it generates.
@@ -4746,6 +4748,13 @@ void libraryTools(Table& t) {
                   lands = customPartSpecToJson(landPatternFromFootprint(customPartSpecFromJson(a.get("spec")))).dump();
               } catch (const std::exception&) {}  // an invalid spec: the checks below say why
               Json j = obj();
+              if (argBool(a, "preview", false)) {
+                  char* err = nullptr;
+                  char* part = sieda_custom_part_preview(spec.c_str(), &err);
+                  if (!part) throw ToolError("Invalid part: " + takeText(err));
+                  j["part"] = takeJson(part);
+                  j["customPackage"] = Json::parse(lands).get("package");
+              }
               j["symbol"] = takeJson(sieda_check_symbol(spec.c_str()));
               j["landPattern"] = takeJson(sieda_check_land_pattern(lands.c_str(), argNum(a, "minGap", 0.15)));
               j["units"] = takeJson(sieda_check_units(spec.c_str()));
@@ -5877,6 +5886,52 @@ void pcbTools(Table& t) {
               j["addedVias"] = done.get("addedVias");
               j["length"] = pv.get("netLength").isNumber() ? pv.get("netLength") : pv.get("length");
               return out(j);
+          });
+    t.add("pcb", "pcb_route_live", "Route live (push and shove)", Kind::Edit, false,
+          "Drag routing step by step, as in an editor: begin at a pad or track end (or drag / pair / via_drag), then "
+          "move the head to the cursor (other nets are pushed aside live), fix a corner, via to change layer, and "
+          "commit (one undo step) or cancel. Every step returns the preview: head / placed tracks, vias, the tracks and "
+          "vias shoved, and the ids hidden while they are. Only commit changes the board.",
+          Schema()
+              .str("action", "begin, pair, drag (a track), via_drag, move, fix, via, options, commit, cancel", true,
+                   {"begin", "pair", "drag", "via_drag", "move", "fix", "via", "options", "commit", "cancel"})
+              .num("x", "Point (mm): begin / drag at, move to").num("y", "Point (mm)")
+              .integer("layer", "begin: copper layer; via: layer to continue on (default the other side)")
+              .integer("id", "drag: track id; via_drag: via id")
+              .str("mode", "shove (default), walkaround, highlight", false, {"shove", "walkaround", "highlight"})
+              .str("posture", "45 (default), 90 or free", false, {"45", "90", "free"})
+              .num("width", "Track width (mm, 0 = net class)"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              const std::string act = argStr(a, "action", "");
+              const double x = argNum(a, "x", 0), y = argNum(a, "y", 0);
+              Json o = obj();
+              o["mode"] = argStr(a, "mode", "shove");
+              o["posture"] = argStr(a, "posture", "45");
+              if (a.has("width")) o["width"] = argNum(a, "width", 0);
+              const std::string opts = o.dump();
+              if (act == "cancel") {
+                  sieda_router_cancel(p);
+                  return out(obj());
+              }
+              const bool starts = act == "begin" || act == "pair" || act == "drag" || act == "via_drag";
+              if (starts) sieda_router_cancel(p);
+              else if (!sieda_router_active(p)) throw ToolError("No route in progress: begin one first");
+              Json r = takeJson(act == "begin"      ? sieda_router_begin(p, opts.c_str(), x, y, argInt(a, "layer", 0))
+                                : act == "pair"     ? sieda_router_begin_pair(p, opts.c_str(), x, y, argInt(a, "layer", 0))
+                                : act == "drag"     ? sieda_router_begin_drag(p, opts.c_str(), argInt(a, "id", -1), x, y)
+                                : act == "via_drag" ? sieda_router_begin_via_drag(p, opts.c_str(), argInt(a, "id", -1), x, y)
+                                : act == "move"     ? sieda_router_move(p, x, y)
+                                : act == "fix"      ? sieda_router_fix(p)
+                                : act == "via"      ? sieda_router_add_via(p, argInt(a, "layer", -1))
+                                : act == "options"  ? sieda_router_set_options(p, opts.c_str())
+                                                    : sieda_router_commit(p));
+              if (starts && (!r.isObject() || r.has("error") || !r.get("active").asBool(false))) {
+                  sieda_router_cancel(p);
+                  throw ToolError("Cannot start there: " + r.get("error").asString("no pad or track of a net at that point"));
+              }
+              if (act == "commit" && !r.get("ok").asBool(false)) throw ToolError("Not committed: " + r.get("error").asString("?"));
+              return out(r);
           });
     t.add("pcb", "pcb_teardrops", "Teardrops", Kind::Edit, false,
           "Adds (or removes) teardrops where tracks meet pads / vias, on the given tracks or all of them.",
