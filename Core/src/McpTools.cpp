@@ -29,6 +29,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Autoroute.hpp"
+#include "sieda/CloudSync.hpp"
 
 namespace fs = std::filesystem;
 
@@ -2260,6 +2261,79 @@ void projectTools(Table& t) {
               s.setProjectPath(full);
               Json j = obj();
               j["saved"] = full;
+              return out(j);
+          });
+    t.add("project", "project_cloud", "GitHub cloud sync", Kind::Destructive, false,
+          "A GitHub repository as the project's cloud, through your own git and its sign-in (Git Credential Manager, gh "
+          "auth login or SSH keys; SiEDA keeps no token). connect {repo: \"owner/name\" or its URL, branch?}: the "
+          "project's folder becomes a clone and takes what is there; push {message?}: saves, writes a read-only viewer "
+          "(<name>.viewer.html) and pushes both (a rejected push merges first); pull: merges the remote's changes "
+          "(project files field by field, yours kept where both changed: \"conflicts\") and reopens the project; share: "
+          "links to the file, its history and the viewer (GitHub Pages) and whether the repository is public (anyone can "
+          "open them) or private (its collaborators only); status: changed files, ahead / behind. The project must be "
+          "saved in a file first.",
+          Schema().str("action", "What to do", true, {"connect", "pull", "push", "share", "status"})
+              .str("repo", "GitHub repository for connect: owner/name, https://github.com/owner/name or git@github.com:owner/name")
+              .str("branch", "Branch (default main)").str("message", "Commit message for push")
+              .boolean("viewer", "push: also publish the read-only viewer page (default true)"),
+          [](McpServer& s, const Json& a) {
+              const std::string action = requireStr(a, "action"), branch = argStr(a, "branch", "main");
+              if (!cloud::validBranch(branch)) throw ToolError("Not a branch name: \"" + branch + "\"");
+              if (s.projectPath().empty()) throw ToolError("Save the project in a file first (project_save_as).");
+              const fs::path file(s.projectPath());
+              const std::string dir = file.parent_path().string(), name = file.filename().string(),
+                                viewer = file.stem().string() + ".viewer.html";
+              if (action != "status" && action != "share" && s.options().readOnly) throw ToolError("Read-only server.");
+              Json j = obj();
+              try {
+                  if (action == "connect") {
+                      const auto repo = cloud::githubRepo(requireStr(a, "repo"));
+                      if (!repo) throw ToolError("Not a GitHub repository: give owner/name or its github.com URL.");
+                      s.writeFile(s.projectPath(), takeText(sieda_project_save_json(P(s))));
+                      j = cloud::connect(dir, "https://github.com/" + repo->first + "/" + repo->second + ".git", branch, {name});
+                      if (fs::exists(file)) s.openProject(s.projectPath());  // the repository's design when it had one
+                  } else if (action == "pull") {
+                      s.writeFile(s.projectPath(), takeText(sieda_project_save_json(P(s))));
+                      cloud::commit(dir, {name}, "Save " + name + " before pulling");
+                      j = cloud::pull(dir, branch);
+                      s.openProject(s.projectPath());
+                  } else if (action == "push") {
+                      s.writeFile(s.projectPath(), takeText(sieda_project_save_json(P(s))));
+                      std::vector<std::string> files{name};
+                      if (argBool(a, "viewer", true)) {
+                          s.writeFile((file.parent_path() / viewer).string(), mcp::viewerHtml(*P(s)));
+                          files.push_back(viewer);
+                      }
+                      j = cloud::push(dir, branch, files, argStr(a, "message", "Update " + P(s)->project.name + " from SiEDA"));
+                  } else if (action == "status") {
+                      j = cloud::status(dir);
+                  }
+                  if (action != "status") {
+                      auto line = [&](std::vector<std::string> args) {
+                          const std::string o = cloud::git(dir, args).output;
+                          return o.substr(0, o.find_last_not_of(" \r\n") + 1);
+                      };
+                      const auto repo = cloud::githubRepo(line({"remote", "get-url", "origin"}));
+                      if (!repo) {
+                          if (action == "share") throw ToolError("Not connected to GitHub yet: project_cloud connect first.");
+                      } else {
+                          const std::string at = line({"rev-parse", "--show-prefix"});
+                          j["links"] = cloud::shareLinks(repo->first, repo->second, branch, at + name, at + viewer);
+                          if (action == "share") {
+                              const bool pub = cloud::publiclyReadable(repo->first, repo->second);
+                              j["public"] = pub;
+                              j["access"] = pub ? "anyone with the link" : "the repository's collaborators (private; add people in "
+                                                                          "the repository's Settings → Collaborators)";
+                              j["viewerNote"] = "The viewer link works once GitHub Pages serves the branch (Settings → Pages); "
+                                                "private-repository Pages need a paid GitHub plan.";
+                          }
+                      }
+                  }
+              } catch (const ToolError&) {
+                  throw;
+              } catch (const std::exception& e) {
+                  throw ToolError(e.what());
+              }
               return out(j);
           });
     t.add("project", "project_export_json", "Project JSON", Kind::Read, true,

@@ -1,6 +1,7 @@
 // sieda-mcp --connect: stdio ⇄ HTTP bridge to the app's live MCP endpoint (see http_bridge.hpp, docs/MCP.md).
 #include "http_bridge.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
@@ -11,14 +12,21 @@
 
 #include "sieda/Json.hpp"
 
-#ifndef _WIN32
+#include <cerrno>
+#include <csignal>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+using Sock = SOCKET;
+#define closeSock closesocket
+#else
 #include <netdb.h>
-#include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <cerrno>
-#include <csignal>
+using Sock = int;
+#define closeSock close
+#define INVALID_SOCKET (-1)
 #endif
 
 namespace sieda::mcpbridge {
@@ -183,10 +191,24 @@ std::string replyLines(const HttpReply& reply) {
     return out;
 }
 
-#ifndef _WIN32
-
 namespace {
-int connectTo(const Url& url, int timeoutSeconds, std::string* error) {
+/// The last socket error: timed out, interrupted, or something else (its text).
+bool lastTimedOut() {
+#ifdef _WIN32
+    return WSAGetLastError() == WSAETIMEDOUT;
+#else
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+#endif
+}
+bool lastInterrupted() {
+#ifdef _WIN32
+    return false;
+#else
+    return errno == EINTR;
+#endif
+}
+
+Sock connectTo(const Url& url, int timeoutSeconds, std::string* error) {
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -197,38 +219,44 @@ int connectTo(const Url& url, int timeoutSeconds, std::string* error) {
         *error = std::string("cannot resolve ") + url.host + ": " + gai_strerror(rc);
         return -1;
     }
-    int fd = -1;
+    Sock fd = INVALID_SOCKET;
     for (addrinfo* ai = list; ai; ai = ai->ai_next) {
         fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (fd < 0) continue;
+        if (fd == INVALID_SOCKET) continue;
+#ifdef _WIN32
+        const DWORD tv = static_cast<DWORD>(timeoutSeconds) * 1000;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof tv);
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof tv);
+#else
         timeval tv{};
         tv.tv_sec = timeoutSeconds;
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+#endif
 #ifdef SO_NOSIGPIPE
         const int one = 1;
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one);
 #endif
-        if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0) break;
-        close(fd);
-        fd = -1;
+        if (connect(fd, ai->ai_addr, static_cast<int>(ai->ai_addrlen)) == 0) break;
+        closeSock(fd);
+        fd = INVALID_SOCKET;
     }
     freeaddrinfo(list);
-    if (fd < 0)
+    if (fd == INVALID_SOCKET)
         *error = "cannot connect to " + url.host + ":" + port +
                  " (is SiEDA running with Settings > AI Access (MCP) > live server enabled?)";
     return fd;
 }
 
-bool sendAll(int fd, const std::string& data) {
+bool sendAll(Sock fd, const std::string& data) {
     size_t sent = 0;
     while (sent < data.size()) {
 #ifdef MSG_NOSIGNAL
-        const ssize_t n = send(fd, data.data() + sent, data.size() - sent, MSG_NOSIGNAL);
+        const long long n = send(fd, data.data() + sent, data.size() - sent, MSG_NOSIGNAL);
 #else
-        const ssize_t n = send(fd, data.data() + sent, data.size() - sent, 0);
+        const long long n = send(fd, data.data() + sent, static_cast<int>(std::min<size_t>(data.size() - sent, 1 << 20)), 0);
 #endif
-        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && lastInterrupted()) continue;
         if (n <= 0) return false;
         sent += static_cast<size_t>(n);
     }
@@ -239,8 +267,8 @@ bool sendAll(int fd, const std::string& data) {
 HttpReply httpPost(const Url& url, const std::string& token, const std::string& sessionId, const std::string& body,
                    int timeoutSeconds) {
     HttpReply reply;
-    const int fd = connectTo(url, timeoutSeconds, &reply.error);
-    if (fd < 0) return reply;
+    const Sock fd = connectTo(url, timeoutSeconds, &reply.error);
+    if (fd == INVALID_SOCKET) return reply;
     const bool v6 = url.host.find(':') != std::string::npos;
     std::string req = "POST " + url.path + " HTTP/1.1\r\n";
     req += "Host: " + (v6 ? "[" + url.host + "]" : url.host) + ":" + std::to_string(url.port) + "\r\n";
@@ -252,7 +280,7 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
     req += "Connection: close\r\n\r\n";
     req += body;
     if (!sendAll(fd, req)) {
-        close(fd);
+        closeSock(fd);
         reply.error = "the connection to the SiEDA app was closed while sending";
         return reply;
     }
@@ -262,18 +290,17 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
     long long contentLength = -1;
     bool chunked = false;
     while (true) {
-        const ssize_t n = recv(fd, buffer, sizeof buffer, 0);
-        if (n < 0 && errno == EINTR) continue;
+        const long long n = recv(fd, buffer, sizeof buffer, 0);
+        if (n < 0 && lastInterrupted()) continue;
         if (n < 0) {
-            close(fd);
-            reply.error = errno == EAGAIN || errno == EWOULDBLOCK ? "the SiEDA app did not answer in time"
-                                                                  : std::string("receive failed: ") + std::strerror(errno);
+            closeSock(fd);
+            reply.error = lastTimedOut() ? "the SiEDA app did not answer in time" : "receive failed";
             return reply;
         }
         if (n == 0) break;
         raw.append(buffer, static_cast<size_t>(n));
         if (raw.size() > kMaxReplyBytes) {
-            close(fd);
+            closeSock(fd);
             reply.error = "reply from the SiEDA app is larger than 64 MB";
             return reply;
         }
@@ -285,7 +312,7 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
                 const std::string status = raw.substr(0, at);
                 const size_t sp = status.find(' ');
                 if (status.compare(0, 5, "HTTP/") != 0 || sp == std::string::npos) {
-                    close(fd);
+                    closeSock(fd);
                     reply.error = "not an HTTP reply";
                     return reply;
                 }
@@ -310,7 +337,7 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
             raw.size() >= headerEnd + 4 + static_cast<size_t>(contentLength))
             break;
     }
-    close(fd);
+    closeSock(fd);
     if (headerEnd == std::string::npos) {
         reply.status = 0;
         reply.error = "incomplete reply from the SiEDA app";
@@ -339,7 +366,12 @@ int runBridge(const std::string& urlText, const std::string& token, int timeoutS
                      urlText.c_str());
         return 2;
     }
+#ifdef _WIN32
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 2;
+#else
     std::signal(SIGPIPE, SIG_IGN);
+#endif
     std::fprintf(stderr, "sieda-mcp: bridging stdio to %s%s\n", urlText.c_str(),
                  token.empty() ? " (no token: set --token or SIEDA_MCP_TOKEN)" : "");
     std::string session;
@@ -377,19 +409,5 @@ int runBridge(const std::string& urlText, const std::string& token, int timeoutS
     return 0;
 }
 
-#else  // _WIN32
-
-HttpReply httpPost(const Url&, const std::string&, const std::string&, const std::string&, int) {
-    HttpReply reply;
-    reply.error = "--connect is not available on Windows";
-    return reply;
-}
-
-int runBridge(const std::string&, const std::string&, int) {
-    std::fprintf(stderr, "sieda-mcp: --connect is not available on Windows (the live app endpoint is macOS only)\n");
-    return 2;
-}
-
-#endif
 
 }  // namespace sieda::mcpbridge

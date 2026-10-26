@@ -74,8 +74,10 @@ struct Parallel {
         thread_local bool spare = true;
         const auto now = std::chrono::steady_clock::now();
         if (now - checked > std::chrono::milliseconds(250)) {
+#ifndef _WIN32  // no load average on Windows: assume spare cores
             double load[1] = {0};
             spare = getloadavg(load, 1) != 1 || load[0] < static_cast<double>(cores) - 1.5;
+#endif
             checked = now;
         }
         return spare;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SiEDA Studio
+Comment=Electronic design: schematic, PCB, 3D, checks, AI tools and GitHub sync
+Exec=sieda-studio
+Terminal=false
+Categories=Development;Electronics;Engineering;

@@ -52,6 +52,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/CustomRules.hpp"
 #include "sieda/ProjectDiff.hpp"
+#include "sieda/CloudSync.hpp"
 #include "sieda/Variants.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -25685,4 +25686,93 @@ TEST(saved_copper_lies_on_the_nanometre_grid) {
     for (const auto& v : saved.get("vias").items()) CHECK(onGrid(v.get("x")) && onGrid(v.get("y")));
     const Project q = Project::fromJson(saved);
     CHECK(q.pcb.runDRC(q.schematic).size() == p.pcb.runDRC(p.schematic).size());
+}
+
+/// Removes a folder git has used: its object files are read-only on Windows, where remove_all refuses them.
+void removeRepositoryFolder(const std::filesystem::path& root) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec))
+        fs::permissions(it->path(), fs::perms::owner_write, fs::perm_options::add, ec);
+    fs::remove_all(root, ec);
+}
+
+TEST(cloud_sync_pushes_pulls_and_merges_through_a_repository) {
+    // GitHub stand-in: a bare repository on disk. Two copies change different fields of the same project; the second
+    // push is rejected, merges field by field and goes through, and the first copy pulls both changes.
+    CHECK(cloud::githubRepo("https://github.com/acme/board.git")->second == "board");
+    CHECK(cloud::githubRepo("git@github.com:acme/board.git")->first == "acme" && cloud::githubRepo("acme/board"));
+    CHECK(!cloud::githubRepo("https://evil.example/acme/board") && !cloud::githubRepo("-x/board") && !cloud::githubRepo("a/b/c"));
+    CHECK(cloud::validBranch("main") && cloud::validBranch("feature/x") && !cloud::validBranch("--upload-pack=x") &&
+          !cloud::validBranch("a..b"));
+    CHECK(cloud::shareLinks("Acme", "board", "main", "hw/led.siedaproj", "hw/led.viewer.html").get("viewer").asString() ==
+          "https://acme.github.io/board/hw/led.viewer.html");
+    if (cloud::git(".", {"--version"}).code == -1) return;  // no git on this machine
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "sieda_cloud_test";
+    removeRepositoryFolder(root);
+    fs::create_directories(root / "a");
+    fs::create_directories(root / "b");
+    CHECK(cloud::git(root.string(), {"init", "-q", "--bare", "remote.git"}).ok());
+    const std::string remote = (root / "remote.git").string();
+    auto save = [](const fs::path& f, const Project& p) { std::ofstream(f, std::ios::binary) << p.toJson().dump(true); };
+    auto load = [](const fs::path& f) {
+        std::ifstream in(f, std::ios::binary);
+        std::stringstream ss;
+        ss << in.rdbuf();
+        return Project::fromJson(Json::parse(ss.str()));
+    };
+    Project p = amplifierProject();
+    save(root / "a" / "amp.siedaproj", p);
+    CHECK(cloud::connect((root / "a").string(), remote, "main", {"amp.siedaproj"}).get("committed").asBool());
+    CHECK(cloud::push((root / "a").string(), "main", {"amp.siedaproj"}, "first").get("pushed").asBool());
+    // A second copy with a blank project of the same name takes the repository's design and keeps its own beside it.
+    save(root / "b" / "amp.siedaproj", Project());
+    const Json joined = cloud::connect((root / "b").string(), remote, "main", {"amp.siedaproj"});
+    CHECK(joined.get("tookRemote").asBool() && joined.get("backups").items().size() == 1);
+    CHECK(load(root / "b" / "amp.siedaproj").name == p.name && fs::exists(root / "b" / "amp.local.siedaproj"));
+    // A folder inside another repository is refused (its remote would change).
+    fs::create_directories(root / "a" / "sub");
+    bool refused = false;
+    try {
+        cloud::connect((root / "a" / "sub").string(), remote, "main", {});
+    } catch (const std::runtime_error&) {
+        refused = true;
+    }
+    CHECK(refused);
+    Project pa = load(root / "a" / "amp.siedaproj"), pb = load(root / "b" / "amp.siedaproj");
+    pa.name = "Amp A";
+    pb.buildQuantity = 250;
+    save(root / "a" / "amp.siedaproj", pa);
+    save(root / "b" / "amp.siedaproj", pb);
+    cloud::push((root / "a").string(), "main", {"amp.siedaproj"}, "rename");
+    const Json pushed = cloud::push((root / "b").string(), "main", {"amp.siedaproj"}, "quantity");
+    CHECK(pushed.get("pushed").asBool() && pushed.get("pulledFirst").get("merged").items().size() == 1);
+    CHECK(cloud::pull((root / "a").string(), "main").get("pulled").asBool());
+    const Project merged = load(root / "a" / "amp.siedaproj");
+    CHECK(merged.name == "Amp A" && merged.buildQuantity == 250);
+    CHECK(cloud::status((root / "a").string()).get("changed").items().empty());
+    removeRepositoryFolder(root);
+}
+
+TEST(mcp_project_cloud_refuses_what_it_cannot_sync) {
+    // Unsaved projects, non-GitHub remotes, odd branches and links before connecting are tool errors, never crashes.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "status"})"))));
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "sieda_cloud_mcp";
+    removeRepositoryFolder(root);
+    fs::create_directories(root / "led");
+    mcp::McpOptions o;
+    o.allowedRoot = root.string();
+    s.setOptions(o);
+    CHECK(!mcpFailed(mcpTool(s, "project_save_as", Json::parse(R"({"path": "led/led.siedaproj"})"))));
+    CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "connect", "repo": "https://evil.example/a/b"})"))));
+    CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "push", "branch": "--force"})"))));
+    if (cloud::git(".", {"--version"}).code != -1) {
+        CHECK(mcpFailed(mcpTool(s, "project_cloud", Json::parse(R"({"action": "share"})"))));
+        CHECK(!mcpData(mcpTool(s, "project_cloud", Json::parse(R"({"action": "status"})"))).get("repository").asBool());
+    }
+    removeRepositoryFolder(root);
 }

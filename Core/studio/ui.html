@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiEDA Studio</title>
+<style>
+:root{--bg:#f4f6fa;--panel:#fff;--ink:#17202e;--mute:#5d6b80;--line:#d9dfe8;--accent:#3b6fe0;--bar:#16233a;--bad:#c62e2e;--warn:#b26b00;--ok:#1d8a4e}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1522;--panel:#151f31;--ink:#e6ebf3;--mute:#93a1b8;--line:#26344d;--accent:#5b8dff;--bar:#0a101b}}
+*{box-sizing:border-box}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column}
+header{display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--bar);color:#fff;flex-wrap:wrap}
+header b{font-size:15px;margin-right:6px}header .name{color:#b9c7e0;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+button,select,input,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 11px;cursor:pointer}
+button:hover{border-color:var(--accent)}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+header button{background:#24375a;border-color:#2f4670;color:#fff}
+.main{flex:1;display:flex;min-height:0}
+nav{width:150px;padding:10px 8px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:3px}
+nav button{text-align:left;border:0;background:none;padding:8px 10px}nav button.on{background:var(--accent);color:#fff}
+section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:10px;overflow:auto}section.on{display:flex}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row label{color:var(--mute)}
+.view{flex:1;min-height:300px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:grab}
+.view img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
+.dark3d{background:#1b2230}
+table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
+.error{color:var(--bad)}.warning{color:var(--warn)}.info{color:var(--mute)}.okc{color:var(--ok)}
+input,select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+textarea{width:100%;min-height:140px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;margin:0;font-size:12.5px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.links a{color:var(--accent);word-break:break-all}
+footer{padding:5px 12px;border-top:1px solid var(--line);background:var(--panel);color:var(--mute);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);min-width:min(520px,92vw)}
+dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padding:6px;border-radius:5px;cursor:pointer}dialog li:hover{background:var(--bg)}
+@media (max-width:700px){nav{width:auto;flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}.main{flex-direction:column}}
+</style></head><body>
+<header><b>SiEDA</b><span class="name" id="name">No project</span>
+<button onclick="newProject()">New</button><button onclick="openDialog()">Open…</button><button onclick="save()">Save</button>
+<button onclick="saveAs()">Save As…</button><button onclick="examples()">Examples…</button><button onclick="undo()">Undo</button>
+<button onclick="quit()">Quit</button></header>
+<div class="main"><nav id="nav"></nav>
+<section data-tab="Schematic"><div class="row"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()">
+<button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info">Wheel to zoom, drag to pan, double-click to fit.</span></div><div class="view" id="schView"></div></section>
+<section data-tab="Board"><div class="row"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
+<button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
+<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="run('pcb_drc').then(showChecks)">Run DRC</button></div><div class="view" id="pcbView"></div></section>
+<section data-tab="3D"><div class="row"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
+<section data-tab="Checks"><div class="row"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
+<button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"></div></section>
+<section data-tab="BOM"><div class="row"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
+<section data-tab="Cloud"><div class="card"><b>GitHub cloud sync</b><p class="info">Your project syncs through a GitHub repository with your own git sign-in (Git Credential Manager, <code>gh auth login</code> or SSH keys). A public repository's links open for anyone; a private one's for its collaborators only.</p>
+<div class="row"><label>Repository</label><input id="repo" placeholder="owner/name" style="flex:1;min-width:200px"><label>Branch</label><input id="branch" value="main" style="width:110px"><button onclick="cloud('connect')">Connect</button></div>
+<div class="row" style="margin-top:8px"><input id="msg" placeholder="What changed (commit message)" style="flex:1;min-width:200px"><button onclick="cloud('pull')">Pull</button><button class="primary" onclick="cloud('push')">Push</button><button onclick="cloud('share')">Share links</button><button onclick="cloud('status')">Status</button></div></div>
+<div id="cloudOut"></div></section>
+<section data-tab="Tools"><div class="row"><input id="toolFilter" placeholder="Filter tools" oninput="listTools()" style="flex:1"><select id="tool" onchange="pickTool()" style="flex:2"></select></div>
+<div class="card"><div id="toolDesc" class="info"></div></div><textarea id="toolArgs">{}</textarea><div class="row"><button class="primary" onclick="runTool()">Run tool</button><span class="info">Every SiEDA feature is an MCP tool; arguments are JSON.</span></div><pre id="toolOut"></pre></section>
+</div><footer id="status">Ready.</footer>
+<dialog id="dlg"><b id="dlgTitle"></b><ul id="dlgList"></ul><div class="row"><input id="dlgInput" style="flex:1"><button class="primary" id="dlgOk">OK</button><button onclick="dlg.close()">Cancel</button></div></dialog>
+<script>
+const TOKEN="__SIEDA_TOKEN__";let rpcId=0,rev=-1,tools=[],state={},tab="Schematic";
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const status=(t,cls)=>{$("status").className=cls||"";$("status").textContent=t;};
+async function post(path,body){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Sieda-Token":TOKEN},body:JSON.stringify(body)});return r.json();}
+async function rpc(method,params){const m=await post("/rpc",{jsonrpc:"2.0",id:++rpcId,method,params});if(m.error)throw new Error(m.error.message);return m.result;}
+async function run(name,args={}){status("Running "+name+"…");document.body.style.cursor="progress";
+ try{const r=await rpc("tools/call",{name,arguments:args});let data={},img=null,svg=null;
+  for(const c of r.content||[]){if(c.type==="text"){try{data=JSON.parse(c.text)}catch{data={text:c.text}}}else if(c.type==="image")img=c.data;else if(c.type==="resource"&&c.resource)svg=c.resource.text;}
+  if(r.isError){status(name+": "+(data.text||JSON.stringify(data)),"error");throw new Error(data.text||"failed");}
+  status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
+async function act(name,args){await run(name,args);await refresh(true);}
+async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
+ if(!force&&s.revision===rev)return;rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;}catch{}draw();}
+const views={};function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true};views[el.id]=v;let d=null;
+ const apply=()=>{const i=el.querySelector("img");if(i)i.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
+ v.doFit=()=>{const i=el.querySelector("img");if(!i||!i.naturalWidth)return;v.k=Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight);v.x=(el.clientWidth-i.naturalWidth*v.k)/2;v.y=(el.clientHeight-i.naturalHeight*v.k)/2;apply();};
+ el.onwheel=e=>{e.preventDefault();const r=el.getBoundingClientRect(),f=e.deltaY>0?1/1.15:1.15,mx=e.clientX-r.left,my=e.clientY-r.top;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;apply();};
+ el.onmousedown=e=>{d=[e.clientX,e.clientY];el.style.cursor="grabbing";};addEventListener("mouseup",()=>{d=null;el.style.cursor="";});
+ el.onmousemove=e=>{if(!d)return;v.x+=e.clientX-d[0];v.y+=e.clientY-d[1];d=[e.clientX,e.clientY];v.fit=false;apply();};el.ondblclick=()=>{v.fit=true;v.doFit();};return v;}
+function showImage(id,src){const el=$(id),v=panZoom(el),i=new Image();i.onload=()=>{el.replaceChildren(i);v.fit?v.doFit():v.apply();};i.src=src;}
+const svgSrc=t=>"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(t)));
+async function draw(){try{
+ if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg));}
+ if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg));}
+ if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
+ if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();}catch(e){}}
+function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
+ $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
+async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
+async function bom(){const r=await run("output_bom",{format:"json"});const L=r.data.lines||[];$("bom").innerHTML="<table><tr><th>#</th><th>Qty</th><th>Refs</th><th>Value</th><th>Footprint</th><th>MPN</th><th>Notes</th></tr>"+L.map(x=>`<tr><td>${x.item}</td><td>${x.quantity}</td><td>${esc(x.refs.join(", "))}</td><td>${esc(x.value)}</td><td>${esc(x.footprint)}</td><td>${esc(x.mpn||x.suggestedMpn)}</td><td class=info>${esc((x.notes||[]).join("; "))}</td></tr>`).join("")+"</table>";}
+async function fab(){const dir=prompt("Folder for the fabrication package (inside "+state.root+")","fabrication");if(dir)await run("output_fabrication_package",{dir});}
+async function cloud(action){const args={action,branch:$("branch").value||"main"};if(action==="connect")args.repo=$("repo").value;if(action==="push"&&$("msg").value)args.message=$("msg").value;
+ try{const r=await run("project_cloud",args);const L=r.data.links;let h="";if(L)h+=`<div class="card links"><b>Share links</b>${r.data.access?`<p>Access: ${esc(r.data.access)}</p>`:""}`+Object.entries(L).map(([k,u])=>`<div>${esc(k)}: <a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a> <button onclick="navigator.clipboard.writeText('${esc(u)}')">Copy</button></div>`).join("")+(r.data.viewerNote?`<p class=info>${esc(r.data.viewerNote)}</p>`:"")+"</div>";
+  h+=`<pre>${esc(JSON.stringify(r.data,null,2))}</pre>`;$("cloudOut").innerHTML=h;if(action==="pull")refresh(true);}catch(e){$("cloudOut").innerHTML=`<pre class=error>${esc(e.message)}</pre>`;}}
+async function loadTools(){tools=(await rpc("tools/list",{})).tools;listTools();}
+function listTools(){const f=$("toolFilter").value.toLowerCase();$("tool").innerHTML=tools.filter(t=>!f||t.name.includes(f)||(t.description||"").toLowerCase().includes(f)).map(t=>`<option>${esc(t.name)}</option>`).join("");pickTool();}
+function pickTool(){const t=tools.find(t=>t.name===$("tool").value);if(!t)return;const p=t.inputSchema.properties||{};$("toolDesc").innerHTML=`<b>${esc(t.title||t.name)}</b><p>${esc(t.description)}</p>`+Object.entries(p).map(([k,s])=>`<div><code>${esc(k)}</code> ${esc(s.type||"")}: ${esc(s.description||"")}</div>`).join("");$("toolArgs").value="{}";}
+async function runTool(){let args;try{args=JSON.parse($("toolArgs").value||"{}")}catch(e){status("Arguments are not JSON: "+e.message,"error");return;}
+ try{const r=await run($("tool").value,args);$("toolOut").textContent=JSON.stringify(r.data,null,2);await refresh(true);}catch(e){$("toolOut").textContent=e.message;}}
+function ask(title,items,value,onOk){$("dlgTitle").textContent=title;$("dlgList").innerHTML=items.map(i=>`<li data-v="${esc(i.v)}">${esc(i.t)}</li>`).join("");$("dlgInput").value=value||"";
+ $("dlgList").onclick=e=>{const v=e.target.dataset.v;if(v!==undefined){dlg.close();onOk(v);}};$("dlgOk").onclick=()=>{dlg.close();if($("dlgInput").value)onOk($("dlgInput").value);};dlg.showModal();}
+async function openDialog(){await refresh(true);ask("Open a project (in "+state.root+")",(state.files||[]).map(f=>({t:f,v:f})),"",p=>act("project_open",{path:p}));}
+async function examples(){const r=await run("project_list_examples");ask("Load an example",r.data.examples.map(e=>({t:e.title+" — "+e.description,v:e.id})),"",id=>act("project_load_example",{id}));}
+async function newProject(){if(confirm("Start a new project? Unsaved changes are lost."))act("project_new",{name:"Untitled"});}
+async function save(){if(!state.project)return saveAs();await act("project_save",{});}
+async function saveAs(){const p=prompt("Save as (path inside "+state.root+")","designs/my_board.siedaproj");if(p)await act("project_save_as",{path:p});}
+async function undo(){await act("project_undo",{});}
+async function quit(){if(confirm("Quit SiEDA Studio? Save first if needed.")){await post("/quit",{});document.body.innerHTML="<p style='padding:20px'>SiEDA Studio has stopped. You can close this tab.</p>";}}
+function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.textContent===name));draw();}
+document.querySelectorAll("section").forEach(s=>{const b=document.createElement("button");b.textContent=s.dataset.tab;b.onclick=()=>selectTab(s.dataset.tab);$("nav").append(b);});
+addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
+(async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});selectTab("Schematic");await refresh(true);setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
+</script></body></html>

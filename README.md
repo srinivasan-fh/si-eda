@@ -2,16 +2,17 @@
 
 <h1>SiEDA</h1>
 
-<p><b>AI-native electronic design automation for macOS</b></p>
+<p><b>AI-native electronic design automation for macOS, Linux and Windows</b></p>
 
 <p>Describe a product in plain language. SiEDA turns it into a verified schematic, a simulated circuit,<br>
 a routed board, a 3D assembly and fabrication-ready files, and every step stays yours to edit.</p>
 
 <p>
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-1f6feb">
+<img alt="Linux and Windows" src="https://img.shields.io/badge/Linux%20%7C%20Windows-SiEDA%20Studio-1f6feb">
 <img alt="SwiftUI" src="https://img.shields.io/badge/app-SwiftUI-f05138">
 <img alt="C++17 engine" src="https://img.shields.io/badge/engine-C%2B%2B17-00599c">
-<img alt="MCP server" src="https://img.shields.io/badge/MCP-169%20tools-6e40c9">
+<img alt="MCP server" src="https://img.shields.io/badge/MCP-170%20tools-6e40c9">
 <img alt="Interface languages" src="https://img.shields.io/badge/languages-20-2ea043">
 <img alt="License" src="https://img.shields.io/badge/license-proprietary-555">
 </p>
@@ -38,7 +39,7 @@ a routed board, a 3D assembly and fabrication-ready files, and every step stays 
 
 <table>
 <tr>
-<td align="center" width="25%"><h3>169</h3>MCP tools any AI client can call</td>
+<td align="center" width="25%"><h3>170</h3>MCP tools any AI client can call</td>
 <td align="center" width="25%"><h3>1,675</h3>catalog parts with real pinouts and footprints</td>
 <td align="center" width="25%"><h3>465</h3>core test suites, 1.2 million checks</td>
 <td align="center" width="25%"><h3>20</h3>interface languages</td>
@@ -225,6 +226,7 @@ cd si-eda
 | Command | What it does |
 |---|---|
 | `./run.sh app` | Build the macOS app and launch it |
+| `cmake --build build --target sieda-studio && ./build/sieda-studio` | SiEDA Studio on Linux / Windows: the app in your browser, with GitHub sync ([guide](docs/STUDIO.md)) |
 | `./run.sh test` | Core unit tests, plus the Xcode tests on macOS |
 | `./run.sh demo [dir]` | Headless pipeline on the demo design: fabrication files and a verification report |
 | `./run.sh cli design.siedaproj [dir]` | Verify a saved project and write its fabrication package |

@@ -1,7 +1,8 @@
 name: Release
 
 # A tag v<version> builds the release: the signed, notarised app as a DMG (when the signing secrets are set; ad-hoc
-# signed otherwise), the CLI / MCP server for Linux and macOS, an SBOM and SHA256SUMS. The Linux CLI is built twice in
+# signed otherwise), SiEDA Studio with the CLI / MCP server for Linux and Windows (unsigned until a Windows signing
+# certificate is set up), the CLI / MCP server for macOS, an SBOM and SHA256SUMS. The Linux build is made twice in
 # different folders and must come out byte-identical (reproducible build).
 on:
   push:
@@ -13,7 +14,7 @@ permissions:
 
 jobs:
   cli-linux:
-    name: CLI and MCP server (Linux, reproducible)
+    name: Studio, CLI and MCP server (Linux, reproducible)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,21 +24,44 @@ jobs:
           for dir in a b; do
             cmake -S . -B "/tmp/$dir" -DCMAKE_BUILD_TYPE=Release -DSIEDA_BUILD_TESTS=OFF -DSIEDA_HARFBUZZ=OFF \
               -DCMAKE_CXX_FLAGS="-ffile-prefix-map=$PWD=. -ffile-prefix-map=/tmp/$dir=build"
-            cmake --build "/tmp/$dir" --parallel --target sieda-cli sieda-mcp
+            cmake --build "/tmp/$dir" --parallel --target sieda-cli sieda-mcp sieda-studio
           done
-          for tool in sieda-cli sieda-mcp; do cmp "/tmp/a/$tool" "/tmp/b/$tool"; done
-          mkdir dist && cp /tmp/a/sieda-cli /tmp/a/sieda-mcp dist/
+          for tool in sieda-cli sieda-mcp sieda-studio; do cmp "/tmp/a/$tool" "/tmp/b/$tool"; done
+          mkdir dist && cp /tmp/a/sieda-cli /tmp/a/sieda-mcp /tmp/a/sieda-studio packaging/linux/sieda-studio.desktop dist/
           tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
-            -czf sieda-cli-linux-x86_64.tar.gz -C dist .
+            -czf sieda-linux-x86_64.tar.gz -C dist .
       - uses: actions/upload-artifact@v4
         with:
           name: cli-linux
-          path: sieda-cli-linux-x86_64.tar.gz
+          path: sieda-linux-x86_64.tar.gz
+
+  windows:
+    name: Studio, CLI and MCP server (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: zip mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+      - name: Build (static .exe files, nothing else to install)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSIEDA_BUILD_TESTS=OFF -DSIEDA_HARFBUZZ=OFF
+          cmake --build build --parallel --target sieda-cli sieda-mcp sieda-studio
+          mkdir dist && cp build/sieda-cli.exe build/sieda-mcp.exe build/sieda-studio.exe dist/
+          cd dist && zip -9 ../sieda-windows-x86_64.zip *.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: sieda-windows-x86_64.zip
 
   app-macos:
     name: macOS app
     runs-on: macos-15
-    needs: cli-linux
+    needs: [cli-linux, windows]
     env:
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
       MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -50,6 +74,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: cli-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
       - name: Version
         run: |
           tag="${GITHUB_REF_NAME}"
@@ -96,15 +123,17 @@ jobs:
           cmake --build cli --parallel --target sieda-cli sieda-mcp
           mkdir clidist && cp cli/sieda-cli cli/sieda-mcp clidist/
           tar -czf sieda-cli-macos-arm64.tar.gz -C clidist .
-          python3 tools/make_sbom.py --version "$VERSION" "$dmg" sieda-cli-*.tar.gz > "sieda-$VERSION.cdx.json"
-          shasum -a 256 "$dmg" sieda-cli-*.tar.gz "sieda-$VERSION.cdx.json" > SHA256SUMS
+          files="sieda-cli-macos-arm64.tar.gz sieda-linux-x86_64.tar.gz sieda-windows-x86_64.zip"
+          python3 tools/make_sbom.py --version "$VERSION" "$dmg" $files > "sieda-$VERSION.cdx.json"
+          shasum -a 256 "$dmg" $files "sieda-$VERSION.cdx.json" > SHA256SUMS
       - name: Publish the release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --generate-notes \
-            "SiEDA-$VERSION.dmg" sieda-cli-*.tar.gz "sieda-$VERSION.cdx.json" SHA256SUMS
+            "SiEDA-$VERSION.dmg" sieda-cli-macos-arm64.tar.gz sieda-linux-x86_64.tar.gz sieda-windows-x86_64.zip \
+            "sieda-$VERSION.cdx.json" SHA256SUMS
       - uses: actions/upload-artifact@v4
         if: "!startsWith(github.ref, 'refs/tags/v')"
         with:
