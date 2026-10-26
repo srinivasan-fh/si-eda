@@ -147,7 +147,8 @@ async function pcbPress(pt,e){const t=tool.pcb;
 async function pcbRelease(pt,d){const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
 async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
  $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
-async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});$("partHits").innerHTML=(r.data.parts||r.data.results||[]).map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
+async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
+ $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}

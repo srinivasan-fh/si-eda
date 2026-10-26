@@ -30,6 +30,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/CloudSync.hpp"
+#include "sieda/ExternalLibrary.hpp"
 
 namespace fs = std::filesystem;
 
@@ -4258,6 +4259,154 @@ void schematicTools(Table& t) {
 
 // ================================================================================================= library tools
 
+/// library_search over the standard catalog (its arguments): parts, total, notes.
+Json libraryCatalogSearch(const Json& a) {
+    std::vector<std::string> words, cats, pkgs, mfrs;
+    int lo = 0, hi = 1 << 30;
+    bool range = false;
+    // "4 pin", "4-pin", "8 way", "6 position" are a pin count: pins:4.
+    static const std::regex count(R"((^|\s)(\d{1,3})\s*-?\s*(pins?|ways?|positions?|pos)\b)");
+    // "header 2", "connector 4": the count after a connector word too.
+    static const std::regex after(R"(\b(headers?|connectors?|conn|terminals?|sockets?)\s+(\d{1,3})\b)");
+    std::istringstream in(std::regex_replace(std::regex_replace(lowerStr(argStr(a, "query", "")), count, "$1pins:$2"), after, "$1 pins:$2"));
+    for (std::string w; in >> w;) {
+        const size_t colon = w.find(':');
+        if (colon != std::string::npos && colon > 0 && colon + 1 < w.size()) {
+            const std::string k = w.substr(0, colon), v = w.substr(colon + 1);
+            if (k == "cat" || k == "category") { cats.push_back(v); continue; }
+            if (k == "pkg" || k == "package") { pkgs.push_back(compact(v)); continue; }
+            if (k == "mfr" || k == "maker" || k == "manufacturer") { mfrs.push_back(v); continue; }
+            if ((k == "pins" || k == "pin") && pinRange(v, &lo, &hi)) { range = true; continue; }
+        }
+        words.push_back(w);
+    }
+    if (a.has("category")) cats.push_back(lowerStr(argStr(a, "category")));
+    if (a.has("package")) pkgs.push_back(compact(argStr(a, "package")));
+    if (a.has("manufacturer")) mfrs.push_back(lowerStr(argStr(a, "manufacturer")));
+    if (a.has("pins")) range = pinRange(argStr(a, "pins"), &lo, &hi) || range;
+    const int limit = std::clamp(argInt(a, "limit", 25), 1, 200);
+    Json j = obj();
+    if (words.empty() && cats.empty() && pkgs.empty() && mfrs.empty() && !range) {
+        std::map<std::string, int> counts;
+        for (const auto& p : standardParts()) ++counts[p.category];
+        Json list = Json::array();
+        for (const auto& [c, n] : counts) {
+            Json e = obj();
+            e["category"] = c;
+            e["parts"] = n;
+            list.push(e);
+        }
+        j["categories"] = list;
+        j["total"] = standardParts().size();
+        return j;
+    }
+    Json list = Json::array();
+    int total = 0;
+    auto entry = [](const StandardPart& p) {
+        const int pins = static_cast<int>(p.spec.pins.size());
+        Json e = obj();
+        e["name"] = p.spec.name;
+        e["category"] = p.category;
+        e["manufacturer"] = p.spec.manufacturer;
+        e["description"] = p.spec.description;
+        e["package"] = !p.footprint.empty() ? p.footprint  // the footprint its pads follow
+                                            : p.spec.package.type + "-" + std::to_string(p.spec.package.pinCount ? p.spec.package.pinCount : pins);
+        e["pins"] = pins;
+        if (pins <= 8) {  // a small part's pins by name (number), as schematic_build takes them
+            Json names = Json::array();
+            for (const auto& pin : p.spec.pins) names.push(pin.name + "(" + pin.number + ")");
+            e["pinNames"] = names;
+        }
+        return e;
+    };
+    std::vector<std::pair<size_t, const StandardPart*>> partial, ranked, byPackage;  // some of the words / all of them
+    for (const auto& p : standardParts()) {
+        const std::string cat = lowerStr(p.category), mfr = lowerStr(p.spec.manufacturer);
+        const std::string pkg = compact(p.spec.package.type + std::to_string(p.spec.package.pinCount) + p.footprint);
+        const int pins = static_cast<int>(p.spec.pins.size());
+        bool ok = true;
+        for (const auto& c : cats) ok = ok && cat.find(c) != std::string::npos;
+        for (const auto& m : mfrs) ok = ok && mfr.find(m) != std::string::npos;
+        for (const auto& k : pkgs) ok = ok && pkg.find(k) != std::string::npos;
+        if (range) ok = ok && pins >= lo && pins <= hi;
+        if (!ok) continue;
+        const std::string hay = lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " +
+                                         p.spec.manufacturer + " " + p.spec.package.type + "-" +
+                                         std::to_string(p.spec.package.pinCount) + " " + p.footprint);
+        size_t matched = 0;
+        for (const auto& w : words) matched += wordMatches(hay, w);
+        if (matched < words.size()) {
+            if (matched) partial.push_back({matched, &p});
+            continue;
+        }
+        ++total;
+        size_t named = 0, said = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
+        for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
+        for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " + p.spec.manufacturer), w);
+        (said == words.size() ? ranked : byPackage).push_back({named, &p});
+    }
+    // A word only a package names ("header": a module in a HEADER-4 package) lists those parts only when
+    // nothing says it in its name or description.
+    if (ranked.empty()) ranked.swap(byPackage);
+    total = static_cast<int>(ranked.size());
+    std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
+    // A part-number-like query ("usb-c", "esp32"): the parts with every word in their name alone (an MCU whose
+    // description says USB-C is noise there); a feature word ("ble") still lists every part that has it.
+    const bool numberLike = std::any_of(words.begin(), words.end(), [](const std::string& w) {
+        return std::any_of(w.begin(), w.end(), [](unsigned char c) { return std::isdigit(c) || c == '-'; });
+    });
+    if (numberLike && !ranked.empty() && ranked.front().first == words.size()) {
+        const size_t all = ranked.size();
+        ranked.erase(std::find_if(ranked.begin(), ranked.end(), [&](const auto& r) { return r.first < words.size(); }), ranked.end());
+        if (all > ranked.size()) j["alsoInDescriptions"] = static_cast<int>(all - ranked.size());
+        total = static_cast<int>(ranked.size());
+    }
+    for (const auto& [n, part] : ranked)
+        if (static_cast<int>(list.size()) < limit) list.push(entry(*part));
+    std::string kindWord;  // a built-in kind ("led 0805"): partial matches would only be noise
+    for (const auto& w : words)
+        for (const char* k : {"led", "leds", "resistor", "resistors", "capacitor", "capacitors", "inductor"})
+            if (w == k) kindWord = w;
+    if (!total && !kindWord.empty())
+        j["builtin"] = "\"" + kindWord + "\" is a built-in kind, not a catalog part: schematic_build parts [{\"ref\": \"D1\", \"kind\": "
+                       "\"led\", \"value\": \"Green\", \"package\": \"0805\"}] (kinds: resistor, capacitor, inductor, led; "
+                       "library_builtin_kinds lists them with packages).";
+    static const std::regex genericDiode(R"(^1n(4\d{3}|5[48]\d{2})$)");  // 1N4007, 1N4148, 1N5819: plain two-pin diodes
+    for (const auto& w : words)
+        if (!total && std::regex_match(w, genericDiode))
+            j["builtin"] = std::string("A plain two-pin diode: schematic_build parts [{\"ref\": \"D1\", \"kind\": \"diode\", \"value\": \"1N") +
+                           w.substr(2) + "\"}] (pins A / K; library_builtin_kinds lists its packages), or the catalog's SS14 Schottky.";
+    if (!total && !partial.empty() && kindWord.empty()) {  // nothing has every word: the parts with the most of them
+        size_t best = 0;
+        for (const auto& [n, p] : partial) best = std::max(best, n);
+        for (const auto& [n, p] : partial)
+            if (n == best && static_cast<int>(list.size()) < limit) list.push(entry(*p));
+        j["closest"] = std::to_string(best) + " of " + std::to_string(words.size()) + " words match";
+    }
+    j["total"] = total;
+    j["parts"] = list;
+    for (const auto& w : words)  // programming / debug headers are plain pin headers in the catalog
+        if (w == "isp" || w == "icsp" || w == "ftdi" || w == "swd" || w == "jtag" || w == "programming")
+            j["hint"] = "Programming headers are generic pin headers: AVR ISP = PinHeader_2x03_P2.54mm, FTDI serial = "
+                        "PinHeader_1x06_P2.54mm, ARM SWD = PinHeader_2x05_P2.54mm (or a 1.27 mm Cortex header from library_create_part), JTAG = "
+                        "PinHeader_2x10_P2.54mm; name the pins with net labels.";
+    if (total > limit) j["note"] = "More parts match: refine the query or raise limit.";
+    if (!total) {  // say which word narrowed it to nothing
+        std::string per;
+        for (const auto& w : words) {
+            int n = 0;
+            for (const auto& p : standardParts())
+                n += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
+            per += (per.empty() ? "" : ", ") + w + " " + std::to_string(n);
+        }
+        j["note"] = "Nothing matches every word" + (per.empty() ? std::string() : " (parts per word: " + per + ")") +
+                    (list.size() ? "; parts lists those matching the most words" : "") +
+                    ". Use fewer words or a cat: filter (an empty query lists the categories); resistors, "
+                    "capacitors, LEDs, switches and generic connectors are schematic_add_component kinds.";
+    }
+    return j;
+}
+
 void libraryTools(Table& t) {
     t.add("library", "library_builtin_kinds", "Built-in kinds", Kind::Read, true,
           "The built-in component kinds (schematic_add_component) with designator prefix, default value, footprint "
@@ -4295,151 +4444,24 @@ void libraryTools(Table& t) {
               .str("manufacturer", "Manufacturer contains")
               .str("pins", "Pin count: \"8\", \"6-10\", \">40\", \"<8\"")
               .integer("limit", "Most results (default 25, at most 200)"),
-          [](McpServer&, const Json& a) {
-              std::vector<std::string> words, cats, pkgs, mfrs;
-              int lo = 0, hi = 1 << 30;
-              bool range = false;
-              // "4 pin", "4-pin", "8 way", "6 position" are a pin count: pins:4.
-              static const std::regex count(R"((^|\s)(\d{1,3})\s*-?\s*(pins?|ways?|positions?|pos)\b)");
-              // "header 2", "connector 4": the count after a connector word too.
-              static const std::regex after(R"(\b(headers?|connectors?|conn|terminals?|sockets?)\s+(\d{1,3})\b)");
-              std::istringstream in(std::regex_replace(std::regex_replace(lowerStr(argStr(a, "query", "")), count, "$1pins:$2"), after, "$1 pins:$2"));
-              for (std::string w; in >> w;) {
-                  const size_t colon = w.find(':');
-                  if (colon != std::string::npos && colon > 0 && colon + 1 < w.size()) {
-                      const std::string k = w.substr(0, colon), v = w.substr(colon + 1);
-                      if (k == "cat" || k == "category") { cats.push_back(v); continue; }
-                      if (k == "pkg" || k == "package") { pkgs.push_back(compact(v)); continue; }
-                      if (k == "mfr" || k == "maker" || k == "manufacturer") { mfrs.push_back(v); continue; }
-                      if ((k == "pins" || k == "pin") && pinRange(v, &lo, &hi)) { range = true; continue; }
-                  }
-                  words.push_back(w);
-              }
-              if (a.has("category")) cats.push_back(lowerStr(argStr(a, "category")));
-              if (a.has("package")) pkgs.push_back(compact(argStr(a, "package")));
-              if (a.has("manufacturer")) mfrs.push_back(lowerStr(argStr(a, "manufacturer")));
-              if (a.has("pins")) range = pinRange(argStr(a, "pins"), &lo, &hi) || range;
-              const int limit = std::clamp(argInt(a, "limit", 25), 1, 200);
-              Json j = obj();
-              if (words.empty() && cats.empty() && pkgs.empty() && mfrs.empty() && !range) {
-                  std::map<std::string, int> counts;
-                  for (const auto& p : standardParts()) ++counts[p.category];
+          [](McpServer& s, const Json& a) {
+              Json found = libraryCatalogSearch(a);
+              // The user's own KiCad libraries (when the server was given some): "Library:Symbol" names library_add_part places.
+              if (!s.options().libraryDirs.empty() && !argStr(a, "query", "").empty()) {
+                  ExternalLibraries& ext = ExternalLibraries::shared(s.options().libraryDirs);
                   Json list = Json::array();
-                  for (const auto& [c, n] : counts) {
+                  for (const ExternalPart* p : ext.search(argStr(a, "query"), static_cast<size_t>(std::clamp(argInt(a, "limit", 25), 1, 200)))) {
                       Json e = obj();
-                      e["category"] = c;
-                      e["parts"] = n;
+                      e["name"] = p->id;
+                      e["description"] = p->description;
+                      e["footprint"] = p->footprint;
+                      e["pins"] = p->pins;
                       list.push(e);
                   }
-                  j["categories"] = list;
-                  j["total"] = standardParts().size();
-                  return out(j);
+                  found["libraryParts"] = list;
+                  found["librarySize"] = static_cast<double>(ext.parts().size());
               }
-              Json list = Json::array();
-              int total = 0;
-              auto entry = [](const StandardPart& p) {
-                  const int pins = static_cast<int>(p.spec.pins.size());
-                  Json e = obj();
-                  e["name"] = p.spec.name;
-                  e["category"] = p.category;
-                  e["manufacturer"] = p.spec.manufacturer;
-                  e["description"] = p.spec.description;
-                  e["package"] = !p.footprint.empty() ? p.footprint  // the footprint its pads follow
-                                                      : p.spec.package.type + "-" + std::to_string(p.spec.package.pinCount ? p.spec.package.pinCount : pins);
-                  e["pins"] = pins;
-                  if (pins <= 8) {  // a small part's pins by name (number), as schematic_build takes them
-                      Json names = Json::array();
-                      for (const auto& pin : p.spec.pins) names.push(pin.name + "(" + pin.number + ")");
-                      e["pinNames"] = names;
-                  }
-                  return e;
-              };
-              std::vector<std::pair<size_t, const StandardPart*>> partial, ranked, byPackage;  // some of the words / all of them
-              for (const auto& p : standardParts()) {
-                  const std::string cat = lowerStr(p.category), mfr = lowerStr(p.spec.manufacturer);
-                  const std::string pkg = compact(p.spec.package.type + std::to_string(p.spec.package.pinCount) + p.footprint);
-                  const int pins = static_cast<int>(p.spec.pins.size());
-                  bool ok = true;
-                  for (const auto& c : cats) ok = ok && cat.find(c) != std::string::npos;
-                  for (const auto& m : mfrs) ok = ok && mfr.find(m) != std::string::npos;
-                  for (const auto& k : pkgs) ok = ok && pkg.find(k) != std::string::npos;
-                  if (range) ok = ok && pins >= lo && pins <= hi;
-                  if (!ok) continue;
-                  const std::string hay = lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " +
-                                                   p.spec.manufacturer + " " + p.spec.package.type + "-" +
-                                                   std::to_string(p.spec.package.pinCount) + " " + p.footprint);
-                  size_t matched = 0;
-                  for (const auto& w : words) matched += wordMatches(hay, w);
-                  if (matched < words.size()) {
-                      if (matched) partial.push_back({matched, &p});
-                      continue;
-                  }
-                  ++total;
-                  size_t named = 0, said = 0;  // words in its name rank it first ("usb-c": the receptacle before MCUs with USB)
-                  for (const auto& w : words) named += wordMatches(lowerStr(p.spec.name), w);
-                  for (const auto& w : words) said += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category + " " + p.spec.manufacturer), w);
-                  (said == words.size() ? ranked : byPackage).push_back({named, &p});
-              }
-              // A word only a package names ("header": a module in a HEADER-4 package) lists those parts only when
-              // nothing says it in its name or description.
-              if (ranked.empty()) ranked.swap(byPackage);
-              total = static_cast<int>(ranked.size());
-              std::stable_sort(ranked.begin(), ranked.end(), [](const auto& l, const auto& r) { return l.first > r.first; });
-              // A part-number-like query ("usb-c", "esp32"): the parts with every word in their name alone (an MCU whose
-              // description says USB-C is noise there); a feature word ("ble") still lists every part that has it.
-              const bool numberLike = std::any_of(words.begin(), words.end(), [](const std::string& w) {
-                  return std::any_of(w.begin(), w.end(), [](unsigned char c) { return std::isdigit(c) || c == '-'; });
-              });
-              if (numberLike && !ranked.empty() && ranked.front().first == words.size()) {
-                  const size_t all = ranked.size();
-                  ranked.erase(std::find_if(ranked.begin(), ranked.end(), [&](const auto& r) { return r.first < words.size(); }), ranked.end());
-                  if (all > ranked.size()) j["alsoInDescriptions"] = static_cast<int>(all - ranked.size());
-                  total = static_cast<int>(ranked.size());
-              }
-              for (const auto& [n, part] : ranked)
-                  if (static_cast<int>(list.size()) < limit) list.push(entry(*part));
-              std::string kindWord;  // a built-in kind ("led 0805"): partial matches would only be noise
-              for (const auto& w : words)
-                  for (const char* k : {"led", "leds", "resistor", "resistors", "capacitor", "capacitors", "inductor"})
-                      if (w == k) kindWord = w;
-              if (!total && !kindWord.empty())
-                  j["builtin"] = "\"" + kindWord + "\" is a built-in kind, not a catalog part: schematic_build parts [{\"ref\": \"D1\", \"kind\": "
-                                 "\"led\", \"value\": \"Green\", \"package\": \"0805\"}] (kinds: resistor, capacitor, inductor, led; "
-                                 "library_builtin_kinds lists them with packages).";
-              static const std::regex genericDiode(R"(^1n(4\d{3}|5[48]\d{2})$)");  // 1N4007, 1N4148, 1N5819: plain two-pin diodes
-              for (const auto& w : words)
-                  if (!total && std::regex_match(w, genericDiode))
-                      j["builtin"] = std::string("A plain two-pin diode: schematic_build parts [{\"ref\": \"D1\", \"kind\": \"diode\", \"value\": \"1N") +
-                                     w.substr(2) + "\"}] (pins A / K; library_builtin_kinds lists its packages), or the catalog's SS14 Schottky.";
-              if (!total && !partial.empty() && kindWord.empty()) {  // nothing has every word: the parts with the most of them
-                  size_t best = 0;
-                  for (const auto& [n, p] : partial) best = std::max(best, n);
-                  for (const auto& [n, p] : partial)
-                      if (n == best && static_cast<int>(list.size()) < limit) list.push(entry(*p));
-                  j["closest"] = std::to_string(best) + " of " + std::to_string(words.size()) + " words match";
-              }
-              j["total"] = total;
-              j["parts"] = list;
-              for (const auto& w : words)  // programming / debug headers are plain pin headers in the catalog
-                  if (w == "isp" || w == "icsp" || w == "ftdi" || w == "swd" || w == "jtag" || w == "programming")
-                      j["hint"] = "Programming headers are generic pin headers: AVR ISP = PinHeader_2x03_P2.54mm, FTDI serial = "
-                                  "PinHeader_1x06_P2.54mm, ARM SWD = PinHeader_2x05_P2.54mm (or a 1.27 mm Cortex header from library_create_part), JTAG = "
-                                  "PinHeader_2x10_P2.54mm; name the pins with net labels.";
-              if (total > limit) j["note"] = "More parts match: refine the query or raise limit.";
-              if (!total) {  // say which word narrowed it to nothing
-                  std::string per;
-                  for (const auto& w : words) {
-                      int n = 0;
-                      for (const auto& p : standardParts())
-                          n += wordMatches(lowerStr(p.spec.name + " " + p.spec.description + " " + p.category), w);
-                      per += (per.empty() ? "" : ", ") + w + " " + std::to_string(n);
-                  }
-                  j["note"] = "Nothing matches every word" + (per.empty() ? std::string() : " (parts per word: " + per + ")") +
-                              (list.size() ? "; parts lists those matching the most words" : "") +
-                              ". Use fewer words or a cat: filter (an empty query lists the categories); resistors, "
-                              "capacitors, LEDs, switches and generic connectors are schematic_add_component kinds.";
-              }
-              return out(j);
+              return out(found);
           });
     t.add("library", "library_part_details", "Part details", Kind::Read, true,
           "A catalog part's full description: manufacturer, package, units and every pin (number, name, type).",
@@ -4469,7 +4491,8 @@ void libraryTools(Table& t) {
               return out(j);
           });
     t.add("library", "library_add_part", "Place catalog part", Kind::Edit, false,
-          "Places a standard catalog part (an IC, regulator, connector …) on the schematic. units: true places a "
+          "Places a standard catalog part (an IC, regulator, connector …) on the schematic, or a \"Library:Symbol\" "
+          "from the user's own KiCad libraries (library_search libraryParts; its footprint comes with it). units: true places a "
           "multi-unit part by gates (unit A first; the hidden package carries every pin). Returns the part with its "
           "pins.",
           Schema()
@@ -4482,7 +4505,21 @@ void libraryTools(Table& t) {
               .boolean("units", "Place by units (multi-unit parts)")
               .integer("sheet", "Sheet id to place it on (default: the active sheet)"),
           [](McpServer& s, const Json& a) {
-              const StandardPart* sp = &catalogPart(requireStr(a, "name"));
+              const std::string name = requireStr(a, "name");
+              // "Library:Symbol" from the user's own KiCad libraries: imported (symbol + its footprint) when placed.
+              std::unique_ptr<StandardPart> external;
+              if (name.find(':') != std::string::npos && !s.options().libraryDirs.empty()) {
+                  ImportedPart ip;
+                  try {
+                      ip = ExternalLibraries::shared(s.options().libraryDirs).load(name);
+                  } catch (const std::exception& e) {
+                      throw ToolError(e.what());
+                  }
+                  if (!ip.ok) throw ToolError(name + " cannot be used as it is: " + ip.error);
+                  external = std::make_unique<StandardPart>();
+                  external->spec = ip.spec;
+              }
+              const StandardPart* sp = external ? external.get() : &catalogPart(name);
               SiedaProject* p = P(s);
               if (a.has("sheet")) check(sieda_set_active_sheet(p, argInt(a, "sheet", 1)) == 1, "Unknown sheet");
               std::string partId;

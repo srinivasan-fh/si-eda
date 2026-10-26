@@ -24,7 +24,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --target s
 On Windows, build in an MSYS2 MinGW-64 shell (`pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake`).
 
 ```
-sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser]
+sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir> …]
 ```
 
 | Option | Meaning |
@@ -33,6 +33,7 @@ sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser]
 | `--project` | Project to open at start. |
 | `--port` | Port to listen on (default: any free port). |
 | `--no-browser` | Print the address instead of opening the browser. |
+| `--library-dir` | A KiCad library folder (symbols / footprints) to search and place parts from; repeatable, read-only ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). |
 
 ## What it does
 

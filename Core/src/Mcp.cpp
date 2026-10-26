@@ -148,6 +148,9 @@ McpOptions McpOptions::fromJson(const Json& j) {
     o.docsDir = j.get("docsDir").asString("");
     o.serverName = j.get("serverName").asString("sieda");
     if (o.serverName.empty()) o.serverName = "sieda";
+    if (j.get("libraryDirs").isArray())
+        for (const auto& d : j.get("libraryDirs").items())
+            if (d.isString() && !d.asString().empty()) o.libraryDirs.push_back(d.asString());
     if (j.get("toolFilter").isArray())
         for (const auto& t : j.get("toolFilter").items())
             if (t.isString() && !t.asString().empty()) o.toolFilter.push_back(t.asString());
@@ -161,6 +164,9 @@ Json McpOptions::toJson() const {
     Json f = Json::array();
     for (const auto& t : toolFilter) f.push(t);
     j["toolFilter"] = f;
+    Json dirs = Json::array();
+    for (const auto& d : libraryDirs) dirs.push(d);
+    j["libraryDirs"] = dirs;
     j["docsDir"] = docsDir;
     j["serverName"] = serverName;
     return j;

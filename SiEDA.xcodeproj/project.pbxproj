@@ -220,6 +220,7 @@
 		F54023878D5972A8A77C8102 = {isa = PBXBuildFile; fileRef = 00432FCD4ABFC0B3CF65DBC2; };
 		F5ED19940A18F7A56343C1C3 = {isa = PBXBuildFile; fileRef = 3C2308823BDD3E97BF487298; };
 		F669FAA8B4C59CF6DBC6C1A8 = {isa = PBXBuildFile; fileRef = 313597F20902368076A5F62F; };
+		F792108CCCD5F55F6F019BDF = {isa = PBXBuildFile; fileRef = D8972BB0359DF00048543E42; };
 		F84C75A40B9069298630ACE6 = {isa = PBXBuildFile; fileRef = 7D38A642DF9EECA1FFA8CE5A; };
 		F9ECE46D3096C5B24581227E = {isa = PBXBuildFile; fileRef = 390EDC8F9CED69E83F1FA26B; };
 		F9F6BCA147362E4E67D341DC = {isa = PBXBuildFile; fileRef = F377BB60FA42CD1DF62BE62A; };
@@ -246,6 +247,7 @@
 		06C8FAA32A92CB59EBC88628 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Appliance.hpp; sourceTree = "<group>"; };
 		06E9E01764820C38C94C1C01 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SignalIntegrity.cpp; sourceTree = "<group>"; };
 		072C97DDDEBF48A7E51391D8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Mechanical.hpp; sourceTree = "<group>"; };
+		0762E167A286C125EFF52EFC = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ExternalLibrary.hpp; sourceTree = "<group>"; };
 		07BAC7C1D10B7656FDD11793 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Sheets.cpp; sourceTree = "<group>"; };
 		0836AEFC1E7F4EE048F49EC0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Ibis.cpp; sourceTree = "<group>"; };
 		085E0C7C16BF5A4DBFF9AED5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Automotive.cpp; sourceTree = "<group>"; };
@@ -507,6 +509,7 @@
 		D3E15B9053DA257C9A5751E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentLibraryView.swift; sourceTree = "<group>"; };
 		D45B920BF98609231071795D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Verification.hpp; sourceTree = "<group>"; };
 		D85C2F750F0E52C4DAEF698E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnModelViews.swift; sourceTree = "<group>"; };
+		D8972BB0359DF00048543E42 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ExternalLibrary.cpp; sourceTree = "<group>"; };
 		D8A1F587F4C663F44F8E70B7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SignalIntegrity.hpp; sourceTree = "<group>"; };
 		DB4F7DFDEFEBDCC2273D77C2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptStudioView.swift; sourceTree = "<group>"; };
 		DB5FB3116B534225DB0915D6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicAppearanceViews.swift; sourceTree = "<group>"; };
@@ -691,6 +694,7 @@
 				14099DA86A697E0A10A3EBA4,
 				9B648A12291572B1CDBF83AD,
 				833CC0D371F8BDA60C967CC4,
+				0762E167A286C125EFF52EFC,
 				5689D44B83BBAA8851B618B6,
 				869BA785CF905EE24B3F018E,
 				052BBC2163A5D034E2BD6167,
@@ -814,6 +818,7 @@
 				553AC87409016AC6E3324A8A,
 				0F0833A5CA77AB73527A9023,
 				19A32AB05C4FC519DD459887,
+				D8972BB0359DF00048543E42,
 				093215062DA71990759E16C7,
 				B3A704C1C14460AAAB9247DD,
 				E75D7DE7D08DFA800FFAA790,
@@ -1378,6 +1383,7 @@
 				EA5B743B446FD1857E2C1661,
 				D955D5E0AF7F2908EFEC462B,
 				482CD12CF3DD25314FE03C7D,
+				F792108CCCD5F55F6F019BDF,
 				E138F2F67368416125FE5114,
 				A2C29375611553B35C90A99A,
 				B49EF7DDF4B0D9905AA40643,

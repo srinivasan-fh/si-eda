@@ -42,6 +42,9 @@ struct McpOptions {
     std::string docsDir;
     /// Server name reported by initialize (the app may say "sieda-app").
     std::string serverName = "sieda";
+    /// The user's own KiCad library folders (ExternalLibrary.hpp): read-only, searched by library_search and placed by
+    /// library_add_part ("Library:Symbol"). Set only by whoever starts the server, never by a tool.
+    std::vector<std::string> libraryDirs;
 
     static McpOptions fromJson(const Json& j);  // {"readOnly","allowedRoot","toolFilter":[…],"docsDir","serverName"}
     Json toJson() const;

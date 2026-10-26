@@ -489,6 +489,7 @@ Release build, gcc, a 4-core Linux container shared with other jobs (times are a
 | | | | corridor | 18.4 s (23.3 s) | 922 / 922 | 1153 | 10590 mm | 415 MB |
 | Large: 32 clusters, FPGA + 4 BGAs | 923 / 1172 / 8 | 33.0 M | classic | 815.6 s | 2140 / 2143 | 3023 | 29455 mm | 1652 MB |
 | | | | corridor | **106.7 s** (133.5 s) | **2143 / 2143** | 3062 | 29626 mm | **876 MB** |
+| Large, today (October 2026) | 927 / 1168 / 8 | | corridor | **84.4 s** (121.3 s) | **2151 / 2151**, 0 DRC errors / warnings | 2999 | 28151 mm | **431 MB** |
 
 On eight benchmark boards of 166–550 parts (6 and 8 layers, BGAs: 6, 8 ×3, 10, 12, 16 and 20 clusters) both routers
 complete every board; the corridor router uses 0.3 % fewer vias (6689 against 6711) and the same track length

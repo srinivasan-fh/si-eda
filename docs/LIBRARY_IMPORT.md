@@ -20,6 +20,25 @@ both editors and save them with the project.
 - [Code map](#code-map)
 - [Tests](#tests)
 
+## Your whole KiCad library, without importing it
+
+Point SiEDA at a KiCad library folder, for example a KiCad install's `symbols` and `footprints` folders (KiCad's official
+library is about 20,000 symbols). Then search and place from it like the catalog. Use `--library-dir <dir>` (repeatable) on
+`sieda-mcp` or `sieda-studio`, or set `SIEDA_LIBRARY_DIRS` (separated like `PATH`):
+
+```sh
+sieda-studio --library-dir /usr/share/kicad/symbols --library-dir /usr/share/kicad/footprints
+```
+
+- The folders are indexed once: KiCad's official symbols take about 5 seconds. `.kicad_sym` files, KiCad 9's
+  `.kicad_symdir` folders and `.pretty` footprint folders are found up to 4 levels deep.
+- `library_search` adds `libraryParts` (`"Library:Symbol"` names) next to the catalog's parts. Studio's **Place** search
+  lists both.
+- `library_add_part` with a `"Library:Symbol"` name imports that one symbol with the footprint it names (from a `.pretty`
+  folder, or SiEDA's package of that name) and places it. The project keeps only the parts it uses.
+- Only whoever starts the server names these folders, and SiEDA only reads them. A tool call can search and place from
+  them but can never add a folder, so file access stays as `--root` sets it.
+
 ## Supported formats
 
 | File | Contents | Becomes |

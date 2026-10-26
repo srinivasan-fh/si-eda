@@ -50,6 +50,7 @@ add_library(sieda_core STATIC
     Core/src/Variants.cpp
     Core/src/ProjectDiff.cpp
     Core/src/CloudSync.cpp
+    Core/src/ExternalLibrary.cpp
     Core/src/Mechanical.cpp
     Core/src/CustomRules.cpp
     Core/src/Simulator.cpp
@@ -194,6 +195,13 @@ if(SIEDA_BUILD_TESTS)
         # The Python API (python/sieda.py) drives sieda-mcp end to end.
         add_test(NAME sieda_python_api
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_sieda.py $<TARGET_FILE:sieda-mcp>)
+        # The simulator against ngspice (operating points, AC, transient), when ngspice is installed.
+        find_program(NGSPICE ngspice)
+        if(NGSPICE)
+            add_test(NAME sieda_sim_correlation
+                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/sim_correlation_test.py
+                             $<TARGET_FILE:sieda-mcp> ${NGSPICE})
+        endif()
         # SiEDA Studio's server: token and Host checks, tool calls, /state, /quit.
         add_test(NAME sieda_studio
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/studio_test.py $<TARGET_FILE:sieda-studio>)

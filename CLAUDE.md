@@ -383,6 +383,12 @@
   fsmonitor; `connect` / `pull` (a `.siedaproj` both sides changed goes through `mergeProjects`: a failing merge driver
   stops git's text merge) / `push` (a rejected push pulls once) / `status`, `shareLinks`, `publiclyReadable`), MCP
   `project_cloud` (GitHub URLs only; push writes `<name>.viewer.html`), test `cloud_sync_pushes_pulls_and_merges_through_a_repository`.
+- User KiCad library folders: `Core/src/ExternalLibrary.cpp` (`ExternalLibraries::shared(folders)`: lazy index of `.kicad_sym` /
+  `.kicad_symdir` / `.pretty`, `search`, `load` = one symbol + its named footprint through `importLibraryFiles`), set only by
+  the server's starter (`McpOptions::libraryDirs`: `--library-dir`, `SIEDA_LIBRARY_DIRS`); `library_search` adds `libraryParts`
+  (its catalog part is `libraryCatalogSearch`), `library_add_part` places `"Library:Symbol"`; test
+  `user_kicad_library_folders_search_and_place`. Simulator correlation against ngspice: CTest `sieda_sim_correlation`
+  (`Core/tests/sim_correlation_test.py`, when ngspice is installed; CI Linux installs it).
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes

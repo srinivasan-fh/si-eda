@@ -53,6 +53,7 @@
 #include "sieda/CustomRules.hpp"
 #include "sieda/ProjectDiff.hpp"
 #include "sieda/CloudSync.hpp"
+#include "sieda/ExternalLibrary.hpp"
 #include "sieda/Variants.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -25775,4 +25776,35 @@ TEST(mcp_project_cloud_refuses_what_it_cannot_sync) {
         CHECK(!mcpData(mcpTool(s, "project_cloud", Json::parse(R"({"action": "status"})"))).get("repository").asBool());
     }
     removeRepositoryFolder(root);
+}
+
+TEST(user_kicad_library_folders_search_and_place) {
+    // A KiCad-style library folder (a .kicad_sym library and .pretty footprint libraries): indexed once, searched next
+    // to the catalog, and a part placed by "Library:Symbol" comes with the footprint its symbol names.
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "sieda_user_libs";
+    fs::remove_all(root);
+    const fs::path fix = fs::path(SIEDA_FIXTURE_DIR) / "library";
+    fs::create_directories(root / "symbols");
+    fs::create_directories(root / "footprints" / "Package_SO.pretty");
+    fs::copy_file(fix / "test_parts.kicad_sym", root / "symbols" / "MyParts.kicad_sym");
+    fs::copy_file(fix / "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod", root / "footprints" / "Package_SO.pretty" / "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod");
+    ExternalLibraries& lib = ExternalLibraries::shared({root.string()});
+    CHECK(lib.parts().size() >= 4 && lib.footprintCount() == 1);
+    const auto hits = lib.search("dual op", 10);
+    CHECK(!hits.empty() && hits.front()->library == "MyParts");
+    CHECK(lib.search("lm358", 5).front()->id == "MyParts:LM358");
+    mcp::McpOptions o;
+    o.libraryDirs = {root.string()};
+    mcp::McpServer s(o);
+    const Json found = mcpData(mcpTool(s, "library_search", Json::parse(R"({"query": "lm358"})")));
+    CHECK(found.get("libraryParts").items().front().get("name").asString() == "MyParts:LM358");
+    const Json placed = mcpData(mcpTool(s, "library_add_part", Json::parse(R"({"name": "MyParts:LM358"})")));
+    CHECK(placed.get("ref").asString().rfind("U", 0) == 0 && placed.get("pins").size() == 8);
+    CHECK(mcpFailed(mcpTool(s, "library_add_part", Json::parse(R"({"name": "MyParts:NO_SUCH"})"))));
+    // Without folders given by whoever started the server, "Library:Symbol" is just an unknown catalog name.
+    mcp::McpServer plain;
+    CHECK(mcpFailed(mcpTool(plain, "library_add_part", Json::parse(R"({"name": "MyParts:LM358"})"))));
+    CHECK(!mcpData(mcpTool(plain, "library_search", Json::parse(R"({"query": "lm358"})"))).has("libraryParts"));
+    fs::remove_all(root);
 }
