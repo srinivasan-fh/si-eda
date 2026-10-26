@@ -375,12 +375,20 @@
 - Linux / Windows app SiEDA Studio: `Core/studio/main.cpp` (HTTP on 127.0.0.1 only, random token on the page URL / `X-Sieda-Token` /
   bearer on `/mcp`, Host must be the loopback address; routes `/`, `/state`, `/rpc` = `/mcp`, `/quit`; one request at a time)
   and `Core/studio/ui.html` (embedded by `embed.cmake`; renders shown as `<img>` data URLs, never inline SVG; every action an
-  MCP tool call), guide `docs/STUDIO.md`, CTest `sieda_studio`. Windows builds with MinGW (`_USE_MATH_DEFINES`, `NOMINMAX`,
+  MCP tool call; editors map clicks through the render's viewBox (design units) and hit-test `project_snapshot` components / pads /
+  courtyards, an overlay `<svg>` draws selection / drag / DRC marks; Simulate plots are drawn client-side; `studio_test.py` runs
+  `node --check` on the script), guide `docs/STUDIO.md`, CTest `sieda_studio`. Windows builds with MinGW (`_USE_MATH_DEFINES`, `NOMINMAX`,
   static `.exe`; CI job `windows`, release `sieda-windows-x86_64.zip`), `sieda-mcp --connect` works there (Winsock).
   GitHub cloud sync: `Core/src/CloudSync.cpp` (`cloud::git` runs git with no shell, no prompts, no repository hooks /
   fsmonitor; `connect` / `pull` (a `.siedaproj` both sides changed goes through `mergeProjects`: a failing merge driver
   stops git's text merge) / `push` (a rejected push pulls once) / `status`, `shareLinks`, `publiclyReadable`), MCP
   `project_cloud` (GitHub URLs only; push writes `<name>.viewer.html`), test `cloud_sync_pushes_pulls_and_merges_through_a_repository`.
+- User KiCad library folders: `Core/src/ExternalLibrary.cpp` (`ExternalLibraries::shared(folders)`: lazy index of `.kicad_sym` /
+  `.kicad_symdir` / `.pretty`, `search`, `load` = one symbol + its named footprint through `importLibraryFiles`), set only by
+  the server's starter (`McpOptions::libraryDirs`: `--library-dir`, `SIEDA_LIBRARY_DIRS`); `library_search` adds `libraryParts`
+  (its catalog part is `libraryCatalogSearch`), `library_add_part` places `"Library:Symbol"`; test
+  `user_kicad_library_folders_search_and_place`. Simulator correlation against ngspice: CTest `sieda_sim_correlation`
+  (`Core/tests/sim_correlation_test.py`, when ngspice is installed; CI Linux installs it).
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes

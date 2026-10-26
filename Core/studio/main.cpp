@@ -1,12 +1,13 @@
 // sieda-studio — SiEDA's desktop app on Linux and Windows (and macOS): the core serves its interface on this computer's
 // loopback interface and opens it in the system browser. Every action is an MCP tool call (docs/STUDIO.md).
 //
-//   sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser]
+//   sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir> …]
 //
 //   --root <dir>      folder projects are opened from and outputs written to (default: your home folder)
 //   --project <file>  project to open at start
 //   --port <n>        port on 127.0.0.1 (default: any free port)
 //   --no-browser      print the address without opening a browser
+//   --library-dir     a KiCad library folder to search and place parts from (read-only; also SIEDA_LIBRARY_DIRS)
 //
 // Security: it listens on 127.0.0.1 only and every request needs the random token in the printed address (the page
 // sends it back as a header, which other web pages cannot add without a CORS preflight this server never answers);
@@ -42,6 +43,7 @@ using Socket = int;
 #define INVALID_SOCKET (-1)
 #endif
 
+#include "sieda/ExternalLibrary.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mcp.hpp"
 
@@ -208,6 +210,7 @@ int main(int argc, char** argv) {
     if (!home) home = std::getenv("USERPROFILE");
 #endif
     options.allowedRoot = home ? std::string(home) : fs::current_path(ec).string();
+    options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto value = [&]() -> std::string {
@@ -221,9 +224,10 @@ int main(int argc, char** argv) {
         else if (a == "--project") project = value();
         else if (a == "--port") port = std::atoi(value().c_str());
         else if (a == "--no-browser") browser = false;
+        else if (a == "--library-dir") options.libraryDirs.push_back(fs::absolute(value(), ec).string());
         else if (a == "--version") return std::puts("sieda-studio " SIEDA_STUDIO_VERSION), 0;
         else {
-            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser]\n");
+            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>]\n");
             return 2;
         }
     }

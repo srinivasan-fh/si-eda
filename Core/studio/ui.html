@@ -17,7 +17,10 @@ nav button{text-align:left;border:0;background:none;padding:8px 10px}nav button.
 section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:10px;overflow:auto}section.on{display:flex}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row label{color:var(--mute)}
 .view{flex:1;min-height:300px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:grab}
-.view img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
+.view .stage{position:absolute;left:0;top:0;transform-origin:0 0}.view img{display:block;user-select:none;-webkit-user-drag:none}
+.view .over{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.work{flex:1;display:flex;gap:10px;min-height:0}.side{width:230px;display:flex;flex-direction:column;gap:8px}.side input{width:100%}
+.tools button.on{background:var(--accent);border-color:var(--accent);color:#fff}.plot{background:#fff;border:1px solid var(--line);border-radius:8px;width:100%;height:340px}
 .dark3d{background:#1b2230}
 table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
@@ -37,12 +40,22 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <button onclick="saveAs()">Save As…</button><button onclick="examples()">Examples…</button><button onclick="undo()">Undo</button>
 <button onclick="quit()">Quit</button></header>
 <div class="main"><nav id="nav"></nav>
-<section data-tab="Schematic"><div class="row"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()">
-<button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info">Wheel to zoom, drag to pan, double-click to fit.</span></div><div class="view" id="schView"></div></section>
+<section data-tab="Schematic"><div class="row tools" id="schTools"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()">
+<button data-t="select" title="Select / move (drag a part; R rotates, Delete removes)">Select</button><button data-t="wire" title="Wire: click a pin, then another (W)">Wire</button>
+<button data-t="label" title="Net label on a pin (L)">Label</button><button data-t="ground" title="Ground a pin (G)">Ground</button><button data-t="place" title="Place the part chosen on the right (P)">Place</button>
+<button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info" id="schHint"></span></div>
+<div class="work"><div class="view" id="schView"></div><div class="side"><div class="card"><b>Part</b><div id="schSel" class="info">Click a part to select it.</div></div>
+<div class="card"><b>Place</b><select id="kind" style="width:100%;margin:6px 0"></select><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()">
+<select id="partHits" size="5" style="width:100%;margin-top:6px"></select><div class="info">Choose, then click Place and click the sheet.</div></div></div></div></section>
 <section data-tab="Board"><div class="row"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
 <button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
-<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="run('pcb_drc').then(showChecks)">Run DRC</button></div><div class="view" id="pcbView"></div></section>
+<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button></div>
+<div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route: click a pad, then another (X)">Route</button>
+<button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button><span class="info" id="pcbHint"></span></div>
+<div class="work"><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Part</b><div id="pcbSel" class="info">Click a part to select it.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
 <section data-tab="3D"><div class="row"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
+<section data-tab="Simulate"><div class="row"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option></select>
+<span id="simArgs"></span><button class="primary" onclick="simulate()">Run</button></div><div id="simOut"></div></section>
 <section data-tab="Checks"><div class="row"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
 <button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"></div></section>
 <section data-tab="BOM"><div class="row"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
@@ -64,23 +77,106 @@ async function run(name,args={}){status("Running "+name+"…");document.body.sty
  try{const r=await rpc("tools/call",{name,arguments:args});let data={},img=null,svg=null;
   for(const c of r.content||[]){if(c.type==="text"){try{data=JSON.parse(c.text)}catch{data={text:c.text}}}else if(c.type==="image")img=c.data;else if(c.type==="resource"&&c.resource)svg=c.resource.text;}
   if(r.isError){status(name+": "+(data.text||JSON.stringify(data)),"error");throw new Error(data.text||"failed");}
-  status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
-async function act(name,args){await run(name,args);await refresh(true);}
+  if(data&&data.committed===false)status(name+": not done. "+(data.note||(data.issues||[]).join("; "))+(data.tooClose?" ("+data.tooClose.join(", ")+")":""),"warning");else status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
+async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);if(cls==="warning")status(keep,cls);return r;}
 async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
  if(!force&&s.revision===rev)return;rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;}catch{}draw();}
-const views={};function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true};views[el.id]=v;let d=null;
- const apply=()=>{const i=el.querySelector("img");if(i)i.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
+const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
+function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
+ const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
  v.doFit=()=>{const i=el.querySelector("img");if(!i||!i.naturalWidth)return;v.k=Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight);v.x=(el.clientWidth-i.naturalWidth*v.k)/2;v.y=(el.clientHeight-i.naturalHeight*v.k)/2;apply();};
+ v.at=e=>{const r=el.getBoundingClientRect(),i=el.querySelector("img");if(!i)return[0,0];const px=(e.clientX-r.left-v.x)/v.k,py=(e.clientY-r.top-v.y)/v.k;return[v.vb[0]+px/i.naturalWidth*v.vb[2],v.vb[1]+py/i.naturalHeight*v.vb[3]];};
  el.onwheel=e=>{e.preventDefault();const r=el.getBoundingClientRect(),f=e.deltaY>0?1/1.15:1.15,mx=e.clientX-r.left,my=e.clientY-r.top;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;apply();};
- el.onmousedown=e=>{d=[e.clientX,e.clientY];el.style.cursor="grabbing";};addEventListener("mouseup",()=>{d=null;el.style.cursor="";});
- el.onmousemove=e=>{if(!d)return;v.x+=e.clientX-d[0];v.y+=e.clientY-d[1];d=[e.clientX,e.clientY];v.fit=false;apply();};el.ondblclick=()=>{v.fit=true;v.doFit();};return v;}
-function showImage(id,src){const el=$(id),v=panZoom(el),i=new Image();i.onload=()=>{el.replaceChildren(i);v.fit?v.doFit():v.apply();};i.src=src;}
+ el.onmousedown=e=>{if(e.button===0&&el.onpress&&el.onpress(v.at(e),e))return;pan=[e.clientX,e.clientY];el.style.cursor="grabbing";};
+ addEventListener("mouseup",e=>{if(drag&&drag.el===el){const d=drag;drag=null;el.onrelease&&el.onrelease(v.at(e),d);}pan=null;el.style.cursor="";});
+ el.onmousemove=e=>{if(drag&&drag.el===el){drag.at=v.at(e);overlay(el);return;}if(!pan)return;v.x+=e.clientX-pan[0];v.y+=e.clientY-pan[1];pan=[e.clientX,e.clientY];v.fit=false;apply();};
+ el.ondblclick=()=>{v.fit=true;v.doFit();};return v;}
+function showImage(id,src,vb){const el=$(id),v=panZoom(el),i=new Image();if(vb)v.vb=vb;i.onload=()=>{const st=document.createElement("div");st.className="stage";
+ const o=document.createElementNS("http://www.w3.org/2000/svg","svg");o.setAttribute("class","over");o.setAttribute("viewBox",v.vb.join(" "));o.setAttribute("preserveAspectRatio","none");
+ st.append(i,o);el.replaceChildren(st);v.fit?v.doFit():v.apply();overlay(el);};i.src=src;}
 const svgSrc=t=>"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(t)));
+const viewBox=t=>{const m=/viewBox="([^"]+)"/.exec(t);return m?m[1].trim().split(/[ ,]+/).map(Number):null;};
+const NS="http://www.w3.org/2000/svg";function shape(o,tag,a){const n=document.createElementNS(NS,tag);for(const k in a)n.setAttribute(k,a[k]);o.append(n);return n;}
+async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets"]});snap=r.data;status("Ready.");}
+const sheetParts=()=>(snap.components||[]).filter(c=>c.sheet===(+$("sheet").value||1));
+function schBox(c){let xs=[c.x],ys=[c.y];for(const p of c.pins||[]){xs.push(p.x);ys.push(p.y);}const m=12;return[Math.min(...xs)-m,Math.min(...ys)-m,Math.max(...xs)+m,Math.max(...ys)+m];}
+function nearPin(pt,lim){let best=null,d0=lim;for(const c of sheetParts())for(const p of c.pins||[]){const d=Math.hypot(p.x-pt[0],p.y-pt[1]);if(d<d0){d0=d;best={ref:c.ref,pin:p.name,x:p.x,y:p.y,net:p.net};}}return best;}
+function partAt(pt){let hit=null,area=1e18;for(const c of sheetParts()){const b=schBox(c);if(pt[0]>=b[0]&&pt[0]<=b[2]&&pt[1]>=b[1]&&pt[1]<=b[3]){const a=(b[2]-b[0])*(b[3]-b[1]);if(a<area){area=a;hit=c;}}}return hit;}
+function padAt(pt,lim){let best=null,d0=lim;for(const p of snap.pads||[]){const d=Math.hypot(p.x-pt[0],p.y-pt[1]);if(d<d0){d0=d;best=p;}}return best;}
+function boardPart(pt){const cs=snap.courtyards||[];for(const k of cs)if(pt[0]>=k.x0&&pt[0]<=k.x1&&pt[1]>=k.y0&&pt[1]<=k.y1)return(snap.components||[]).find(c=>c.id===k.component);return null;}
+const padName=p=>{const c=(snap.components||[]).find(c=>c.id===p.component);return c?c.ref+"."+((c.pins||[])[p.pin]||{name:p.number}).name:"";};
+const netName=i=>((snap.nets||[]).find(n=>n.index===i)||{}).name;
+function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
+ if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"none",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}
+ if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"none",stroke:"#5b8dff","stroke-width":0.2,"stroke-dasharray":"0.6 0.4"});}
+ if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});
+ if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
+  if(sch){const c=sheetParts().find(c=>c.ref===drag.ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0]+dx,y:b[1]+dy,width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2});}}
+  else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.2)",stroke:"#5b8dff","stroke-width":0.2});}}
+ if(!sch)for(const m of marks)shape(o,"circle",{cx:m.x,cy:m.y,r:0.8,fill:"none",stroke:m.severity==="error"?"#ff3b3b":"#ffb300","stroke-width":0.25});}
+const snapTo=(v,g)=>Math.round(v/g)*g;
+function hint(id,t){$(id).textContent=t;}
+function setTool(kind,t){tool[kind]=t;pend=null;document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+ hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click the first pad, then the second.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
+function selectPart(kind,ref){sel[kind]=ref;const box=$(kind+"Sel");if(!ref){box.textContent="Click a part to select it.";}else if(kind==="sch"){const c=sheetParts().find(c=>c.ref===ref)||{};
+ box.innerHTML=`<div><b>${esc(ref)}</b></div><label>Value</label><input id="selVal" value="${esc(c.value)}"><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('mirror')">Mirror</button><button onclick="partOp('delete')">Delete</button></div>`;
+ $("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});}else{const c=(snap.components||[]).find(c=>c.ref===ref)||{},b=c.pcb||{};
+ box.innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.footprint)}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation}° · ${b.bottom?"bottom":"top"}${b.locked?" · locked":""}</div><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('flip')">Flip side</button><button onclick="partOp('lock')">${b.locked?"Unlock":"Lock"}</button></div>`;}
+ overlay($(kind==="sch"?"schView":"pcbView"));}
+async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)return;
+ if(k==="sch"){if(op==="rotate")await act("schematic_move_component",{ref,rotate:90});if(op==="mirror")await act("schematic_move_component",{ref,mirror:"x"});if(op==="delete"){await act("schematic_remove_component",{ref});selectPart(k,null);}}
+ else{const c=(snap.components||[]).find(c=>c.ref===ref),b=(c&&c.pcb)||{};if(op==="rotate")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:((b.rotation||0)+90)%360});
+  if(op==="flip")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,bottom:!b.bottom});if(op==="lock")await act("pcb_lock_footprint",{ref,locked:!b.locked});}
+ if(sel[k])selectPart(k,sel[k]);}
+async function schPress(pt,e){const t=tool.sch;
+ if(t==="select"){const c=partAt(pt);selectPart("sch",c?c.ref:null);if(!c)return false;drag={el:$("schView"),ref:c.ref,from:pt,at:pt,x:c.x,y:c.y};return true;}
+ if(t==="place"){const kind=$("partHits").value||$("kind").value;if(!kind)return true;const x=snapTo(pt[0],10),y=snapTo(pt[1],10),sheet=+$("sheet").value||1;
+  if($("partHits").value)await act("library_add_part",{name:kind,x,y,sheet});else await act("schematic_add_component",{kind,x,y,sheet});return true;}
+ const p=nearPin(pt,12);if(!p){status("No pin there.","warning");return true;}
+ if(t==="wire"){if(!pend){pend={el:$("schView"),...p};overlay($("schView"));return true;}const a=pend;pend=null;if(a.ref+"."+a.pin!==p.ref+"."+p.pin)await act("schematic_connect",{from:a.ref+"."+a.pin,to:p.ref+"."+p.pin});return true;}
+ if(t==="label"){const net=prompt("Net name for "+p.ref+"."+p.pin,netName(p.net)&&!/^N\$/.test(netName(p.net))?netName(p.net):"");if(net)await act("schematic_net_label",{net,pins:[p.ref+"."+p.pin]});return true;}
+ if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}return false;}
+async function schRelease(pt,d){const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
+async function pcbPress(pt,e){const t=tool.pcb;
+ if(t==="select"){const c=boardPart(pt);selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
+ const p=padAt(pt,2);
+ if(t==="route"){if(!p){status("No pad there.","warning");return true;}if(!pend){pend={el:$("pcbView"),x:p.x,y:p.y,name:padName(p)};overlay($("pcbView"));return true;}const a=pend;pend=null;
+  const layer=$("layers").value==="b"?(state.layers||2)-1:0;await act("pcb_route",{from:a.name,to:padName(p),layer});return true;}
+ if(t==="via"){if(!p){status("Click near a pad of the net.","warning");return true;}await act("pcb_add_via",{net:netName(p.net),x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
+ if(t==="rip"){if(p&&confirm("Remove every track and via of "+netName(p.net)+"?"))await act("pcb_remove_copper",{net:netName(p.net)});return true;}return false;}
+async function pcbRelease(pt,d){const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
+async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
+ $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
+async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
+ $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
- if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg));}
- if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg));}
+ if(tab==="Schematic"||tab==="Board")await loadSnap();
+ if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
+ if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
- if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();}catch(e){}}
+ if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();}catch(e){}}
+function simForm(){const k=$("simKind").value;$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
+ :k==="ac"?`<label>From</label> <input id="simStart" value="1" style="width:80px"> <label>To</label> <input id="simStop" value="1MEG" style="width:90px">`:"";}
+const fmt=v=>{const a=Math.abs(v);if(!isFinite(v))return"—";if(a!==0&&(a<1e-3||a>=1e4))return v.toExponential(3);return(+v.toPrecision(5)).toString();};
+function plot(xs,series,opt){const W=900,H=320,L=64,R=16,T=14,B=36,el=document.createElementNS(NS,"svg");el.setAttribute("viewBox",`0 0 ${W} ${H}`);el.setAttribute("class","plot");
+ const lx=opt.logx,tx=x=>lx?Math.log10(Math.max(x,1e-30)):x,xv=xs.map(tx),x0=Math.min(...xv),x1=Math.max(...xv);let y0=Infinity,y1=-Infinity;
+ for(const s of series)for(const v of s.values)if(isFinite(v)){y0=Math.min(y0,v);y1=Math.max(y1,v);}if(!isFinite(y0)){y0=0;y1=1;}if(y1-y0<1e-12){y0-=1;y1+=1;}const pad=(y1-y0)*0.06;y0-=pad;y1+=pad;
+ const X=x=>L+(x-x0)/((x1-x0)||1)*(W-L-R),Y=y=>T+(y1-y)/(y1-y0)*(H-T-B);
+ shape(el,"rect",{x:L,y:T,width:W-L-R,height:H-T-B,fill:"#fff",stroke:"#c9d1de"});
+ for(let i=0;i<=5;i++){const yv=y0+(y1-y0)*i/5;shape(el,"line",{x1:L,x2:W-R,y1:Y(yv),y2:Y(yv),stroke:"#eef1f5"});shape(el,"text",{x:L-6,y:Y(yv)+4,"text-anchor":"end","font-size":11,fill:"#5d6b80"}).textContent=fmt(yv);
+  const xx=x0+(x1-x0)*i/5;shape(el,"text",{x:X(xx),y:H-B+16,"text-anchor":"middle","font-size":11,fill:"#5d6b80"}).textContent=fmt(lx?Math.pow(10,xx):xx);}
+ shape(el,"text",{x:(L+W-R)/2,y:H-4,"text-anchor":"middle","font-size":12,fill:"#17202e"}).textContent=opt.xlabel;
+ const colours=["#3b6fe0","#d9480f","#2b8a3e","#ae3ec9","#e8590c","#0b7285","#c2255c","#5f3dc4"];
+ series.forEach((s,i)=>{shape(el,"polyline",{points:s.values.map((v,j)=>isFinite(v)?X(xv[j])+","+Y(v):"").join(" "),fill:"none",stroke:colours[i%8],"stroke-width":1.6});
+  shape(el,"text",{x:L+8,y:T+14+i*14,"font-size":12,fill:colours[i%8]}).textContent=s.name;});return el;}
+async function simulate(){const k=$("simKind").value,out=$("simOut");out.replaceChildren();
+ try{if(k==="op"){const r=await run("sim_dc_op",{});const nv=r.data.netVoltages||{};out.innerHTML="<table><tr><th>Net</th><th>Voltage (V)</th></tr>"+Object.entries(nv).map(([n,v])=>`<tr><td>${esc(n)}</td><td>${fmt(v)}</td></tr>`).join("")+"</table>"+
+   "<table style='margin-top:10px'><tr><th>Part</th><th>Voltage (V)</th><th>Current (A)</th><th>Power (W)</th></tr>"+(r.data.devices||[]).map(d=>`<tr><td>${esc(d.ref)}</td><td>${fmt(d.voltage)}</td><td>${fmt(d.current)}</td><td>${fmt(d.power)}</td></tr>`).join("")+"</table>";return;}
+  if(k==="tran"){const a={stop:$("simStop").value,maxPoints:600};if($("simStep").value)a.step=$("simStep").value;const r=await run("sim_transient",a);out.append(plot(r.data.time,r.data.nets,{xlabel:"time (s)"}));
+   const m=r.data.measurements||{};out.insertAdjacentHTML("beforeend","<table style='margin-top:10px'><tr><th>Net</th><th>Min</th><th>Max</th><th>RMS</th><th>Frequency (Hz)</th></tr>"+Object.entries(m).map(([n,v])=>`<tr><td>${esc(n)}</td><td>${fmt(v.min)}</td><td>${fmt(v.max)}</td><td>${fmt(v.rms)}</td><td>${v.frequency?fmt(v.frequency):"—"}</td></tr>`).join("")+"</table>");return;}
+  const r=await run("sim_ac",{start:$("simStart").value,stop:$("simStop").value,maxPoints:300});out.append(plot(r.data.frequency,r.data.nets.map(n=>({name:n.name+" (dB)",values:n.magnitudeDb})),{xlabel:"frequency (Hz)",logx:true}));
+  out.insertAdjacentHTML("beforeend","<table style='margin-top:10px'><tr><th>Net</th><th>−3 dB (Hz)</th><th>Peak (dB)</th><th>Phase margin (°)</th></tr>"+r.data.nets.map(n=>`<tr><td>${esc(n.name)}</td><td>${n.metrics.f3dbHz?fmt(n.metrics.f3dbHz):"—"}</td><td>${fmt(n.metrics.peakDb)}</td><td>${n.metrics.phaseMarginDeg!=null?fmt(n.metrics.phaseMarginDeg):"—"}</td></tr>`).join("")+"</table>");}
+ catch(e){out.innerHTML=`<pre class=error>${esc(e.message)}</pre>`;}}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -105,7 +201,18 @@ async function undo(){await act("project_undo",{});}
 async function quit(){if(confirm("Quit SiEDA Studio? Save first if needed.")){await post("/quit",{});document.body.innerHTML="<p style='padding:20px'>SiEDA Studio has stopped. You can close this tab.</p>";}}
 function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.textContent===name));draw();}
 document.querySelectorAll("section").forEach(s=>{const b=document.createElement("button");b.textContent=s.dataset.tab;b.onclick=()=>selectTab(s.dataset.tab);$("nav").append(b);});
-addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+ if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
+  if(k){if(e.key==="Escape"){pend=null;drag=null;setTool(k,"select");}
+   if(key==="r"&&sel[k])partOp("rotate");if((e.key==="Delete"||e.key==="Backspace")&&k==="sch"&&sel.sch)partOp("delete");
+   const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",v:"via",s:"select"};if(keys[key])setTool(k,keys[key]);
+   if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
+panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
+panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||!!boardPart(pt);};$("pcbView").onrelease=pcbRelease;
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
-(async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});selectTab("Schematic");await refresh(true);setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
+(async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
+ try{const r=await run("library_builtin_kinds");$("kind").innerHTML=r.data.kinds.map(k=>`<option value="${esc(k.kind)}">${esc(k.name)} (${esc(k.defaultValue)})</option>`).join("");}catch{}
+ $("partHits").onchange=()=>setTool("sch","place");$("kind").onchange=()=>{$("partHits").selectedIndex=-1;setTool("sch","place");};
+ selectTab("Schematic");await refresh(true);setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
 </script></body></html>

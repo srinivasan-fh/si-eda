@@ -69,6 +69,7 @@ cmake --build build -j --target sieda-mcp
 | `--read-only` | Refuse every tool that changes the design, and every file write. Reading, checking, simulating and rendering still work. |
 | `--tools <list>` | Offer only these groups / tools / prefixes, e.g. `--tools project,schematic,sim_*,pcb_drc`. |
 | `--docs <dir>` | Folder of the guides served as `sieda://docs/<name>` (default: the repository's `docs/`). |
+| `--library-dir <dir>` | A KiCad library folder that `library_search` / `library_add_part` use (`"Library:Symbol"`); repeatable, read-only, also `SIEDA_LIBRARY_DIRS` ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). |
 | `--connect <url>` | Bridge mode: no local engine, forward stdin / stdout to the app's live endpoint (see [Live app mode](#live-app-mode)); with `--token <t>` (or `SIEDA_MCP_TOKEN`) and `--timeout <s>`. |
 | `--list-tools-markdown`, `--list-tools` | Print the tool reference (Markdown, as below) or the tool table (JSON) and exit. |
 
@@ -609,7 +610,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_builtin_kinds` | read | The built-in component kinds (schematic_add_component) with designator prefix, default value, footprint and pin names. |
 | `library_search` | read | Searches the standard-part catalog (regulators, MCUs, op-amps, logic, interfaces, sensors, connectors …). |
 | `library_part_details` | read | A catalog part's full description: manufacturer, package, units and every pin (number, name, type). |
-| `library_add_part` | edit | Places a standard catalog part (an IC, regulator, connector …) on the schematic. |
+| `library_add_part` | edit | Places a standard catalog part (an IC, regulator, connector …) on the schematic, or a "Library:Symbol" from the user's own KiCad libraries (library_search libraryParts; its footprint comes with it). |
 | `library_create_part` | edit | Creates a part from a datasheet pin list: symbol and footprint are generated from the package. |
 | `library_place_custom_part` | edit | Places another instance of a part already in the project library (library_project_parts lists ids). |
 | `library_updates` | edit | Project parts whose catalog part has changed since they were added (pins, package, footprint), with how many placed instances use each. |
