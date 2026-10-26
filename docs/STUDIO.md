@@ -39,17 +39,17 @@ sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser]
 | Area | What you can do |
 |---|---|
 | **File** | New, Open (lists the projects under the root folder), Save, Save As, built-in examples, Undo (Ctrl+Z), Ctrl+S. |
-| **Schematic** | Every sheet, with wheel zoom and drag to pan; double-click fits the sheet. ERC. |
-| **Board** | All layers, or top / bottom copper. Auto Place (with decoupling), Auto Route, Fit Board, DRC. |
+| **Schematic** | Every sheet (wheel zoom, drag to pan, double-click fits). Edit by hand: **Select** (drag a part to move it, R rotates, Delete removes, value / rotate / mirror in the side panel), **Wire** (click a pin, then another), **Label** and **Ground** (click a pin), **Place** (a built-in part or a catalog search hit, then click the sheet; P). ERC. |
+| **Board** | All layers, or top / bottom copper. Auto Place (with decoupling), Auto Route, Fit Board. Edit by hand: **Select** (drag a part; R rotates, F flips side, K locks; a move closer than the assembly spacing is refused with the reason, Alt-drag places it anyway), **Route** (click a pad, then another: the interactive router pushes other nets aside), **Via** and **Rip net**. DRC marks each located problem on the board. |
 | **3D** | The assembly from seven views. |
+| **Simulate** | DC operating point (net voltages, part currents and power), transient (waveform plot plus min / max / RMS / frequency per net) and AC sweep (gain plot, −3 dB, peak, phase margin). |
 | **Checks** | ERC, DRC and the full design verification, as a table. |
 | **BOM** | The bill of materials with suggested part numbers, plus the fabrication package (Gerbers, drills, IPC-2581, ODB++, placement, PDF drawings). |
 | **Cloud** | GitHub sync and share links (see below). |
 | **Tools** | Every one of SiEDA's MCP tools ([MCP.md](MCP.md)), with its description and arguments. Run any of them to edit the design: add parts, connect pins, set rules, simulate, export. |
 
-The macOS app adds interactive drawing editors on top of the same engine: schematic capture, the interactive router,
-and the footprint and symbol editors. On Linux and Windows, design edits go through the tools, or through an AI client
-connected to the open design.
+The macOS app adds what Studio does not have yet: the footprint and symbol editors, live push-and-shove drag routing
+and the advanced panels. Those features are reachable on Linux and Windows through the Tools tab or an AI client.
 
 ## Let an AI client edit the open design
 

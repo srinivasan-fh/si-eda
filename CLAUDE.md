@@ -375,7 +375,9 @@
 - Linux / Windows app SiEDA Studio: `Core/studio/main.cpp` (HTTP on 127.0.0.1 only, random token on the page URL / `X-Sieda-Token` /
   bearer on `/mcp`, Host must be the loopback address; routes `/`, `/state`, `/rpc` = `/mcp`, `/quit`; one request at a time)
   and `Core/studio/ui.html` (embedded by `embed.cmake`; renders shown as `<img>` data URLs, never inline SVG; every action an
-  MCP tool call), guide `docs/STUDIO.md`, CTest `sieda_studio`. Windows builds with MinGW (`_USE_MATH_DEFINES`, `NOMINMAX`,
+  MCP tool call; editors map clicks through the render's viewBox (design units) and hit-test `project_snapshot` components / pads /
+  courtyards, an overlay `<svg>` draws selection / drag / DRC marks; Simulate plots are drawn client-side; `studio_test.py` runs
+  `node --check` on the script), guide `docs/STUDIO.md`, CTest `sieda_studio`. Windows builds with MinGW (`_USE_MATH_DEFINES`, `NOMINMAX`,
   static `.exe`; CI job `windows`, release `sieda-windows-x86_64.zip`), `sieda-mcp --connect` works there (Winsock).
   GitHub cloud sync: `Core/src/CloudSync.cpp` (`cloud::git` runs git with no shell, no prompts, no repository hooks /
   fsmonitor; `connect` / `pull` (a `.siedaproj` both sides changed goes through `mergeProjects`: a failing merge driver

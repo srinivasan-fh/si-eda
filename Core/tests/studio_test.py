@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """sieda-studio end to end: the page and the tool endpoint answer only with the token and a loopback Host; tools run;
 the app stops on /quit. Usage: studio_test.py <path to sieda-studio>"""
-import http.client, json, subprocess, sys, tempfile
+import http.client, json, os, shutil, subprocess, sys, tempfile
 
 def request(port, method, path, body=None, headers=None):
     c = http.client.HTTPConnection("127.0.0.1", port, timeout=60)
@@ -9,7 +9,23 @@ def request(port, method, path, body=None, headers=None):
     r = c.getresponse()
     return r.status, r.read().decode("utf-8", "replace")
 
+def check_script():
+    """The page's script parses (node --check), when Node.js is installed."""
+    node = shutil.which("node")
+    if not node:
+        return
+    html = open(os.path.join(os.path.dirname(__file__), "..", "studio", "ui.html"), encoding="utf-8").read()
+    script = html.split("<script>", 1)[1].split("</script>", 1)[0]
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(script)
+    try:
+        r = subprocess.run([node, "--check", f.name], capture_output=True, text=True)
+        assert r.returncode == 0, "ui.html script: " + r.stderr
+    finally:
+        os.unlink(f.name)
+
 def main():
+    check_script()
     with tempfile.TemporaryDirectory() as root:
         p = subprocess.Popen([sys.argv[1], "--no-browser", "--root", root], stdout=subprocess.PIPE, text=True)
         try:
