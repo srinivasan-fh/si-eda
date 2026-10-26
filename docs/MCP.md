@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 170 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 171 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -621,7 +621,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (49)
+### pcb (50)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -646,6 +646,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_route_report` | read | The last autoroute's report: differential pairs, lengths against their rules, quality metrics. |
 | `pcb_clear_routing` | edit (destructive) | Removes every track and via. |
 | `pcb_route` | edit | Interactive router in one call: a track from one pin's pad to another's, through optional waypoints (mm; "via": true drops a via there and continues on the other side), pushing other nets aside (mode shove) or walking around them. |
+| `pcb_route_live` | edit | Drag routing step by step, as in an editor: begin at a pad or track end (or drag / pair / via_drag), then move the head to the cursor (other nets are pushed aside live), fix a corner, via to change layer, and commit (one undo step) or cancel. |
 | `pcb_teardrops` | edit | Adds (or removes) teardrops where tracks meet pads / vias, on the given tracks or all of them. |
 | `pcb_add_pour` | edit | Adds a copper pour of a net (usually GND) on a layer (0 = top, layers-1 = bottom); plane: true reserves the layer for the net. |
 | `pcb_remove_pour` | edit (destructive) | Removes one copper pour by index (pcb_summary zones) or all of them. |
