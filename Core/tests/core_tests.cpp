@@ -26159,12 +26159,16 @@ TEST(mcp_rule_pack_saves_applies_and_flags_drift) {
     other.width = width + 7;
     const Json before = mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "check", "path": "team.rules.json"})")));
     CHECK(!before.get("clean").asBool(true) && before.get("differences").size() >= 4);
+    // Applying changes the design: one undo step (checking and showing change nothing: none).
+    const size_t steps = s.undoSteps();
     const Json applied = mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "apply", "path": "team.rules.json"})")));
+    CHECK(s.undoSteps() == steps + 1);
     CHECK(applied.get("applied").asBool(false) && applied.get("approvedBy").asString("") == "Asha");
     const BoardSettings& now = s.project()->project.pcb.settings;
     CHECK(now.clearance == 0.3 && now.minTrackWidth == 0.2 && now.netWidths.at("VCC") == 0.5 && now.dfmPack == "jlcpcb-standard");
     CHECK(now.autorouter.classMaxVias.at("HS") == 2 && now.width == width + 7 && now.rulePackName == "Team A");
     CHECK(mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "check", "path": "team.rules.json"})"))).get("clean").asBool(false));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "show"})"))) && s.undoSteps() == steps + 1);
     // The pack survives a save; a changed rule is drift that verification reports.
     CHECK(Project::fromJson(s.project()->project.toJson()).pcb.settings.rulePackHash == now.rulePackHash);
     CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
@@ -26179,4 +26183,27 @@ TEST(mcp_rule_pack_saves_applies_and_flags_drift) {
     CHECK(drift());
     CHECK(mcpFailed(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "apply", "path": "nope.json"})"))));
     std::filesystem::remove_all(root);
+}
+
+TEST(mcp_redo_puts_back_what_undo_took_back) {
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    auto value = [&] { return s.project()->project.schematic.findByRef("R1")->value; };
+    const std::string first = value();
+    CHECK(!mcpFailed(mcpTool(s, "schematic_set_value", Json::parse(R"({"ref": "R1", "value": "470"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_set_value", Json::parse(R"({"ref": "R1", "value": "680"})"))));
+    CHECK(mcpFailed(mcpTool(s, "project_redo")));
+    CHECK(!mcpFailed(mcpTool(s, "project_undo", Json::parse(R"({"steps": 2})"))) && value() == first);
+    CHECK(!mcpFailed(mcpTool(s, "project_redo")) && value() == "470");
+    CHECK(!mcpFailed(mcpTool(s, "project_redo")) && value() == "680");
+    CHECK(mcpFailed(mcpTool(s, "project_redo")));
+    // A new change after an undo clears what could be redone.
+    CHECK(!mcpFailed(mcpTool(s, "project_undo")) && value() == "470");
+    CHECK(!mcpFailed(mcpTool(s, "schematic_set_value", Json::parse(R"({"ref": "R1", "value": "1k"})"))));
+    CHECK(mcpFailed(mcpTool(s, "project_redo")) && value() == "1k");
+    // A list action of an editing tool changes nothing: no undo step, and what can be redone stays.
+    CHECK(!mcpFailed(mcpTool(s, "project_undo")) && value() == "470");
+    const size_t steps = s.undoSteps();
+    CHECK(!mcpFailed(mcpTool(s, "pcb_rooms", Json::parse(R"({"action": "list"})"))) && s.undoSteps() == steps);
+    CHECK(!mcpFailed(mcpTool(s, "project_redo")) && value() == "1k");
 }

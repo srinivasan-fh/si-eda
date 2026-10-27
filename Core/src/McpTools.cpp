@@ -3203,6 +3203,17 @@ void schematicTools(Table& t) {
               j["left"] = s.undoSteps();
               return out(j);
           });
+    t.add("project", "project_redo", "Redo", Kind::Edit, false,
+          "Puts back what project_undo took back (steps: n puts back several); any other change to the design clears it.",
+          Schema().integer("steps", "How many undone calls to put back (default 1)"), [](McpServer& s, const Json& a) {
+              int redone = 0;
+              for (int i = 0; i < std::max(1, argInt(a, "steps", 1)) && s.redo(); ++i) ++redone;
+              if (!redone) throw ToolError("Nothing to redo");
+              Json j = obj();
+              j["redone"] = redone;
+              j["undoSteps"] = s.undoSteps();
+              return out(j);
+          });
     t.add("project", "project_quickstart", "Quick start", Kind::Read, true,
           "The quick start: units, pin addressing, what results carry, the usual flow (the resource "
           "sieda://docs/mcp-quickstart, for clients that cannot read resources).",

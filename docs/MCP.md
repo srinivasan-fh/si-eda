@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 186 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 187 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -530,7 +530,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (19)
+### project (20)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -549,6 +549,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
 | `project_undo` | edit | Takes back the last tool call that changed the design (up to 30 steps; steps: n takes back several). |
+| `project_redo` | edit | Puts back what project_undo took back (steps: n puts back several); any other change to the design clears it. |
 | `project_quickstart` | read | The quick start: units, pin addressing, what results carry, the usual flow (the resource sieda://docs/mcp-quickstart, for clients that cannot read resources). |
 | `project_plugin_objects` | edit | Objects of a plug-in's own type kept in the design (saved, diffed, merged and undone with it; SiEDA does not interpret them): add {type, plugin, id?, layer?, points: [[x, y], …] in mm, props: {…}}, update {id, layer?, points?, props?} (props merged), remove id. |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
