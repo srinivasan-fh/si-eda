@@ -21461,6 +21461,8 @@ TEST(mcp_company_library_release_states_librarians_and_alternates) {
     // A new version starts as a draft again; the old one is kept in the history.
     CHECK(mcpData(mcpTool(s, "library_company", pub)).get("version").asInt(0) == 2);
     CHECK(std::filesystem::exists(root / "lib" / ".history" / "REG3V3" / "v1.json"));
+    const Json listed = mcpData(call(R"({"action": "list", "folder": "lib"})")).get("parts").items()[0];
+    CHECK(listed.get("history").asInt(0) == 1 && listed.get("version").asInt(0) == 2 && listed.get("pins").asInt(0) > 0);
     CHECK(!mcpFailed(call(R"({"action": "alternates", "folder": "lib", "name": "REG3V3", "alternates": ["REG3V3B"]})")));
     CHECK(!mcpFailed(call(R"({"action": "obsolete", "folder": "lib", "name": "REG3V3"})")));
     const Json r = call(R"({"action": "use", "folder": "lib", "name": "REG3V3", "allowDraft": true})");
@@ -26139,4 +26141,42 @@ TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
     CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
     CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
     CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
+}
+
+TEST(mcp_rule_pack_saves_applies_and_flags_drift) {
+    const auto root = mcpRoot("rule_pack");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    BoardSettings& st = s.project()->project.pcb.settings;
+    st.clearance = 0.3, st.minTrackWidth = 0.2, st.netWidths["VCC"] = 0.5, st.dfmPack = "jlcpcb-standard";
+    st.autorouter.classMaxVias["HS"] = 2;
+    const double width = st.width;
+    const Json saved = mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "save", "path": "team.rules.json", "name": "Team A", "approvedBy": "Asha"})")));
+    CHECK(saved.get("name").asString("") == "Team A" && saved.get("rules").asInt(0) > 5);
+    // Another board: other rules and size; applying keeps its size and takes every rule.
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    BoardSettings& other = s.project()->project.pcb.settings;
+    other.width = width + 7;
+    const Json before = mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "check", "path": "team.rules.json"})")));
+    CHECK(!before.get("clean").asBool(true) && before.get("differences").size() >= 4);
+    const Json applied = mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "apply", "path": "team.rules.json"})")));
+    CHECK(applied.get("applied").asBool(false) && applied.get("approvedBy").asString("") == "Asha");
+    const BoardSettings& now = s.project()->project.pcb.settings;
+    CHECK(now.clearance == 0.3 && now.minTrackWidth == 0.2 && now.netWidths.at("VCC") == 0.5 && now.dfmPack == "jlcpcb-standard");
+    CHECK(now.autorouter.classMaxVias.at("HS") == 2 && now.width == width + 7 && now.rulePackName == "Team A");
+    CHECK(mcpData(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "check", "path": "team.rules.json"})"))).get("clean").asBool(false));
+    // The pack survives a save; a changed rule is drift that verification reports.
+    CHECK(Project::fromJson(s.project()->project.toJson()).pcb.settings.rulePackHash == now.rulePackHash);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    auto drift = [&] {
+        for (const auto& stage : verifyDesign(s.project()->project).stages)
+            for (const auto& f : stage.findings)
+                if (f.code == "VER_RULE_PACK") return true;
+        return false;
+    };
+    CHECK(!drift());
+    s.project()->project.pcb.settings.clearance = 0.15;
+    CHECK(drift());
+    CHECK(mcpFailed(mcpTool(s, "pcb_rule_pack", Json::parse(R"({"action": "apply", "path": "nope.json"})"))));
+    std::filesystem::remove_all(root);
 }

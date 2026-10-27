@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "sieda/Export.hpp"
+#include "sieda/Project.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -256,6 +257,10 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                                                        "DRC_COURTYARD_OVERLAP"};
             for (const auto& v : drc())
                 if (!covered.count(v.code)) st.findings.push_back(v);
+            if (!pcb.settings.rulePackName.empty() && pcb.settings.rulePackHash != boardRulesHash(pcb.settings))
+                st.findings.push_back(finding(Severity::Warning, "VER_RULE_PACK",
+                                              "The board's rules no longer match the team rule pack " +
+                                                  pcb.settings.rulePackName + " (apply it again or check the changes)."));
             st.status = statusOf(st.findings);
             st.summary = countSummary(st.findings, "Clean against " + pcb.settings.rulePreset);
             char buf[160];

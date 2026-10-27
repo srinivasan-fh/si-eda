@@ -62,6 +62,8 @@ struct ContentView: View {
         .sheet(isPresented: $store.showGit) { GitView().environmentObject(store) }
         .sheet(isPresented: $store.showGerberViewer) { GerberViewerView().environmentObject(store) }
         .sheet(isPresented: $store.showFabOrder) { FabOrderView().environmentObject(store) }
+        .sheet(isPresented: $store.showCompanyLibrary) { CompanyLibraryView().environmentObject(store) }
+        .sheet(isPresented: $store.showBoardAreas) { BoardAreasView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { store.pinPlannerRef != nil }, set: { if !$0 { store.pinPlannerRef = nil } })) {
             PinPlannerView(ref: store.pinPlannerRef ?? "").environmentObject(store)
         }

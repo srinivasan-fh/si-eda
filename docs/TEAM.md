@@ -178,5 +178,15 @@ Save / Apply Layout Block, Room from Selection, Place Parts in Their Rooms, Remo
 Check Partitions Against Base, Routing Policy, Check Variants) and **File → Company Library** (Show Parts, Publish
 Selected Part, Place Part, Release, Mark Obsolete, Set Approved Alternates, Choose Library Folder). Rooms (teal) and
 partitions (purple, with their owner) are drawn on the board; DRC_ROOM and ROUTE_POLICY_* results jump to the part.
+**File → Company Library → Show Parts…** opens the library window: search the folder's parts, see each one's status,
+version (and how many earlier versions are kept), manufacturer, package, who released it and its approved alternates,
+and place, release, retire or set alternates for the chosen part. **Design → Layout → Rooms and Partitions…** lists
+every room (its parts) and partition (its owner) with its corners in mm to rename, move, resize, add or remove.
 Each command is one undo step.
+
+- **Team rule packs** (MCP `pcb_rule_pack`, macOS **Design → Team Rule Pack**): the board's design rules — track and via
+  sizes, clearances and fab minimums, net widths and clearances, pair and length rules, DFM pack and overrides, custom
+  rules, routing policies — saved as one file (`sieda.rules/1`, with who approved it) and applied to any board; the
+  board's size, outline, stack-up and copper stay as they are. The board remembers the pack it took, and Verify Design
+  warns when its rules drift from it later (VER_RULE_PACK). Compare lists the rules that differ from a pack file.
 

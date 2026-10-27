@@ -157,7 +157,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Mask sliver, mask bridge, acid trap | ✅ | |
 | P1 | ➕ DRC on the panel | ✅ | `panelChecks`: PANEL_VSCORE_COPPER / _OUTLINE, PANEL_BITE_COPPER, PANEL_TAB_PART, PANEL_OVERHANG |
 | P2 | SI / return path / PI / thermal / assembly checks, rule scripting | ✅ | rule scripting: custom DRC rules (Board Setup → Custom Rules, MCP `pcb_custom_rules`) |
-| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | 🟡 | verification report, waivers, approvals tied to the design fingerprint, release package with evidence (`output_release`) ✅; org rule packs ⏳ |
+| P3 | Release gates, reviewer waivers, traceable reports, org rule packs | ✅ | verification report, waivers, approvals tied to the design fingerprint, release package with evidence (`output_release`); org rule packs: MCP `pcb_rule_pack` / macOS Design → Team Rule Pack (one shared rules file, VER_RULE_PACK on drift) |
 
 ## 7. Simulation and analysis
 

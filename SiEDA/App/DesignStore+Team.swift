@@ -563,6 +563,44 @@ extension DesignStore {
         inform(String(localized: "Check Variants"), lines.joined(separator: "\n"))
     }
 
+    // MARK: Team rule packs (the board's design rules as one shared file)
+
+    func saveRulePack() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "team.rules.json"
+        panel.message = String(localized: "Save the board's design rules as a team rule pack.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        var arguments: [String: Any] = ["action": "save", "path": url.lastPathComponent,
+                                        "name": url.deletingPathExtension().deletingPathExtension().lastPathComponent]
+        if let by = askText(String(localized: "Approved by"), String(localized: "Who approved these rules (leave empty for none)?")) {
+            arguments["approvedBy"] = by
+        }
+        guard let r = tool("pcb_rule_pack", arguments, root: url.deletingLastPathComponent().path) else { return }
+        statusMessage = "Rule pack \(r["name"] as? String ?? "") saved (\(r["rules"] as? Int ?? 0) rules)"
+    }
+
+    /// The chosen rule file with pcb_rule_pack `action` (apply or check).
+    private func rulePack(_ action: String) -> [String: Any]? {
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose a team rule pack.")
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return tool("pcb_rule_pack", ["action": action, "path": url.lastPathComponent], root: url.deletingLastPathComponent().path)
+    }
+
+    func applyRulePack() {
+        guard let r = rulePack("apply") else { return }
+        let changed = (r["differences"] as? [String]) ?? []
+        statusMessage = "Rule pack \(r["name"] as? String ?? "") applied" + (changed.isEmpty ? " (no change)" : ": \(changed.joined(separator: ", "))")
+    }
+
+    func compareRulePack() {
+        guard let r = rulePack("check") else { return }
+        let changed = (r["differences"] as? [String]) ?? []
+        inform(String(localized: "Team Rule Pack"), changed.isEmpty ? String(localized: "The board's rules match the rule pack.")
+            : String(localized: "These rules differ from the rule pack:") + "\n" + changed.joined(separator: "\n"))
+    }
+
     // MARK: Company library (a team folder of parts: draft / released / obsolete)
 
     /// The team library folder (chosen once, kept in user defaults).
@@ -588,16 +626,6 @@ extension DesignStore {
         return tool("library_company", args, root: folder.deletingLastPathComponent().path)
     }
 
-    func companyLibraryList() {
-        guard let r = companyLibrary(["action": "list"]) else { return }
-        let parts = (r["parts"] as? [[String: Any]]) ?? []
-        inform(String(localized: "Company Library"), parts.isEmpty ? String(localized: "No parts yet: publish one from the board or the schematic.") : parts.map { p in
-            "\(p["name"] as? String ?? "") v\(p["version"] as? Int ?? 0): \(p["status"] as? String ?? "")"
-                + ((p["approved"] as? Bool ?? false) ? " (released by \(p["approvedBy"] as? String ?? ""))" : "")
-                + (((p["alternates"] as? [String]) ?? []).isEmpty ? "" : "; alternates \(((p["alternates"] as? [String]) ?? []).joined(separator: ", "))")
-        }.joined(separator: "\n"))
-    }
-
     /// Publishes the selected part's library part (a project part) as a draft, version + 1.
     func companyLibraryPublish() {
         guard let id = selection.first, let part = snapshot.component(id)?.customPart else {
@@ -609,9 +637,9 @@ extension DesignStore {
         }
     }
 
-    /// Release (a librarian approves), obsolete, alternates or place, by part name.
-    func companyLibraryAction(_ action: String) {
-        guard let name = askText(String(localized: "Company Library"), String(localized: "Part name in the company library:")) else { return }
+    /// Release (a librarian approves), obsolete, alternates or place, by part name (asked for when not given).
+    func companyLibraryAction(_ action: String, name given: String? = nil) {
+        guard let name = given ?? askText(String(localized: "Company Library"), String(localized: "Part name in the company library:")) else { return }
         var arguments: [String: Any] = ["action": action, "name": name]
         switch action {
         case "release":

@@ -6839,6 +6839,41 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertFalse(store.runTool("pcb_variant_check", arguments: [:]).isError)
     }
 
+    func testTeamRulePackSaveApplyAndDrift() throws {
+        // A rule pack saved from one board brings its clearance back after a change; verification sees drift.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-rules-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = DesignStore()
+        XCTAssertFalse(store.runTool("project_load_example", arguments: ["id": "led_indicator"]).isError)
+        XCTAssertFalse(store.runTool("pcb_set_board", arguments: ["clearance": 0.3]).isError)
+        XCTAssertFalse(store.runTool("pcb_rule_pack", arguments: ["action": "save", "path": "team.rules.json", "name": "Team A"],
+                                     root: dir.path).isError)
+        XCTAssertFalse(store.runTool("pcb_set_board", arguments: ["clearance": 0.2]).isError)
+        XCTAssertTrue(store.runTool("pcb_rule_pack", arguments: ["action": "check", "path": "team.rules.json"], root: dir.path)
+            .text.contains("\"clean\":false"))
+        XCTAssertFalse(store.runTool("pcb_rule_pack", arguments: ["action": "apply", "path": "team.rules.json"], root: dir.path).isError)
+        XCTAssertEqual(store.snapshot.board.clearance, 0.3, accuracy: 1e-9)
+        XCTAssertTrue(store.runTool("pcb_rule_pack", arguments: ["action": "show"]).text.contains("\"matchesPack\":true"))
+    }
+
+    func testCompanyLibraryWindowListsTheChosenFolder() throws {
+        // The window lists the folder kept in user defaults (its name inside its parent is the tool's root).
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-lib-\(UUID().uuidString)")
+        let folder = dir.appendingPathComponent("lib")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let key = "library.companyFolder", saved = UserDefaults.standard.string(forKey: key)
+        UserDefaults.standard.set(folder.path, forKey: key)
+        defer {
+            UserDefaults.standard.set(saved, forKey: key)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let store = DesignStore()
+        let parts = try XCTUnwrap(store.companyLibrary(["action": "list"])?["parts"] as? [Any])
+        XCTAssertTrue(parts.isEmpty)
+        XCTAssertEqual(store.companyLibraryFolder()?.path, folder.path)
+    }
+
     func testSettingsTransferTemplatesAndPresets() throws {
         // Settings round trip through the exported property list.
         let key = "test.settingsTransfer"
