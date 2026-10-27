@@ -291,6 +291,17 @@ struct PartQuality {
     std::vector<std::string> missing;
 };
 PartQuality partQuality(const CustomPartSpec& spec);
+
+/// IPC-7351B land for a two-sided part from its lead dimensions (mm): toe-to-toe span L, heel-to-heel span S and lead
+/// width W (min / max each). `family` "gullwing" (SOIC, SOP, QFP), "chip" (rectangular chips, 0603 and up) or "qfn"
+/// (flat no-lead) picks the fillet goals; `density` 0 most, 1 nominal, 2 least. Fabrication / placement tolerances
+/// F = 0.05, P = 0.025. Throws std::invalid_argument for impossible dimensions.
+struct IpcLand {
+    double length = 0, width = 0, centres = 0;  // pad length (along the lead) × width, pad-centre distance
+    double z = 0, g = 0, x = 0;                  // outer span, inner gap, pad width as IPC names them
+};
+IpcLand ipc7351Land(const std::string& family, int density, double lMin, double lMax, double sMin, double sMax,
+                    double wMin, double wMax);
 /// True when two units of a part may be swapped (gate swap): see UnitSpec::swapGroup.
 bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b);
 

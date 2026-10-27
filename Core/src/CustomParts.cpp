@@ -1,6 +1,8 @@
 #include "sieda/CustomParts.hpp"
 
 #include <algorithm>
+#include <array>
+#include <stdexcept>
 #include <sstream>
 #include <cctype>
 #include <cmath>
@@ -1860,6 +1862,30 @@ std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec) {
             }
     }
     return out;
+}
+
+IpcLand ipc7351Land(const std::string& family, int density, double lMin, double lMax, double sMin, double sMax,
+                    double wMin, double wMax) {
+    // IPC-7351B fillet goals {toe, heel, side} for most / nominal / least material.
+    static const std::map<std::string, std::array<std::array<double, 3>, 3>> goals = {
+        {"gullwing", {{{0.55, 0.45, 0.05}, {0.35, 0.35, 0.03}, {0.15, 0.25, 0.01}}}},
+        {"chip", {{{0.55, 0.0, 0.05}, {0.35, 0.0, 0.0}, {0.15, 0.0, -0.05}}}},
+        {"qfn", {{{0.40, 0.0, -0.04}, {0.30, 0.0, -0.04}, {0.20, 0.0, -0.04}}}}};
+    const auto it = goals.find(family);
+    if (it == goals.end()) throw std::invalid_argument("Unknown lead family " + family + " (gullwing, chip or qfn)");
+    if (density < 0 || density > 2) throw std::invalid_argument("Density is 0 (most), 1 (nominal) or 2 (least)");
+    if (!(lMax >= lMin && sMax >= sMin && wMax >= wMin && lMin > sMax && wMin > 0))
+        throw std::invalid_argument("Need L min ≤ L max, S min ≤ S max, W min ≤ W max, L min > S max and W > 0");
+    const auto [toe, heel, side] = it->second[static_cast<size_t>(density)];
+    const double f = 0.05, p = 0.025;
+    auto rss = [&](double tol) { return std::sqrt(tol * tol + f * f + p * p); };
+    IpcLand land;
+    land.z = lMin + 2 * toe + rss(lMax - lMin);
+    land.g = sMax - 2 * heel - rss(sMax - sMin);
+    land.x = wMin + 2 * side + rss(wMax - wMin);
+    if (land.z <= land.g || land.x <= 0) throw std::invalid_argument("These dimensions give no pad");
+    land.length = (land.z - land.g) / 2, land.width = land.x, land.centres = (land.z + land.g) / 2;
+    return land;
 }
 
 }  // namespace sieda

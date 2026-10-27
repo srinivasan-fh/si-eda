@@ -24,7 +24,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
 | P0 | Accurate coordinates and units (mm / mil / inch) | ✅ | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; computed copper (tracks, vias) saved on the same grid, so a reopened board checks the same ✅ |
-| P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | SiEDA Studio on Linux and Windows ([STUDIO.md](STUDIO.md)): open / save, schematic editing (place, move, rotate, wire, label, ground), board editing (move, rotate, flip, lock, route pad to pad with shove, vias, DRC markers), simulation plots, 3D, checks, BOM, Auto Place / Route, fabrication outputs, every MCP tool, GitHub sync; core tests pass on Linux, macOS and Windows CI ✅; footprint / symbol editors and live drag routing are macOS-only ⏳ |
+| P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | SiEDA Studio on Linux and Windows ([STUDIO.md](STUDIO.md)): open / save, schematic editing (place, move, rotate, wire, label, ground), board editing (move, rotate, flip, lock, align, live push-and-shove routing and pairs, track / via edits, pours, keep-outs, cutouts, holes, measure, net highlight, DRC markers), part editor, simulation plots, 3D, checks, BOM, Auto Place / Route, fabrication outputs, every MCP tool, GitHub sync; core tests pass on Linux, macOS and Windows CI ✅ |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
 | P0 | Human-readable, documented project file | ✅ | indented JSON; `docs/FILE_FORMAT.md` |
@@ -101,7 +101,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | AI datasheet extraction, footprint-vs-datasheet comparison | ✅ | pin tables from datasheets with page and confidence; footprint vs the datasheet's land pattern (`measureFootprint`, MCP `library_compare_footprint`: pads, pitch, pad size, span) |
 | P2 | Library quality score, bulk edit, supplier-neutral catalog | ✅ | catalog, quality score 0 – 100 (`partQuality`), bulk edit of library metadata (MCP `library_bulk_edit`, placed parts follow) |
 | P2 | ➕ Least / Nominal / Most density variants | ✅ | IPC calculator density |
-| P3 | Company library, librarian roles, approved alternates, releases | ⏳ | |
+| P3 | Company library, librarian roles, approved alternates, releases | ✅ | MCP `library_company`: a team folder of parts with draft / released / obsolete states, versions with history, release only by the librarians listed in `librarians.json`, approved alternates; used parts report whether they are still the released ones |
 
 ## 4. PCB placement and layout
 
@@ -124,7 +124,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | ➕ Copper balance / thieving, heavy copper | ✅ | `copperThieving` dots (Board Setup, MCP `pcb_copper_thieving`) in Gerbers, IPC-2581 / ODB++, 3D and coverage |
 | P1 | ➕ Assembly-house height / side / orientation limits | ✅ | DFA packs |
 | P2 | AI placement, decoupling suggestions, rigid-flex, HDI, multi-board, optimisation | ✅ | `placeDecoupling`, `improvePlacement` |
-| P3 | Placement templates, approved layout reuse, multi-engineer partitioning | ⏳ | |
+| P3 | Placement templates, approved layout reuse, multi-engineer partitioning | ✅ | MCP `pcb_layout_block` (replicate a channel's placement and copper onto other channels; save / apply an approved layout file); `pcb_partitions` (owner per board area; `check` lists edits inside other owners' areas against the base file) |
 
 ## 5. Interactive routing and autorouting
 
@@ -139,7 +139,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Constraint-aware autorouter, return paths, HS constraints, phase tuning, escape | ✅ | |
 | P2 | AI routing recommendations with before / after | ✅ | routing report; MCP `pcb_route_compare`: each strategy routed on a copy, before / after metrics and a recommendation ✅ |
 | P2 | ➕ Coplanar waveguide geometries | ✅ | field solver `FieldGeometry::cpw` (grounded CPW, coplanar stripline), MCP `si_field_solver` `cpwGap` |
-| P3 | Routing policies, batch routing over variants | ⏳ | |
+| P3 | Routing policies, batch routing over variants | 🟡 | routing policies per net class (layers the autorouter keeps to, via limit; DRC ROUTE_POLICY_LAYER / _VIAS; MCP `pcb_routing_policies`) ✅; batch routing over variants ⏳ (variants change fitted parts, not copper) |
 
 ## 6. Electrical and physical verification
 

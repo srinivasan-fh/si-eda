@@ -11,7 +11,7 @@ bool AutorouteOptions::operator==(const AutorouteOptions& o) const {
            minimizeVias == o.minimizeVias && gloss == o.gloss && arcCorners == o.arcCorners && arcRadius == o.arcRadius &&
            teardrops == o.teardrops && teardropStyle == o.teardropStyle && preset == o.preset && fast == o.fast && fanoutOnly == o.fanoutOnly && nets == o.nets &&
            netClass == o.netClass && hasArea == o.hasArea && (!hasArea || (area.x0 == o.area.x0 && area.y0 == o.area.y0 &&
-           area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers &&
+           area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers && classMaxVias == o.classMaxVias &&
            pinSwap == o.pinSwap && improvePlacement == o.improvePlacement &&
            lengthAwareSearch == o.lengthAwareSearch && shapeCompletion == o.shapeCompletion && viasOffPads == o.viasOffPads;
 }
@@ -90,6 +90,11 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
         cl[name] = l;
     }
     j["classLayers"] = cl;
+    if (!o.classMaxVias.empty()) {  // written only when set: older files load and save identically
+        Json mv = Json::object();
+        for (const auto& [name, n] : o.classMaxVias) mv[name] = n;
+        j["classMaxVias"] = mv;
+    }
     if (o.pinSwap) j["pinSwap"] = true;  // written only when on: older files load and save identically
     if (o.improvePlacement) j["improvePlacement"] = true;
     if (o.lengthAwareSearch) j["lengthAwareSearch"] = true;
@@ -143,6 +148,11 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions o) {
                 std::sort(ls.begin(), ls.end());
                 if (!name.empty() && !ls.empty()) o.classLayers[name] = ls;
             }
+    }
+    if (j.get("classMaxVias").isObject()) {
+        o.classMaxVias.clear();
+        for (const auto& [name, n] : j.get("classMaxVias").fields())
+            if (!name.empty() && n.asInt(-1) >= 0) o.classMaxVias[name] = std::min(n.asInt(0), 10000);
     }
     o.pinSwap = j.get("pinSwap").asBool(o.pinSwap);
     o.improvePlacement = j.get("improvePlacement").asBool(o.improvePlacement);

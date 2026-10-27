@@ -161,3 +161,15 @@ The last row counts the parts fitted in each variant. Over MCP this is `schemati
 
 Code: `Core/src/ProjectDiff.cpp` (`diffProjects`, `diffText`, `mergeProjects`, review comments, `variantMatrix`), `Core/mcp/main.cpp` (`--diff`,
 `--git-diff`, `--merge`), app `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`.
+
+## Layout reuse, partitions and the company library
+
+- **Layout reuse** (MCP `pcb_layout_block`): `replicate` copies one channel's placement and the copper inside it onto
+  other channels of the same parts (nets follow the pins); `save` writes an approved layout file and `apply` lays it
+  again and says whether it is still the approved one. Copper that would touch another net is skipped and counted.
+- **Partitions** (MCP `pcb_partitions`): give each engineer an area of the board. `check` with your name and the base
+  file (the version you pulled) lists what changed inside areas owned by someone else, before you push.
+- **Company library** (MCP `library_company`): a folder of parts the team shares. Parts are published as drafts,
+  released by a librarian (the names in the folder's `librarians.json`), retired as obsolete with approved alternates,
+  and every saved version stays in `.history/`. Placing a part says whether it is still the released one.
+
