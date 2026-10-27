@@ -191,6 +191,11 @@ Json boardJson(const BoardSettings& s) {
         }
         b["partitions"] = parts;
     }
+    if (!s.rulePackName.empty()) {
+        Json pack = Json::object();
+        pack["name"] = s.rulePackName, pack["hash"] = s.rulePackHash;
+        b["rulePack"] = pack;
+    }
     if (!s.rooms.empty()) {
         Json rooms = Json::array();
         for (const auto& r : s.rooms) {
@@ -1021,6 +1026,8 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             if (std::isfinite(area.x0 + area.y0 + area.x1 + area.y1) && s.partitions.size() < 256)
                 s.partitions.push_back({q.get("name").asString(""), q.get("owner").asString(""), area});
         }
+        s.rulePackName = b.get("rulePack").get("name").asString("");
+        s.rulePackHash = b.get("rulePack").get("hash").asString("");
         for (const auto& r : b.get("rooms").items()) {
             const Rect area{r.get("x0").asNumber(), r.get("y0").asNumber(), r.get("x1").asNumber(), r.get("y1").asNumber()};
             if (!std::isfinite(area.x0 + area.y0 + area.x1 + area.y1) || s.rooms.size() >= 256) continue;
@@ -2075,6 +2082,57 @@ bool Project::removeBoard(int index) {
     schematicChanged();
     return true;
 }
+namespace {
+// The board settings a team rule pack carries (the rest — size, outline, stack-up, pours — belongs to the board).
+const char* const kRuleKeys[] = {"trackWidth", "clearance", "viaDrill", "viaDiameter", "edgeClearance", "rulePreset",
+                                 "minTrackWidth", "minClearance", "minDrill", "minAnnularRing", "minHoleToHole",
+                                 "netWidths", "netClearances", "pairRules", "lengthRules", "dfmPack", "dfmOverrides",
+                                 "customRules"};
+const char* const kRouterRuleKeys[] = {"classLayers", "classMaxVias"};
+}  // namespace
+
+Json boardRules(const BoardSettings& s) {
+    const Json b = boardJson(s);
+    Json rules = Json::object();
+    for (const char* k : kRuleKeys)
+        if (b.has(k)) rules[k] = b.get(k);
+    for (const char* k : kRouterRuleKeys)
+        if (b.get("autorouter").has(k) && b.get("autorouter").get(k).size()) rules[k] = b.get("autorouter").get(k);
+    return rules;
+}
+
+std::string boardRulesHash(const BoardSettings& s) {
+    uint64_t h = 1469598103934665603ull;  // FNV-1a
+    for (const unsigned char ch : boardRules(s).dump()) h = (h ^ ch) * 1099511628211ull;
+    char text[17];
+    std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+    return text;
+}
+
+void applyBoardRules(PcbLayout& pcb, const Json& rules) {
+    // The board's own JSON with every rule key replaced by the pack's (a key the pack lacks goes back to its default),
+    // read back through the project reader: the same validation as opening a file.
+    const Json now = boardJson(pcb.settings);
+    auto isRule = [](const std::string& k, const auto& keys) {
+        return std::any_of(std::begin(keys), std::end(keys), [&](const char* r) { return k == r; });
+    };
+    Json b = Json::object(), router = Json::object();
+    for (const auto& [k, v] : now.fields())
+        if (!isRule(k, kRuleKeys) && k != "autorouter") b[k] = v;
+    for (const auto& [k, v] : now.get("autorouter").fields())
+        if (!isRule(k, kRouterRuleKeys)) router[k] = v;
+    for (const auto& [k, v] : rules.fields()) {
+        if (isRule(k, kRuleKeys)) b[k] = v;
+        else if (isRule(k, kRouterRuleKeys)) router[k] = v;
+    }
+    b["autorouter"] = router;
+    Json root = Json::object();
+    root["board"] = b;
+    PcbLayout read;
+    readBoardContent(root, read);
+    pcb.settings = read.settings;
+}
+
 std::string Project::designHash() const {
     const Json all = toJson(false);
     Json design = Json::object();

@@ -165,7 +165,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp
                    COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/ui.html
                            -DOUT=${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp -DNAME=kStudioHtml -P ${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/embed.cmake
                    DEPENDS Core/studio/ui.html Core/studio/embed.cmake)
-add_executable(sieda-studio Core/studio/main.cpp ${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/studio_i18n.cpp
+                   COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/i18n.json
+                           -DOUT=${CMAKE_CURRENT_BINARY_DIR}/studio_i18n.cpp -DNAME=kStudioI18n -P ${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/embed.cmake
+                   DEPENDS Core/studio/i18n.json Core/studio/embed.cmake)
+add_executable(sieda-studio Core/studio/main.cpp ${CMAKE_CURRENT_BINARY_DIR}/studio_ui.cpp ${CMAKE_CURRENT_BINARY_DIR}/studio_i18n.cpp)
 target_link_libraries(sieda-studio PRIVATE sieda_core)
 target_compile_definitions(sieda-studio PRIVATE SIEDA_STUDIO_VERSION="${PROJECT_VERSION}")
 if(WIN32)

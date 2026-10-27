@@ -24,8 +24,17 @@ def check_script():
     finally:
         os.unlink(f.name)
 
+def check_translations():
+    """Core/studio/i18n.json is current (tools/make_studio_i18n.py) and every Studio string has its translations."""
+    tool = os.path.join(os.path.dirname(__file__), "..", "..", "tools", "make_studio_i18n.py")
+    r = subprocess.run([sys.executable, tool, "--check"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    missing = subprocess.run([sys.executable, tool, "--missing"], capture_output=True, text=True).stdout.strip()
+    assert not missing, "Studio strings without translations:\n" + missing
+
 def main():
     check_script()
+    check_translations()
     with tempfile.TemporaryDirectory() as root:
         p = subprocess.Popen([sys.argv[1], "--no-browser", "--root", root], stdout=subprocess.PIPE, text=True)
         try:
@@ -49,6 +58,10 @@ def main():
             bearer = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
             status, body = call("project_summary", {}, bearer)
             assert status == 200 and "LED indicator" in body, "MCP endpoint with the bearer token"
+            status, words = request(port, "GET", "/i18n?lang=de", headers=auth)
+            assert status == 200 and json.loads(words).get("File") == "Datei", "German interface words"
+            assert request(port, "GET", "/i18n?lang=xx", headers=auth)[1] == "{}", "unknown language"
+            assert request(port, "GET", "/i18n?lang=de")[0] == 403, "translations without the token"
             assert request(port, "POST", "/quit", "{}", auth)[0] == 200
             assert p.wait(timeout=30) == 0
         finally:

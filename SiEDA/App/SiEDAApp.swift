@@ -362,7 +362,7 @@ struct SiEDACommands: Commands {
             Button("Import Logo…") { store.importLogo() }
             Button("Check Library Updates…") { store.checkLibraryUpdates() }
             Menu("Company Library") {
-                Button("Show Parts…") { store.companyLibraryList() }
+                Button("Show Parts…") { store.showCompanyLibrary = true }
                 Button("Publish Selected Part") { store.companyLibraryPublish() }
                 Button("Place Part…") { store.companyLibraryAction("use") }
                 Divider()
@@ -468,12 +468,18 @@ struct SiEDACommands: Commands {
                 Button("Room from Selection…") { store.roomFromSelection() }
                 Button("Place Parts in Their Rooms") { store.placeRooms() }
                 Button("Remove Rooms") { store.clearRooms() }
+                Button("Rooms and Partitions…") { store.showBoardAreas = true }
                 Divider()
                 Button("Partition from Selection…") { store.partitionFromSelection() }
                 Button("Check Partitions Against Base…") { store.checkPartitions() }
                 Divider()
                 Button("Routing Policy…") { store.editRoutingPolicy() }
                 Button("Check Variants") { store.checkVariants() }
+            }
+            Menu("Team Rule Pack") {
+                Button("Save Rule Pack…") { store.saveRulePack() }
+                Button("Apply Rule Pack…") { store.applyRulePack() }
+                Button("Compare with Rule Pack…") { store.compareRulePack() }
             }
             Menu("Robot Platform") {
                 Toggle("Not a robot", isOn: Binding(get: { store.snapshot.robotPlatform.isEmpty },

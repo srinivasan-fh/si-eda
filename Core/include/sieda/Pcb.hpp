@@ -368,6 +368,9 @@ struct BoardSettings {
         Rect area;
     };
     std::vector<Room> rooms;
+    /// The team rule pack last applied (MCP pcb_rule_pack): its name and the rules' fingerprint (`boardRulesHash`) then.
+    /// Verification warns when the board's rules no longer match it (VER_RULE_PACK). JSON "rulePack", written only when set.
+    std::string rulePackName, rulePackHash;
     /// Dimensions drawn on the fabrication drawing, the DXF and the board view. JSON "dimensions", written only when present.
     std::vector<BoardDimension> dimensions;
     /// JSON "thieving", written only when on.

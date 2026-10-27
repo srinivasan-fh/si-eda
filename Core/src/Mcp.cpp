@@ -865,11 +865,12 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     const std::string problem = validateArguments(tool->inputSchema, args);
     if (!problem.empty()) return toolErrorResult("Invalid arguments for " + name + ": " + problem);
     // Undo history: the state before each call that changes the design (not the undo itself), for this project only.
-    if (undoOf_ != (project_ ? project_->serial : 0)) undo_.clear(), undoOf_ = project_ ? project_->serial : 0;
+    if (undoOf_ != (project_ ? project_->serial : 0)) undo_.clear(), redo_.clear(), undoOf_ = project_ ? project_->serial : 0;
     // A live route's steps work on the router's copy: only its commit changes the design.
     const bool changes = tool->mutates && (name != "pcb_route_live" || args.get("action").asString("") == "commit");
+    bool changed = changes;
     std::string before;
-    if (changes && name != "project_undo" && project_)
+    if (changes && name != "project_undo" && name != "project_redo" && project_)
         before = project_->project.toJson().dump();
     ToolOutput out;
     try {
@@ -884,14 +885,19 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         return toolErrorResult(std::string("Internal error in ") + name + ": " + e.what());
     }
     if (name == "project_open" || name == "project_new" || name == "project_load_example") {
-        undo_.clear();  // a fresh design: undo never steps back past it …
+        undo_.clear(), redo_.clear();  // a fresh design: undo never steps back past it …
         if (name == "project_open") loadUndoHistory();  // … unless this file was saved with its history
     } else if (!before.empty() && project_ && project_->serial == undoOf_) {
-        undo_.push_back(std::move(before));
-        if (undo_.size() > kUndoHistory) undo_.erase(undo_.begin(), undo_.end() - kUndoHistory);
+        if (project_->project.toJson().dump() == before) {
+            changed = false;  // a list / check / show action of an editing tool: no undo step, no change notice
+        } else {
+            undo_.push_back(std::move(before));
+            redo_.clear();
+            if (undo_.size() > kUndoHistory) undo_.erase(undo_.begin(), undo_.end() - kUndoHistory);
+        }
     }
     if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
-    if (changes && onChange_) onChange_(name);
+    if (changed && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
     if (out.content.isArray())
@@ -953,9 +959,19 @@ void McpServer::loadUndoHistory() {
 
 bool McpServer::undo() {
     if (!project_ || undoOf_ != project_->serial || undo_.empty()) return false;
+    redo_.push_back(project_->project.toJson().dump());
     project_->project = Project::fromJson(Json::parse(undo_.back()));
     project_->router.reset();
     undo_.pop_back();
+    return true;
+}
+
+bool McpServer::redo() {
+    if (!project_ || undoOf_ != project_->serial || redo_.empty()) return false;
+    undo_.push_back(project_->project.toJson().dump());
+    project_->project = Project::fromJson(Json::parse(redo_.back()));
+    project_->router.reset();
+    redo_.pop_back();
     return true;
 }
 

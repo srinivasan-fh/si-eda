@@ -51,6 +51,7 @@ namespace fs = std::filesystem;
 using sieda::Json;
 
 extern const char* const kStudioHtml;  // ui.html, embedded at build time (Core/studio/embed.cmake)
+extern const char* const kStudioI18n;  // i18n.json: the interface translations (tools/make_studio_i18n.py)
 
 namespace {
 
@@ -292,6 +293,10 @@ int main(int argc, char** argv) {
             j["project"] = server.projectPath();
             j["files"] = projectFiles(options.allowedRoot);
             reply(client, 200, "application/json", j.dump());
+        } else if (r.method == "GET" && r.path == "/i18n") {
+            static const Json all = Json::parse(kStudioI18n);
+            const Json& words = all.get(queryValue(r.query, "lang"));
+            reply(client, 200, "application/json; charset=utf-8", words.isObject() ? words.dump() : "{}");
         } else if (r.method == "POST" && (r.path == "/rpc" || r.path == "/mcp")) {
             const std::string out = server.handle(r.body);
             reply(client, 200, "application/json", out.empty() ? "{}" : out);

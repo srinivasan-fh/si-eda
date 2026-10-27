@@ -3203,6 +3203,17 @@ void schematicTools(Table& t) {
               j["left"] = s.undoSteps();
               return out(j);
           });
+    t.add("project", "project_redo", "Redo", Kind::Edit, false,
+          "Puts back what project_undo took back (steps: n puts back several); any other change to the design clears it.",
+          Schema().integer("steps", "How many undone calls to put back (default 1)"), [](McpServer& s, const Json& a) {
+              int redone = 0;
+              for (int i = 0; i < std::max(1, argInt(a, "steps", 1)) && s.redo(); ++i) ++redone;
+              if (!redone) throw ToolError("Nothing to redo");
+              Json j = obj();
+              j["redone"] = redone;
+              j["undoSteps"] = s.undoSteps();
+              return out(j);
+          });
     t.add("project", "project_quickstart", "Quick start", Kind::Read, true,
           "The quick start: units, pin addressing, what results carry, the usual flow (the resource "
           "sieda://docs/mcp-quickstart, for clients that cannot read resources).",
@@ -4062,7 +4073,7 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_sheets", "Sheets", Kind::Read, true,
           "The sheets with hierarchy (parent, depth), component counts, ports and the active sheet.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_sheets_json(P(s)))); });
-    t.add("schematic", "schematic_block", "Approved design blocks", Kind::Files, false,
+    t.add("schematic", "schematic_block", "Approved design blocks", Kind::Edit, false,
           "Reusable design blocks. save writes the parts refs (with the wires between them, labels, directives) to a "
           "block file at path inside the root, approved by approvedBy (optional) with a fingerprint of its content. "
           "place puts a block file's parts on the active sheet, offset by x / y (new designators), and says whether "
@@ -5072,12 +5083,13 @@ void libraryTools(Table& t) {
               }
               return out(r);
           });
-    t.add("library", "library_company", "Company library", Kind::Files, false,
+    t.add("library", "library_company", "Company library", Kind::Edit, false,
           "A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in "
           ".history/<name>/). publish (id: a project part) adds or updates a part as a draft, version + 1; release "
           "marks it released by approvedBy (when the folder's librarians.json lists names, only they may); obsolete "
           "retires it; alternates sets its approved alternates (names); list shows every part with status, version, "
-          "alternates and approved (unchanged since release); use (name) adds it to the project and places it "
+          "alternates, approved (unchanged since release), description, manufacturer, package, pins and the number of "
+          "earlier versions kept (history); use (name) adds it to the project and places it "
           "(drafts only with allowDraft; never an obsolete part).",
           Schema().str("action", "publish, release, obsolete, alternates, list or use", true,
                        {"publish", "release", "obsolete", "alternates", "list", "use"})
@@ -5120,6 +5132,12 @@ void libraryTools(Table& t) {
                       row["name"] = n, row["status"] = e.get("status"), row["version"] = e.get("version");
                       row["approved"] = approved(e), row["alternates"] = e.get("alternates").isArray() ? e.get("alternates") : Json::array();
                       if (e.has("approvedBy")) row["approvedBy"] = e.get("approvedBy");
+                      const Json& spec = e.get("spec");
+                      row["description"] = spec.get("description").asString(""), row["manufacturer"] = spec.get("manufacturer").asString("");
+                      row["package"] = spec.get("package").get("type").asString(""), row["pins"] = spec.get("package").get("pinCount").asInt(0);
+                      int history = 0;
+                      for (const auto& f : fs::directory_iterator(dir + "/.history/" + n, ec)) history += f.is_regular_file();
+                      row["history"] = history;
                       parts.push(row);
                   }
                   j["parts"] = parts;
@@ -5920,7 +5938,7 @@ void pcbTools(Table& t) {
               j["moved"] = moved;
               return out(j);
           });
-    t.add("pcb", "pcb_layout_block", "Layout reuse", Kind::Files, false,
+    t.add("pcb", "pcb_layout_block", "Layout reuse", Kind::Edit, false,
           "Reuses a laid-out group (an approved channel, a regulator block). replicate copies the refs group's placement "
           "and the copper inside it onto each target group (same parts, same order; each lands round its first part, "
           "or at x / y). save writes the group's layout to a file in the root (approvedBy, fingerprint); apply lays a "
@@ -6071,6 +6089,58 @@ void pcbTools(Table& t) {
               }
               j["outsideYours"] = found;
               j["clean"] = found.size() == 0;
+              return out(j);
+          });
+    t.add("pcb", "pcb_rule_pack", "Team rule packs", Kind::Edit, false,
+          "A team's design rules as one file shared by every board: track / via sizes, clearances and fab minimums, "
+          "net widths and clearances, pair and length rules, DFM pack and overrides, custom rules and routing policies "
+          "(not the board's size, outline, stack-up or copper). save writes the board's rules to a file in the root "
+          "(name, approvedBy); apply sets them on the board and remembers the pack, so verify_design warns when the "
+          "rules drift from it later (VER_RULE_PACK); check lists the rules that differ from the file (or from the "
+          "applied pack's fingerprint); show gives the board's rules.",
+          Schema().str("action", "save, apply, check or show", true, {"save", "apply", "check", "show"})
+              .str("path", "save / apply / check: rule file").str("name", "save: the pack's name (default: the file name)")
+              .str("approvedBy", "save: who approved it"),
+          [](McpServer& s, const Json& a) {
+              BoardSettings& st = P(s)->project.pcb.settings;
+              const std::string action = argStr(a, "action", "");
+              Json j = obj();
+              const Json rules = boardRules(st);
+              if (action == "show") {
+                  j["rules"] = rules, j["hash"] = boardRulesHash(st);
+                  if (!st.rulePackName.empty()) j["pack"] = st.rulePackName, j["matchesPack"] = st.rulePackHash == boardRulesHash(st);
+                  return out(j);
+              }
+              if (action == "save") {
+                  std::string name = argStr(a, "name", "");
+                  const std::string path = requireStr(a, "path");
+                  if (name.empty()) name = std::filesystem::path(path).stem().string();
+                  Json file = obj();
+                  file["format"] = "sieda.rules/1", file["name"] = name, file["rules"] = rules, file["hash"] = boardRulesHash(st);
+                  const std::string by = argStr(a, "approvedBy", "");
+                  if (!by.empty()) file["approvedBy"] = by;
+                  j["path"] = s.writeFile(path, file.dump(2) + "\n");
+                  j["name"] = name, j["hash"] = file.get("hash"), j["rules"] = static_cast<int>(rules.fields().size());
+                  return out(j);
+              }
+              const Json file = Json::parse(readFileArg(s, requireStr(a, "path")).asString(""));
+              check(file.get("format").asString("") == "sieda.rules/1" && file.get("rules").isObject(), "Not a SiEDA rule pack");
+              const Json& pack = file.get("rules");
+              Json differ = Json::array();
+              std::set<std::string> keys;
+              for (const auto& [k, v] : rules.fields()) keys.insert(k);
+              for (const auto& [k, v] : pack.fields()) keys.insert(k);
+              for (const auto& k : keys)
+                  if (rules.get(k).dump() != pack.get(k).dump()) differ.push(k);
+              j["name"] = file.get("name"), j["differences"] = differ;
+              if (file.has("approvedBy")) j["approvedBy"] = file.get("approvedBy");
+              if (action == "apply") {
+                  applyBoardRules(P(s)->project.pcb, pack);
+                  st.rulePackName = file.get("name").asString("rules"), st.rulePackHash = boardRulesHash(st);
+                  j["applied"] = true, j["hash"] = st.rulePackHash;
+              } else {
+                  j["clean"] = differ.size() == 0;
+              }
               return out(j);
           });
     t.add("pcb", "pcb_routing_policies", "Routing policies", Kind::Edit, false,

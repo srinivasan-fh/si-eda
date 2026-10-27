@@ -379,4 +379,11 @@ public:
     static Json libraryJson();
 };
 
+/// Team rule packs: the board's design rules (track / via sizes, clearances and minimums, net widths and clearances,
+/// pair and length rules, DFM pack and overrides, custom rules, routing policies) as one JSON object; its FNV-1a
+/// fingerprint; and applying a pack's rules to a board (everything else on the board is kept).
+Json boardRules(const BoardSettings& s);
+std::string boardRulesHash(const BoardSettings& s);
+void applyBoardRules(PcbLayout& pcb, const Json& rules);
+
 }  // namespace sieda

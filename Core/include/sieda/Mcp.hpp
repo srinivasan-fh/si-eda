@@ -142,6 +142,8 @@ public:
     /// Puts the project back as it was before the last tool call that changed it (up to kUndoSteps back). False
     /// when there is nothing to undo.
     bool undo();
+    /// Puts back the last call `undo` took back; false when there is none (any other design change clears them).
+    bool redo();
     /// The undo history kept beside a saved project file (".<file>.undo"), restored by project_open when the file is
     /// still the state it was saved with.
     void saveUndoHistory() const;
@@ -157,6 +159,7 @@ private:
     bool initialized_ = false;
     std::function<void(const std::string&)> onChange_;
     std::vector<std::string> log_;
+    std::vector<std::string> redo_;  // states `undo` stepped back from, newest last
     std::vector<std::string> undo_;  // project states before the last design-changing calls, oldest first
     uint64_t undoOf_ = 0;  // the serial of the project they belong to (history clears when it changes)
 };

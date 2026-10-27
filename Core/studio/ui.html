@@ -34,10 +34,21 @@ footer{padding:5px 12px;border-top:1px solid var(--line);background:var(--panel)
 dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);min-width:min(520px,92vw)}
 dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padding:6px;border-radius:5px;cursor:pointer}dialog li:hover{background:var(--bg)}
 @media (max-width:700px){nav{width:auto;flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}.main{flex-direction:column}}
+#menubar{display:flex;gap:1px}.mb{position:relative}.mb>button{background:none!important;border:0!important;color:#fff;padding:5px 9px}.mb>button:hover,.mb.open>button{background:#24375a!important}
+.drop{display:none;position:absolute;left:0;top:100%;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px;min-width:270px;max-height:80vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.mb.open>.drop{display:block}.drop button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 10px;border-radius:5px;color:var(--ink)}.drop button:hover{background:var(--accent);color:#fff}
+.drop hr{border:0;border-top:1px solid var(--line);margin:4px 0}.drop .sub{color:var(--mute);font-size:12px;padding:6px 10px 2px;font-weight:600}
+.ff{display:grid;grid-template-columns:150px 1fr;gap:2px 10px;margin:6px 0;align-items:start}.ff small{grid-column:2}.ff textarea{min-height:64px}
+#formDlg{width:min(720px,94vw)}#formFields{max-height:56vh;overflow:auto}
+
+:root[data-theme="navy"]{--bg:#0e1522;--panel:#151f31;--ink:#e6ebf3;--mute:#93a1b8;--line:#26344d;--accent:#5b8dff;--bar:#0a101b}
+:root[data-theme="matrix"]{--bg:#06110a;--panel:#0b1a10;--ink:#c8f7d4;--mute:#6fae80;--line:#173a22;--accent:#2fd36b;--bar:#030a05}
+:root[data-theme="graphite"]{--bg:#1c1d20;--panel:#26282c;--ink:#e8e8ea;--mute:#a0a3aa;--line:#3a3d43;--accent:#8e9bb5;--bar:#141518}
+:root[data-theme="light"]{--bg:#f4f6fa;--panel:#fff;--ink:#17202e;--mute:#5d6b80;--line:#d9dfe8;--accent:#3b6fe0;--bar:#16233a}
 </style></head><body>
-<header><b>SiEDA</b><span class="name" id="name">No project</span>
+<header><b>SiEDA</b><span id="menubar"></span><span class="name" id="name">No project</span>
 <button onclick="newProject()">New</button><button onclick="openDialog()">Open…</button><button onclick="save()">Save</button>
-<button onclick="saveAs()">Save As…</button><button onclick="examples()">Examples…</button><button onclick="undo()">Undo</button>
+<button onclick="saveAs()">Save As…</button><button onclick="examples()">Examples…</button><button onclick="undo()">Undo</button><button onclick="redo()">Redo</button>
 <button onclick="quit()">Quit</button></header>
 <div class="main"><nav id="nav"></nav>
 <section data-tab="Schematic"><div class="row tools" id="schTools"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()">
@@ -89,6 +100,19 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="card"><div id="toolDesc" class="info"></div></div><textarea id="toolArgs">{}</textarea><div class="row"><button class="primary" onclick="runTool()">Run tool</button><span class="info">Every SiEDA feature is an MCP tool; arguments are JSON.</span></div><pre id="toolOut"></pre></section>
 </div><footer id="status">Ready.</footer>
 <dialog id="dlg"><b id="dlgTitle"></b><ul id="dlgList"></ul><div class="row"><input id="dlgInput" style="flex:1"><button class="primary" id="dlgOk">OK</button><button onclick="dlg.close()">Cancel</button></div></dialog>
+<dialog id="formDlg"><b id="formTitle"></b><p id="formDesc" class="info"></p><div id="formFields"></div>
+<div class="row"><button class="primary" id="formRun">Run</button><button onclick="formDlg.close()">Close</button></div><pre id="formOut" hidden></pre><div id="formImg"></div></dialog>
+<dialog id="setDlg"><b data-en="Settings">Settings</b><div class="ff"><span data-en="Theme">Theme</span><select id="setTheme"><option value="">Auto</option><option value="navy">Midnight Navy</option>
+<option value="matrix">Matrix Green</option><option value="graphite">Graphite</option><option value="light">Light</option></select></div>
+<div class="ff"><span data-en="Interface language">Interface language</span><select id="setLang"></select></div>
+<p class="info" data-en="The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.">The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.</p>
+<div class="row"><button class="primary" onclick="setDlg.close()">Done</button></div></dialog>
+<dialog id="libDlg" style="width:min(900px,96vw)"><b data-en="Company Library">Company Library</b><div class="row"><label data-en="Folder">Folder</label><input id="libFolder" style="width:180px" onchange="libList()">
+<input id="libSearch" placeholder="Search parts" style="flex:1" oninput="libShow()"><button onclick="libPublish()" data-en="Publish Selected Part">Publish Selected Part</button></div>
+<div id="libRows" style="max-height:55vh;overflow:auto;margin-top:8px"></div><div class="row"><button class="primary" onclick="libDlg.close()">Done</button></div></dialog>
+<dialog id="areaDlg" style="width:min(900px,96vw)"><b data-en="Rooms and Partitions">Rooms and Partitions</b><div id="areaRows" style="max-height:60vh;overflow:auto"></div>
+<p id="areaErr" class="error"></p><div class="row"><button onclick="areaAdd('rooms')" data-en="Add Room">Add Room</button><button onclick="areaAdd('partitions')" data-en="Add Partition">Add Partition</button>
+<span style="flex:1"></span><button onclick="areaDlg.close()" data-en="Cancel">Cancel</button><button class="primary" onclick="areaApply()" data-en="Apply">Apply</button></div></dialog>
 <script>
 const TOKEN="__SIEDA_TOKEN__";let rpcId=0,rev=-1,tools=[],state={},tab="Schematic";
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -432,7 +456,130 @@ async function save(){if(!state.project)return saveAs();await act("project_save"
 async function saveAs(){const p=prompt("Save as (path inside "+state.root+")","designs/my_board.siedaproj");if(p)await act("project_save_as",{path:p});}
 async function undo(){await act("project_undo",{});}
 async function quit(){if(confirm("Quit SiEDA Studio? Save first if needed.")){await post("/quit",{});document.body.innerHTML="<p style='padding:20px'>SiEDA Studio has stopped. You can close this tab.</p>";}}
-function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.textContent===name));draw();}
+
+// Menus as in the macOS app: every item a function or an engine command whose form is built from its input schema.
+const F=(tool,args)=>label=>form(tool,args||{},label);
+const MENUS={
+ "File":[["New Project",()=>newProject()],["Open…",()=>openDialog()],["New from Example",()=>examples()],["Save",()=>save()],["Save As…",()=>saveAs()],0,
+  ["Import"],["Import Netlist…",F("schematic_import_netlist")],["Import KiCad Board…",F("pcb_import_kicad")],["Import Board Outline (DXF)…",F("pcb_import_dxf")],
+  ["Import MCAD Placement (IDF)…",F("pcb_import_idf_placement")],["Import MCAD Changes (IDX)…",F("pcb_import_idx")],["Import Routes (PADS / HyperLynx / IPC-2581)…",F("pcb_import_routes")],
+  ["Import Gerber as Reference Layer…",F("pcb_reference_layer",{action:"add"})],["Import Logo…",F("pcb_graphics")],["Import Library…",F("library_import")],0,
+  ["Export"],["Export…",F("output_export")],["Export Fabrication Package…",F("output_fabrication_package",{dir:"fabrication"})],["Gerbers…",F("output_gerbers")],
+  ["Pick and Place…",F("output_pick_and_place")],["Schematic PDF…",F("output_schematic_pdf")],["3D Model…",F("output_3d_model")],["Controlled Release…",F("output_release")],
+  ["Order Boards…",F("output_fab_quote")],0,["Check Library Updates…",F("library_updates")],0,["Quit",()=>quit()]],
+ "Edit":[["Undo",()=>undo()],["Redo",()=>redo()],0,["Find…",F("schematic_find")],["Replace…",F("schematic_replace")],["Annotate…",F("schematic_annotate")],
+  ["Align…",F("schematic_align")],["Rename Net…",F("schematic_rename")],0,["Command Palette…",()=>palette()]],
+ "Schematic":[["Run Electrical Rule Check",()=>run("schematic_erc").then(showChecks)],["Validate Circuit",()=>run("schematic_validate").then(showChecks)],0,
+  ["Sheets…",F("schematic_sheets")],["Edit Sheet…",F("schematic_sheet_edit")],["Move to Sheet…",F("schematic_move_to_sheet")],["Bus…",F("schematic_add_bus")],
+  ["Bus Labels…",F("schematic_bus_labels")],["Net Class…",F("schematic_net_class")],["Net Rules…",F("schematic_net_rules")],["Directive…",F("schematic_add_directive")],
+  ["No-Connect…",F("schematic_set_no_connect")],["Package…",F("schematic_set_package")],["Pin Map…",F("schematic_pin_map")],["Block…",F("schematic_block")],0,
+  ["Variants"],["Variants…",F("schematic_variants")],["Edit Variant…",F("schematic_variant_edit")],["Variant Matrix",F("schematic_variant_matrix")]],
+ "Design":[["Auto-Place Footprints",()=>act("pcb_autoplace",{all:true,decoupling:true})],["Fit Board to Components",()=>act("pcb_fit_board",{})],
+  ["Auto Route Board",()=>act("pcb_autoroute",{})],["Run Design Rule Check",()=>{selectTab("Board");drcMarks();}],["Add Thermal Vias",F("pcb_add_thermal_vias")],
+  ["Update PCB from Schematic",()=>act("pcb_update_from_schematic",{})],["Compare Routing Strategies…",F("pcb_route_compare")],0,
+  ["Layout"],["Replicate Layout…",F("pcb_layout_block",{action:"replicate"})],["Save Layout Block…",F("pcb_layout_block",{action:"save"})],
+  ["Apply Layout Block…",F("pcb_layout_block",{action:"apply"})],["Rooms and Partitions…",()=>areasEditor()],["Place Parts in Their Rooms",()=>act("pcb_rooms",{action:"place"})],
+  ["Check Partitions Against Base…",F("pcb_partitions",{action:"check"})],["Routing Policy…",F("pcb_routing_policies")],["Check Variants",()=>variantCheck()],0,
+  ["Team Rule Pack"],["Save Rule Pack…",F("pcb_rule_pack",{action:"save",path:"team.rules.json"})],["Apply Rule Pack…",F("pcb_rule_pack",{action:"apply",path:"team.rules.json"})],
+  ["Compare with Rule Pack…",F("pcb_rule_pack",{action:"check",path:"team.rules.json"})],0,
+  ["Industry Profile…",F("project_set_info")],["Design Rules…",F("pcb_set_board")],["Verify Design",()=>{selectTab("Checks");verify();}]],
+ "Board Setup":[["Board…",F("pcb_set_board")],["Board Outline…",F("pcb_set_outline")],["Stack-up…",F("pcb_set_stackup")],["Blind / Buried Vias (HDI)…",F("pcb_set_hdi")],
+  ["Manufacturer Rules…",F("pcb_dfm_pack")],["Custom Rules…",F("pcb_custom_rules")],["Net Widths…",F("pcb_set_net_width")],["Length Rules…",F("pcb_length_rules")],
+  ["Pair Rules…",F("pcb_pair_rules")],["Keep-outs…",F("pcb_set_keepouts")],["Mechanical Limits…",F("pcb_mechanical_limits")],["Production Panel…",F("pcb_panel")],
+  ["Copper Thieving…",F("pcb_copper_thieving")],["Boards…",F("pcb_boards")],["Signal Integrity…",F("si_set_options")],["Field Solver…",F("si_field_solver")]],
+ "Team":[["Company Library…",()=>companyLibrary()],["Compare with Another Version…",F("project_diff")],["Merge Versions…",F("project_merge")],
+  ["Design Review…",F("project_review_comments")],["Add Review Comment…",F("project_review_comment")],["Approvals…",F("verify_approvals")],
+  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")]],
+ "Help":[["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
+function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
+  it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");
+ document.querySelectorAll("#menubar .mb").forEach(mb=>{const m=mb.querySelector("[data-m]").dataset.m;
+  mb.querySelector("[data-m]").onclick=e=>{e.stopPropagation();const open=mb.classList.contains("open");closeMenus();if(!open)mb.classList.add("open");};
+  mb.querySelector("[data-m]").onmouseenter=()=>{if(document.querySelector("#menubar .open")&&!mb.classList.contains("open")){closeMenus();mb.classList.add("open");}};
+  mb.querySelectorAll("[data-i]").forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();const it=MENUS[m][b.dataset.i];it[1](it[0]);});});}
+function closeMenus(){document.querySelectorAll("#menubar .open").forEach(x=>x.classList.remove("open"));}
+addEventListener("click",closeMenus);
+async function redo(){await act("project_redo",{});}
+function ffield(k,s,v,req){const id="f_"+k;let input;
+ if(s.enum)input=`<select id="${id}"><option value=""></option>${s.enum.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+ else if(s.type==="boolean")input=`<select id="${id}"><option value=""></option><option value="true" ${v===true?"selected":""}>${esc(tr("Yes"))}</option><option value="false" ${v===false?"selected":""}>${esc(tr("No"))}</option></select>`;
+ else if(s.type==="number"||s.type==="integer")input=`<input id="${id}" type="number" step="any" value="${v??""}">`;
+ else if(s.type==="string"&&!/text|rules|source|netlist|json|content/i.test(k))input=`<input id="${id}" value="${esc(v??"")}">`;
+ else input=`<textarea id="${id}">${esc(v===undefined?"":typeof v==="string"?v:JSON.stringify(v))}</textarea>`;
+ return `<label class="ff"><span>${esc(k)}${req?" *":""}</span>${input}<small class="info">${esc(s.description||"")}${s.type==="array"&&!(s.items&&s.items.type==="string")?" (JSON)":""}</small></label>`;}
+function formArgs(t){const a={};for(const [k,s] of Object.entries(t.inputSchema.properties||{})){const raw=$("f_"+k).value.trim();if(raw==="")continue;
+ if(s.type==="number"||s.type==="integer")a[k]=Number(raw);else if(s.type==="boolean")a[k]=raw==="true";
+ else if(s.type==="array"&&s.items&&s.items.type==="string"&&!raw.startsWith("["))a[k]=raw.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+ else if(s.type==="array"||s.type==="object")a[k]=JSON.parse(raw);else a[k]=raw;}return a;}
+async function form(name,preset={},title){if(!tools.length)await loadTools();const t=tools.find(t=>t.name===name);if(!t){status("No command "+name,"error");return;}
+ $("formTitle").textContent=tr(title||t.title||name);$("formDesc").textContent=t.description||"";const req=t.inputSchema.required||[];
+ $("formFields").innerHTML=Object.entries(t.inputSchema.properties||{}).map(([k,s])=>ffield(k,s,preset[k],req.includes(k))).join("")||`<p class="info">${esc(tr("No settings: choose Run."))}</p>`;
+ $("formOut").hidden=true;$("formImg").innerHTML="";$("formRun").textContent=tr("Run");
+ $("formRun").onclick=async()=>{let a;try{a=formArgs(t)}catch(e){status(tr("Not JSON: ")+e.message,"error");return;}
+  try{const r=t.annotations&&t.annotations.readOnlyHint?await run(name,a):await act(name,a);$("formOut").hidden=false;$("formOut").textContent=JSON.stringify(r.data,null,2);
+   if(r.img)$("formImg").innerHTML=`<img style="max-width:100%" src="data:image/png;base64,${r.img}">`;}
+  catch(e){$("formOut").hidden=false;$("formOut").textContent=e.message;}};formDlg.showModal();}
+// Command palette (Ctrl+K): every menu item and every engine command.
+async function palette(){if(!tools.length)await loadTools();
+ const items=[];for(const [m,list] of Object.entries(MENUS))for(const it of list)if(it&&it.length>1)items.push({t:tr(m)+" › "+tr(it[0]),f:()=>it[1](it[0])});
+ for(const t of tools)items.push({t:(t.title||t.name)+" ("+t.name+")",f:()=>form(t.name)});
+ const show=()=>{const q=$("dlgInput").value.toLowerCase();$("dlgList").innerHTML=items.map((it,i)=>({it,i})).filter(({it})=>!q||it.t.toLowerCase().includes(q)).slice(0,60)
+  .map(({it,i})=>`<li data-v="${i}">${esc(it.t)}</li>`).join("");};
+ $("dlgTitle").textContent=tr("Command Palette…");$("dlgInput").value="";$("dlgInput").oninput=show;show();
+ $("dlgList").onclick=e=>{const v=e.target.dataset.v;if(v!==undefined){dlg.close();items[v].f();}};
+ $("dlgOk").onclick=()=>{const first=$("dlgList").querySelector("li");dlg.close();if(first)items[first.dataset.v].f();};dlg.showModal();$("dlgInput").focus();}
+function shortcuts(){alert(tr("Keyboard Shortcuts")+"\n\nCtrl+K  "+tr("Command Palette…")+"\nCtrl+S  "+tr("Save")+"\nCtrl+Z  "+tr("Undo")+"\nCtrl+Shift+Z / Ctrl+Y  "+tr("Redo")+
+ "\n\nSchematic: S select, W wire, L label, G ground, P place, R rotate, Delete\nBoard: S select, X route, D pair, V via, M measure, H highlight net, R rotate, F flip, K lock, Delete");}
+
+// Interface language (the macOS app's 20 tables, the keys Studio shows; GET /i18n) and theme (the macOS themes).
+const LANGS=[["en","English"],["zh-Hant","繁體中文"],["ko","한국어"],["zh-Hans","简体中文"],["ja","日本語"],["ms","Bahasa Melayu"],["nl","Nederlands"],["de","Deutsch"],
+ ["vi","Tiếng Việt"],["fil","Filipino"],["hi","हिन्दी"],["te","తెలుగు"],["as","অসমীয়া"],["gu","ગુજરાતી"],["kn","ಕನ್ನಡ"],["ml","മലയാളം"],["mr","मराठी"],["or","ଓଡ଼ିଆ"],["pa","ਪੰਜਾਬੀ"],["ta","தமிழ்"]];
+let words={};const tr=t=>words[t]||t;
+const pref=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v);}catch{}return v||"";};
+function translateDom(){document.querySelectorAll("nav button,section button,section label,section b,section th,section div.info,section p,header>button,dialog [data-en],footer").forEach(el=>{
+  if(el.children.length)return;const en=el.dataset.en||(el.dataset.en=el.textContent.trim());if(en)el.textContent=tr(en);});
+ document.querySelectorAll("[title],[placeholder]").forEach(el=>{for(const a of["title","placeholder"]){const v=el.getAttribute(a);if(!v)continue;
+  const k="en"+a;if(!el.dataset[k])el.dataset[k]=v;el.setAttribute(a,tr(el.dataset[k]));}});menuBar();}
+async function setLanguage(code){words={};if(code&&code!=="en"){try{words=await (await fetch("/i18n?lang="+encodeURIComponent(code),{headers:{"X-Sieda-Token":TOKEN}})).json();}catch{words={};}}
+ document.documentElement.lang=code||"en";translateDom();}
+function setTheme(t){if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;}
+function settings(){$("setTheme").value=pref("studio.theme");$("setLang").innerHTML=LANGS.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
+ $("setLang").value=pref("studio.lang")||"en";$("setTheme").onchange=()=>setTheme(pref("studio.theme",$("setTheme").value));
+ $("setLang").onchange=()=>setLanguage(pref("studio.lang",$("setLang").value));setDlg.showModal();}
+// Company library window: the folder's parts (library_company), search, place / release / retire / alternates.
+let libParts=[];
+async function companyLibrary(){$("libFolder").value=pref("studio.libFolder")||"library";libDlg.showModal();await libList();}
+async function libList(){pref("studio.libFolder",$("libFolder").value);try{libParts=(await run("library_company",{action:"list",folder:$("libFolder").value})).data.parts||[];}catch{libParts=[];}libShow();}
+function libShow(){const q=$("libSearch").value.toLowerCase(),rows=libParts.filter(p=>!q||(p.name+" "+p.description+" "+p.manufacturer+" "+p.package).toLowerCase().includes(q));
+ const st={draft:"Draft",released:"Released",obsolete:"Obsolete"};
+ $("libRows").innerHTML=rows.length?`<table><tr><th>${tr("Name")}</th><th>${tr("Status")}</th><th>${tr("Version")}</th><th>${tr("Package")}</th><th>${tr("Released by")}</th><th>${tr("Approved Alternates")}</th><th></th></tr>`+
+  rows.map(p=>`<tr><td><b>${esc(p.name)}</b><div class="info">${esc(p.description)} ${esc(p.manufacturer)}</div></td><td class="${p.status==="released"?"okc":p.status==="obsolete"?"error":"warning"}">${esc(tr(st[p.status]||p.status))}</td>
+   <td>${p.version}${p.history?" ("+p.history+" ↺)":""}</td><td>${esc((p.package||"").toUpperCase())} ${p.pins||""}</td><td>${esc(p.approvedBy||"")}${p.approvedBy?(p.approved?" ✓":" ⚠"):""}</td>
+   <td>${esc((p.alternates||[]).join(", "))}</td><td style="white-space:nowrap"><button onclick="libAct('use','${esc(p.name)}')">${tr("Place Part…")}</button>
+   <button onclick="libAct('release','${esc(p.name)}')">${tr("Release Part…")}</button><button onclick="libAct('obsolete','${esc(p.name)}')">${tr("Mark Part Obsolete…")}</button>
+   <button onclick="libAct('alternates','${esc(p.name)}')">${tr("Set Approved Alternates…")}</button></td></tr>`).join("")+"</table>"
+  :`<p class="info">${esc(tr("No parts yet: publish one from the board or the schematic."))}</p>`;}
+async function libAct(action,name){const a={action,name,folder:$("libFolder").value};
+ if(action==="release"){const by=prompt(tr("Released by (a librarian in librarians.json, if the folder has one):"),pref("studio.owner"));if(!by)return;a.approvedBy=pref("studio.owner",by);}
+ if(action==="alternates"){const l=prompt(tr("Alternate part names, separated by commas:"));if(l===null)return;a.alternates=l.split(",").map(x=>x.trim()).filter(Boolean);}
+ if(action==="use"&&libParts.find(p=>p.name===name&&p.status==="draft"))a.allowDraft=confirm(name+": draft (not released). Place it anyway?");
+ try{await act("library_company",a);}catch{}await libList();}
+async function libPublish(){const parts=(await run("library_project_parts")).data.parts||[];
+ ask(tr("Publish Selected Part"),parts.map(p=>({t:p.name+" ("+p.id+")",v:p.id})),"",async id=>{try{await act("library_company",{action:"publish",id,folder:$("libFolder").value});}catch{}await libList();});}
+// Rooms and partitions editor (pcb_rooms / pcb_partitions).
+let areas={rooms:[],partitions:[]};
+async function areasEditor(){areas.rooms=(await run("pcb_rooms",{action:"list"})).data.rooms||[];areas.partitions=(await run("pcb_partitions",{action:"list"})).data.partitions||[];
+ $("areaErr").textContent="";areaShow();areaDlg.showModal();}
+function areaShow(){const num=(k,i,f)=>`<input type="number" step="any" style="width:76px" value="${areas[k][i][f]??0}" onchange="areas['${k}'][${i}]['${f}']=Number(this.value)">`;
+ $("areaRows").innerHTML=["rooms","partitions"].map(k=>`<h4>${tr(k==="rooms"?"Rooms":"Partitions")}</h4><table><tr><th>${tr("Name")}</th><th>${tr(k==="rooms"?"Parts":"Owner")}</th><th>x0</th><th>y0</th><th>x1</th><th>y1</th><th></th></tr>`+
+  areas[k].map((a,i)=>`<tr><td><input value="${esc(a.name)}" onchange="areas['${k}'][${i}].name=this.value"></td>
+  <td><input style="width:220px" value="${esc(k==="rooms"?(a.refs||[]).join(" "):a.owner||"")}" onchange="${k==="rooms"?`areas.rooms[${i}].refs=this.value.split(/[\\s,]+/).filter(Boolean)`:`areas.partitions[${i}].owner=this.value`}"></td>
+  <td>${num(k,i,"x0")}</td><td>${num(k,i,"y0")}</td><td>${num(k,i,"x1")}</td><td>${num(k,i,"y1")}</td><td><button onclick="areas['${k}'].splice(${i},1);areaShow()">${tr("Remove")}</button></td></tr>`).join("")+"</table>").join("");}
+function areaAdd(k){areas[k].push({name:String(areas[k].length+1),refs:[],owner:"",x0:0,y0:0,x1:10,y1:10});areaShow();}
+async function areaApply(){const box=a=>({name:a.name,x0:Math.min(a.x0,a.x1),y0:Math.min(a.y0,a.y1),x1:Math.max(a.x0,a.x1),y1:Math.max(a.y0,a.y1)});
+ try{await act("pcb_rooms",{action:"set",rooms:areas.rooms.map(a=>({...box(a),refs:a.refs||[]}))});await act("pcb_partitions",{action:"set",partitions:areas.partitions.map(a=>({...box(a),owner:a.owner||""}))});areaDlg.close();}
+ catch(e){$("areaErr").textContent=e.message;}}
+function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",(b.dataset.en||b.textContent)===name));draw();}
 document.querySelectorAll("section").forEach(s=>{const b=document.createElement("button");b.textContent=s.dataset.tab;b.onclick=()=>selectTab(s.dataset.tab);$("nav").append(b);});
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
@@ -443,13 +590,14 @@ addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(documen
   if(k){if(e.key==="Escape"){pend=null;drag=null;hl=null;setTool(k,"select");}
    if(key==="r"&&sel[k])partOp("rotate");if((e.key==="Delete"||e.key==="Backspace")&&k==="sch"&&sel.sch)partOp("delete");
    const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",d:"pair",v:"via",s:"select",m:"measure"};if(keys[key])setTool(k,keys[key]);
-   if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+   if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();}if((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.shiftKey&&e.key.toLowerCase()==="z"))&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();redo();return;}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
 panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
 panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||e.shiftKey||!!boardPart(pt)||!!wireAt(pt);};$("pcbView").onrelease=pcbRelease;
 $("pcbView").onhover=pt=>{if(!live)return false;liveMove(pt);return true;};$("pcbView").ondbl=()=>{if(live){liveStep("commit");return true;}if(shapePts.length){closeShape();return true;}return false;};
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
-(async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
+setTheme(pref("studio.theme"));
+(async()=>{await setLanguage(pref("studio.lang"));await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
  try{const r=await run("library_builtin_kinds");$("kind").innerHTML=r.data.kinds.map(k=>`<option value="${esc(k.kind)}">${esc(k.name)} (${esc(k.defaultValue)})</option>`).join("");}catch{}
  $("partHits").onchange=()=>setTool("sch","place");$("kind").onchange=()=>{$("partHits").selectedIndex=-1;setTool("sch","place");};
  selectTab("Schematic");await refresh(true);setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();

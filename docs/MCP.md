@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 185 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 187 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -530,7 +530,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (19)
+### project (20)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -549,6 +549,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
 | `project_undo` | edit | Takes back the last tool call that changed the design (up to 30 steps; steps: n takes back several). |
+| `project_redo` | edit | Puts back what project_undo took back (steps: n puts back several); any other change to the design clears it. |
 | `project_quickstart` | read | The quick start: units, pin addressing, what results carry, the usual flow (the resource sieda://docs/mcp-quickstart, for clients that cannot read resources). |
 | `project_plugin_objects` | edit | Objects of a plug-in's own type kept in the design (saved, diffed, merged and undone with it; SiEDA does not interpret them): add {type, plugin, id?, layer?, points: [[x, y], …] in mm, props: {…}}, update {id, layer?, points?, props?} (props merged), remove id. |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
@@ -627,7 +628,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_company` | writes files | A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in .history/<name>/). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (58)
+### pcb (59)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -649,6 +650,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_align` | edit | Lines footprints' courtyards up on the outermost one's edge or centre line (left, right, top, bottom, centreX, centreY), or spaces them evenly between the outermost two (distributeX, distributeY: three or more). |
 | `pcb_layout_block` | writes files | Reuses a laid-out group (an approved channel, a regulator block). |
 | `pcb_partitions` | edit | Several engineers on one board: set the partitions [{name, owner, x0, y0, x1, y1}] (mm; [] removes them) or list them; check (owner, against = the base project file, e.g. |
+| `pcb_rule_pack` | writes files | A team's design rules as one file shared by every board: track / via sizes, clearances and fab minimums, net widths and clearances, pair and length rules, DFM pack and overrides, custom rules and routing policies (not the board's size, outline, stack-up or copper). |
 | `pcb_routing_policies` | edit | Routing policies per schematic net class: the copper layers its nets may run on (the autorouter keeps them there; other layers only to leave their pads) and the most vias each may use. |
 | `pcb_rooms` | edit | Rooms: board areas a group of parts belongs in (a channel, a power stage). |
 | `pcb_variant_check` | read | Checks the board as each assembly variant is built (the base design and every variant): its unfitted parts, connections between fitted parts still unrouted, and fitted parts whose courtyards overlap. |
