@@ -4874,6 +4874,17 @@ Json pcbSummary(McpServer& s) {
     j["trackLengthApprox"] = length;
     j["zones"] = takeJson(sieda_project_snapshot(P(s))).get("zones");
     j["keepouts"] = takeJson(sieda_pcb_keepouts(P(s)));
+    Json cutouts = Json::array();
+    for (const auto& c : P(s)->project.pcb.settings.cutouts) {
+        Json pts = Json::array();
+        for (const Vec2& q : c) {
+            Json pt = obj();
+            pt["x"] = q.x, pt["y"] = q.y;
+            pts.push(pt);
+        }
+        cutouts.push(pts);
+    }
+    j["cutouts"] = cutouts;
     Json holes = Json::array();
     for (const auto& h : p.pcb.settings.holes) {
         Json hj = obj();
@@ -5491,6 +5502,63 @@ void pcbTools(Table& t) {
               for (const char* k : {"x", "y", "rotation", "bottom", "legal", "issues"}) j[k] = r.get(k);
               return out(j);
           });
+    t.add("pcb", "pcb_align", "Align footprints", Kind::Edit, false,
+          "Lines footprints' courtyards up on the outermost one's edge or centre line (left, right, top, bottom, "
+          "centreX, centreY), or spaces them evenly between the outermost two (distributeX, distributeY: three or "
+          "more). Their tracks come along.",
+          Schema().array("refs", "Designators (two or more)", "string", true)
+              .str("mode", "How", true, {"left", "right", "top", "bottom", "centreX", "centreY", "distributeX", "distributeY"}),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              const Project& pr = p->project;
+              const std::string mode = argStr(a, "mode", "");
+              const bool spread = mode.rfind("distribute", 0) == 0;
+              struct Box { int id; Rect r; Vec2 at; };
+              std::vector<Box> boxes;
+              for (const auto& ref : a.get("refs").items()) {
+                  const int id = componentId(*p, ref);
+                  const Component* c = pr.schematic.find(id);
+                  check(c && c->hasFootprint() && c->pcb.placed, ref.asString("?") + " is not on the board");
+                  boxes.push_back({id, pr.pcb.courtyard(*c), c->pcb.position});
+              }
+              check(boxes.size() >= (spread ? 3u : 2u), spread ? "Distribute needs three or more footprints" : "Align needs two or more footprints");
+              Rect all = boxes[0].r;
+              for (const auto& b : boxes)
+                  all = {std::min(all.x0, b.r.x0), std::min(all.y0, b.r.y0), std::max(all.x1, b.r.x1), std::max(all.y1, b.r.y1)};
+              std::vector<std::pair<int, Vec2>> shift;
+              const bool alongX = mode == "distributeX";
+              if (spread) {
+                  std::sort(boxes.begin(), boxes.end(), [&](const Box& l, const Box& r) { return alongX ? l.r.x0 < r.r.x0 : l.r.y0 < r.r.y0; });
+                  double used = 0;
+                  for (const auto& b : boxes) used += alongX ? b.r.width() : b.r.height();
+                  const double gap = ((alongX ? all.width() : all.height()) - used) / static_cast<double>(boxes.size() - 1);
+                  double at = alongX ? all.x0 : all.y0;
+                  for (const auto& b : boxes) {
+                      const double d = at - (alongX ? b.r.x0 : b.r.y0);
+                      shift.push_back({b.id, alongX ? Vec2{d, 0} : Vec2{0, d}});
+                      at += (alongX ? b.r.width() : b.r.height()) + gap;
+                  }
+              } else {
+                  for (const auto& b : boxes) {
+                      const Vec2 d = mode == "left"    ? Vec2{all.x0 - b.r.x0, 0}
+                                     : mode == "right" ? Vec2{all.x1 - b.r.x1, 0}
+                                     : mode == "top"   ? Vec2{0, all.y0 - b.r.y0}
+                                     : mode == "bottom" ? Vec2{0, all.y1 - b.r.y1}
+                                     : mode == "centreX" ? Vec2{all.center().x - b.r.center().x, 0}
+                                                         : Vec2{0, all.center().y - b.r.center().y};
+                      shift.push_back({b.id, d});
+                  }
+              }
+              int moved = 0;
+              for (const auto& [id, d] : shift) {
+                  if (std::fabs(d.x) < 1e-9 && std::fabs(d.y) < 1e-9) continue;
+                  const Vec2 at = pr.schematic.find(id)->pcb.position;
+                  moved += sieda_pcb_move_footprint_with_tracks(p, id, at.x + d.x, at.y + d.y) == 1;
+              }
+              Json j = obj();
+              j["moved"] = moved;
+              return out(j);
+          });
     t.add("pcb", "pcb_lock_footprint", "Lock footprint", Kind::Edit, true,
           "Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or "
           "refs.",
@@ -6025,6 +6093,24 @@ void pcbTools(Table& t) {
               j["ok"] = true;
               return out(j);
           });
+    t.add("pcb", "pcb_cutouts", "Board cutouts", Kind::Edit, false,
+          "Board cutouts (closed shapes routed out of the board; copper, parts and pours keep the edge clearance from "
+          "them): add one through points [{x, y}, …] (mm, 3 or more) or remove one by index (pcb_summary cutouts).",
+          Schema().str("action", "add or remove", true, {"add", "remove"})
+              .array("points", "add: [{x, y}, …] (mm)", "object").integer("index", "remove: cutout index"),
+          [](McpServer& s, const Json& a) {
+              Json j = obj();
+              if (argStr(a, "action", "") == "add") {
+                  check(a.get("points").size() >= 3 && sieda_pcb_add_cutout(P(s), a.get("points").dump().c_str()) == 1,
+                        "A cutout needs 3 or more points inside the board");
+                  j["index"] = static_cast<int>(P(s)->project.pcb.settings.cutouts.size()) - 1;
+              } else {
+                  check(sieda_pcb_remove_cutout(P(s), argInt(a, "index", -1)) == 1, "No cutout " + std::to_string(argInt(a, "index", -1)));
+                  j["removed"] = true;
+              }
+              j["cutouts"] = static_cast<int>(P(s)->project.pcb.settings.cutouts.size());
+              return out(j);
+          });
     t.add("pcb", "pcb_add_mounting_hole", "Mounting hole", Kind::Edit, false,
           "Adds a non-plated mounting hole with a keep-out (default M3: 3.2 mm drill). clear: true removes all.",
           Schema()
@@ -6373,6 +6459,75 @@ void pcbTools(Table& t) {
               Json j = obj();
               j["tracksRemoved"] = t;
               j["viasRemoved"] = v;
+              return out(j);
+          });
+    t.add("pcb", "pcb_edit_copper", "Edit tracks", Kind::Edit, false,
+          "Edits routed copper by id (project_snapshot tracks / vias): set width (mm), layer or lock on tracks (each "
+          "refused when it would come too close to another net), split a track at a point, tune its net's length with "
+          "meanders, merge collinear tracks, "
+          "gloss (pull the given tracks, or all, tight) or minimise vias (route the named nets again with fewer vias, "
+          "kept only when better).",
+          Schema().str("action", "set, split, merge, tune, gloss, minimize_vias", true, {"set", "split", "merge", "tune", "gloss", "minimize_vias"})
+              .num("target", "tune: net length (mm; 0 = the longest of its pair / bus group)")
+              .array("tracks", "Track ids", "integer").array("nets", "minimize_vias: net names (default every routed net)", "string")
+              .num("width", "set: track width (mm)").integer("layer", "set: copper layer").boolean("locked", "set: lock / unlock")
+              .num("x", "split: point (mm)").num("y", "split: point (mm)"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              Project& pr = p->project;
+              const std::string act = argStr(a, "action", "");
+              Json ids = a.get("tracks").isArray() ? a.get("tracks") : Json::array(), j = obj();
+              auto track = [&](int id) -> Track& {
+                  for (auto& t : pr.pcb.tracks)
+                      if (t.id == id) return t;
+                  throw ToolError("No track " + std::to_string(id));
+              };
+              if (act == "set") {
+                  check(ids.size() > 0, "Give the tracks to change");
+                  const double width = argNum(a, "width", 0);
+                  const int layer = argInt(a, "layer", -1);
+                  check(!a.has("width") || (width >= pr.pcb.settings.minTrackWidth - 1e-9 && width <= 20),
+                        "Width must be from the board's minimum track width up to 20 mm");
+                  check(!a.has("layer") || (layer >= 0 && layer < pr.pcb.settings.layerCount), "No copper layer " + std::to_string(layer));
+                  std::vector<Track> changed;
+                  for (const auto& id : ids.items()) {
+                      Track t = track(id.asInt(-1));
+                      if (a.has("width")) t.width = width;
+                      if (a.has("layer")) t.layer = layer;
+                      if (a.has("locked")) t.locked = argBool(a, "locked", false);
+                      if ((a.has("width") || a.has("layer")) && !t.arc) checkClearOfOtherNets(pr, t.net, t.a, t.b, t.width, t.layer);
+                      changed.push_back(t);
+                  }
+                  for (const Track& t : changed) track(t.id) = t;
+                  p->router.reset();
+                  j["changed"] = static_cast<int>(changed.size());
+              } else if (act == "split") {
+                  check(ids.size() == 1, "Give one track to split");
+                  const int id = sieda_pcb_split_track(p, ids.items()[0].asInt(-1), argNum(a, "x", 0), argNum(a, "y", 0));
+                  check(id >= 0, "The point is not on that track (or too near an end)");
+                  j["newTrack"] = id;
+              } else if (act == "merge") {
+                  j["joins"] = sieda_pcb_merge_tracks(p, ids.size() ? ids.dump().c_str() : nullptr);  // none given: all
+              } else if (act == "tune") {
+                  check(ids.size() == 1, "Give one track of the net to tune");
+                  Json o = obj();
+                  o["target"] = argNum(a, "target", 0), o["apply"] = true;
+                  j = takeJson(sieda_router_tune(p, ids.items()[0].asInt(-1), o.dump().c_str()));
+                  check(j.get("ok").asBool(false), "Not tuned: " + j.get("message").asString("?"));
+              } else if (act == "gloss") {
+                  if (ids.size() == 0)
+                      for (const auto& t : pr.pcb.tracks) ids.push(t.id);
+                  j = takeJson(sieda_pcb_gloss(p, ids.dump().c_str(), R"({"apply":true})"));
+              } else {
+                  Json nets = a.get("nets").isArray() ? a.get("nets") : Json::array();
+                  if (nets.size() == 0) {
+                      std::set<int> routed;
+                      for (const auto& t : pr.pcb.tracks) routed.insert(t.net);
+                      for (const auto& n : pr.schematic.nets())
+                          if (routed.count(n.index)) nets.push(n.name);
+                  }
+                  j = takeJson(sieda_pcb_minimize_vias(p, nets.dump().c_str()));
+              }
               return out(j);
           });
     t.add("pcb", "pcb_optimize_swaps", "Pin / gate swap", Kind::Edit, false,

@@ -49,10 +49,15 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <select id="partHits" size="5" style="width:100%;margin-top:6px"></select><div class="info">Choose, then click Place and click the sheet.</div></div></div></div></section>
 <section data-tab="Board"><div class="row"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
 <button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
-<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button></div>
+<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button>
+<button onclick="act('pcb_teardrops',{})" title="Teardrops where tracks meet pads and vias">Teardrops</button><button onclick="act('pcb_edit_copper',{action:'gloss'})" title="Pull every track tight">Gloss</button>
+<button onclick="act('pcb_edit_copper',{action:'minimize_vias'})" title="Route nets again with fewer vias (kept only when better)">Fewer vias</button><button onclick="act('pcb_stitch_vias',{})" title="Stitch the ground pours together">Stitch GND</button>
+<button onclick="outlineDialog()" title="Board shape">Outline…</button></div>
 <div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)">Route</button>
-<button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
-<div class="work"><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Part</b><div id="pcbSel" class="info">Click a part to select it.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
+<button data-t="pair" title="Differential pair: click a pad of either member (D)">Pair</button><button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button>
+<button data-t="measure" title="Measure between two points (M)">Measure</button><button data-t="pour" title="Copper pour: click its corners, double-click to close">Pour</button><button data-t="keepout" title="Keep-out: drag a rectangle">Keep-out</button>
+<button data-t="cutout" title="Board cutout: click its corners, double-click to close">Cutout</button><button data-t="hole" title="Mounting hole (M3)">Hole</button><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
+<div class="work"><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Selection</b><div id="pcbSel" class="info">Click a part, track or via. Shift-click or shift-drag selects several parts.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
 <section data-tab="Library"><div class="row"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
 <label>Package</label><select id="lpPkg" onchange="lp.custom=null;lpUpdate()"></select><label>Pads</label><input id="lpCount" type="number" min="1" max="1024" value="8" style="width:70px" onchange="lp.custom=null;lpPinCount();lpUpdate()">
 <label>Pitch</label><input id="lpPitch" placeholder="auto" style="width:70px" onchange="lp.custom=null;lpUpdate()"><button onclick="lpEditPads()" title="Turn the package into pads you can drag and edit">Edit pads</button>
@@ -87,9 +92,9 @@ async function run(name,args={}){status("Running "+name+"…");document.body.sty
   for(const c of r.content||[]){if(c.type==="text"){try{data=JSON.parse(c.text)}catch{data={text:c.text}}}else if(c.type==="image")img=c.data;else if(c.type==="resource"&&c.resource)svg=c.resource.text;}
   if(r.isError){status(name+": "+(data.text||JSON.stringify(data)),"error");throw new Error(data.text||"failed");}
   if(data&&data.committed===false)status(name+": not done. "+(data.note||(data.issues||[]).join("; "))+(data.tooClose?" ("+data.tooClose.join(", ")+")":""),"warning");else status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
-async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);if(cls==="warning")status(keep,cls);return r;}
+async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);status(keep,cls);return r;}
 async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
- if(!force&&s.revision===rev)return;rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;}catch{}draw();}
+ if(!force&&s.revision===rev)return;rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;layerOptions();}catch{}draw();}
 const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
 function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
  const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
@@ -122,16 +127,18 @@ function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChi
  if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
   if(sch){const c=sheetParts().find(c=>c.ref===drag.ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0]+dx,y:b[1]+dy,width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2});}}
   else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.2)",stroke:"#5b8dff","stroke-width":0.2});}}
+ if(!sch)boardOverlay(o);
  if(!sch&&live&&live.pv)drawLive(o,live.pv);
  if(!sch)for(const m of marks)shape(o,"circle",{cx:m.x,cy:m.y,r:0.8,fill:"none",stroke:m.severity==="error"?"#ff3b3b":"#ffb300","stroke-width":0.25});}
 const snapTo=(v,g)=>Math.round(v/g)*g;
 function hint(id,t){$(id).textContent=t;}
-function setTool(kind,t){tool[kind]=t;pend=null;document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t));
- hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules; drag a track or via to push it and its neighbours); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click a pad and move: the track follows the mouse and pushes other nets aside. Click fixes a corner, V drops a via, double-click or Enter finishes, Esc cancels.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
+function setTool(kind,t,keep){tool[kind]=t;pend=null;if(!keep){shapePts=[];meas=null;}document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+ hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules; drag a track or via to push it and its neighbours); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click a pad and move: the track follows the mouse and pushes other nets aside. Click fixes a corner, V drops a via, double-click or Enter finishes, Esc cancels.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed.",pair:"Click a pad of a differential pair: both members follow the mouse together.",measure:"Click two points.",pour:"Click the pour's corners; double-click or Enter closes it.",keepout:"Drag a rectangle: no tracks, vias or pours inside.",cutout:"Click the cutout's corners; double-click or Enter closes it.",hole:"Click where the mounting hole goes."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
 function selectPart(kind,ref){sel[kind]=ref;const box=$(kind+"Sel");if(!ref){box.textContent="Click a part to select it.";}else if(kind==="sch"){const c=sheetParts().find(c=>c.ref===ref)||{};
  box.innerHTML=`<div><b>${esc(ref)}</b></div><label>Value</label><input id="selVal" value="${esc(c.value)}"><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('mirror')">Mirror</button><button onclick="partOp('delete')">Delete</button></div>`;
  $("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});}else{const c=(snap.components||[]).find(c=>c.ref===ref)||{},b=c.pcb||{};
- box.innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.footprint)}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation}° · ${b.bottom?"bottom":"top"}${b.locked?" · locked":""}</div><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('flip')">Flip side</button><button onclick="partOp('lock')">${b.locked?"Unlock":"Lock"}</button></div>`;}
+ box.innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.footprint)}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation}° · ${b.bottom?"bottom":"top"}${b.locked?" · locked":""}</div><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('flip')">Flip side</button><button onclick="partOp('lock')">${b.locked?"Unlock":"Lock"}</button><button onclick="act('pcb_fanout',{ref:'${esc(ref)}',shove:true})" title="Escape track and via on every SMD pad">Fan out</button></div>
+ <label>Rotation (°)</label><input id="selRot" type="number" step="any" value="${b.rotation||0}">`;$("selRot").onchange=e=>act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:+e.target.value});}
  overlay($(kind==="sch"?"schView":"pcbView"));}
 async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)return;
  if(k==="sch"){if(op==="rotate")await act("schematic_move_component",{ref,rotate:90});if(op==="mirror")await act("schematic_move_component",{ref,mirror:"x"});if(op==="delete"){await act("schematic_remove_component",{ref});selectPart(k,null);}}
@@ -148,14 +155,26 @@ async function schPress(pt,e){const t=tool.sch;
  if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}return false;}
 async function schRelease(pt,d){const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
 async function pcbPress(pt,e){const t=tool.pcb;
- if(t==="select"){const c=boardPart(pt),w=!c&&wireAt(pt);if(w){liveBegin(w.via?{action:"via_drag",id:w.id,x:pt[0],y:pt[1]}:{action:"drag",id:w.id,x:pt[0],y:pt[1]});drag={el:$("pcbView"),live:true,from:pt};return true;}selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
+ if(t==="select"){const c=boardPart(pt),w=!c&&wireAt(pt);
+  if(e&&e.shiftKey){selW=null;if(c){if(sel.pcb)multi.add(sel.pcb);multi.has(c.ref)?multi.delete(c.ref):multi.add(c.ref);sel.pcb=null;showMulti();return true;}drag={el:$("pcbView"),marquee:true,from:pt,at:pt};return true;}
+  multi.clear();selW=null;
+  if(w){liveBegin(w.via?{action:"via_drag",id:w.id,x:pt[0],y:pt[1]}:{action:"drag",id:w.id,x:pt[0],y:pt[1]});drag={el:$("pcbView"),live:true,from:pt,w};return true;}selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
  const p=padAt(pt,2);
+ if(t==="measure"){meas=meas&&!meas.b?{a:meas.a,b:pt}:{a:pt};const m=meas;if(m.b)status(`${Math.hypot(m.b[0]-m.a[0],m.b[1]-m.a[1]).toFixed(3)} mm (Δx ${(m.b[0]-m.a[0]).toFixed(3)}, Δy ${(m.b[1]-m.a[1]).toFixed(3)})`,"okc");overlay($("pcbView"));return true;}
+ if(t==="pour"||t==="cutout"){shapePts.push([+pt[0].toFixed(3),+pt[1].toFixed(3)]);overlay($("pcbView"));return true;}
+ if(t==="keepout"){drag={el:$("pcbView"),keepout:true,from:pt,at:pt};return true;}
+ if(t==="hole"){await act("pcb_add_mounting_hole",{x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
+ if(t==="pair"){if(!p){status("Click a pad of a differential pair.","warning");return true;}liveBegin({action:"pair",x:p.x,y:p.y,layer:curLayer()});setTool("pcb","route",true);return true;}
  if(t==="route"){if(live){liveMove(pt);await liveStep(live.pv&&live.pv.reachedTarget?"commit":"fix");return true;}
   const w=wireAt(pt),at=p?[p.x,p.y]:w?pt:null;if(!at){status("Start on a pad or a track.","warning");return true;}
-  liveBegin({action:"begin",x:at[0],y:at[1],layer:w&&!p&&!w.via?w.layer:$("layers").value==="b"?(state.layers||2)-1:0});return true;}
+  liveBegin({action:"begin",x:at[0],y:at[1],layer:w&&!p&&!w.via?w.layer:curLayer()});return true;}
  if(t==="via"){if(!p){status("Click near a pad of the net.","warning");return true;}await act("pcb_add_via",{net:netName(p.net),x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
  if(t==="rip"){if(p&&confirm("Remove every track and via of "+netName(p.net)+"?"))await act("pcb_remove_copper",{net:netName(p.net)});return true;}return false;}
-async function pcbRelease(pt,d){if(d.live){await liveStep(Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1])>0.02?"commit":"cancel");return;}const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
+async function pcbRelease(pt,d){if(d.live){const moved=Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1])>0.02;await liveStep(moved?"commit":"cancel");if(!moved)selectWire(d.w,d.from);return;}
+ if(d.marquee){const r=[Math.min(pt[0],d.from[0]),Math.min(pt[1],d.from[1]),Math.max(pt[0],d.from[0]),Math.max(pt[1],d.from[1])];
+  for(const k of snap.courtyards||[])if(k.x1>=r[0]&&k.x0<=r[2]&&k.y1>=r[1]&&k.y0<=r[3]){const c=(snap.components||[]).find(c=>c.id===k.component);if(c)multi.add(c.ref);}if(sel.pcb)multi.add(sel.pcb);sel.pcb=null;showMulti();return;}
+ if(d.keepout){const x0=Math.min(pt[0],d.from[0]),y0=Math.min(pt[1],d.from[1]),x1=Math.max(pt[0],d.from[0]),y1=Math.max(pt[1],d.from[1]);if(x1-x0<0.2||y1-y0<0.2){overlay($("pcbView"));return;}
+  const ko=(await run("pcb_summary")).data.keepouts||[];ko.push({name:"Keep-out "+(ko.length+1),x0:r3(x0),y0:r3(y0),x1:r3(x1),y1:r3(y1),layer:-1,tracks:true,vias:true,pours:true});await act("pcb_set_keepouts",{keepouts:ko});return;}const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
 // Live routing (pcb_route_live): the router works on a copy; moves are coalesced so the head keeps up with the mouse.
 let live=null,liveQ=Promise.resolve(),liveAt=null;
 const liveQueue=f=>(liveQ=liveQ.then(f).catch(e=>{status(e.message,"warning");}));
@@ -172,7 +191,7 @@ function liveStep(action){if(!live)return liveQ;return liveQueue(async()=>{if(!l
  let note="";try{const r=await liveCall({action});note=`Routed: ${(r.addedTracks||[]).length} tracks, ${(r.addedVias||[]).length} vias${(r.removedTracks||[]).length?", "+(r.removedTracks||[]).length+" moved":""}.`;}
  finally{live=null;await refresh(true);if(note)status(note,"okc");}});}
 function segDist(p,t){const dx=t.bx-t.ax,dy=t.by-t.ay,l=dx*dx+dy*dy,u=l?Math.max(0,Math.min(1,((p[0]-t.ax)*dx+(p[1]-t.ay)*dy)/l)):0;return Math.hypot(p[0]-t.ax-u*dx,p[1]-t.ay-u*dy);}
-function wireAt(pt){const lay=$("layers").value,last=(state.layers||2)-1,shown=l=>!lay||(lay==="b"?l===last:l===0);
+function wireAt(pt){const lay=$("layers").value,last=(state.layers||2)-1,shown=l=>!lay||(lay==="b"?l===last:lay[0]==="i"?l===+lay.slice(1):l===0);
  for(const v of snap.vias||[])if(Math.hypot(v.x-pt[0],v.y-pt[1])<=(v.diameter||0.6)/2+0.1)return{via:true,id:v.id};
  let best=null,d0=1e9;for(const t of snap.tracks||[]){if(!shown(t.layer))continue;const d=segDist(pt,t);if(d<=(t.width||0.25)/2+0.15&&d<d0){d0=d;best=t;}}return best;}
 const layerColour=l=>l===0?"#ff5a4a":l===(state.layers||2)-1?"#4a8dff":"#e0c040";
@@ -238,6 +257,51 @@ function lpAddPad(){const L=lp.custom.lands,l=[...L[lp.sel]];l[0]=+(l[0]+1).toFi
 function lpDelPad(){const L=lp.custom.lands;if(L.length<2)return;L.splice(lp.sel,1);lp.custom.pinCount=L.length;lp.sel=Math.min(lp.sel,L.length-1);lpPad();lpCheck();}
 async function lpCreate(){const r=await act("library_create_part",{...lpSpec(),place:true});if(r&&r.data.component)status(`${$("lpName").value} added to the project library and placed as ${r.data.component.ref}.`,"okc");}
 async function lpInit(){if($("lpPkg").options.length)return;try{const r=await run("library_packages");$("lpPkg").innerHTML=r.data.packages.filter(p=>p!=="CUSTOM").map(p=>`<option>${esc(p)}</option>`).join("");}catch{}lpPinCount();lpCheck();}
+// Board selection, highlight, measure and drawn shapes.
+let multi=new Set(),selW=null,hl=null,meas=null,shapePts=[];
+const curLayer=()=>{const l=$("layers").value;return l==="b"?(state.layers||2)-1:l[0]==="i"?+l.slice(1):0;};
+function layerOptions(){const n=state.layers||2,el=$("layers"),v=el.value;let h='<option value="">All</option><option value="0">Top copper</option>';
+ for(let i=1;i<n-1;i++)h+=`<option value="i${i}">Inner ${i}</option>`;el.innerHTML=h+'<option value="b">Bottom copper</option>';el.value=[...el.options].some(o=>o.value===v)?v:"";}
+const layerName=l=>l===0?"Top":l===(state.layers||2)-1?"Bottom":"Inner "+l;
+function selectWire(w,at){if(!w)return;sel.pcb=null;multi.clear();const box=$("pcbSel");
+ if(w.via){const v=(snap.vias||[]).find(v=>v.id===w.id)||{};selW={via:true,id:w.id,net:v.net};
+  box.innerHTML=`<div><b>Via ${w.id}</b> ${esc(v.netName||"")}</div><div class=info>${(+v.x).toFixed(3)}, ${(+v.y).toFixed(3)} mm · ⌀ ${v.diameter} / drill ${v.drill}</div><div class="row" style="margin-top:6px"><button onclick="toggleHighlight()">Highlight net</button><button onclick="act('pcb_remove_copper',{vias:[${w.id}]})">Delete</button></div>`;}
+ else{const t=(snap.tracks||[]).find(t=>t.id===w.id)||w;selW={via:false,id:w.id,net:t.net,at};
+  const opts=Array.from({length:state.layers||2},(_,i)=>`<option value="${i}"${i===t.layer?" selected":""}>${layerName(i)}</option>`).join("");
+  box.innerHTML=`<div><b>Track ${w.id}</b> ${esc(t.netName||"")}</div><div class=info>${Math.hypot(t.bx-t.ax,t.by-t.ay).toFixed(3)} mm long</div>
+  <label>Width (mm)</label><input id="twW" type="number" step="0.05" value="${t.width}"><label>Layer</label><select id="twL" style="width:100%">${opts}</select>
+  <label><input id="twK" type="checkbox" style="width:auto"${t.locked?" checked":""}> Locked</label>
+  <div class="row" style="margin-top:6px"><button onclick="trackOp('split')">Split here</button><button onclick="trackOp('tune')">Tune length…</button><button onclick="trackOp('gloss')">Gloss</button><button onclick="toggleHighlight()">Highlight net</button><button onclick="act('pcb_remove_copper',{tracks:[${w.id}]})">Delete</button></div>`;
+  $("twW").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],width:+e.target.value});$("twL").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],layer:+e.target.value});
+  $("twK").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],locked:e.target.checked});}overlay($("pcbView"));}
+async function trackOp(op){if(!selW)return;const id=selW.id;
+ if(op==="split"&&selW.at)await act("pcb_edit_copper",{action:"split",tracks:[id],x:r3(selW.at[0]),y:r3(selW.at[1])});
+ if(op==="gloss")await act("pcb_edit_copper",{action:"gloss",tracks:[id]});
+ if(op==="tune"){const v=prompt("Net length to reach (mm; 0 = the longest of its pair / bus group)","0");if(v!==null)await act("pcb_edit_copper",{action:"tune",tracks:[id],target:+v||0});}}
+function showMulti(){const refs=[...multi],box=$("pcbSel");if(refs.length<2){multi.clear();selectPart("pcb",refs[0]||null);return;}
+ const b=m=>`<button onclick="act('pcb_align',{refs:[...multi],mode:'${m[0]}'})">${m[1]}</button>`;
+ box.innerHTML=`<div><b>${refs.length} parts</b></div><div class=info>${esc(refs.join(", "))}</div><div class="row" style="margin-top:6px">${[["left","Left"],["right","Right"],["top","Top"],["bottom","Bottom"],["centreX","Centre ↔"],["centreY","Centre ↕"],["distributeX","Spread ↔"],["distributeY","Spread ↕"]].map(b).join("")}
+ <button onclick="act('pcb_lock_footprint',{refs:[...multi],locked:true})">Lock all</button></div>`;overlay($("pcbView"));}
+function toggleHighlight(){const net=selW?selW.net:null;hl=hl!==null&&hl===net?null:net;if(hl===null&&!selW)status("Select a track or via, then highlight its net (H).");overlay($("pcbView"));}
+async function closeShape(){const pts=shapePts;shapePts=[];if(pts.length<3){status("A shape needs three or more corners.","warning");overlay($("pcbView"));return;}
+ const points=pts.map(q=>({x:q[0],y:q[1]}));
+ if(tool.pcb==="pour"){const net=prompt("Pour net","GND");if(net)await act("pcb_add_pour",{net,layer:curLayer(),polygon:points});else overlay($("pcbView"));}
+ else await act("pcb_cutouts",{action:"add",points});}
+async function outlineDialog(){const v=prompt("Board shape: rectangle W H, rounded W H R, or circle D (mm)","rounded 50 40 3");if(!v)return;const [k,a,b,c]=v.trim().split(/\s+/);
+ await act("pcb_set_outline",{preset:k,width:+a,height:+(b||a),param:+(c||0)});}
+function boardOverlay(o){const vb=views.pcbView&&views.pcbView.vb;
+ if(hl!==null&&vb){shape(o,"rect",{x:vb[0],y:vb[1],width:vb[2],height:vb[3],fill:"rgba(0,0,0,.55)"});
+  for(const t of snap.tracks||[])if(t.net===hl)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#ffe14d","stroke-width":t.width,"stroke-linecap":"round"});
+  for(const q of snap.pads||[])if(q.net===hl)shape(o,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,fill:"#ffe14d"});
+  for(const v of snap.vias||[])if(v.net===hl)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2,fill:"#ffe14d"});}
+ if(selW){if(selW.via){const v=(snap.vias||[]).find(v=>v.id===selW.id);if(v)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2+0.15,fill:"none",stroke:"#5b8dff","stroke-width":0.12});}
+  else{const t=(snap.tracks||[]).find(t=>t.id===selW.id);if(t)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#5b8dff","stroke-width":t.width+0.2,"stroke-linecap":"round",opacity:0.6});}}
+ for(const ref of multi){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.15)",stroke:"#5b8dff","stroke-width":0.15});}
+ if(drag&&drag.at&&(drag.marquee||drag.keepout)){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:drag.keepout?"rgba(255,80,80,.15)":"rgba(91,141,255,.1)",stroke:drag.keepout?"#ff5050":"#5b8dff","stroke-width":0.12,"stroke-dasharray":"0.5 0.3"});}
+ if(meas){shape(o,"circle",{cx:meas.a[0],cy:meas.a[1],r:0.25,fill:"#00e0c0"});if(meas.b){shape(o,"line",{x1:meas.a[0],y1:meas.a[1],x2:meas.b[0],y2:meas.b[1],stroke:"#00e0c0","stroke-width":0.1});
+  const t=shape(o,"text",{x:(meas.a[0]+meas.b[0])/2,y:(meas.a[1]+meas.b[1])/2-0.4,"font-size":1.1,fill:"#00e0c0","text-anchor":"middle"});t.textContent=Math.hypot(meas.b[0]-meas.a[0],meas.b[1]-meas.a[1]).toFixed(3)+" mm";}}
+ if(shapePts.length){shape(o,"polyline",{points:shapePts.map(q=>q.join(",")).join(" "),fill:tool.pcb==="pour"?"rgba(224,180,60,.25)":"rgba(255,255,255,.15)",stroke:tool.pcb==="pour"?"#e0b43c":"#fff","stroke-width":0.12});
+  for(const q of shapePts)shape(o,"circle",{cx:q[0],cy:q[1],r:0.2,fill:"#fff"});}}
 async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
  $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
 async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
@@ -245,7 +309,7 @@ async function searchParts(){const r=await run("library_search",{query:$("partQu
 async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
- if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
+ if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];if(l[0]==="i")args.layers=[+l.slice(1)];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
  if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
 function simForm(){const k=$("simKind").value;$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
@@ -297,14 +361,17 @@ document.querySelectorAll("section").forEach(s=>{const b=document.createElement(
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
   if(k==="pcb"&&live){if(e.key==="Escape")liveStep("cancel");if(e.key==="Enter")liveStep("commit");if(key==="v")liveStep("via");if(key==="backspace"||key==="escape"||key==="enter"||key==="v")return;}
-  if(k){if(e.key==="Escape"){pend=null;drag=null;setTool(k,"select");}
+  if(k==="pcb"&&shapePts.length&&e.key==="Enter"){closeShape();return;}
+  if(k==="pcb"&&(e.key==="Delete"||e.key==="Backspace")&&selW){act("pcb_remove_copper",selW.via?{vias:[selW.id]}:{tracks:[selW.id]});selW=null;selectPart("pcb",null);return;}
+  if(k==="pcb"&&key==="h"){toggleHighlight();return;}
+  if(k){if(e.key==="Escape"){pend=null;drag=null;hl=null;setTool(k,"select");}
    if(key==="r"&&sel[k])partOp("rotate");if((e.key==="Delete"||e.key==="Backspace")&&k==="sch"&&sel.sch)partOp("delete");
-   const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",v:"via",s:"select"};if(keys[key])setTool(k,keys[key]);
+   const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",d:"pair",v:"via",s:"select",m:"measure"};if(keys[key])setTool(k,keys[key]);
    if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
 panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
-panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||!!boardPart(pt);};$("pcbView").onrelease=pcbRelease;
-$("pcbView").onhover=pt=>{if(!live)return false;liveMove(pt);return true;};$("pcbView").ondbl=()=>{if(!live)return false;liveStep("commit");return true;};
+panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||e.shiftKey||!!boardPart(pt)||!!wireAt(pt);};$("pcbView").onrelease=pcbRelease;
+$("pcbView").onhover=pt=>{if(!live)return false;liveMove(pt);return true;};$("pcbView").ondbl=()=>{if(live){liveStep("commit");return true;}if(shapePts.length){closeShape();return true;}return false;};
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
 (async()=>{await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
  try{const r=await run("library_builtin_kinds");$("kind").innerHTML=r.data.kinds.map(k=>`<option value="${esc(k.kind)}">${esc(k.name)} (${esc(k.defaultValue)})</option>`).join("");}catch{}

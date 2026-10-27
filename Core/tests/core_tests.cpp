@@ -21270,6 +21270,54 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     CHECK(near);
 }
 
+TEST(mcp_board_editing_tracks_alignment_and_cutouts) {
+    const auto root = mcpRoot("board_edit");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object(), all = Json::object(), a = Json::object();
+    ex["id"] = "led_indicator";
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::object())));
+    const auto& tracks = s.project()->project.pcb.tracks;
+    CHECK(!tracks.empty());
+    const Track t0 = tracks.front();
+    Json ids = Json::array();
+    ids.push(t0.id);
+    // Width / lock on one track; a width below the board minimum is refused.
+    a["action"] = "set", a["tracks"] = ids, a["width"] = 0.3, a["locked"] = true;
+    CHECK(mcpData(mcpTool(s, "pcb_edit_copper", a)).get("changed").asInt(0) == 1);
+    CHECK(tracks.front().width == 0.3 && tracks.front().locked);
+    a["width"] = 0.01;
+    CHECK(mcpFailed(mcpTool(s, "pcb_edit_copper", a)));
+    a["width"] = 0.3, a["locked"] = false;  // locked tracks are never merged
+    CHECK(!mcpFailed(mcpTool(s, "pcb_edit_copper", a)));
+    // Split at the midpoint, then merge back.
+    Json sp = Json::object();
+    sp["action"] = "split", sp["tracks"] = ids, sp["x"] = (t0.a.x + t0.b.x) / 2, sp["y"] = (t0.a.y + t0.b.y) / 2;
+    const size_t before = tracks.size();
+    CHECK(mcpData(mcpTool(s, "pcb_edit_copper", sp)).get("newTrack").asInt(-1) >= 0 && tracks.size() == before + 1);
+    Json mg = Json::object();
+    mg["action"] = "merge";
+    CHECK(mcpData(mcpTool(s, "pcb_edit_copper", mg)).get("joins").asInt(0) >= 1 && tracks.size() == before);
+    // Align the parts' tops, then their courtyards share one top edge.
+    Json al = Json::object(), refs = Json::array();
+    for (const auto& c : s.project()->project.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed) refs.push(c.ref);
+    al["refs"] = refs, al["mode"] = "top";
+    CHECK(!mcpFailed(mcpTool(s, "pcb_align", al)));
+    const Project& pr = s.project()->project;
+    double top = 1e9, top2 = -1e9;
+    for (const auto& c : pr.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed) top = std::min(top, pr.pcb.courtyard(c).y0), top2 = std::max(top2, pr.pcb.courtyard(c).y0);
+    CHECK(std::fabs(top2 - top) < 1e-6);
+    // A cutout through points, listed by pcb_summary, then removed.
+    Json cut = Json::parse(R"({"action": "add", "points": [{"x": 1, "y": 1}, {"x": 3, "y": 1}, {"x": 3, "y": 3}]})");
+    CHECK(mcpData(mcpTool(s, "pcb_cutouts", cut)).get("index").asInt(-1) == 0);
+    CHECK(mcpData(mcpTool(s, "pcb_summary")).get("cutouts").size() == 1);
+    CHECK(mcpData(mcpTool(s, "pcb_cutouts", Json::parse(R"({"action": "remove", "index": 0})"))).get("cutouts").asInt(-1) == 0);
+}
+
 TEST(mcp_route_live_steps_change_the_board_only_on_commit) {
     const auto root = mcpRoot("route_live");
     mcp::McpServer s(mcpOptions(root));

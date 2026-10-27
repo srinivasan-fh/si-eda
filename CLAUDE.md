@@ -376,7 +376,7 @@
   bearer on `/mcp`, Host must be the loopback address; routes `/`, `/state`, `/rpc` = `/mcp`, `/quit`; one request at a time)
   and `Core/studio/ui.html` (embedded by `embed.cmake`; renders shown as `<img>` data URLs, never inline SVG; every action an
   MCP tool call; live routing / track and via drags through MCP `pcb_route_live` (steps work on the router's copy: only
-  `commit` records undo and notifies a change, `McpServer::callTool`); the Library tab edits a part through `library_check_part`
+  `commit` records undo and notifies a change, `McpServer::callTool`); board editing through MCP `pcb_edit_copper` (set width / layer / lock, split, merge, tune, gloss, minimize_vias), `pcb_align`, `pcb_cutouts` (pcb_summary lists `cutouts`), drawn pours / keep-outs / holes; the Library tab edits a part through `library_check_part`
   `preview` (drawn part + `customPackage` lands) and adds it with `library_create_part`; editors map clicks through the render's viewBox (design units) and hit-test `project_snapshot` components / pads /
   courtyards, an overlay `<svg>` draws selection / drag / DRC marks; Simulate plots are drawn client-side; `studio_test.py` runs
   `node --check` on the script), guide `docs/STUDIO.md`, CTest `sieda_studio`. Windows builds with MinGW (`_USE_MATH_DEFINES`, `NOMINMAX`,
