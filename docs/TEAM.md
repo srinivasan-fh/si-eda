@@ -173,3 +173,10 @@ Code: `Core/src/ProjectDiff.cpp` (`diffProjects`, `diffText`, `mergeProjects`, r
   released by a librarian (the names in the folder's `librarians.json`), retired as obsolete with approved alternates,
   and every saved version stays in `.history/`. Placing a part says whether it is still the released one.
 
+In the macOS app these are menu commands working on the selected footprints: **Design → Layout** (Replicate Layout,
+Save / Apply Layout Block, Room from Selection, Place Parts in Their Rooms, Remove Rooms, Partition from Selection,
+Check Partitions Against Base, Routing Policy, Check Variants) and **File → Company Library** (Show Parts, Publish
+Selected Part, Place Part, Release, Mark Obsolete, Set Approved Alternates, Choose Library Folder). Rooms (teal) and
+partitions (purple, with their owner) are drawn on the board; DRC_ROOM and ROUTE_POLICY_* results jump to the part.
+Each command is one undo step.
+

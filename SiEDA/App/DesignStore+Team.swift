@@ -383,3 +383,253 @@ struct DesignDiff: Identifiable {
     var text: String
     var id: String { title + text }
 }
+
+/// Layout reuse, rooms, partitions, routing policies, variant checks and the company library: the core's MCP tools
+/// (pcb_layout_block, pcb_rooms, pcb_partitions, pcb_routing_policies, pcb_variant_check, library_company), each a
+/// single undo step through runTool.
+extension DesignStore {
+    /// Designators of the selected footprints, top-left first (the first is a layout group's anchor).
+    var selectedRefs: [String] {
+        selection.compactMap { snapshot.component($0) }.filter { $0.pcb.placed }
+            .sorted { ($0.pcb.y, $0.pcb.x) < ($1.pcb.y, $1.pcb.x) }.map(\.ref)
+    }
+
+    private func askText(_ title: String, _ message: String, _ value: String = "") -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        let field = NSTextField(string: value)
+        field.frame = NSRect(x: 0, y: 0, width: 340, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let text = field.stringValue.trimmingCharacters(in: .whitespaces)
+        return text.isEmpty ? nil : text
+    }
+
+    private func inform(_ title: String, _ text: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        alert.runModal()
+    }
+
+    /// The tool's JSON result, or nil after showing its error.
+    private func tool(_ name: String, _ arguments: [String: Any], root: String = "") -> [String: Any]? {
+        let r = runTool(name, arguments: arguments, root: root)
+        if r.isError {
+            inform(name, r.text)
+            return nil
+        }
+        return (try? JSONSerialization.jsonObject(with: Data(r.text.utf8)) as? [String: Any]) ?? [:]
+    }
+
+    /// The selected footprints' courtyards round, plus `margin` mm.
+    private func selectionArea(margin: Double) -> CGRect? {
+        let boxes = snapshot.courtyards.filter { selection.contains($0.component) }.map(\.rect)
+        guard let first = boxes.first else { return nil }
+        return boxes.dropFirst().reduce(first) { $0.union($1) }.insetBy(dx: -margin, dy: -margin)
+    }
+
+    private func needSelection(_ what: String, count: Int = 1) -> [String]? {
+        let refs = selectedRefs
+        if refs.count < count { inform(what, String(localized: "Select the footprints on the board first.")); return nil }
+        return refs
+    }
+
+    func replicateLayout() {
+        guard let refs = needSelection("Replicate Layout"),
+              let text = askText(String(localized: "Replicate Layout"),
+                                 "Target groups: the same parts in the same order as \(refs.joined(separator: " ")), groups split by \";\" (e.g. R5 C5; R9 C9).")
+        else { return }
+        let targets = text.split(separator: ";").map { $0.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init) }.filter { !$0.isEmpty }
+        guard let r = tool("pcb_layout_block", ["action": "replicate", "refs": refs, "targets": targets]) else { return }
+        let groups = (r["groups"] as? [[String: Any]]) ?? []
+        statusMessage = "Replicated onto " + groups.map { g in
+            "\(g["anchor"] as? String ?? "?") (\(g["tracks"] as? Int ?? 0) tracks, \(g["vias"] as? Int ?? 0) vias)"
+        }.joined(separator: ", ")
+    }
+
+    func saveLayoutBlock() {
+        guard let refs = needSelection("Save Layout Block") else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(refs[0])-layout.json"
+        panel.message = String(localized: "Save the selected parts' placement and copper as a layout block.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        var arguments: [String: Any] = ["action": "save", "refs": refs, "path": url.lastPathComponent]
+        if let by = askText(String(localized: "Approved by"), String(localized: "Who approved this layout (leave empty for none)?")) {
+            arguments["approvedBy"] = by
+        }
+        guard let r = tool("pcb_layout_block", arguments, root: url.deletingLastPathComponent().path) else { return }
+        statusMessage = "Layout block saved: \(r["parts"] as? Int ?? 0) parts, \(r["tracks"] as? Int ?? 0) tracks"
+    }
+
+    func applyLayoutBlock() {
+        guard let refs = needSelection("Apply Layout Block") else { return }
+        let panel = NSOpenPanel()
+        panel.message = "Choose a layout block for \(refs.joined(separator: " ")) (the same parts in the same order)."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let r = tool("pcb_layout_block", ["action": "apply", "refs": refs, "path": url.lastPathComponent],
+                           root: url.deletingLastPathComponent().path) else { return }
+        let approved = (r["approved"] as? Bool ?? false) ? "approved by \(r["approvedBy"] as? String ?? "")" : "not an approved layout"
+        statusMessage = "Layout applied (\(approved)): \(r["tracks"] as? Int ?? 0) tracks, \(r["vias"] as? Int ?? 0) vias, \(r["skipped"] as? Int ?? 0) skipped"
+    }
+
+    private func listed(_ toolName: String, _ key: String) -> [[String: Any]] {
+        (tool(toolName, ["action": "list"])?[key] as? [[String: Any]]) ?? []
+    }
+
+    private func area(_ entry: [String: Any]) -> [String: Any] {
+        ["x0": entry["x0"] ?? 0, "y0": entry["y0"] ?? 0, "x1": entry["x1"] ?? 0, "y1": entry["y1"] ?? 0]
+    }
+
+    func roomFromSelection() {
+        guard let refs = needSelection("Room"), let box = selectionArea(margin: 1),
+              let name = askText(String(localized: "Room"), String(localized: "Name of the room these parts belong in:"),
+                                 "Room \(listed("pcb_rooms", "rooms").count + 1)") else { return }
+        var rooms = listed("pcb_rooms", "rooms").map { r in area(r).merging(["name": r["name"] ?? "", "refs": r["refs"] ?? [String]()] as [String: Any]) { a, _ in a } }
+        rooms.append(["name": name, "refs": refs, "x0": Double(box.minX), "y0": Double(box.minY), "x1": Double(box.maxX), "y1": Double(box.maxY)])
+        if tool("pcb_rooms", ["action": "set", "rooms": rooms]) != nil { statusMessage = "Room \(name): \(refs.joined(separator: ", "))" }
+    }
+
+    func placeRooms() {
+        guard let r = tool("pcb_rooms", ["action": "place"]) else { return }
+        let moved = (r["moved"] as? [String]) ?? [], stuck = (r["noRoom"] as? [String]) ?? []
+        statusMessage = moved.isEmpty && stuck.isEmpty ? "Every part is in its room"
+            : "Moved into their rooms: \(moved.joined(separator: ", "))" + (stuck.isEmpty ? "" : "; no room for \(stuck.joined(separator: ", "))")
+    }
+
+    func clearRooms() { _ = tool("pcb_rooms", ["action": "set", "rooms": [Any]()]) }
+
+    /// Your name for partitions and approvals (kept in user defaults).
+    private var ownerName: String? {
+        get { UserDefaults.standard.string(forKey: "team.ownerName") }
+        set { UserDefaults.standard.set(newValue, forKey: "team.ownerName") }
+    }
+
+    func partitionFromSelection() {
+        guard needSelection("Partition") != nil, let box = selectionArea(margin: 1),
+              let owner = askText(String(localized: "Partition"), String(localized: "Who owns this area of the board?"), ownerName ?? "")
+        else { return }
+        var parts = listed("pcb_partitions", "partitions").map { q in area(q).merging(["name": q["name"] ?? "", "owner": q["owner"] ?? ""] as [String: Any]) { a, _ in a } }
+        parts.append(["name": "\(owner)'s area \(parts.count + 1)", "owner": owner, "x0": Double(box.minX), "y0": Double(box.minY), "x1": Double(box.maxX), "y1": Double(box.maxY)])
+        if tool("pcb_partitions", ["action": "set", "partitions": parts]) != nil { statusMessage = "Partition for \(owner) added" }
+    }
+
+    func checkPartitions() {
+        guard let me = askText(String(localized: "Check Partitions"), String(localized: "Your name (as the partitions' owners are named):"), ownerName ?? "")
+        else { return }
+        ownerName = me
+        let panel = NSOpenPanel()
+        panel.message = String(localized: "Choose the base version of the project (the one you pulled or opened).")
+        panel.allowedContentTypes = [UTType(filenameExtension: "siedaproj") ?? .data]
+        guard panel.runModal() == .OK, let url = panel.url,
+              let r = tool("pcb_partitions", ["action": "check", "owner": me, "against": url.lastPathComponent],
+                           root: url.deletingLastPathComponent().path) else { return }
+        let found = (r["outsideYours"] as? [[String: Any]]) ?? []
+        inform(String(localized: "Check Partitions"), found.isEmpty ? String(localized: "No change inside anyone else's partition.") : found.map { f in
+            "\(f["partition"] as? String ?? "") (\(f["owner"] as? String ?? "")): parts \(((f["parts"] as? [String]) ?? []).joined(separator: ", ")); copper changes \(f["copperChanges"] as? Int ?? 0)"
+        }.joined(separator: "\n"))
+    }
+
+    func editRoutingPolicy() {
+        guard let text = askText(String(localized: "Routing Policy"),
+                                 String(localized: "Net class: layers; most vias — e.g. \"HS: 0,3; 2\" (layer 0 = top). An empty layers or vias part leaves it free."))
+        else { return }
+        let parts = text.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, !parts[0].isEmpty else { inform(String(localized: "Routing Policy"), String(localized: "Write it as class: layers; vias")); return }
+        let fields = parts[1].split(separator: ";", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+        var policy: [String: Any] = ["netClass": parts[0]]
+        let layers = fields[0].split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+        if !layers.isEmpty { policy["layers"] = layers }
+        if fields.count > 1, let vias = Int(fields[1]) { policy["maxVias"] = vias }
+        var policies = listed("pcb_routing_policies", "policies").filter { ($0["netClass"] as? String) != parts[0] }
+        policies.append(policy)
+        if tool("pcb_routing_policies", ["action": "set", "policies": policies]) != nil { statusMessage = "Routing policy for \(parts[0]) set" }
+    }
+
+    func checkVariants() {
+        guard let r = tool("pcb_variant_check", [:]) else { return }
+        let variants = (r["variants"] as? [[String: Any]]) ?? []
+        var lines = variants.map { v -> String in
+            let open = (v["openNets"] as? [String]) ?? [], overlaps = (v["overlaps"] as? [[String]]) ?? []
+            if v["ok"] as? Bool ?? false { return "\(v["variant"] as? String ?? ""): OK" }
+            return "\(v["variant"] as? String ?? ""):" + (open.isEmpty ? "" : " open nets \(open.joined(separator: ", "))")
+                + (overlaps.isEmpty ? "" : " overlaps \(overlaps.map { $0.joined(separator: "/") }.joined(separator: ", "))")
+        }
+        let alternates = (r["alternates"] as? [[String]]) ?? []
+        if !alternates.isEmpty { lines.append("Alternates (never fitted together): " + alternates.map { $0.joined(separator: "/") }.joined(separator: ", ")) }
+        inform(String(localized: "Check Variants"), lines.joined(separator: "\n"))
+    }
+
+    // MARK: Company library (a team folder of parts: draft / released / obsolete)
+
+    /// The team library folder (chosen once, kept in user defaults).
+    func companyLibraryFolder(choose: Bool = false) -> URL? {
+        if !choose, let path = UserDefaults.standard.string(forKey: "library.companyFolder"), FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.message = String(localized: "Choose the company library folder (shared with your team).")
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        UserDefaults.standard.set(url.path, forKey: "library.companyFolder")
+        return url
+    }
+
+    /// library_company with the folder given as its name inside its parent (the tool's root).
+    func companyLibrary(_ arguments: [String: Any]) -> [String: Any]? {
+        guard let folder = companyLibraryFolder() else { return nil }
+        var args = arguments
+        args["folder"] = folder.lastPathComponent
+        return tool("library_company", args, root: folder.deletingLastPathComponent().path)
+    }
+
+    func companyLibraryList() {
+        guard let r = companyLibrary(["action": "list"]) else { return }
+        let parts = (r["parts"] as? [[String: Any]]) ?? []
+        inform(String(localized: "Company Library"), parts.isEmpty ? String(localized: "No parts yet: publish one from the board or the schematic.") : parts.map { p in
+            "\(p["name"] as? String ?? "") v\(p["version"] as? Int ?? 0): \(p["status"] as? String ?? "")"
+                + ((p["approved"] as? Bool ?? false) ? " (released by \(p["approvedBy"] as? String ?? ""))" : "")
+                + (((p["alternates"] as? [String]) ?? []).isEmpty ? "" : "; alternates \(((p["alternates"] as? [String]) ?? []).joined(separator: ", "))")
+        }.joined(separator: "\n"))
+    }
+
+    /// Publishes the selected part's library part (a project part) as a draft, version + 1.
+    func companyLibraryPublish() {
+        guard let id = selection.first, let part = snapshot.component(id)?.customPart else {
+            inform(String(localized: "Company Library"), String(localized: "Select a placed library part (made in the part editor or imported) first."))
+            return
+        }
+        if let r = companyLibrary(["action": "publish", "id": part]) {
+            statusMessage = "\(r["name"] as? String ?? part) published as draft v\(r["version"] as? Int ?? 0)"
+        }
+    }
+
+    /// Release (a librarian approves), obsolete, alternates or place, by part name.
+    func companyLibraryAction(_ action: String) {
+        guard let name = askText(String(localized: "Company Library"), String(localized: "Part name in the company library:")) else { return }
+        var arguments: [String: Any] = ["action": action, "name": name]
+        switch action {
+        case "release":
+            guard let by = askText(String(localized: "Release"), String(localized: "Released by (a librarian in librarians.json, if the folder has one):"), ownerName ?? "")
+            else { return }
+            arguments["approvedBy"] = by
+        case "alternates":
+            guard let list = askText(String(localized: "Approved Alternates"), String(localized: "Alternate part names, separated by commas:")) else { return }
+            arguments["alternates"] = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        default:
+            break
+        }
+        guard let r = companyLibrary(arguments) else { return }
+        if action == "use" {
+            let ref = (r["component"] as? [String: Any])?["ref"] as? String ?? ""
+            statusMessage = "\(name) placed as \(ref)" + ((r["approved"] as? Bool ?? false) ? " (released)" : " (draft)")
+        } else {
+            statusMessage = "\(name): \(r["status"] as? String ?? "")"
+        }
+    }
+}

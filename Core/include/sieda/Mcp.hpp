@@ -15,8 +15,10 @@
 // the thread that owns an attached project.
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <functional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -171,8 +173,18 @@ std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width
 std::string renderSchematicPng(const SiedaProject& project, int sheet, int width);
 std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours = true);
 std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours = true);
+/// 3D view tools: parts left out (hide / isolate, by component id), explode (0 = none, 1 = parts lifted one board
+/// size off both sides), a section cut at board y (mm; NaN = none), rigid-flex folded, and a free camera (degrees;
+/// NaN = the view's own).
+struct Render3dOptions {
+    std::set<int> hidden;
+    double explode = 0;
+    double section = NAN;
+    bool fold = true;
+    double pitchDeg = NAN, yawDeg = NAN;
+};
 /// The assembled board in 3D (shaded, orthographic) as PNG: view iso (default), top, bottom, front, back, left, right.
-std::string render3dPng(const SiedaProject& project, const std::string& view, int width);
+std::string render3dPng(const SiedaProject& project, const std::string& view, int width, const Render3dOptions& options = {});
 
 /// A read-only viewer for any browser: one HTML file with every schematic sheet and the board as SVG, pan / zoom.
 std::string viewerHtml(const SiedaProject& project);

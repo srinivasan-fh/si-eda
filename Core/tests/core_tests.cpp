@@ -21500,6 +21500,49 @@ TEST(mcp_routing_policies_flag_layers_and_vias_per_net_class) {
     CHECK(mcpFailed(mcpTool(s, "pcb_routing_policies", Json::parse(R"({"action": "set", "policies": [{"netClass": "SIG", "layers": [9]}]})"))));
 }
 
+TEST(mcp_rooms_keep_groups_in_their_area_and_variants_are_checked) {
+    const auto root = mcpRoot("rooms_variants");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object(), all = Json::object();
+    ex["id"] = "led_indicator";
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    const Project& pr = s.project()->project;
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) c.insert(v.code);
+        return c;
+    };
+    // R1's room is the board's top-left corner: the DRC flags it, place moves it in, the room survives a save.
+    const BoardSettings& st = pr.pcb.settings;
+    Json room = Json::object(), refs = Json::array(), rooms = Json::array(), set = Json::object();
+    refs.push("R1");
+    room["name"] = "Power", room["refs"] = refs, room["x0"] = 0.5, room["y0"] = 0.5, room["x1"] = st.width / 3, room["y1"] = st.height / 3;
+    rooms.push(room);
+    set["action"] = "set", set["rooms"] = rooms;
+    CHECK(mcpData(mcpTool(s, "pcb_rooms", set)).get("rooms").items()[0].get("outside").size() == 1);
+    CHECK(codes().count("DRC_ROOM"));
+    const Json placed = mcpData(mcpTool(s, "pcb_rooms", Json::parse(R"({"action": "place"})")));
+    CHECK(placed.get("moved").size() == 1 && placed.get("rooms").items()[0].get("outside").size() == 0);
+    CHECK(!codes().count("DRC_ROOM"));
+    CHECK(Project::fromJson(pr.toJson()).pcb.settings.rooms.size() == 1);
+    // Variants: unrouted, the base design has open nets; R1 forced onto D1 overlaps in the base design, but not in a
+    // variant without D1.
+    Json chk = mcpData(mcpTool(s, "pcb_variant_check"));
+    CHECK(!chk.get("ok").asBool(true) && chk.get("variants").items()[0].get("openNets").size() > 0);
+    const Component* d1 = pr.schematic.findByRef("D1");
+    Json mv = Json::object();
+    mv["ref"] = "R1", mv["x"] = d1->pcb.position.x, mv["y"] = d1->pcb.position.y, mv["force"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", mv)));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_variant_edit", Json::parse(R"({"action": "add", "name": "NoLED"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_variant_edit", Json::parse(R"({"action": "set_part", "name": "NoLED", "ref": "D1", "fitted": false})"))));
+    chk = mcpData(mcpTool(s, "pcb_variant_check"));
+    CHECK(chk.get("variants").size() == 2);
+    CHECK(chk.get("variants").items()[0].get("overlaps").size() == 1);  // base: R1 on D1
+    CHECK(chk.get("variants").items()[1].get("overlaps").size() == 0 && chk.get("variants").items()[1].get("unfitted").items()[0].asString("") == "D1");
+}
+
 TEST(mcp_route_live_steps_change_the_board_only_on_commit) {
     const auto root = mcpRoot("route_live");
     mcp::McpServer s(mcpOptions(root));
@@ -26075,4 +26118,25 @@ TEST(user_kicad_library_folders_search_and_place) {
     CHECK(mcpFailed(mcpTool(plain, "library_add_part", Json::parse(R"({"name": "MyParts:LM358"})"))));
     CHECK(!mcpData(mcpTool(plain, "library_search", Json::parse(R"({"query": "lm358"})"))).has("libraryParts"));
     fs::remove_all(root);
+}
+
+TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
+    mcp::McpServer s;
+    Json ex = Json::object();
+    ex["id"] = "led_indicator";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    auto image = [&](const char* args) {
+        Json r = mcpTool(s, "render_3d", Json::parse(args));
+        CHECK(!mcpFailed(r));
+        return r.get("content").items()[1].get("data").asString("");
+    };
+    const std::string plain = image(R"({"width": 320})");
+    CHECK(!plain.empty());
+    CHECK(image(R"({"width": 320, "isolate": ["R1"]})") != plain);
+    CHECK(image(R"({"width": 320, "hide": ["R1"]})") != plain);
+    CHECK(image(R"({"width": 320, "explode": 1})") != plain);
+    CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
+    CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
+    CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
 }

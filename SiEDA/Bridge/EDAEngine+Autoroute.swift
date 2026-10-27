@@ -160,6 +160,15 @@ struct RouteKeepout: Codable, Equatable, Identifiable {
     var rect: CGRect { CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0) }
 }
 
+/// A named board area: a partition (its `owner`) or a room (the `refs` placed in it).
+struct BoardRegionInfo: Codable, Equatable {
+    var name: String
+    var owner: String?
+    var refs: [String]?
+    var x0, y0, x1, y1: Double
+    var rect: CGRect { CGRect(x: min(x0, x1), y: min(y0, y1), width: abs(x1 - x0), height: abs(y1 - y0)) }
+}
+
 extension EDAEngine {
     /// The board's autorouter strategy.
     func autorouteOptions() -> AutorouteOptions {

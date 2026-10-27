@@ -950,6 +950,9 @@ struct BoardInfo: Decodable, Equatable {
     /// Drawing dimensions (core `BoardSettings::dimensions`): fabrication drawing, DXF and the board view.
     var dimensions: [BoardDimensionInfo] = []
     var keepouts: [RouteKeepout] = []
+    /// Owner regions (`BoardSettings::partitions`) and placement rooms (`BoardSettings::rooms`).
+    var partitions: [BoardRegionInfo] = []
+    var rooms: [BoardRegionInfo] = []
     /// Copper thieving (core `BoardSettings::thieving`): nil while off.
     var thieving: ThievingInfo?
     /// Logos and user-layer drawings (core `BoardSettings::graphics`).
@@ -1007,6 +1010,8 @@ struct BoardInfo: Decodable, Equatable {
         cutouts = try c.decodeIfPresent([[BoardPoint]].self, forKey: .cutouts) ?? []
         dimensions = try c.decodeIfPresent([BoardDimensionInfo].self, forKey: .dimensions) ?? []
         keepouts = try c.decodeIfPresent([RouteKeepout].self, forKey: .keepouts) ?? []
+        partitions = try c.decodeIfPresent([BoardRegionInfo].self, forKey: .partitions) ?? []
+        rooms = try c.decodeIfPresent([BoardRegionInfo].self, forKey: .rooms) ?? []
         thieving = try c.decodeIfPresent(ThievingInfo.self, forKey: .thieving)
         graphics = try c.decodeIfPresent([BoardGraphicInfo].self, forKey: .graphics) ?? []
         pairRules = try c.decodeIfPresent([PairRuleInfo].self, forKey: .pairRules) ?? []
@@ -1020,7 +1025,7 @@ struct BoardInfo: Decodable, Equatable {
         case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad, panel, dfmPack
-        case cutouts, dimensions, keepouts, pairRules, thieving, graphics
+        case cutouts, dimensions, keepouts, partitions, rooms, pairRules, thieving, graphics
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }

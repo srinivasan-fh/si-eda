@@ -6119,6 +6119,150 @@ void pcbTools(Table& t) {
               j["policies"] = list;
               return out(j);
           });
+    t.add("pcb", "pcb_rooms", "Rooms", Kind::Edit, false,
+          "Rooms: board areas a group of parts belongs in (a channel, a power stage). set replaces them "
+          "[{name, refs, x0, y0, x1, y1}] ([] removes them); list shows them with the members outside; place moves "
+          "every member outside its room to the free legal spot in it nearest the room's centre (assembly spacing kept). "
+          "pcb_drc flags a member outside its room (DRC_ROOM).",
+          Schema().str("action", "set, list or place", true, {"set", "list", "place"})
+              .array("rooms", "set: [{name, refs: [designator…], x0, y0, x1, y1}] (mm)", "object"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              Project& pr = p->project;
+              auto& rooms = pr.pcb.settings.rooms;
+              const std::string action = argStr(a, "action", "");
+              if (action == "set") {
+                  std::vector<BoardSettings::Room> list;
+                  for (const auto& q : a.get("rooms").items()) {
+                      BoardSettings::Room r{q.get("name").asString("Room " + std::to_string(list.size() + 1)), {},
+                                            {q.get("x0").asNumber(0), q.get("y0").asNumber(0), q.get("x1").asNumber(0), q.get("y1").asNumber(0)}};
+                      check(r.area.width() > 0 && r.area.height() > 0, "Each room needs an area (x0 < x1, y0 < y1)");
+                      for (const auto& ref : q.get("refs").items()) {
+                          check(pr.schematic.findByRef(ref.asString("")) != nullptr, "No part " + ref.asString("?"));
+                          r.refs.push_back(ref.asString(""));
+                      }
+                      list.push_back(std::move(r));
+                  }
+                  rooms = list;
+              }
+              auto inside = [&](const Component& c, const Rect& area) {
+                  const Rect k = pr.pcb.courtyard(c);
+                  return k.x0 >= area.x0 - 1e-6 && k.y0 >= area.y0 - 1e-6 && k.x1 <= area.x1 + 1e-6 && k.y1 <= area.y1 + 1e-6;
+              };
+              Json moved = Json::array(), stuck = Json::array();
+              if (action == "place") {
+                  const auto classes = partClasses(pr);
+                  for (const auto& room : rooms)
+                      for (const auto& ref : room.refs) {
+                          const Component* c = pr.schematic.findByRef(ref);
+                          if (!c || !c->hasFootprint() || (c->pcb.placed && inside(*c, room.area)) || c->pcb.locked) continue;
+                          const Rect k = pr.pcb.courtyard(*c);  // the courtyard round the part's position
+                          const Vec2 lo = Vec2{k.x0, k.y0} - c->pcb.position, hi = Vec2{k.x1, k.y1} - c->pcb.position;
+                          const Vec2 mid = room.area.center();
+                          std::vector<Vec2> spots;
+                          for (double y = room.area.y0 - lo.y; y <= room.area.y1 - hi.y + 1e-9; y += 0.25)
+                              for (double x = room.area.x0 - lo.x; x <= room.area.x1 - hi.x + 1e-9; x += 0.25) spots.push_back({x, y});
+                          std::sort(spots.begin(), spots.end(), [&](Vec2 u, Vec2 v) { return (u - mid).length() < (v - mid).length(); });
+                          bool placed = false;
+                          for (const Vec2 q : spots) {
+                              if (!spaced(pr, classes, c->id, q, c->pcb.rotation, c->pcb.bottom) ||
+                                  !pr.checkPlacement(c->id, q, c->pcb.rotation, c->pcb.bottom, 0).legal)
+                                  continue;
+                              placed = takeJson(sieda_pcb_place_footprint(p, c->id, q.x, q.y, c->pcb.rotation, c->pcb.bottom ? 1 : 0, 0, 0))
+                                           .get("committed").asBool(false);
+                              if (placed) break;
+                          }
+                          (placed ? moved : stuck).push(ref);
+                      }
+              }
+              Json list = Json::array();
+              for (const auto& room : rooms) {
+                  Json rj = obj(), refs = Json::array(), outside = Json::array();
+                  for (const auto& ref : room.refs) {
+                      refs.push(ref);
+                      const Component* c = pr.schematic.findByRef(ref);
+                      if (c && c->hasFootprint() && c->pcb.placed && !inside(*c, room.area)) outside.push(ref);
+                  }
+                  rj["name"] = room.name, rj["refs"] = refs, rj["outside"] = outside;
+                  rj["x0"] = room.area.x0, rj["y0"] = room.area.y0, rj["x1"] = room.area.x1, rj["y1"] = room.area.y1;
+                  list.push(rj);
+              }
+              Json j = obj();
+              j["rooms"] = list;
+              if (action == "place") j["moved"] = moved, j["noRoom"] = stuck;
+              return out(j);
+          });
+    t.add("pcb", "pcb_variant_check", "Check variants", Kind::Read, true,
+          "Checks the board as each assembly variant is built (the base design and every variant): its unfitted parts, "
+          "connections between fitted parts still unrouted, and fitted parts whose courtyards overlap. Parts that "
+          "overlap but are never fitted together in any variant are listed as alternates (allowed: one footprint "
+          "area shared by two options). Variants change which parts are fitted, not the copper, so one routing serves "
+          "all of them; ok = no unrouted connection and no real overlap in any variant.",
+          Schema(), [](McpServer& s, const Json&) {
+              const Project& pr = proj(s);
+              std::vector<std::string> names{""};
+              for (const auto& v : pr.variants) names.push_back(v.name);
+              std::map<std::string, std::set<int>> fittedIn;  // variant → fitted part ids
+              for (const auto& n : names) {
+                  const Schematic sch = pr.variantSchematic(n);
+                  for (const auto& c : sch.components())
+                      if (c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c) && !c.sourcing.dnp) fittedIn[n].insert(c.id);
+              }
+              // Overlapping courtyards (same side), and whether any variant fits both parts.
+              std::vector<const Component*> placed;
+              for (const auto& c : pr.schematic.components())
+                  if (c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c)) placed.push_back(&c);
+              std::vector<std::pair<int, int>> overlaps;
+              for (size_t i = 0; i < placed.size(); ++i)
+                  for (size_t k = i + 1; k < placed.size(); ++k) {
+                      if (placed[i]->pcb.bottom != placed[k]->pcb.bottom) continue;
+                      const Rect a1 = pr.pcb.courtyard(*placed[i]), a2 = pr.pcb.courtyard(*placed[k]);
+                      if (a1.x0 < a2.x1 - 1e-6 && a2.x0 < a1.x1 - 1e-6 && a1.y0 < a2.y1 - 1e-6 && a2.y0 < a1.y1 - 1e-6)
+                          overlaps.push_back({placed[i]->id, placed[k]->id});
+                  }
+              const std::vector<Pad> pads = pr.pcb.pads(pr.schematic);
+              const std::vector<size_t> groups = pr.pcb.padGroups(pr.schematic);
+              auto refOf = [&](int id) { return pr.schematic.find(id)->ref; };
+              Json variants = Json::array(), alternates = Json::array();
+              bool ok = true;
+              for (const auto& [a, b] : overlaps) {
+                  bool together = false;
+                  for (const auto& n : names) together = together || (fittedIn[n].count(a) && fittedIn[n].count(b));
+                  if (!together) {
+                      Json pair = Json::array();
+                      pair.push(refOf(a)), pair.push(refOf(b));
+                      alternates.push(pair);
+                  }
+              }
+              for (const auto& n : names) {
+                  const std::set<int>& fit = fittedIn[n];
+                  // A net is open in this variant when its fitted pads sit in more than one copper group.
+                  std::map<int, std::set<size_t>> netGroups;
+                  for (size_t i = 0; i < pads.size(); ++i)
+                      if (pads[i].net >= 0 && fit.count(pads[i].componentId)) netGroups[pads[i].net].insert(groups[i]);
+                  Json open = Json::array(), clash = Json::array(), unfitted = Json::array();
+                  for (const auto& [net, g] : netGroups)
+                      if (g.size() > 1)
+                          for (const auto& nn : pr.schematic.nets())
+                              if (nn.index == net) open.push(nn.name);
+                  for (const auto& [a, b] : overlaps)
+                      if (fit.count(a) && fit.count(b)) {
+                          Json pair = Json::array();
+                          pair.push(refOf(a)), pair.push(refOf(b));
+                          clash.push(pair);
+                      }
+                  for (const Component* c : placed)
+                      if (!fit.count(c->id)) unfitted.push(c->ref);
+                  Json v = obj();
+                  v["variant"] = n.empty() ? "(base)" : n, v["unfitted"] = unfitted, v["openNets"] = open, v["overlaps"] = clash;
+                  v["ok"] = open.size() == 0 && clash.size() == 0;
+                  ok = ok && v.get("ok").asBool(false);
+                  variants.push(v);
+              }
+              Json j = obj();
+              j["variants"] = variants, j["alternates"] = alternates, j["ok"] = ok;
+              return out(j);
+          });
     t.add("pcb", "pcb_lock_footprint", "Lock footprint", Kind::Edit, true,
           "Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or "
           "refs.",
@@ -8728,13 +8872,33 @@ void renderTools(Table& t) {
           });
     t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
           "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "
-          "part's body, seen from the given side.",
+          "part's body, seen from the given side or any angle; parts can be hidden or isolated, lifted off (explode) "
+          "or the board cut through (section).",
           Schema()
               .str("view", "iso (default), top, bottom, front, back, left or right", false,
                    {"iso", "top", "bottom", "front", "back", "left", "right"})
-              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+              .integer("width", "Image width in pixels (default 1000, at most 2048)")
+              .array("hide", "Designators left out (their pads stay bare)", "string")
+              .array("isolate", "Show only these designators' bodies", "string")
+              .num("explode", "Lift the parts off both sides (0 – 1)")
+              .num("section", "Cut through the board at y (mm): everything nearer the eye is removed")
+              .boolean("fold", "Fold rigid-flex bends (default true)")
+              .num("pitch", "Camera elevation (degrees; overrides the view)").num("yaw", "Camera turn (degrees; overrides the view)"),
           [](McpServer& s, const Json& a) {
-              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000)), "board3d");
+              Render3dOptions o;
+              const Schematic& sch = P(s)->project.schematic;
+              for (const auto& r : a.get("hide").items()) o.hidden.insert(componentId(*P(s), r));
+              if (a.get("isolate").isArray() && a.get("isolate").size()) {
+                  std::set<int> keep;
+                  for (const auto& r : a.get("isolate").items()) keep.insert(componentId(*P(s), r));
+                  for (const auto& c : sch.components())
+                      if (!keep.count(c.id)) o.hidden.insert(c.id);
+              }
+              o.explode = argNum(a, "explode", 0), o.fold = argBool(a, "fold", true);
+              if (a.has("section")) o.section = argNum(a, "section", 0);
+              if (a.has("pitch")) o.pitchDeg = argNum(a, "pitch", 0);
+              if (a.has("yaw")) o.yawDeg = argNum(a, "yaw", 0);
+              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000), o), "board3d");
           });
 }
 

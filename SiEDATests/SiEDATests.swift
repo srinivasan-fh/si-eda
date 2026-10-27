@@ -6813,6 +6813,32 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.runTool("library_updates", arguments: [:]).text.contains("\"updates\":[]"))
     }
 
+    func testRoomsPartitionsAndLayoutMenuActions() throws {
+        // A room and a partition set through the store show up on the board snapshot (drawn on the PCB canvas), and
+        // the Layout menu's Place Parts in Their Rooms moves R1 into its room.
+        let store = DesignStore()
+        XCTAssertFalse(store.runTool("project_load_example", arguments: ["id": "led_indicator"]).isError)
+        XCTAssertFalse(store.runTool("pcb_autoplace", arguments: ["all": true]).isError)
+        let b = store.snapshot.board
+        let room: [String: Any] = ["name": "Power", "refs": ["R1"], "x0": 0.5, "y0": 0.5, "x1": b.width / 3, "y1": b.height / 3]
+        XCTAssertFalse(store.runTool("pcb_rooms", arguments: ["action": "set", "rooms": [room]]).isError)
+        let part: [String: Any] = ["name": "RF", "owner": "Asha", "x0": 0.0, "y0": 0.0, "x1": b.width / 2, "y1": b.height]
+        XCTAssertFalse(store.runTool("pcb_partitions", arguments: ["action": "set", "partitions": [part]]).isError)
+        XCTAssertEqual(store.snapshot.board.rooms.map(\.name), ["Power"])
+        XCTAssertEqual(store.snapshot.board.rooms.first?.refs, ["R1"])
+        XCTAssertEqual(store.snapshot.board.partitions.first?.owner, "Asha")
+        store.placeRooms()
+        XCTAssertTrue(store.statusMessage.contains("R1"), store.statusMessage)
+        let r1 = try XCTUnwrap(store.snapshot.components.first { $0.ref == "R1" })
+        XCTAssertTrue(try XCTUnwrap(store.snapshot.board.rooms.first).rect.insetBy(dx: -0.01, dy: -0.01)
+            .contains(CGPoint(x: r1.pcb.x, y: r1.pcb.y)))
+        store.selection = [r1.id]
+        XCTAssertEqual(store.selectedRefs, ["R1"])
+        store.clearRooms()
+        XCTAssertTrue(store.snapshot.board.rooms.isEmpty)
+        XCTAssertFalse(store.runTool("pcb_variant_check", arguments: [:]).isError)
+    }
+
     func testSettingsTransferTemplatesAndPresets() throws {
         // Settings round trip through the exported property list.
         let key = "test.settingsTransfer"

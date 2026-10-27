@@ -6666,6 +6666,15 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     for (auto& v : mechanicalChecks(sch, *this)) out.push_back(std::move(v));  // 3D clearance (Mechanical.cpp)
     for (auto& v : dfmChecks(sch, *this)) out.push_back(std::move(v));        // manufacturer pack (Dfm.cpp)
     for (auto& v : panelChecks(sch, *this)) out.push_back(std::move(v));      // production panel (Panel.cpp)
+    // Rooms: each member's courtyard inside its room.
+    for (const auto& room : settings.rooms)
+        for (const auto& ref : room.refs) {
+            const Component* c = sch.findByRef(ref);
+            if (!c || !c->hasFootprint() || !c->pcb.placed || !onBoard(*c)) continue;
+            const Rect k = courtyard(*c);
+            if (k.x0 < room.area.x0 - 1e-6 || k.y0 < room.area.y0 - 1e-6 || k.x1 > room.area.x1 + 1e-6 || k.y1 > room.area.y1 + 1e-6)
+                add(Severity::Warning, "DRC_ROOM", ref + " is outside its room " + room.name + ".", c->pcb.position, {c->id});
+        }
     // Routing policies per net class: the layers its nets may run on and the most vias each may use.
     const auto& policy = settings.autorouter;
     if (!policy.classLayers.empty() || !policy.classMaxVias.empty())
