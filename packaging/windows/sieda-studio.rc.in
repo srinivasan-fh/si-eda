@@ -1,0 +1,27 @@
+// SiEDA Studio's Windows resources: the app icon and the version shown in Explorer (configured by CMakeLists.txt).
+#include <winver.h>
+
+1 ICON "@CMAKE_CURRENT_SOURCE_DIR@/packaging/windows/sieda-studio.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "SiEDA Studio"
+            VALUE "FileVersion", "@PROJECT_VERSION@"
+            VALUE "ProductName", "SiEDA"
+            VALUE "ProductVersion", "@PROJECT_VERSION@"
+            VALUE "OriginalFilename", "sieda-studio.exe"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

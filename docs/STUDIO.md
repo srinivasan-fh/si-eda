@@ -9,8 +9,8 @@ your web browser, on this computer only. Nothing goes over the network unless yo
 
 | System | Download | Start |
 |---|---|---|
-| Linux (x86-64) | `sieda-linux-x86_64.tar.gz` from the release | Unpack it, then run `./sieda-studio`. To get a menu entry, copy `sieda-studio` to `~/.local/bin` and `sieda-studio.desktop` to `~/.local/share/applications`. |
-| Windows 10 / 11 (x64) | `sieda-windows-x86_64.zip` from the release | Unpack it and run `sieda-studio.exe`. The files are not signed yet, so Windows SmartScreen asks first: choose **More info → Run anyway**. |
+| Linux (x86-64) | `sieda-linux-x86_64.tar.gz` from the release | Unpack it, then run `./sieda-studio`. To get a menu entry, copy `sieda-studio` to `~/.local/bin` `sieda-studio.desktop` to `~/.local/share/applications` and `sieda-studio.png` to `~/.local/share/icons/hicolor/256x256/apps`. |
+| Windows 10 / 11 (x64) | `sieda-windows-x86_64.zip` from the release | Unpack it and run `sieda-studio.exe` (it carries the SiEDA icon and version details). The files are not signed yet, so Windows SmartScreen asks first: choose **More info → Run anyway**. |
 
 Each archive also contains `sieda-cli` and `sieda-mcp`. Every program is one self-contained file: there are no
 runtimes or libraries to install.
