@@ -4062,7 +4062,7 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_sheets", "Sheets", Kind::Read, true,
           "The sheets with hierarchy (parent, depth), component counts, ports and the active sheet.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_sheets_json(P(s)))); });
-    t.add("schematic", "schematic_block", "Approved design blocks", Kind::Files, false,
+    t.add("schematic", "schematic_block", "Approved design blocks", Kind::Edit, false,
           "Reusable design blocks. save writes the parts refs (with the wires between them, labels, directives) to a "
           "block file at path inside the root, approved by approvedBy (optional) with a fingerprint of its content. "
           "place puts a block file's parts on the active sheet, offset by x / y (new designators), and says whether "
@@ -5072,7 +5072,7 @@ void libraryTools(Table& t) {
               }
               return out(r);
           });
-    t.add("library", "library_company", "Company library", Kind::Files, false,
+    t.add("library", "library_company", "Company library", Kind::Edit, false,
           "A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in "
           ".history/<name>/). publish (id: a project part) adds or updates a part as a draft, version + 1; release "
           "marks it released by approvedBy (when the folder's librarians.json lists names, only they may); obsolete "
@@ -5927,7 +5927,7 @@ void pcbTools(Table& t) {
               j["moved"] = moved;
               return out(j);
           });
-    t.add("pcb", "pcb_layout_block", "Layout reuse", Kind::Files, false,
+    t.add("pcb", "pcb_layout_block", "Layout reuse", Kind::Edit, false,
           "Reuses a laid-out group (an approved channel, a regulator block). replicate copies the refs group's placement "
           "and the copper inside it onto each target group (same parts, same order; each lands round its first part, "
           "or at x / y). save writes the group's layout to a file in the root (approvedBy, fingerprint); apply lays a "
@@ -6080,7 +6080,7 @@ void pcbTools(Table& t) {
               j["clean"] = found.size() == 0;
               return out(j);
           });
-    t.add("pcb", "pcb_rule_pack", "Team rule packs", Kind::Files, false,
+    t.add("pcb", "pcb_rule_pack", "Team rule packs", Kind::Edit, false,
           "A team's design rules as one file shared by every board: track / via sizes, clearances and fab minimums, "
           "net widths and clearances, pair and length rules, DFM pack and overrides, custom rules and routing policies "
           "(not the board's size, outline, stack-up or copper). save writes the board's rules to a file in the root "
