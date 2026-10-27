@@ -26119,3 +26119,24 @@ TEST(user_kicad_library_folders_search_and_place) {
     CHECK(!mcpData(mcpTool(plain, "library_search", Json::parse(R"({"query": "lm358"})"))).has("libraryParts"));
     fs::remove_all(root);
 }
+
+TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
+    mcp::McpServer s;
+    Json ex = Json::object();
+    ex["id"] = "led_indicator";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    auto image = [&](const char* args) {
+        Json r = mcpTool(s, "render_3d", Json::parse(args));
+        CHECK(!mcpFailed(r));
+        return r.get("content").items()[1].get("data").asString("");
+    };
+    const std::string plain = image(R"({"width": 320})");
+    CHECK(!plain.empty());
+    CHECK(image(R"({"width": 320, "isolate": ["R1"]})") != plain);
+    CHECK(image(R"({"width": 320, "hide": ["R1"]})") != plain);
+    CHECK(image(R"({"width": 320, "explode": 1})") != plain);
+    CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
+    CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
+    CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
+}

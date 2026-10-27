@@ -921,10 +921,23 @@ std::string viewerHtml(const SiedaProject& project) {
            "g.ondblclick=()=>{v=[v0.x,v0.y,v0.width,v0.height];set();};});\n</script></body></html>\n";
 }
 
-std::string render3dPng(const SiedaProject& project, const std::string& view, int width) {
+std::string render3dPng(const SiedaProject& project, const std::string& view, int width, const Render3dOptions& options) {
     MeshOptions opt;
-    opt.fold = true;  // a rigid-flex board as folded
-    const Mesh m = buildAssemblyMesh(project.project.schematic, project.project.pcb, opt);
+    opt.fold = options.fold;  // a rigid-flex board as folded
+    opt.hidden = options.hidden;
+    Mesh m = buildAssemblyMesh(project.project.schematic, project.project.pcb, opt);
+    if (options.explode > 0) {  // part bodies and their leads lifted away from their side (as the drawing's exploded view)
+        const BoardSettings& s = project.project.pcb.settings;
+        const double lift = std::clamp(options.explode, 0.0, 1.0) * std::max(4.0, 0.3 * std::max(s.width, s.height));
+        for (size_t v = 0; v < m.vertexCount(); ++v) {
+            const auto surface = static_cast<Surface>(m.surfaces[v]);
+            if (surface == Surface::Mask || surface == Surface::Laminate || surface == Surface::Finish || surface == Surface::Hole ||
+                surface == Surface::Silk || surface == Surface::Solder)
+                continue;
+            float& y = m.positions[3 * v + 1];
+            y += static_cast<float>(y > -s.thickness / 2 ? lift : -lift);
+        }
+    }
     // Orthographic camera, pitch / yaw per view.
     double pitch = 0.6, yaw = 0.55;
     if (view == "top") pitch = 1.5707, yaw = 0;
@@ -933,8 +946,10 @@ std::string render3dPng(const SiedaProject& project, const std::string& view, in
     else if (view == "back") pitch = 0.2, yaw = M_PI;
     else if (view == "left") pitch = 0.2, yaw = -M_PI / 2;
     else if (view == "right") pitch = 0.2, yaw = M_PI / 2;
+    if (std::isfinite(options.pitchDeg)) pitch = options.pitchDeg * M_PI / 180;
+    if (std::isfinite(options.yawDeg)) yaw = options.yawDeg * M_PI / 180;
     int h = 0;
-    const std::vector<uint8_t> rgb = rasterizeMesh(m, pitch, yaw, width, h, false);
+    const std::vector<uint8_t> rgb = rasterizeMesh(m, pitch, yaw, width, h, false, options.section);
     const int w = std::clamp(width, 64, 2048);
     std::string raw;
     raw.reserve(static_cast<size_t>(h) * (w * 3 + 1));

@@ -350,7 +350,8 @@ Assembly variants change which parts are fitted, not the copper, so one routing 
 `pcb_variant_check` checks it for each variant: nets whose fitted pads are not yet joined, fitted parts whose courtyards
 overlap, and overlapping parts that no variant fits together (alternates sharing one area, which are allowed).
 Rooms (MCP `pcb_rooms`) give a group of parts the area it belongs in: the DRC flags a member outside it (DRC_ROOM) and
-`place` moves members into the free legal spot nearest the room's centre.
+`place` moves members into the free legal spot nearest the room's centre. In the macOS app: Design → Layout → Room from Selection / Place Parts
+in Their Rooms / Routing Policy… / Check Variants.
 
 ## Pin and gate swapping
 

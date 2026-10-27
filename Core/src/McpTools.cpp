@@ -8872,13 +8872,33 @@ void renderTools(Table& t) {
           });
     t.add("render", "render_3d", "Render 3D assembly", Kind::Read, true,
           "A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every "
-          "part's body, seen from the given side.",
+          "part's body, seen from the given side or any angle; parts can be hidden or isolated, lifted off (explode) "
+          "or the board cut through (section).",
           Schema()
               .str("view", "iso (default), top, bottom, front, back, left or right", false,
                    {"iso", "top", "bottom", "front", "back", "left", "right"})
-              .integer("width", "Image width in pixels (default 1000, at most 2048)"),
+              .integer("width", "Image width in pixels (default 1000, at most 2048)")
+              .array("hide", "Designators left out (their pads stay bare)", "string")
+              .array("isolate", "Show only these designators' bodies", "string")
+              .num("explode", "Lift the parts off both sides (0 – 1)")
+              .num("section", "Cut through the board at y (mm): everything nearer the eye is removed")
+              .boolean("fold", "Fold rigid-flex bends (default true)")
+              .num("pitch", "Camera elevation (degrees; overrides the view)").num("yaw", "Camera turn (degrees; overrides the view)"),
           [](McpServer& s, const Json& a) {
-              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000)), "board3d");
+              Render3dOptions o;
+              const Schematic& sch = P(s)->project.schematic;
+              for (const auto& r : a.get("hide").items()) o.hidden.insert(componentId(*P(s), r));
+              if (a.get("isolate").isArray() && a.get("isolate").size()) {
+                  std::set<int> keep;
+                  for (const auto& r : a.get("isolate").items()) keep.insert(componentId(*P(s), r));
+                  for (const auto& c : sch.components())
+                      if (!keep.count(c.id)) o.hidden.insert(c.id);
+              }
+              o.explode = argNum(a, "explode", 0), o.fold = argBool(a, "fold", true);
+              if (a.has("section")) o.section = argNum(a, "section", 0);
+              if (a.has("pitch")) o.pitchDeg = argNum(a, "pitch", 0);
+              if (a.has("yaw")) o.yawDeg = argNum(a, "yaw", 0);
+              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000), o), "board3d");
           });
 }
 

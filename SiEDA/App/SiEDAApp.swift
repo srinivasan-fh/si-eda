@@ -361,6 +361,17 @@ struct SiEDACommands: Commands {
             Button("Import Gerber as Reference Layer…") { store.importReferenceLayer() }
             Button("Import Logo…") { store.importLogo() }
             Button("Check Library Updates…") { store.checkLibraryUpdates() }
+            Menu("Company Library") {
+                Button("Show Parts…") { store.companyLibraryList() }
+                Button("Publish Selected Part") { store.companyLibraryPublish() }
+                Button("Place Part…") { store.companyLibraryAction("use") }
+                Divider()
+                Button("Release Part…") { store.companyLibraryAction("release") }
+                Button("Mark Part Obsolete…") { store.companyLibraryAction("obsolete") }
+                Button("Set Approved Alternates…") { store.companyLibraryAction("alternates") }
+                Divider()
+                Button("Choose Library Folder…") { _ = store.companyLibraryFolder(choose: true) }
+            }
             Button("Gerber Viewer…") { store.showGerberViewer = true }
             Toggle("Live Collaboration", isOn: $store.liveCollaboration)
                 .help("Save each edit to the shared project file and merge teammates' saves automatically")
@@ -448,6 +459,22 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut(shortcuts.shortcut("drc"))
             Button("Add Thermal Vias") { store.addThermalVias() }
                 .help("Stitch vias at the selected (or every) power MOSFET's drain / tab pad")
+            Menu("Layout") {
+                Button("Replicate Layout…") { store.replicateLayout() }
+                    .help("Copy the selected parts' placement and copper onto other channels of the same parts")
+                Button("Save Layout Block…") { store.saveLayoutBlock() }
+                Button("Apply Layout Block…") { store.applyLayoutBlock() }
+                Divider()
+                Button("Room from Selection…") { store.roomFromSelection() }
+                Button("Place Parts in Their Rooms") { store.placeRooms() }
+                Button("Remove Rooms") { store.clearRooms() }
+                Divider()
+                Button("Partition from Selection…") { store.partitionFromSelection() }
+                Button("Check Partitions Against Base…") { store.checkPartitions() }
+                Divider()
+                Button("Routing Policy…") { store.editRoutingPolicy() }
+                Button("Check Variants") { store.checkVariants() }
+            }
             Menu("Robot Platform") {
                 Toggle("Not a robot", isOn: Binding(get: { store.snapshot.robotPlatform.isEmpty },
                                                     set: { if $0 { store.setRobotPlatform("") } }))

@@ -776,5 +776,5 @@ Pictures of the schematic and the board (PNG or SVG).
 |---|---|---|
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
-| `render_3d` | read | A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every part's body, seen from the given side. |
+| `render_3d` | read | A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every part's body, seen from the given side or any angle; parts can be hidden or isolated, lifted off (explode) or the board cut through (section). |
 

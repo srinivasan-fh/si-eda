@@ -1490,6 +1490,14 @@ struct PCBCanvas: View {
                 ctx.draw(Text(ko.name).font(.caption2).foregroundColor(tint),
                          at: CGPoint(x: ko.rect.minX, y: ko.rect.minY).applying(screen), anchor: .bottomLeading)
             }
+            for (regions, tint) in [(snap.board.rooms, Color.teal), (snap.board.partitions, Color.purple)] {  // rooms, partitions
+                for r in regions where r.rect.intersects(view) {
+                    ctx.stroke(Path(r.rect).applying(screen), with: .color(tint.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    let label = r.owner.map { "\(r.name) · \($0)" } ?? r.name
+                    ctx.draw(Text(label).font(.caption2).foregroundColor(tint),
+                             at: CGPoint(x: r.rect.minX, y: r.rect.maxY).applying(screen), anchor: .topLeading)
+                }
+            }
             for dim in snap.board.dimensions where dim.length > 1e-6 {  // drawing dimensions: extension lines, line, value
                 let n = CGPoint(x: -(dim.b.y - dim.a.y) / dim.length * dim.offset, y: (dim.b.x - dim.a.x) / dim.length * dim.offset)
                 let a = dim.a.point, b = dim.b.point
