@@ -21318,6 +21318,51 @@ TEST(mcp_board_editing_tracks_alignment_and_cutouts) {
     CHECK(mcpData(mcpTool(s, "pcb_cutouts", Json::parse(R"({"action": "remove", "index": 0})"))).get("cutouts").asInt(-1) == 0);
 }
 
+TEST(mcp_library_land_calculator_footprints_replace_and_models) {
+    const auto root = mcpRoot("library_tools");
+    mcp::McpServer s(mcpOptions(root));
+    // IPC-7351B nominal SOIC-8 (L 5.8–6.2, S 3.92–4.52, W 0.31–0.51): Z = 6.904, G = 3.217, X = 0.578.
+    Json calc = Json::parse(R"({"family": "gullwing", "lMin": 5.8, "lMax": 6.2, "sMin": 3.92, "sMax": 4.52, "wMin": 0.31,
+                               "wMax": 0.51, "pins": 8, "pitch": 1.27})");
+    const Json c = mcpData(mcpTool(s, "library_land_calculator", calc));
+    CHECK(std::fabs(c.get("z").asNumber(0) - 6.904) < 1e-3 && std::fabs(c.get("g").asNumber(0) - 3.217) < 1e-3);
+    CHECK(c.get("lands").size() == 8 && c.get("lands").items()[0].items()[0].asNumber(0) < 0);  // pad 1 on the left
+    calc["lMin"] = 3.0;  // L min inside S max: no land
+    CHECK(mcpFailed(mcpTool(s, "library_land_calculator", calc)));
+    // Library footprints: search, then one's pads as lands.
+    Json q = Json::object();
+    q["query"] = "sot23";
+    const Json found = mcpData(mcpTool(s, "library_footprints", q)).get("footprints");
+    CHECK(found.size() > 0);
+    Json n = Json::object();
+    n["name"] = found.items()[0].get("name");
+    CHECK(mcpData(mcpTool(s, "library_footprints", n)).get("lands").size() >= 3);
+    // A part edited and saved back: the placed instance follows, the old part leaves the library.
+    Json spec = Json::parse(R"({"name": "EDITME", "package": {"type": "SOIC", "pinCount": 8},
+                               "pins": [{"number": "1", "name": "A", "type": "input"}, {"number": "8", "name": "VCC", "type": "power_in"}]})");
+    Json make = spec;
+    make["place"] = true;
+    const std::string id = mcpData(mcpTool(s, "library_create_part", make)).get("partId").asString("");
+    Json get = Json::object();
+    get["id"] = id;
+    Json edited = mcpData(mcpTool(s, "library_part_spec", get)).get("spec");
+    edited["description"] = "Edited";
+    Json rep = Json::object();
+    rep["id"] = id, rep["spec"] = edited;
+    const Json r = mcpData(mcpTool(s, "library_replace_part", rep));
+    CHECK(r.get("replaced").asInt(0) == 1 && r.get("id").asString("") != id);
+    CHECK(CustomPartRegistry::instance().find(r.get("id").asString(""))->spec.description == "Edited");
+    // A 3D model from a file in the root, aligned to the part.
+    {
+        std::ofstream stl(root / "box.stl");
+        stl << "solid b\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 2 0 0\nvertex 0 2 1\nendloop\nendfacet\nendsolid b\n";
+    }
+    Json m = Json::object();
+    m["path"] = "box.stl", m["spec"] = spec;
+    const Json model = mcpData(mcpTool(s, "library_import_model", m));
+    CHECK(!model.get("id").asString("").empty() && model.get("model3d").get("id").asString("") == model.get("id").asString(""));
+}
+
 TEST(mcp_route_live_steps_change_the_board_only_on_commit) {
     const auto root = mcpRoot("route_live");
     mcp::McpServer s(mcpOptions(root));

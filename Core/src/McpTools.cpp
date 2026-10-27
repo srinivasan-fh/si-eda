@@ -4822,6 +4822,128 @@ void libraryTools(Table& t) {
               j["files"] = res.get("files");
               return out(j);
           });
+    t.add("library", "library_land_calculator", "IPC-7351 land calculator", Kind::Read, true,
+          "IPC-7351B pads for a two-sided part from the datasheet's lead dimensions (mm): toe-to-toe span L, heel-to-heel "
+          "span S and lead width W, min and max each; family gullwing (SOIC, SOP, QFP), chip (0603 and up) or qfn; "
+          "density most, nominal or least. With pins (even) and pitch it also lays out the two rows as lands for "
+          "library_create_part (package type CUSTOM): pad 1 top left, down the left side, then up the right.",
+          Schema().str("family", "Lead family", true, {"gullwing", "chip", "qfn"})
+              .str("density", "most, nominal (default) or least", false, {"most", "nominal", "least"})
+              .num("lMin", "L min", true).num("lMax", "L max", true).num("sMin", "S min", true).num("sMax", "S max", true)
+              .num("wMin", "W min", true).num("wMax", "W max", true)
+              .integer("pins", "Pin count (two rows)").num("pitch", "Pin pitch (mm)"),
+          [](McpServer&, const Json& a) {
+              const std::string d = argStr(a, "density", "nominal");
+              IpcLand l;
+              try {
+                  l = ipc7351Land(argStr(a, "family", ""), d == "most" ? 0 : d == "least" ? 2 : 1, argNum(a, "lMin", 0),
+                                  argNum(a, "lMax", 0), argNum(a, "sMin", 0), argNum(a, "sMax", 0), argNum(a, "wMin", 0),
+                                  argNum(a, "wMax", 0));
+              } catch (const std::invalid_argument& e) {
+                  throw ToolError(e.what());
+              }
+              auto r3 = [](double v) { return std::round(v * 1000) / 1000; };
+              Json j = obj();
+              j["padLength"] = r3(l.length), j["padWidth"] = r3(l.width), j["centres"] = r3(l.centres);
+              j["z"] = r3(l.z), j["g"] = r3(l.g), j["x"] = r3(l.x);
+              const int pins = argInt(a, "pins", 0);
+              if (pins > 0) {
+                  check(pins % 2 == 0 && pins <= 1024, "Two rows need an even pin count");
+                  const double pitch = argNum(a, "pitch", 0);
+                  check(pins == 2 || pitch > l.width, "The pitch must be wider than the pad");
+                  Json lands = Json::array();
+                  const int half = pins / 2;
+                  for (int i = 0; i < pins; ++i) {
+                      const bool left = i < half;
+                      const int k = left ? i : pins - 1 - i;
+                      Json land = Json::array();
+                      land.push(r3(left ? -l.centres / 2 : l.centres / 2));
+                      land.push(r3((k - (half - 1) / 2.0) * pitch));
+                      land.push(r3(l.length));
+                      land.push(r3(l.width));
+                      lands.push(land);
+                  }
+                  j["lands"] = lands;
+              }
+              return out(j);
+          });
+    t.add("library", "library_footprints", "Footprint library", Kind::Read, true,
+          "The built-in footprints and the project's own: search by words (name or label; \"\" = all, at most 200) for "
+          "[{name, label, pads, width, height}], or name one to get its pads as lands {lands, bodySize, bodyDepth} "
+          "(pad k on pin k + 1, mechanical pads \"-\") to start a part from (library_create_part, package type CUSTOM).",
+          Schema().str("query", "Search words").str("name", "A footprint name from a search"),
+          [](McpServer& s, const Json& a) {
+              Json j = obj();
+              if (a.has("name")) {
+                  char* lands = sieda_footprint_lands_json(argStr(a, "name").c_str());
+                  check(lands != nullptr, "No footprint " + argStr(a, "name"));
+                  j = takeJson(lands);
+                  j["name"] = argStr(a, "name");
+              } else {
+                  j["footprints"] = takeJson(sieda_footprint_library_json(P(s), argStr(a, "query", "").c_str()));
+              }
+              return out(j);
+          });
+    t.add("library", "library_part_spec", "Part spec", Kind::Read, true,
+          "A project library part's full spec (library_project_parts ids), as library_create_part takes it: to edit "
+          "it and save it back with library_replace_part.",
+          Schema().str("id", "Part id", true), [](McpServer&, const Json& a) {
+              const CustomPart* cp = CustomPartRegistry::instance().find(argStr(a, "id"));
+              check(cp != nullptr, "No library part " + argStr(a, "id"));
+              Json j = obj();
+              j["id"] = cp->id;
+              j["spec"] = customPartSpecToJson(cp->spec);
+              return out(j);
+          });
+    t.add("library", "library_replace_part", "Replace part", Kind::Edit, false,
+          "Saves an edited spec over a project library part: every placed instance takes the new symbol and footprint "
+          "(same designators and nets by pin number), the old part leaves the library.",
+          Schema().str("id", "Part id to replace", true).object("spec", "The new spec", true), [](McpServer& s, const Json& a) {
+              const std::string id = argStr(a, "id");
+              check(CustomPartRegistry::instance().find(id) != nullptr, "No library part " + id);
+              char* error = nullptr;
+              char* made = sieda_custom_part_register(P(s), a.get("spec").dump().c_str(), &error);
+              if (!made) throw ToolError("Invalid part: " + takeText(error));
+              const std::string to = takeJson(made).get("id").asString("");
+              Json j = obj();
+              j["id"] = to;
+              j["replaced"] = to == id ? 0 : sieda_custom_part_replace(P(s), id.c_str(), to.c_str());
+              if (to != id) sieda_custom_part_remove(P(s), id.c_str());
+              return out(j);
+          });
+    t.add("library", "library_import_model", "Import 3D model", Kind::Edit, false,
+          "Imports a part's 3D model (STEP / VRML / STL / OBJ file in the root folder). Returns its id and bounds; with "
+          "spec (a part spec) also the model3d alignment that centres it on that footprint and seats it on the board "
+          "(put it in the spec's model3d), and with ref it becomes that placed part's own model.",
+          Schema().str("path", "Model file", true).num("unit", "mm per file unit (default from the file; KiCad VRML 2.54)")
+              .object("spec", "Part spec to align the model to").str("ref", "Placed part to give this model"),
+          [](McpServer& s, const Json& a) {
+              const std::string path = argStr(a, "path"), text = readFileArg(s, path).asString("");
+              Json req = obj();
+              req["name"] = fs::path(path).filename().string();
+              const std::string ext = fs::path(path).extension().string();
+              if (ext == ".stl" || ext == ".STL") req["contentBase64"] = base64Encode(text);
+              else req["content"] = text;
+              Json r = takeJson(sieda_model3d_import(req.dump().c_str()));
+              check(r.get("ok").asBool(false), "Cannot read the model: " + r.get("error").asString("?"));
+              const double unit = argNum(a, "unit", r.get("unit").asNumber(1));
+              if (a.get("spec").isObject()) {
+                  Json spec = a.get("spec");
+                  Json m = obj();
+                  m["id"] = r.get("id"), m["name"] = r.get("name"), m["unit"] = unit;
+                  spec["model3d"] = m;
+                  const Json fit = takeJson(sieda_model3d_fit(spec.dump().c_str()));
+                  check(fit.get("ok").asBool(false), "Cannot align the model: " + fit.get("error").asString("?"));
+                  r["model3d"] = fit.get("seated");
+              }
+              if (a.has("ref")) {
+                  const int id = componentId(*P(s), a.get("ref"));
+                  check(sieda_pcb_set_part_model(P(s), id, r.get("id").asString("").c_str(), r.get("name").asString("").c_str(), unit) == 1,
+                        "Cannot give " + argStr(a, "ref") + " that model");
+                  r["placedOn"] = argStr(a, "ref");
+              }
+              return out(r);
+          });
     t.add("library", "library_packages", "Packages", Kind::Read, true,
           "Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …).", Schema(), [](McpServer&, const Json&) {
               Json j = obj();

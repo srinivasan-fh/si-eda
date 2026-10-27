@@ -61,9 +61,17 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <section data-tab="Library"><div class="row"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
 <label>Package</label><select id="lpPkg" onchange="lp.custom=null;lpUpdate()"></select><label>Pads</label><input id="lpCount" type="number" min="1" max="1024" value="8" style="width:70px" onchange="lp.custom=null;lpPinCount();lpUpdate()">
 <label>Pitch</label><input id="lpPitch" placeholder="auto" style="width:70px" onchange="lp.custom=null;lpUpdate()"><button onclick="lpEditPads()" title="Turn the package into pads you can drag and edit">Edit pads</button>
-<button class="primary" onclick="lpCreate()">Create and place</button><span id="lpScore" class="info"></span></div>
-<div class="work"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="row"><b>Symbol</b><span class="info">Drag a pin to another side of the body.</span><button onclick="lp.layout=null;lpUpdate()">Auto-arrange</button></div>
-<svg id="lpSym" class="plot" style="height:300px"></svg><div class="row"><b>Footprint</b><span class="info" id="lpFpHint">Choose Edit pads to move, resize, add or remove pads.</span></div><svg id="lpFp" class="plot" style="height:300px;background:#1b2230"></svg></div>
+<button class="primary" id="lpSave" onclick="lpCreate()">Create and place</button></div>
+<div class="row"><label>Open part</label><select id="lpOpen" onchange="lpOpen(this.value)" onfocus="lpParts()"><option value="">New part</option></select>
+<button onclick="lpFromFootprint()" title="Start the pads from a library footprint">From footprint…</button><button onclick="$('lpIpc').hidden=!$('lpIpc').hidden" title="IPC-7351 pads from the datasheet's lead dimensions">IPC calculator…</button>
+<button onclick="lpModel()" title="STEP / VRML / STL / OBJ file in the root folder">3D model…</button><span id="lpModelName" class="info"></span>
+<input id="lpMfr" placeholder="Manufacturer" style="width:130px" oninput="lpUpdate()"><input id="lpDesc" placeholder="Description" style="width:180px" oninput="lpUpdate()"><input id="lpDs" placeholder="Datasheet URL" style="width:180px" oninput="lpUpdate()"><span id="lpScore" class="info"></span></div>
+<div class="card" id="lpIpc" hidden><b>IPC-7351B pads</b> <select id="ipcFam"><option>gullwing</option><option>chip</option><option>qfn</option></select> <select id="ipcDen"><option>nominal</option><option>most</option><option>least</option></select>
+<span class="row" style="margin-top:6px"><label>L</label><input id="ipcLmin" placeholder="min" style="width:64px"><input id="ipcLmax" placeholder="max" style="width:64px"><label>S</label><input id="ipcSmin" placeholder="min" style="width:64px"><input id="ipcSmax" placeholder="max" style="width:64px"><label>W</label><input id="ipcWmin" placeholder="min" style="width:64px"><input id="ipcWmax" placeholder="max" style="width:64px"><label>Pins</label><input id="ipcPins" style="width:54px"><label>Pitch</label><input id="ipcPitch" style="width:64px"><button class="primary" onclick="lpIpcApply()">Use these pads</button><span id="ipcOut" class="info"></span></span></div>
+<div class="work"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="row"><b>Symbol</b><span class="info">Drag a pin to another side of the body.</span><button onclick="lp.layout=null;lpUpdate()">Auto-arrange</button>
+<span class="tools" id="symTools"><button data-g="line">Line</button><button data-g="rect">Rectangle</button><button data-g="circle">Circle</button></span><button onclick="lp.symG=[];lpUpdate()">Clear drawings</button></div>
+<svg id="lpSym" class="plot" style="height:300px"></svg><div class="row"><b>Footprint</b><span class="info" id="lpFpHint">Choose Edit pads to move, resize, add or remove pads.</span>
+<span class="tools" id="fpTools"><button data-g="silk">Silk line</button><button data-g="fab">Fab line</button></span><button onclick="lp.fpLines=[];lpUpdate()">Clear lines</button></div><svg id="lpFp" class="plot" style="height:300px;background:#1b2230"></svg></div>
 <div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
 <div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
 <div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
@@ -204,10 +212,13 @@ function drawLive(o,pv){const hidden=new Set(pv.hiddenTracks||[]),line=(t,c,op,d
  for(const v of [...(pv.shovedVias||[]),...(pv.vias||[])])shape(o,"circle",{cx:v.x,cy:v.y,r:(v.diameter||0.6)/2,fill:"#c8c8c8",stroke:"#555","stroke-width":0.05});
  if(pv.endX!==undefined)shape(o,"circle",{cx:pv.endX,cy:pv.endY,r:0.35,fill:"none",stroke:"#fff","stroke-width":0.08});}
 // Library editor: the part is checked and drawn after every change (library_check_part preview) and added by library_create_part.
-let lp={pins:[],layout:null,custom:null,part:null,sel:-1},lpTimer=0;
+let lp={pins:[],layout:null,custom:null,part:null,sel:-1,symG:[],fpLines:[],model3d:null,editId:"",gtool:null,gfrom:null},lpTimer=0;
 const PIN_TYPES=["input","output","bidirectional","passive","power_in","power_out","open_collector","no_connect"];
 function lpSpec(){const pkg=lp.custom||{type:$("lpPkg").value||"SOIC",pinCount:+$("lpCount").value||1};if(!lp.custom&&+$("lpPitch").value)pkg.pitch=+$("lpPitch").value;
- const s={name:$("lpName").value||"NEWPART",refPrefix:$("lpPrefix").value||"U",package:pkg,pins:lp.pins.map(p=>({number:p.number,name:p.name,type:p.type}))};if(lp.layout)s.symbolLayout={pins:lp.layout};return s;}
+ if(lp.fpLines.length)pkg.graphics=lp.fpLines;
+ const s={name:$("lpName").value||"NEWPART",refPrefix:$("lpPrefix").value||"U",package:pkg,pins:lp.pins.map(p=>({number:p.number,name:p.name,type:p.type}))};
+ for(const [k,id] of [["manufacturer","lpMfr"],["description","lpDesc"],["datasheet","lpDs"]])if($(id).value)s[k]=$(id).value;
+ if(lp.layout||lp.symG.length)s.symbolLayout={pins:lp.layout||[],graphics:lp.symG};if(lp.model3d)s.model3d=lp.model3d;return s;}
 function lpPinCount(){const n=+$("lpCount").value||1;while(lp.pins.length<n)lp.pins.push({number:String(lp.pins.length+1),name:"PIN"+(lp.pins.length+1),type:"passive"});lp.pins.length=Math.min(lp.pins.length,n);lp.layout=null;lpPins();}
 function lpPins(){$("lpPins").innerHTML=lp.pins.map((p,i)=>`<div class="row" style="flex-wrap:nowrap;margin:2px 0"><input value="${esc(p.number)}" style="width:52px" onchange="lp.pins[${i}].number=this.value;lp.layout=null;lpUpdate()"><input value="${esc(p.name)}" style="flex:1;min-width:0" onchange="lp.pins[${i}].name=this.value;lpUpdate()"><select onchange="lp.pins[${i}].type=this.value;lpUpdate()">${PIN_TYPES.map(t=>`<option${t===p.type?" selected":""}>${t}</option>`).join("")}</select><button title="Remove" onclick="lp.pins.splice(${i},1);lp.layout=null;lpPins();lpUpdate()">×</button></div>`).join("");}
 function lpAddPin(){lp.pins.push({number:String(lp.pins.length+1),name:"PIN"+(lp.pins.length+1),type:"passive"});lp.layout=null;lpPins();lpUpdate();}
@@ -229,12 +240,20 @@ function lpDraw(){const part=lp.part;if(!part)return;const sym=part.symbol||{},h
   const inX=p.side==="L"?e[0]+4:p.side==="R"?e[0]-4:e[0],inY=p.side==="T"?e[1]+10:p.side==="B"?e[1]-4:e[1]+3.5;
   shape(S,"text",{x:inX,y:inY,"font-size":9,"text-anchor":p.side==="L"?"start":p.side==="R"?"end":"middle",fill:"#17202e"}).textContent=p.name;
   shape(S,"text",{x:(p.x+e[0])/2,y:(p.y+e[1])/2-3,"font-size":7,"text-anchor":"middle",fill:"#5d6b80"}).textContent=p.number;}
+ for(const g of lp.symG){const [a,b]=g.points,st={fill:"none",stroke:"#8a1c1c","stroke-width":1.5};
+  if(g.kind==="line")shape(S,"line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],...st});if(g.kind==="rect")shape(S,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),...st});
+  if(g.kind==="circle")shape(S,"circle",{cx:a[0],cy:a[1],r:g.radius,...st});}
+ S.onclick=e=>lpGraphicClick("sym",svgPoint(S,e));
  shape(S,"text",{x:0,y:top,"font-size":10,"text-anchor":"middle",fill:"#17202e"}).textContent=(part.refPrefix||"U")+"? "+part.name;
  const fp=part.footprintGeometry||{},F=$("lpFp"),cw=(fp.courtyardW||5)/2,ch=(fp.courtyardH||5)/2;lpFit(F,-cw,-ch,cw,ch,1);
  shape(F,"rect",{x:-cw,y:-ch,width:2*cw,height:2*ch,fill:"none",stroke:"#e0e0e0","stroke-width":0.05,"stroke-dasharray":"0.3 0.2"});
  if(fp.bodyW)shape(F,"rect",{x:-fp.bodyW/2,y:-fp.bodyD/2,width:fp.bodyW,height:fp.bodyD,fill:"none",stroke:"#f5d742","stroke-width":0.08});
- (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,a={fill:q.number===1?"#e8b84a":"#c9a227",stroke:sel?"#5b8dff":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
-  const el=q.round?shape(F,"ellipse",{cx:q.x,cy:q.y,rx:q.w/2,ry:q.h/2,...a}):shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,...a});
+ for(const l of lp.fpLines)shape(F,"line",{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:l[5]==="fab"?"#9fb7ff":"#f0f0f0","stroke-width":l[4],"stroke-linecap":"round"});
+ F.onclick=e=>lpGraphicClick("fp",svgPoint(F,e));
+ (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,land=lp.custom&&lp.custom.lands[i],o=(land&&land[7])||{},a={fill:o.npth?"none":q.number===1?"#e8b84a":"#c9a227",stroke:sel?"#5b8dff":o.npth?"#888":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
+  const c=o.chamfer?Math.min(q.w,q.h)*o.chamfer:0,el=q.round?shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:Math.min(q.w,q.h)/2,...a})
+   :c?shape(F,"polygon",{points:[[q.x-q.w/2+c,q.y-q.h/2],[q.x+q.w/2-c,q.y-q.h/2],[q.x+q.w/2,q.y-q.h/2+c],[q.x+q.w/2,q.y+q.h/2-c],[q.x+q.w/2-c,q.y+q.h/2],[q.x-q.w/2+c,q.y+q.h/2],[q.x-q.w/2,q.y+q.h/2-c],[q.x-q.w/2,q.y-q.h/2+c]].map(p=>p.join(",")).join(" "),...a})
+   :shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:(o.corner||0)*Math.min(q.w,q.h),...a});
   if(q.throughHole)shape(F,"circle",{cx:q.x,cy:q.y,r:Math.min(q.w,q.h)/4,fill:"#1b2230"});
   shape(F,"text",{x:q.x,y:q.y+Math.min(q.w,q.h)/5,"font-size":Math.min(q.w,q.h)*0.55,"text-anchor":"middle",fill:"#1b2230","pointer-events":"none"}).textContent=q.number;
   if(lp.custom)el.onmousedown=ev=>{ev.preventDefault();lpDragPad(i,ev);};});}
@@ -249,14 +268,51 @@ function lpDragPad(i,ev){const F=$("lpFp"),from=svgPoint(F,ev),l=lp.custom.lands
   up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);lpPad();lpCheck();};addEventListener("mousemove",move);addEventListener("mouseup",up);}
 function lpEditPads(){if(lp.custom||!lp.lastPackage)return;lp.custom=JSON.parse(JSON.stringify(lp.lastPackage));lp.custom.lands=lp.custom.lands.map(l=>{const a=[...l];while(a.length<7)a.push(a.length===6?"":0);return a;});
  $("lpFpHint").textContent="Drag pads to move them (0.05 mm grid); click one to edit it.";lp.sel=0;lpPad();lpCheck();}
-function lpPad(){const l=lp.custom&&lp.custom.lands[lp.sel];if(!l){$("lpPad").textContent=lp.custom?"Click a pad.":"Choose Edit pads, then click a pad.";return;}
+function lpPad(){const l=lp.custom&&lp.custom.lands[lp.sel],o=(l&&l[7])||{};if(!l){$("lpPad").textContent=lp.custom?"Click a pad.":"Choose Edit pads, then click a pad.";return;}
  const f=(k,lbl)=>`<label>${lbl}</label><input type="number" step="0.05" value="${l[k]}" onchange="lp.custom.lands[${lp.sel}][${k}]=+this.value;lpCheck()">`;
  $("lpPad").innerHTML=`<div><b>Pad ${lp.sel+1}</b></div>${f(0,"x (mm)")}${f(1,"y (mm)")}${f(2,"Width")}${f(3,"Height")}${f(4,"Drill (0 = SMD)")}<label>Pin (blank = by order, - = none)</label><input value="${esc(l[6])}" onchange="lp.custom.lands[${lp.sel}][6]=this.value;lpCheck()">
- <label><input type="checkbox" style="width:auto"${l[5]?" checked":""} onchange="lp.custom.lands[${lp.sel}][5]=this.checked?1:0;lpCheck()"> Round</label><div class="row" style="margin-top:6px"><button onclick="lpAddPad()">Add pad</button><button onclick="lpDelPad()">Delete pad</button></div>`;}
+ <label>Shape</label><select id="padShape" style="width:100%">${["rectangle","rounded","chamfered","oval / round"].map((n,i)=>`<option value="${i}"${lpShape(l)===i?" selected":""}>${n}</option>`).join("")}</select>
+ <label>Mask margin (mm, blank = board)</label><input type="number" step="0.01" value="${o.mask??""}" onchange="lpOpt('mask',this.value===''?undefined:+this.value)">
+ <label>Paste (fraction of pad, blank = auto, 0 = none)</label><input type="number" step="0.05" value="${o.paste??""}" onchange="lpOpt('paste',this.value===''?undefined:+this.value)">
+ <label><input type="checkbox" style="width:auto"${o.npth?" checked":""} onchange="lpOpt('npth',this.checked||undefined)"> Non-plated hole (no copper)</label>
+ <div class="row" style="margin-top:6px"><button onclick="lpAddPad()">Add pad</button><button onclick="lpRow()">Add row…</button><button onclick="lpDelPad()">Delete pad</button></div>`;
+ $("padShape").onchange=e=>{const k=+e.target.value,L=lp.custom.lands[lp.sel];L[5]=k===3?1:0;lpOpt("corner",k===1?0.25:undefined,true);lpOpt("chamfer",k===2?0.25:undefined);};}
 function lpAddPad(){const L=lp.custom.lands,l=[...L[lp.sel]];l[0]=+(l[0]+1).toFixed(3);l[6]="";L.push(l);lp.custom.pinCount=L.length;lp.sel=L.length-1;lpPad();lpCheck();}
 function lpDelPad(){const L=lp.custom.lands;if(L.length<2)return;L.splice(lp.sel,1);lp.custom.pinCount=L.length;lp.sel=Math.min(lp.sel,L.length-1);lpPad();lpCheck();}
-async function lpCreate(){const r=await act("library_create_part",{...lpSpec(),place:true});if(r&&r.data.component)status(`${$("lpName").value} added to the project library and placed as ${r.data.component.ref}.`,"okc");}
-async function lpInit(){if($("lpPkg").options.length)return;try{const r=await run("library_packages");$("lpPkg").innerHTML=r.data.packages.filter(p=>p!=="CUSTOM").map(p=>`<option>${esc(p)}</option>`).join("");}catch{}lpPinCount();lpCheck();}
+async function lpCreate(){if(lp.editId){const r=await act("library_replace_part",{id:lp.editId,spec:lpSpec()});if(r){lp.editId=r.data.id;await lpParts();$("lpOpen").value=lp.editId;status(`${$("lpName").value} saved; ${r.data.replaced} placed part(s) updated.`,"okc");}return;}
+ const r=await act("library_create_part",{...lpSpec(),place:true});if(r&&r.data.component)status(`${$("lpName").value} added to the project library and placed as ${r.data.component.ref}.`,"okc");}
+function lpShape(l){const o=l[7]||{};return l[5]?3:o.chamfer?2:o.corner?1:0;}
+function lpOpt(k,v,noCheck){const L=lp.custom.lands[lp.sel];while(L.length<7)L.push(L.length===6?"":0);const o=Object.assign({},L[7]||{});if(v===undefined)delete o[k];else o[k]=v;
+ if(Object.keys(o).length)L[7]=o;else L.length=7;if(!noCheck){lpPad();lpCheck();}}
+function lpRow(){const v=prompt("Pads to add after this one: count, pitch (mm), direction x or y","4 1.27 y");if(!v)return;const [n,pitch,dir]=v.trim().split(/\s+/),L=lp.custom.lands,base=L[lp.sel];
+ for(let i=1;i<=(+n||0);i++){const l=[...base];l[6]="";l[dir==="x"?0:1]=+(base[dir==="x"?0:1]+i*(+pitch||1)).toFixed(3);L.push(l);}lp.custom.pinCount=L.length;lpPad();lpCheck();}
+function lpGraphicClick(where,pt){const t=lp.gtool;if(!t||t.where!==where)return;const g=v=>Math.round(v/(where==="sym"?5:0.05))*(where==="sym"?5:0.05),q=[+g(pt[0]).toFixed(3),+g(pt[1]).toFixed(3)];
+ if(!lp.gfrom){lp.gfrom=q;status("Click the second point.");return;}const a=lp.gfrom;lp.gfrom=null;
+ if(where==="fp")lp.fpLines.push([a[0],a[1],q[0],q[1],t.kind==="fab"?0.1:0.12,t.kind]);
+ else lp.symG.push(t.kind==="circle"?{kind:"circle",points:[a],radius:+Math.hypot(q[0]-a[0],q[1]-a[1]).toFixed(1)}:{kind:t.kind,points:[a,q]});lpUpdate();}
+for(const [id,where] of [["symTools","sym"],["fpTools","fp"]])document.querySelectorAll(`#${id} [data-g]`).forEach(b=>b.onclick=()=>{const on=!(lp.gtool&&lp.gtool.kind===b.dataset.g);
+ lp.gtool=on?{where,kind:b.dataset.g}:null;lp.gfrom=null;document.querySelectorAll("#symTools [data-g],#fpTools [data-g]").forEach(x=>x.classList.toggle("on",on&&x===b));if(on)status("Click the first point.");});
+async function lpParts(){try{const r=(await run("library_project_parts")).data.parts||[],el=$("lpOpen"),v=el.value;
+ el.innerHTML='<option value="">New part</option>'+r.map(p=>`<option value="${esc(p.partId)}">${esc(p.name)} (${esc(p.package||"")})</option>`).join("");el.value=v;}catch{}}
+async function lpOpen(id){lp.editId=id;$("lpSave").textContent=id?"Save changes":"Create and place";if(!id)return;const sp=(await run("library_part_spec",{id})).data.spec;
+ $("lpName").value=sp.name||"";$("lpPrefix").value=sp.refPrefix||"U";$("lpMfr").value=sp.manufacturer||"";$("lpDesc").value=sp.description||"";$("lpDs").value=sp.datasheet||"";
+ lp.pins=(sp.pins||[]).map(p=>({number:String(p.number),name:p.name,type:p.type||"passive"}));const pk=sp.package||{};lp.fpLines=pk.graphics||[];
+ if(pk.type==="CUSTOM"){lp.custom=pk;lp.custom.lands=pk.lands.map(l=>{const a=[...l];while(a.length<7)a.push(a.length===6?"":0);return a;});lp.sel=0;}else{lp.custom=null;$("lpPkg").value=pk.type;$("lpCount").value=pk.pinCount;$("lpPitch").value=pk.pitch||"";}
+ const sl=sp.symbolLayout||{};lp.layout=sl.pins&&sl.pins.length?sl.pins:null;lp.symG=sl.graphics||[];lp.model3d=sp.model3d||null;$("lpModelName").textContent=lp.model3d?lp.model3d.name:"";lpPins();lpPad();lpCheck();}
+async function lpFromFootprint(){const q=prompt("Search the footprint library","");if(q===null)return;const list=(await run("library_footprints",{query:q})).data.footprints||[];
+ if(!list.length)return status("No footprint matches.","warning");$("dlgTitle").textContent="Footprints";$("dlgInput").value="";
+ $("dlgList").innerHTML=list.slice(0,200).map(f=>`<li data-n="${esc(f.name)}">${esc(f.name)} — ${f.pads} pads, ${(+f.width).toFixed(1)} × ${(+f.height).toFixed(1)} mm</li>`).join("");
+ $("dlgList").onclick=async e=>{const n=e.target.dataset.n;if(!n)return;dlg.close();const f=(await run("library_footprints",{name:n})).data;
+  lp.custom={type:"CUSTOM",pinCount:f.lands.length,bodySize:f.bodySize,bodyDepth:f.bodyDepth,lands:f.lands.map(l=>{const a=[...l];while(a.length<7)a.push(a.length===6?"":0);return a;})};
+  const pads=lp.custom.lands.filter(l=>l[6]!=="-").length;if(lp.pins.length<pads){$("lpCount").value=pads;lpPinCount();}lp.sel=0;$("lpFpHint").textContent="Pads from "+n+": drag to adjust.";lpPad();lpCheck();};
+ $("dlgOk").onclick=()=>dlg.close();dlg.showModal();}
+async function lpIpcApply(){const v=id=>+$(id).value,args={family:$("ipcFam").value,density:$("ipcDen").value,lMin:v("ipcLmin"),lMax:v("ipcLmax"),sMin:v("ipcSmin"),sMax:v("ipcSmax"),wMin:v("ipcWmin"),wMax:v("ipcWmax")};
+ if(v("ipcPins"))args.pins=v("ipcPins");if(v("ipcPitch"))args.pitch=v("ipcPitch");const r=(await run("library_land_calculator",args)).data;
+ $("ipcOut").textContent=`pad ${r.padLength} × ${r.padWidth} mm, centres ${r.centres} mm (Z ${r.z}, G ${r.g})`;
+ if(r.lands){lp.custom={type:"CUSTOM",pinCount:r.lands.length,bodySize:0,bodyDepth:0,lands:r.lands.map(l=>[...l,0,0,""])};if(lp.pins.length<r.lands.length){$("lpCount").value=r.lands.length;lpPinCount();}lp.sel=0;lpPad();lpCheck();}}
+async function lpModel(){const path=prompt("3D model file in the root folder (STEP, VRML, STL, OBJ)","");if(!path)return;
+ const r=(await run("library_import_model",{path,spec:lpSpec()})).data;lp.model3d=r.model3d;$("lpModelName").textContent=r.name+" ("+r.triangles+" triangles)";lpCheck();}
+async function lpInit(){if($("lpPkg").options.length)return;try{const r=await run("library_packages");$("lpPkg").innerHTML=r.data.packages.filter(p=>p!=="CUSTOM").map(p=>`<option>${esc(p)}</option>`).join("");}catch{}lpPinCount();lpParts();lpCheck();}
 // Board selection, highlight, measure and drawn shapes.
 let multi=new Set(),selW=null,hl=null,meas=null,shapePts=[];
 const curLayer=()=>{const l=$("layers").value;return l==="b"?(state.layers||2)-1:l[0]==="i"?+l.slice(1):0;};
