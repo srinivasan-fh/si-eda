@@ -344,6 +344,14 @@ most vias each may use. The autorouter keeps the class's nets on its layers (oth
 the DRC flags tracks off those layers (ROUTE_POLICY_LAYER) and nets with more vias than allowed (ROUTE_POLICY_VIAS).
 The policies are saved with the board's strategy (`classLayers`, `classMaxVias`).
 
+### Variants and rooms
+
+Assembly variants change which parts are fitted, not the copper, so one routing serves every variant. MCP
+`pcb_variant_check` checks it for each variant: nets whose fitted pads are not yet joined, fitted parts whose courtyards
+overlap, and overlapping parts that no variant fits together (alternates sharing one area, which are allowed).
+Rooms (MCP `pcb_rooms`) give a group of parts the area it belongs in: the DRC flags a member outside it (DRC_ROOM) and
+`place` moves members into the free legal spot nearest the room's centre.
+
 ## Pin and gate swapping
 
 `pinSwap` (off by default; JSON `"pinSwap"`, written only when on, so older files load and save identically) makes

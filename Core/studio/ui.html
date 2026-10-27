@@ -52,7 +52,7 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button>
 <button onclick="act('pcb_teardrops',{})" title="Teardrops where tracks meet pads and vias">Teardrops</button><button onclick="act('pcb_edit_copper',{action:'gloss'})" title="Pull every track tight">Gloss</button>
 <button onclick="act('pcb_edit_copper',{action:'minimize_vias'})" title="Route nets again with fewer vias (kept only when better)">Fewer vias</button><button onclick="act('pcb_stitch_vias',{})" title="Stitch the ground pours together">Stitch GND</button>
-<button onclick="outlineDialog()" title="Board shape">Outline…</button></div>
+<button onclick="outlineDialog()" title="Board shape">Outline…</button><button onclick="act('pcb_rooms',{action:'place'})" title="Move parts outside their room into it">Place rooms</button><button onclick="variantCheck()" title="Check the board as each assembly variant is built">Check variants</button></div>
 <div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)">Route</button>
 <button data-t="pair" title="Differential pair: click a pad of either member (D)">Pair</button><button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button>
 <button data-t="measure" title="Measure between two points (M)">Measure</button><button data-t="pour" title="Copper pour: click its corners, double-click to close">Pour</button><button data-t="keepout" title="Keep-out: drag a rectangle">Keep-out</button>
@@ -119,7 +119,8 @@ function showImage(id,src,vb){const el=$(id),v=panZoom(el),i=new Image();if(vb)v
 const svgSrc=t=>"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(t)));
 const viewBox=t=>{const m=/viewBox="([^"]+)"/.exec(t);return m?m[1].trim().split(/[ ,]+/).map(Number):null;};
 const NS="http://www.w3.org/2000/svg";function shape(o,tag,a){const n=document.createElementNS(NS,tag);for(const k in a)n.setAttribute(k,a[k]);o.append(n);return n;}
-async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets","tracks","vias"]});snap=r.data;status("Ready.");}
+async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets","tracks","vias"]});snap=r.data;
+ try{const q=await rpc("tools/call",{name:"pcb_rooms",arguments:{action:"list"}});boardRooms=JSON.parse(q.content[0].text).rooms||[];}catch{boardRooms=[];}status("Ready.");}
 const sheetParts=()=>(snap.components||[]).filter(c=>c.sheet===(+$("sheet").value||1));
 function schBox(c){let xs=[c.x],ys=[c.y];for(const p of c.pins||[]){xs.push(p.x);ys.push(p.y);}const m=12;return[Math.min(...xs)-m,Math.min(...ys)-m,Math.max(...xs)+m,Math.max(...ys)+m];}
 function nearPin(pt,lim){let best=null,d0=lim;for(const c of sheetParts())for(const p of c.pins||[]){const d=Math.hypot(p.x-pt[0],p.y-pt[1]);if(d<d0){d0=d;best={ref:c.ref,pin:p.name,x:p.x,y:p.y,net:p.net};}}return best;}
@@ -249,14 +250,15 @@ function lpDraw(){const part=lp.part;if(!part)return;const sym=part.symbol||{},h
  shape(F,"rect",{x:-cw,y:-ch,width:2*cw,height:2*ch,fill:"none",stroke:"#e0e0e0","stroke-width":0.05,"stroke-dasharray":"0.3 0.2"});
  if(fp.bodyW)shape(F,"rect",{x:-fp.bodyW/2,y:-fp.bodyD/2,width:fp.bodyW,height:fp.bodyD,fill:"none",stroke:"#f5d742","stroke-width":0.08});
  for(const l of lp.fpLines)shape(F,"line",{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:l[5]==="fab"?"#9fb7ff":"#f0f0f0","stroke-width":l[4],"stroke-linecap":"round"});
- F.onclick=e=>lpGraphicClick("fp",svgPoint(F,e));
+ F.onclick=e=>lpGraphicClick("fp",svgPoint(F,e));F.ondblclick=()=>{if(lp.gtool&&lp.gtool.kind==="poly")lpClosePoly();};
+ if(lp.gpts&&lp.gpts.length)shape(F,"polyline",{points:lp.gpts.map(q=>q.join(",")).join(" "),fill:"rgba(232,184,74,.3)",stroke:"#e8b84a","stroke-width":0.05});
  (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,land=lp.custom&&lp.custom.lands[i],o=(land&&land[7])||{},a={fill:o.npth?"none":q.number===1?"#e8b84a":"#c9a227",stroke:sel?"#5b8dff":o.npth?"#888":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
-  const c=o.chamfer?Math.min(q.w,q.h)*o.chamfer:0,el=q.round?shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:Math.min(q.w,q.h)/2,...a})
+  const c=o.chamfer?Math.min(q.w,q.h)*o.chamfer:0,el=o.outline?shape(F,"polygon",{points:o.outline.map(p=>[q.x+p[0],q.y+p[1]].join(",")).join(" "),...a}):q.round?shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:Math.min(q.w,q.h)/2,...a})
    :c?shape(F,"polygon",{points:[[q.x-q.w/2+c,q.y-q.h/2],[q.x+q.w/2-c,q.y-q.h/2],[q.x+q.w/2,q.y-q.h/2+c],[q.x+q.w/2,q.y+q.h/2-c],[q.x+q.w/2-c,q.y+q.h/2],[q.x-q.w/2+c,q.y+q.h/2],[q.x-q.w/2,q.y+q.h/2-c],[q.x-q.w/2,q.y-q.h/2+c]].map(p=>p.join(",")).join(" "),...a})
    :shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:(o.corner||0)*Math.min(q.w,q.h),...a});
   if(q.throughHole)shape(F,"circle",{cx:q.x,cy:q.y,r:Math.min(q.w,q.h)/4,fill:"#1b2230"});
   shape(F,"text",{x:q.x,y:q.y+Math.min(q.w,q.h)/5,"font-size":Math.min(q.w,q.h)*0.55,"text-anchor":"middle",fill:"#1b2230","pointer-events":"none"}).textContent=q.number;
-  if(lp.custom)el.onmousedown=ev=>{ev.preventDefault();lpDragPad(i,ev);};});}
+  if(lp.custom)el.onmousedown=ev=>{if(lp.gtool)return;ev.preventDefault();lpDragPad(i,ev);};});}
 function lpDragPin(p,ev){const S=$("lpSym");let at=svgPoint(S,ev);const move=e=>{at=svgPoint(S,e);},up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);
   const sym=lp.part.symbol,hw=sym.halfWidth,hh=sym.halfHeight,d={L:Math.abs(at[0]+hw),R:Math.abs(at[0]-hw),T:Math.abs(at[1]+hh),B:Math.abs(at[1]-hh)},side=Object.keys(d).sort((a,b)=>d[a]-d[b])[0];
   const pins=sym.pins.map(q=>({number:q.number,side:q===p?side:q.side,along:q===p?(side==="L"||side==="R"?at[1]:at[0]):(q.side==="L"||q.side==="R"?q.y:q.x)}));
@@ -271,27 +273,33 @@ function lpEditPads(){if(lp.custom||!lp.lastPackage)return;lp.custom=JSON.parse(
 function lpPad(){const l=lp.custom&&lp.custom.lands[lp.sel],o=(l&&l[7])||{};if(!l){$("lpPad").textContent=lp.custom?"Click a pad.":"Choose Edit pads, then click a pad.";return;}
  const f=(k,lbl)=>`<label>${lbl}</label><input type="number" step="0.05" value="${l[k]}" onchange="lp.custom.lands[${lp.sel}][${k}]=+this.value;lpCheck()">`;
  $("lpPad").innerHTML=`<div><b>Pad ${lp.sel+1}</b></div>${f(0,"x (mm)")}${f(1,"y (mm)")}${f(2,"Width")}${f(3,"Height")}${f(4,"Drill (0 = SMD)")}<label>Pin (blank = by order, - = none)</label><input value="${esc(l[6])}" onchange="lp.custom.lands[${lp.sel}][6]=this.value;lpCheck()">
- <label>Shape</label><select id="padShape" style="width:100%">${["rectangle","rounded","chamfered","oval / round"].map((n,i)=>`<option value="${i}"${lpShape(l)===i?" selected":""}>${n}</option>`).join("")}</select>
+ <label>Shape</label><select id="padShape" style="width:100%">${["rectangle","rounded","chamfered","oval / round","polygon (draw it)"].map((n,i)=>`<option value="${i}"${lpShape(l)===i?" selected":""}>${n}</option>`).join("")}</select>
  <label>Mask margin (mm, blank = board)</label><input type="number" step="0.01" value="${o.mask??""}" onchange="lpOpt('mask',this.value===''?undefined:+this.value)">
  <label>Paste (fraction of pad, blank = auto, 0 = none)</label><input type="number" step="0.05" value="${o.paste??""}" onchange="lpOpt('paste',this.value===''?undefined:+this.value)">
  <label><input type="checkbox" style="width:auto"${o.npth?" checked":""} onchange="lpOpt('npth',this.checked||undefined)"> Non-plated hole (no copper)</label>
  <div class="row" style="margin-top:6px"><button onclick="lpAddPad()">Add pad</button><button onclick="lpRow()">Add row…</button><button onclick="lpDelPad()">Delete pad</button></div>`;
- $("padShape").onchange=e=>{const k=+e.target.value,L=lp.custom.lands[lp.sel];L[5]=k===3?1:0;lpOpt("corner",k===1?0.25:undefined,true);lpOpt("chamfer",k===2?0.25:undefined);};}
+ $("padShape").onchange=e=>{const k=+e.target.value,L=lp.custom.lands[lp.sel];L[5]=k===3?1:0;lpOpt("outline",undefined,true);lpOpt("corner",k===1?0.25:undefined,true);lpOpt("chamfer",k===2?0.25:undefined,k===4);
+  if(k===4){lp.gtool={where:"fp",kind:"poly"};lp.gpts=[];status("Click the pad's corners on the footprint; double-click or Enter closes the shape.");}};}
 function lpAddPad(){const L=lp.custom.lands,l=[...L[lp.sel]];l[0]=+(l[0]+1).toFixed(3);l[6]="";L.push(l);lp.custom.pinCount=L.length;lp.sel=L.length-1;lpPad();lpCheck();}
 function lpDelPad(){const L=lp.custom.lands;if(L.length<2)return;L.splice(lp.sel,1);lp.custom.pinCount=L.length;lp.sel=Math.min(lp.sel,L.length-1);lpPad();lpCheck();}
 async function lpCreate(){if(lp.editId){const r=await act("library_replace_part",{id:lp.editId,spec:lpSpec()});if(r){lp.editId=r.data.id;await lpParts();$("lpOpen").value=lp.editId;status(`${$("lpName").value} saved; ${r.data.replaced} placed part(s) updated.`,"okc");}return;}
  const r=await act("library_create_part",{...lpSpec(),place:true});if(r&&r.data.component)status(`${$("lpName").value} added to the project library and placed as ${r.data.component.ref}.`,"okc");}
-function lpShape(l){const o=l[7]||{};return l[5]?3:o.chamfer?2:o.corner?1:0;}
+function lpShape(l){const o=l[7]||{};return o.outline?4:l[5]?3:o.chamfer?2:o.corner?1:0;}
 function lpOpt(k,v,noCheck){const L=lp.custom.lands[lp.sel];while(L.length<7)L.push(L.length===6?"":0);const o=Object.assign({},L[7]||{});if(v===undefined)delete o[k];else o[k]=v;
  if(Object.keys(o).length)L[7]=o;else L.length=7;if(!noCheck){lpPad();lpCheck();}}
 function lpRow(){const v=prompt("Pads to add after this one: count, pitch (mm), direction x or y","4 1.27 y");if(!v)return;const [n,pitch,dir]=v.trim().split(/\s+/),L=lp.custom.lands,base=L[lp.sel];
  for(let i=1;i<=(+n||0);i++){const l=[...base];l[6]="";l[dir==="x"?0:1]=+(base[dir==="x"?0:1]+i*(+pitch||1)).toFixed(3);L.push(l);}lp.custom.pinCount=L.length;lpPad();lpCheck();}
-function lpGraphicClick(where,pt){const t=lp.gtool;if(!t||t.where!==where)return;const g=v=>Math.round(v/(where==="sym"?5:0.05))*(where==="sym"?5:0.05),q=[+g(pt[0]).toFixed(3),+g(pt[1]).toFixed(3)];
+function lpGraphicClick(where,pt){const t=lp.gtool;if(!t||t.where!==where)return;
+ if(t.kind==="poly"){lp.gpts.push([+(Math.round(pt[0]/0.05)*0.05).toFixed(3),+(Math.round(pt[1]/0.05)*0.05).toFixed(3)]);lpDraw();return;}const g=v=>Math.round(v/(where==="sym"?5:0.05))*(where==="sym"?5:0.05),q=[+g(pt[0]).toFixed(3),+g(pt[1]).toFixed(3)];
  if(!lp.gfrom){lp.gfrom=q;status("Click the second point.");return;}const a=lp.gfrom;lp.gfrom=null;
  if(where==="fp")lp.fpLines.push([a[0],a[1],q[0],q[1],t.kind==="fab"?0.1:0.12,t.kind]);
  else lp.symG.push(t.kind==="circle"?{kind:"circle",points:[a],radius:+Math.hypot(q[0]-a[0],q[1]-a[1]).toFixed(1)}:{kind:t.kind,points:[a,q]});lpUpdate();}
 for(const [id,where] of [["symTools","sym"],["fpTools","fp"]])document.querySelectorAll(`#${id} [data-g]`).forEach(b=>b.onclick=()=>{const on=!(lp.gtool&&lp.gtool.kind===b.dataset.g);
  lp.gtool=on?{where,kind:b.dataset.g}:null;lp.gfrom=null;document.querySelectorAll("#symTools [data-g],#fpTools [data-g]").forEach(x=>x.classList.toggle("on",on&&x===b));if(on)status("Click the first point.");});
+function lpClosePoly(){const pts=lp.gpts||[];lp.gtool=null;lp.gpts=[];if(pts.length<3){status("A pad outline needs three or more corners.","warning");lpDraw();return;}
+ const L=lp.custom.lands[lp.sel],xs=pts.map(q=>q[0]),ys=pts.map(q=>q[1]),cx=+((Math.min(...xs)+Math.max(...xs))/2).toFixed(3),cy=+((Math.min(...ys)+Math.max(...ys))/2).toFixed(3);
+ L[0]=cx;L[1]=cy;L[2]=+(Math.max(...xs)-Math.min(...xs)).toFixed(3);L[3]=+(Math.max(...ys)-Math.min(...ys)).toFixed(3);L[5]=0;lpOpt("outline",pts.map(q=>[+(q[0]-cx).toFixed(3),+(q[1]-cy).toFixed(3)]));}
+addEventListener("keydown",e=>{if(e.key==="Enter"&&lp.gtool&&lp.gtool.kind==="poly"){e.preventDefault();lpClosePoly();}});
 async function lpParts(){try{const r=(await run("library_project_parts")).data.parts||[],el=$("lpOpen"),v=el.value;
  el.innerHTML='<option value="">New part</option>'+r.map(p=>`<option value="${esc(p.partId)}">${esc(p.name)} (${esc(p.package||"")})</option>`).join("");el.value=v;}catch{}}
 async function lpOpen(id){lp.editId=id;$("lpSave").textContent=id?"Save changes":"Create and place";if(!id)return;const sp=(await run("library_part_spec",{id})).data.spec;
@@ -337,7 +345,7 @@ async function trackOp(op){if(!selW)return;const id=selW.id;
 function showMulti(){const refs=[...multi],box=$("pcbSel");if(refs.length<2){multi.clear();selectPart("pcb",refs[0]||null);return;}
  const b=m=>`<button onclick="act('pcb_align',{refs:[...multi],mode:'${m[0]}'})">${m[1]}</button>`;
  box.innerHTML=`<div><b>${refs.length} parts</b></div><div class=info>${esc(refs.join(", "))}</div><div class="row" style="margin-top:6px">${[["left","Left"],["right","Right"],["top","Top"],["bottom","Bottom"],["centreX","Centre ↔"],["centreY","Centre ↕"],["distributeX","Spread ↔"],["distributeY","Spread ↕"]].map(b).join("")}
- <button onclick="act('pcb_lock_footprint',{refs:[...multi],locked:true})">Lock all</button><button onclick="replicate()" title="Copy this group's placement and copper onto other groups of the same parts">Replicate layout…</button></div>`;overlay($("pcbView"));}
+ <button onclick="act('pcb_lock_footprint',{refs:[...multi],locked:true})">Lock all</button><button onclick="replicate()" title="Copy this group's placement and copper onto other groups of the same parts">Replicate layout…</button><button onclick="makeRoom()" title="A room round these parts: they belong in it">Room…</button></div>`;overlay($("pcbView"));}
 async function replicate(){const refs=[...multi],v=prompt(`Target groups, the same parts in the same order as ${refs.join(" ")}; groups split by ";"`,"");if(!v)return;
  const targets=v.split(";").map(g=>g.trim().split(/[\s,]+/).filter(Boolean)).filter(g=>g.length);const r=await act("pcb_layout_block",{action:"replicate",refs,targets});
  if(r)status("Replicated onto "+r.data.groups.map(g=>`${g.anchor} (${g.tracks} tracks, ${g.vias} vias${g.skipped?", "+g.skipped+" skipped":""})`).join(", "),"okc");}
@@ -357,10 +365,19 @@ function boardOverlay(o){const vb=views.pcbView&&views.pcbView.vb;
   else{const t=(snap.tracks||[]).find(t=>t.id===selW.id);if(t)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#5b8dff","stroke-width":t.width+0.2,"stroke-linecap":"round",opacity:0.6});}}
  for(const ref of multi){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.15)",stroke:"#5b8dff","stroke-width":0.15});}
  if(drag&&drag.at&&(drag.marquee||drag.keepout)){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:drag.keepout?"rgba(255,80,80,.15)":"rgba(91,141,255,.1)",stroke:drag.keepout?"#ff5050":"#5b8dff","stroke-width":0.12,"stroke-dasharray":"0.5 0.3"});}
+ for(const r of boardRooms){shape(o,"rect",{x:r.x0,y:r.y0,width:r.x1-r.x0,height:r.y1-r.y0,fill:"none",stroke:r.outside.length?"#ff9f1a":"#b48cff","stroke-width":0.12,"stroke-dasharray":"1 0.5"});
+  shape(o,"text",{x:r.x0,y:r.y0-0.3,"font-size":0.9,fill:"#b48cff"}).textContent=r.name;}
  if(meas){shape(o,"circle",{cx:meas.a[0],cy:meas.a[1],r:0.25,fill:"#00e0c0"});if(meas.b){shape(o,"line",{x1:meas.a[0],y1:meas.a[1],x2:meas.b[0],y2:meas.b[1],stroke:"#00e0c0","stroke-width":0.1});
   const t=shape(o,"text",{x:(meas.a[0]+meas.b[0])/2,y:(meas.a[1]+meas.b[1])/2-0.4,"font-size":1.1,fill:"#00e0c0","text-anchor":"middle"});t.textContent=Math.hypot(meas.b[0]-meas.a[0],meas.b[1]-meas.a[1]).toFixed(3)+" mm";}}
  if(shapePts.length){shape(o,"polyline",{points:shapePts.map(q=>q.join(",")).join(" "),fill:tool.pcb==="pour"?"rgba(224,180,60,.25)":"rgba(255,255,255,.15)",stroke:tool.pcb==="pour"?"#e0b43c":"#fff","stroke-width":0.12});
   for(const q of shapePts)shape(o,"circle",{cx:q[0],cy:q[1],r:0.2,fill:"#fff"});}}
+async function makeRoom(){const refs=[...multi],name=prompt("Room name","Room "+((boardRooms.length||0)+1));if(!name)return;let b=null;
+ for(const ref of refs){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)b=b?[Math.min(b[0],k.x0),Math.min(b[1],k.y0),Math.max(b[2],k.x1),Math.max(b[3],k.y1)]:[k.x0,k.y0,k.x1,k.y1];}
+ if(!b)return;const rooms=boardRooms.map(r=>({name:r.name,refs:r.refs,x0:r.x0,y0:r.y0,x1:r.x1,y1:r.y1}));rooms.push({name,refs,x0:r3(b[0]-1),y0:r3(b[1]-1),x1:r3(b[2]+1),y1:r3(b[3]+1)});await act("pcb_rooms",{action:"set",rooms});}
+async function variantCheck(){const r=(await run("pcb_variant_check")).data;
+ $("drcList").innerHTML=r.variants.map(v=>`<div class="${v.ok?"okc":"warning"}"><b>${esc(v.variant)}</b>: ${v.ok?"OK":""}${v.openNets.length?" open nets "+esc(v.openNets.join(", ")):""}${v.overlaps.length?" overlaps "+esc(v.overlaps.map(p=>p.join("/")).join(", ")):""}${v.unfitted.length?" · not fitted "+esc(v.unfitted.join(", ")):""}</div>`).join("")
+  +(r.alternates.length?`<div class=info>Alternates (never fitted together): ${esc(r.alternates.map(p=>p.join("/")).join(", "))}</div>`:"");status(r.ok?"Every variant checks out.":"Some variants need work: see the panel.",r.ok?"okc":"warning");}
+let boardRooms=[];
 async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
  $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
 async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});

@@ -117,7 +117,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Logo / image import to silk or copper | ✅ | File → Import Logo… (raster → merged rectangles), MCP `pcb_graphics`; copper art DRC-checked |
 | P0 | ➕ Test-point objects and net-tie footprints | ✅ | `TestPoint` (1.5 mm probe pad) and `NetTie-2` parts (`TESTPOINT` / `NETTIE` packages) |
 | P1 | Stack-up materials, blind / buried / micro vias, back-drill | ✅ | |
-| P1 | Diff pairs, rooms, channel replication, teardrops, cleanup | ✅ | |
+| P1 | Diff pairs, rooms, channel replication, teardrops, cleanup | ✅ | rooms: MCP `pcb_rooms` (DRC_ROOM, place members into their room); channel replication: `pcb_layout_block` |
 | P1 | Silk collision and board-edge rules | ✅ | |
 | P1 | Panelisation with rails, fiducials, mouse bites, V-score | ✅ | `Panel.cpp` |
 | P1 | ➕ Castellated edges | ✅ | |
@@ -139,7 +139,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Constraint-aware autorouter, return paths, HS constraints, phase tuning, escape | ✅ | |
 | P2 | AI routing recommendations with before / after | ✅ | routing report; MCP `pcb_route_compare`: each strategy routed on a copy, before / after metrics and a recommendation ✅ |
 | P2 | ➕ Coplanar waveguide geometries | ✅ | field solver `FieldGeometry::cpw` (grounded CPW, coplanar stripline), MCP `si_field_solver` `cpwGap` |
-| P3 | Routing policies, batch routing over variants | 🟡 | routing policies per net class (layers the autorouter keeps to, via limit; DRC ROUTE_POLICY_LAYER / _VIAS; MCP `pcb_routing_policies`) ✅; batch routing over variants ⏳ (variants change fitted parts, not copper) |
+| P3 | Routing policies, batch routing over variants | ✅ | routing policies per net class (layers the autorouter keeps to, via limit; DRC ROUTE_POLICY_LAYER / _VIAS; MCP `pcb_routing_policies`); every variant checked on the one routing (MCP `pcb_variant_check`: open nets among fitted parts, overlaps of parts fitted together, alternates never fitted together) |
 
 ## 6. Electrical and physical verification
 

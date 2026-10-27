@@ -191,6 +191,17 @@ Json boardJson(const BoardSettings& s) {
         }
         b["partitions"] = parts;
     }
+    if (!s.rooms.empty()) {
+        Json rooms = Json::array();
+        for (const auto& r : s.rooms) {
+            Json rj = Json::object(), refs = Json::array();
+            for (const auto& ref : r.refs) refs.push(ref);
+            rj["name"] = r.name, rj["refs"] = refs;
+            rj["x0"] = r.area.x0, rj["y0"] = r.area.y0, rj["x1"] = r.area.x1, rj["y1"] = r.area.y1;
+            rooms.push(rj);
+        }
+        b["rooms"] = rooms;
+    }
     if (!s.dimensions.empty()) {
         Json dims = Json::array();
         for (const auto& d : s.dimensions) {
@@ -1009,6 +1020,14 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             const Rect area{q.get("x0").asNumber(), q.get("y0").asNumber(), q.get("x1").asNumber(), q.get("y1").asNumber()};
             if (std::isfinite(area.x0 + area.y0 + area.x1 + area.y1) && s.partitions.size() < 256)
                 s.partitions.push_back({q.get("name").asString(""), q.get("owner").asString(""), area});
+        }
+        for (const auto& r : b.get("rooms").items()) {
+            const Rect area{r.get("x0").asNumber(), r.get("y0").asNumber(), r.get("x1").asNumber(), r.get("y1").asNumber()};
+            if (!std::isfinite(area.x0 + area.y0 + area.x1 + area.y1) || s.rooms.size() >= 256) continue;
+            BoardSettings::Room room{r.get("name").asString(""), {}, area};
+            for (const auto& ref : r.get("refs").items())
+                if (room.refs.size() < 4096) room.refs.push_back(ref.asString(""));
+            s.rooms.push_back(std::move(room));
         }
         for (const auto& d : b.get("dimensions").items()) {
             const Vec2 a{d.get("a").get("x").asNumber(), d.get("a").get("y").asNumber()};

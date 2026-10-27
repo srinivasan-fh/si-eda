@@ -360,6 +360,14 @@ struct BoardSettings {
         Rect area;
     };
     std::vector<Partition> partitions;
+    /// Rooms: an area a group of parts belongs in (a channel, a power stage). The DRC flags a member whose courtyard
+    /// leaves it (DRC_ROOM); MCP pcb_rooms place moves members into it. JSON "rooms", written only when present.
+    struct Room {
+        std::string name;
+        std::vector<std::string> refs;
+        Rect area;
+    };
+    std::vector<Room> rooms;
     /// Dimensions drawn on the fabrication drawing, the DXF and the board view. JSON "dimensions", written only when present.
     std::vector<BoardDimension> dimensions;
     /// JSON "thieving", written only when on.
