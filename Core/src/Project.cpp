@@ -181,6 +181,16 @@ Json boardJson(const BoardSettings& s) {
         }
         b["cutouts"] = cuts;
     }
+    if (!s.partitions.empty()) {
+        Json parts = Json::array();
+        for (const auto& q : s.partitions) {
+            Json pj = Json::object();
+            pj["name"] = q.name, pj["owner"] = q.owner;
+            pj["x0"] = q.area.x0, pj["y0"] = q.area.y0, pj["x1"] = q.area.x1, pj["y1"] = q.area.y1;
+            parts.push(pj);
+        }
+        b["partitions"] = parts;
+    }
     if (!s.dimensions.empty()) {
         Json dims = Json::array();
         for (const auto& d : s.dimensions) {
@@ -994,6 +1004,11 @@ static void readBoardContent(const Json& root, PcbLayout& pcb) {
             std::vector<Vec2> cut;
             for (const auto& v : c.items()) cut.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
             if (cut.size() >= 3 && cut.size() <= 4096) s.cutouts.push_back(std::move(cut));
+        }
+        for (const auto& q : b.get("partitions").items()) {
+            const Rect area{q.get("x0").asNumber(), q.get("y0").asNumber(), q.get("x1").asNumber(), q.get("y1").asNumber()};
+            if (std::isfinite(area.x0 + area.y0 + area.x1 + area.y1) && s.partitions.size() < 256)
+                s.partitions.push_back({q.get("name").asString(""), q.get("owner").asString(""), area});
         }
         for (const auto& d : b.get("dimensions").items()) {
             const Vec2 a{d.get("a").get("x").asNumber(), d.get("a").get("y").asNumber()};

@@ -337,6 +337,13 @@ another net's locked track comes out 2.4 mm over its target without the search a
   the half-width), and other nets' vias and wide tracks keep it from the class net's pads and copper. Boards without
   net-class clearances route exactly as before.
 
+### Routing policies
+
+A net class can carry a routing policy (MCP `pcb_routing_policies`): the copper layers its nets may run on and the
+most vias each may use. The autorouter keeps the class's nets on its layers (other layers only to leave their pads);
+the DRC flags tracks off those layers (ROUTE_POLICY_LAYER) and nets with more vias than allowed (ROUTE_POLICY_VIAS).
+The policies are saved with the board's strategy (`classLayers`, `classMaxVias`).
+
 ## Pin and gate swapping
 
 `pinSwap` (off by default; JSON `"pinSwap"`, written only when on, so older files load and save identically) makes

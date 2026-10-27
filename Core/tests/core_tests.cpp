@@ -21363,6 +21363,143 @@ TEST(mcp_library_land_calculator_footprints_replace_and_models) {
     CHECK(!model.get("id").asString("").empty() && model.get("model3d").get("id").asString("") == model.get("id").asString(""));
 }
 
+TEST(mcp_layout_block_replicates_and_reapplies_a_channel) {
+    const auto root = mcpRoot("layout_block");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    // Two identical RC channels on their own nets.
+    for (const char* spec : {R"({"kind": "resistor", "ref": "R1", "x": 0, "y": 0})", R"({"kind": "capacitor", "ref": "C1", "x": 60, "y": 0})",
+                             R"({"kind": "resistor", "ref": "R2", "x": 0, "y": 100})", R"({"kind": "capacitor", "ref": "C2", "x": 60, "y": 100})"})
+        CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", Json::parse(spec))));
+    for (const char* spec : {R"({"from": "R1.2", "to": "C1.1"})", R"({"from": "R2.2", "to": "C2.1"})"})
+        CHECK(!mcpFailed(mcpTool(s, "schematic_connect", Json::parse(spec))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    Json all = Json::object();
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_route", Json::parse(R"({"from": "R1.2", "to": "C1.1"})"))));
+    const Project& pr = s.project()->project;
+    const size_t routed = pr.pcb.tracks.size();
+    CHECK(routed > 0);
+    // Replicate channel 1 onto channel 2: same arrangement round R2, the same copper on R2 / C2's net.
+    Json rep = Json::parse(R"({"action": "replicate", "refs": ["R1", "C1"], "targets": [["R2", "C2"]]})");
+    const Json r = mcpData(mcpTool(s, "pcb_layout_block", rep));
+    CHECK(r.get("groups").items()[0].get("tracks").asInt(0) == static_cast<int>(routed));
+    auto at = [&](const char* ref) { return pr.schematic.findByRef(ref)->pcb.position; };
+    CHECK(std::fabs((at("C1") - at("R1")).x - (at("C2") - at("R2")).x) < 1e-6 && std::fabs((at("C1") - at("R1")).y - (at("C2") - at("R2")).y) < 1e-6);
+    const int net2 = [&] {
+        for (const Pad& pad : pr.pcb.pads(pr.schematic))
+            if (pad.componentId == pr.schematic.findByRef("C2")->id && pad.pinIndex == 0) return pad.net;
+        return -1;
+    }();
+    CHECK(std::count_if(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& t) { return t.net == net2; }) == static_cast<long>(routed));
+    // Saved approved, applied again: still the approved layout; a group of other parts is refused.
+    CHECK(!mcpFailed(mcpTool(s, "pcb_layout_block", Json::parse(R"({"action": "save", "refs": ["R1", "C1"], "path": "rc.layout", "approvedBy": "Lead"})"))));
+    const Json ap = mcpData(mcpTool(s, "pcb_layout_block", Json::parse(R"({"action": "apply", "refs": ["R2", "C2"], "path": "rc.layout"})")));
+    CHECK(ap.get("approved").asBool(false) && ap.get("approvedBy").asString("") == "Lead" && ap.get("tracks").asInt(-1) == 0);  // no duplicates
+    CHECK(mcpFailed(mcpTool(s, "pcb_layout_block", Json::parse(R"({"action": "apply", "refs": ["R2"], "path": "rc.layout"})"))));
+}
+
+TEST(mcp_board_partitions_flag_edits_in_someone_elses_area) {
+    const auto root = mcpRoot("partitions");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object(), all = Json::object();
+    ex["id"] = "led_indicator";
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    const BoardSettings& st = s.project()->project.pcb.settings;
+    Json set = Json::object(), list = Json::array();
+    for (const auto& [name, owner, x0, x1] : {std::tuple<const char*, const char*, double, double>{"Power", "Ana", 0, st.width / 2},
+                                              {"Signal", "Ben", st.width / 2, st.width}}) {
+        Json q = Json::object();
+        q["name"] = name, q["owner"] = owner, q["x0"] = x0, q["y0"] = 0.0, q["x1"] = x1, q["y1"] = st.height;
+        list.push(q);
+    }
+    set["action"] = "set", set["partitions"] = list;
+    CHECK(mcpData(mcpTool(s, "pcb_partitions", set)).get("partitions").size() == 2);
+    Json save = Json::object();
+    save["path"] = "base.siedaproj";
+    CHECK(!mcpFailed(mcpTool(s, "project_save_as", save)));
+    // Ana moves a part that sits in Ben's half: flagged for Ana, not for Ben.
+    const Component* inBen = nullptr;
+    for (const auto& c : s.project()->project.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed && c.pcb.position.x > st.width / 2) inBen = &c;
+    CHECK(inBen != nullptr);
+    Json mv = Json::object();
+    mv["ref"] = inBen->ref, mv["x"] = inBen->pcb.position.x, mv["y"] = inBen->pcb.position.y + 1.0, mv["force"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", mv)));
+    Json chk = Json::parse(R"({"action": "check", "owner": "Ana", "against": "base.siedaproj"})");
+    const Json r = mcpData(mcpTool(s, "pcb_partitions", chk));
+    CHECK(!r.get("clean").asBool(true) && r.get("outsideYours").items()[0].get("owner").asString("") == "Ben");
+    chk["owner"] = "Ben";
+    CHECK(mcpData(mcpTool(s, "pcb_partitions", chk)).get("clean").asBool(false));
+    // The partitions are saved with the board.
+    CHECK(Project::fromJson(s.project()->project.toJson()).pcb.settings.partitions.size() == 2);
+}
+
+TEST(mcp_company_library_release_states_librarians_and_alternates) {
+    const auto root = mcpRoot("company_library");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    const Json made = mcpData(mcpTool(s, "library_create_part", Json::parse(R"({"name": "REG3V3", "package": {"type": "SOT23", "pinCount": 3},
+        "pins": [{"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "OUT", "type": "power_out"},
+                 {"number": "3", "name": "IN", "type": "power_in"}]})")));
+    Json pub = Json::object();
+    pub["action"] = "publish", pub["folder"] = "lib", pub["id"] = made.get("partId");
+    CHECK(mcpData(mcpTool(s, "library_company", pub)).get("version").asInt(0) == 1);
+    auto call = [&](const char* json) { return mcpTool(s, "library_company", Json::parse(json)); };
+    CHECK(mcpData(call(R"({"action": "list", "folder": "lib"})")).get("parts").items()[0].get("status").asString("") == "draft");
+    CHECK(mcpFailed(call(R"({"action": "use", "folder": "lib", "name": "REG3V3"})")));  // a draft
+    {
+        std::ofstream(root / "lib" / "librarians.json") << R"({"librarians": ["Lead"]})";
+    }
+    CHECK(mcpFailed(call(R"({"action": "release", "folder": "lib", "name": "REG3V3", "approvedBy": "Bob"})")));
+    CHECK(mcpData(call(R"({"action": "release", "folder": "lib", "name": "REG3V3", "approvedBy": "Lead"})")).get("approved").asBool(false));
+    const Json used = mcpData(call(R"({"action": "use", "folder": "lib", "name": "REG3V3"})"));
+    CHECK(used.get("approved").asBool(false) && used.get("component").get("ref").asString("").size() > 0);
+    // A new version starts as a draft again; the old one is kept in the history.
+    CHECK(mcpData(mcpTool(s, "library_company", pub)).get("version").asInt(0) == 2);
+    CHECK(std::filesystem::exists(root / "lib" / ".history" / "REG3V3" / "v1.json"));
+    CHECK(!mcpFailed(call(R"({"action": "alternates", "folder": "lib", "name": "REG3V3", "alternates": ["REG3V3B"]})")));
+    CHECK(!mcpFailed(call(R"({"action": "obsolete", "folder": "lib", "name": "REG3V3"})")));
+    const Json r = call(R"({"action": "use", "folder": "lib", "name": "REG3V3", "allowDraft": true})");
+    CHECK(mcpFailed(r) && mcpErrorText(r).find("REG3V3B") != std::string::npos);
+    CHECK(mcpFailed(call(R"({"action": "use", "folder": "lib", "name": "../x"})")));
+}
+
+TEST(mcp_routing_policies_flag_layers_and_vias_per_net_class) {
+    const auto root = mcpRoot("route_policy");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object(), all = Json::object();
+    ex["id"] = "led_indicator";
+    all["all"] = true;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_net_class", Json::parse(R"({"name": "SIG"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_add_directive", Json::parse(R"({"pin": "R1.2", "netClass": "SIG"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", all)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_route", Json::parse(R"({"from": "R1.2", "to": "D1.1"})"))));
+    const Project& pr = s.project()->project;
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& v : pr.pcb.runDRC(pr.schematic)) c.insert(v.code);
+        return c;
+    };
+    CHECK(!codes().count("ROUTE_POLICY_LAYER"));
+    // SIG may only use the bottom layer and no vias: its top-layer route breaks the layer policy.
+    Json set = Json::parse(R"({"action": "set", "policies": [{"netClass": "SIG", "layers": [1], "maxVias": 0}]})");
+    CHECK(mcpData(mcpTool(s, "pcb_routing_policies", set)).get("policies").size() == 1);
+    CHECK(codes().count("ROUTE_POLICY_LAYER") == 1);
+    // A via on the net breaks the via limit; the policy survives a save.
+    const Track& t = *std::find_if(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& x) { return x.layer == 0; });
+    Via v;
+    v.net = t.net, v.position = t.a;
+    s.project()->project.pcb.addVia(v);
+    CHECK(codes().count("ROUTE_POLICY_VIAS") == 1);
+    CHECK(Project::fromJson(pr.toJson()).pcb.settings.autorouter.classMaxVias.at("SIG") == 0);
+    CHECK(mcpFailed(mcpTool(s, "pcb_routing_policies", Json::parse(R"({"action": "set", "policies": [{"netClass": "SIG", "layers": [9]}]})"))));
+}
+
 TEST(mcp_route_live_steps_change_the_board_only_on_commit) {
     const auto root = mcpRoot("route_live");
     mcp::McpServer s(mcpOptions(root));

@@ -6666,6 +6666,33 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     for (auto& v : mechanicalChecks(sch, *this)) out.push_back(std::move(v));  // 3D clearance (Mechanical.cpp)
     for (auto& v : dfmChecks(sch, *this)) out.push_back(std::move(v));        // manufacturer pack (Dfm.cpp)
     for (auto& v : panelChecks(sch, *this)) out.push_back(std::move(v));      // production panel (Panel.cpp)
+    // Routing policies per net class: the layers its nets may run on and the most vias each may use.
+    const auto& policy = settings.autorouter;
+    if (!policy.classLayers.empty() || !policy.classMaxVias.empty())
+        for (const NetRule& r : sch.netRules()) {
+            if (r.net < 0 || r.netClass.empty()) continue;
+            const std::string& name = r.netName;
+            if (const auto it = policy.classLayers.find(r.netClass); it != policy.classLayers.end()) {
+                int off = 0;
+                Vec2 at;
+                for (const Track& t : tracks)
+                    if (t.net == r.net && !t.teardrop && std::find(it->second.begin(), it->second.end(), t.layer) == it->second.end())
+                        if (off++ == 0) at = (t.a + t.b) * 0.5;
+                if (off)
+                    add(Severity::Warning, "ROUTE_POLICY_LAYER",
+                        "Net " + name + " (class " + r.netClass + ") has " + std::to_string(off) + " track(s) off its class's layers.", at);
+            }
+            if (const auto it = policy.classMaxVias.find(r.netClass); it != policy.classMaxVias.end()) {
+                const auto n = std::count_if(vias.begin(), vias.end(), [&](const Via& v) { return v.net == r.net; });
+                if (n > it->second) {
+                    const auto v = std::find_if(vias.begin(), vias.end(), [&](const Via& x) { return x.net == r.net; });
+                    add(Severity::Warning, "ROUTE_POLICY_VIAS",
+                        "Net " + name + " (class " + r.netClass + ") uses " + std::to_string(n) + " vias; its class allows " +
+                            std::to_string(it->second) + ".",
+                        v->position);
+                }
+            }
+        }
     for (auto& v : customRuleChecks(sch, *this)) out.push_back(std::move(v)); // the user's own rules (CustomRules.cpp)
     if (out.empty()) {
         RuleViolation v;

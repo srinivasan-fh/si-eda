@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 174 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 183 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -601,7 +601,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_variant_matrix` | read | Variants side by side: every part a variant changes with its fitting and value in each variant, and per-variant totals (fitted, not fitted, value changes). |
 | `schematic_variant_edit` | edit | Variant commands: add (name, copyFrom), remove (name), rename (name, newName), describe (name, description), activate (name; "" = base design), set_part (name, ref, fitted true/false/null, value). |
 
-### library (13)
+### library (19)
 
 Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library import.
 
@@ -619,9 +619,15 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_bulk_edit` | edit | Sets the same fields on every project library part whose name holds match (case-insensitive; "" = all): manufacturer, description, datasheet, refPrefix, defaultValue. |
 | `library_check_part` | read | Checks a part spec (as library_create_part takes) without adding it: symbol, land pattern and unit checks, and its library quality score (0 – 100, with what is missing). |
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
+| `library_land_calculator` | read | IPC-7351B pads for a two-sided part from the datasheet's lead dimensions (mm): toe-to-toe span L, heel-to-heel span S and lead width W, min and max each; family gullwing (SOIC, SOP, QFP), chip (0603 and up) or qfn; density most, nominal or least. |
+| `library_footprints` | read | The built-in footprints and the project's own: search by words (name or label; "" = all, at most 200) for [{name, label, pads, width, height}], or name one to get its pads as lands {lands, bodySize, bodyDepth} (pad k on pin k + 1, mechanical pads "-") to start a part from (library_create_part, package type CUSTOM). |
+| `library_part_spec` | read | A project library part's full spec (library_project_parts ids), as library_create_part takes it: to edit it and save it back with library_replace_part. |
+| `library_replace_part` | edit | Saves an edited spec over a project library part: every placed instance takes the new symbol and footprint (same designators and nets by pin number), the old part leaves the library. |
+| `library_import_model` | edit | Imports a part's 3D model (STEP / VRML / STL / OBJ file in the root folder). |
+| `library_company` | writes files | A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in .history/<name>/). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (53)
+### pcb (56)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -641,6 +647,9 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
 | `pcb_suggest_placement` | read | The nearest free legal spot for a footprint that keeps the assembly spacing, close to the pads it connects to (ground counts only for a part on ground alone). |
 | `pcb_align` | edit | Lines footprints' courtyards up on the outermost one's edge or centre line (left, right, top, bottom, centreX, centreY), or spaces them evenly between the outermost two (distributeX, distributeY: three or more). |
+| `pcb_layout_block` | writes files | Reuses a laid-out group (an approved channel, a regulator block). |
+| `pcb_partitions` | edit | Several engineers on one board: set the partitions [{name, owner, x0, y0, x1, y1}] (mm; [] removes them) or list them; check (owner, against = the base project file, e.g. |
+| `pcb_routing_policies` | edit | Routing policies per schematic net class: the copper layers its nets may run on (the autorouter keeps them there; other layers only to leave their pads) and the most vias each may use. |
 | `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
 | `pcb_autoroute` | edit | Routes the board. |
 | `pcb_autoroute_presets` | read | The autorouter strategy presets with their options, and the board's current strategy. |

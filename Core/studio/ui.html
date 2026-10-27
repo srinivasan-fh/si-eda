@@ -337,7 +337,10 @@ async function trackOp(op){if(!selW)return;const id=selW.id;
 function showMulti(){const refs=[...multi],box=$("pcbSel");if(refs.length<2){multi.clear();selectPart("pcb",refs[0]||null);return;}
  const b=m=>`<button onclick="act('pcb_align',{refs:[...multi],mode:'${m[0]}'})">${m[1]}</button>`;
  box.innerHTML=`<div><b>${refs.length} parts</b></div><div class=info>${esc(refs.join(", "))}</div><div class="row" style="margin-top:6px">${[["left","Left"],["right","Right"],["top","Top"],["bottom","Bottom"],["centreX","Centre ↔"],["centreY","Centre ↕"],["distributeX","Spread ↔"],["distributeY","Spread ↕"]].map(b).join("")}
- <button onclick="act('pcb_lock_footprint',{refs:[...multi],locked:true})">Lock all</button></div>`;overlay($("pcbView"));}
+ <button onclick="act('pcb_lock_footprint',{refs:[...multi],locked:true})">Lock all</button><button onclick="replicate()" title="Copy this group's placement and copper onto other groups of the same parts">Replicate layout…</button></div>`;overlay($("pcbView"));}
+async function replicate(){const refs=[...multi],v=prompt(`Target groups, the same parts in the same order as ${refs.join(" ")}; groups split by ";"`,"");if(!v)return;
+ const targets=v.split(";").map(g=>g.trim().split(/[\s,]+/).filter(Boolean)).filter(g=>g.length);const r=await act("pcb_layout_block",{action:"replicate",refs,targets});
+ if(r)status("Replicated onto "+r.data.groups.map(g=>`${g.anchor} (${g.tracks} tracks, ${g.vias} vias${g.skipped?", "+g.skipped+" skipped":""})`).join(", "),"okc");}
 function toggleHighlight(){const net=selW?selW.net:null;hl=hl!==null&&hl===net?null:net;if(hl===null&&!selW)status("Select a track or via, then highlight its net (H).");overlay($("pcbView"));}
 async function closeShape(){const pts=shapePts;shapePts=[];if(pts.length<3){status("A shape needs three or more corners.","warning");overlay($("pcbView"));return;}
  const points=pts.map(q=>({x:q[0],y:q[1]}));

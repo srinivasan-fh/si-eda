@@ -128,6 +128,13 @@ drawings and the board's Fabrication layer.
   `~/Library/Application Support/SiEDA/Footprints` (`UserFootprintLibrary`); **My Footprints** at the top of the
   Library popover loads one (undoable) or removes it.
 
+### IPC-7351 calculator and library footprints
+
+The core's IPC-7351B calculator (MCP `library_land_calculator`, Studio's IPC calculator) gives pad length, width and
+centre distance from the datasheet's lead dimensions: toe-to-toe span L, heel-to-heel span S and lead width W, min and
+max, for gull-wing, chip and flat no-lead parts at most / nominal / least density, and lays out the two rows as lands.
+MCP `library_footprints` searches the built-in and project footprints and returns one's pads to start from.
+
 ## Reviewing
 
 - ⌘Z / ⇧⌘Z undo and redo footprint edits; **Datasheet** opens the part's datasheet link.

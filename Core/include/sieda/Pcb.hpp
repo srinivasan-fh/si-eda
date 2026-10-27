@@ -112,6 +112,9 @@ struct AutorouteOptions {
     bool protectLocked = false;
     /// Per schematic net class: the copper layers its nets may route on (others are used only to leave their pads).
     std::map<std::string, std::vector<int>> classLayers;
+    /// Per schematic net class: the most vias one of its nets may use (routing policy; the DRC flags more as
+    /// ROUTE_POLICY_VIAS, off-layer tracks as ROUTE_POLICY_LAYER). JSON "classMaxVias", written only when set.
+    std::map<std::string, int> classMaxVias;
     /// Automatic pin and gate swap before routing (Project::autoRoute; docs/ROUTING.md, Pin and gate swapping): pins of
     /// a swap group and interchangeable gates of multi-unit parts change places where that shortens the ratsnest and
     /// crosses fewer airwires, back-annotated to the schematic like a manual PCB swap. Whole-board routes only.
@@ -350,6 +353,13 @@ struct BoardSettings {
     /// Board cutouts: closed shapes routed out of the board (mm, board coordinates). Copper, parts and pours keep the
     /// edge clearance from them as from the outline. JSON "cutouts", written only when present.
     std::vector<std::vector<Vec2>> cutouts;
+    /// Board partitions for several engineers: each area has an owner, and edits by someone else inside it are flagged
+    /// (MCP pcb_partitions check). JSON "partitions", written only when present.
+    struct Partition {
+        std::string name, owner;
+        Rect area;
+    };
+    std::vector<Partition> partitions;
     /// Dimensions drawn on the fabrication drawing, the DXF and the board view. JSON "dimensions", written only when present.
     std::vector<BoardDimension> dimensions;
     /// JSON "thieving", written only when on.

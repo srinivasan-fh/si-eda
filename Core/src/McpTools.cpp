@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <iterator>
 #include <set>
 #include <sstream>
 #include <string>
@@ -1518,6 +1519,133 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
     for (const auto& v : pr.pcb.vias)
         if (v.net != net && (layer < 0 || v.spans(layer)) && trackPointDistance(seg, v.position) - width / 2 - v.diameter / 2 < clr - 1e-9)
             fail("a via of another net (id " + std::to_string(v.id) + ")");
+}
+
+// Layout reuse (pcb_layout_block): a group's placement relative to its first part and the copper inside the group,
+// nets named by the group pin they reach ("part index:pin index") so the layout lands on another group of the same
+// parts.
+Json captureLayout(const Project& pr, const std::vector<int>& ids) {
+    const Component* anchor = pr.schematic.find(ids[0]);
+    const Vec2 o = anchor->pcb.position;
+    std::map<int, std::string> netKey;  // net → "i:pin"
+    std::map<int, int> padCount;
+    for (const Pad& pad : pr.pcb.pads(pr.schematic))
+        for (size_t i = 0; i < ids.size(); ++i)
+            if (pad.componentId == ids[i]) {
+                ++padCount[ids[i]];
+                if (pad.net >= 0 && !netKey.count(pad.net)) netKey[pad.net] = std::to_string(i) + ":" + std::to_string(pad.pinIndex);
+            }
+    Rect box;
+    bool first = true;
+    Json parts = Json::array();
+    for (int id : ids) {
+        const Component* c = pr.schematic.find(id);
+        const Rect r = pr.pcb.courtyard(*c);
+        box = first ? r : Rect{std::min(box.x0, r.x0), std::min(box.y0, r.y0), std::max(box.x1, r.x1), std::max(box.y1, r.y1)};
+        first = false;
+        Json p = obj();
+        p["ref"] = c->ref, p["pads"] = padCount[id], p["dx"] = c->pcb.position.x - o.x, p["dy"] = c->pcb.position.y - o.y;
+        p["rotation"] = c->pcb.rotation, p["bottom"] = c->pcb.bottom;
+        parts.push(p);
+    }
+    auto inside = [&](Vec2 q) { return q.x >= box.x0 - 0.5 && q.x <= box.x1 + 0.5 && q.y >= box.y0 - 0.5 && q.y <= box.y1 + 0.5; };
+    auto pt = [&](Vec2 q) {
+        Json j = obj();
+        j["x"] = q.x - o.x, j["y"] = q.y - o.y;
+        return j;
+    };
+    Json tracks = Json::array(), vias = Json::array();
+    for (const Track& t : pr.pcb.tracks)
+        if (netKey.count(t.net) && !t.arc && inside(t.a) && inside(t.b)) {
+            Json j = obj();
+            j["a"] = pt(t.a), j["b"] = pt(t.b), j["layer"] = t.layer, j["width"] = t.width, j["net"] = netKey[t.net];
+            tracks.push(j);
+        }
+    for (const Via& v : pr.pcb.vias)
+        if (netKey.count(v.net) && inside(v.position)) {
+            Json j = pt(v.position);
+            j["drill"] = v.drill, j["diameter"] = v.diameter, j["from"] = v.fromLayer, j["to"] = v.toLayer, j["net"] = netKey[v.net];
+            vias.push(j);
+        }
+    Json layout = obj();
+    layout["parts"] = parts, layout["tracks"] = tracks, layout["vias"] = vias;
+    return layout;
+}
+
+/// Places `ids` (same parts, same order as the layout's) with the layout's arrangement round `at` and copies its copper
+/// onto their nets; copper that would touch another net is skipped and counted.
+Json applyLayout(SiedaProject* p, const Json& layout, const std::vector<int>& ids, Vec2 at) {
+    Project& pr = p->project;
+    const auto& parts = layout.get("parts").items();
+    check(parts.size() == ids.size(), "The layout has " + std::to_string(parts.size()) + " parts; give as many target parts, in the same order");
+    std::map<int, int> padCount;
+    std::map<std::string, int> netOf;  // "i:pin" → target net
+    for (const Pad& pad : pr.pcb.pads(pr.schematic))
+        for (size_t i = 0; i < ids.size(); ++i)
+            if (pad.componentId == ids[i]) {
+                ++padCount[ids[i]];
+                netOf[std::to_string(i) + ":" + std::to_string(pad.pinIndex)] = pad.net;
+            }
+    for (size_t i = 0; i < ids.size(); ++i) {
+        const Component* c = pr.schematic.find(ids[i]);
+        check(c && c->hasFootprint(), "Target part " + std::to_string(i + 1) + " has no footprint");
+        check(padCount[ids[i]] == parts[i].get("pads").asInt(-1),
+              c->ref + " has " + std::to_string(padCount[ids[i]]) + " pads, the layout's " + parts[i].get("ref").asString("?") + " " +
+                  std::to_string(parts[i].get("pads").asInt(0)));
+    }
+    Json j = obj(), notMoved = Json::array();
+    for (size_t i = 0; i < ids.size(); ++i) {
+        const Json& q = parts[i];
+        const Json r = takeJson(sieda_pcb_place_footprint(p, ids[i], at.x + q.get("dx").asNumber(0), at.y + q.get("dy").asNumber(0),
+                                                           q.get("rotation").asInt(0), q.get("bottom").asBool(false) ? 1 : 0, 0, 1));
+        if (!r.get("committed").asBool(false)) notMoved.push(pr.schematic.find(ids[i])->ref);
+    }
+    int tracks = 0, vias = 0, skipped = 0;
+    auto netFor = [&](const Json& e) {
+        const auto it = netOf.find(e.get("net").asString(""));
+        return it == netOf.end() ? -1 : it->second;
+    };
+    for (const auto& e : layout.get("tracks").items()) {
+        Track t;
+        t.net = netFor(e), t.layer = e.get("layer").asInt(0), t.width = e.get("width").asNumber(0.25);
+        t.a = {at.x + e.get("a").get("x").asNumber(0), at.y + e.get("a").get("y").asNumber(0)};
+        t.b = {at.x + e.get("b").get("x").asNumber(0), at.y + e.get("b").get("y").asNumber(0)};
+        try {
+            check(t.net >= 0 && t.layer < pr.pcb.settings.layerCount, "");
+            const auto same = [&](Vec2 u, Vec2 w) { return std::fabs(u.x - w.x) < 1e-6 && std::fabs(u.y - w.y) < 1e-6; };
+            if (std::any_of(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [&](const Track& o) {
+                    return o.net == t.net && o.layer == t.layer && ((same(o.a, t.a) && same(o.b, t.b)) || (same(o.a, t.b) && same(o.b, t.a)));
+                }))
+                continue;  // already there (the layout applied before)
+            checkClearOfOtherNets(pr, t.net, t.a, t.b, t.width, t.layer);
+            pr.pcb.addTrack(t);
+            ++tracks;
+        } catch (const ToolError&) {
+            ++skipped;
+        }
+    }
+    for (const auto& e : layout.get("vias").items()) {
+        Via v;
+        v.net = netFor(e), v.position = {at.x + e.get("x").asNumber(0), at.y + e.get("y").asNumber(0)};
+        v.drill = e.get("drill").asNumber(0.3), v.diameter = e.get("diameter").asNumber(0.6);
+        v.fromLayer = e.get("from").asInt(0), v.toLayer = e.get("to").asInt(-1);
+        try {
+            check(v.net >= 0, "");
+            if (std::any_of(pr.pcb.vias.begin(), pr.pcb.vias.end(), [&](const Via& o) {
+                    return o.net == v.net && std::fabs(o.position.x - v.position.x) < 1e-6 && std::fabs(o.position.y - v.position.y) < 1e-6;
+                }))
+                continue;
+            checkClearOfOtherNets(pr, v.net, v.position, v.position, v.diameter, -1);
+            pr.pcb.addVia(v);
+            ++vias;
+        } catch (const ToolError&) {
+            ++skipped;
+        }
+    }
+    p->router.reset();
+    j["tracks"] = tracks, j["vias"] = vias, j["skipped"] = skipped;
+    if (notMoved.size()) j["notMoved"] = notMoved;
+    return j;
 }
 
 Json stitchVias(SiedaProject* p, Json o) {
@@ -4944,6 +5072,117 @@ void libraryTools(Table& t) {
               }
               return out(r);
           });
+    t.add("library", "library_company", "Company library", Kind::Files, false,
+          "A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in "
+          ".history/<name>/). publish (id: a project part) adds or updates a part as a draft, version + 1; release "
+          "marks it released by approvedBy (when the folder's librarians.json lists names, only they may); obsolete "
+          "retires it; alternates sets its approved alternates (names); list shows every part with status, version, "
+          "alternates and approved (unchanged since release); use (name) adds it to the project and places it "
+          "(drafts only with allowDraft; never an obsolete part).",
+          Schema().str("action", "publish, release, obsolete, alternates, list or use", true,
+                       {"publish", "release", "obsolete", "alternates", "list", "use"})
+              .str("folder", "Library folder in the root", true).str("id", "publish: project part id").str("name", "Part name")
+              .str("approvedBy", "release: librarian").array("alternates", "alternates: part names", "string")
+              .boolean("allowDraft", "use: allow a draft").num("x", "use: x").num("y", "use: y"),
+          [](McpServer& s, const Json& a) {
+              auto fingerprint = [](const Json& spec) {
+                  uint64_t h = 1469598103934665603ull;  // FNV-1a
+                  for (const unsigned char ch : spec.dump()) h = (h ^ ch) * 1099511628211ull;
+                  char text[17];
+                  std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+                  return std::string(text);
+              };
+              const std::string folder = requireStr(a, "folder"), action = argStr(a, "action", "");
+              auto safe = [](const std::string& name) {
+                  check(!name.empty() && name.size() <= 120 && name.find_first_of("/\\:*?\"<>|") == std::string::npos && name[0] != '.',
+                        "Part names for the library are plain file names");
+                  return name;
+              };
+              auto fileOf = [&](const std::string& name) { return folder + "/" + safe(name) + ".part.json"; };
+              auto load = [&](const std::string& name) { return Json::parse(readFileArg(s, fileOf(name)).asString("")); };
+              auto approved = [&](const Json& e) {
+                  return e.get("status").asString("") == "released" && e.get("approvedHash").asString("") == fingerprint(e.get("spec"));
+              };
+              Json j = obj();
+              if (action == "list") {
+                  Json parts = Json::array();
+                  const std::string dir = s.resolvePath(folder, false);
+                  std::error_code ec;
+                  std::vector<std::string> names;
+                  for (const auto& f : fs::directory_iterator(dir, ec)) {
+                      const std::string fn = f.path().filename().string();
+                      if (fn.size() > 10 && fn.compare(fn.size() - 10, 10, ".part.json") == 0) names.push_back(fn.substr(0, fn.size() - 10));
+                  }
+                  std::sort(names.begin(), names.end());
+                  for (const auto& n : names) {
+                      const Json e = load(n);
+                      Json row = obj();
+                      row["name"] = n, row["status"] = e.get("status"), row["version"] = e.get("version");
+                      row["approved"] = approved(e), row["alternates"] = e.get("alternates").isArray() ? e.get("alternates") : Json::array();
+                      if (e.has("approvedBy")) row["approvedBy"] = e.get("approvedBy");
+                      parts.push(row);
+                  }
+                  j["parts"] = parts;
+                  return out(j);
+              }
+              if (action == "publish") {
+                  const CustomPart* cp = CustomPartRegistry::instance().find(requireStr(a, "id"));
+                  check(cp != nullptr, "No project part " + argStr(a, "id"));
+                  const std::string name = a.has("name") ? argStr(a, "name") : cp->spec.name;
+                  Json e = obj();
+                  int version = 0;
+                  try {
+                      e = load(name);
+                      version = e.get("version").asInt(0);
+                      s.writeFile(folder + "/.history/" + safe(name) + "/v" + std::to_string(version) + ".json", e.dump(2) + "\n");
+                  } catch (const ToolError&) {  // a new part
+                  }
+                  e["format"] = "sieda.part/1", e["spec"] = customPartSpecToJson(cp->spec), e["version"] = version + 1, e["status"] = "draft";
+                  e["hash"] = fingerprint(e.get("spec"));
+                  s.writeFile(fileOf(name), e.dump(2) + "\n");
+                  j["name"] = name, j["version"] = version + 1, j["status"] = "draft";
+                  return out(j);
+              }
+              const std::string name = requireStr(a, "name");
+              Json e = load(name);
+              check(e.get("format").asString("") == "sieda.part/1", fileOf(name) + " is not a SiEDA library part");
+              if (action == "use") {
+                  const std::string status = e.get("status").asString("draft");
+                  check(status != "obsolete", name + " is obsolete" +
+                                                  (e.get("alternates").size() ? "; approved alternates: " + e.get("alternates").dump() : std::string()));
+                  check(status == "released" || argBool(a, "allowDraft", false), name + " is a draft (not released); use allowDraft to try it");
+                  char* error = nullptr;
+                  char* made = sieda_custom_part_register(P(s), e.get("spec").dump().c_str(), &error);
+                  if (!made) throw ToolError("Invalid part: " + takeText(error));
+                  const std::string id = takeJson(made).get("id").asString("");
+                  const Vec2 at = freeSpot(P(s)->project);
+                  const int c = sieda_add_custom_component(P(s), id.c_str(), e.get("spec").get("defaultValue").asString(name).c_str(),
+                                                           argNum(a, "x", at.x), argNum(a, "y", at.y), 0, nullptr);
+                  check(c >= 0, "The part was added but could not be placed");
+                  j["partId"] = id, j["component"] = componentJson(*P(s), c), j["approved"] = approved(e), j["version"] = e.get("version");
+                  return out(j);
+              }
+              if (action == "release") {
+                  const std::string by = requireStr(a, "approvedBy");
+                  std::error_code ec;
+                  if (fs::exists(s.resolvePath(folder + "/librarians.json", false), ec)) {  // only the listed librarians release
+                      const Json lib = Json::parse(readFileArg(s, folder + "/librarians.json").asString(""));
+                      bool listed = false;
+                      for (const auto& l : lib.get("librarians").items()) listed = listed || l.asString("") == by;
+                      check(listed, by + " is not a librarian of this library (librarians.json)");
+                  }
+                  e["status"] = "released", e["approvedBy"] = by, e["approvedHash"] = fingerprint(e.get("spec"));
+              } else if (action == "obsolete") {
+                  e["status"] = "obsolete";
+              } else {
+                  Json alts = Json::array();
+                  for (const auto& n : a.get("alternates").items()) alts.push(safe(n.asString("")));
+                  e["alternates"] = alts;
+              }
+              s.writeFile(fileOf(name), e.dump(2) + "\n");
+              j["name"] = name, j["status"] = e.get("status"), j["approved"] = approved(e);
+              return out(j);
+          });
     t.add("library", "library_packages", "Packages", Kind::Read, true,
           "Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …).", Schema(), [](McpServer&, const Json&) {
               Json j = obj();
@@ -5679,6 +5918,205 @@ void pcbTools(Table& t) {
               }
               Json j = obj();
               j["moved"] = moved;
+              return out(j);
+          });
+    t.add("pcb", "pcb_layout_block", "Layout reuse", Kind::Files, false,
+          "Reuses a laid-out group (an approved channel, a regulator block). replicate copies the refs group's placement "
+          "and the copper inside it onto each target group (same parts, same order; each lands round its first part, "
+          "or at x / y). save writes the group's layout to a file in the root (approvedBy, fingerprint); apply lays a "
+          "saved layout onto the refs group and says whether it is still the approved one. Copper that would touch "
+          "another net is skipped (skipped).",
+          Schema().str("action", "replicate, save or apply", true, {"replicate", "save", "apply"})
+              .array("refs", "The group (source for replicate / save, target for apply), first part = anchor", "string", true)
+              .array("targets", "replicate: target groups [[refs…], …]", "array").str("path", "save / apply: layout file")
+              .str("approvedBy", "save: who approved it").num("x", "Anchor position x (mm)").num("y", "Anchor position y (mm)"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              auto group = [&](const Json& refs) {
+                  std::vector<int> ids;
+                  for (const auto& r : refs.items()) {
+                      const int id = componentId(*p, r);
+                      const Component* c = p->project.schematic.find(id);
+                      check(c && c->hasFootprint() && c->pcb.placed, r.asString("?") + " is not on the board");
+                      ids.push_back(id);
+                  }
+                  check(!ids.empty(), "Give the group's parts");
+                  return ids;
+              };
+              auto fingerprint = [](const Json& layout) {
+                  uint64_t h = 1469598103934665603ull;  // FNV-1a
+                  for (const unsigned char ch : layout.dump()) h = (h ^ ch) * 1099511628211ull;
+                  char text[17];
+                  std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+                  return std::string(text);
+              };
+              const std::string action = argStr(a, "action", "");
+              const std::vector<int> ids = group(a.get("refs"));
+              auto anchorAt = [&](const std::vector<int>& g) {
+                  const Vec2 here = p->project.schematic.find(g[0])->pcb.position;
+                  return Vec2{argNum(a, "x", here.x), argNum(a, "y", here.y)};
+              };
+              Json j = obj();
+              if (action == "replicate") {
+                  const Json layout = captureLayout(p->project, ids);
+                  Json done = Json::array();
+                  for (const auto& tg : a.get("targets").items()) {
+                      const std::vector<int> target = group(tg);
+                      Json r = applyLayout(p, layout, target, anchorAt(target));
+                      r["anchor"] = p->project.schematic.find(target[0])->ref;
+                      done.push(r);
+                  }
+                  check(done.size() > 0, "Give the target groups");
+                  j["groups"] = done;
+              } else if (action == "save") {
+                  Json file = obj(), layout = captureLayout(p->project, ids);
+                  file["format"] = "sieda.layout/1", file["layout"] = layout, file["hash"] = fingerprint(layout);
+                  const std::string by = argStr(a, "approvedBy", "");
+                  if (!by.empty()) file["approvedBy"] = by, file["approvedHash"] = fingerprint(layout);
+                  j["path"] = s.writeFile(requireStr(a, "path"), file.dump(2) + "\n");
+                  j["parts"] = static_cast<int>(layout.get("parts").size()), j["tracks"] = static_cast<int>(layout.get("tracks").size());
+                  j["hash"] = file.get("hash");
+              } else {
+                  const Json file = Json::parse(readFileArg(s, requireStr(a, "path")).asString(""));
+                  check(file.get("format").asString("") == "sieda.layout/1", "Not a SiEDA layout file");
+                  const Json& layout = file.get("layout");
+                  j = applyLayout(p, layout, ids, anchorAt(ids));
+                  j["approved"] = !file.get("approvedBy").asString("").empty() && file.get("approvedHash").asString("") == fingerprint(layout);
+                  if (j.get("approved").asBool(false)) j["approvedBy"] = file.get("approvedBy");
+              }
+              return out(j);
+          });
+    t.add("pcb", "pcb_partitions", "Board partitions", Kind::Edit, false,
+          "Several engineers on one board: set the partitions [{name, owner, x0, y0, x1, y1}] (mm; [] removes them) or "
+          "list them; check (owner, against = the base project file, e.g. the last pulled version) lists what changed "
+          "inside partitions owned by someone else: parts moved, added or removed there, tracks and vias changed there. "
+          "clean = nothing.",
+          Schema().str("action", "set, list or check", true, {"set", "list", "check"})
+              .array("partitions", "set: [{name, owner, x0, y0, x1, y1}]", "object")
+              .str("owner", "check: you").str("against", "check: base project file"),
+          [](McpServer& s, const Json& a) {
+              auto& parts = P(s)->project.pcb.settings.partitions;
+              const std::string action = argStr(a, "action", "");
+              Json j = obj();
+              if (action == "set") {
+                  std::vector<BoardSettings::Partition> list;
+                  for (const auto& q : a.get("partitions").items()) {
+                      const Rect area{q.get("x0").asNumber(0), q.get("y0").asNumber(0), q.get("x1").asNumber(0), q.get("y1").asNumber(0)};
+                      check(area.width() > 0 && area.height() > 0, "Each partition needs an area (x0 < x1, y0 < y1)");
+                      check(!q.get("owner").asString("").empty(), "Each partition needs an owner");
+                      list.push_back({q.get("name").asString("Partition " + std::to_string(list.size() + 1)), q.get("owner").asString(""), area});
+                  }
+                  parts = list;
+              }
+              Json listed = Json::array();
+              for (const auto& q : parts) {
+                  Json pj = obj();
+                  pj["name"] = q.name, pj["owner"] = q.owner, pj["x0"] = q.area.x0, pj["y0"] = q.area.y0, pj["x1"] = q.area.x1, pj["y1"] = q.area.y1;
+                  listed.push(pj);
+              }
+              j["partitions"] = listed;
+              if (action != "check") return out(j);
+              const std::string me = requireStr(a, "owner");
+              const Project base = Project::fromJson(Json::parse(readFileArg(s, requireStr(a, "against")).asString("")));
+              const Project& now = P(s)->project;
+              auto in = [](const Rect& r, Vec2 q) { return q.x >= r.x0 && q.x <= r.x1 && q.y >= r.y0 && q.y <= r.y1; };
+              // Copper as text keys (net name, layer, ends to 1 µm) so the two versions compare whatever their ids.
+              auto netName = [](const Project& p, int net) {
+                  for (const auto& n : p.schematic.nets())
+                      if (n.index == net) return n.name;
+                  return std::string("?");
+              };
+              auto copper = [&](const Project& p, const Rect& r) {
+                  std::multiset<std::string> keys;
+                  char buf[160];
+                  for (const auto& t : p.pcb.tracks)
+                      if (in(r, t.a) || in(r, t.b)) {
+                          Vec2 u = t.a, w = t.b;
+                          if (std::make_pair(w.x, w.y) < std::make_pair(u.x, u.y)) std::swap(u, w);
+                          std::snprintf(buf, sizeof buf, "T %d %.3f %.3f %.3f %.3f %.3f ", t.layer, u.x, u.y, w.x, w.y, t.width);
+                          keys.insert(buf + netName(p, t.net));
+                      }
+                  for (const auto& v : p.pcb.vias)
+                      if (in(r, v.position)) {
+                          std::snprintf(buf, sizeof buf, "V %.3f %.3f %.3f ", v.position.x, v.position.y, v.diameter);
+                          keys.insert(buf + netName(p, v.net));
+                      }
+                  return keys;
+              };
+              Json found = Json::array();
+              for (const auto& q : parts) {
+                  if (q.owner == me) continue;
+                  Json moved = Json::array();
+                  for (const auto& c : now.schematic.components()) {
+                      if (!c.hasFootprint()) continue;
+                      const Component* was = base.schematic.findByRef(c.ref);
+                      const bool hereNow = c.pcb.placed && in(q.area, c.pcb.position);
+                      const bool hereThen = was && was->pcb.placed && in(q.area, was->pcb.position);
+                      if (!hereNow && !hereThen) continue;
+                      if (!was || hereNow != hereThen || std::fabs(was->pcb.position.x - c.pcb.position.x) > 1e-6 ||
+                          std::fabs(was->pcb.position.y - c.pcb.position.y) > 1e-6 || was->pcb.rotation != c.pcb.rotation ||
+                          was->pcb.bottom != c.pcb.bottom)
+                          moved.push(c.ref);
+                  }
+                  for (const auto& c : base.schematic.components())
+                      if (c.hasFootprint() && c.pcb.placed && in(q.area, c.pcb.position) && !now.schematic.findByRef(c.ref)) moved.push(c.ref);
+                  const auto before = copper(base, q.area), after = copper(now, q.area);
+                  std::vector<std::string> diff;
+                  std::set_symmetric_difference(before.begin(), before.end(), after.begin(), after.end(), std::back_inserter(diff));
+                  if (moved.size() || diff.size()) {
+                      Json f = obj();
+                      f["partition"] = q.name, f["owner"] = q.owner, f["parts"] = moved, f["copperChanges"] = static_cast<int>(diff.size());
+                      found.push(f);
+                  }
+              }
+              j["outsideYours"] = found;
+              j["clean"] = found.size() == 0;
+              return out(j);
+          });
+    t.add("pcb", "pcb_routing_policies", "Routing policies", Kind::Edit, false,
+          "Routing policies per schematic net class: the copper layers its nets may run on (the autorouter keeps them "
+          "there; other layers only to leave their pads) and the most vias each may use. pcb_drc flags tracks off "
+          "their layers (ROUTE_POLICY_LAYER) and nets with too many vias (ROUTE_POLICY_VIAS). set replaces them "
+          "([] removes them); list shows them.",
+          Schema().str("action", "set or list", true, {"set", "list"})
+              .array("policies", "set: [{netClass, layers: [layer…], maxVias}] (either may be left out)", "object"),
+          [](McpServer& s, const Json& a) {
+              AutorouteOptions& o = P(s)->project.pcb.settings.autorouter;
+              if (argStr(a, "action", "") == "set") {
+                  std::map<std::string, std::vector<int>> layers;
+                  std::map<std::string, int> maxVias;
+                  const int n = P(s)->project.pcb.settings.layerCount;
+                  for (const auto& q : a.get("policies").items()) {
+                      const std::string cls = q.get("netClass").asString("");
+                      check(!cls.empty(), "Each policy needs its netClass");
+                      for (const auto& l : q.get("layers").items()) {
+                          check(l.asInt(-1) >= 0 && l.asInt(-1) < n, "No copper layer " + l.dump() + " on this board");
+                          layers[cls].push_back(l.asInt(0));
+                      }
+                      if (q.has("maxVias")) {
+                          check(q.get("maxVias").asInt(-1) >= 0, "maxVias is 0 or more");
+                          maxVias[cls] = q.get("maxVias").asInt(0);
+                      }
+                  }
+                  o.classLayers = layers, o.classMaxVias = maxVias;
+              }
+              Json list = Json::array();
+              std::set<std::string> classes;
+              for (const auto& [c, l] : o.classLayers) classes.insert(c);
+              for (const auto& [c, m] : o.classMaxVias) classes.insert(c);
+              for (const auto& c : classes) {
+                  Json q = obj();
+                  q["netClass"] = c;
+                  if (o.classLayers.count(c)) {
+                      Json ls = Json::array();
+                      for (int l : o.classLayers.at(c)) ls.push(l);
+                      q["layers"] = ls;
+                  }
+                  if (o.classMaxVias.count(c)) q["maxVias"] = o.classMaxVias.at(c);
+                  list.push(q);
+              }
+              Json j = obj();
+              j["policies"] = list;
               return out(j);
           });
     t.add("pcb", "pcb_lock_footprint", "Lock footprint", Kind::Edit, true,
