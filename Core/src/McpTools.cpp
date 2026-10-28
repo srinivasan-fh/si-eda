@@ -322,6 +322,25 @@ bool wireCrossesBody(const Schematic& sch, Vec2 p0, Vec2 p1) {
 
 /// Lays out parts schematic_build placed: each wire chain's parts side by side with the wired pins facing each other
 /// (two-pin parts turned to suit), so the wires run straight; the groups then go in rows with room for net labels.
+/// A bare pin name several pins share ("Q3.S" on a power MOSFET's three source pins), written without its number,
+/// means every one of them not on the same spot of the symbol: the first pin's namesakes.
+std::vector<int> namesakes(const SiedaProject& p, PinAddress a, const Json& spec) {
+    std::vector<int> more;
+    const Component* c = p.project.schematic.find(a.component);
+    if (!c || !spec.isString() || spec.asString().find('(') != std::string::npos) return more;
+    const auto& pins = c->def().pins;
+    const std::string name = pins[static_cast<size_t>(a.pin)].name;
+    std::vector<Vec2> spots{p.project.schematic.pinPosition({a.component, a.pin})};
+    for (int i = 0; i < static_cast<int>(pins.size()); ++i) {
+        if (i == a.pin || pins[static_cast<size_t>(i)].name != name) continue;
+        const Vec2 at = p.project.schematic.pinPosition({a.component, i});
+        if (std::any_of(spots.begin(), spots.end(), [&](Vec2 q) { return (q - at).length() < 1e-6; })) continue;
+        spots.push_back(at);
+        more.push_back(i);
+    }
+    return more;
+}
+
 void layoutBuilt(SiedaProject* p, const std::vector<int>& ids, const Json& wires, const std::set<std::pair<int, int>>& grounded = {},
                  const std::map<std::pair<int, int>, std::string>& pinNet = {}, std::map<int, PinAddress>* rehub = nullptr,
                  std::map<int, std::pair<int, PinAddress>>* taps = nullptr) {
@@ -2780,7 +2799,8 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_connect", "Connect pins", Kind::Edit, false,
           "Draws wires between pins. Give from + to, a chain (each pin wired to the next: all of a chain's pins end up "
           "on ONE net, a chain does not pass through a part), or a list of pairs. Pins "
-          "are REF.PIN (\"R1.2\", \"D1.A\", \"Q1.B\", \"U1.VCC\", \"U1.14\"). Pins on different sheets are joined "
+          "are REF.PIN (\"R1.2\", \"D1.A\", \"Q1.B\", \"U1.VCC\", \"U1.14\"); a name several pins share (\"Q3.S\") wires "
+          "them all (alsoWired), \"Q3.S(2)\" just that one. Pins on different sheets are joined "
           "through a pair of global net labels (the net's name, or REF_PIN). Returns the net of each connection "
           "(N$… names are automatic and change as the circuit changes: name a net with schematic_net_label to refer "
           "to it). Two pins already on different named nets (VCC and GND) are not joined unless merge is true; "
@@ -2853,6 +2873,15 @@ void schematicTools(Table& t) {
                       if (w < 0) r["note"] = "not connected (same pin, or already joined)";
                       else ++made;
                   }
+                  // "Q3.S" names all of Q3's source pins: they join the first one.
+                  Json alsoWired = Json::array();
+                  for (const auto& [q, spec] : {std::pair{pa, x}, std::pair{pb, y}})
+                      for (int other : namesakes(*p, q, spec))
+                          if (sieda_connect(p, q.component, q.pin, q.component, other) >= 0) {
+                              alsoWired.push(pinLabel(*p, PinAddress{q.component, other}));
+                              ++made;
+                          }
+                  if (alsoWired.size()) r["alsoWired"] = alsoWired;
                   const int net = sch.netOf({pa.component, pa.pin});
                   r["net"] = netName(p->project, net);
                   results.push(r);
@@ -2977,7 +3006,8 @@ void schematicTools(Table& t) {
           });
     t.add("schematic", "schematic_net_label", "Net label", Kind::Edit, false,
           "Names a net: puts a net label beside each given pin and wires it, so every pin with the same label joins "
-          "net \"net\" (also across sheets for scope global). Without pins the label is placed at x, y.",
+          "net \"net\" (also across sheets for scope global). A name several pins share (\"Q3.S\") gets one label with "
+          "the others wired to it; \"Q3.S(2)\" names just that one. Without pins the label is placed at x, y.",
           Schema()
               .str("net", "Net name, e.g. \"VCC\", \"SDA\", \"LED\"", true)
               .array("pins", "Pins to label: [\"U1.VCC\", \"C1.1\"]", "string")
@@ -2999,8 +3029,14 @@ void schematicTools(Table& t) {
                   return id;
               };
               if (a.get("pins").isArray() && a.get("pins").size()) {
+                  std::vector<PinAddress> targets;
                   for (const auto& pin : a.get("pins").items()) {
-                      const PinAddress pa = pinAddress(*p, pin);
+                      const PinAddress first = pinAddress(*p, pin);
+                      targets.push_back(first);
+                      // "Q3.S": one label, the other source pins wired to the first.
+                      for (int other : namesakes(*p, first, pin)) sieda_connect(p, first.component, first.pin, first.component, other);
+                  }
+                  for (const PinAddress& pa : targets) {
                       const int id = onPinSheet(p, pa.component, [&] {
                           const int l = place(outsidePin(p->project, pa, 20), outwardRotation(pinOutward(p->project, pa)));
                           check(sieda_connect(p, pa.component, pa.pin, l, 0) >= 0, "Could not wire the label to " + pinLabel(*p, pa));
@@ -4631,7 +4667,8 @@ void libraryTools(Table& t) {
               return out(j);
           });
     t.add("library", "library_add_part", "Place catalog part", Kind::Edit, false,
-          "Places a standard catalog part (an IC, regulator, connector …) on the schematic, or a \"Library:Symbol\" "
+          "Places a standard catalog part (an IC, regulator, connector …) or a part of the project's own library "
+          "(library_create_part, by name) on the schematic, or a \"Library:Symbol\" "
           "from the user's own KiCad libraries (library_search libraryParts; its footprint comes with it). units: true places a "
           "multi-unit part by gates (unit A first; the hidden package carries every pin). Returns the part with its "
           "pins.",
@@ -4659,6 +4696,14 @@ void libraryTools(Table& t) {
                   external = std::make_unique<StandardPart>();
                   external->spec = ip.spec;
               }
+              // A part of the project's own library (library_create_part) by its name, as schematic_build finds it.
+              if (!external && !findStandardPart(name))
+                  for (const auto& id : P(s)->project.customLibrary)
+                      if (const CustomPart* cp = CustomPartRegistry::instance().find(id); cp && (id == name || lowerStr(cp->spec.name) == lowerStr(name))) {
+                          external = std::make_unique<StandardPart>();
+                          external->spec = cp->spec;
+                          break;
+                      }
               const StandardPart* sp = external ? external.get() : &catalogPart(name);
               SiedaProject* p = P(s);
               if (a.has("sheet")) check(sieda_set_active_sheet(p, argInt(a, "sheet", 1)) == 1, "Unknown sheet");
@@ -5748,7 +5793,8 @@ void pcbTools(Table& t) {
                                   "R1 R2 R3 …) near their connections (default false)"),
           autoplaceTool);
     t.add("pcb", "pcb_place_footprint", "Place footprint", Kind::Edit, true,
-          "Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: "
+          "Moves / turns / flips footprints (centre x, y in mm; without them a placed part turns or flips where it stands): "
+          "one (ref, x, y …) or many at once (placements: "
           "[{ref, x, y, rotation, bottom, force}]). A pose that overlaps another part, leaves the board, hits a "
           "keep-out or stands nearer a neighbour than the assembly spacing standard (tooClose; see pcb_drc) is refused "
           "(the reasons are returned) unless force is true; force also moves a locked part (it stays locked). A batch "
@@ -5766,10 +5812,12 @@ void pcbTools(Table& t) {
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
               auto placeOne = [&](const Json& e) {
-                  if (!e.has("ref") || !e.has("x") || !e.has("y")) throw ToolError("Each placement needs ref, x and y");
+                  if (!e.has("ref")) throw ToolError("Each placement needs ref");
                   const int id = componentId(*p, e.get("ref"));
                   const Component* c = p->project.schematic.find(id);
                   if (!c->hasFootprint()) throw ToolError(c->ref + " has no footprint");
+                  // Without x / y it turns or flips where it stands (a placed part).
+                  if ((!e.has("x") || !e.has("y")) && !c->pcb.placed) throw ToolError(c->ref + " is not placed yet: give x and y");
                   const bool force = argBool(e, "force", argBool(a, "force", false)), locked = c->pcb.locked;
                   std::vector<Pad> oldPads;  // its copper before the move: the tracks on them are ripped up
                   if (c->pcb.placed)
@@ -5777,7 +5825,7 @@ void pcbTools(Table& t) {
                           if (pad.componentId == id) oldPads.push_back(pad);
                   const PcbPlacement was = c->pcb;
                   if (force && locked) sieda_pcb_lock_footprint(p, id, 0);
-                  Json r = takeJson(sieda_pcb_place_footprint(p, id, argNum(e, "x", 0), argNum(e, "y", 0),
+                  Json r = takeJson(sieda_pcb_place_footprint(p, id, argNum(e, "x", c->pcb.position.x), argNum(e, "y", c->pcb.position.y),
                                                               argInt(e, "rotation", c->pcb.rotation),
                                                               argBool(e, "bottom", c->pcb.bottom) ? 1 : 0,
                                                               argNum(e, "grid", argNum(a, "grid", 0)), force ? 1 : 0));
