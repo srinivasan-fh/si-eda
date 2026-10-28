@@ -1908,3 +1908,17 @@
 "Owner" = "May-ari";
 "Rooms and Partitions" = "Mga Room at Partition";
 "Rooms and Partitions…" = "Mga Room at Partition…";
+"Airflow" = "Daloy ng hangin";
+"Ambient (°C)" = "Paligid (°C)";
+"Board (°C)" = "Board (°C)";
+"Board temperature map" = "Mapa ng temperatura ng board";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Mapa ng temperatura ng board mula sa dissipation ng bawat piyesa: mga hot spot at temperatura ng junction";
+"Fan" = "Bentilador";
+"Hottest" = "Pinakamainit";
+"Junction (°C)" = "Junction (°C)";
+"Light airflow" = "Mahinang daloy ng hangin";
+"Parts not listed take their power from the DC operating point." = "Ang mga piyesang wala sa listahan ay kumukuha ng power mula sa DC operating point.";
+"Power by part" = "Power bawat piyesa";
+"Still air" = "Tahimik na hangin";
+"Thermal Analysis" = "Thermal na pagsusuri";
+"Thermal Analysis…" = "Thermal na pagsusuri…";

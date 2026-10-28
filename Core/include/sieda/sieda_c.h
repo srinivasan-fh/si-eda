@@ -28,7 +28,7 @@ typedef struct SiedaLiveSim SiedaLiveSim;
  * PATCH for fixes. JSON results only gain fields within a major version. Check SIEDA_API_VERSION_MAJOR at build time
  * and sieda_api_version() at run time when the library is loaded dynamically. */
 #define SIEDA_API_VERSION_MAJOR 1
-#define SIEDA_API_VERSION_MINOR 3
+#define SIEDA_API_VERSION_MINOR 4
 #define SIEDA_API_VERSION_PATCH 0
 /* MAJOR * 10000 + MINOR * 100 + PATCH of the library itself (10100 = 1.1.0). */
 int32_t sieda_api_version(void);
@@ -387,6 +387,10 @@ int32_t sieda_pcb_set_dfm_override(SiedaProject* project, const char* field, dou
  * against the pack: layers, size, thickness, track, clearance, drill, annular ring, via pad, aspect ratio, copper
  * balance, mask webs, silkscreen, part spacing / edge, fiducials, bottom-side parts). {"pack":""} without a pack. */
 char* sieda_dfm_report_json(const SiedaProject* project);
+/* Board thermal analysis (sieda/Thermal.hpp): options {"ambient","hTop","hBottom","cell","power":{REF:W},
+ * "thetaJB":{REF:°C/W},"junctionLimit"} → {"ambientC","maxC","hottest","totalPowerW","parts":[{ref,powerW,boardC,
+ * junctionC,…}],"findings":[…],"notes":[…]} and, with with_map, "map":{x0,y0,cell,nx,ny,t:[…]}. NULL on bad JSON. */
+char* sieda_thermal_json(const SiedaProject* project, const char* options_json, int32_t with_map);
 /* Fab quote / order hand-off (sieda/Fabrication.hpp fabQuote): request {"fab","quantity","priceTable"} → the order
  * form values read from the board, the fab's published limits checked, an estimate only from your price table, the
  * order page and steps; an unknown fab lists the services. */

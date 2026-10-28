@@ -19,6 +19,7 @@
 #include "sieda/FieldSolver.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/StandardParts.hpp"
+#include "sieda/Thermal.hpp"
 
 using namespace sieda;
 
@@ -100,6 +101,16 @@ char* sieda_dfm_packs_json(void) { return dupText(dfmPacksJson().dump()); }
 char* sieda_dfm_report_json(const SiedaProject* project) {
     if (!project) return nullptr;
     return dupText(dfmReportJson(project->project.schematic, project->project.pcb).dump());
+}
+
+char* sieda_thermal_json(const SiedaProject* project, const char* options_json, int32_t with_map) {
+    if (!project) return nullptr;
+    try {
+        const ThermalResult r = thermalAnalysis(project->project, thermalOptionsFromJson(Json::parse(options_json ? options_json : "{}")));
+        return dupText(thermalJson(r, with_map != 0).dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 char* sieda_fab_quote(const SiedaProject* project, const char* request_json) {

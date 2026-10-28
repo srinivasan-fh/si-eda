@@ -1908,3 +1908,17 @@
 "Owner" = "యజమాని";
 "Rooms and Partitions" = "గదులు మరియు విభజనలు";
 "Rooms and Partitions…" = "గదులు మరియు విభజనలు…";
+"Airflow" = "గాలి ప్రవాహం";
+"Ambient (°C)" = "పరిసరం (°C)";
+"Board (°C)" = "బోర్డు (°C)";
+"Board temperature map" = "బోర్డు ఉష్ణోగ్రత పటం";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "ప్రతి భాగం వ్యయం నుండి బోర్డు ఉష్ణోగ్రత పటం: హాట్ స్పాట్‌లు మరియు జంక్షన్ ఉష్ణోగ్రతలు";
+"Fan" = "ఫ్యాన్";
+"Hottest" = "అత్యంత వేడి";
+"Junction (°C)" = "జంక్షన్ (°C)";
+"Light airflow" = "తేలికపాటి గాలి ప్రవాహం";
+"Parts not listed take their power from the DC operating point." = "జాబితాలో లేని భాగాలు తమ శక్తిని DC ఆపరేటింగ్ పాయింట్ నుండి తీసుకుంటాయి.";
+"Power by part" = "భాగం వారీగా శక్తి";
+"Still air" = "నిశ్చల గాలి";
+"Thermal Analysis" = "ఉష్ణ విశ్లేషణ";
+"Thermal Analysis…" = "ఉష్ణ విశ్లేషణ…";

@@ -1908,3 +1908,17 @@
 "Owner" = "담당자";
 "Rooms and Partitions" = "룸과 파티션";
 "Rooms and Partitions…" = "룸과 파티션…";
+"Airflow" = "공기 흐름";
+"Ambient (°C)" = "주위 온도 (°C)";
+"Board (°C)" = "보드 (°C)";
+"Board temperature map" = "보드 온도 맵";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "각 부품의 소비 전력으로 구한 보드 온도 맵: 핫스팟과 접합 온도";
+"Fan" = "팬";
+"Hottest" = "최고 온도";
+"Junction (°C)" = "접합부 (°C)";
+"Light airflow" = "약한 공기 흐름";
+"Parts not listed take their power from the DC operating point." = "목록에 없는 부품은 DC 동작점에서 전력을 가져옵니다.";
+"Power by part" = "부품별 전력";
+"Still air" = "정지 공기";
+"Thermal Analysis" = "열 해석";
+"Thermal Analysis…" = "열 해석…";

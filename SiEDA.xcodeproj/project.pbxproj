@@ -42,6 +42,7 @@
 		28E9F38E814294CB5C0F20A5 = {isa = PBXBuildFile; fileRef = 1CEFAB5F919D19186A4B182A; };
 		2A1AF8DA93B70AF533A425E3 = {isa = PBXBuildFile; fileRef = 2471F18A6F30A3393114FB82; };
 		2A26F5F10710C3605BCC92E7 = {isa = PBXBuildFile; fileRef = 0ED15CEF8193940CDDA7EDC4; };
+		2A4E791BA4EE72008EF2CFBE = {isa = PBXBuildFile; fileRef = 52008F6F48BBCB880C60A559; };
 		2EC7607088EE552EE82C08CD = {isa = PBXBuildFile; fileRef = E24E95E9C50ED191B629FFCB; };
 		2F21463D8080195ECED26962 = {isa = PBXBuildFile; fileRef = 79D3890B291C067162C1B9AB; };
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
@@ -68,6 +69,7 @@
 		49FFCD9ED7D39BDF262448B3 = {isa = PBXBuildFile; fileRef = A4F49264D60406CCCE1EA9A8; };
 		4AD1A6FE1DCCCE4779E39526 = {isa = PBXBuildFile; fileRef = 51AF2FE4C717676FB277B656; };
 		4B8107A57118B84C609B7113 = {isa = PBXBuildFile; fileRef = 54E109672561428616FE3D2D; };
+		4DAC61AD5E845C7AB51859EC = {isa = PBXBuildFile; fileRef = FD8EA4FF37F313A3ED78567E; };
 		4F0947ED7434B781B976D1D7 = {isa = PBXBuildFile; fileRef = 4533D44269C1AABB8D3D3A3C; };
 		4F280E8BF0B8B57A2F76F776 = {isa = PBXBuildFile; fileRef = 905B53D3EA0EF7AE6123E98E; };
 		4F54772D2F67B6B122050EB5 = {isa = PBXBuildFile; fileRef = 754F9843AC5AAB513A6742B2; };
@@ -353,6 +355,7 @@
 		517BB6814839FABDD1934E9B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LocalModel.hpp; sourceTree = "<group>"; };
 		51AF2FE4C717676FB277B656 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RouteQuality.cpp; sourceTree = "<group>"; };
 		51E84E9D7C3595879CC30FA4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleCheckView.swift; sourceTree = "<group>"; };
+		52008F6F48BBCB880C60A559 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Thermal.cpp; sourceTree = "<group>"; };
 		53892AB25B0565EEBF1B28B2 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		54E109672561428616FE3D2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Schematic.cpp; sourceTree = "<group>"; };
 		553AC87409016AC6E3324A8A = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Eco.cpp; sourceTree = "<group>"; };
@@ -475,6 +478,7 @@
 		B6CD4CB57F05C06F88DEAA2C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LossyLine.hpp; sourceTree = "<group>"; };
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
 		B7F4A2A7A651672AE1EAE396 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sieda_c.h; sourceTree = "<group>"; };
+		B81E7B740034C69809949D3C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Thermal.hpp; sourceTree = "<group>"; };
 		BB15AF1C3F211C652E83C148 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Variants.cpp; sourceTree = "<group>"; };
 		BB5744A30C321A36A4D34103 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAndAreasViews.swift; sourceTree = "<group>"; };
 		BE9699744C0613A12E2C6644 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoisePanel.swift; sourceTree = "<group>"; };
@@ -556,6 +560,7 @@
 		FD0349E3F008C96C569E5F1F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicSymbols.swift; sourceTree = "<group>"; };
 		FD4D6EDBEC866A4035C1244F = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c_placement.cpp; sourceTree = "<group>"; };
 		FD8DCF74175937CB18ABA8E3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = InteractiveRouter.hpp; sourceTree = "<group>"; };
+		FD8EA4FF37F313A3ED78567E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThermalView.swift; sourceTree = "<group>"; };
 		FE09ED4EE869A94663A52629 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ta; path = ta.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FE29B608DCED9C308306A9AC = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -743,6 +748,7 @@
 				C4FD1126C93FBA32D1FFC34C,
 				73FB164A362C386F2070046E,
 				4293C6CB497A155F15A175B3,
+				B81E7B740034C69809949D3C,
 				C5F0A7B2D7B3295B8078DD7F,
 				E4804D50A443E6E6689DE837,
 				1DC2001261854B1018467136,
@@ -879,6 +885,7 @@
 				12BA3643F29BE4C857019229,
 				0C901B807364BC2CC8209B6B,
 				D156DE043960324A44FBB5D4,
+				52008F6F48BBCB880C60A559,
 				6D9B11BCCB86CECE0CFA37CB,
 				2E8194B0F7B8AA32AE84594C,
 				26947D07ECF33FE13550E88A,
@@ -951,6 +958,7 @@
 				93146DC2D4FB5977F63F7E80,
 				1CEFAB5F919D19186A4B182A,
 				6B68DE0EC886BEA721D79FC6,
+				FD8EA4FF37F313A3ED78567E,
 			);
 			path = PCB;
 			sourceTree = "<group>";
@@ -1337,6 +1345,7 @@
 				AC6825CF68FB6D49B0056B5C,
 				28E9F38E814294CB5C0F20A5,
 				EBA3820C549C57E1C0D6A5A9,
+				4DAC61AD5E845C7AB51859EC,
 				22409A8BB039D0E0CC2751CF,
 				9BCA7E409A5C888AD4015152,
 				2A26F5F10710C3605BCC92E7,
@@ -1445,6 +1454,7 @@
 				3ED20566BE159D1479B983DC,
 				94A2FB858724C3D8CDB07FAF,
 				D2BC6252017E8B9C5D188C94,
+				2A4E791BA4EE72008EF2CFBE,
 				533398B0EE39FA8E9948D7B9,
 				E39E12604687337239C21E5B,
 				D7DF1C1C815D245B80D2653D,

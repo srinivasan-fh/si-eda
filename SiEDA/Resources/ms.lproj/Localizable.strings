@@ -1908,3 +1908,17 @@
 "Owner" = "Pemilik";
 "Rooms and Partitions" = "Bilik dan Partition";
 "Rooms and Partitions…" = "Bilik dan Partition…";
+"Airflow" = "Aliran udara";
+"Ambient (°C)" = "Persekitaran (°C)";
+"Board (°C)" = "Papan (°C)";
+"Board temperature map" = "Peta suhu papan";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Peta suhu papan daripada lesapan setiap komponen: titik panas dan suhu simpang";
+"Fan" = "Kipas";
+"Hottest" = "Paling panas";
+"Junction (°C)" = "Simpang (°C)";
+"Light airflow" = "Aliran udara ringan";
+"Parts not listed take their power from the DC operating point." = "Komponen yang tidak disenaraikan mengambil kuasa daripada titik operasi DC.";
+"Power by part" = "Kuasa mengikut komponen";
+"Still air" = "Udara pegun";
+"Thermal Analysis" = "Analisis terma";
+"Thermal Analysis…" = "Analisis terma…";

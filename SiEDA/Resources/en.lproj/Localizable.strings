@@ -1908,3 +1908,17 @@
 "Owner" = "Owner";
 "Rooms and Partitions" = "Rooms and Partitions";
 "Rooms and Partitions…" = "Rooms and Partitions…";
+"Airflow" = "Airflow";
+"Ambient (°C)" = "Ambient (°C)";
+"Board (°C)" = "Board (°C)";
+"Board temperature map" = "Board temperature map";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Board temperature map from each part's dissipation: hot spots and junction temperatures";
+"Fan" = "Fan";
+"Hottest" = "Hottest";
+"Junction (°C)" = "Junction (°C)";
+"Light airflow" = "Light airflow";
+"Parts not listed take their power from the DC operating point." = "Parts not listed take their power from the DC operating point.";
+"Power by part" = "Power by part";
+"Still air" = "Still air";
+"Thermal Analysis" = "Thermal Analysis";
+"Thermal Analysis…" = "Thermal Analysis…";

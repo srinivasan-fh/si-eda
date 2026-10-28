@@ -1908,3 +1908,17 @@
 "Owner" = "Eigenaar";
 "Rooms and Partitions" = "Ruimtes en partities";
 "Rooms and Partitions…" = "Ruimtes en partities…";
+"Airflow" = "Luchtstroom";
+"Ambient (°C)" = "Omgeving (°C)";
+"Board (°C)" = "Print (°C)";
+"Board temperature map" = "Temperatuurkaart van de print";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Temperatuurkaart van de print uit de dissipatie van elk onderdeel: hotspots en junctietemperaturen";
+"Fan" = "Ventilator";
+"Hottest" = "Heetst";
+"Junction (°C)" = "Junctie (°C)";
+"Light airflow" = "Lichte luchtstroom";
+"Parts not listed take their power from the DC operating point." = "Niet vermelde onderdelen krijgen hun vermogen uit het DC-werkpunt.";
+"Power by part" = "Vermogen per onderdeel";
+"Still air" = "Stilstaande lucht";
+"Thermal Analysis" = "Thermische analyse";
+"Thermal Analysis…" = "Thermische analyse…";

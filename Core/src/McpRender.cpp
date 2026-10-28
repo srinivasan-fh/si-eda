@@ -14,6 +14,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Mcp.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/Thermal.hpp"
 #include "sieda/TrackGeometry.hpp"
 
 namespace sieda::mcp {
@@ -870,6 +871,58 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
     return s;
 }
 
+Scene thermalScene(const Project& project, const ThermalResult& r) {
+    const Schematic& sch = project.schematic;
+    const PcbLayout& pcb = project.pcb;
+    Scene s;
+    s.background = "#1a1a1a";
+    const std::vector<Vec2> outline = pcb.settings.outlinePolygon();
+    // Cold blue → cyan → green → yellow → red, 24 steps from ambient to the hottest cell.
+    auto colourOf = [&](double t) {
+        const double span = std::max(1e-6, r.maxC - r.ambientC);
+        const double u = std::clamp((t - r.ambientC) / span, 0.0, 1.0);
+        const double k = std::round(u * 23) / 23;
+        const double stops[5][3] = {{30, 60, 200}, {0, 190, 220}, {40, 200, 70}, {240, 220, 40}, {230, 40, 30}};
+        const double f = k * 4;
+        const int i = std::min(3, static_cast<int>(f));
+        const double w = f - i;
+        char b[8];
+        std::snprintf(b, sizeof b, "#%02x%02x%02x", static_cast<int>(stops[i][0] + (stops[i + 1][0] - stops[i][0]) * w),
+                      static_cast<int>(stops[i][1] + (stops[i + 1][1] - stops[i][1]) * w),
+                      static_cast<int>(stops[i][2] + (stops[i + 1][2] - stops[i][2]) * w));
+        return std::string(b);
+    };
+    for (int j = 0; j < r.ny; ++j)
+        for (int i = 0; i < r.nx; ++i) {
+            const double t = r.temperature[static_cast<size_t>(j) * static_cast<size_t>(r.nx) + static_cast<size_t>(i)];
+            if (std::isnan(t)) continue;
+            s.box({r.x0 + i * r.cell, r.y0 + j * r.cell, r.x0 + (i + 1) * r.cell, r.y0 + (j + 1) * r.cell}, true, 0, colourOf(t));
+        }
+    std::map<int, const ThermalPart*> hot;
+    for (const auto& p : r.parts) hot[p.componentId] = &p;
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || c.packageOnly || !pcb.onBoard(c)) continue;
+        const Rect cy = pcb.courtyard(c);
+        s.box(cy, false, 0.08, "#f0f0f0");
+        const auto h = hot.find(c.id);
+        std::string label = c.ref;
+        if (h != hot.end()) {
+            char b[48];
+            std::snprintf(b, sizeof b, " %.0fC", h->second->junctionC);
+            label += b;
+        }
+        s.text({cy.center().x, cy.y0 - 0.3}, label, 0.8, "#ffffff", true);
+    }
+    s.polygon(outline, false, 0.15, "#e8e8e8");
+    Rect b(r.x0, r.y0, r.x0 + r.nx * r.cell, r.y0 + r.ny * r.cell);
+    char legend[96];
+    std::snprintf(legend, sizeof legend, "BLUE %.0fC AMBIENT - RED %.0fC HOTTEST", r.ambientC, r.maxC);
+    const double lh = std::min(1.2, 0.9 * b.width() / std::max(1.0, textWidth(legend, 1.0)));
+    s.text({b.center().x, b.y0 - 1.5}, legend, lh, "#f0f0f0", true);
+    s.bounds = Rect(b.x0, b.y0 - 2.5 - lh, b.x1, b.y1).inflated(2);
+    return s;
+}
+
 }  // namespace
 
 std::string renderSchematicSvg(const SiedaProject& project, int sheet, int width) {
@@ -883,6 +936,10 @@ std::string renderPcbSvg(const SiedaProject& project, const std::vector<int>& la
 }
 std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& layers, int width, bool pours) {
     return toPng(pcbScene(project.project, layers, pours), width);
+}
+
+std::string renderThermalPng(const SiedaProject& project, const ThermalResult& result, int width) {
+    return toPng(thermalScene(project.project, result), width);
 }
 
 std::string viewerHtml(const SiedaProject& project) {

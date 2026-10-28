@@ -1908,3 +1908,17 @@
 "Owner" = "ഉടമ";
 "Rooms and Partitions" = "റൂമുകളും പാർട്ടീഷനുകളും";
 "Rooms and Partitions…" = "റൂമുകളും പാർട്ടീഷനുകളും…";
+"Airflow" = "വായുപ്രവാഹം";
+"Ambient (°C)" = "ചുറ്റുപാട് (°C)";
+"Board (°C)" = "ബോർഡ് (°C)";
+"Board temperature map" = "ബോർഡ് താപനില ഭൂപടം";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "ഓരോ ഭാഗത്തിന്റെയും ഊർജ്ജനഷ്ടത്തിൽ നിന്നുള്ള ബോർഡ് താപനില ഭൂപടം: ഹോട്ട് സ്പോട്ടുകളും ജംഗ്ഷൻ താപനിലകളും";
+"Fan" = "ഫാൻ";
+"Hottest" = "ഏറ്റവും ചൂട്";
+"Junction (°C)" = "ജംഗ്ഷൻ (°C)";
+"Light airflow" = "നേരിയ വായുപ്രവാഹം";
+"Parts not listed take their power from the DC operating point." = "പട്ടികയിൽ ഇല്ലാത്ത ഭാഗങ്ങൾ DC ഓപ്പറേറ്റിംഗ് പോയിന്റിൽ നിന്ന് ശക്തി എടുക്കുന്നു.";
+"Power by part" = "ഭാഗം തിരിച്ചുള്ള ശക്തി";
+"Still air" = "നിശ്ചല വായു";
+"Thermal Analysis" = "താപ വിശകലനം";
+"Thermal Analysis…" = "താപ വിശകലനം…";

@@ -1908,3 +1908,17 @@
 "Owner" = "Chủ sở hữu";
 "Rooms and Partitions" = "Phòng và phân vùng";
 "Rooms and Partitions…" = "Phòng và phân vùng…";
+"Airflow" = "Luồng khí";
+"Ambient (°C)" = "Môi trường (°C)";
+"Board (°C)" = "Bo mạch (°C)";
+"Board temperature map" = "Bản đồ nhiệt độ bo mạch";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Bản đồ nhiệt độ bo mạch từ công suất tiêu tán của từng linh kiện: điểm nóng và nhiệt độ mối nối";
+"Fan" = "Quạt";
+"Hottest" = "Nóng nhất";
+"Junction (°C)" = "Mối nối (°C)";
+"Light airflow" = "Luồng khí nhẹ";
+"Parts not listed take their power from the DC operating point." = "Linh kiện không có trong danh sách lấy công suất từ điểm làm việc DC.";
+"Power by part" = "Công suất theo linh kiện";
+"Still air" = "Không khí tĩnh";
+"Thermal Analysis" = "Phân tích nhiệt";
+"Thermal Analysis…" = "Phân tích nhiệt…";

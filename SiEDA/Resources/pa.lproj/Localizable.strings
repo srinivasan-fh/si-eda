@@ -1908,3 +1908,17 @@
 "Owner" = "ਮਾਲਕ";
 "Rooms and Partitions" = "ਰੂਮ ਅਤੇ ਵੰਡ";
 "Rooms and Partitions…" = "ਰੂਮ ਅਤੇ ਵੰਡ…";
+"Airflow" = "ਹਵਾ ਦਾ ਵਹਾਅ";
+"Ambient (°C)" = "ਆਲੇ-ਦੁਆਲੇ (°C)";
+"Board (°C)" = "ਬੋਰਡ (°C)";
+"Board temperature map" = "ਬੋਰਡ ਤਾਪਮਾਨ ਨਕਸ਼ਾ";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "ਹਰ ਪੁਰਜ਼ੇ ਦੀ ਖਪਤ ਤੋਂ ਬੋਰਡ ਤਾਪਮਾਨ ਨਕਸ਼ਾ: ਹੌਟ ਸਪੌਟ ਅਤੇ ਜੰਕਸ਼ਨ ਤਾਪਮਾਨ";
+"Fan" = "ਪੱਖਾ";
+"Hottest" = "ਸਭ ਤੋਂ ਗਰਮ";
+"Junction (°C)" = "ਜੰਕਸ਼ਨ (°C)";
+"Light airflow" = "ਹਲਕਾ ਹਵਾ ਦਾ ਵਹਾਅ";
+"Parts not listed take their power from the DC operating point." = "ਸੂਚੀ ਵਿੱਚ ਨਾ ਹੋਣ ਵਾਲੇ ਪੁਰਜ਼ੇ ਆਪਣੀ ਪਾਵਰ DC ਓਪਰੇਟਿੰਗ ਪੁਆਇੰਟ ਤੋਂ ਲੈਂਦੇ ਹਨ।";
+"Power by part" = "ਪੁਰਜ਼ੇ ਅਨੁਸਾਰ ਪਾਵਰ";
+"Still air" = "ਸਥਿਰ ਹਵਾ";
+"Thermal Analysis" = "ਤਾਪ ਵਿਸ਼ਲੇਸ਼ਣ";
+"Thermal Analysis…" = "ਤਾਪ ਵਿਸ਼ਲੇਸ਼ਣ…";

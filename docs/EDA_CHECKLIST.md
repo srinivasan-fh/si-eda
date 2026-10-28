@@ -171,7 +171,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P2 | Monte Carlo, differential impedance, SI pre-analysis, IBIS | ✅ | |
 | P2 | ➕ Touchstone S-parameters, mixed-signal / MCU co-simulation | ✅ | firmware on the MCU |
 | P2 | IR drop, current density, thermal estimates, result comparison | ✅ | |
-| P3 | Field solver and thermal integrations, evidence tied to releases | 🟡 | 2D field solver, evidence in every release (`output_release` evidence.json) ✅; thermal integration ⏳ |
+| P3 | Field solver and thermal integrations, evidence tied to releases | ✅ | 2D field solver, board thermal map (Design → Thermal Analysis…, MCP `pcb_thermal`), evidence in every release (`output_release` evidence.json) |
 
 ## 8. 3D viewer and ECAD–MCAD
 

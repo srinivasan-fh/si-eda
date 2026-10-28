@@ -41,6 +41,7 @@
 #include "sieda/LossyLine.hpp"
 #include "sieda/Touchstone.hpp"
 #include "sieda/PdnPlanning.hpp"
+#include "sieda/Thermal.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/LocalModel.hpp"
@@ -26141,6 +26142,51 @@ TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
     CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
     CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
     CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
+}
+
+TEST(thermal_map_balances_power_and_spreads_through_copper) {
+    const auto root = mcpRoot("thermal");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "led_indicator"})"))));
+    // Unplaced parts are left out (and said so).
+    ThermalOptions o;
+    o.power["R1"] = 0.25;
+    ThermalResult r = thermalAnalysis(s.project()->project, o);
+    CHECK(r.parts.empty() && r.notes.front().find("not placed") != std::string::npos);
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    r = thermalAnalysis(s.project()->project, o);
+    CHECK(r.converged && !r.parts.empty() && r.parts.front().ref == "R1" && r.parts.front().powerSource == "set");
+    // Steady state: everything dissipated leaves through the two faces.
+    auto toAir = [](const ThermalResult& t, const ThermalOptions& oo) {
+        double w = 0;
+        for (double v : t.temperature)
+            if (!std::isnan(v)) w += (v - t.ambientC) * (oo.hTop + oo.hBottom) * t.cell * t.cell * 1e-6;
+        return w;
+    };
+    CHECK(std::fabs(toAir(r, o) - r.totalPower) < 0.01 * r.totalPower);
+    const double bare = r.maxC - r.ambientC;
+    CHECK(bare > 5 && r.parts.front().junctionC > r.parts.front().boardC);
+    // Linear: twice the power, twice the rise.
+    ThermalOptions twice = o;
+    for (auto& [ref, w] : twice.power) w *= 2;
+    const ThermalResult r2 = thermalAnalysis(s.project()->project, twice);
+    CHECK(std::fabs((r2.maxC - r2.ambientC) - 2 * bare * (r2.totalPower / (2 * r.totalPower))) < 0.05 * bare + 0.2);
+    // Ground pours on both layers spread the heat: the hot spot is cooler.
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::parse("{}"))));
+    const ThermalResult poured = thermalAnalysis(s.project()->project, o);
+    CHECK(poured.maxC - poured.ambientC < bare);
+    // A fan (more heat transfer) cools it further; the tool gives the parts, findings and a picture.
+    ThermalOptions fan = o;
+    fan.hTop = fan.hBottom = 40;
+    CHECK(thermalAnalysis(s.project()->project, fan).maxC < poured.maxC);
+    const auto out = mcpTool(s, "pcb_thermal", Json::parse(R"({"power": {"R1": 3}, "map": true})"));
+    const Json d = mcpData(out);
+    CHECK(d.get("parts").size() >= 1 && d.get("findings").size() >= 1 && d.get("map").get("t").size() > 100);
+    CHECK(d.get("findings")[0].get("code").asString("") == "THERMAL_JUNCTION");
+    bool picture = false;
+    for (const auto& c : out.get("content").items()) picture |= c.get("type").asString("") == "image";
+    CHECK(picture);
+    std::filesystem::remove_all(root);
 }
 
 TEST(mcp_rule_pack_saves_applies_and_flags_drift) {

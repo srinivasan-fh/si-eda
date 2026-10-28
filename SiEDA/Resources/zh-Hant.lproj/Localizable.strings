@@ -1908,3 +1908,17 @@
 "Owner" = "負責人";
 "Rooms and Partitions" = "區域與分區";
 "Rooms and Partitions…" = "區域與分區…";
+"Airflow" = "氣流";
+"Ambient (°C)" = "環境溫度 (°C)";
+"Board (°C)" = "電路板 (°C)";
+"Board temperature map" = "電路板溫度圖";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "根據各元件功耗計算的電路板溫度圖：熱點與接面溫度";
+"Fan" = "風扇";
+"Hottest" = "最高溫度";
+"Junction (°C)" = "接面 (°C)";
+"Light airflow" = "微風";
+"Parts not listed take their power from the DC operating point." = "未列出的元件使用直流工作點的功耗。";
+"Power by part" = "各元件功耗";
+"Still air" = "靜止空氣";
+"Thermal Analysis" = "熱分析";
+"Thermal Analysis…" = "熱分析…";

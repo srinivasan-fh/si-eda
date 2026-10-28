@@ -475,7 +475,7 @@ const MENUS={
   ["No-Connect…",F("schematic_set_no_connect")],["Package…",F("schematic_set_package")],["Pin Map…",F("schematic_pin_map")],["Block…",F("schematic_block")],0,
   ["Variants"],["Variants…",F("schematic_variants")],["Edit Variant…",F("schematic_variant_edit")],["Variant Matrix",F("schematic_variant_matrix")]],
  "Design":[["Auto-Place Footprints",()=>act("pcb_autoplace",{all:true,decoupling:true})],["Fit Board to Components",()=>act("pcb_fit_board",{})],
-  ["Auto Route Board",()=>act("pcb_autoroute",{})],["Run Design Rule Check",()=>{selectTab("Board");drcMarks();}],["Add Thermal Vias",F("pcb_add_thermal_vias")],
+  ["Auto Route Board",()=>act("pcb_autoroute",{})],["Run Design Rule Check",()=>{selectTab("Board");drcMarks();}],["Add Thermal Vias",F("pcb_add_thermal_vias")],["Thermal Analysis…",F("pcb_thermal")],
   ["Update PCB from Schematic",()=>act("pcb_update_from_schematic",{})],["Compare Routing Strategies…",F("pcb_route_compare")],0,
   ["Layout"],["Replicate Layout…",F("pcb_layout_block",{action:"replicate"})],["Save Layout Block…",F("pcb_layout_block",{action:"save"})],
   ["Apply Layout Block…",F("pcb_layout_block",{action:"apply"})],["Rooms and Partitions…",()=>areasEditor()],["Place Parts in Their Rooms",()=>act("pcb_rooms",{action:"place"})],

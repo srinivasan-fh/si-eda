@@ -459,6 +459,8 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut(shortcuts.shortcut("drc"))
             Button("Add Thermal Vias") { store.addThermalVias() }
                 .help("Stitch vias at the selected (or every) power MOSFET's drain / tab pad")
+            Button("Thermal Analysis…") { store.showThermal = true }
+                .help("Board temperature map from each part's dissipation: hot spots and junction temperatures")
             Menu("Layout") {
                 Button("Replicate Layout…") { store.replicateLayout() }
                     .help("Copy the selected parts' placement and copper onto other channels of the same parts")
