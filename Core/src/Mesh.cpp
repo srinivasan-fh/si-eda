@@ -570,7 +570,15 @@ bool drawPowerLook(Look look, const PartFrame& f, const Component& c, const Foot
         }
         case Look::WireLink: {  // a tinned wire lying on the board from hole to hole
             m.surface = Surface::Tin;
-            rbox(r0, r1, tc - 0.3, tc + 0.3, 0.3, 0.9, tin);
+            if (px1 - px0 > 0.5 && py1 - py0 > 0.5) {  // diagonal: short pieces along it
+                const Vec2 a = fp.pads[0].offset, b = fp.pads[1].offset;
+                const int n = std::max(2, static_cast<int>((b - a).length() / 0.5));
+                for (int i = 0; i < n; ++i) {
+                    const Vec2 q = a + (b - a) * ((i + 0.5) / n);
+                    f.box(q.x - 0.3, q.y - 0.3, q.x + 0.3, q.y + 0.3, 0.3, 0.9, tin);
+                }
+            } else
+                rbox(r0, r1, tc - 0.3, tc + 0.3, 0.3, 0.9, tin);
             legs(0.6, 0.6);
             return true;
         }

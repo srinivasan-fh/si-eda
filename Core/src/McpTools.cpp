@@ -1541,6 +1541,76 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
             fail("a via of another net (id " + std::to_string(v.id) + ")");
 }
 
+// A wire link (WIRELINK part, refPrefix JW) from a to b on the schematic, both pins labelled with `net`; an unnamed
+// net (empty or N$…) is first named JW_NET<serial> by labelling `anchorPin`, and `net` comes back with that name. The
+// part is placed on the board by placeWireLink after an Update PCB.
+int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::string& anchorPin, int serial) {
+    SiedaProject* p = P(s);
+    Project& pr = p->project;
+    const double dx = std::fabs(b.x - a.x), dy = std::fabs(b.y - a.y);
+    auto mm = [](double v) {
+        const long um = std::lround(v * 100);
+        return std::to_string(um / 100) + "." + (um % 100 < 10 ? "0" : "") + std::to_string(um % 100);
+    };
+    const bool diagonal = dx > 0.01 && dy > 0.01;
+    const std::string size = diagonal ? mm(dx) + "x" + mm(dy) : mm(std::max(dx, dy));
+    const std::string partName = "WIRE-LINK-" + size;
+    std::string partId;
+    for (const auto& id : pr.customLibrary)
+        if (const CustomPart* cp = CustomPartRegistry::instance().find(id); cp && cp->spec.name == partName) partId = id;
+    if (partId.empty()) {
+        Json spec = obj(), pkg = obj(), pins = Json::array();
+        for (int k = 1; k <= 2; ++k) {
+            Json pin = obj();
+            pin["number"] = std::to_string(k), pin["name"] = std::to_string(k), pin["type"] = "passive";
+            pins.push(pin);
+        }
+        pkg["type"] = "WIRELINK", pkg["pinCount"] = 2, pkg["bodySize"] = diagonal ? dx : std::max(dx, dy);
+        if (diagonal) pkg["bodyDepth"] = dy;
+        spec["name"] = partName, spec["refPrefix"] = "JW", spec["defaultValue"] = "Wire link",
+        spec["description"] = "Wire link (jumper) of 0.6 mm tinned copper wire, " + size +
+                              " mm: joins copper a single-sided board cannot";
+        spec["package"] = pkg, spec["pins"] = pins;
+        char* err = nullptr;
+        char* res = sieda_custom_part_register(p, spec.dump().c_str(), &err);
+        if (!res) throw ToolError("Could not make the wire link part: " + takeText(err));
+        partId = takeJson(res).get("id").asString("");
+    }
+    auto label = [&](const std::string& pin) {
+        Json args = obj(), list = Json::array();
+        list.push(pin);
+        args["net"] = net, args["pins"] = list;
+        for (const auto& t : mcpTools())
+            if (t.name == "schematic_net_label") t.handler(s, args);
+    };
+    if (net.empty() || net.rfind("N$", 0) == 0) {
+        auto taken = [&](const std::string& n) {
+            return std::any_of(pr.schematic.nets().begin(), pr.schematic.nets().end(), [&](const Net& x) { return x.name == n; });
+        };
+        net = "JW_NET" + std::to_string(serial);
+        for (int k = 2; taken(net); ++k) net = "JW_NET" + std::to_string(serial) + "_" + std::to_string(k);
+        label(anchorPin);
+    }
+    const Vec2 at = freeSpot(pr);
+    const int id = sieda_add_custom_component(p, partId.c_str(), "Wire link", at.x, at.y, 0, nullptr);
+    check(id >= 0, "Could not add a wire link");
+    const std::string ref = pr.schematic.find(id)->ref;
+    label(ref + ".1"), label(ref + ".2");
+    return id;
+}
+
+// Places a wire link on the bottom (component side) with its holes on a and b: the quarter turn that puts them there.
+void placeWireLink(SiedaProject* p, int id, Vec2 a, Vec2 b) {
+    const Vec2 mid = (a + b) * 0.5;
+    for (int rot : {0, 90, 180, 270}) {
+        takeJson(sieda_pcb_place_footprint(p, id, mid.x, mid.y, rot, 1, 0, 1));
+        bool fits = true;
+        for (const Pad& pad : p->project.pcb.pads(p->project.schematic))
+            if (pad.componentId == id) fits = fits && std::min((pad.position - a).length(), (pad.position - b).length()) < 0.01;
+        if (fits) return;
+    }
+}
+
 // Wire links (pcb_add_jumpers, single-sided boards): a net the copper layer leaves in islands is joined by a wire link
 // soldered from the component side, a real part (JW1 …: schematic, BOM, both pins labelled with the net). For each
 // split net the shortest link along x or y (7.62–50.8 mm in 2.54 mm steps) from one island's copper to another's,
@@ -1683,54 +1753,13 @@ Json addJumpers(McpServer& s, int maxLinks) {
             }
         }
         if (!best) break;
-        // The schematic part: one land pair per length, both pins labelled with the net (named first if it has no name).
-        const int lenUm = static_cast<int>(std::lround((best->b - best->a).length() * 100));
-        const std::string partName = "WIRE-LINK-" + std::to_string(lenUm / 100) + "." + (lenUm % 100 < 10 ? "0" : "") +
-                                     std::to_string(lenUm % 100);
-        std::string partId;
-        for (const auto& id : pr.customLibrary)
-            if (const CustomPart* cp = CustomPartRegistry::instance().find(id); cp && cp->spec.name == partName) partId = id;
-        if (partId.empty()) {
-            Json spec = obj(), pkg = obj(), pins = Json::array();
-            for (int k = 1; k <= 2; ++k) {
-                Json pin = obj();
-                pin["number"] = std::to_string(k), pin["name"] = std::to_string(k), pin["type"] = "passive";
-                pins.push(pin);
-            }
-            pkg["type"] = "WIRELINK", pkg["pinCount"] = 2, pkg["bodySize"] = lenUm / 100.0;
-            spec["name"] = partName, spec["refPrefix"] = "JW", spec["defaultValue"] = "Wire link",
-            spec["description"] = "Wire link (jumper) of 0.6 mm tinned copper wire, " + partName.substr(10) +
-                                  " mm pitch: joins copper a single-sided board cannot";
-            spec["package"] = pkg, spec["pins"] = pins;
-            char* err = nullptr;
-            char* res = sieda_custom_part_register(p, spec.dump().c_str(), &err);
-            if (!res) throw ToolError("Could not make the wire link part: " + takeText(err));
-            partId = takeJson(res).get("id").asString("");
-        }
         std::string net = nameOf(best->net);
         const Pad& anchor = pads[best->from.pad];
-        auto label = [&](const std::string& pin) {
-            Json args = obj(), list = Json::array();
-            list.push(pin);
-            args["net"] = net, args["pins"] = list;
-            for (const auto& t : mcpTools())
-                if (t.name == "schematic_net_label") t.handler(s, args);
-        };
-        if (net.empty() || net.rfind("N$", 0) == 0) {
-            net = "JW_NET" + std::to_string(round + 1);
-            for (int k = 2; pr.schematic.nets().end() != std::find_if(pr.schematic.nets().begin(), pr.schematic.nets().end(),
-                                                                       [&](const Net& n) { return n.name == net; }); ++k)
-                net = "JW_NET" + std::to_string(round + 1) + "_" + std::to_string(k);
-            label(pr.schematic.find(anchor.componentId)->ref + "." + std::to_string(anchor.padNumber));
-        }
-        const Vec2 at = freeSpot(pr);
-        const int id = sieda_add_custom_component(p, partId.c_str(), "Wire link", at.x, at.y, 0, nullptr);
-        check(id >= 0, "Could not add a wire link");
+        const int id = addWireLink(s, best->a, best->b, net, pr.schematic.find(anchor.componentId)->ref + "." +
+                                                             std::to_string(anchor.padNumber), round + 1);
         const std::string ref = pr.schematic.find(id)->ref;
-        label(ref + ".1"), label(ref + ".2");
         takeJson(sieda_apply_pcb_eco(p, nullptr));
-        const Vec2 mid = (best->a + best->b) * 0.5;
-        takeJson(sieda_pcb_place_footprint(p, id, mid.x, mid.y, std::fabs(best->a.x - best->b.x) < 1e-6 ? 90 : 0, 1, 0, 1));
+        placeWireLink(p, id, best->a, best->b);
         int jnet = -1;
         for (const Pad& pad : pr.pcb.pads(pr.schematic))
             if (pad.componentId == id) jnet = pad.net;
@@ -1745,6 +1774,92 @@ Json addJumpers(McpServer& s, int maxLinks) {
         refused.insert(key(best->a)), refused.insert(key(best->b));
         added.push(ref);
     }
+    return added;
+}
+
+// A two-layer route whose bottom copper stands for wire links (single-sided boards, pcb_add_jumpers fromBottom): each
+// run of bottom tracks becomes one straight wire link between its end holes when that line keeps clear of the bodies
+// on the bottom, else one link per track; the vias go and the board becomes single-sided.
+Json bottomToLinks(McpServer& s) {
+    SiedaProject* p = P(s);
+    Project& pr = p->project;
+    PcbLayout& pcb = pr.pcb;
+    const int bottom = pcb.settings.bottomLayer();
+    std::map<int, std::string> names;
+    for (const Net& n : pr.schematic.nets()) names[n.index] = n.name;
+    std::map<int, std::string> anchor;  // net → a pin on it ("R1.2")
+    for (const Pad& pad : pcb.pads(pr.schematic))
+        if (pad.net >= 0 && !anchor.count(pad.net))
+            anchor[pad.net] = pr.schematic.find(pad.componentId)->ref + "." + std::to_string(pad.padNumber);
+    std::vector<Rect> bodies;
+    for (const auto& c : pr.schematic.components())
+        if (const FootprintDef* fp = c.hasFootprint() && c.pcb.placed && c.pcb.bottom ? Library::instance().footprint(c.footprintName()) : nullptr) {
+            const bool turned = c.pcb.rotation % 180 != 0;
+            bodies.push_back(Rect::centered(c.pcb.position, turned ? fp->body.depth : fp->body.width, turned ? fp->body.width : fp->body.depth));
+        }
+    std::vector<Track> under, top;
+    for (const Track& t : pcb.tracks) (t.layer == bottom && !t.arc ? under : top).push_back(t);
+    auto key = [](Vec2 v) { return std::make_pair(std::lround(v.x * 1000), std::lround(v.y * 1000)); };
+    std::map<std::pair<long, long>, std::vector<size_t>> ends;
+    for (size_t i = 0; i < under.size(); ++i) ends[key(under[i].a)].push_back(i), ends[key(under[i].b)].push_back(i);
+    std::set<std::pair<long, long>> held;  // points a via or top copper stands on
+    for (const Via& v : pcb.vias) held.insert(key(v.position));
+    auto bend = [&](Vec2 q) { return ends[key(q)].size() == 2 && !held.count(key(q)); };
+    // Runs of bottom tracks through bends.
+    std::vector<char> used(under.size(), 0);
+    std::vector<std::pair<std::vector<Vec2>, int>> runs;  // points, net
+    for (size_t i = 0; i < under.size(); ++i) {
+        if (used[i]) continue;
+        // Walk back to the run's start, then forward collecting points.
+        size_t cur = i;
+        Vec2 from = under[i].a;
+        for (size_t guard = 0; bend(from) && guard < under.size(); ++guard) {
+            const auto& at = ends[key(from)];
+            const size_t prev = at[0] == cur ? at[1] : at[0];
+            from = key(under[prev].a) == key(from) ? under[prev].b : under[prev].a;
+            cur = prev;
+            if (cur == i) break;
+        }
+        std::vector<Vec2> pts{from};
+        Vec2 q = from;
+        for (size_t guard = 0; guard <= under.size(); ++guard) {
+            used[cur] = 1;
+            q = key(under[cur].a) == key(q) ? under[cur].b : under[cur].a;
+            pts.push_back(q);
+            if (!bend(q)) break;
+            const auto& at = ends[key(q)];
+            const size_t next = at[0] == cur ? at[1] : at[0];
+            if (used[next]) break;
+            cur = next;
+        }
+        runs.push_back({pts, under[i].net});
+    }
+    pcb.tracks = top;
+    pcb.vias.clear();
+    std::vector<std::tuple<int, Vec2, Vec2>> links;
+    std::map<int, std::string> netNames;
+    int serial = 0;
+    for (const auto& [pts, net] : runs) {
+        auto clearLine = [&](Vec2 a, Vec2 b) {
+            return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
+        };
+        std::vector<std::pair<Vec2, Vec2>> pieces;
+        const bool octile = std::fabs(std::fabs(pts.back().x - pts.front().x) - std::fabs(pts.back().y - pts.front().y)) < 0.01 ||
+                            std::fabs(pts.back().x - pts.front().x) < 0.01 || std::fabs(pts.back().y - pts.front().y) < 0.01;
+        if (pts.size() > 2 && octile && clearLine(pts.front(), pts.back())) pieces.push_back({pts.front(), pts.back()});
+        else
+            for (size_t k = 1; k < pts.size(); ++k) pieces.push_back({pts[k - 1], pts[k]});
+        if (!netNames.count(net)) netNames[net] = names.count(net) ? names[net] : std::string();
+        for (const auto& [a, b] : pieces)
+            links.emplace_back(addWireLink(s, a, b, netNames[net], anchor.count(net) ? anchor[net] : std::string(), ++serial), a, b);
+    }
+    takeJson(sieda_apply_pcb_eco(p, nullptr));
+    Json added = Json::array();
+    for (const auto& [id, a, b] : links) {
+        placeWireLink(p, id, a, b);
+        added.push(pr.schematic.find(id)->ref);
+    }
+    pcb.settings.layerCount = 1;
     return added;
 }
 
@@ -6917,9 +7032,16 @@ void pcbTools(Table& t) {
           "in 2.54 mm steps, from one island's copper to another's with short stub tracks, clear of other nets by their "
           "class clearance, of holes, keep-outs, the edge and courtyards; its body on the bottom (component) side. "
           "pcb_autoroute adds them by itself on a 1-layer board (jumpers: false skips).",
-          Schema().integer("max", "Most links to add (default 200)"),
+          Schema().integer("max", "Most links to add (default 200)")
+              .boolean("fromBottom", "A 2-layer route instead: its bottom copper becomes wire links (one per run of "
+                                     "tracks, straight when clear of the bottom bodies), the vias go and the board "
+                                     "becomes single-sided"),
           [](McpServer& s, const Json& a) {
               Json j = obj();
+              if (argBool(a, "fromBottom", false)) {
+                  check(proj(s).pcb.settings.layerCount == 2, "fromBottom needs a 2-layer board");
+                  j["linksFromBottom"] = bottomToLinks(s);
+              }
               j["jumpersAdded"] = addJumpers(s, argInt(a, "max", 200));
               j["open"] = static_cast<int>(proj(s).pcb.ratsnest(proj(s).schematic).size());
               return out(j);
