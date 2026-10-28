@@ -1666,10 +1666,12 @@ Json addJumpers(McpServer& s, int maxLinks) {
             if (pads[i].net >= 0 && !pads[i].npth) islands[pads[i].net].insert(groups[i]);
         for (size_t i = 0; i < pads.size(); ++i) {
             if (pads[i].net < 0 || pads[i].npth || islands[pads[i].net].size() < 2) continue;
-            const double r = std::max(pads[i].size.x, pads[i].size.y) / 2 + 2.5;  // the link's pad clear of the courtyard
-            for (int k = 0; k < 8; ++k)
-                spots[pads[i].net].push_back({pads[i].position + Vec2{std::cos(k * M_PI / 4), std::sin(k * M_PI / 4)} * r,
-                                              static_cast<int>(i), pads[i].position});
+            for (double ring : {2.5, 4.0, 5.5, 7.0}) {  // the link's hole out past the courtyard, a stub back to the pad
+                const double r = std::max(pads[i].size.x, pads[i].size.y) / 2 + ring;
+                for (int k = 0; k < 16; ++k)
+                    spots[pads[i].net].push_back({pads[i].position + Vec2{std::cos(k * M_PI / 8), std::sin(k * M_PI / 8)} * r,
+                                                  static_cast<int>(i), pads[i].position});
+            }
         }
         for (size_t t = 0; t < pr.pcb.tracks.size(); ++t) {
             const Track& tr = pr.pcb.tracks[t];
@@ -1834,10 +1836,8 @@ Json bottomToLinks(McpServer& s) {
                 holes[find(i)].push_back(v.position), pieceNet[find(i)] = under[i].net;
                 break;
             }
-    pcb.tracks = top;
-    std::vector<Vec2> viaAt;
-    for (const Via& v : pcb.vias) viaAt.push_back(v.position);
-    pcb.vias.clear();
+    std::vector<Vec2> viaAt;  // the vias and bottom copper stay until the links stand on the holes: Update PCB drops
+    for (const Via& v : pcb.vias) viaAt.push_back(v.position);  // top copper that reaches no pad
     auto clearLine = [&](Vec2 a, Vec2 b) {
         return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
     };
@@ -1845,6 +1845,7 @@ Json bottomToLinks(McpServer& s) {
     // stub clear of other nets (the first clear direction, toward the far end first).
     std::map<std::pair<long, long>, int> taken;
     const double width = pcb.settings.trackWidth;
+    std::vector<Track> stubs;  // added once the links stand on their holes (Update PCB drops copper reaching no pad)
     auto ends = [&](Vec2 v, Vec2 toward, int net) {
         if (taken[key(v)]++ == 0) return v;
         const double base = std::atan2(toward.y - v.y, toward.x - v.x);
@@ -1865,7 +1866,7 @@ Json bottomToLinks(McpServer& s) {
             }
             Track t;
             t.a = v, t.b = q, t.net = net, t.layer = kTopLayer, t.width = width;
-            pcb.addTrack(t);
+            stubs.push_back(t);
             taken[key(q)] = 1;
             return q;
         }
@@ -1902,6 +1903,10 @@ Json bottomToLinks(McpServer& s) {
         placeWireLink(p, id, a, b);
         added.push(pr.schematic.find(id)->ref);
     }
+    pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.layer == bottom; }),
+                     pcb.tracks.end());
+    pcb.vias.clear();
+    for (const Track& t : stubs) pcb.addTrack(t);
     pcb.settings.layerCount = 1;
     return added;
 }
