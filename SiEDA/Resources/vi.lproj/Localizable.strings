@@ -1925,3 +1925,5 @@
 "Production Boards" = "Bo mạch sản xuất";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC sang 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Bộ nguồn 2 lớp đã đi dây và kiểm tra, kèm các tệp sản xuất (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC sang 5–48 V / 1–5 A, một mặt";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Bộ nguồn một mặt đã đi dây và kiểm tra, có dây nối tắt và các tệp sản xuất (examples/smps-230vac-5-48v-1layer)";

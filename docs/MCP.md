@@ -439,8 +439,9 @@ What the agent gets back, so it can wire correctly without guessing:
 | `simulate_circuit` | `net`, `analysis` | Operating point, then a transient or AC analysis, explained. |
 
 Built-in examples (`project_list_examples`): `led_indicator`, `transistor_switch`, `rc_lowpass`,
-`opamp_noninverting`, `ne555_blinker`, and the routed, verified production board `smps_230vac` (230 VAC to 5–48 V /
-1–5 A, [examples/smps-230vac-5-48v](../examples/smps-230vac-5-48v/README.md)).
+`opamp_noninverting`, `ne555_blinker`, and the routed, verified production boards `smps_230vac` (230 VAC to 5–48 V /
+1–5 A, [examples/smps-230vac-5-48v](../examples/smps-230vac-5-48v/README.md)) and `smps_230vac_1layer` (the same
+supply single-sided, with wire links: [examples/smps-230vac-5-48v-1layer](../examples/smps-230vac-5-48v-1layer/README.md)).
 
 ## Python
 
@@ -657,7 +658,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_variant_check` | read | Checks the board as each assembly variant is built (the base design and every variant): its unfitted parts, connections between fitted parts still unrouted, and fitted parts whose courtyards overlap. |
 | `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
 | `pcb_autoroute` | edit | Routes the board. |
-| `pcb_add_jumpers` | edit | Single-sided boards: joins each net the copper leaves in islands by a wire link (JW1 …, a real part in the schematic and BOM, both pins labelled with the net): the shortest straight link along x or y, 7.62–30.48 mm in 2.54 mm steps, from one island's copper to another's with short stub tracks, clear of other nets by their class clearance, of holes, keep-outs, the edge and courtyards; its body on the bottom (component) side. |
+| `pcb_add_jumpers` | edit | Single-sided boards: joins each net the copper leaves in islands by a wire link (JW1 …, a real part in the schematic and BOM, both pins labelled with the net): the shortest straight link along x or y, 7.62–50.8 mm in 2.54 mm steps, from one island's copper to another's with short stub tracks, clear of other nets by their class clearance, of holes, keep-outs, the edge and courtyards; its body on the bottom (component) side. `fromBottom: true` instead turns a 2-layer route's bottom copper into links (each piece joined at its vias, a lead hole given a spare hole beside it with a stub, one wire per hole), removes the vias and leaves one copper layer. Links stand on a schematic sheet of their own ("Wire links"). |
 | `pcb_autoroute_presets` | read | The autorouter strategy presets with their options, and the board's current strategy. |
 | `pcb_route_report` | read | The last autoroute's report: differential pairs, lengths against their rules, quality metrics. |
 | `pcb_clear_routing` | edit (destructive) | Removes every track and via. |

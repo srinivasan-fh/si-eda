@@ -6,7 +6,8 @@ edit the output by hand. --check exits 1 when the file is stale."""
 import pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-EXAMPLES = [("smpsExampleJson", "examples/smps-230vac-5-48v/smps_230vac.siedaproj")]
+EXAMPLES = [("smpsExampleJson", "examples/smps-230vac-5-48v/smps_230vac.siedaproj"),
+            ("smps1LayerExampleJson", "examples/smps-230vac-5-48v-1layer/smps_230vac_1layer.siedaproj")]
 OUT = ROOT / "Core/src/ExampleProjects.cpp"
 CHUNK = 8000  # characters per literal (one long literal would pass the compilers' -Woverlength-strings limit)
 

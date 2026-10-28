@@ -1608,11 +1608,22 @@ int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::strin
         for (int k = 2; taken(net); ++k) net = "JW_NET" + std::to_string(serial) + "_" + std::to_string(k);
         label(anchorPin);
     }
-    const Vec2 at = freeSpot(pr);
-    const int id = sieda_add_custom_component(p, partId.c_str(), "Wire link", at.x, at.y, 0, nullptr);
+    // The links stand on a sheet of their own, four to a row with room for their labels.
+    Schematic& sch = pr.schematic;
+    int sheet = -1;
+    for (const auto& sh : sch.sheets())
+        if (sh.name == "Wire links") sheet = sh.id;
+    if (sheet < 0) sheet = sch.addSheet("Wire links");
+    const int was = sch.activeSheet();
+    sch.setActiveSheet(sheet);
+    const long n = std::count_if(sch.components().begin(), sch.components().end(),
+                                 [&](const Component& c) { return c.sheet == sheet && c.ref.rfind("JW", 0) == 0; });
+    const int id = sieda_add_custom_component(p, partId.c_str(), "Wire link", static_cast<double>(n % 4) * 400,
+                                              static_cast<double>(n / 4) * 100, 0, nullptr);
     check(id >= 0, "Could not add a wire link");
-    const std::string ref = pr.schematic.find(id)->ref;
+    const std::string ref = sch.find(id)->ref;
     label(ref + ".1"), label(ref + ".2");
+    sch.setActiveSheet(was);
     return id;
 }
 
@@ -1904,8 +1915,9 @@ Json bottomToLinks(McpServer& s) {
     std::vector<std::tuple<int, Vec2, Vec2>> links;
     std::map<int, std::string> netNames;
     int serial = 0;
-    for (const auto& [piece, pts] : holes) {
-        const int net = pieceNet[piece];
+    for (const auto& piece : holes) {
+        const std::vector<Vec2>& pts = piece.second;
+        const int net = pieceNet[piece.first];
         std::vector<char> in(pts.size(), 0);
         in[0] = 1;
         for (size_t n = 1; n < pts.size(); ++n) {

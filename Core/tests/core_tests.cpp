@@ -26244,6 +26244,28 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     std::filesystem::remove_all(root);
 }
 
+TEST(smps_single_sided_example_is_routed_with_wire_links) {
+    // examples/smps-230vac-5-48v-1layer: one copper layer, no vias, wire links (on a sheet of their own) where the
+    // copper cannot cross; every connection routed, the DRC clean and verification without warnings.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "smps_230vac_1layer"})"))));
+    Project& p = s.project()->project;
+    CHECK(p.pcb.settings.layerCount == 1 && p.pcb.vias.empty());
+    CHECK(std::all_of(p.pcb.tracks.begin(), p.pcb.tracks.end(), [](const Track& t) { return t.layer == 0; }));
+    int sheet = -1, links = 0;
+    for (const auto& sh : p.schematic.sheets())
+        if (sh.name == "Wire links") sheet = sh.id;
+    for (const auto& c : p.schematic.components())
+        if (c.ref.rfind("JW", 0) == 0 && !isNetSymbolKind(c.kind)) {
+            ++links;
+            CHECK(c.sheet == sheet && c.pcb.placed && c.pcb.bottom);
+        }
+    CHECK(links > 50);
+    const Json drc = mcpData(mcpTool(s, "pcb_drc"));
+    CHECK(drc.get("errors").asInt(1) == 0 && drc.get("warnings").asInt(1) == 0 && drc.get("unrouted").size() == 0);
+    for (const auto& st : verifyDesign(p).stages) CHECK(st.status != StageStatus::Fail && st.status != StageStatus::Warning);
+}
+
 TEST(smps_example_is_routed_verified_and_its_fixes_hold) {
     // The built-in production board (examples/smps-230vac-5-48v): loads routed, the DRC is clean and verification
     // passes with no warning (a connector-fed board with no ground symbol skips the DC solve; PGND / SGND pours are

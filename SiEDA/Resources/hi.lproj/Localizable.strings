@@ -1925,3 +1925,5 @@
 "Production Boards" = "उत्पादन बोर्ड";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC से 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "रूट किया गया, सत्यापित 2-परत पावर सप्लाई और उसकी निर्माण फ़ाइलें (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC से 5–48 V / 1–5 A, एक-तरफ़ा";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "रूट किया गया, सत्यापित एक-तरफ़ा पावर सप्लाई, तार जंपर और उसकी निर्माण फ़ाइलें (examples/smps-230vac-5-48v-1layer)";

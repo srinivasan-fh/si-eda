@@ -13,6 +13,7 @@ Every guide in one place, grouped by what you are doing. Each one starts with it
 | [Product requirements](PRD.md) | Understand what SiEDA is built to do |
 | [Architecture](ARCHITECTURE.md) | Learn how the SwiftUI app, the C ABI and the C++ engine fit together |
 | [SMPS production example](../examples/smps-230vac-5-48v/README.md) | See a complete 230 VAC to 5–48 V supply: schematic, routed board, checks, fabrication files |
+| [Single-sided SMPS example](../examples/smps-230vac-5-48v-1layer/README.md) | The same supply on one copper layer with wire links |
 
 ## Design
 

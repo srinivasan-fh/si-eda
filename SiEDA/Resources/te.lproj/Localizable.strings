@@ -1925,3 +1925,5 @@
 "Production Boards" = "ఉత్పత్తి బోర్డులు";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC నుండి 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "రూట్ చేసిన, ధృవీకరించిన 2-పొరల పవర్ సప్లై మరియు దాని తయారీ ఫైళ్లు (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC నుండి 5–48 V / 1–5 A, ఒకే వైపు";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "రూట్ చేసిన, ధృవీకరించిన ఒకే వైపు పవర్ సప్లై, వైర్ జంపర్లు మరియు దాని తయారీ ఫైళ్లు (examples/smps-230vac-5-48v-1layer)";

@@ -1925,3 +1925,5 @@
 "Production Boards" = "Production Boards";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC to 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)";

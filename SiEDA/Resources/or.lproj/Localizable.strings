@@ -1925,3 +1925,5 @@
 "Production Boards" = "ଉତ୍ପାଦନ ବୋର୍ଡ";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC ରୁ 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "ରୁଟ୍ ହୋଇଥିବା, ଯାଞ୍ଚିତ 2-ସ୍ତର ପାୱାର ସପ୍ଲାଇ ଏବଂ ଏହାର ଉତ୍ପାଦନ ଫାଇଲ୍ (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC ରୁ 5–48 V / 1–5 A, ଏକ-ପାର୍ଶ୍ୱ";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "ରୁଟ୍ ହୋଇଥିବା, ଯାଞ୍ଚିତ ଏକ-ପାର୍ଶ୍ୱ ପାୱାର ସପ୍ଲାଇ, ତାର ଜମ୍ପର ଏବଂ ଏହାର ଉତ୍ପାଦନ ଫାଇଲ୍ (examples/smps-230vac-5-48v-1layer)";

@@ -20,6 +20,7 @@
 namespace fs = std::filesystem;
 
 std::string smpsExampleJson();  // examples/smps-230vac-5-48v/smps_230vac.siedaproj (ExampleProjects.cpp)
+std::string smps1LayerExampleJson();  // examples/smps-230vac-5-48v-1layer/smps_230vac_1layer.siedaproj
 
 namespace sieda::mcp {
 
@@ -609,13 +610,16 @@ const std::vector<McpExample>& mcpExamples() {
         {"smps_230vac", "SMPS 230 VAC to 5–48 V / 1–5 A",
          "Production board: active PFC (L6563), isolated 52 V flyback (UC3843, ETD44) and a synchronous buck post-regulator "
          "with CC/CV control; 2 layers, 200 × 130 mm, routed, DRC clean and verified (examples/smps-230vac-5-48v)."},
+        {"smps_230vac_1layer", "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided",
+         "The same supply on one copper layer: through-hole parts on the component side, SMD parts on the copper side, "
+         "wire links (JW…) where the copper cannot cross; routed, DRC clean and verified (examples/smps-230vac-5-48v-1layer)."},
     };
     return examples;
 }
 
 bool loadExample(Project& p, const std::string& id) {
-    if (id == "smps_230vac") {
-        p = Project::fromJson(Json::parse(::smpsExampleJson()));
+    if (id == "smps_230vac" || id == "smps_230vac_1layer") {
+        p = Project::fromJson(Json::parse(id == "smps_230vac" ? ::smpsExampleJson() : ::smps1LayerExampleJson()));
         return true;
     }
     Project fresh;

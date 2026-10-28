@@ -19231,3 +19231,29058 @@ std::string smpsExampleJson() {
     for (const char* part : parts) json += part;
     return json;
 }
+
+// examples/smps-230vac-5-48v-1layer/smps_230vac_1layer.siedaproj
+std::string smps1LayerExampleJson();
+std::string smps1LayerExampleJson() {
+    static const char* const parts[] = {
+        R"sieda({
+  "activeSheet": 1,
+  "aerospaceMission": "",
+  "applianceType": "",
+  "board": {
+    "autoSizeNets": true,
+    "backdrill": false,
+    "busLengthTolerance": 0.5,
+    "clearance": 0.3,
+    "coating": "none",
+    "construction": "rigid",
+    "copperWeightOz": 1,
+    "differentialImpedance": 100,
+    "edgeClearance": 0.6,
+    "hdi": false,
+    "height": 176,
+    "highAltitude": false,
+    "holes": [
+      {
+        "drill": 3.2,
+        "keepout": 8,
+        "x": 265.5,
+        "y": 4.5
+      },
+      {
+        "drill": 3.2,
+        "keepout": 8,
+        "x": 4.5,
+        "y": 171.5
+      },
+      {
+        "drill": 3.2,
+        "keepout": 8,
+        "x": 135,
+        "y": 4.5
+      },
+      {
+        "drill": 3.2,
+        "keepout": 8,
+        "x": 135,
+        "y": 171.5
+      },
+      {
+        "drill": 3.2,
+        "keepout": 8,
+        "x": 265.5,
+        "y": 135.3846154
+      }
+    ],
+    "isolationGap": 0,
+    "keepouts": [
+      {
+        "layer": -1,
+        "name": "Isolation barrier",
+        "pours": true,
+        "tracks": true,
+        "vias": true,
+        "x0": 161.35,
+        "x1": 165.35,
+        "y0": 0,
+        "y1": 176
+      }
+    ],
+    "layerCount": 1,
+    "lengthTuning": true,
+    "material": "fr4",
+    "maxTempRise": 10,
+    "microviaDiameter": 0.25,
+    "microviaDrill": 0.1,
+    "minAnnularRing": 0.15,
+    "minClearance": 0.2,
+    "minDrill": 0.25,
+    "minHoleToHole": 0.3,
+    "minTrackWidth": 0.2,
+    "netClearances": {
+      "AC_L": 2.5,
+      "AC_N": 2.5,
+      "FLY_SW": 2,
+      "I_RTN": 0.5,
+      "L_F": 2.5,
+      "L_FUSED": 2.5,
+      "N_F": 2.5,
+      "PFC_SW": 2,
+      "RECT": 2,
+      "RECT_RAW": 2.5,
+      "SEC_W": 0.5,
+      "SNUB": 2,
+      "SW": 0.5,
+      "V52": 0.5,
+      "VBULK": 2,
+      "VOUT": 0.5
+    },
+    "netWidths": {
+      "AC_L": 1.5,
+      "AC_N": 1.5,
+      "FLY_SW": 1,
+      "I_RTN": 2.5,
+      "L_F": 1.5,
+      "L_FUSED": 1.5,
+      "N_F": 1.5,
+      "PFC_SW": 1,
+      "RECT": 1,
+      "RECT_RAW": 1.5,
+      "SEC_W": 2,
+      "SNUB": 1,
+      "SW": 2,
+      "V52": 2,
+      "VBULK": 1,
+      "VOUT": 2.5
+    },
+    "outline": [],
+    "pairSkewTolerance": 0.13,
+    "rooms": [
+      {
+        "name": "AC input",
+        "refs": [
+          "J1",
+          "F1",
+          "RV1",
+          "CX1",
+          "LF1",
+          "CX2",
+          "CY2",
+          "CY3",
+          "BR1",
+          "RT1",
+          "CIN1"
+        ],
+        "x0": 0,
+        "x1": 83.7,
+        "y0": 0,
+        "y1": 92.06153846
+      },
+      {
+        "name": "PFC",
+        "refs": [
+          "U1",
+          "LPFC",
+          "Q1",
+          "DPFC",
+          "CB1",
+          "R1",
+          "R2",
+          "R3",
+          "C1",
+          "R4",
+          "R5",
+          "R6",
+          "C2",
+          "C3",
+          "R7",
+          "R8",
+          "R9",
+          "R10",
+          "R15",
+          "R16",
+          "R17",
+          "R11",
+          "R12",
+          "R13",
+          "R14",
+          "C4"
+        ],
+        "x0": 0,
+        "x1": 157.95,
+        "y0": 80,
+        "y1": 176
+      },
+      {
+        "name": "Flyback primary",
+        "refs": [
+          "U2",
+          "Q2",
+          "DSN",
+          "R20",
+          "C5",
+          "R18",
+          "R19",
+          "R21",
+          "C6",
+          "R22",
+          "C7",
+          "C8",
+          "DAUX",
+          "C9",
+          "U6",
+          "C10",
+          "R23"
+        ],
+        "x0": 83.7,
+        "x1": 157.95,
+        "y0": 0,
+        "y1": 92.06153846
+      },
+      {
+        "name": "Secondary 52 V",
+        "refs": [
+          "DOUT",
+          "C11",
+          "C12",
+          "U4",
+          "R24",
+          "R25",
+          "R26",
+          "R27",
+          "R28",
+          "C13",
+          "DB",
+          "C14",
+          "U7",
+          "C15"
+        ],
+        "x0": 168.75,
+        "x1": 270,
+        "y0": 0,
+        "y1": 70.4
+      },
+      {
+        "name": "Buck CC/CV",
+        "refs": [
+          "U5",
+          "U8",
+          "Q3",
+          "Q4",
+          "LB",
+          "R29",
+          "R30",
+          "R31",
+          "DBST",
+          "C16",
+          "C17",
+          "C18",
+          "C19",
+          "C20",
+          "J2",
+          "R32",
+          "NT1",
+          "NT2",
+          "C21",
+          "R33",
+          "C22",
+          "R34",
+          "U9",
+          "DCV",
+          "DCC",
+          "R35",
+          "R36",
+          "C23",
+          "C24",
+          "R37",
+          "U10",
+          "C25",
+          "J3",
+          "R38",
+          "R39",
+          "C26",
+          "C27",
+          "C28",
+          "DPWR",
+          "R40"
+        ],
+        "x0": 168.75,
+        "x1": 270,
+        "y0": 70.4,
+        "y1": 176
+      }
+    ],
+    "routingGrid": 0.25,
+    "rulePreset": "IPC-2221 Class 3",
+    "schematicRuleNets": [
+      "AC_L",
+      "AC_N",
+      "FLY_SW",
+      "I_RTN",
+      "L_F",
+      "L_FUSED",
+      "N_F",
+      "PFC_SW",
+      "RECT",
+      "RECT_RAW",
+      "SEC_W",
+      "SNUB",
+      "SW",
+      "V52",
+      "VBULK",
+      "VOUT"
+    ],
+    "singleEndedImpedance": 50,
+    "solderMask": "green",
+    "thickness": 1.6,
+    "trackWidth": 0.4,
+    "underfill": false,
+    "viaDiameter": 1.6,
+    "viaDrill": 0.8,
+    "viaInPad": false,
+    "width": 270
+  },
+  "buildQuantity": 5,
+  "components": [
+    {
+      "customPart": "TERMINAL_3P_5_08-5f253a45",
+      "id": 1,
+      "kind": 16,
+      "mirror": true,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 6.75,
+        "y": 24.37
+      },
+      "ref": "J1",
+      "rotation": 0,
+      "value": "230VAC",
+      "x": 100,
+      "y": 300
+    },
+    {
+      "customPart": "FUSE_5X20_HOLDER-7a2bbafe",
+      "id": 2,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 35.1,
+        "y": 10.83
+      },
+      "ref": "F1",
+      "rotation": 0,
+      "value": "T5A 250VAC",
+      "x": 260,
+      "y": 240
+    },
+    {
+      "customPart": "S10K275-c20aea04",
+      "id": 3,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 68.85,
+        "y": 10.83
+      },
+      "ref": "RV1",
+      "rotation": 90,
+      "value": "S10K275",
+      "x": 380,
+      "y": 300
+    },
+    {
+      "customPart": "X2_100N_275VAC-88022c06",
+      "id": 4,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 33.75,
+        "y": 25.72
+      },
+      "ref": "CX1",
+      "rotation": 90,
+      "value": "X2-100N-275VAC",
+      "x": 460,
+      "y": 300
+    },
+    {
+      "customPart": "CMC_2X10MH_6A-a9d239a0",
+      "id": 5,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 25.65,
+        "y": 56.86
+      },
+      "ref": "LF1",
+      "rotation": 0,
+      "value": "2x10mH",
+      "x": 600,
+      "y": 300
+    },
+    {
+      "customPart": "X2_100N_275VAC-88022c06",
+      "id": 6,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 56.7,
+        "y": 41.97
+      },
+      "ref": "CX2",
+      "rotation": 90,
+      "value": "X2-100N-275VAC",
+      "x": 740,
+      "y": 300
+    },
+    {
+      "id": 7,
+      "kind": 1,
+      "package": "C_Disc_THT",
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 71.55,
+        "y": 29.78
+      },
+      "ref": "CY2",
+      "rotation": 90,
+      "value": "2.2n Y2",
+      "x": 820,
+      "y": 400
+    },
+    {
+      "id": 8,
+      "kind": 1,
+      "package": "C_Disc_THT",
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 71.55,)sieda",
+        R"sieda(
+        "y": 48.74
+      },
+      "ref": "CY3",
+      "rotation": 90,
+      "value": "2.2n Y2",
+      "x": 900,
+      "y": 400
+    },
+    {
+      "customPart": "GBU4M-49364dc7",
+      "id": 9,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 40.5,
+        "y": 82.58
+      },
+      "ref": "BR1",
+      "rotation": 0,
+      "value": "GBU4M",
+      "x": 1060,
+      "y": 300
+    },
+    {
+      "id": 10,
+      "kind": 0,
+      "package": "R_Axial_THT",
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 70.2,
+        "y": 70.4
+      },
+      "ref": "RT1",
+      "rotation": 0,
+      "value": "5R NTC",
+      "x": 1200,
+      "y": 240
+    },
+    {
+      "id": 11,
+      "kind": 1,
+      "package": "C_Disc_THT",
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 70.2,
+        "y": 85.29
+      },
+      "ref": "CIN1",
+      "rotation": 90,
+      "value": "1u 450V",
+      "x": 1300,
+      "y": 300
+    },
+    {
+      "customPart": "L6563-1afaba09",
+      "id": 12,
+      "kind": 16,
+      "noConnect": [
+        7,
+        8
+      ],
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 83.7,
+        "y": 117.55
+      },
+      "ref": "U1",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "L6563",
+      "x": 1100,
+      "y": 520
+    },
+    {
+      "customPart": "L_PFC_400U_ZCD-56f510d5",
+      "id": 13,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 32.4,
+        "y": 129.97
+      },
+      "ref": "LPFC",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "400uH",
+      "x": 300,
+      "y": 160
+    },
+    {
+      "customPart": "C3M0065100K-61afacbc",
+      "id": 14,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 72.9,
+        "y": 159.75
+      },
+      "ref": "Q1",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "C3M0065100K",
+      "x": 450,
+      "y": 260
+    },
+    {
+      "customPart": "DIODE_TO220_2-2b06dbe3",
+      "id": 15,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 94.5,
+        "y": 159.75
+      },
+      "ref": "DPFC",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "SiC 650V 10A",
+      "x": 550,
+      "y": 150
+    },
+    {
+      "customPart": "CAP_SNAPIN_30MM-da84910f",
+      "id": 16,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 126.9,
+        "y": 140.8
+      },
+      "ref": "CB1",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "220u 450V",
+      "x": 780,
+      "y": 210
+    },
+    {
+      "id": 17,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 270,
+        "x": 120.3,
+        "y": 100.95
+      },
+      "ref": "R1",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 170,
+      "y": 570
+    },
+    {
+      "id": 18,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 84.43,
+        "y": 103.21
+      },
+      "ref": "R2",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 170,
+      "y": 490
+    },
+    {
+      "id": 19,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 114.88,
+        "y": 92.03
+      },
+      "ref": "R3",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "19.1k",
+      "x": 90,
+      "y": 490
+    },
+    {
+      "id": 20,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 72.36,
+        "y": 117.62
+      },
+      "ref": "C1",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "680n",
+      "x": 250,
+      "y": 510
+    },
+    {
+      "id": 21,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 52.65,
+        "y": 94.09
+      },
+      "ref": "R4",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 410,
+      "y": 610
+    },
+    {
+      "id": 22,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 78.03,
+        "y": 86.35
+      },
+      "ref": "R5",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 410,
+      "y": 530
+    },
+    {
+      "id": 23,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 114.88,
+        "y": 98.67
+      },
+      "ref": "R6",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "22k",
+      "x": 330,
+      "y": 530
+    },
+    {
+      "id": 24,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 77.08,
+        "y": 144.63
+      },
+      "ref": "C2",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "10n",
+      "x": 490,
+      "y": 530
+    },
+    {
+      "id": 25,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 113.94,
+        "y": 105.3
+      },
+      "ref": "C3",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "1u",
+      "x": 730,
+      "y": 570
+    },
+    {
+      "id": 26,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 105.43,
+        "y": 92.03
+      },
+      "ref": "R7",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "1M",
+      "x": 650,
+      "y": 570
+    },
+    {
+      "id": 27,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 72.36,
+        "y": 136.1
+      },
+      "ref": "R8",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "33k",
+      "x": 810,
+      "y": 590
+    },
+    {
+      "id": 28,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 122.85,
+        "y": 108.98
+      },
+      "ref": "R9",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 970,
+      "y": 690
+    },
+    {
+      "id": 29,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 95.98,
+        "y": 112.89
+      },
+      "ref": "R10",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "1.5M",
+      "x": 970,
+      "y": 610
+    },
+    {
+      "id": 30,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 105.43,
+        "y": 98.67
+      },
+      "ref": "R15",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "24k",
+      "x": 890,
+      "y": 610
+    },
+    {
+      "id": 31,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 70.47,
+        "y": 141.79
+      },
+      "ref": "R16",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "100k",
+      "x": 1230,
+      "y": 570
+    },
+    {
+      "id": 32,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 112.99,
+        "y": 111.94
+      },
+      "ref": "R17",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "10k",
+      "x": 1310,
+      "y": 570
+    },
+    {
+      "id": 33,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": tr)sieda",
+        R"sieda(ue,
+        "rotation": 0,
+        "x": 86.53,
+        "y": 140.37
+      },
+      "ref": "R11",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "68k",
+      "x": 210,
+      "y": 220
+    },
+    {
+      "id": 34,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 88.43,
+        "y": 147.95
+      },
+      "ref": "R12",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "10",
+      "x": 560,
+      "y": 250
+    },
+    {
+      "id": 35,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 105.3,
+        "y": 95.45
+      },
+      "ref": "R13",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "0.1",
+      "x": 400,
+      "y": 330
+    },
+    {
+      "id": 36,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 80.34,
+        "y": 140.37
+      },
+      "ref": "R14",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "100",
+      "x": 500,
+      "y": 330
+    },
+    {
+      "id": 37,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 82.76,
+        "y": 146.06
+      },
+      "ref": "C4",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "100n",
+      "x": 1630,
+      "y": 490
+    },
+    {
+      "customPart": "UC3843-0e53d9d0",
+      "id": 38,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 113.4,
+        "y": 37.91
+      },
+      "ref": "U2",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "UC3843",
+      "x": 1600,
+      "y": 300
+    },
+    {
+      "customPart": "C3M0065100K-61afacbc",
+      "id": 39,
+      "kind": 16,
+      "mirror": true,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 129.6,
+        "y": 75.82
+      },
+      "ref": "Q2",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "C3M0065100K",
+      "x": 560,
+      "y": 320
+    },
+    {
+      "customPart": "T_FLYBACK_ETD44-c652843e",
+      "id": 40,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 180,
+        "x": 163.35,
+        "y": 40.62
+      },
+      "ref": "T1",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "ETD44",
+      "x": 760,
+      "y": 220
+    },
+    {
+      "customPart": "DIODE_TO220_2-2b06dbe3",
+      "id": 41,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 202.5,
+        "y": 16.25
+      },
+      "ref": "DOUT",
+      "rotation": 180,
+      "sheet": 4,
+      "value": "200V 20A ultrafast",
+      "x": 260,
+      "y": 160
+    },
+    {
+      "id": 42,
+      "kind": 3,
+      "package": "D_DO41_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 143.1,
+        "y": 79.88
+      },
+      "ref": "DSN",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "UF4007",
+      "x": 600,
+      "y": 170
+    },
+    {
+      "id": 43,
+      "kind": 0,
+      "package": "R_Axial_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 115.42,
+        "y": 56.86
+      },
+      "ref": "R20",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "100k 2W",
+      "x": 520,
+      "y": 110
+    },
+    {
+      "id": 44,
+      "kind": 1,
+      "package": "C_Disc_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 110.03,
+        "y": 48.06
+      },
+      "ref": "C5",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "2.2n 1kV",
+      "x": 460,
+      "y": 110
+    },
+    {
+      "id": 45,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 130.95,
+        "y": 88
+      },
+      "ref": "R18",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "0.15",
+      "x": 610,
+      "y": 390
+    },
+    {
+      "id": 46,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 126.9,
+        "y": 68.37
+      },
+      "ref": "R19",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "10",
+      "x": 450,
+      "y": 310
+    },
+    {
+      "id": 47,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 116.78,
+        "y": 79.88
+      },
+      "ref": "R21",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "1k",
+      "x": 510,
+      "y": 390
+    },
+    {
+      "id": 48,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 112.05,
+        "y": 70.4
+      },
+      "ref": "C6",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "470p",
+      "x": 1320,
+      "y": 340
+    },
+    {
+      "id": 49,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 118.12,
+        "y": 50.77
+      },
+      "ref": "R22",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "10k",
+      "x": 1400,
+      "y": 360
+    },
+    {
+      "id": 50,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 108,
+        "y": 63.63
+      },
+      "ref": "C7",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "2.2n",
+      "x": 1480,
+      "y": 360
+    },
+    {
+      "id": 51,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 118.12,
+        "y": 88
+      },
+      "ref": "C8",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "100n",
+      "x": 1960,
+      "y": 300
+    },
+    {
+      "id": 52,
+      "kind": 3,
+      "package": "D_DO41_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 126.9,
+        "y": 56.18
+      },
+      "ref": "DAUX",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "UF4007",
+      "x": 780,
+      "y": 420
+    },
+    {
+      "id": 53,
+      "kind": 1,
+      "package": "CP_Radial_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 92.47,
+        "y": 84.62
+      },
+      "ref": "C9",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "47u 35V",
+      "x": 870,
+      "y": 450
+    },
+    {
+      "customPart": "LM7812-1e23ca1c",
+      "id": 54,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 105.97,
+        "y": 77.85
+      },
+      "ref": "U6",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "LM7812",
+      "x": 1040,
+      "y": 430
+    },
+    {
+      "id": 55,
+      "kind": 1,
+      "package": "C_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 112.05,
+        "y": 88
+      },
+      "ref": "C10",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "10u",
+      "x": 1150,
+      "y": 450
+    },
+    {
+      "id": 56,
+      "kind": 0,
+      "package": "R_Axial_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 120.83,
+        "y": 27.75
+      },
+      "ref": "R23",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "330k",
+      "x": 810,
+      "y": 360
+    },
+    {
+      "customPart": "CAP_RADIAL_12_5MM-3daaa287",
+      "id": 57,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 226.8,
+        "y": 18.95
+      },
+      "ref": "C11",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "1000u 63V",
+      "x": 380,
+      "y": 210
+    },
+ )sieda",
+        R"sieda(   {
+      "customPart": "CAP_RADIAL_12_5MM-3daaa287",
+      "id": 58,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 248.4,
+        "y": 18.95
+      },
+      "ref": "C12",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "1000u 63V",
+      "x": 460,
+      "y": 210
+    },
+    {
+      "customPart": "PC817-4581fb60",
+      "id": 59,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 163.35,
+        "y": 77.17
+      },
+      "ref": "U3",
+      "rotation": 0,
+      "sheet": 4,
+      "value": "PC817",
+      "x": 1100,
+      "y": 200
+    },
+    {
+      "customPart": "TL431AIDBZR-a348cc06",
+      "id": 60,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 202.5,
+        "y": 62.28
+      },
+      "ref": "U4",
+      "rotation": 0,
+      "sheet": 4,
+      "value": "TL431AIDBZR",
+      "x": 1100,
+      "y": 480
+    },
+    {
+      "id": 61,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 213.38,
+        "y": 41.2
+      },
+      "ref": "R24",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "1k",
+      "x": 750,
+      "y": 220
+    },
+    {
+      "id": 62,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 215.32,
+        "y": 35.2
+      },
+      "ref": "R25",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "1k",
+      "x": 990,
+      "y": 240
+    },
+    {
+      "id": 63,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 270,
+        "x": 222.41,
+        "y": 35.2
+      },
+      "ref": "R26",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "51k",
+      "x": 990,
+      "y": 520
+    },
+    {
+      "id": 64,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 216.34,
+        "y": 39.26
+      },
+      "ref": "R27",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "2.55k",
+      "x": 910,
+      "y": 520
+    },
+    {
+      "id": 65,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 219.38,
+        "y": 31.14
+      },
+      "ref": "R28",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "10k",
+      "x": 910,
+      "y": 240
+    },
+    {
+      "id": 66,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 220.39,
+        "y": 39.26
+      },
+      "ref": "C13",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "100n",
+      "x": 910,
+      "y": 320
+    },
+    {
+      "id": 67,
+      "kind": 3,
+      "package": "D_DO41_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 206.55,
+        "y": 54.15
+      },
+      "ref": "DB",
+      "rotation": 0,
+      "sheet": 4,
+      "value": "UF4007",
+      "x": 260,
+      "y": 420
+    },
+    {
+      "id": 68,
+      "kind": 1,
+      "package": "CP_Radial_THT",
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 229.84,
+        "y": 35.2
+      },
+      "ref": "C14",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "47u 35V",
+      "x": 380,
+      "y": 450
+    },
+    {
+      "customPart": "LM7812-1e23ca1c",
+      "id": 69,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 224.1,
+        "y": 54.15
+      },
+      "ref": "U7",
+      "rotation": 0,
+      "sheet": 4,
+      "value": "LM7812",
+      "x": 500,
+      "y": 430
+    },
+    {
+      "id": 70,
+      "kind": 1,
+      "package": "C_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 213.3,
+        "y": 31.82
+      },
+      "ref": "C15",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "10u",
+      "x": 620,
+      "y": 450
+    },
+    {
+      "customPart": "CAP_Y1_DISC_10MM-bf75de15",
+      "id": 71,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 180,
+        "x": 163.35,
+        "y": 124.55
+      },
+      "ref": "CY1",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "2.2n Y1",
+      "x": 300,
+      "y": 560
+    },
+    {
+      "customPart": "UC3843-0e53d9d0",
+      "id": 72,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 184.95,
+        "y": 140.8
+      },
+      "ref": "U5",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "UC3843",
+      "x": 1800,
+      "y": 700
+    },
+    {
+      "customPart": "IR2104-7f45ce3b",
+      "id": 73,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 187.65,
+        "y": 97.48
+      },
+      "ref": "U8",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "IR2104",
+      "x": 600,
+      "y": 700
+    },
+    {
+      "customPart": "BSC040N10NS5-58283c60",
+      "id": 74,
+      "kind": 16,
+      "mirror": true,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 205.2,
+        "y": 92.06
+      },
+      "ref": "Q3",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "BSC040N10NS5",
+      "x": 400,
+      "y": 200
+    },
+    {
+      "customPart": "BSC040N10NS5-58283c60",
+      "id": 75,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 205.2,
+        "y": 111.02
+      },
+      "ref": "Q4",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "BSC040N10NS5",
+      "x": 470,
+      "y": 330
+    },
+    {
+      "customPart": "L_POWER_33U_10A-8293a381",
+      "id": 76,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 236.25,
+        "y": 102.89
+      },
+      "ref": "LB",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "33uH",
+      "x": 560,
+      "y": 200
+    },
+    {
+      "id": 77,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 198.45,
+        "y": 98.83
+      },
+      "ref": "R29",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "10",
+      "x": 950,
+      "y": 720
+    },
+    {
+      "id": 78,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 193.05,
+        "y": 108.98
+      },
+      "ref": "R30",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "10",
+      "x": 710,
+      "y": 760
+    },
+    {
+      "id": 79,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 186.97,
+        "y": 108.98
+      },
+      "ref": "R31",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "10k",
+      "x": 2240,
+      "y": 720
+    },
+    {
+      "id": 80,
+      "kind": 3,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 199.8,
+        "y": 103.57
+      },
+      "ref": "DBST",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1N4148",
+      "x": 2160,
+      "y": 720
+    },
+    {
+      "id": 81,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 205.2,
+        "y": 98.83
+      },
+      "ref": "C16",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "220n",
+      "x": 790,
+      "y": 740
+    },
+    {
+      "id": 82,
+      "kind": 1,
+      "pcb": {
+        "bottom": false)sieda",
+        R"sieda(,
+        "placed": true,
+        "rotation": 90,
+        "x": 214.65,
+        "y": 104.92
+      },
+      "ref": "C17",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1u",
+      "x": 2080,
+      "y": 720
+    },
+    {
+      "customPart": "CAP_RADIAL_12_5MM-3daaa287",
+      "id": 83,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 226.8,
+        "y": 140.8
+      },
+      "ref": "C18",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1000u 63V",
+      "x": 680,
+      "y": 250
+    },
+    {
+      "customPart": "CAP_RADIAL_12_5MM-3daaa287",
+      "id": 84,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 248.4,
+        "y": 140.8
+      },
+      "ref": "C19",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1000u 63V",
+      "x": 760,
+      "y": 250
+    },
+    {
+      "id": 85,
+      "kind": 1,
+      "package": "C_1206",
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 213.97,
+        "y": 117.78
+      },
+      "ref": "C20",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "100n",
+      "x": 840,
+      "y": 250
+    },
+    {
+      "customPart": "TERMINAL_2P_5_08-4a9adf21",
+      "id": 86,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 263.25,
+        "y": 162.46
+      },
+      "ref": "J2",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "5-48V 5A",
+      "x": 980,
+      "y": 230
+    },
+    {
+      "id": 87,
+      "kind": 0,
+      "package": "R_1206",
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 251.1,
+        "y": 165.17
+      },
+      "ref": "R32",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "0.01",
+      "x": 930,
+      "y": 300
+    },
+    {
+      "customPart": "NETTIE_2-2707b8c1",
+      "id": 88,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 251.1,
+        "y": 159.08
+      },
+      "ref": "NT1",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "NetTie-2",
+      "x": 1010,
+      "y": 320
+    },
+    {
+      "customPart": "NETTIE_2-2707b8c1",
+      "id": 89,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 251.1,
+        "y": 171.26
+      },
+      "ref": "NT2",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "NetTie-2",
+      "x": 930,
+      "y": 410
+    },
+    {
+      "id": 90,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 214.65,
+        "y": 110.34
+      },
+      "ref": "C21",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "100n",
+      "x": 2400,
+      "y": 700
+    },
+    {
+      "id": 91,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 180.22,
+        "y": 124.55
+      },
+      "ref": "R33",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "10k",
+      "x": 1600,
+      "y": 760
+    },
+    {
+      "id": 92,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 181.57,
+        "y": 115.75
+      },
+      "ref": "C22",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1n",
+      "x": 1680,
+      "y": 760
+    },
+    {
+      "id": 93,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 181.57,
+        "y": 111.02
+      },
+      "ref": "R34",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "1k",
+      "x": 1520,
+      "y": 740
+    },
+    {
+      "customPart": "LM358-4ce40cbc",
+      "id": 94,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 216,
+        "y": 162.46
+      },
+      "ref": "U9",
+      "rotation": 0,
+      "sheet": 6,
+      "value": "LM358",
+      "x": 1300,
+      "y": 300
+    },
+    {
+      "id": 95,
+      "kind": 3,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 196.43,
+        "y": 140.8
+      },
+      "ref": "DCV",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "1N4148",
+      "x": 710,
+      "y": 300
+    },
+    {
+      "id": 96,
+      "kind": 3,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 196.43,
+        "y": 136.06
+      },
+      "ref": "DCC",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "1N4148",
+      "x": 1730,
+      "y": 320
+    },
+    {
+      "id": 97,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 212.62,
+        "y": 134.03
+      },
+      "ref": "R35",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "100k",
+      "x": 870,
+      "y": 320
+    },
+    {
+      "id": 98,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 212.62,
+        "y": 127.94
+      },
+      "ref": "R36",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "10k",
+      "x": 790,
+      "y": 320
+    },
+    {
+      "id": 99,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 207.22,
+        "y": 148.92
+      },
+      "ref": "C23",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "10n",
+      "x": 950,
+      "y": 320
+    },
+    {
+      "id": 100,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 220.72,
+        "y": 155.02
+      },
+      "ref": "C24",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "10n",
+      "x": 1570,
+      "y": 340
+    },
+    {
+      "id": 101,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 224.1,
+        "y": 162.46
+      },
+      "ref": "R37",
+      "rotation": 270,
+      "sheet": 6,
+      "value": "1k",
+      "x": 1650,
+      "y": 340
+    },
+    {
+      "customPart": "INA181A2IDBVR-673ebd7f",
+      "id": 102,
+      "kind": 16,
+      "pcb": {
+        "bottom": false,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 240.3,
+        "y": 165.17
+      },
+      "ref": "U10",
+      "rotation": 0,
+      "sheet": 6,
+      "value": "INA181A2IDBVR",
+      "x": 1300,
+      "y": 650
+    },
+    {
+      "id": 103,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 226.12,
+        "y": 123.2
+      },
+      "ref": "C25",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "100n",
+      "x": 1570,
+      "y": 660
+    },
+    {
+      "customPart": "PINHEADER_1X04_P2_54MM-ff8f34f1",
+      "id": 104,
+      "kind": 16,
+      "mirror": true,
+      "pcb": {
+        "bottom": true,
+        "locked": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 263.25,
+        "y": 86.65
+      },
+      "ref": "J3",
+      "rotation": 0,
+      "sheet": 6,
+      "value": "VSET/ISET",
+      "x": 100,
+      "y": 300
+    },
+    {
+      "id": 105,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 215.32,
+        "y": 123.2
+      },
+      "ref": "R38",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "100k",
+      "x": 1110,
+      "y": 340
+    },
+    {
+      "id": 106,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 220.72,
+        "y": 124.55
+      },
+      "ref": "R39",
+      "rotation": 90,
+      "sheet": 6,
+      "v)sieda",
+        R"sieda(alue": "100k",
+      "x": 1410,
+      "y": 360
+    },
+    {
+      "id": 107,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 204.53,
+        "y": 117.78
+      },
+      "ref": "C26",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "100n",
+      "x": 1890,
+      "y": 300
+    },
+    {
+      "id": 108,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 211.95,
+        "y": 99.51
+      },
+      "ref": "C27",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "100n",
+      "x": 1970,
+      "y": 300
+    },
+    {
+      "id": 109,
+      "kind": 1,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 205.2,
+        "y": 122.52
+      },
+      "ref": "C28",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "100n",
+      "x": 2050,
+      "y": 300
+    },
+    {
+      "id": 110,
+      "kind": 4,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 0,
+        "x": 197.78,
+        "y": 121.17
+      },
+      "ref": "DPWR",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "Green",
+      "x": 2130,
+      "y": 380
+    },
+    {
+      "id": 111,
+      "kind": 0,
+      "pcb": {
+        "bottom": false,
+        "placed": true,
+        "rotation": 90,
+        "x": 197.1,
+        "y": 115.75
+      },
+      "ref": "R40",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "4.7k",
+      "x": 2130,
+      "y": 300
+    },
+    {
+      "id": 683,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL1",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_ISNS",
+      "x": 570,
+      "y": 520
+    },
+    {
+      "id": 684,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL2",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_INV",
+      "x": 10,
+      "y": 460
+    },
+    {
+      "id": 685,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL3",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_ZCD",
+      "x": 1390,
+      "y": 520
+    },
+    {
+      "id": 686,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL4",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 1470,
+      "y": 500
+    },
+    {
+      "id": 687,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL5",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_GATE",
+      "x": 1550,
+      "y": 480
+    },
+    {
+      "id": 688,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL6",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "VCC_P",
+      "x": 1710,
+      "y": 460
+    },
+    {
+      "id": 689,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL7",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_ISNS",
+      "x": 1240,
+      "y": 310
+    },
+    {
+      "id": 690,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL8",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1160,
+      "y": 290
+    },
+    {
+      "id": 691,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL9",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_COMP",
+      "x": 1080,
+      "y": 270
+    },
+    {
+      "id": 692,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL10",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1720,
+      "y": 330
+    },
+    {
+      "id": 693,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL11",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_OUT",
+      "x": 1800,
+      "y": 310
+    },
+    {
+      "id": 694,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL12",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "VCC_P",
+      "x": 1880,
+      "y": 290
+    },
+    {
+      "id": 695,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL13",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_VREF",
+      "x": 2040,
+      "y": 270
+    },
+    {
+      "id": 696,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL14",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "FB_K",
+      "x": 830,
+      "y": 210
+    },
+    {
+      "id": 697,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL15",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "OPTO_A",
+      "x": 670,
+      "y": 190
+    },
+    {
+      "id": 698,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL16",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "PGND",
+      "x": 1210,
+      "y": 210
+    },
+    {
+      "id": 699,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL17",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "FLY_COMP",
+      "x": 1290,
+      "y": 190
+    },
+    {
+      "id": 700,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL18",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "FB_REF",
+      "x": 830,
+      "y": 490
+    },
+    {
+      "id": 701,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL19",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "FB_K",
+      "x": 750,
+      "y": 470
+    },
+    {
+      "id": 702,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL20",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "SGND",
+      "x": 1210,
+      "y": 470
+    },
+    {
+      "id": 703,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL21",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 1440,
+      "y": 690
+    },
+    {
+      "id": 704,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL22",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "COMP2",
+      "x": 1360,
+   )sieda",
+        R"sieda(   "y": 670
+    },
+    {
+      "id": 705,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL23",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 1920,
+      "y": 730
+    },
+    {
+      "id": 706,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL24",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BUCK_PWM",
+      "x": 2000,
+      "y": 710
+    },
+    {
+      "id": 707,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL25",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "VCC_S",
+      "x": 2320,
+      "y": 690
+    },
+    {
+      "id": 708,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL26",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "VREF5",
+      "x": 2480,
+      "y": 670
+    },
+    {
+      "id": 709,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL27",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 490,
+      "y": 730
+    },
+    {
+      "id": 710,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL28",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BUCK_EN",
+      "x": 410,
+      "y": 710
+    },
+    {
+      "id": 711,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL29",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BUCK_PWM",
+      "x": 330,
+      "y": 690
+    },
+    {
+      "id": 712,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL30",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "VCC_S",
+      "x": 250,
+      "y": 670
+    },
+    {
+      "id": 713,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL31",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SW",
+      "x": 870,
+      "y": 710
+    },
+    {
+      "id": 714,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL32",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BOOT",
+      "x": 1030,
+      "y": 670
+    },
+    {
+      "id": 715,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL33",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1190,
+      "y": 330
+    },
+    {
+      "id": 716,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL34",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VSET",
+      "x": 1030,
+      "y": 310
+    },
+    {
+      "id": 717,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL35",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "CV_OUT",
+      "x": 630,
+      "y": 270
+    },
+    {
+      "id": 718,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL36",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "ISET",
+      "x": 1490,
+      "y": 330
+    },
+    {
+      "id": 719,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL37",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "CC_OUT",
+      "x": 1810,
+      "y": 290
+    },
+    {
+      "id": 720,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL38",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VCC_S",
+      "x": 2210,
+      "y": 270
+    },
+    {
+      "id": 721,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL39",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "ISNS_P",
+      "x": 1190,
+      "y": 670
+    },
+    {
+      "id": 722,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL40",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1110,
+      "y": 650
+    },
+    {
+      "id": 723,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL41",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "INA_OUT",
+      "x": 1030,
+      "y": 630
+    },
+    {
+      "id": 724,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL42",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "ISNS_N",
+      "x": 1410,
+      "y": 670
+    },
+    {
+      "id": 725,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL43",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1490,
+      "y": 650
+    },
+    {
+      "id": 726,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL44",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VREF5",
+      "x": 1650,
+      "y": 630
+    },
+    {
+      "id": 727,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL45",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 220,
+      "y": 330
+    },
+    {
+      "id": 728,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL46",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "ISET",
+      "x": 300,
+      "y": 310
+    },
+    {
+      "id": 729,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL47",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VSET",
+      "x": 380,
+      "y": 290
+    },
+    {
+      "id": 730,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL48",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VREF5",
+      "x": 460,
+      "y": 270
+    },
+    {
+      "id": 731,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL49",
+      "rotation": 180,
+      "value": "AC_L",
+      "x": 190,
+      "y": 240
+    },
+    {
+      "id": 732,
+      "kind": 15,
+      "pcb": {
+        "bottom")sieda",
+        R"sieda(: false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL50",
+      "rotation": 270,
+      "value": "L_FUSED",
+      "x": 460,
+      "y": 230
+    },
+    {
+      "id": 733,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL51",
+      "rotation": 90,
+      "value": "AC_N",
+      "x": 460,
+      "y": 370
+    },
+    {
+      "id": 734,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL52",
+      "rotation": 270,
+      "value": "L_F",
+      "x": 740,
+      "y": 230
+    },
+    {
+      "id": 735,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL53",
+      "rotation": 270,
+      "value": "N_F",
+      "x": 900,
+      "y": 350
+    },
+    {
+      "id": 736,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL54",
+      "rotation": 0,
+      "value": "N_F",
+      "x": 1130,
+      "y": 310
+    },
+    {
+      "id": 737,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL55",
+      "rotation": 0,
+      "value": "PE",
+      "x": 170,
+      "y": 320
+    },
+    {
+      "id": 738,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL56",
+      "rotation": 90,
+      "value": "PE",
+      "x": 900,
+      "y": 450
+    },
+    {
+      "id": 739,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL57",
+      "rotation": 180,
+      "value": "RECT_RAW",
+      "x": 990,
+      "y": 290
+    },
+    {
+      "id": 740,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL58",
+      "rotation": 270,
+      "value": "RECT",
+      "x": 1300,
+      "y": 250
+    },
+    {
+      "id": 741,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL59",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "RECT",
+      "x": 220,
+      "y": 150
+    },
+    {
+      "id": 742,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL60",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "RECT",
+      "x": 410,
+      "y": 660
+    },
+    {
+      "id": 743,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL61",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "PFC_SW",
+      "x": 380,
+      "y": 250
+    },
+    {
+      "id": 744,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL62",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_ISNS",
+      "x": 500,
+      "y": 380
+    },
+    {
+      "id": 745,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL63",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "PFC_GATE",
+      "x": 610,
+      "y": 250
+    },
+    {
+      "id": 746,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL64",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_ZCD",
+      "x": 210,
+      "y": 270
+    },
+    {
+      "id": 747,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL65",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "VBULK",
+      "x": 780,
+      "y": 140
+    },
+    {
+      "id": 748,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL66",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "VBULK",
+      "x": 170,
+      "y": 620
+    },
+    {
+      "id": 749,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL67",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "VBULK",
+      "x": 970,
+      "y": 740
+    },
+    {
+      "id": 750,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL68",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "VBULK",
+      "x": 680,
+      "y": 190
+    },
+    {
+      "id": 751,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL69",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "VBULK",
+      "x": 460,
+      "y": 60
+    },
+    {
+      "id": 752,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL70",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "VBULK",
+      "x": 810,
+      "y": 310
+    },
+    {
+      "id": 753,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL71",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PFC_INV",
+      "x": 250,
+      "y": 560
+    },
+    {
+      "id": 754,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL72",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "FLY_SW",
+      "x": 630,
+      "y": 310
+    },
+    {
+      "id": 755,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL73",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "SNUB",
+      "x": 460,
+      "y": 160
+    },
+    {
+      "id": 756,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL74",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_ISNS",
+      "x": 510,
+      "y": 440
+    },
+    {
+      "id": 757,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL75",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "FLY_OUT",
+      "x": 400,
+      "y": 310
+    },
+    {
+      "id": 758,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL76",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "FLY_VREF",
+      "x": 1400,
+      "y": 410
+    },
+    {
+      "id": 759,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL77",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "AUX_W",
+      "x": 680,
+      "y": 230
+    },
+    {
+     )sieda",
+        R"sieda( "id": 760,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL78",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "AUX_W",
+      "x": 730,
+      "y": 420
+    },
+    {
+      "id": 761,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL79",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "VAUX",
+      "x": 870,
+      "y": 400
+    },
+    {
+      "id": 762,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL80",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "VCC_P",
+      "x": 1150,
+      "y": 400
+    },
+    {
+      "id": 763,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL81",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "VCC_P",
+      "x": 1230,
+      "y": 620
+    },
+    {
+      "id": 764,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL82",
+      "rotation": 0,
+      "value": "PGND",
+      "x": 1130,
+      "y": 290
+    },
+    {
+      "id": 765,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL83",
+      "rotation": 90,
+      "value": "PGND",
+      "x": 1300,
+      "y": 350
+    },
+    {
+      "id": 766,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL84",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 380,
+      "y": 170
+    },
+    {
+      "id": 767,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL85",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 780,
+      "y": 280
+    },
+    {
+      "id": 768,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL86",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 90,
+      "y": 540
+    },
+    {
+      "id": 769,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL87",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 330,
+      "y": 580
+    },
+    {
+      "id": 770,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL88",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 490,
+      "y": 580
+    },
+    {
+      "id": 771,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL89",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 730,
+      "y": 620
+    },
+    {
+      "id": 772,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL90",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 650,
+      "y": 620
+    },
+    {
+      "id": 773,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL91",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 810,
+      "y": 640
+    },
+    {
+      "id": 774,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL92",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 890,
+      "y": 660
+    },
+    {
+      "id": 775,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL93",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 1310,
+      "y": 620
+    },
+    {
+      "id": 776,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL94",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 400,
+      "y": 380
+    },
+    {
+      "id": 777,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL95",
+      "rotation": 90,
+      "sheet": 2,
+      "value": "PGND",
+      "x": 1630,
+      "y": 540
+    },
+    {
+      "id": 778,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL96",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 610,
+      "y": 440
+    },
+    {
+      "id": 779,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL97",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1320,
+      "y": 390
+    },
+    {
+      "id": 780,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL98",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1480,
+      "y": 410
+    },
+    {
+      "id": 781,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL99",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1960,
+      "y": 350
+    },
+    {
+      "id": 782,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL100",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 680,
+      "y": 250
+    },
+    {
+      "id": 783,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL101",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 870,
+      "y": 500
+    },
+    {
+      "id": 784,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL102",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 970,
+      "y": 440
+    },
+    {
+      "id": 785,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL103",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 1150,
+      "y": 500
+    },
+    {
+      "id": 786,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL104",
+      "rotation": 270,
+      "sheet": 3,
+      "value": "PGND",
+      "x": 300,
+      "y": 490
+    },
+    {
+      "id": 787,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": )sieda",
+        R"sieda(0,
+        "y": 0
+      },
+      "ref": "#NL105",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "SEC_W",
+      "x": 840,
+      "y": 190
+    },
+    {
+      "id": 788,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL106",
+      "rotation": 180,
+      "sheet": 4,
+      "value": "SEC_W",
+      "x": 190,
+      "y": 160
+    },
+    {
+      "id": 789,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL107",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "V52",
+      "x": 460,
+      "y": 140
+    },
+    {
+      "id": 790,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL108",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "V52",
+      "x": 750,
+      "y": 270
+    },
+    {
+      "id": 791,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL109",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "V52",
+      "x": 990,
+      "y": 570
+    },
+    {
+      "id": 792,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL110",
+      "rotation": 180,
+      "sheet": 5,
+      "value": "V52",
+      "x": 330,
+      "y": 180
+    },
+    {
+      "id": 793,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL111",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "OPTO_A",
+      "x": 990,
+      "y": 290
+    },
+    {
+      "id": 794,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL112",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "FB_REF",
+      "x": 910,
+      "y": 370
+    },
+    {
+      "id": 795,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL113",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "BIAS_W",
+      "x": 840,
+      "y": 230
+    },
+    {
+      "id": 796,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL114",
+      "rotation": 180,
+      "sheet": 4,
+      "value": "BIAS_W",
+      "x": 210,
+      "y": 420
+    },
+    {
+      "id": 797,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL115",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "VBIAS_S",
+      "x": 380,
+      "y": 400
+    },
+    {
+      "id": 798,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL116",
+      "rotation": 270,
+      "sheet": 4,
+      "value": "VCC_S",
+      "x": 620,
+      "y": 400
+    },
+    {
+      "id": 799,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL117",
+      "rotation": 180,
+      "sheet": 5,
+      "value": "SW",
+      "x": 490,
+      "y": 200
+    },
+    {
+      "id": 800,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL118",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BOOT",
+      "x": 2160,
+      "y": 770
+    },
+    {
+      "id": 801,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL119",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BOOT",
+      "x": 790,
+      "y": 790
+    },
+    {
+      "id": 802,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL120",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "HS_G",
+      "x": 950,
+      "y": 770
+    },
+    {
+      "id": 803,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL121",
+      "rotation": 180,
+      "sheet": 5,
+      "value": "HS_G",
+      "x": 330,
+      "y": 200
+    },
+    {
+      "id": 804,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL122",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "LS_G",
+      "x": 710,
+      "y": 810
+    },
+    {
+      "id": 805,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL123",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "LS_G",
+      "x": 470,
+      "y": 260
+    },
+    {
+      "id": 806,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL124",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "BUCK_EN",
+      "x": 2240,
+      "y": 770
+    },
+    {
+      "id": 807,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL125",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "VOUT",
+      "x": 760,
+      "y": 180
+    },
+    {
+      "id": 808,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL126",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "VOUT",
+      "x": 870,
+      "y": 370
+    },
+    {
+      "id": 809,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL127",
+      "rotation": 270,
+      "sheet": 5,
+      "value": "I_RTN",
+      "x": 1010,
+      "y": 250
+    },
+    {
+      "id": 810,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL128",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "ISNS_P",
+      "x": 1010,
+      "y": 390
+    },
+    {
+      "id": 811,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL129",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "ISNS_N",
+      "x": 930,
+      "y": 480
+    },
+    {
+      "id": 812,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL130",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "VREF5",
+      "x": 1600,
+      "y": 810
+    },
+    {
+      "id": 813,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL131",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "COMP2",
+      "x": 710,
+      "y": 350
+    },
+    {
+      "id": 814,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL132",
+      ")sieda",
+        R"sieda(rotation": 90,
+      "sheet": 6,
+      "value": "COMP2",
+      "x": 1730,
+      "y": 370
+    },
+    {
+      "id": 815,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL133",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "CV_OUT",
+      "x": 950,
+      "y": 370
+    },
+    {
+      "id": 816,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL134",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "CC_OUT",
+      "x": 1570,
+      "y": 390
+    },
+    {
+      "id": 817,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL135",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "INA_OUT",
+      "x": 1650,
+      "y": 390
+    },
+    {
+      "id": 818,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL136",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "SGND",
+      "x": 840,
+      "y": 210
+    },
+    {
+      "id": 819,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL137",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "SGND",
+      "x": 460,
+      "y": 280
+    },
+    {
+      "id": 820,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL138",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "SGND",
+      "x": 910,
+      "y": 570
+    },
+    {
+      "id": 821,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL139",
+      "rotation": 0,
+      "sheet": 3,
+      "value": "SGND",
+      "x": 840,
+      "y": 250
+    },
+    {
+      "id": 822,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL140",
+      "rotation": 90,
+      "sheet": 4,
+      "value": "SGND",
+      "x": 620,
+      "y": 500
+    },
+    {
+      "id": 823,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL141",
+      "rotation": 90,
+      "sheet": 3,
+      "value": "SGND",
+      "x": 300,
+      "y": 630
+    },
+    {
+      "id": 824,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL142",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 450,
+      "y": 400
+    },
+    {
+      "id": 825,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL143",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 2080,
+      "y": 770
+    },
+    {
+      "id": 826,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL144",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 760,
+      "y": 320
+    },
+    {
+      "id": 827,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL145",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 2400,
+      "y": 750
+    },
+    {
+      "id": 828,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL146",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 1680,
+      "y": 810
+    },
+    {
+      "id": 829,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL147",
+      "rotation": 90,
+      "sheet": 5,
+      "value": "SGND",
+      "x": 1520,
+      "y": 790
+    },
+    {
+      "id": 830,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL148",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 790,
+      "y": 370
+    },
+    {
+      "id": 831,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL149",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1570,
+      "y": 710
+    },
+    {
+      "id": 832,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL150",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1110,
+      "y": 390
+    },
+    {
+      "id": 833,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL151",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1410,
+      "y": 410
+    },
+    {
+      "id": 834,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL152",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 2130,
+      "y": 430
+    },
+    {
+      "id": 835,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL153",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1890,
+      "y": 350
+    },
+    {
+      "id": 836,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL154",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 1970,
+      "y": 350
+    },
+    {
+      "id": 837,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL155",
+      "rotation": 90,
+      "sheet": 6,
+      "value": "SGND",
+      "x": 2050,
+      "y": 350
+    },
+    {
+      "customPart": "MH_M3_PE-f6a0fef4",
+      "id": 838,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 6.08,
+        "y": 6.09
+      },
+      "ref": "MH1",
+      "rotation": 0,
+      "value": "MH-M3-PE",
+      "x": 100,
+      "y": 460
+    },
+    {
+      "id": 839,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL156",
+      "rotation": 180,
+      "value": "PE",
+      "x": 30,
+      "y": 460
+    },
+    {
+      "customPart": "WIRE_LINK_42_75-355fa6b6",
+      "id": 840,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 119.75,
+        "y": 82.125
+      },
+      "ref": "JW1",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 841,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL157",
+      "rotation)sieda",
+        R"sieda(": 180,
+      "sheet": 7,
+      "value": "VBULK",
+      "x": -70,
+      "y": 0
+    },
+    {
+      "id": 842,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL158",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VBULK",
+      "x": 70,
+      "y": 0
+    },
+    {
+      "id": 843,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL159",
+      "rotation": 180,
+      "sheet": 3,
+      "value": "JW_NET2",
+      "x": 1520,
+      "y": 330
+    },
+    {
+      "customPart": "WIRE_LINK_11_25-5db46d51",
+      "id": 844,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 121.25,
+        "y": 43.375
+      },
+      "ref": "JW2",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 0
+    },
+    {
+      "id": 845,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL160",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET2",
+      "x": 330,
+      "y": 0
+    },
+    {
+      "id": 846,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL161",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET2",
+      "x": 470,
+      "y": 0
+    },
+    {
+      "customPart": "WIRE_JUMPER_13_31X9_98-37a3123e",
+      "id": 847,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 113.6556467,
+        "y": 55.75801048
+      },
+      "ref": "JW3",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 0
+    },
+    {
+      "id": 848,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL162",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET2",
+      "x": 730,
+      "y": 0
+    },
+    {
+      "id": 849,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL163",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET2",
+      "x": 870,
+      "y": 0
+    },
+    {
+      "customPart": "WIRE_LINK_34_25-abe03a5c",
+      "id": 850,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 215.5,
+        "y": 77.625
+      },
+      "ref": "JW4",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 0
+    },
+    {
+      "id": 851,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL164",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_S",
+      "x": 1130,
+      "y": 0
+    },
+    {
+      "id": 852,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL165",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_S",
+      "x": 1270,
+      "y": 0
+    },
+    {
+      "customPart": "WIRE_LINK_8_50X6_75-b523d5de",
+      "id": 853,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 218.25,
+        "y": 35.625
+      },
+      "ref": "JW5",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 100
+    },
+    {
+      "id": 854,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL166",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "V52",
+      "x": -70,
+      "y": 100
+    },
+    {
+      "id": 855,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL167",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "V52",
+      "x": 70,
+      "y": 100
+    },
+    {
+      "customPart": "WIRE_JUMPER_16_26X55_45-b737af78",
+      "id": 856,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 217.8804688,
+        "y": 60.77290626
+      },
+      "ref": "JW6",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 100
+    },
+    {
+      "id": 857,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL168",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "V52",
+      "x": 330,
+      "y": 100
+    },
+    {
+      "id": 858,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL169",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "V52",
+      "x": 470,
+      "y": 100
+    },
+    {
+      "customPart": "WIRE_LINK_9_75X9_75-0aab432d",
+      "id": 859,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 198.875,
+        "y": 119.625
+      },
+      "ref": "JW7",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 100
+    },
+    {
+      "id": 860,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL170",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VREF5",
+      "x": 730,
+      "y": 100
+    },
+    {
+      "id": 861,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL171",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VREF5",
+      "x": 870,
+      "y": 100
+    },
+    {
+      "customPart": "WIRE_LINK_26_25-cf3d722b",
+      "id": 862,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 236.5,
+        "y": 147.875
+      },
+      "ref": "JW8",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 100
+    },
+    {
+      "id": 863,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL172",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VREF5",
+      "x": 1130,
+      "y": 100
+    },
+    {
+      "id": 864,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL173",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VREF5",
+      "x": 1270,
+      "y": 100
+    },
+    {
+      "customPart": "WIRE_LINK_34_75X1_00-12b2654b",
+      "id": 865,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 214.5,
+        "y": 80.125
+      },
+      "ref": "JW9",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 200
+    },
+    {
+      "id": 866,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL174",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": -70,
+      "y": 200
+    },
+    {
+      "id": 867,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+)sieda",
+        R"sieda(        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL175",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 70,
+      "y": 200
+    },
+    {
+      "customPart": "WIRE_LINK_1_50X3_00-7e1d45c4",
+      "id": 868,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 216,
+        "y": 114
+      },
+      "ref": "JW10",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 200
+    },
+    {
+      "id": 869,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL176",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 330,
+      "y": 200
+    },
+    {
+      "id": 870,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL177",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 470,
+      "y": 200
+    },
+    {
+      "customPart": "WIRE_LINK_2_50X2_50-e57e1399",
+      "id": 871,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 224.5,
+        "y": 122.25
+      },
+      "ref": "JW11",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 200
+    },
+    {
+      "id": 872,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL178",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 730,
+      "y": 200
+    },
+    {
+      "id": 873,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL179",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 870,
+      "y": 200
+    },
+    {
+      "customPart": "WIRE_LINK_3_00-0e0d8ffd",
+      "id": 874,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 204.25,
+        "y": 120.5
+      },
+      "ref": "JW12",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 200
+    },
+    {
+      "id": 875,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL180",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 1130,
+      "y": 200
+    },
+    {
+      "id": 876,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL181",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 1270,
+      "y": 200
+    },
+    {
+      "customPart": "WIRE_LINK_8_07X16_97-1662a321",
+      "id": 877,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 196.7852362,
+        "y": 129.5131174
+      },
+      "ref": "JW13",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 300
+    },
+    {
+      "id": 878,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL182",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": -70,
+      "y": 300
+    },
+    {
+      "id": 879,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL183",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 70,
+      "y": 300
+    },
+    {
+      "customPart": "WIRE_LINK_4_00X4_00-4783765b",
+      "id": 880,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 197.25,
+        "y": 107
+      },
+      "ref": "JW14",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 300
+    },
+    {
+      "id": 881,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL184",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 330,
+      "y": 300
+    },
+    {
+      "id": 882,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL185",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SGND",
+      "x": 470,
+      "y": 300
+    },
+    {
+      "customPart": "WIRE_LINK_25_00-ed3071cb",
+      "id": 883,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 179.75,
+        "y": 120.5
+      },
+      "ref": "JW15",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 300
+    },
+    {
+      "id": 884,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL186",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "BUCK_PWM",
+      "x": 730,
+      "y": 300
+    },
+    {
+      "id": 885,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL187",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "BUCK_PWM",
+      "x": 870,
+      "y": 300
+    },
+    {
+      "customPart": "WIRE_LINK_3_75X5_00-0fbed8fd",
+      "id": 886,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 187.5,
+        "y": 107.125
+      },
+      "ref": "JW16",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 300
+    },
+    {
+      "id": 887,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL188",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "BUCK_EN",
+      "x": 1130,
+      "y": 300
+    },
+    {
+      "id": 888,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL189",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "BUCK_EN",
+      "x": 1270,
+      "y": 300
+    },
+    {
+      "customPart": "WIRE_LINK_14_75X21_50-bf8cfbf2",
+      "id": 889,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 205.125,
+        "y": 48
+      },
+      "ref": "JW17",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 400
+    },
+    {
+      "id": 890,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL190",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FB_REF",
+      "x": -70,
+      "y": 400
+    },
+    {
+      "id": 891,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL191",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FB_REF",
+      "x": 70,
+      "y": 400
+    },
+    {
+      "customPart": "WIRE_JUMPER_20_77X18_82-bb61ce05",
+      "id": 892,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 209.3670314,
+        "y": 50.91193856
+      },
+      "re)sieda",
+        R"sieda(f": "JW18",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 400
+    },
+    {
+      "id": 893,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL192",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FB_REF",
+      "x": 330,
+      "y": 400
+    },
+    {
+      "id": 894,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL193",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FB_REF",
+      "x": 470,
+      "y": 400
+    },
+    {
+      "customPart": "WIRE_LINK_7_00X4_50-6801e965",
+      "id": 895,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 201.25,
+        "y": 100.25
+      },
+      "ref": "JW19",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 400
+    },
+    {
+      "id": 896,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL194",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "BOOT",
+      "x": 730,
+      "y": 400
+    },
+    {
+      "id": 897,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL195",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "BOOT",
+      "x": 870,
+      "y": 400
+    },
+    {
+      "customPart": "WIRE_LINK_0_75X18_75-1540a12e",
+      "id": 898,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 217.375,
+        "y": 54.125
+      },
+      "ref": "JW20",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 400
+    },
+    {
+      "id": 899,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL196",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "OPTO_A",
+      "x": 1130,
+      "y": 400
+    },
+    {
+      "id": 900,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL197",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "OPTO_A",
+      "x": 1270,
+      "y": 400
+    },
+    {
+      "customPart": "WIRE_JUMPER_16_25X40_50-2aad72ed",
+      "id": 901,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 204.375,
+        "y": 55.25
+      },
+      "ref": "JW21",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 500
+    },
+    {
+      "id": 902,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL198",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "OPTO_A",
+      "x": -70,
+      "y": 500
+    },
+    {
+      "id": 903,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL199",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "OPTO_A",
+      "x": 70,
+      "y": 500
+    },
+    {
+      "id": 904,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL200",
+      "rotation": 0,
+      "sheet": 5,
+      "value": "JW_NET22",
+      "x": 670,
+      "y": 730
+    },
+    {
+      "customPart": "WIRE_LINK_6_00X6_00-1b67b6f7",
+      "id": 905,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 183.25,
+        "y": 108
+      },
+      "ref": "JW22",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 500
+    },
+    {
+      "id": 906,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL201",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET22",
+      "x": 330,
+      "y": 500
+    },
+    {
+      "id": 907,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL202",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET22",
+      "x": 470,
+      "y": 500
+    },
+    {
+      "customPart": "WIRE_LINK_16_25X2_00-d87d085d",
+      "id": 908,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 38.5,
+        "y": 45.875
+      },
+      "ref": "JW23",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 500
+    },
+    {
+      "id": 909,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL203",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "AC_N",
+      "x": 730,
+      "y": 500
+    },
+    {
+      "id": 910,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL204",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "AC_N",
+      "x": 870,
+      "y": 500
+    },
+    {
+      "customPart": "WIRE_LINK_1_75X2_75-4386c8a0",
+      "id": 911,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 202.375,
+        "y": 97.125
+      },
+      "ref": "JW24",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 500
+    },
+    {
+      "id": 912,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL205",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "HS_G",
+      "x": 1130,
+      "y": 500
+    },
+    {
+      "id": 913,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL206",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "HS_G",
+      "x": 1270,
+      "y": 500
+    },
+    {
+      "customPart": "WIRE_LINK_20_75X15_75-0616049f",
+      "id": 914,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 130.125,
+        "y": 43.875
+      },
+      "ref": "JW25",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 600
+    },
+    {
+      "id": 915,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL207",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_COMP",
+      "x": -70,
+      "y": 600
+    },
+    {
+      "id": 916,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL208",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FLY_COMP",
+      "x": 70,
+      "y": 600
+    },
+    {
+      "customPart": "WIRE_LINK_9_00-425774e7",
+      "id": 917,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 151,
+        "y": 67.5
+      },
+      "ref": "JW26",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 600
+    },
+    {
+      "id": 918,
+      ")sieda",
+        R"sieda(kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL209",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_SW",
+      "x": 330,
+      "y": 600
+    },
+    {
+      "id": 919,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL210",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FLY_SW",
+      "x": 470,
+      "y": 600
+    },
+    {
+      "customPart": "WIRE_LINK_5_75X5_25-017f931a",
+      "id": 920,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 203.125,
+        "y": 93.875
+      },
+      "ref": "JW27",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 600
+    },
+    {
+      "id": 921,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL211",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SW",
+      "x": 730,
+      "y": 600
+    },
+    {
+      "id": 922,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL212",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SW",
+      "x": 870,
+      "y": 600
+    },
+    {
+      "customPart": "WIRE_LINK_1_62X10_03-c5ab6778",
+      "id": 923,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 206.807527,
+        "y": 102.4861002
+      },
+      "ref": "JW28",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 600
+    },
+    {
+      "id": 924,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL213",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SW",
+      "x": 1130,
+      "y": 600
+    },
+    {
+      "id": 925,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL214",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SW",
+      "x": 1270,
+      "y": 600
+    },
+    {
+      "customPart": "WIRE_LINK_6_50X16_50-c108f12a",
+      "id": 926,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 218.25,
+        "y": 114.75
+      },
+      "ref": "JW29",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 700
+    },
+    {
+      "id": 927,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL215",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "SW",
+      "x": -70,
+      "y": 700
+    },
+    {
+      "id": 928,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL216",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "SW",
+      "x": 70,
+      "y": 700
+    },
+    {
+      "customPart": "WIRE_LINK_1_75X18_00-46971dd9",
+      "id": 929,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 75.125,
+        "y": 80.25
+      },
+      "ref": "JW30",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 700
+    },
+    {
+      "id": 930,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL217",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "RECT",
+      "x": 330,
+      "y": 700
+    },
+    {
+      "id": 931,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL218",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "RECT",
+      "x": 470,
+      "y": 700
+    },
+    {
+      "customPart": "WIRE_LINK_25_75X25_75-f276c361",
+      "id": 932,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 51.625,
+        "y": 64.625
+      },
+      "ref": "JW31",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 700
+    },
+    {
+      "id": 933,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL219",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "N_F",
+      "x": 730,
+      "y": 700
+    },
+    {
+      "id": 934,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL220",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "N_F",
+      "x": 870,
+      "y": 700
+    },
+    {
+      "customPart": "WIRE_LINK_11_54X2_35-11a6faa7",
+      "id": 935,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 62.92539552,
+        "y": 44.02012345
+      },
+      "ref": "JW32",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 700
+    },
+    {
+      "id": 936,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL221",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "N_F",
+      "x": 1130,
+      "y": 700
+    },
+    {
+      "id": 937,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL222",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "N_F",
+      "x": 1270,
+      "y": 700
+    },
+    {
+      "customPart": "WIRE_LINK_8_00X13_75-53d810eb",
+      "id": 938,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 214,
+        "y": 109.875
+      },
+      "ref": "JW33",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 800
+    },
+    {
+      "id": 939,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL223",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": -70,
+      "y": 800
+    },
+    {
+      "id": 940,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL224",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": 70,
+      "y": 800
+    },
+    {
+      "customPart": "WIRE_LINK_11_75-be9c7702",
+      "id": 941,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 210,
+        "y": 124.625
+      },
+      "ref": "JW34",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 800
+    },
+    {
+      "id": 942,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL225",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": 330,
+      "y": 800
+    },
+    {
+      "id": 943,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL226",
+      )sieda",
+        R"sieda("rotation": 0,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": 470,
+      "y": 800
+    },
+    {
+      "customPart": "WIRE_LINK_1_00X4_00-faf3fc1e",
+      "id": 944,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 239,
+        "y": 139
+      },
+      "ref": "JW35",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 800
+    },
+    {
+      "id": 945,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL227",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": 730,
+      "y": 800
+    },
+    {
+      "id": 946,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL228",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VOUT",
+      "x": 870,
+      "y": 800
+    },
+    {
+      "customPart": "WIRE_LINK_11_25X11_25-2c11c121",
+      "id": 947,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 58.125,
+        "y": 142.125
+      },
+      "ref": "JW36",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 800
+    },
+    {
+      "id": 948,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL229",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PFC_SW",
+      "x": 1130,
+      "y": 800
+    },
+    {
+      "id": 949,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL230",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PFC_SW",
+      "x": 1270,
+      "y": 800
+    },
+    {
+      "customPart": "WIRE_LINK_6_75X2_25-2041251e",
+      "id": 950,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 199.125,
+        "y": 108.625
+      },
+      "ref": "JW37",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 900
+    },
+    {
+      "id": 951,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL231",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "LS_G",
+      "x": -70,
+      "y": 900
+    },
+    {
+      "id": 952,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL232",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "LS_G",
+      "x": 70,
+      "y": 900
+    },
+    {
+      "customPart": "WIRE_LINK_5_00X5_00-5f42a3cd",
+      "id": 953,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 235,
+        "y": 164.25
+      },
+      "ref": "JW38",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 900
+    },
+    {
+      "id": 954,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL233",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "INA_OUT",
+      "x": 330,
+      "y": 900
+    },
+    {
+      "id": 955,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL234",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "INA_OUT",
+      "x": 470,
+      "y": 900
+    },
+    {
+      "id": 956,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL235",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "JW_NET39",
+      "x": 520,
+      "y": 250
+    },
+    {
+      "customPart": "WIRE_LINK_5_25X5_25-d7678fad",
+      "id": 957,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 71.625,
+        "y": 151.625
+      },
+      "ref": "JW39",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 900
+    },
+    {
+      "id": 958,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL236",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET39",
+      "x": 730,
+      "y": 900
+    },
+    {
+      "id": 959,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL237",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET39",
+      "x": 870,
+      "y": 900
+    },
+    {
+      "id": 960,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL238",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "JW_NET40",
+      "x": 410,
+      "y": 560
+    },
+    {
+      "customPart": "WIRE_LINK_4_75X6_00-7211a343",
+      "id": 961,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 78.125,
+        "y": 90.5
+      },
+      "ref": "JW40",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 900
+    },
+    {
+      "id": 962,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL239",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET40",
+      "x": 1130,
+      "y": 900
+    },
+    {
+      "id": 963,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL240",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET40",
+      "x": 1270,
+      "y": 900
+    },
+    {
+      "id": 964,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL241",
+      "rotation": 180,
+      "sheet": 5,
+      "value": "JW_NET41",
+      "x": 1720,
+      "y": 730
+    },
+    {
+      "customPart": "WIRE_LINK_5_25-2d5d0dec",
+      "id": 965,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 178,
+        "y": 120.875
+      },
+      "ref": "JW41",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1000
+    },
+    {
+      "id": 966,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL242",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET41",
+      "x": -70,
+      "y": 1000
+    },
+    {
+      "id": 967,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL243",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET41",
+      "x": 70,
+      "y": 1000
+    },
+    {
+      "id": 968,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL244",
+      "rotation": 180,
+      "sheet": 6,
+      "value": "JW_NET42",
+      "x": 1230,
+      "y": 290
+    },
+    {
+      "customPart": "WIRE_LINK_13_25-62993127",
+      "id": 969,
+      "kind": 16,
+      "pcb)sieda",
+        R"sieda(": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 210,
+        "y": 144.375
+      },
+      "ref": "JW42",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1000
+    },
+    {
+      "id": 970,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL245",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET42",
+      "x": 330,
+      "y": 1000
+    },
+    {
+      "id": 971,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL246",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET42",
+      "x": 470,
+      "y": 1000
+    },
+    {
+      "id": 972,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL247",
+      "rotation": 180,
+      "sheet": 5,
+      "value": "JW_NET43",
+      "x": 1720,
+      "y": 710
+    },
+    {
+      "customPart": "WIRE_LINK_27_75-4cc32603",
+      "id": 973,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 176.25,
+        "y": 129.375
+      },
+      "ref": "JW43",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1000
+    },
+    {
+      "id": 974,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL248",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET43",
+      "x": 730,
+      "y": 1000
+    },
+    {
+      "id": 975,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL249",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET43",
+      "x": 870,
+      "y": 1000
+    },
+    {
+      "customPart": "WIRE_LINK_22_75-488bed70",
+      "id": 976,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 130.75,
+        "y": 45.875
+      },
+      "ref": "JW44",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1000
+    },
+    {
+      "id": 977,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL250",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "AUX_W",
+      "x": 1130,
+      "y": 1000
+    },
+    {
+      "id": 978,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL251",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "AUX_W",
+      "x": 1270,
+      "y": 1000
+    },
+    {
+      "id": 979,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL252",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET45",
+      "x": 220,
+      "y": 170
+    },
+    {
+      "customPart": "WIRE_LINK_2_25X13_75-e4a5edfe",
+      "id": 980,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 78.625,
+        "y": 145.875
+      },
+      "ref": "JW45",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1100
+    },
+    {
+      "id": 981,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL253",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET45",
+      "x": -70,
+      "y": 1100
+    },
+    {
+      "id": 982,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL254",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET45",
+      "x": 70,
+      "y": 1100
+    },
+    {
+      "customPart": "WIRE_LINK_4_00X8_75-88ad551b",
+      "id": 983,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 109.875,
+        "y": 66.25
+      },
+      "ref": "JW46",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1100
+    },
+    {
+      "id": 984,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL255",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_OUT",
+      "x": 330,
+      "y": 1100
+    },
+    {
+      "id": 985,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL256",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FLY_OUT",
+      "x": 470,
+      "y": 1100
+    },
+    {
+      "customPart": "WIRE_LINK_3_00X0_50-1f239ead",
+      "id": 986,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 207,
+        "y": 61.25
+      },
+      "ref": "JW47",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1100
+    },
+    {
+      "id": 987,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL257",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VBIAS_S",
+      "x": 730,
+      "y": 1100
+    },
+    {
+      "id": 988,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL258",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VBIAS_S",
+      "x": 870,
+      "y": 1100
+    },
+    {
+      "customPart": "WIRE_LINK_4_25X0_25-00a2c451",
+      "id": 989,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 212.375,
+        "y": 68.125
+      },
+      "ref": "JW48",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1100
+    },
+    {
+      "id": 990,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL259",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VBIAS_S",
+      "x": 1130,
+      "y": 1100
+    },
+    {
+      "id": 991,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL260",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VBIAS_S",
+      "x": 1270,
+      "y": 1100
+    },
+    {
+      "customPart": "WIRE_LINK_2_75X8_50-8afec568",
+      "id": 992,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 110.75,
+        "y": 68.875
+      },
+      "ref": "JW49",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1200
+    },
+    {
+      "id": 993,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL261",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": -70,
+      "y": 1200
+    },
+    {
+      "id": 994,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL262",
+      "r)sieda",
+        R"sieda(otation": 0,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": 70,
+      "y": 1200
+    },
+    {
+      "customPart": "WIRE_LINK_11_50-0ca701d1",
+      "id": 995,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 115,
+        "y": 78
+      },
+      "ref": "JW50",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1200
+    },
+    {
+      "id": 996,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL263",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": 330,
+      "y": 1200
+    },
+    {
+      "id": 997,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL264",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": 470,
+      "y": 1200
+    },
+    {
+      "customPart": "WIRE_LINK_8_25X16_25-465ae040",
+      "id": 998,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 128.125,
+        "y": 62.125
+      },
+      "ref": "JW51",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1200
+    },
+    {
+      "id": 999,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL265",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": 730,
+      "y": 1200
+    },
+    {
+      "id": 1000,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL266",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FLY_VREF",
+      "x": 870,
+      "y": 1200
+    },
+    {
+      "customPart": "WIRE_LINK_1_00X16_75-6ac20a03",
+      "id": 1001,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 146.375,
+        "y": 62.5
+      },
+      "ref": "JW52",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1200
+    },
+    {
+      "id": 1002,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL267",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": 1130,
+      "y": 1200
+    },
+    {
+      "id": 1003,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL268",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": 1270,
+      "y": 1200
+    },
+    {
+      "customPart": "WIRE_JUMPER_10_74X18_28-698545ca",
+      "id": 1004,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 131.618451,
+        "y": 72.86221115
+      },
+      "ref": "JW53",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1300
+    },
+    {
+      "id": 1005,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL269",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": -70,
+      "y": 1300
+    },
+    {
+      "id": 1006,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL270",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": 70,
+      "y": 1300
+    },
+    {
+      "customPart": "WIRE_LINK_3_75X3_75-10795555",
+      "id": 1007,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 108.375,
+        "y": 84.375
+      },
+      "ref": "JW54",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1300
+    },
+    {
+      "id": 1008,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL271",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": 330,
+      "y": 1300
+    },
+    {
+      "id": 1009,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL272",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VAUX",
+      "x": 470,
+      "y": 1300
+    },
+    {
+      "customPart": "WIRE_LINK_1_25X36_25-7690f953",
+      "id": 1010,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 217.875,
+        "y": 140.125
+      },
+      "ref": "JW55",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1300
+    },
+    {
+      "id": 1011,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL273",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "ISET",
+      "x": 730,
+      "y": 1300
+    },
+    {
+      "id": 1012,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL274",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "ISET",
+      "x": 870,
+      "y": 1300
+    },
+    {
+      "customPart": "WIRE_LINK_11_84X3_66-0dce0188",
+      "id": 1013,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 226.3304026,
+        "y": 119.5796937
+      },
+      "ref": "JW56",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1300
+    },
+    {
+      "id": 1014,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL275",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "ISET",
+      "x": 1130,
+      "y": 1300
+    },
+    {
+      "id": 1015,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL276",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "ISET",
+      "x": 1270,
+      "y": 1300
+    },
+    {
+      "customPart": "WIRE_LINK_4_75X34_25-7fe66551",
+      "id": 1016,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 213.375,
+        "y": 144.625
+      },
+      "ref": "JW57",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1400
+    },
+    {
+      "id": 1017,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL277",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VSET",
+      "x": -70,
+      "y": 1400
+    },
+    {
+      "id": 1018,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL278",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VSET",
+      "x": 70,
+      "y": 1400
+    },
+    {
+      "customPart": "WIRE_LINK_2_25X5_05-a97a64e2",
+      "id": 1019,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 216.025,
+        "y": 126.375
+      },
+      "ref": "JW58",
+      "rotation": 0,
+      "sheet": 7,
+)sieda",
+        R"sieda(      "value": "Wire link",
+      "x": 400,
+      "y": 1400
+    },
+    {
+      "id": 1020,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL279",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VSET",
+      "x": 330,
+      "y": 1400
+    },
+    {
+      "id": 1021,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL280",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VSET",
+      "x": 470,
+      "y": 1400
+    },
+    {
+      "customPart": "WIRE_LINK_3_25X3_25-5b6db0d5",
+      "id": 1022,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 228.625,
+        "y": 125.875
+      },
+      "ref": "JW59",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1400
+    },
+    {
+      "id": 1023,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL281",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VSET",
+      "x": 730,
+      "y": 1400
+    },
+    {
+      "id": 1024,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL282",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VSET",
+      "x": 870,
+      "y": 1400
+    },
+    {
+      "customPart": "WIRE_LINK_12_25X12_25-c56ea337",
+      "id": 1025,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 30.125,
+        "y": 36.875
+      },
+      "ref": "JW60",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1400
+    },
+    {
+      "id": 1026,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL283",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "L_FUSED",
+      "x": 1130,
+      "y": 1400
+    },
+    {
+      "id": 1027,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL284",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "L_FUSED",
+      "x": 1270,
+      "y": 1400
+    },
+    {
+      "customPart": "WIRE_LINK_8_50X8_50-8d8fb621",
+      "id": 1028,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 190.5,
+        "y": 74.25
+      },
+      "ref": "JW61",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1500
+    },
+    {
+      "id": 1029,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL285",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": -70,
+      "y": 1500
+    },
+    {
+      "id": 1030,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL286",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": 70,
+      "y": 1500
+    },
+    {
+      "customPart": "WIRE_LINK_21_75-a36212e5",
+      "id": 1031,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 194.75,
+        "y": 57.125
+      },
+      "ref": "JW62",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1500
+    },
+    {
+      "id": 1032,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL287",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": 330,
+      "y": 1500
+    },
+    {
+      "id": 1033,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL288",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": 470,
+      "y": 1500
+    },
+    {
+      "customPart": "WIRE_LINK_4_50-5af6c491",
+      "id": 1034,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 217.25,
+        "y": 29
+      },
+      "ref": "JW63",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1500
+    },
+    {
+      "id": 1035,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL289",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": 730,
+      "y": 1500
+    },
+    {
+      "id": 1036,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL290",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "FB_K",
+      "x": 870,
+      "y": 1500
+    },
+    {
+      "customPart": "WIRE_LINK_4_75X4_75-959c480d",
+      "id": 1037,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 245.125,
+        "y": 165.875
+      },
+      "ref": "JW64",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1500
+    },
+    {
+      "id": 1038,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL291",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "ISNS_P",
+      "x": 1130,
+      "y": 1500
+    },
+    {
+      "id": 1039,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL292",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "ISNS_P",
+      "x": 1270,
+      "y": 1500
+    },
+    {
+      "customPart": "WIRE_LINK_2_25X2_25-725b2e8d",
+      "id": 1040,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 115.125,
+        "y": 108.625
+      },
+      "ref": "JW65",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1600
+    },
+    {
+      "id": 1041,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL293",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PGND",
+      "x": -70,
+      "y": 1600
+    },
+    {
+      "id": 1042,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL294",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PGND",
+      "x": 70,
+      "y": 1600
+    },
+    {
+      "customPart": "WIRE_LINK_7_00X2_75-d49273ae",
+      "id": 1043,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 125.75,
+        "y": 34.375
+      },
+      "ref": "JW66",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1600
+    },
+    {
+      "id": 1044,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL295",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PGND",
+      "x": 330,
+      "y": 1600
+    },
+    {
+      "id": 1045,
+      "kind": 15,
+      "pcb": {
+)sieda",
+        R"sieda(        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL296",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PGND",
+      "x": 470,
+      "y": 1600
+    },
+    {
+      "customPart": "WIRE_LINK_7_00-081b6339",
+      "id": 1046,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 126.25,
+        "y": 123.25
+      },
+      "ref": "JW67",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1600
+    },
+    {
+      "id": 1047,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL297",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PGND",
+      "x": 730,
+      "y": 1600
+    },
+    {
+      "id": 1048,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL298",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PGND",
+      "x": 870,
+      "y": 1600
+    },
+    {
+      "id": 1049,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL299",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET68",
+      "x": 1010,
+      "y": 540
+    },
+    {
+      "customPart": "WIRE_LINK_9_25X9_25-40771e75",
+      "id": 1050,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 106.375,
+        "y": 99.625
+      },
+      "ref": "JW68",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1600
+    },
+    {
+      "id": 1051,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL300",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET68",
+      "x": 1130,
+      "y": 1600
+    },
+    {
+      "id": 1052,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL301",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET68",
+      "x": 1270,
+      "y": 1600
+    },
+    {
+      "customPart": "WIRE_LINK_8_25-0a7a3841",
+      "id": 1053,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 81.25,
+        "y": 129.625
+      },
+      "ref": "JW69",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1700
+    },
+    {
+      "id": 1054,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL302",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PFC_ZCD",
+      "x": -70,
+      "y": 1700
+    },
+    {
+      "id": 1055,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL303",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PFC_ZCD",
+      "x": 70,
+      "y": 1700
+    },
+    {
+      "customPart": "WIRE_LINK_0_75X25_25-218f3b13",
+      "id": 1056,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 83.625,
+        "y": 125.625
+      },
+      "ref": "JW70",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1700
+    },
+    {
+      "id": 1057,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL304",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PFC_ISNS",
+      "x": 330,
+      "y": 1700
+    },
+    {
+      "id": 1058,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL305",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PFC_ISNS",
+      "x": 470,
+      "y": 1700
+    },
+    {
+      "id": 1059,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL306",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET71",
+      "x": 1010,
+      "y": 560
+    },
+    {
+      "customPart": "WIRE_LINK_8_25X20_75-ad613bda",
+      "id": 1060,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 76.875,
+        "y": 123.625
+      },
+      "ref": "JW71",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1700
+    },
+    {
+      "id": 1061,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL307",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET71",
+      "x": 730,
+      "y": 1700
+    },
+    {
+      "id": 1062,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL308",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET71",
+      "x": 870,
+      "y": 1700
+    },
+    {
+      "id": 1063,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL309",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET72",
+      "x": 1010,
+      "y": 580
+    },
+    {
+      "customPart": "WIRE_LINK_12_75X0_25-3a960ee9",
+      "id": 1064,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 85.875,
+        "y": 114.625
+      },
+      "ref": "JW72",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1700
+    },
+    {
+      "id": 1065,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL310",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET72",
+      "x": 1130,
+      "y": 1700
+    },
+    {
+      "id": 1066,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL311",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET72",
+      "x": 1270,
+      "y": 1700
+    },
+    {
+      "customPart": "WIRE_LINK_7_56X12_17-54b82ed8",
+      "id": 1067,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 97.71763479,
+        "y": 107.3365145
+      },
+      "ref": "JW73",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1800
+    },
+    {
+      "id": 1068,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL312",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET72",
+      "x": -70,
+      "y": 1800
+    },
+    {
+      "id": 1069,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL313",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET72",
+      "x": 70,
+      "y": 1800
+    },
+    {
+      "id": 1070,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "r)sieda",
+        R"sieda(ef": "#NL314",
+      "rotation": 0,
+      "sheet": 2,
+      "value": "JW_NET74",
+      "x": 1190,
+      "y": 540
+    },
+    {
+      "customPart": "WIRE_LINK_1_75X8_50-80b3efed",
+      "id": 1071,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 73.375,
+        "y": 136.75
+      },
+      "ref": "JW74",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1800
+    },
+    {
+      "id": 1072,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL315",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET74",
+      "x": 330,
+      "y": 1800
+    },
+    {
+      "id": 1073,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL316",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET74",
+      "x": 470,
+      "y": 1800
+    },
+    {
+      "customPart": "WIRE_LINK_21_66X5_03-e3e90507",
+      "id": 1074,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 86.66786017,
+        "y": 128.7655964
+      },
+      "ref": "JW75",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1800
+    },
+    {
+      "id": 1075,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL317",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET74",
+      "x": 730,
+      "y": 1800
+    },
+    {
+      "id": 1076,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL318",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET74",
+      "x": 870,
+      "y": 1800
+    },
+    {
+      "customPart": "WIRE_LINK_4_25X6_00-8e03e10c",
+      "id": 1077,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 86.625,
+        "y": 140.25
+      },
+      "ref": "JW76",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1800
+    },
+    {
+      "id": 1078,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL319",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 1130,
+      "y": 1800
+    },
+    {
+      "id": 1079,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL320",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 1270,
+      "y": 1800
+    },
+    {
+      "customPart": "WIRE_LINK_0_76X8_02-aaade7e7",
+      "id": 1080,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 79.50794274,
+        "y": 141.1294372
+      },
+      "ref": "JW77",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 1900
+    },
+    {
+      "id": 1081,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL321",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": -70,
+      "y": 1900
+    },
+    {
+      "id": 1082,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL322",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 70,
+      "y": 1900
+    },
+    {
+      "customPart": "WIRE_LINK_16_75X31_50-2ea61989",
+      "id": 1083,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 106.125,
+        "y": 104
+      },
+      "ref": "JW78",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 1900
+    },
+    {
+      "id": 1084,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL323",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 330,
+      "y": 1900
+    },
+    {
+      "id": 1085,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL324",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 470,
+      "y": 1900
+    },
+    {
+      "customPart": "WIRE_LINK_1_00X9_25-c3b3728e",
+      "id": 1086,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 103.125,
+        "y": 82
+      },
+      "ref": "JW79",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 1900
+    },
+    {
+      "id": 1087,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL325",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 730,
+      "y": 1900
+    },
+    {
+      "id": 1088,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL326",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 870,
+      "y": 1900
+    },
+    {
+      "customPart": "WIRE_LINK_31_00-dbe966c4",
+      "id": 1089,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 104,
+        "y": 57.75
+      },
+      "ref": "JW80",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 1900
+    },
+    {
+      "id": 1090,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL327",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 1130,
+      "y": 1900
+    },
+    {
+      "id": 1091,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL328",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "VCC_P",
+      "x": 1270,
+      "y": 1900
+    },
+    {
+      "id": 1092,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL329",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET81",
+      "x": 1010,
+      "y": 500
+    },
+    {
+      "customPart": "WIRE_LINK_8_25-0a7a3841",
+      "id": 1093,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 90.75,
+        "y": 104.875
+      },
+      "ref": "JW81",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 2000
+    },
+    {
+      "id": 1094,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL330",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET81",
+      "x": -70,
+      "y": 2000
+    },
+    {
+      "id": 1095,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL331",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET81",)sieda",
+        R"sieda(
+      "x": 70,
+      "y": 2000
+    },
+    {
+      "customPart": "WIRE_LINK_2_09X13_77-00791f3d",
+      "id": 1096,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 99.11598695,
+        "y": 100.4534806
+      },
+      "ref": "JW82",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 2000
+    },
+    {
+      "id": 1097,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL332",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET81",
+      "x": 330,
+      "y": 2000
+    },
+    {
+      "id": 1098,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL333",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET81",
+      "x": 470,
+      "y": 2000
+    },
+    {
+      "customPart": "WIRE_LINK_19_02X35_55-d9d03408",
+      "id": 1099,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 82.76113898,
+        "y": 125.4764112
+      },
+      "ref": "JW83",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 2000
+    },
+    {
+      "id": 1100,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL334",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET81",
+      "x": 730,
+      "y": 2000
+    },
+    {
+      "id": 1101,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL335",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET81",
+      "x": 870,
+      "y": 2000
+    },
+    {
+      "id": 1102,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL336",
+      "rotation": 180,
+      "sheet": 2,
+      "value": "JW_NET84",
+      "x": 380,
+      "y": 270
+    },
+    {
+      "customPart": "WIRE_LINK_20_75X1_75-8ed70aae",
+      "id": 1103,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 82.375,
+        "y": 152.875
+      },
+      "ref": "JW84",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 2000
+    },
+    {
+      "id": 1104,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL337",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": 1130,
+      "y": 2000
+    },
+    {
+      "id": 1105,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL338",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": 1270,
+      "y": 2000
+    },
+    {
+      "customPart": "WIRE_LINK_10_73X6_49-122eb949",
+      "id": 1106,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 84.88322213,
+        "y": 138.9970287
+      },
+      "ref": "JW85",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 0,
+      "y": 2100
+    },
+    {
+      "id": 1107,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL339",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": -70,
+      "y": 2100
+    },
+    {
+      "id": 1108,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL340",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": 70,
+      "y": 2100
+    },
+    {
+      "customPart": "WIRE_LINK_19_25X0_25-be1e2ebb",
+      "id": 1109,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 88.875,
+        "y": 122.875
+      },
+      "ref": "JW86",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 400,
+      "y": 2100
+    },
+    {
+      "id": 1110,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL341",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": 330,
+      "y": 2100
+    },
+    {
+      "id": 1111,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL342",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET84",
+      "x": 470,
+      "y": 2100
+    },
+    {
+      "id": 1112,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL343",
+      "rotation": 270,
+      "sheet": 2,
+      "value": "JW_NET87",
+      "x": 170,
+      "y": 520
+    },
+    {
+      "customPart": "WIRE_LINK_18_75X11_75-7db00e78",
+      "id": 1113,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 90,
+        "x": 112.125,
+        "y": 99.375
+      },
+      "ref": "JW87",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 800,
+      "y": 2100
+    },
+    {
+      "id": 1114,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL344",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "JW_NET87",
+      "x": 730,
+      "y": 2100
+    },
+    {
+      "id": 1115,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL345",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "JW_NET87",
+      "x": 870,
+      "y": 2100
+    },
+    {
+      "customPart": "WIRE_LINK_20_00X8_50-cd6e27d6",
+      "id": 1116,
+      "kind": 16,
+      "pcb": {
+        "bottom": true,
+        "placed": true,
+        "rotation": 0,
+        "x": 98.5,
+        "y": 96.5
+      },
+      "ref": "JW88",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "Wire link",
+      "x": 1200,
+      "y": 2100
+    },
+    {
+      "id": 1117,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL346",
+      "rotation": 180,
+      "sheet": 7,
+      "value": "PFC_INV",
+      "x": 1130,
+      "y": 2100
+    },
+    {
+      "id": 1118,
+      "kind": 15,
+      "pcb": {
+        "bottom": false,
+        "placed": false,
+        "rotation": 0,
+        "x": 0,
+        "y": 0
+      },
+      "ref": "#NL347",
+      "rotation": 0,
+      "sheet": 7,
+      "value": "PFC_INV",
+      "x": 1270,
+      "y": 2100
+    }
+  ],
+  "customParts": [
+    {
+      "id": "TERMINAL_3P_5_08-5f253a45",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "TERMINAL-3P-5.08",
+        "description": "3-way PCB screw terminal, 5.08 mm, 300 V / 16 A (AC input L / N / PE)",
+        "manufacturer": "",
+        "name": "TERMINAL-3P-5.08",
+        "package": {
+          "pinCount": 3,
+          "pitch": 5.08,
+          "type": "HEADER"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "L",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            )sieda",
+        R"sieda("name": "N",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "PE",
+            "number": "3",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "J"
+      }
+    },
+    {
+      "id": "TERMINAL_2P_5_08-4a9adf21",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "TERMINAL-2P-5.08",
+        "description": "2-way PCB screw terminal, 5.08 mm, 300 V / 16 A (DC output)",
+        "manufacturer": "",
+        "name": "TERMINAL-2P-5.08",
+        "package": {
+          "pinCount": 2,
+          "pitch": 5.08,
+          "type": "HEADER"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "OUT+",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "OUT-",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "J"
+      }
+    },
+    {
+      "id": "FUSE_5X20_HOLDER-7a2bbafe",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "FUSE-5X20-HOLDER",
+        "description": "5 × 20 mm PCB fuse holder, 22.6 mm pin spacing (T5A 250 VAC fuse)",
+        "manufacturer": "",
+        "name": "FUSE-5X20-HOLDER",
+        "package": {
+          "bodyDepth": 9,
+          "bodySize": 29,
+          "graphics": [
+            [
+              -14.5,
+              -4.5,
+              14.5,
+              -4.5,
+              0.15,
+              "silk"
+            ],
+            [
+              14.5,
+              -4.5,
+              14.5,
+              4.5,
+              0.15,
+              "silk"
+            ],
+            [
+              14.5,
+              4.5,
+              -14.5,
+              4.5,
+              0.15,
+              "silk"
+            ],
+            [
+              -14.5,
+              4.5,
+              -14.5,
+              -4.5,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -11.3,
+              0,
+              3,
+              3,
+              1.4,
+              0,
+              "1"
+            ],
+            [
+              11.3,
+              0,
+              3,
+              3,
+              1.4,
+              1,
+              "2"
+            ]
+          ],
+          "pinCount": 2,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "F"
+      }
+    },
+    {
+      "id": "CMC_2X10MH_6A-a9d239a0",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "CMC-2X10MH-6A",
+        "description": "Common-mode mains choke 2 × 10 mH, 6 A, 10 × 12.5 mm pin grid",
+        "manufacturer": "",
+        "name": "CMC-2X10MH-6A",
+        "package": {
+          "bodyDepth": 23,
+          "bodySize": 23,
+          "graphics": [
+            [
+              -11.5,
+              -11.5,
+              11.5,
+              -11.5,
+              0.15,
+              "silk"
+            ],
+            [
+              11.5,
+              -11.5,
+              11.5,
+              11.5,
+              0.15,
+              "silk"
+            ],
+            [
+              11.5,
+              11.5,
+              -11.5,
+              11.5,
+              0.15,
+              "silk"
+            ],
+            [
+              -11.5,
+              11.5,
+              -11.5,
+              -11.5,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -5,
+              -6.25,
+              2.6,
+              2.6,
+              1.3,
+              0,
+              "1"
+            ],
+            [
+              -5,
+              6.25,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "2"
+            ],
+            [
+              5,
+              6.25,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "3"
+            ],
+            [
+              5,
+              -6.25,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "4"
+            ]
+          ],
+          "pinCount": 4,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "L_IN",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "N_IN",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "N_OUT",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "L_OUT",
+            "number": "4",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "L"
+      }
+    },
+    {
+      "id": "L_PFC_400U_ZCD-56f510d5",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "L-PFC-400U-ZCD",
+        "description": "PFC boost inductor 400 µH / 4 A (PQ32/30) with zero-current-detect winding",
+        "manufacturer": "",
+        "name": "L-PFC-400U-ZCD",
+        "package": {
+          "bodyDepth": 31,
+          "bodySize": 34,
+          "graphics": [
+            [
+              -17,
+              -15.5,
+              17,
+              -15.5,
+              0.15,
+              "silk"
+            ],
+            [
+              17,
+              -15.5,
+              17,
+              15.5,
+              0.15,
+              "silk"
+            ],
+            [
+              17,
+              15.5,
+              -17,
+              15.5,
+              0.15,
+              "silk"
+            ],
+            [
+              -17,
+              15.5,
+              -17,
+              -15.5,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -12.5,
+              -7.5,
+              2.8,
+              2.8,
+              1.4,
+              0,
+              "1"
+            ],
+            [
+              -12.5,
+              7.5,
+              2.8,
+              2.8,
+              1.4,
+              1,
+              "2"
+            ],
+            [
+              12.5,
+              7.5,
+              2.8,
+              2.8,
+              1.4,
+              1,
+              "3"
+            ],
+            [
+              12.5,
+              -7.5,
+              2.8,
+              2.8,
+              1.4,
+              1,
+              "4"
+            ]
+          ],
+          "pinCount": 4,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "IN",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "ZCD",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "ZCD_RTN",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "OUT",
+            "number": "4",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "L"
+      }
+    },
+    {
+      "id": "T_FLYBACK_ETD44-c652843e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "T-FLYBACK-ETD44",
+        "description": "Flyback transformer ETD44: 400 V primary, 52 V / 5 A secondary, 15 V primary and secondary bias windings, 4 kV reinforced isolation (primary pins 1–4, secondary pins 5–8, 35 mm apart)",
+        "manufacturer": "",
+        "name": "T-FLYBACK-ETD44",
+        "package": {
+          "bodyDepth": 40,
+          "bodySize": 46,
+          "graphics": [
+            [
+   )sieda",
+        R"sieda(           -23,
+              -20,
+              23,
+              -20,
+              0.15,
+              "silk"
+            ],
+            [
+              23,
+              -20,
+              23,
+              20,
+              0.15,
+              "silk"
+            ],
+            [
+              23,
+              20,
+              -23,
+              20,
+              0.15,
+              "silk"
+            ],
+            [
+              -23,
+              20,
+              -23,
+              -20,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -17.5,
+              -7.62,
+              2.6,
+              2.6,
+              1.3,
+              0,
+              "1"
+            ],
+            [
+              -17.5,
+              -2.54,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "2"
+            ],
+            [
+              -17.5,
+              2.54,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "3"
+            ],
+            [
+              -17.5,
+              7.62,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "4"
+            ],
+            [
+              17.5,
+              7.62,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "5"
+            ],
+            [
+              17.5,
+              2.54,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "6"
+            ],
+            [
+              17.5,
+              -2.54,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "7"
+            ],
+            [
+              17.5,
+              -7.62,
+              2.6,
+              2.6,
+              1.3,
+              1,
+              "8"
+            ]
+          ],
+          "pinCount": 8,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "PRI_A",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "PRI_B",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "AUX_A",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "AUX_B",
+            "number": "4",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "BIAS_B",
+            "number": "5",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "BIAS_A",
+            "number": "6",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "SEC_B",
+            "number": "7",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "SEC_A",
+            "number": "8",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "T"
+      }
+    },
+    {
+      "id": "DIODE_TO220_2-2b06dbe3",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "DIODE-TO220-2",
+        "description": "Power rectifier in TO-220-2 (pin 1 cathode / tab, pin 2 anode)",
+        "manufacturer": "",
+        "name": "DIODE-TO220-2",
+        "package": {
+          "pinCount": 2,
+          "pitch": 5.08,
+          "type": "TO220"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "K",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "A",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "D"
+      }
+    },
+    {
+      "id": "CAP_SNAPIN_30MM-da84910f",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "CAP-SNAPIN-30MM",
+        "description": "Snap-in electrolytic capacitor, 30 mm diameter, 10 mm lead spacing",
+        "manufacturer": "",
+        "name": "CAP-SNAPIN-30MM",
+        "package": {
+          "bodyDepth": 30,
+          "bodySize": 30,
+          "graphics": [
+            [
+              -15,
+              -15,
+              15,
+              -15,
+              0.15,
+              "silk"
+            ],
+            [
+              15,
+              -15,
+              15,
+              15,
+              0.15,
+              "silk"
+            ],
+            [
+              15,
+              15,
+              -15,
+              15,
+              0.15,
+              "silk"
+            ],
+            [
+              -15,
+              15,
+              -15,
+              -15,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -5,
+              0,
+              3.2,
+              3.2,
+              2,
+              0,
+              "1"
+            ],
+            [
+              5,
+              0,
+              3.2,
+              3.2,
+              2,
+              1,
+              "2"
+            ]
+          ],
+          "pinCount": 2,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "+",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "-",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "C"
+      }
+    },
+    {
+      "id": "CAP_RADIAL_12_5MM-3daaa287",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "CAP-RADIAL-12.5MM",
+        "description": "Radial electrolytic capacitor, 12.5 mm diameter, 5 mm lead spacing",
+        "manufacturer": "",
+        "name": "CAP-RADIAL-12.5MM",
+        "package": {
+          "bodyDepth": 13,
+          "bodySize": 13,
+          "graphics": [
+            [
+              -6.5,
+              -6.5,
+              6.5,
+              -6.5,
+              0.15,
+              "silk"
+            ],
+            [
+              6.5,
+              -6.5,
+              6.5,
+              6.5,
+              0.15,
+              "silk"
+            ],
+            [
+              6.5,
+              6.5,
+              -6.5,
+              6.5,
+              0.15,
+              "silk"
+            ],
+            [
+              -6.5,
+              6.5,
+              -6.5,
+              -6.5,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -2.5,
+              0,
+              2.2,
+              2.2,
+              1,
+              0,
+              "1"
+            ],
+            [
+              2.5,
+              0,
+              2.2,
+              2.2,
+              1,
+              1,
+              "2"
+            ]
+          ],
+          "pinCount": 2,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "+",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "-",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "C"
+      }
+    },
+    {
+      "id": "CAP_Y1_DISC_10MM-bf75de15",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "CAP-Y1-DISC-10MM",
+        "description": "Class-Y1 safety capacitor, ceramic disc, 10 mm lead spacing (bridges the isolation barrier)",
+        "manufacturer": "",
+        "name": "CAP-Y1-DISC-10MM",
+        "package": {
+          "bodyDepth": 6,
+          "bodySize": 14,
+          "graphics": [
+            [
+              -7,
+              -3,
+              7,
+              -3,
+              0.15,
+              "silk"
+            ],
+            [
+              7,
+              -3,
+              7,
+              3,
+    )sieda",
+        R"sieda(          0.15,
+              "silk"
+            ],
+            [
+              7,
+              3,
+              -7,
+              3,
+              0.15,
+              "silk"
+            ],
+            [
+              -7,
+              3,
+              -7,
+              -3,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -5,
+              0,
+              2,
+              2,
+              1,
+              0,
+              "1"
+            ],
+            [
+              5,
+              0,
+              2,
+              2,
+              1,
+              1,
+              "2"
+            ]
+          ],
+          "pinCount": 2,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "C"
+      }
+    },
+    {
+      "id": "L_POWER_33U_10A-8293a381",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "L-POWER-33U-10A",
+        "description": "Power inductor 33 µH / 10 A, toroid, 15 mm lead spacing",
+        "manufacturer": "",
+        "name": "L-POWER-33U-10A",
+        "package": {
+          "bodyDepth": 25,
+          "bodySize": 25,
+          "graphics": [
+            [
+              -12.5,
+              -12.5,
+              12.5,
+              -12.5,
+              0.15,
+              "silk"
+            ],
+            [
+              12.5,
+              -12.5,
+              12.5,
+              12.5,
+              0.15,
+              "silk"
+            ],
+            [
+              12.5,
+              12.5,
+              -12.5,
+              12.5,
+              0.15,
+              "silk"
+            ],
+            [
+              -12.5,
+              12.5,
+              -12.5,
+              -12.5,
+              0.15,
+              "silk"
+            ]
+          ],
+          "lands": [
+            [
+              -7.5,
+              0,
+              3,
+              3,
+              1.6,
+              0,
+              "1"
+            ],
+            [
+              7.5,
+              0,
+              3,
+              3,
+              1.6,
+              1,
+              "2"
+            ]
+          ],
+          "pinCount": 2,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "L"
+      }
+    },
+    {
+      "id": "S10K275-c20aea04",
+      "spec": {
+        "datasheet": "SiEDA standard library (TDK / EPCOS datasheet pinout)",
+        "defaultValue": "S10K275",
+        "description": "275 VAC metal-oxide varistor, 10 mm disc, 2.5 kA surge: line-to-neutral clamp after the fuse",
+        "manufacturer": "TDK / EPCOS",
+        "name": "S10K275",
+        "package": {
+          "pinCount": 2,
+          "type": "DISC"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "RV"
+      }
+    },
+    {
+      "id": "X2_100N_275VAC-88022c06",
+      "spec": {
+        "datasheet": "SiEDA standard library (Generic (MKP X2 film) datasheet pinout)",
+        "defaultValue": "X2-100N-275VAC",
+        "description": "100 nF / 275 VAC class-X2 film capacitor across line and neutral (EMI filter, self-healing), 15 mm lead pitch",
+        "manufacturer": "Generic (MKP X2 film)",
+        "name": "X2-100N-275VAC",
+        "package": {
+          "bodySize": 15,
+          "pinCount": 2,
+          "type": "DISC"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "CX"
+      }
+    },
+    {
+      "id": "GBU4M-49364dc7",
+      "spec": {
+        "datasheet": "Pinout and Diode_Bridge_Vishay_GBU footprint from the Vishay datasheet",
+        "defaultValue": "GBU4M",
+        "description": "1000 V 4 A single-phase bridge rectifier, GBU",
+        "manufacturer": "Vishay",
+        "name": "GBU4M",
+        "package": {
+          "lands": [
+            [
+              -7.62,
+              0,
+              3.2,
+              3.2,
+              1.6,
+              0,
+              "1"
+            ],
+            [
+              -2.54,
+              0,
+              3.2,
+              3.2,
+              1.6,
+              1,
+              "2"
+            ],
+            [
+              2.54,
+              0,
+              3.2,
+              3.2,
+              1.6,
+              1,
+              "3"
+            ],
+            [
+              7.62,
+              0,
+              3.2,
+              3.2,
+              1.6,
+              1,
+              "4"
+            ]
+          ],
+          "pinCount": 4,
+          "type": "LGA"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "+",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "P2",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "P3",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "-",
+            "number": "4",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "D"
+      }
+    },
+    {
+      "id": "L6563-1afaba09",
+      "spec": {
+        "datasheet": "Pinout and SOIC-14_3.9x8.7mm_P1.27mm footprint from the STMicroelectronics datasheet",
+        "defaultValue": "L6563",
+        "description": "Advanced Transition-Mode PFC Controller, SOIC-14",
+        "manufacturer": "STMicroelectronics",
+        "name": "L6563",
+        "package": {
+          "bodySize": 3.9,
+          "pinCount": 14,
+          "pitch": 1.27,
+          "type": "SOIC"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "INV",
+            "number": "1",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "COMP",
+            "number": "2",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "MULT",
+            "number": "3",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "CS",
+            "number": "4",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "VFF",
+            "number": "5",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "TBO",
+            "number": "6",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "PFC_OK",
+            "number": "7",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "PWM_LATCH",
+            "number": "8",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "PWM_STOP",
+            "number": "9",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "RUN",
+            "number": "10",)sieda",
+        R"sieda(
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "ZCD",
+            "number": "11",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "GND",
+            "number": "12",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "GD",
+            "number": "13",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VCC",
+            "number": "14",
+            "type": "power_in"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "C3M0065100K-61afacbc",
+      "spec": {
+        "datasheet": "Pinout and TO-247-4_Vertical footprint from the Wolfspeed datasheet",
+        "defaultValue": "C3M0065100K",
+        "description": "1000 V 35 A 65 mohm N-channel SiC MOSFET, Kelvin source, TO-247-4",
+        "manufacturer": "Wolfspeed",
+        "name": "C3M0065100K",
+        "package": {
+          "lands": [
+            [
+              -5.08,
+              0,
+              1.905,
+              4.5,
+              1.5,
+              0,
+              "1"
+            ],
+            [
+              0,
+              0,
+              1.905,
+              4.5,
+              1.5,
+              1,
+              "2"
+            ],
+            [
+              2.54,
+              0,
+              1.905,
+              4.5,
+              1.5,
+              1,
+              "3"
+            ],
+            [
+              5.08,
+              0,
+              1.905,
+              4.5,
+              1.5,
+              1,
+              "4"
+            ]
+          ],
+          "pinCount": 4,
+          "type": "LGA"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "D",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "S",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "DS",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "G",
+            "number": "4",
+            "type": "input"
+          }
+        ],
+        "refPrefix": "Q"
+      }
+    },
+    {
+      "id": "UC3843-0e53d9d0",
+      "spec": {
+        "datasheet": "SiEDA standard library (Texas Instruments datasheet pinout)",
+        "defaultValue": "UC3843",
+        "description": "Current-mode PWM controller",
+        "manufacturer": "Texas Instruments",
+        "model": {
+          "loads": [
+            {
+              "current": 0.011,
+              "ret": "5",
+              "supply": "7"
+            }
+          ]
+        },
+        "name": "UC3843",
+        "package": {
+          "pinCount": 8,
+          "type": "DIP"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "COMP",
+            "number": "1",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VFB",
+            "number": "2",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "ISENSE",
+            "number": "3",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "RT/CT",
+            "number": "4",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "GND",
+            "number": "5",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "OUTPUT",
+            "number": "6",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VCC",
+            "number": "7",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "VREF",
+            "number": "8",
+            "type": "power_out"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "LM7812-1e23ca1c",
+      "spec": {
+        "datasheet": "Pinout and TO-220-3_Vertical footprint from the STMicroelectronics datasheet",
+        "defaultValue": "LM7812",
+        "description": "12 V 1.5 A positive linear regulator, TO-220",
+        "manufacturer": "STMicroelectronics",
+        "model": {
+          "regulator": {
+            "charger": false,
+            "dropout": 2,
+            "ilimit": 1.5,
+            "in": "1",
+            "iq": 0.005,
+            "maxPower": 2,
+            "out": "3",
+            "ref": "2",
+            "vout": 12
+          }
+        },
+        "name": "LM7812",
+        "package": {
+          "pinCount": 3,
+          "type": "TO220"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "IN",
+            "number": "1",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "GND",
+            "number": "2",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "OUT",
+            "number": "3",
+            "type": "power_out"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "PC817-4581fb60",
+      "spec": {
+        "datasheet": "SiEDA standard library (Sharp datasheet pinout)",
+        "defaultValue": "PC817",
+        "description": "Optocoupler, 5 kV isolation",
+        "manufacturer": "Sharp",
+        "name": "PC817",
+        "package": {
+          "pinCount": 4,
+          "type": "DIP"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "A",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "K",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "E",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "C",
+            "number": "4",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "TL431AIDBZR-a348cc06",
+      "spec": {
+        "datasheet": "Pinout and SOT-23 footprint from the Texas Instruments datasheet",
+        "defaultValue": "TL431AIDBZR",
+        "description": "Adjustable shunt voltage reference 2.5-36 V, SOT-23",
+        "manufacturer": "Texas Instruments",
+        "name": "TL431AIDBZR",
+        "package": {
+          "pinCount": 3,
+          "type": "SOT23"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "K",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "REF",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "A",
+            "number": "3",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "IR2104-7f45ce3b",
+      "spec": {
+        "datasheet": "SiEDA standard library (Infineon datasheet pinout)",
+        "defaultValue": "IR2104",
+        "description": "Half-bridge gate driver (600 V, bootstrap high side)",
+        "manufacturer": "Infineon",
+        "model": {
+          "loads": [
+            {
+              "current": 0.001,
+              "ret": "4",
+              "supply": "1"
+            }
+          ]
+        },
+        "name": "IR2104",
+        "package": {
+          "pinCount": 8,
+          "type": "DIP"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "VCC",
+            "number": "1",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "IN",
+         )sieda",
+        R"sieda(   "number": "2",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "SD",
+            "number": "3",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "COM",
+            "number": "4",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "LO",
+            "number": "5",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VS",
+            "number": "6",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "HO",
+            "number": "7",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VB",
+            "number": "8",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "BSC040N10NS5-58283c60",
+      "spec": {
+        "datasheet": "Pinout and TDSON-8-1 footprint from the Infineon datasheet",
+        "defaultValue": "BSC040N10NS5",
+        "description": "N-MOSFET 100 V 100 A, 4 mΩ — 48 V servo drives, TDSON-8 (SuperSO8)",
+        "manufacturer": "Infineon",
+        "name": "BSC040N10NS5",
+        "package": {
+          "lands": [
+            [
+              -2.9,
+              -1.905,
+              0.85,
+              0.5
+            ],
+            [
+              -2.9,
+              -0.635,
+              0.85,
+              0.5
+            ],
+            [
+              -2.9,
+              0.635,
+              0.85,
+              0.5
+            ],
+            [
+              -2.9,
+              1.905,
+              0.85,
+              0.5
+            ],
+            [
+              1.05,
+              0,
+              4.55,
+              4.41
+            ]
+          ],
+          "pinCount": 5,
+          "type": "LGA"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "S",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "S",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "S",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "G",
+            "number": "4",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "D",
+            "number": "5",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "Q"
+      }
+    },
+    {
+      "id": "NETTIE_2-2707b8c1",
+      "spec": {
+        "datasheet": "Generic land (no datasheet)",
+        "defaultValue": "NetTie-2",
+        "description": "Net tie: joins two nets at one point (AGND to GND under an ADC, a current-sense Kelvin tap); the DRC accepts its own short",
+        "manufacturer": "Generic",
+        "name": "NetTie-2",
+        "package": {
+          "pinCount": 2,
+          "type": "SOIC"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "NT"
+      }
+    },
+    {
+      "id": "LM358-4ce40cbc",
+      "spec": {
+        "datasheet": "SiEDA standard library (Texas Instruments datasheet pinout)",
+        "defaultValue": "LM358",
+        "description": "Dual low-power operational amplifier",
+        "manufacturer": "Texas Instruments",
+        "model": {
+          "loads": [
+            {
+              "current": 0.0007,
+              "ret": "4",
+              "supply": "8"
+            }
+          ]
+        },
+        "name": "LM358",
+        "package": {
+          "pinCount": 8,
+          "type": "SOIC"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "OUT1",
+            "number": "1",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "IN1-",
+            "number": "2",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "IN1+",
+            "number": "3",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "GND",
+            "number": "4",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "IN2+",
+            "number": "5",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "IN2-",
+            "number": "6",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "OUT2",
+            "number": "7",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "VCC",
+            "number": "8",
+            "type": "power_in"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "INA181A2IDBVR-673ebd7f",
+      "spec": {
+        "datasheet": "Pinout and SOT-23-6 footprint from the Texas Instruments datasheet",
+        "defaultValue": "INA181A2IDBVR",
+        "description": "Bidirectional current-sense amplifier, gain 50, −0.2…26 V — low-side shunts, SOT-23-6",
+        "manufacturer": "Texas Instruments",
+        "name": "INA181A2IDBVR",
+        "package": {
+          "pinCount": 6,
+          "type": "SOT23"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "P1",
+            "number": "1",
+            "type": "output"
+          },
+          {
+            "description": "",
+            "name": "GND",
+            "number": "2",
+            "type": "power_in"
+          },
+          {
+            "description": "",
+            "name": "+",
+            "number": "3",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "-",
+            "number": "4",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "REF",
+            "number": "5",
+            "type": "input"
+          },
+          {
+            "description": "",
+            "name": "V+",
+            "number": "6",
+            "type": "power_in"
+          }
+        ],
+        "refPrefix": "U"
+      }
+    },
+    {
+      "id": "PINHEADER_1X04_P2_54MM-ff8f34f1",
+      "spec": {
+        "datasheet": "Pinout and PinHeader_1x04_P2.54mm_Vertical footprint from the Generic datasheet",
+        "defaultValue": "PinHeader_1x04_P2.54mm",
+        "description": "Pin header 1 × 4, 2.54 mm pitch, vertical, through-hole",
+        "manufacturer": "Generic",
+        "name": "PinHeader_1x04_P2.54mm",
+        "package": {
+          "pinCount": 4,
+          "pitch": 2.54,
+          "type": "HEADER"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "Pin_1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "Pin_2",
+            "number": "2",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "Pin_3",
+            "number": "3",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "Pin_4",
+            "number": "4",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "J"
+      }
+    },
+    {
+      "id": "MH_M3_PE-f6a0fef4",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "MH-M3-PE",
+        "description": "M3 mounting hole, plated (6 mm ring), bonded to protective earth: the chassis screw by the AC inlet",
+        "manufacturer": "",
+        "name": "M)sieda",
+        R"sieda(H-M3-PE",
+        "package": {
+          "bodySize": 6,
+          "lands": [
+            [
+              0,
+              0,
+              6,
+              6,
+              3.2,
+              1,
+              "1"
+            ]
+          ],
+          "pinCount": 1,
+          "type": "CUSTOM"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "PE",
+            "number": "1",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "MH"
+      }
+    },
+    {
+      "id": "WIRE_LINK_42_75-355fa6b6",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 42.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-42.75",
+        "package": {
+          "bodySize": 42.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_25-5db46d51",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.25",
+        "package": {
+          "bodySize": 11.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_JUMPER_13_31X9_98-37a3123e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Insulated jumper wire (0.6 mm, formed round the parts below it), 13.31x9.98 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-JUMPER-13.31x9.98",
+        "package": {
+          "bodyDepth": 9.983979048,
+          "bodySize": 13.31129345,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_34_25-abe03a5c",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 34.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-34.25",
+        "package": {
+          "bodySize": 34.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_50X6_75-b523d5de",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.50x6.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.50x6.75",
+        "package": {
+          "bodyDepth": 6.75,
+          "bodySize": 8.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_JUMPER_16_26X55_45-b737af78",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Insulated jumper wire (0.6 mm, formed round the parts below it), 16.26x55.45 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-JUMPER-16.26x55.45",
+        "package": {
+          "bodyDepth": 55.45418749,
+          "bodySize": 16.26093755,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_9_75X9_75-0aab432d",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 9.75x9.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-9.75x9.75",
+        "package": {
+          "bodyDepth": 9.75,
+          "bodySize": 9.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_26_25-cf3d722b",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 26.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-26.25",
+        "package": {
+          "bodySize": 26.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_34_75X1_00-12b2654b",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 34.75x1.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-34.75x1.00",
+        "package": {
+          "bodyDepth": 1,
+          "bodySize": 34.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_50X3_00-7e1d45c4",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.50x3.00 mm: joins copper a single-sided board cannot)sieda",
+        R"sieda(",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.50x3.00",
+        "package": {
+          "bodyDepth": 3,
+          "bodySize": 1.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_50X2_50-e57e1399",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.50x2.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.50x2.50",
+        "package": {
+          "bodyDepth": 2.5,
+          "bodySize": 2.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_3_00-0e0d8ffd",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 3.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-3.00",
+        "package": {
+          "bodySize": 3,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_07X16_97-1662a321",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.07x16.97 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.07x16.97",
+        "package": {
+          "bodyDepth": 16.97376519,
+          "bodySize": 8.070472358,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_00X4_00-4783765b",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.00x4.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.00x4.00",
+        "package": {
+          "bodyDepth": 4,
+          "bodySize": 4,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_25_00-ed3071cb",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 25.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-25.00",
+        "package": {
+          "bodySize": 25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_3_75X5_00-0fbed8fd",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 3.75x5.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-3.75x5.00",
+        "package": {
+          "bodyDepth": 5,
+          "bodySize": 3.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_14_75X21_50-bf8cfbf2",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 14.75x21.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-14.75x21.50",
+        "package": {
+          "bodyDepth": 21.5,
+          "bodySize": 14.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_JUMPER_20_77X18_82-bb61ce05",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Insulated jumper wire (0.6 mm, formed round the parts below it), 20.77x18.82 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-JUMPER-20.77x18.82",
+        "package": {
+          "bodyDepth": 18.82387711,
+          "bodySize": 20.76593726,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_7_00X4_50-6801e965",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 7.00x4.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-7.00x4.50",
+        "package": {
+          "bodyDepth": 4.5,
+          "bodySize": 7,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_0_75X18_75-1540a12e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper)sieda",
+        R"sieda() of 0.6 mm tinned copper wire, 0.75x18.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-0.75x18.75",
+        "package": {
+          "bodyDepth": 18.75,
+          "bodySize": 0.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_JUMPER_16_25X40_50-2aad72ed",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Insulated jumper wire (0.6 mm, formed round the parts below it), 16.25x40.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-JUMPER-16.25x40.50",
+        "package": {
+          "bodyDepth": 40.5,
+          "bodySize": 16.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_6_00X6_00-1b67b6f7",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 6.00x6.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-6.00x6.00",
+        "package": {
+          "bodyDepth": 6,
+          "bodySize": 6,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_16_25X2_00-d87d085d",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 16.25x2.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-16.25x2.00",
+        "package": {
+          "bodyDepth": 2,
+          "bodySize": 16.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_75X2_75-4386c8a0",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.75x2.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.75x2.75",
+        "package": {
+          "bodyDepth": 2.75,
+          "bodySize": 1.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_20_75X15_75-0616049f",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 20.75x15.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-20.75x15.75",
+        "package": {
+          "bodyDepth": 15.75,
+          "bodySize": 20.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_9_00-425774e7",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 9.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-9.00",
+        "package": {
+          "bodySize": 9,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_5_75X5_25-017f931a",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 5.75x5.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-5.75x5.25",
+        "package": {
+          "bodyDepth": 5.25,
+          "bodySize": 5.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_62X10_03-c5ab6778",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.62x10.03 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.62x10.03",
+        "package": {
+          "bodyDepth": 10.02779954,
+          "bodySize": 1.615054021,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_6_50X16_50-c108f12a",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 6.50x16.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-6.50x16.50",
+        "package": {
+          "bodyDepth": 16.5,
+          "bodySize": 6.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_75X)sieda",
+        R"sieda(18_00-46971dd9",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.75x18.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.75x18.00",
+        "package": {
+          "bodyDepth": 18,
+          "bodySize": 1.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_25_75X25_75-f276c361",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 25.75x25.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-25.75x25.75",
+        "package": {
+          "bodyDepth": 25.75,
+          "bodySize": 25.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_54X2_35-11a6faa7",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.54x2.35 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.54x2.35",
+        "package": {
+          "bodyDepth": 2.350791036,
+          "bodySize": 11.5402469,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_00X13_75-53d810eb",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.00x13.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.00x13.75",
+        "package": {
+          "bodyDepth": 13.75,
+          "bodySize": 8,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_75-be9c7702",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.75",
+        "package": {
+          "bodySize": 11.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_00X4_00-faf3fc1e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.00x4.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.00x4.00",
+        "package": {
+          "bodyDepth": 4,
+          "bodySize": 1,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_25X11_25-2c11c121",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.25x11.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.25x11.25",
+        "package": {
+          "bodyDepth": 11.25,
+          "bodySize": 11.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_6_75X2_25-2041251e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 6.75x2.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-6.75x2.25",
+        "package": {
+          "bodyDepth": 2.25,
+          "bodySize": 6.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_5_00X5_00-5f42a3cd",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 5.00x5.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-5.00x5.00",
+        "package": {
+          "bodyDepth": 5,
+          "bodySize": 5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_5_25X5_25-d7678fad",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 5.25x5.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-5.25x5.25",
+        "package": {
+          "bodyDepth": 5.25,
+          "bodySize": 5.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "typ)sieda",
+        R"sieda(e": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_75X6_00-7211a343",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.75x6.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.75x6.00",
+        "package": {
+          "bodyDepth": 6,
+          "bodySize": 4.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_5_25-2d5d0dec",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 5.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-5.25",
+        "package": {
+          "bodySize": 5.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_13_25-62993127",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 13.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-13.25",
+        "package": {
+          "bodySize": 13.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_27_75-4cc32603",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 27.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-27.75",
+        "package": {
+          "bodySize": 27.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_22_75-488bed70",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 22.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-22.75",
+        "package": {
+          "bodySize": 22.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_25X13_75-e4a5edfe",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.25x13.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.25x13.75",
+        "package": {
+          "bodyDepth": 13.75,
+          "bodySize": 2.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_00X8_75-88ad551b",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.00x8.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.00x8.75",
+        "package": {
+          "bodyDepth": 8.75,
+          "bodySize": 4,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_3_00X0_50-1f239ead",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 3.00x0.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-3.00x0.50",
+        "package": {
+          "bodyDepth": 0.5,
+          "bodySize": 3,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_25X0_25-00a2c451",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.25x0.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.25x0.25",
+        "package": {
+          "bodyDepth": 0.25,
+          "bodySize": 4.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_75X8_50-8afec568",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.75x8.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.75x8.50",
+        "package": {
+          "bodyDepth": 8.5,
+          "bodySize": 2.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+    )sieda",
+        R"sieda(    "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_50-0ca701d1",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.50",
+        "package": {
+          "bodySize": 11.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_25X16_25-465ae040",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.25x16.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.25x16.25",
+        "package": {
+          "bodyDepth": 16.25,
+          "bodySize": 8.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_00X16_75-6ac20a03",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.00x16.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.00x16.75",
+        "package": {
+          "bodyDepth": 16.75,
+          "bodySize": 1,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_JUMPER_10_74X18_28-698545ca",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Insulated jumper wire (0.6 mm, formed round the parts below it), 10.74x18.28 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-JUMPER-10.74x18.28",
+        "package": {
+          "bodyDepth": 18.27557771,
+          "bodySize": 10.7369019,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_3_75X3_75-10795555",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 3.75x3.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-3.75x3.75",
+        "package": {
+          "bodyDepth": 3.75,
+          "bodySize": 3.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_25X36_25-7690f953",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.25x36.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.25x36.25",
+        "package": {
+          "bodyDepth": 36.25,
+          "bodySize": 1.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_11_84X3_66-0dce0188",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 11.84x3.66 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-11.84x3.66",
+        "package": {
+          "bodyDepth": 3.659387458,
+          "bodySize": 11.83919472,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_75X34_25-7fe66551",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.75x34.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.75x34.25",
+        "package": {
+          "bodyDepth": 34.25,
+          "bodySize": 4.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_25X5_05-a97a64e2",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.25x5.05 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.25x5.05",
+        "package": {
+          "bodyDepth": 5.05,
+          "bodySize": 2.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_3_25X3_25-5b6db0d5",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 3.25x3.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-3.25x3.25",
+        "package": {
+          "bodyDepth": 3.25,
+          "bodySize": 3.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+       )sieda",
+        R"sieda(   },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_12_25X12_25-c56ea337",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 12.25x12.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-12.25x12.25",
+        "package": {
+          "bodyDepth": 12.25,
+          "bodySize": 12.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_50X8_50-8d8fb621",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.50x8.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.50x8.50",
+        "package": {
+          "bodyDepth": 8.5,
+          "bodySize": 8.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_21_75-a36212e5",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 21.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-21.75",
+        "package": {
+          "bodySize": 21.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_50-5af6c491",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.50",
+        "package": {
+          "bodySize": 4.5,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_75X4_75-959c480d",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.75x4.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.75x4.75",
+        "package": {
+          "bodyDepth": 4.75,
+          "bodySize": 4.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_25X2_25-725b2e8d",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.25x2.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.25x2.25",
+        "package": {
+          "bodyDepth": 2.25,
+          "bodySize": 2.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_7_00X2_75-d49273ae",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 7.00x2.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-7.00x2.75",
+        "package": {
+          "bodyDepth": 2.75,
+          "bodySize": 7,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_7_00-081b6339",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 7.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-7.00",
+        "package": {
+          "bodySize": 7,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_9_25X9_25-40771e75",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 9.25x9.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-9.25x9.25",
+        "package": {
+          "bodyDepth": 9.25,
+          "bodySize": 9.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_25-0a7a3841",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.25",
+        "package": {
+          "bodySize": 8.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description")sieda",
+        R"sieda(: "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_0_75X25_25-218f3b13",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 0.75x25.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-0.75x25.25",
+        "package": {
+          "bodyDepth": 25.25,
+          "bodySize": 0.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_8_25X20_75-ad613bda",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 8.25x20.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-8.25x20.75",
+        "package": {
+          "bodyDepth": 20.75,
+          "bodySize": 8.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_12_75X0_25-3a960ee9",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 12.75x0.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-12.75x0.25",
+        "package": {
+          "bodyDepth": 0.25,
+          "bodySize": 12.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_7_56X12_17-54b82ed8",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 7.56x12.17 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-7.56x12.17",
+        "package": {
+          "bodyDepth": 12.17302905,
+          "bodySize": 7.564730416,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_75X8_50-80b3efed",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.75x8.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.75x8.50",
+        "package": {
+          "bodyDepth": 8.5,
+          "bodySize": 1.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_21_66X5_03-e3e90507",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 21.66x5.03 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-21.66x5.03",
+        "package": {
+          "bodyDepth": 5.0311928,
+          "bodySize": 21.66427966,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_4_25X6_00-8e03e10c",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 4.25x6.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-4.25x6.00",
+        "package": {
+          "bodyDepth": 6,
+          "bodySize": 4.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_0_76X8_02-aaade7e7",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 0.76x8.02 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-0.76x8.02",
+        "package": {
+          "bodyDepth": 8.015885487,
+          "bodySize": 0.7588743226,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_16_75X31_50-2ea61989",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 16.75x31.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-16.75x31.50",
+        "package": {
+          "bodyDepth": 31.5,
+          "bodySize": 16.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_1_00X9_25-c3b3728e",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 1.00x9.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-1.00x9.25",
+        "package": {
+          "bodyDepth": 9.25,
+          "bodySize": 1,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+    )sieda",
+        R"sieda(    "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_31_00-dbe966c4",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 31.00 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-31.00",
+        "package": {
+          "bodySize": 31,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_2_09X13_77-00791f3d",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 2.09x13.77 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-2.09x13.77",
+        "package": {
+          "bodyDepth": 13.7680261,
+          "bodySize": 2.093038849,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_19_02X35_55-d9d03408",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 19.02x35.55 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-19.02x35.55",
+        "package": {
+          "bodyDepth": 35.54717763,
+          "bodySize": 19.02227796,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_20_75X1_75-8ed70aae",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 20.75x1.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-20.75x1.75",
+        "package": {
+          "bodyDepth": 1.75,
+          "bodySize": 20.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_10_73X6_49-122eb949",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 10.73x6.49 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-10.73x6.49",
+        "package": {
+          "bodyDepth": 6.494057325,
+          "bodySize": 10.73355573,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_19_25X0_25-be1e2ebb",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 19.25x0.25 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-19.25x0.25",
+        "package": {
+          "bodyDepth": 0.25,
+          "bodySize": 19.25,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_18_75X11_75-7db00e78",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 18.75x11.75 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-18.75x11.75",
+        "package": {
+          "bodyDepth": 11.75,
+          "bodySize": 18.75,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    },
+    {
+      "id": "WIRE_LINK_20_00X8_50-cd6e27d6",
+      "spec": {
+        "datasheet": "",
+        "defaultValue": "Wire link",
+        "description": "Wire link (jumper) of 0.6 mm tinned copper wire, 20.00x8.50 mm: joins copper a single-sided board cannot",
+        "manufacturer": "",
+        "name": "WIRE-LINK-20.00x8.50",
+        "package": {
+          "bodyDepth": 8.5,
+          "bodySize": 20,
+          "pinCount": 2,
+          "type": "WIRELINK"
+        },
+        "pins": [
+          {
+            "description": "",
+            "name": "1",
+            "number": "1",
+            "type": "passive"
+          },
+          {
+            "description": "",
+            "name": "2",
+            "number": "2",
+            "type": "passive"
+          }
+        ],
+        "refPrefix": "JW"
+      }
+    }
+  ],
+  "directives": [
+    {
+      "component": 1,
+      "id": 1,
+      "netClass": "MAINS",
+      "pin": 0
+    },
+    {
+      "component": 2,
+      "id": 2,
+      "netClass": "MAINS",
+      "pin": 1
+    },
+    {
+      "component": 1,
+      "id": 3,
+      "netClass": "MAINS",
+      "pin": 1
+    },
+    {
+      "component": 5,
+      "id": 4,
+      "netClass": "MAINS",
+      "pin": 3
+    },
+    {
+      "component": 5,
+      "id": 5,
+      "netClass": "MAINS",
+      "pin": 2
+    },
+    {
+      "component": 9,
+      "id": 6,
+      "netClass": "MAINS",
+      "pin": 0
+    },
+    {
+      "component": 10,
+      "id": 7,
+      "netClass": "HV",
+      "pin": 1
+    },
+    {
+      "component": 14,
+      "id": 8,
+      "netClass": "HV",
+      "pin": 0
+    },
+    {
+      "component": 16,
+      "id": 9,
+      "netClass": "HV",
+      "pin": 0
+    },
+    {
+      "component": 39,
+      "id": 10,
+      "netClass": "HV",
+      "pin": 0
+    },
+    {
+      "component": 42,
+      "id": 11,
+      "netClass": "HV",
+      "pin": 1
+    },
+    {
+      "component": 43,
+      "id": 12,
+      "netClass": "HV",
+      "pin": 0
+    },
+    {
+      )sieda",
+        R"sieda("component": 41,
+      "id": 14,
+      "netClass": "PWR52",
+      "pin": 0
+    },
+    {
+      "component": 41,
+      "id": 15,
+      "netClass": "PWR52",
+      "pin": 1
+    },
+    {
+      "component": 75,
+      "id": 16,
+      "netClass": "PWR52",
+      "pin": 4
+    },
+    {
+      "component": 86,
+      "id": 17,
+      "netClass": "OUT",
+      "pin": 0
+    },
+    {
+      "component": 86,
+      "id": 18,
+      "netClass": "OUT",
+      "pin": 1
+    }
+  ],
+  "ecuType": "",
+  "format": "sieda-project",
+  "industry": "power",
+  "medicalClass": "",
+  "memoryDesign": "",
+  "name": "SMPS 230 VAC to 5-48 V 5 A (CC/CV)",
+  "navalPlatform": "",
+  "netClassDefs": [
+    {
+      "clearance": 2.5,
+      "name": "MAINS",
+      "trackWidth": 1.5
+    },
+    {
+      "clearance": 2,
+      "name": "HV",
+      "trackWidth": 1
+    },
+    {
+      "clearance": 0.5,
+      "name": "PWR52",
+      "trackWidth": 2
+    },
+    {
+      "clearance": 0.5,
+      "name": "OUT",
+      "trackWidth": 2.5
+    }
+  ],
+  "requirements": "Input 230 VAC 50/60 Hz (180-264 VAC). Output 5-48 V adjustable (VSET), 1-5 A current limit (ISET), CC/CV. Active PFC (L6563), isolated 52 V flyback (UC3843, ETD44, 4 kV), synchronous buck post-regulator (UC3843 + IR2104).",
+  "retailDevice": "",
+  "robotPlatform": "",
+  "sheets": [
+    {
+      "id": 1,
+      "name": "AC input & EMI filter",
+      "parent": 0
+    },
+    {
+      "id": 2,
+      "name": "PFC boost (L6563)",
+      "parent": 0
+    },
+    {
+      "id": 3,
+      "name": "Flyback primary & bias",
+      "parent": 0
+    },
+    {
+      "id": 4,
+      "name": "Isolated 52 V bus & feedback",
+      "parent": 0
+    },
+    {
+      "id": 5,
+      "name": "Synchronous buck",
+      "parent": 0
+    },
+    {
+      "id": 6,
+      "name": "CC / CV control",
+      "parent": 0
+    },
+    {
+      "id": 7,
+      "name": "Wire links",
+      "parent": 0
+    }
+  ],
+  "tamperMeshes": [],
+  "tracks": [
+    {
+      "a": {
+        "x": 142.5,
+        "y": 74.5
+      },
+      "b": {
+        "x": 140.25,
+        "y": 74.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 140.25,
+        "y": 74.5
+      },
+      "b": {
+        "x": 130.75,
+        "y": 65
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 130.75,
+        "y": 65
+      },
+      "b": {
+        "x": 118.5,
+        "y": 65
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 118.5,
+        "y": 65
+      },
+      "b": {
+        "x": 110.75,
+        "y": 57.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 110,
+        "y": 56.5
+      },
+      "b": {
+        "x": 107.5,
+        "y": 54
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 107.5,
+        "y": 54
+      },
+      "b": {
+        "x": 107.5,
+        "y": 48.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 189.25,
+        "y": 136.5
+      },
+      "b": {
+        "x": 194.25,
+        "y": 136.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.25,
+        "y": 136.5
+      },
+      "b": {
+        "x": 194.75,
+        "y": 136
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.25,
+        "y": 136.5
+      },
+      "b": {
+        "x": 194.75,
+        "y": 137
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.75,
+        "y": 137
+      },
+      "b": {
+        "x": 194.75,
+        "y": 140.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.5,
+        "y": 41.25
+      },
+      "b": {
+        "x": 117.75,
+        "y": 41.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.75,
+        "y": 41.25
+      },
+      "b": {
+        "x": 121.25,
+        "y": 37.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 121.25,
+        "y": 49
+      },
+      "b": {
+        "x": 118.5,
+        "y": 51.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 107,
+        "y": 60.75
+      },
+      "b": {
+        "x": 108,
+        "y": 61.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 108,
+        "y": 61.75
+      },
+      "b": {
+        "x": 108,
+        "y": 62.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 116.75,
+        "y": 39.5
+      },
+      "b": {
+        "x": 111.25,
+        "y": 45
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111.25,
+        "y": 45
+      },
+      "b": {
+        "x": 106,
+        "y": 45
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106,
+        "y": 45
+      },
+      "b": {
+        "x": 104.25,
+        "y": 46.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 104.25,
+        "y": 46.75
+      },
+      "b": {
+        "x": 104.25,
+        "y": 55.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 104.25,
+        "y": 55.75
+      },
+      "b": {
+        "x": 112,
+        "y": 63.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 112,
+        "y": 63.5
+      },
+      "b": {
+        "x": 112,
+        "y": 69.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 112.5,
+        "y": 69.75
+      },
+      "b": {
+        "x": 113,
+        "y": 70.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 113,
+        "y": 70.25
+      },
+      "b": {
+        "x": 113.25,
+        "y": 70.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 113.25,
+        "y": 70.25
+      },
+      "b": {
+        "x": 113.25,
+        "y": 77.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 113.25,
+        "y": 77.75
+      },
+      "b": {
+        "x": 116.5,
+        "y": 81
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 220.25,
+        "y": 31.5
+      },
+      "b": {
+        "x": 219.5,
+        "y": 32.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.5,
+        "y": 32.25
+      },
+      "b": {
+        "x": 219.5,
+        "y": 39
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221,
+        "y": 53.25
+      },
+      "b": {
+        "x": 211,
+        "y": 43.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211,
+        "y": 43.25
+      },
+      "b": {
+        "x": 211,
+        "y": 33.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211,
+        "y": 33.25
+      },
+      "b": {
+        "x": 211.75,
+        "y": 32.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221,
+        "y": 55
+      },
+      "b": {
+        "x": 215.5,
+        "y": 60.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 94.75
+      },
+      "b": {
+        "x": 211,
+        "y": 99.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211.25,
+        "y": 99.75
+      },
+      "b": {
+        "x": 211.75,
+        "y": 100.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211.75,
+        "y": 100.25
+      },
+      "b": {
+        "x": 211.75,
+        "y": 101
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211.75,
+        "y": 101
+      },
+      "b": {
+        "x": 214.5,
+        "y": 103.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 210.75,
+        "y": 99.75
+      },
+      "b": {
+        "x": 207.75,
+        "y": 99.75
+      },
+      "layer": 0)sieda",
+        R"sieda(,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 207.75,
+        "y": 99.75
+      },
+      "b": {
+        "x": 205.25,
+        "y": 102.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.25,
+        "y": 102.25
+      },
+      "b": {
+        "x": 199.5,
+        "y": 102.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 199.5,
+        "y": 102.25
+      },
+      "b": {
+        "x": 198.25,
+        "y": 103.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 198,
+        "y": 103.75
+      },
+      "b": {
+        "x": 197.25,
+        "y": 104.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197.25,
+        "y": 104.5
+      },
+      "b": {
+        "x": 197.25,
+        "y": 114.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197.5,
+        "y": 115
+      },
+      "b": {
+        "x": 200.75,
+        "y": 115
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 200.75,
+        "y": 115
+      },
+      "b": {
+        "x": 203.5,
+        "y": 117.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.75,
+        "y": 118
+      },
+      "b": {
+        "x": 204.25,
+        "y": 118.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 204.25,
+        "y": 118.5
+      },
+      "b": {
+        "x": 204.25,
+        "y": 122.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 199,
+        "y": 102.75
+      },
+      "b": {
+        "x": 193,
+        "y": 96.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 193,
+        "y": 96.75
+      },
+      "b": {
+        "x": 193.056535,
+        "y": 95.417515
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 193.056535,
+        "y": 95.417515
+      },
+      "b": {
+        "x": 191.75,
+        "y": 94.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197.25,
+        "y": 107
+      },
+      "b": {
+        "x": 187.75,
+        "y": 107
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 187.75,
+        "y": 107
+      },
+      "b": {
+        "x": 186,
+        "y": 108.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 204,
+        "y": 122.75
+      },
+      "b": {
+        "x": 198,
+        "y": 122.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 198,
+        "y": 122.75
+      },
+      "b": {
+        "x": 181.5,
+        "y": 139.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.75,
+        "y": 130
+      },
+      "b": {
+        "x": 197,
+        "y": 136.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197,
+        "y": 136.25
+      },
+      "b": {
+        "x": 197,
+        "y": 137
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197,
+        "y": 137
+      },
+      "b": {
+        "x": 207.75,
+        "y": 147.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 207.75,
+        "y": 147.75
+      },
+      "b": {
+        "x": 209.25,
+        "y": 147.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 209.25,
+        "y": 147.75
+      },
+      "b": {
+        "x": 218.75,
+        "y": 157.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 218.75,
+        "y": 157.25
+      },
+      "b": {
+        "x": 218.75,
+        "y": 160.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.25,
+        "y": 136.5
+      },
+      "b": {
+        "x": 181.25,
+        "y": 126.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.25,
+        "y": 126.75
+      },
+      "b": {
+        "x": 181.5,
+        "y": 126.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.5,
+        "y": 126.5
+      },
+      "b": {
+        "x": 181.5,
+        "y": 124.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.5,
+        "y": 124.5
+      },
+      "b": {
+        "x": 180.5,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.5,
+        "y": 124.5
+      },
+      "b": {
+        "x": 194,
+        "y": 124.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.75,
+        "y": 114.75
+      },
+      "b": {
+        "x": 209.25,
+        "y": 114.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 209.25,
+        "y": 114.75
+      },
+      "b": {
+        "x": 213.5,
+        "y": 110.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213,
+        "y": 111
+      },
+      "b": {
+        "x": 225,
+        "y": 123
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 225.25,
+        "y": 123.5
+      },
+      "b": {
+        "x": 236.5,
+        "y": 134.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 236.5,
+        "y": 161
+      },
+      "b": {
+        "x": 239.25,
+        "y": 163.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 222,
+        "y": 120
+      },
+      "b": {
+        "x": 258.75,
+        "y": 83.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 258.75,
+        "y": 83.25
+      },
+      "b": {
+        "x": 262.75,
+        "y": 83.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 180.5,
+        "y": 34
+      },
+      "b": {
+        "x": 180.5,
+        "y": 35.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 180.5,
+        "y": 35.5
+      },
+      "b": {
+        "x": 179,
+        "y": 37
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179,
+        "y": 37
+      },
+      "b": {
+        "x": 179,
+        "y": 40.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179,
+        "y": 40.5
+      },
+      "b": {
+        "x": 180.75,
+        "y": 42.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.75,
+        "y": 43.75
+      },
+      "b": {
+        "x": 185,
+        "y": 43.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 185,
+        "y": 43.75
+      },
+      "b": {
+        "x": 202.25,
+        "y": 61
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 61.25
+      },
+      "b": {
+        "x": 214,
+        "y": 61.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214,
+        "y": 61.25
+      },
+      "b": {
+        "x": 214.75,
+        "y": 62
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.75,
+        "y": 62
+      },
+      "b": {
+        "x": 217,
+        "y": 62
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217,
+        "y": 62
+      },
+      "b": {
+        "x": 224,
+        "y": 55
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 223.5,
+        "y": 53.25
+      },
+      "b": {
+        "x": 223.5,
+        "y": 47.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 223.5,
+        "y": 47.5
+      },
+      "b": {
+        "x": 217.065685,
+        "y": 41.065685
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216.75,
+        "y": 40
+      },
+      "b": {
+)sieda",
+        R"sieda(        "x": 217.351041,
+        "y": 39.398959
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 217.5,
+        "y": 39.25
+      },
+      "b": {
+        "x": 217.5,
+        "y": 34.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217.5,
+        "y": 34.25
+      },
+      "b": {
+        "x": 215.742462,
+        "y": 32.492462
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.75,
+        "y": 43.75
+      },
+      "b": {
+        "x": 229.5,
+        "y": 34
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215,
+        "y": 31.25
+      },
+      "b": {
+        "x": 215.707107,
+        "y": 30.542893
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 223,
+        "y": 23.25
+      },
+      "b": {
+        "x": 223,
+        "y": 21
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 223,
+        "y": 21
+      },
+      "b": {
+        "x": 224.25,
+        "y": 19.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 230.25,
+        "y": 33.75
+      },
+      "b": {
+        "x": 231,
+        "y": 33.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 231,
+        "y": 33.75
+      },
+      "b": {
+        "x": 245.25,
+        "y": 19.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.75,
+        "y": 62
+      },
+      "b": {
+        "x": 214,
+        "y": 62.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215,
+        "y": 97.5
+      },
+      "b": {
+        "x": 213,
+        "y": 99.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213,
+        "y": 99.75
+      },
+      "b": {
+        "x": 216,
+        "y": 102.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216,
+        "y": 102.75
+      },
+      "b": {
+        "x": 216,
+        "y": 104.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216,
+        "y": 104.75
+      },
+      "b": {
+        "x": 215.671751,
+        "y": 105.078249
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215,
+        "y": 106
+      },
+      "b": {
+        "x": 215.5,
+        "y": 106.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 106.5
+      },
+      "b": {
+        "x": 215.5,
+        "y": 109.15
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.75,
+        "y": 110.75
+      },
+      "b": {
+        "x": 215.75,
+        "y": 111.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 215.75,
+        "y": 111.5
+      },
+      "b": {
+        "x": 216.75,
+        "y": 112.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.25,
+        "y": 115.5
+      },
+      "b": {
+        "x": 215.25,
+        "y": 117.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.75,
+        "y": 118.25
+      },
+      "b": {
+        "x": 216.25,
+        "y": 118.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216.25,
+        "y": 118.75
+      },
+      "b": {
+        "x": 216.25,
+        "y": 122
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216.5,
+        "y": 123.5
+      },
+      "b": {
+        "x": 217.3,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 218.5,
+        "y": 123.5
+      },
+      "b": {
+        "x": 219.686827,
+        "y": 124.686827
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216,
+        "y": 123.5
+      },
+      "b": {
+        "x": 215.5,
+        "y": 124
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 124
+      },
+      "b": {
+        "x": 215.5,
+        "y": 125.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 125.5
+      },
+      "b": {
+        "x": 214.065685,
+        "y": 126.934315
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221,
+        "y": 125.25
+      },
+      "b": {
+        "x": 221.5,
+        "y": 125.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 221.5,
+        "y": 125.25
+      },
+      "b": {
+        "x": 223.25,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 225.75,
+        "y": 121
+      },
+      "b": {
+        "x": 227,
+        "y": 122.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 227,
+        "y": 122.25
+      },
+      "b": {
+        "x": 227,
+        "y": 122.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.5,
+        "y": 127.5
+      },
+      "b": {
+        "x": 212.934315,
+        "y": 126.934315
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 208.5,
+        "y": 122.5
+      },
+      "b": {
+        "x": 206.25,
+        "y": 122.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 206,
+        "y": 122.25
+      },
+      "b": {
+        "x": 205.5,
+        "y": 121.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.5,
+        "y": 121.75
+      },
+      "b": {
+        "x": 205.5,
+        "y": 118
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.25,
+        "y": 117.5
+      },
+      "b": {
+        "x": 204.75,
+        "y": 117
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 204.75,
+        "y": 117
+      },
+      "b": {
+        "x": 204.75,
+        "y": 116.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 204.75,
+        "y": 116.75
+      },
+      "b": {
+        "x": 204.25,
+        "y": 116.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 204.25,
+        "y": 116.25
+      },
+      "b": {
+        "x": 203.25,
+        "y": 116.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.25,
+        "y": 116.25
+      },
+      "b": {
+        "x": 203,
+        "y": 116
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203,
+        "y": 116
+      },
+      "b": {
+        "x": 202.75,
+        "y": 116
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 116
+      },
+      "b": {
+        "x": 202.75,
+        "y": 115.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 115.75
+      },
+      "b": {
+        "x": 202.5,
+        "y": 115.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.5,
+        "y": 115.75
+      },
+      "b": {
+        "x": 202.5,
+        "y": 115.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.5,
+        "y": 115.5
+      },
+      "b": {
+        "x": 201.25,
+        "y": 114.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201.25,
+        "y": 114.25
+      },
+      "b": {
+        "x": 201.25,
+        "y": 112.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201.25,
+        "y": 112.25
+      },
+      "b": {
+        "x": 201.75,
+        "y": 111.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201.75,
+        "y": 111.75
+      },
+      "b": {
+        "x": 202.25,
+        "y": )sieda",
+        R"sieda(111.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 111.75
+      },
+      "b": {
+        "x": 202.25,
+        "y": 110.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 110.5
+      },
+      "b": {
+        "x": 202.25,
+        "y": 109
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.5,
+        "y": 120.5
+      },
+      "b": {
+        "x": 205.75,
+        "y": 120.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 120.5
+      },
+      "b": {
+        "x": 199.5,
+        "y": 120.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 199.5,
+        "y": 120.5
+      },
+      "b": {
+        "x": 199,
+        "y": 121
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 109
+      },
+      "b": {
+        "x": 199.25,
+        "y": 109
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 195.25,
+        "y": 105
+      },
+      "b": {
+        "x": 191.75,
+        "y": 101.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 191,
+        "y": 101.5
+      },
+      "b": {
+        "x": 182.5,
+        "y": 110
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 182.5,
+        "y": 110
+      },
+      "b": {
+        "x": 182.5,
+        "y": 110.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 182.5,
+        "y": 111.25
+      },
+      "b": {
+        "x": 182.5,
+        "y": 112.2
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 213.75,
+        "y": 128.25
+      },
+      "b": {
+        "x": 214.457107,
+        "y": 128.957107
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 224.25,
+        "y": 138.75
+      },
+      "b": {
+        "x": 224.25,
+        "y": 140
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 182.25,
+        "y": 116
+      },
+      "b": {
+        "x": 181.75,
+        "y": 116.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 181.75,
+        "y": 116.5
+      },
+      "b": {
+        "x": 181.75,
+        "y": 116.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.75,
+        "y": 116.75
+      },
+      "b": {
+        "x": 174.25,
+        "y": 124.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 174.25,
+        "y": 124.25
+      },
+      "b": {
+        "x": 169,
+        "y": 124.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 192.75,
+        "y": 138
+      },
+      "b": {
+        "x": 190.5,
+        "y": 138
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.5,
+        "y": 138
+      },
+      "b": {
+        "x": 189.25,
+        "y": 139.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 188.25,
+        "y": 139.75
+      },
+      "b": {
+        "x": 186,
+        "y": 139.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 186,
+        "y": 139.75
+      },
+      "b": {
+        "x": 181.5,
+        "y": 144.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 225,
+        "y": 140.25
+      },
+      "b": {
+        "x": 226.25,
+        "y": 140.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 226.25,
+        "y": 140.25
+      },
+      "b": {
+        "x": 227.5,
+        "y": 139
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 227.5,
+        "y": 139
+      },
+      "b": {
+        "x": 244,
+        "y": 139
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 244,
+        "y": 139
+      },
+      "b": {
+        "x": 245.25,
+        "y": 140.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 245.5,
+        "y": 141.5
+      },
+      "b": {
+        "x": 240.25,
+        "y": 146.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 240.25,
+        "y": 146.75
+      },
+      "b": {
+        "x": 240.25,
+        "y": 163.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 240.25,
+        "y": 164.25
+      },
+      "b": {
+        "x": 240.25,
+        "y": 166.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 165.25
+      },
+      "b": {
+        "x": 242,
+        "y": 165.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 242,
+        "y": 165.25
+      },
+      "b": {
+        "x": 248,
+        "y": 171.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 247.25,
+        "y": 170.5
+      },
+      "b": {
+        "x": 250.75,
+        "y": 167
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 165.25
+      },
+      "b": {
+        "x": 213.25,
+        "y": 164.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 227.25,
+        "y": 122.75
+      },
+      "b": {
+        "x": 230.75,
+        "y": 122.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 230.75,
+        "y": 122.75
+      },
+      "b": {
+        "x": 262.75,
+        "y": 90.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181,
+        "y": 141.5
+      },
+      "b": {
+        "x": 179.65112,
+        "y": 140.423847
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179.65112,
+        "y": 140.423847
+      },
+      "b": {
+        "x": 179.75,
+        "y": 133
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179.75,
+        "y": 108
+      },
+      "b": {
+        "x": 191.25,
+        "y": 96.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 191.25,
+        "y": 99.25
+      },
+      "b": {
+        "x": 185.25,
+        "y": 105.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 185.25,
+        "y": 105.25
+      },
+      "b": {
+        "x": 185,
+        "y": 105.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190,
+        "y": 109
+      },
+      "b": {
+        "x": 188,
+        "y": 109
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 184.25,
+        "y": 96
+      },
+      "b": {
+        "x": 186.5,
+        "y": 96
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 186.5,
+        "y": 96
+      },
+      "b": {
+        "x": 190.25,
+        "y": 92.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.25,
+        "y": 92.25
+      },
+      "b": {
+        "x": 192.75,
+        "y": 92.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 192.75,
+        "y": 92.25
+      },
+      "b": {
+        "x": 197.5,
+        "y": 97
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 197.5,
+        "y": 97
+      },
+      "b": {
+        "x": 197.5,
+        "y": 98.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 184.25,
+        "y": 93.25
+      },
+      "b": {
+        "x": 188,
+        "y": 93.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 188,
+        "y": 93.25
+      },
+      "b": {
+        "x": 189.75,
+        "y": 91.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {)sieda",
+        R"sieda(
+      "a": {
+        "x": 189.75,
+        "y": 91.5
+      },
+      "b": {
+        "x": 193.75,
+        "y": 91.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 193.75,
+        "y": 91.5
+      },
+      "b": {
+        "x": 199,
+        "y": 96.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.5,
+        "y": 103.75
+      },
+      "b": {
+        "x": 201.5,
+        "y": 103.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 199,
+        "y": 96.75
+      },
+      "b": {
+        "x": 202,
+        "y": 96.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202,
+        "y": 96.75
+      },
+      "b": {
+        "x": 204,
+        "y": 98.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 21.5,
+        "y": 50
+      },
+      "b": {
+        "x": 24,
+        "y": 50
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 24,
+        "y": 50
+      },
+      "b": {
+        "x": 28,
+        "y": 46
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 28,
+        "y": 46
+      },
+      "b": {
+        "x": 52.75,
+        "y": 46
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 52.75,
+        "y": 46
+      },
+      "b": {
+        "x": 56,
+        "y": 49.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 57,
+        "y": 48.75
+      },
+      "b": {
+        "x": 71.5,
+        "y": 34.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 71.5,
+        "y": 34.25
+      },
+      "b": {
+        "x": 71.5,
+        "y": 32.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 56.75,
+        "y": 50.25
+      },
+      "b": {
+        "x": 43,
+        "y": 64
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 43,
+        "y": 64
+      },
+      "b": {
+        "x": 43,
+        "y": 81.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 183.5,
+        "y": 101.75
+      },
+      "b": {
+        "x": 180.25,
+        "y": 105
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 186.25,
+        "y": 111
+      },
+      "b": {
+        "x": 190.25,
+        "y": 111
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.25,
+        "y": 111
+      },
+      "b": {
+        "x": 191.75,
+        "y": 109.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 191.75,
+        "y": 109.5
+      },
+      "b": {
+        "x": 191.75,
+        "y": 109
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 191.75,
+        "y": 109
+      },
+      "b": {
+        "x": 192.75,
+        "y": 108
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 7.5,
+        "y": 25
+      },
+      "b": {
+        "x": 25.5,
+        "y": 25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 25.5,
+        "y": 25
+      },
+      "b": {
+        "x": 25.75,
+        "y": 25.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 26.25,
+        "y": 26.5
+      },
+      "b": {
+        "x": 37.5,
+        "y": 37.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 39.5,
+        "y": 54
+      },
+      "b": {
+        "x": 31.25,
+        "y": 62.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 37.5,
+        "y": 37.75
+      },
+      "b": {
+        "x": 64.5,
+        "y": 10.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 202.5,
+        "y": 94
+      },
+      "b": {
+        "x": 202.5,
+        "y": 95
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.5,
+        "y": 95
+      },
+      "b": {
+        "x": 203.25,
+        "y": 95.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201.5,
+        "y": 98.5
+      },
+      "b": {
+        "x": 199.5,
+        "y": 98.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.75,
+        "y": 33.5
+      },
+      "b": {
+        "x": 122.25,
+        "y": 33.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 138,
+        "y": 54.25
+      },
+      "b": {
+        "x": 159.25,
+        "y": 75.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 253.25,
+        "y": 159
+      },
+      "b": {
+        "x": 252,
+        "y": 159
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 242.75,
+        "y": 168.25
+      },
+      "b": {
+        "x": 241.25,
+        "y": 166.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 241.25,
+        "y": 166.75
+      },
+      "b": {
+        "x": 241.25,
+        "y": 166.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 49.5,
+        "y": 81.25
+      },
+      "b": {
+        "x": 64.25,
+        "y": 81.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 64.25,
+        "y": 81.25
+      },
+      "b": {
+        "x": 69.75,
+        "y": 75.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 7.75,
+        "y": 18.5
+      },
+      "b": {
+        "x": 38.5,
+        "y": 18.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 38.5,
+        "y": 18.5
+      },
+      "b": {
+        "x": 45.25,
+        "y": 11.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 180.5,
+        "y": 47.25
+      },
+      "b": {
+        "x": 177.25,
+        "y": 44
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 177.25,
+        "y": 44
+      },
+      "b": {
+        "x": 177.25,
+        "y": 32.5
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 177.25,
+        "y": 32.5
+      },
+      "b": {
+        "x": 193,
+        "y": 16.75
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 193,
+        "y": 16.75
+      },
+      "b": {
+        "x": 197.71,
+        "y": 16.75
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 197.71,
+        "y": 16.75
+      },
+      "b": {
+        "x": 199.25,
+        "y": 16.75
+      },
+      "layer": 0,
+      "width": 1.9
+    },
+    {
+      "a": {
+        "x": 135.25,
+        "y": 77.75
+      },
+      "b": {
+        "x": 142.5,
+        "y": 85
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 140.25,
+        "y": 82.75
+      },
+      "b": {
+        "x": 151,
+        "y": 72
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 151,
+        "y": 63
+      },
+      "b": {
+        "x": 149.75,
+        "y": 61.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 149.75,
+        "y": 61.75
+      },
+      "b": {
+        "x": 149.75,
+        "y": 46
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 149.75,
+        "y": 46
+      },
+      "b": {
+        "x": 146.75,
+        "y": 43
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 183.25,
+        "y": 98.75
+      },
+      "b": {
+        "x": 181.709911,
+        "y": 97.279933
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 181.709911,
+        "y": 97.279933
+      },
+      "b": {
+        "x": 181.5,
+        "y": 97
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 181.5,
+        "y": 9)sieda",
+        R"sieda(7
+      },
+      "b": {
+        "x": 181.450813,
+        "y": 92.608294
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 181.450813,
+        "y": 92.608294
+      },
+      "b": {
+        "x": 184.450813,
+        "y": 89.608294
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 184.450813,
+        "y": 89.608294
+      },
+      "b": {
+        "x": 199.25,
+        "y": 89.75
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 199.25,
+        "y": 89.75
+      },
+      "b": {
+        "x": 200.575,
+        "y": 91.075
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 200.575,
+        "y": 91.075
+      },
+      "b": {
+        "x": 202.25,
+        "y": 92.75
+      },
+      "layer": 0,
+      "width": 0.5
+    },
+    {
+      "a": {
+        "x": 201.5,
+        "y": 92
+      },
+      "b": {
+        "x": 202,
+        "y": 91.5
+      },
+      "layer": 0,
+      "width": 0.5
+    },
+    {
+      "a": {
+        "x": 202,
+        "y": 91.5
+      },
+      "b": {
+        "x": 202.25,
+        "y": 91.5
+      },
+      "layer": 0,
+      "width": 0.5
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 91.5
+      },
+      "b": {
+        "x": 202.25,
+        "y": 90.25
+      },
+      "layer": 0,
+      "width": 0.5
+    },
+    {
+      "a": {
+        "x": 205.75,
+        "y": 96.75
+      },
+      "b": {
+        "x": 205.75,
+        "y": 96.88
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 205.75,
+        "y": 96.88
+      },
+      "b": {
+        "x": 205.75,
+        "y": 98.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 205.75,
+        "y": 98.25
+      },
+      "b": {
+        "x": 206,
+        "y": 98.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 206,
+        "y": 107.5
+      },
+      "b": {
+        "x": 206,
+        "y": 109.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 208.25,
+        "y": 111.5
+      },
+      "b": {
+        "x": 210,
+        "y": 111.5
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 226.5,
+        "y": 118
+      },
+      "b": {
+        "x": 228.5,
+        "y": 118
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 228.5,
+        "y": 118
+      },
+      "b": {
+        "x": 242.5,
+        "y": 104
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 70.5,
+        "y": 65.75
+      },
+      "b": {
+        "x": 76,
+        "y": 71.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 74.25,
+        "y": 89.25
+      },
+      "b": {
+        "x": 72.75,
+        "y": 87.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 72.75,
+        "y": 87.75
+      },
+      "b": {
+        "x": 72.75,
+        "y": 85.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 72.75,
+        "y": 87.75
+      },
+      "b": {
+        "x": 70,
+        "y": 87.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 70,
+        "y": 87.75
+      },
+      "b": {
+        "x": 67.25,
+        "y": 90.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 67.25,
+        "y": 90.5
+      },
+      "b": {
+        "x": 52.5,
+        "y": 90.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 52.5,
+        "y": 90.5
+      },
+      "b": {
+        "x": 51,
+        "y": 92
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 51,
+        "y": 92
+      },
+      "b": {
+        "x": 51,
+        "y": 92.65
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 51,
+        "y": 94.75
+      },
+      "b": {
+        "x": 50.398959,
+        "y": 95.351041
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 45,
+        "y": 100.75
+      },
+      "b": {
+        "x": 45,
+        "y": 121.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 21.25,
+        "y": 64
+      },
+      "b": {
+        "x": 38,
+        "y": 80.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 38,
+        "y": 80.75
+      },
+      "b": {
+        "x": 38,
+        "y": 81.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 36.75,
+        "y": 79.5
+      },
+      "b": {
+        "x": 38.75,
+        "y": 77.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 64.5,
+        "y": 51.75
+      },
+      "b": {
+        "x": 71,
+        "y": 51.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 61.75,
+        "y": 38.25
+      },
+      "b": {
+        "x": 60.5,
+        "y": 38.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 60.5,
+        "y": 38.25
+      },
+      "b": {
+        "x": 57.25,
+        "y": 35
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 227.5,
+        "y": 103
+      },
+      "b": {
+        "x": 218,
+        "y": 103
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 210,
+        "y": 116.75
+      },
+      "b": {
+        "x": 210.345,
+        "y": 116.75
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 210.345,
+        "y": 116.75
+      },
+      "b": {
+        "x": 211.25,
+        "y": 116.75
+      },
+      "layer": 0,
+      "width": 1.15
+    },
+    {
+      "a": {
+        "x": 211.25,
+        "y": 116.75
+      },
+      "b": {
+        "x": 212.25,
+        "y": 117.75
+      },
+      "layer": 0,
+      "width": 1.15
+    },
+    {
+      "a": {
+        "x": 210,
+        "y": 130.5
+      },
+      "b": {
+        "x": 210.53,
+        "y": 131.03
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 210.53,
+        "y": 131.03
+      },
+      "b": {
+        "x": 212.5,
+        "y": 133
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 213,
+        "y": 133.25
+      },
+      "b": {
+        "x": 214.5,
+        "y": 133.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 214.5,
+        "y": 133.25
+      },
+      "b": {
+        "x": 214.82,
+        "y": 133.57
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 214.82,
+        "y": 133.57
+      },
+      "b": {
+        "x": 221.25,
+        "y": 140
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 221.25,
+        "y": 140
+      },
+      "b": {
+        "x": 221.25,
+        "y": 142
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 221.25,
+        "y": 142
+      },
+      "b": {
+        "x": 223,
+        "y": 143.75
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 223,
+        "y": 143.75
+      },
+      "b": {
+        "x": 226.25,
+        "y": 143.75
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 226.25,
+        "y": 143.75
+      },
+      "b": {
+        "x": 226.65,
+        "y": 143.35
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 226.65,
+        "y": 143.35
+      },
+      "b": {
+        "x": 228.5,
+        "y": 141.5
+      },
+      "layer": 0,
+      "width": 2.2
+    },
+    {
+      "a": {
+        "x": 230,
+        "y": 141
+      },
+      "b": {
+        "x": 231.95,
+        "y": 141
+      },
+      "layer": 0,
+      "width": 2.2
+    },
+    {
+      "a": {
+        "x": 231.95,
+        "y": 141
+      },
+      "b": {
+        "x": 238.5,
+        "y": 141
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 239.5,
+)sieda",
+        R"sieda(        "y": 137
+      },
+      "b": {
+        "x": 247,
+        "y": 137
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 247,
+        "y": 137
+      },
+      "b": {
+        "x": 248.25,
+        "y": 138.25
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 248.25,
+        "y": 138.25
+      },
+      "b": {
+        "x": 250,
+        "y": 140
+      },
+      "layer": 0,
+      "width": 2.2
+    },
+    {
+      "a": {
+        "x": 251.75,
+        "y": 141.5
+      },
+      "b": {
+        "x": 253.55,
+        "y": 143.3
+      },
+      "layer": 0,
+      "width": 2.2
+    },
+    {
+      "a": {
+        "x": 253.55,
+        "y": 143.3
+      },
+      "b": {
+        "x": 263.25,
+        "y": 153
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 263.25,
+        "y": 153
+      },
+      "b": {
+        "x": 263.25,
+        "y": 157.17
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 263.25,
+        "y": 157.17
+      },
+      "b": {
+        "x": 263.25,
+        "y": 159
+      },
+      "layer": 0,
+      "width": 2.4
+    },
+    {
+      "a": {
+        "x": 21,
+        "y": 122.75
+      },
+      "b": {
+        "x": 38.75,
+        "y": 122.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 38.75,
+        "y": 122.75
+      },
+      "b": {
+        "x": 52.5,
+        "y": 136.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 63.75,
+        "y": 147.75
+      },
+      "b": {
+        "x": 67.25,
+        "y": 147.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 67.25,
+        "y": 147.75
+      },
+      "b": {
+        "x": 77.25,
+        "y": 157.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 78.5,
+        "y": 159.75
+      },
+      "b": {
+        "x": 91.25,
+        "y": 159.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 197,
+        "y": 120.75
+      },
+      "b": {
+        "x": 197,
+        "y": 117
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125,
+        "y": 75.25
+      },
+      "b": {
+        "x": 125.5,
+        "y": 74.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125.5,
+        "y": 74.75
+      },
+      "b": {
+        "x": 125.5,
+        "y": 71
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125.5,
+        "y": 71
+      },
+      "b": {
+        "x": 127.75,
+        "y": 68.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 113
+      },
+      "b": {
+        "x": 202.75,
+        "y": 113
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 113
+      },
+      "b": {
+        "x": 203.25,
+        "y": 112.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.25,
+        "y": 112.5
+      },
+      "b": {
+        "x": 203.25,
+        "y": 108.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 203.25,
+        "y": 108.25
+      },
+      "b": {
+        "x": 202.5,
+        "y": 107.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 195.75,
+        "y": 109.75
+      },
+      "b": {
+        "x": 193.5,
+        "y": 109.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.25,
+        "y": 163
+      },
+      "b": {
+        "x": 223.5,
+        "y": 163
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 223.5,
+        "y": 163
+      },
+      "b": {
+        "x": 223.75,
+        "y": 163.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221.75,
+        "y": 163
+      },
+      "b": {
+        "x": 221.75,
+        "y": 155.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 224.5,
+        "y": 161.75
+      },
+      "b": {
+        "x": 232.5,
+        "y": 161.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 237.5,
+        "y": 166.75
+      },
+      "b": {
+        "x": 239,
+        "y": 166.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 239,
+        "y": 166.75
+      },
+      "b": {
+        "x": 239.25,
+        "y": 166.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 129,
+        "y": 75.75
+      },
+      "b": {
+        "x": 127.75,
+        "y": 75.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 126.75,
+        "y": 76.5
+      },
+      "b": {
+        "x": 126,
+        "y": 77.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 126,
+        "y": 77.25
+      },
+      "b": {
+        "x": 126,
+        "y": 78
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 126,
+        "y": 78
+      },
+      "b": {
+        "x": 125.25,
+        "y": 78.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125.25,
+        "y": 78.75
+      },
+      "b": {
+        "x": 117,
+        "y": 78.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125.25,
+        "y": 78.75
+      },
+      "b": {
+        "x": 131,
+        "y": 84.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 131,
+        "y": 84.5
+      },
+      "b": {
+        "x": 131,
+        "y": 86.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 67.5,
+        "y": 159.25
+      },
+      "b": {
+        "x": 67.5,
+        "y": 157.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 67.5,
+        "y": 157.25
+      },
+      "b": {
+        "x": 65.25,
+        "y": 155
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 65.25,
+        "y": 155
+      },
+      "b": {
+        "x": 65.25,
+        "y": 153.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 65.25,
+        "y": 153.5
+      },
+      "b": {
+        "x": 66,
+        "y": 152.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 66,
+        "y": 152.75
+      },
+      "b": {
+        "x": 67.5,
+        "y": 152.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 67.5,
+        "y": 152.75
+      },
+      "b": {
+        "x": 69,
+        "y": 154.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.25,
+        "y": 149
+      },
+      "b": {
+        "x": 88,
+        "y": 149
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 54.5,
+        "y": 93.5
+      },
+      "b": {
+        "x": 75.75,
+        "y": 93.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 80.5,
+        "y": 87.5
+      },
+      "b": {
+        "x": 78,
+        "y": 85
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.75,
+        "y": 160.5
+      },
+      "b": {
+        "x": 206.25,
+        "y": 154
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 206.25,
+        "y": 154
+      },
+      "b": {
+        "x": 206.25,
+        "y": 149.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 206,
+        "y": 148.5
+      },
+      "b": {
+        "x": 198.25,
+        "y": 140.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 188.25,
+        "y": 144.75
+      },
+      "b": {
+        "x": 183.294449,
+        "y": 144.772898
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+    )sieda",
+        R"sieda(  "a": {
+        "x": 183.294449,
+        "y": 144.772898
+      },
+      "b": {
+        "x": 182.044449,
+        "y": 146.022898
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 182.044449,
+        "y": 146.022898
+      },
+      "b": {
+        "x": 180.200107,
+        "y": 146.003264
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 180.200107,
+        "y": 146.003264
+      },
+      "b": {
+        "x": 177.700107,
+        "y": 143.503264
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 177.700107,
+        "y": 143.503264
+      },
+      "b": {
+        "x": 177.75,
+        "y": 128.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 177.75,
+        "y": 128.25
+      },
+      "b": {
+        "x": 180.25,
+        "y": 125.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 180,
+        "y": 125.25
+      },
+      "b": {
+        "x": 179.5,
+        "y": 124.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179.5,
+        "y": 124.75
+      },
+      "b": {
+        "x": 179.25,
+        "y": 124.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179.25,
+        "y": 124.75
+      },
+      "b": {
+        "x": 178,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 178,
+        "y": 118.25
+      },
+      "b": {
+        "x": 180.5,
+        "y": 115.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.75,
+        "y": 161.75
+      },
+      "b": {
+        "x": 214.25,
+        "y": 161.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 161.75
+      },
+      "b": {
+        "x": 214.75,
+        "y": 161.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.75,
+        "y": 161.25
+      },
+      "b": {
+        "x": 214.75,
+        "y": 155.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.75,
+        "y": 155.75
+      },
+      "b": {
+        "x": 208.25,
+        "y": 149.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 210,
+        "y": 137.75
+      },
+      "b": {
+        "x": 212.5,
+        "y": 135.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.25,
+        "y": 134.75
+      },
+      "b": {
+        "x": 211,
+        "y": 134.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 211,
+        "y": 134.75
+      },
+      "b": {
+        "x": 208,
+        "y": 131.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 208,
+        "y": 131.75
+      },
+      "b": {
+        "x": 208,
+        "y": 129.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 208,
+        "y": 129.5
+      },
+      "b": {
+        "x": 209.5,
+        "y": 128
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 209.5,
+        "y": 128
+      },
+      "b": {
+        "x": 210.65,
+        "y": 128
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 189,
+        "y": 142.5
+      },
+      "b": {
+        "x": 190.25,
+        "y": 143.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.25,
+        "y": 143.75
+      },
+      "b": {
+        "x": 190.320489,
+        "y": 145.382406
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 190.320489,
+        "y": 145.382406
+      },
+      "b": {
+        "x": 188.820489,
+        "y": 146.882406
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 188.820489,
+        "y": 146.882406
+      },
+      "b": {
+        "x": 179.75,
+        "y": 146.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 179.75,
+        "y": 146.75
+      },
+      "b": {
+        "x": 176.25,
+        "y": 143.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 176.25,
+        "y": 115.5
+      },
+      "b": {
+        "x": 180.5,
+        "y": 111.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 145,
+        "y": 37.5
+      },
+      "b": {
+        "x": 139,
+        "y": 37.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 139,
+        "y": 37.5
+      },
+      "b": {
+        "x": 136,
+        "y": 34.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 136,
+        "y": 34.5
+      },
+      "b": {
+        "x": 130.75,
+        "y": 34.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 130.75,
+        "y": 57.25
+      },
+      "b": {
+        "x": 127.5,
+        "y": 60.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 43.75,
+        "y": 137.25
+      },
+      "b": {
+        "x": 22.75,
+        "y": 137.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 22.75,
+        "y": 137.25
+      },
+      "b": {
+        "x": 21,
+        "y": 135.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 21,
+        "y": 135.5
+      },
+      "b": {
+        "x": 18.75,
+        "y": 135.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 18.75,
+        "y": 135.5
+      },
+      "b": {
+        "x": 18,
+        "y": 136.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 18,
+        "y": 136.25
+      },
+      "b": {
+        "x": 18,
+        "y": 138.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 18,
+        "y": 138.75
+      },
+      "b": {
+        "x": 24,
+        "y": 144.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 24,
+        "y": 144.75
+      },
+      "b": {
+        "x": 71.75,
+        "y": 144.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.5,
+        "y": 147
+      },
+      "b": {
+        "x": 85.5,
+        "y": 144.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.5,
+        "y": 144.75
+      },
+      "b": {
+        "x": 87,
+        "y": 143.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87,
+        "y": 143.25
+      },
+      "b": {
+        "x": 87,
+        "y": 142
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87,
+        "y": 142
+      },
+      "b": {
+        "x": 86.75,
+        "y": 141.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.75,
+        "y": 141.75
+      },
+      "b": {
+        "x": 86.75,
+        "y": 141.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.75,
+        "y": 141.5
+      },
+      "b": {
+        "x": 86.5,
+        "y": 141.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.5,
+        "y": 141.5
+      },
+      "b": {
+        "x": 86.5,
+        "y": 141.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.5,
+        "y": 141.25
+      },
+      "b": {
+        "x": 86.25,
+        "y": 141.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.25,
+        "y": 141.25
+      },
+      "b": {
+        "x": 85.75,
+        "y": 140.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 109,
+        "y": 39.25
+      },
+      "b": {
+        "x": 105.25,
+        "y": 43
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+     )sieda",
+        R"sieda( "a": {
+        "x": 105.25,
+        "y": 43
+      },
+      "b": {
+        "x": 105.25,
+        "y": 43.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 105.25,
+        "y": 43.25
+      },
+      "b": {
+        "x": 102.75,
+        "y": 45.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 102.75,
+        "y": 45.75
+      },
+      "b": {
+        "x": 102.75,
+        "y": 61.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 102.75,
+        "y": 61.5
+      },
+      "b": {
+        "x": 105.5,
+        "y": 64.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114.25,
+        "y": 68.25
+      },
+      "b": {
+        "x": 125.75,
+        "y": 68.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201.75,
+        "y": 54.75
+      },
+      "b": {
+        "x": 206.75,
+        "y": 59.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 207.25,
+        "y": 62.75
+      },
+      "b": {
+        "x": 209,
+        "y": 62.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 209,
+        "y": 62.75
+      },
+      "b": {
+        "x": 212.25,
+        "y": 66
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.5,
+        "y": 70.25
+      },
+      "b": {
+        "x": 226.5,
+        "y": 56.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 226.5,
+        "y": 56.25
+      },
+      "b": {
+        "x": 226.5,
+        "y": 55
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 227.25,
+        "y": 53.25
+      },
+      "b": {
+        "x": 229.75,
+        "y": 50.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 229.75,
+        "y": 50.75
+      },
+      "b": {
+        "x": 229.75,
+        "y": 37
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 181.75,
+        "y": 38.5
+      },
+      "b": {
+        "x": 184.75,
+        "y": 38.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 184.75,
+        "y": 38.5
+      },
+      "b": {
+        "x": 198.75,
+        "y": 52.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 198.75,
+        "y": 52.5
+      },
+      "b": {
+        "x": 209.75,
+        "y": 52.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 209.75,
+        "y": 52.5
+      },
+      "b": {
+        "x": 211,
+        "y": 53.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.25,
+        "y": 161.75
+      },
+      "b": {
+        "x": 219.75,
+        "y": 161.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.75,
+        "y": 161.75
+      },
+      "b": {
+        "x": 220,
+        "y": 161.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 220,
+        "y": 161.5
+      },
+      "b": {
+        "x": 220,
+        "y": 155.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.5,
+        "y": 154.75
+      },
+      "b": {
+        "x": 217.5,
+        "y": 154.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217.5,
+        "y": 154.75
+      },
+      "b": {
+        "x": 199,
+        "y": 136.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 199,
+        "y": 136.25
+      },
+      "b": {
+        "x": 198.25,
+        "y": 136.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 109.25,
+        "y": 34.5
+      },
+      "b": {
+        "x": 102,
+        "y": 41.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 102,
+        "y": 41.75
+      },
+      "b": {
+        "x": 102,
+        "y": 63
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 102,
+        "y": 63
+      },
+      "b": {
+        "x": 106.5,
+        "y": 67.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 70.25
+      },
+      "b": {
+        "x": 124,
+        "y": 70.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 132.25,
+        "y": 54
+      },
+      "b": {
+        "x": 125.75,
+        "y": 47.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 125.75,
+        "y": 47.5
+      },
+      "b": {
+        "x": 120.5,
+        "y": 47.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 120.5,
+        "y": 47.5
+      },
+      "b": {
+        "x": 118.25,
+        "y": 49.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 83.75
+      },
+      "b": {
+        "x": 118,
+        "y": 86.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 127.5,
+        "y": 51.5
+      },
+      "b": {
+        "x": 138,
+        "y": 62
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 154.75,
+        "y": 63
+      },
+      "b": {
+        "x": 154,
+        "y": 62.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 154,
+        "y": 62.25
+      },
+      "b": {
+        "x": 154,
+        "y": 38.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 154,
+        "y": 38.25
+      },
+      "b": {
+        "x": 140.5,
+        "y": 24.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 140.5,
+        "y": 24.75
+      },
+      "b": {
+        "x": 118.75,
+        "y": 24.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 118.75,
+        "y": 24.75
+      },
+      "b": {
+        "x": 116,
+        "y": 27.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 126.25,
+        "y": 82
+      },
+      "b": {
+        "x": 112.75,
+        "y": 82
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 112.75,
+        "y": 82
+      },
+      "b": {
+        "x": 109.25,
+        "y": 78.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111.75,
+        "y": 81
+      },
+      "b": {
+        "x": 110.25,
+        "y": 82.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 86.25
+      },
+      "b": {
+        "x": 93,
+        "y": 86.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 6,
+        "y": 29
+      },
+      "b": {
+        "x": 5,
+        "y": 28
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 5,
+        "y": 28
+      },
+      "b": {
+        "x": 4.5,
+        "y": 28
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 4.5,
+        "y": 28
+      },
+      "b": {
+        "x": 2.75,
+        "y": 26.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 2.75,
+        "y": 26.25
+      },
+      "b": {
+        "x": 2.75,
+        "y": 12
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 2.75,
+        "y": 12
+      },
+      "b": {
+        "x": 6,
+        "y": 8.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 7.5,
+        "y": 30
+      },
+      "b": {
+        "x": 24.5,
+        "y": 30
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 24.5,
+        "y": 30
+      },
+      "b": {
+        "x": 35.75,
+        "y": 41.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 35.75,
+)sieda",
+        R"sieda(        "y": 41.25
+      },
+      "b": {
+        "x": 44.25,
+        "y": 41.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 44.25,
+        "y": 41.25
+      },
+      "b": {
+        "x": 58,
+        "y": 27.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 58,
+        "y": 27.5
+      },
+      "b": {
+        "x": 71.25,
+        "y": 27.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72,
+        "y": 27.5
+      },
+      "b": {
+        "x": 73.25,
+        "y": 28.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.25,
+        "y": 28.75
+      },
+      "b": {
+        "x": 73.75,
+        "y": 28.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.75,
+        "y": 28.75
+      },
+      "b": {
+        "x": 75.25,
+        "y": 30.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 75.25,
+        "y": 30.25
+      },
+      "b": {
+        "x": 75.25,
+        "y": 42
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 75.25,
+        "y": 42
+      },
+      "b": {
+        "x": 71.5,
+        "y": 45.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 218.75,
+        "y": 164.25
+      },
+      "b": {
+        "x": 217.75,
+        "y": 164.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217.75,
+        "y": 164.25
+      },
+      "b": {
+        "x": 217.25,
+        "y": 163.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217.25,
+        "y": 163.75
+      },
+      "b": {
+        "x": 217.25,
+        "y": 158.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 218.5,
+        "y": 122
+      },
+      "b": {
+        "x": 219,
+        "y": 122
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219,
+        "y": 122
+      },
+      "b": {
+        "x": 220.5,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 232.25,
+        "y": 117.75
+      },
+      "b": {
+        "x": 233.25,
+        "y": 117.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 233.25,
+        "y": 117.75
+      },
+      "b": {
+        "x": 262.75,
+        "y": 88.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.75,
+        "y": 163
+      },
+      "b": {
+        "x": 212.25,
+        "y": 163
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.25,
+        "y": 163
+      },
+      "b": {
+        "x": 211,
+        "y": 161.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.5,
+        "y": 125.25
+      },
+      "b": {
+        "x": 214.25,
+        "y": 124.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 124.5
+      },
+      "b": {
+        "x": 214.25,
+        "y": 124.4
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.75,
+        "y": 127.5
+      },
+      "b": {
+        "x": 227,
+        "y": 127.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 230.25,
+        "y": 124.25
+      },
+      "b": {
+        "x": 231,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 231,
+        "y": 123.5
+      },
+      "b": {
+        "x": 232.5,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 232.5,
+        "y": 123.5
+      },
+      "b": {
+        "x": 264.75,
+        "y": 91.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 264.75,
+        "y": 91.25
+      },
+      "b": {
+        "x": 264.75,
+        "y": 87.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 264.75,
+        "y": 87.25
+      },
+      "b": {
+        "x": 263.25,
+        "y": 85.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 25,
+        "y": 10.5
+      },
+      "b": {
+        "x": 39,
+        "y": 10.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 39,
+        "y": 10.5
+      },
+      "b": {
+        "x": 43.5,
+        "y": 6
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 43.5,
+        "y": 6
+      },
+      "b": {
+        "x": 49.25,
+        "y": 6
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 49.25,
+        "y": 6
+      },
+      "b": {
+        "x": 51.25,
+        "y": 8
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 51.25,
+        "y": 8
+      },
+      "b": {
+        "x": 51.25,
+        "y": 15
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 51.25,
+        "y": 15
+      },
+      "b": {
+        "x": 41.25,
+        "y": 25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 40.75,
+        "y": 26.25
+      },
+      "b": {
+        "x": 36.25,
+        "y": 30.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 24,
+        "y": 43
+      },
+      "b": {
+        "x": 21.75,
+        "y": 43
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 21.75,
+        "y": 43
+      },
+      "b": {
+        "x": 16,
+        "y": 48.75
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 16,
+        "y": 48.75
+      },
+      "b": {
+        "x": 16,
+        "y": 52.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 16,
+        "y": 52.5
+      },
+      "b": {
+        "x": 18.75,
+        "y": 55.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 18.75,
+        "y": 55.25
+      },
+      "b": {
+        "x": 26,
+        "y": 55.25
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 26,
+        "y": 55.25
+      },
+      "b": {
+        "x": 29.75,
+        "y": 51.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 51.25,
+        "y": 8
+      },
+      "b": {
+        "x": 61.5,
+        "y": 8
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 61.5,
+        "y": 8
+      },
+      "b": {
+        "x": 63,
+        "y": 6.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 63,
+        "y": 6.5
+      },
+      "b": {
+        "x": 68,
+        "y": 6.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 68,
+        "y": 6.5
+      },
+      "b": {
+        "x": 72,
+        "y": 10.5
+      },
+      "layer": 0,
+      "width": 1.5
+    },
+    {
+      "a": {
+        "x": 262.25,
+        "y": 165
+      },
+      "b": {
+        "x": 260.5,
+        "y": 165
+      },
+      "layer": 0,
+      "width": 2.4
+    },
+    {
+      "a": {
+        "x": 260.5,
+        "y": 165
+      },
+      "b": {
+        "x": 255,
+        "y": 165
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 255,
+        "y": 165
+      },
+      "b": {
+        "x": 254,
+        "y": 164
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 254,
+        "y": 164
+      },
+      "b": {
+        "x": 253.55,
+        "y": 164
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 253.55,
+        "y": 164
+      },
+      "b": {
+        "x": 251.75,
+        "y": 164
+      },
+      "layer": 0,
+      "width": 1.15
+    },
+    {
+      "a": {
+        "x": 254,
+        "y": 164
+      },
+      "b": {
+        "x": 254,
+        "y")sieda",
+        R"sieda(: 162.5
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 254,
+        "y": 162.5
+      },
+      "b": {
+        "x": 256.5,
+        "y": 160
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 256.5,
+        "y": 160
+      },
+      "b": {
+        "x": 256.5,
+        "y": 158
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 256.5,
+        "y": 158
+      },
+      "b": {
+        "x": 255.5,
+        "y": 157
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 255.5,
+        "y": 157
+      },
+      "b": {
+        "x": 250.5,
+        "y": 157
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 250.5,
+        "y": 157
+      },
+      "b": {
+        "x": 250.27,
+        "y": 157.23
+      },
+      "layer": 0,
+      "width": 2.5
+    },
+    {
+      "a": {
+        "x": 250.27,
+        "y": 157.23
+      },
+      "b": {
+        "x": 248.5,
+        "y": 159
+      },
+      "layer": 0,
+      "width": 0.6
+    },
+    {
+      "a": {
+        "x": 167.75,
+        "y": 78.5
+      },
+      "b": {
+        "x": 186.25,
+        "y": 78.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.75,
+        "y": 70
+      },
+      "b": {
+        "x": 201.5,
+        "y": 63.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.75,
+        "y": 46.25
+      },
+      "b": {
+        "x": 210.75,
+        "y": 30.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 210.75,
+        "y": 30.25
+      },
+      "b": {
+        "x": 212.75,
+        "y": 30.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 212.75,
+        "y": 30.25
+      },
+      "b": {
+        "x": 213.5,
+        "y": 31
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.5,
+        "y": 31
+      },
+      "b": {
+        "x": 213.5,
+        "y": 33
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.5,
+        "y": 33
+      },
+      "b": {
+        "x": 214.5,
+        "y": 34
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.5,
+        "y": 34
+      },
+      "b": {
+        "x": 215.5,
+        "y": 34
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 34
+      },
+      "b": {
+        "x": 216.25,
+        "y": 34.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213.25,
+        "y": 30.75
+      },
+      "b": {
+        "x": 215,
+        "y": 29
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.5,
+        "y": 29
+      },
+      "b": {
+        "x": 218.5,
+        "y": 30
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 218.5,
+        "y": 30
+      },
+      "b": {
+        "x": 218.5,
+        "y": 30.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 51,
+        "y": 92.65
+      },
+      "b": {
+        "x": 51,
+        "y": 93.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 50.398959,
+        "y": 95.351041
+      },
+      "b": {
+        "x": 45,
+        "y": 100.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 122.25,
+        "y": 110.5
+      },
+      "b": {
+        "x": 117,
+        "y": 110.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117,
+        "y": 110.5
+      },
+      "b": {
+        "x": 114.75,
+        "y": 108.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114.75,
+        "y": 108.25
+      },
+      "b": {
+        "x": 99.25,
+        "y": 108.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 99.25,
+        "y": 108.25
+      },
+      "b": {
+        "x": 96.25,
+        "y": 111.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 33.5,
+        "y": 83.75
+      },
+      "b": {
+        "x": 33.75,
+        "y": 84
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 33.75,
+        "y": 84
+      },
+      "b": {
+        "x": 33.75,
+        "y": 84.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 33.75,
+        "y": 84.75
+      },
+      "b": {
+        "x": 36,
+        "y": 87
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 36,
+        "y": 87
+      },
+      "b": {
+        "x": 65.75,
+        "y": 87
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 65.75,
+        "y": 87
+      },
+      "b": {
+        "x": 67.25,
+        "y": 85.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 68,
+        "y": 85
+      },
+      "b": {
+        "x": 70.75,
+        "y": 82.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 70.75,
+        "y": 82.25
+      },
+      "b": {
+        "x": 91.25,
+        "y": 82.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 91.25,
+        "y": 82.25
+      },
+      "b": {
+        "x": 92,
+        "y": 83
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 93,
+        "y": 83.25
+      },
+      "b": {
+        "x": 101.25,
+        "y": 83.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 101.25,
+        "y": 83.25
+      },
+      "b": {
+        "x": 105.75,
+        "y": 78.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 77
+      },
+      "b": {
+        "x": 107,
+        "y": 76.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 107,
+        "y": 76.5
+      },
+      "b": {
+        "x": 107,
+        "y": 76
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 107,
+        "y": 76
+      },
+      "b": {
+        "x": 111.75,
+        "y": 71.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111.75,
+        "y": 71.25
+      },
+      "b": {
+        "x": 108,
+        "y": 67.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 108,
+        "y": 67.5
+      },
+      "b": {
+        "x": 108,
+        "y": 65.6
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 103.5,
+        "y": 81
+      },
+      "b": {
+        "x": 111.042893,
+        "y": 88.542893
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 112.75,
+        "y": 89.75
+      },
+      "b": {
+        "x": 113.5,
+        "y": 89.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 114,
+        "y": 89.75
+      },
+      "b": {
+        "x": 115.257538,
+        "y": 91.007538
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115.75,
+        "y": 91.5
+      },
+      "b": {
+        "x": 116.244975,
+        "y": 91.005025
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 110.5,
+        "y": 88
+      },
+      "b": {
+        "x": 107.242462,
+        "y": 91.257538
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 92.25
+      },
+      "b": {
+        "x": 106.5,
+        "y": 93.2
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 96
+      },
+      "b": {
+        "x": 106.5,
+        "y": 96.9
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 115.75,
+        "y": 92.25
+      },
+      "b": {
+        "x": 115.75,
+        "y": )sieda",
+        R"sieda(93.2
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 115.75,
+        "y": 99
+      },
+      "b": {
+        "x": 115.042893,
+        "y": 99.707107
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 99.75
+      },
+      "b": {
+        "x": 115,
+        "y": 104.1
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 105.75
+      },
+      "b": {
+        "x": 115,
+        "y": 106.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 106.25
+      },
+      "b": {
+        "x": 116.25,
+        "y": 107.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114,
+        "y": 109.75
+      },
+      "b": {
+        "x": 114,
+        "y": 110.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 118.5,
+        "y": 89.25
+      },
+      "b": {
+        "x": 119.3,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 107.75,
+        "y": 64.5
+      },
+      "b": {
+        "x": 107,
+        "y": 63.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 107,
+        "y": 63.75
+      },
+      "b": {
+        "x": 106.75,
+        "y": 63.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.75,
+        "y": 63.75
+      },
+      "b": {
+        "x": 106.75,
+        "y": 62.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.75,
+        "y": 62.75
+      },
+      "b": {
+        "x": 103.5,
+        "y": 59.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 103.5,
+        "y": 59.5
+      },
+      "b": {
+        "x": 103.5,
+        "y": 46.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 103.5,
+        "y": 46.25
+      },
+      "b": {
+        "x": 107.75,
+        "y": 42
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 107.75,
+        "y": 42
+      },
+      "b": {
+        "x": 109.25,
+        "y": 42
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 110,
+        "y": 41.5
+      },
+      "b": {
+        "x": 112.25,
+        "y": 41.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 112.25,
+        "y": 41.5
+      },
+      "b": {
+        "x": 116.75,
+        "y": 37
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.75,
+        "y": 36.5
+      },
+      "b": {
+        "x": 120.5,
+        "y": 36.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 120.5,
+        "y": 36.5
+      },
+      "b": {
+        "x": 121.25,
+        "y": 35.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 121.25,
+        "y": 35.75
+      },
+      "b": {
+        "x": 122.25,
+        "y": 35.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 129.25,
+        "y": 33
+      },
+      "b": {
+        "x": 144.75,
+        "y": 33
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114,
+        "y": 112.25
+      },
+      "b": {
+        "x": 114.707107,
+        "y": 112.957107
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 121.75,
+        "y": 120
+      },
+      "b": {
+        "x": 121.75,
+        "y": 139.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.25,
+        "y": 99
+      },
+      "b": {
+        "x": 105.542893,
+        "y": 99.707107
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 95,
+        "y": 110.25
+      },
+      "b": {
+        "x": 94.25,
+        "y": 110.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 94.25,
+        "y": 110.25
+      },
+      "b": {
+        "x": 85.5,
+        "y": 119
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.5,
+        "y": 119
+      },
+      "b": {
+        "x": 85.25,
+        "y": 119
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.25,
+        "y": 119
+      },
+      "b": {
+        "x": 85.25,
+        "y": 119.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.25,
+        "y": 119.5
+      },
+      "b": {
+        "x": 85,
+        "y": 119.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85,
+        "y": 120.75
+      },
+      "b": {
+        "x": 84.5,
+        "y": 121.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.5,
+        "y": 121.25
+      },
+      "b": {
+        "x": 84.5,
+        "y": 124.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.5,
+        "y": 124.5
+      },
+      "b": {
+        "x": 73.921751,
+        "y": 135.078249
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.5,
+        "y": 136.5
+      },
+      "b": {
+        "x": 74.136396,
+        "y": 137.136396
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 78,
+        "y": 141
+      },
+      "b": {
+        "x": 78,
+        "y": 143.45
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 78.25,
+        "y": 145
+      },
+      "b": {
+        "x": 79.05,
+        "y": 145
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 80.5,
+        "y": 145
+      },
+      "b": {
+        "x": 82.5,
+        "y": 147
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 131.5,
+        "y": 89.25
+      },
+      "b": {
+        "x": 132.4,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 148.25,
+        "y": 89.25
+      },
+      "b": {
+        "x": 159,
+        "y": 78.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 121.75,
+        "y": 123.25
+      },
+      "b": {
+        "x": 122.75,
+        "y": 123.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 129.75,
+        "y": 123.25
+      },
+      "b": {
+        "x": 157,
+        "y": 123.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 157,
+        "y": 123.25
+      },
+      "b": {
+        "x": 157.75,
+        "y": 124
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.25,
+        "y": 136.5
+      },
+      "b": {
+        "x": 72.613604,
+        "y": 137.136396
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 70.25,
+        "y": 139.5
+      },
+      "b": {
+        "x": 22,
+        "y": 139.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 22,
+        "y": 139.5
+      },
+      "b": {
+        "x": 20.75,
+        "y": 138.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115.257538,
+        "y": 91.007538
+      },
+      "b": {
+        "x": 116,
+        "y": 91.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 116.244975,
+        "y": 91.005025
+      },
+      "b": {
+        "x": 117.434315,
+        "y": 89.815685
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115.75,
+        "y": 93.2
+      },
+      "b": {
+        "x": 115.75,
+        "y": 97.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115.042893,
+        "y": 99.707107
+      },
+      "b": {
+        "x": 115,
+        "y": 99.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+    )sieda",
+        R"sieda(  "a": {
+        "x": 115.75,
+        "y": 97.5
+      },
+      "b": {
+        "x": 115.75,
+        "y": 98.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 78,
+        "y": 143.45
+      },
+      "b": {
+        "x": 78,
+        "y": 144.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 79.05,
+        "y": 145
+      },
+      "b": {
+        "x": 80.5,
+        "y": 145
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 104.1
+      },
+      "b": {
+        "x": 115,
+        "y": 105
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 107.242462,
+        "y": 91.257538
+      },
+      "b": {
+        "x": 106.5,
+        "y": 92
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 93.2
+      },
+      "b": {
+        "x": 106.5,
+        "y": 94
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.921751,
+        "y": 135.078249
+      },
+      "b": {
+        "x": 73.25,
+        "y": 135.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 74.136396,
+        "y": 137.136396
+      },
+      "b": {
+        "x": 78,
+        "y": 141
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72.613604,
+        "y": 137.136396
+      },
+      "b": {
+        "x": 70.25,
+        "y": 139.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 97.5
+      },
+      "b": {
+        "x": 106.5,
+        "y": 98.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 105.542893,
+        "y": 99.707107
+      },
+      "b": {
+        "x": 95,
+        "y": 110.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114,
+        "y": 110.75
+      },
+      "b": {
+        "x": 114,
+        "y": 111.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 114.707107,
+        "y": 112.957107
+      },
+      "b": {
+        "x": 121.75,
+        "y": 120
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 96.9
+      },
+      "b": {
+        "x": 106.5,
+        "y": 97.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106.5,
+        "y": 94
+      },
+      "b": {
+        "x": 106.5,
+        "y": 94.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 111.042893,
+        "y": 88.542893
+      },
+      "b": {
+        "x": 111.75,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 113.5,
+        "y": 89.75
+      },
+      "b": {
+        "x": 114,
+        "y": 89.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82.5,
+        "y": 114.5
+      },
+      "b": {
+        "x": 82.5,
+        "y": 112
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82.5,
+        "y": 112
+      },
+      "b": {
+        "x": 87.5,
+        "y": 107
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 107
+      },
+      "b": {
+        "x": 89.75,
+        "y": 107
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 89.75,
+        "y": 107
+      },
+      "b": {
+        "x": 104.5,
+        "y": 92.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111,
+        "y": 104.25
+      },
+      "b": {
+        "x": 111.75,
+        "y": 104.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111.75,
+        "y": 104.25
+      },
+      "b": {
+        "x": 112.75,
+        "y": 105.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.25,
+        "y": 115.25
+      },
+      "b": {
+        "x": 86,
+        "y": 115.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86,
+        "y": 115.5
+      },
+      "b": {
+        "x": 86,
+        "y": 116
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86,
+        "y": 116
+      },
+      "b": {
+        "x": 85.5,
+        "y": 116.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.5,
+        "y": 116.5
+      },
+      "b": {
+        "x": 72.75,
+        "y": 116.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.75,
+        "y": 120.75
+      },
+      "b": {
+        "x": 83.75,
+        "y": 123
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.75,
+        "y": 123
+      },
+      "b": {
+        "x": 81.25,
+        "y": 125.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.25,
+        "y": 133.75
+      },
+      "b": {
+        "x": 87.5,
+        "y": 140
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.75,
+        "y": 114.5
+      },
+      "b": {
+        "x": 83.75,
+        "y": 113.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.75,
+        "y": 113.25
+      },
+      "b": {
+        "x": 84,
+        "y": 113
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.25,
+        "y": 138.25
+      },
+      "b": {
+        "x": 81.5,
+        "y": 140
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.25,
+        "y": 120.75
+      },
+      "b": {
+        "x": 86.25,
+        "y": 137
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 86.25,
+        "y": 137
+      },
+      "b": {
+        "x": 88.5,
+        "y": 139.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 88.5,
+        "y": 139.25
+      },
+      "b": {
+        "x": 88.5,
+        "y": 146.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.25,
+        "y": 114.5
+      },
+      "b": {
+        "x": 81.25,
+        "y": 113.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.25,
+        "y": 113.5
+      },
+      "b": {
+        "x": 81,
+        "y": 113.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72.75,
+        "y": 134
+      },
+      "b": {
+        "x": 71.5,
+        "y": 135.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 71.5,
+        "y": 135.25
+      },
+      "b": {
+        "x": 71.5,
+        "y": 135.75
+      },
+      "layer": 0,
+      "width": 0.486667
+    },
+    {
+      "a": {
+        "x": 80,
+        "y": 114.75
+      },
+      "b": {
+        "x": 79.5,
+        "y": 114.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 92.25,
+        "y": 114.5
+      },
+      "b": {
+        "x": 95.5,
+        "y": 114.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 101.5,
+        "y": 101.25
+      },
+      "b": {
+        "x": 104.25,
+        "y": 98.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82.5,
+        "y": 120.75
+      },
+      "b": {
+        "x": 82,
+        "y": 121.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82,
+        "y": 121.25
+      },
+      "b": {
+        "x": 82,
+        "y": 122.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82,
+        "y": 122.5
+      },
+      "b": {
+        "x": 74.25,
+        "y": 130.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.25,
+        "y": 130.25
+      },
+      "b": {
+        "x": 74.25,
+        "y": 132.5
+    )sieda",
+        R"sieda(  },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72.5,
+        "y": 141
+      },
+      "b": {
+        "x": 70.75,
+        "y": 142.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 97.5,
+        "y": 126.25
+      },
+      "b": {
+        "x": 111.75,
+        "y": 112
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 120.75
+      },
+      "b": {
+        "x": 87.5,
+        "y": 136
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 136
+      },
+      "b": {
+        "x": 88.75,
+        "y": 137.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.5,
+        "y": 143.25
+      },
+      "b": {
+        "x": 82.75,
+        "y": 145
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 75.5,
+        "y": 140.75
+      },
+      "b": {
+        "x": 74.5,
+        "y": 140.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.5,
+        "y": 140.75
+      },
+      "b": {
+        "x": 73.25,
+        "y": 139.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.25,
+        "y": 139.5
+      },
+      "b": {
+        "x": 71.75,
+        "y": 139.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 71.75,
+        "y": 139.5
+      },
+      "b": {
+        "x": 70.5,
+        "y": 140.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 119.75
+      },
+      "b": {
+        "x": 97.75,
+        "y": 119.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 114.5,
+        "y": 88.25
+      },
+      "b": {
+        "x": 112.75,
+        "y": 86.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111.5,
+        "y": 86.25
+      },
+      "b": {
+        "x": 107.75,
+        "y": 82.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 98.5,
+        "y": 81.5
+      },
+      "b": {
+        "x": 99.75,
+        "y": 81.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 99.75,
+        "y": 81.5
+      },
+      "b": {
+        "x": 102.75,
+        "y": 78.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 104,
+        "y": 77
+      },
+      "b": {
+        "x": 104,
+        "y": 73.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 104,
+        "y": 42.25
+      },
+      "b": {
+        "x": 109.25,
+        "y": 37
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85,
+        "y": 114.5
+      },
+      "b": {
+        "x": 85,
+        "y": 114.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85,
+        "y": 114.25
+      },
+      "b": {
+        "x": 85.25,
+        "y": 114
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.25,
+        "y": 114
+      },
+      "b": {
+        "x": 85.25,
+        "y": 113.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.25,
+        "y": 113.75
+      },
+      "b": {
+        "x": 89,
+        "y": 110
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 89,
+        "y": 110
+      },
+      "b": {
+        "x": 89.75,
+        "y": 110
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 89.75,
+        "y": 110
+      },
+      "b": {
+        "x": 90.75,
+        "y": 109
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 90.75,
+        "y": 100.75
+      },
+      "b": {
+        "x": 78,
+        "y": 88
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.25,
+        "y": 143.25
+      },
+      "b": {
+        "x": 74.75,
+        "y": 143.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.75,
+        "y": 143.25
+      },
+      "b": {
+        "x": 76,
+        "y": 144.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 106,
+        "y": 101.5
+      },
+      "b": {
+        "x": 111,
+        "y": 101.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 111,
+        "y": 101.5
+      },
+      "b": {
+        "x": 113.75,
+        "y": 98.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72.25,
+        "y": 159.75
+      },
+      "b": {
+        "x": 71,
+        "y": 159.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 73.25,
+        "y": 160.25
+      },
+      "b": {
+        "x": 74.75,
+        "y": 161.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.75,
+        "y": 161.75
+      },
+      "b": {
+        "x": 74.75,
+        "y": 163.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.75,
+        "y": 163.25
+      },
+      "b": {
+        "x": 75.75,
+        "y": 164.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 75.75,
+        "y": 164.25
+      },
+      "b": {
+        "x": 82.25,
+        "y": 164.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82.25,
+        "y": 164.25
+      },
+      "b": {
+        "x": 83.25,
+        "y": 163.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.5,
+        "y": 142.5
+      },
+      "b": {
+        "x": 80.75,
+        "y": 141.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 80.75,
+        "y": 141.75
+      },
+      "b": {
+        "x": 80.5,
+        "y": 141.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 80.5,
+        "y": 141.75
+      },
+      "b": {
+        "x": 79.5,
+        "y": 140.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 90.25,
+        "y": 135.75
+      },
+      "b": {
+        "x": 89,
+        "y": 134.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 89,
+        "y": 134.5
+      },
+      "b": {
+        "x": 89,
+        "y": 132.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 88.75,
+        "y": 113.25
+      },
+      "b": {
+        "x": 100,
+        "y": 102
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 100,
+        "y": 102
+      },
+      "b": {
+        "x": 100,
+        "y": 99.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 100,
+        "y": 99.75
+      },
+      "b": {
+        "x": 103.75,
+        "y": 96
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 121.25,
+        "y": 49
+      },
+      "b": {
+        "x": 120.311293,
+        "y": 50.766021
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.75,
+        "y": 120.5
+      },
+      "b": {
+        "x": 200.820472,
+        "y": 121.026235
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.75,
+        "y": 96.75
+      },
+      "b": {
+        "x": 207.615054,
+        "y": 97.4722
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 64.5,
+        "y": 51.75
+      },
+      "b": {
+        "x": 64.100791,
+        "y": 49.790247
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 210,
+        "y": 116.75
+      },
+      "b": {
+        "x": 210,
+        "y": 118.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 115,
+        "y": 70.25
+      },
+      "b": {
+)sieda",
+        R"sieda(        "x": 115,
+        "y": 72.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 138,
+        "y": 62
+      },
+      "b": {
+        "x": 136.986902,
+        "y": 63.724422
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 218.5,
+        "y": 122
+      },
+      "b": {
+        "x": 220.410805,
+        "y": 121.409387
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.75,
+        "y": 127.5
+      },
+      "b": {
+        "x": 218.55,
+        "y": 127.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 194.75,
+        "y": 70
+      },
+      "b": {
+        "x": 194.75,
+        "y": 68
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 92.25,
+        "y": 114.5
+      },
+      "b": {
+        "x": 93.93527,
+        "y": 113.423029
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 74.25,
+        "y": 132.5
+      },
+      "b": {
+        "x": 75.83572,
+        "y": 131.281193
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.5,
+        "y": 143.25
+      },
+      "b": {
+        "x": 83.515885,
+        "y": 141.508874
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 90.75,
+        "y": 100.75
+      },
+      "b": {
+        "x": 92.231974,
+        "y": 99.406961
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 90.75,
+        "y": 109
+      },
+      "b": {
+        "x": 92.272278,
+        "y": 107.702822
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.5,
+        "y": 142.5
+      },
+      "b": {
+        "x": 79.516444,
+        "y": 142.244057
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 115.25
+      },
+      "b": {
+        "x": 87.5,
+        "y": 115.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 115.75
+      },
+      "b": {
+        "x": 85.5,
+        "y": 117.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 85.5,
+        "y": 117.75
+      },
+      "b": {
+        "x": 71.25,
+        "y": 117.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 71.25,
+        "y": 117.75
+      },
+      "b": {
+        "x": 71,
+        "y": 117.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 71,
+        "y": 117.5
+      },
+      "b": {
+        "x": 71,
+        "y": 115.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 71,
+        "y": 115.75
+      },
+      "b": {
+        "x": 82,
+        "y": 104.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82,
+        "y": 104.75
+      },
+      "b": {
+        "x": 84.25,
+        "y": 104.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.25,
+        "y": 104.75
+      },
+      "b": {
+        "x": 85.75,
+        "y": 103.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 82,
+        "y": 104.75
+      },
+      "b": {
+        "x": 81.75,
+        "y": 104.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.75,
+        "y": 104.5
+      },
+      "b": {
+        "x": 81.75,
+        "y": 101.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 81.75,
+        "y": 101.75
+      },
+      "b": {
+        "x": 83.25,
+        "y": 101.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 83.25,
+        "y": 101.75
+      },
+      "b": {
+        "x": 84,
+        "y": 101
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84,
+        "y": 101
+      },
+      "b": {
+        "x": 88,
+        "y": 101
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 72.25,
+        "y": 117.75
+      },
+      "b": {
+        "x": 72.25,
+        "y": 118.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 109,
+        "y": 92
+      },
+      "b": {
+        "x": 112.9,
+        "y": 92
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 252,
+        "y": 159
+      },
+      "b": {
+        "x": 250.598528,
+        "y": 160.401472
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 250.598528,
+        "y": 160.401472
+      },
+      "b": {
+        "x": 250.174264,
+        "y": 159.977208
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 250.174264,
+        "y": 159.977208
+      },
+      "b": {
+        "x": 249.325736,
+        "y": 160.825736
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 249.325736,
+        "y": 160.825736
+      },
+      "b": {
+        "x": 249.75,
+        "y": 161.25
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 249.75,
+        "y": 161.25
+      },
+      "b": {
+        "x": 248.901472,
+        "y": 162.098528
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 248.901472,
+        "y": 162.098528
+      },
+      "b": {
+        "x": 247.5,
+        "y": 163.5
+      },
+      "layer": 0,
+      "locked": true,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 97.75,
+        "y": 158.75
+      },
+      "b": {
+        "x": 113.75,
+        "y": 158.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 113.75,
+        "y": 158.75
+      },
+      "b": {
+        "x": 130.5,
+        "y": 142
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 130.5,
+        "y": 139.5
+      },
+      "b": {
+        "x": 130.5,
+        "y": 128.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 130.5,
+        "y": 128.75
+      },
+      "b": {
+        "x": 126.25,
+        "y": 124.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 126.25,
+        "y": 124.5
+      },
+      "b": {
+        "x": 126.25,
+        "y": 108.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 126.25,
+        "y": 108.75
+      },
+      "b": {
+        "x": 124.75,
+        "y": 107.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 124.75,
+        "y": 107.25
+      },
+      "b": {
+        "x": 124.3,
+        "y": 107.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 122.25,
+        "y": 107.25
+      },
+      "b": {
+        "x": 122.25,
+        "y": 106.4
+      },
+      "layer": 0,
+      "width": 0.59
+    },
+    {
+      "a": {
+        "x": 122.25,
+        "y": 106
+      },
+      "b": {
+        "x": 120,
+        "y": 103.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 120,
+        "y": 103
+      },
+      "b": {
+        "x": 120,
+        "y": 102.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 120,
+        "y": 60.25
+      },
+      "b": {
+        "x": 120,
+        "y": 57.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 120,
+        "y": 56.5
+      },
+      "b": {
+        "x": 118.25,
+        "y": 54.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 118.25,
+        "y": 54.75
+      },
+      "b": {
+        "x": 116.25,
+        "y": 54.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 116.25,
+        "y": 54.75
+      },
+      "b": {
+        "x": 113,
+        "y": 51.)sieda",
+        R"sieda(5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 113,
+        "y": 51.5
+      },
+      "b": {
+        "x": 113,
+        "y": 48.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 113,
+        "y": 47.5
+      },
+      "b": {
+        "x": 115.25,
+        "y": 45.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 115.25,
+        "y": 45.25
+      },
+      "b": {
+        "x": 118.5,
+        "y": 45.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 118.5,
+        "y": 45.25
+      },
+      "b": {
+        "x": 125.75,
+        "y": 38
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 125.75,
+        "y": 38
+      },
+      "b": {
+        "x": 125.75,
+        "y": 28.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 125.75,
+        "y": 38
+      },
+      "b": {
+        "x": 135.25,
+        "y": 38
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 135.25,
+        "y": 38
+      },
+      "b": {
+        "x": 144.75,
+        "y": 47.5
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 119.75,
+        "y": 99.5
+      },
+      "b": {
+        "x": 118.25,
+        "y": 99.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 118.25,
+        "y": 99.5
+      },
+      "b": {
+        "x": 116.75,
+        "y": 101
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 116.75,
+        "y": 101
+      },
+      "b": {
+        "x": 116.75,
+        "y": 105.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 116.75,
+        "y": 105.75
+      },
+      "b": {
+        "x": 117.75,
+        "y": 106.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.75,
+        "y": 106.75
+      },
+      "b": {
+        "x": 117.75,
+        "y": 108.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 105.75,
+        "y": 90.25
+      },
+      "b": {
+        "x": 103.5,
+        "y": 90.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 103.5,
+        "y": 90.25
+      },
+      "b": {
+        "x": 91.5,
+        "y": 102.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 91.5,
+        "y": 102.25
+      },
+      "b": {
+        "x": 87.5,
+        "y": 102.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87.5,
+        "y": 102.25
+      },
+      "b": {
+        "x": 87,
+        "y": 101.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 87,
+        "y": 101.75
+      },
+      "b": {
+        "x": 84.5,
+        "y": 101.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 84.5,
+        "y": 101.75
+      },
+      "b": {
+        "x": 83.25,
+        "y": 103
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 124.3,
+        "y": 107.25
+      },
+      "b": {
+        "x": 123.5,
+        "y": 107.25
+      },
+      "layer": 0,
+      "width": 0.59
+    },
+    {
+      "a": {
+        "x": 122.25,
+        "y": 106.4
+      },
+      "b": {
+        "x": 122.25,
+        "y": 106
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 254.25,
+        "y": 171.25
+      },
+      "b": {
+        "x": 260,
+        "y": 171.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 260,
+        "y": 171.25
+      },
+      "b": {
+        "x": 265.25,
+        "y": 166
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 265.25,
+        "y": 166
+      },
+      "b": {
+        "x": 265.25,
+        "y": 164
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 265.25,
+        "y": 164
+      },
+      "b": {
+        "x": 263.25,
+        "y": 162
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 263.25,
+        "y": 162
+      },
+      "b": {
+        "x": 261.5,
+        "y": 162
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 261.5,
+        "y": 162
+      },
+      "b": {
+        "x": 258.5,
+        "y": 159
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 258.5,
+        "y": 159
+      },
+      "b": {
+        "x": 258.5,
+        "y": 156.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 258.5,
+        "y": 156.75
+      },
+      "b": {
+        "x": 256.75,
+        "y": 155
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 256.75,
+        "y": 155
+      },
+      "b": {
+        "x": 249.25,
+        "y": 155
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 249.25,
+        "y": 155
+      },
+      "b": {
+        "x": 241.25,
+        "y": 163
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 241.25,
+        "y": 163
+      },
+      "b": {
+        "x": 241.25,
+        "y": 163.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.75,
+        "y": 16.25
+      },
+      "b": {
+        "x": 207.29,
+        "y": 16.25
+      },
+      "layer": 0,
+      "width": 1.9
+    },
+    {
+      "a": {
+        "x": 207.29,
+        "y": 16.25
+      },
+      "b": {
+        "x": 225.5,
+        "y": 16.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 225.5,
+        "y": 16.25
+      },
+      "b": {
+        "x": 227,
+        "y": 17.75
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 227,
+        "y": 17.75
+      },
+      "b": {
+        "x": 227,
+        "y": 27.5
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 227,
+        "y": 27.5
+      },
+      "b": {
+        "x": 224.35,
+        "y": 30.15
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 224.35,
+        "y": 30.15
+      },
+      "b": {
+        "x": 222.75,
+        "y": 31.75
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 223.75,
+        "y": 30.75
+      },
+      "b": {
+        "x": 225.75,
+        "y": 32.75
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 225.75,
+        "y": 33.5
+      },
+      "b": {
+        "x": 224.36,
+        "y": 34.89
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 224.36,
+        "y": 34.89
+      },
+      "b": {
+        "x": 223.25,
+        "y": 36
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 223.25,
+        "y": 36
+      },
+      "b": {
+        "x": 222.75,
+        "y": 36
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 213.5,
+        "y": 39.25
+      },
+      "b": {
+        "x": 212.5,
+        "y": 40.25
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 212.5,
+        "y": 40.25
+      },
+      "b": {
+        "x": 212.5,
+        "y": 40.75
+      },
+      "layer": 0,
+      "width": 1
+    },
+    {
+      "a": {
+        "x": 227,
+        "y": 19
+      },
+      "b": {
+        "x": 228.5,
+        "y": 19
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 230,
+        "y": 18.25
+      },
+      "b": {
+        "x": 242.75,
+        "y": 18.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 242.75,
+        "y": 18.25
+      },
+      "b": {
+        "x": 244.75,
+        "y": 16.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 244.75,
+        "y": 16.25
+      },
+      "b": {
+        "x": 248,
+        "y": )sieda",
+        R"sieda(16.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 248,
+        "y": 16.25
+      },
+      "b": {
+        "x": 250,
+        "y": 18.25
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 250,
+        "y": 19.75
+      },
+      "b": {
+        "x": 250,
+        "y": 48
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 250,
+        "y": 48
+      },
+      "b": {
+        "x": 211.6,
+        "y": 86.4
+      },
+      "layer": 0,
+      "width": 2
+    },
+    {
+      "a": {
+        "x": 211.6,
+        "y": 86.4
+      },
+      "b": {
+        "x": 210,
+        "y": 88
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 209.5,
+        "y": 89
+      },
+      "b": {
+        "x": 208.25,
+        "y": 90.25
+      },
+      "layer": 0,
+      "width": 1.6
+    },
+    {
+      "a": {
+        "x": 203.25,
+        "y": 63.25
+      },
+      "b": {
+        "x": 202.25,
+        "y": 62.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 202.25,
+        "y": 62.25
+      },
+      "b": {
+        "x": 201,
+        "y": 62.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 201,
+        "y": 62.25
+      },
+      "b": {
+        "x": 199.25,
+        "y": 60.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 198.5,
+        "y": 60
+      },
+      "b": {
+        "x": 197.75,
+        "y": 59.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 213,
+        "y": 37.5
+      },
+      "b": {
+        "x": 215.25,
+        "y": 37.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.25,
+        "y": 37.5
+      },
+      "b": {
+        "x": 216,
+        "y": 38.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 220,
+        "y": 41
+      },
+      "b": {
+        "x": 221.5,
+        "y": 39.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221.25,
+        "y": 39
+      },
+      "b": {
+        "x": 221.25,
+        "y": 37.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221.25,
+        "y": 37.5
+      },
+      "b": {
+        "x": 221,
+        "y": 37.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221,
+        "y": 37.25
+      },
+      "b": {
+        "x": 221,
+        "y": 35
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221,
+        "y": 35
+      },
+      "b": {
+        "x": 221.5,
+        "y": 34.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 221.5,
+        "y": 34.5
+      },
+      "b": {
+        "x": 222,
+        "y": 34.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 167.75,
+        "y": 75.5
+      },
+      "b": {
+        "x": 195.75,
+        "y": 75.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 196.75,
+        "y": 75.25
+      },
+      "b": {
+        "x": 205.25,
+        "y": 75.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 205.25,
+        "y": 75.25
+      },
+      "b": {
+        "x": 216.75,
+        "y": 63.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 217.5,
+        "y": 44.25
+      },
+      "b": {
+        "x": 214.5,
+        "y": 41.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 35
+      },
+      "b": {
+        "x": 213,
+        "y": 35
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 129.5,
+        "y": 89.25
+      },
+      "b": {
+        "x": 130.25,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 132.4,
+        "y": 89.25
+      },
+      "b": {
+        "x": 148.25,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 108,
+        "y": 65.6
+      },
+      "b": {
+        "x": 108,
+        "y": 64.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 119.3,
+        "y": 89.25
+      },
+      "b": {
+        "x": 129.5,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 117.434315,
+        "y": 89.815685
+      },
+      "b": {
+        "x": 118,
+        "y": 89.25
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 112.9,
+        "y": 92
+      },
+      "b": {
+        "x": 113.75,
+        "y": 92
+      },
+      "layer": 0,
+      "width": 0.486667
+    },
+    {
+      "a": {
+        "x": 217.065685,
+        "y": 41.065685
+      },
+      "b": {
+        "x": 216.5,
+        "y": 40.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 217.351041,
+        "y": 39.398959
+      },
+      "b": {
+        "x": 217.5,
+        "y": 39.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.742462,
+        "y": 32.492462
+      },
+      "b": {
+        "x": 215,
+        "y": 31.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 215.707107,
+        "y": 30.542893
+      },
+      "b": {
+        "x": 223,
+        "y": 23.25
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 215.671751,
+        "y": 105.078249
+      },
+      "b": {
+        "x": 215,
+        "y": 105.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 215.5,
+        "y": 109.15
+      },
+      "b": {
+        "x": 215.5,
+        "y": 110
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 182.5,
+        "y": 114.55
+      },
+      "b": {
+        "x": 182.5,
+        "y": 115.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 182.5,
+        "y": 112.2
+      },
+      "b": {
+        "x": 182.5,
+        "y": 114.55
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.065685,
+        "y": 126.934315
+      },
+      "b": {
+        "x": 213.5,
+        "y": 127.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 212.934315,
+        "y": 126.934315
+      },
+      "b": {
+        "x": 208.5,
+        "y": 122.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 214.457107,
+        "y": 128.957107
+      },
+      "b": {
+        "x": 224.25,
+        "y": 138.75
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 216.25,
+        "y": 122
+      },
+      "b": {
+        "x": 216.25,
+        "y": 122.75
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 217.3,
+        "y": 123.5
+      },
+      "b": {
+        "x": 218.5,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.4
+    },
+    {
+      "a": {
+        "x": 219.686827,
+        "y": 124.686827
+      },
+      "b": {
+        "x": 220.5,
+        "y": 125.5
+      },
+      "layer": 0,
+      "width": 0.2
+    },
+    {
+      "a": {
+        "x": 210.65,
+        "y": 128
+      },
+      "b": {
+        "x": 211.5,
+        "y": 128
+      },
+      "layer": 0,
+      "width": 0.486667
+    },
+    {
+      "a": {
+        "x": 214.25,
+        "y": 124.4
+      },
+      "b": {
+        "x": 214.25,
+        "y": 123.5
+      },
+      "layer": 0,
+      "width": 0.486667
+    }
+  ],
+  "version": 1,
+  "vias": [],
+  "wires": [
+    {
+      "a": {
+        "component": 1,
+        "pin": 0
+      },
+      "b": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 1
+    },
+    {
+      "a": {
+        "component": 2,
+        "pin": 1
+      },
+      "b": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 2
+ )sieda",
+        R"sieda(   },
+    {
+      "a": {
+        "component": 3,
+        "pin": 0
+      },
+      "b": {
+        "component": 4,
+        "pin": 0
+      },
+      "id": 3
+    },
+    {
+      "a": {
+        "component": 4,
+        "pin": 0
+      },
+      "b": {
+        "component": 5,
+        "pin": 0
+      },
+      "id": 4
+    },
+    {
+      "a": {
+        "component": 1,
+        "pin": 1
+      },
+      "b": {
+        "component": 3,
+        "pin": 1
+      },
+      "id": 5
+    },
+    {
+      "a": {
+        "component": 3,
+        "pin": 1
+      },
+      "b": {
+        "component": 4,
+        "pin": 1
+      },
+      "id": 6
+    },
+    {
+      "a": {
+        "component": 4,
+        "pin": 1
+      },
+      "b": {
+        "component": 5,
+        "pin": 1
+      },
+      "id": 7
+    },
+    {
+      "a": {
+        "component": 5,
+        "pin": 3
+      },
+      "b": {
+        "component": 6,
+        "pin": 0
+      },
+      "id": 8
+    },
+    {
+      "a": {
+        "component": 6,
+        "pin": 0
+      },
+      "b": {
+        "component": 9,
+        "pin": 1
+      },
+      "id": 9
+    },
+    {
+      "a": {
+        "component": 6,
+        "pin": 0
+      },
+      "b": {
+        "component": 7,
+        "pin": 0
+      },
+      "id": 10
+    },
+    {
+      "a": {
+        "component": 5,
+        "pin": 2
+      },
+      "b": {
+        "component": 6,
+        "pin": 1
+      },
+      "id": 11
+    },
+    {
+      "a": {
+        "component": 6,
+        "pin": 1
+      },
+      "b": {
+        "component": 8,
+        "pin": 0
+      },
+      "id": 12
+    },
+    {
+      "a": {
+        "component": 7,
+        "pin": 1
+      },
+      "b": {
+        "component": 8,
+        "pin": 1
+      },
+      "id": 13
+    },
+    {
+      "a": {
+        "component": 9,
+        "pin": 0
+      },
+      "b": {
+        "component": 10,
+        "pin": 0
+      },
+      "id": 14
+    },
+    {
+      "a": {
+        "component": 10,
+        "pin": 1
+      },
+      "b": {
+        "component": 11,
+        "pin": 0
+      },
+      "id": 15
+    },
+    {
+      "a": {
+        "component": 13,
+        "pin": 3
+      },
+      "b": {
+        "component": 15,
+        "pin": 1
+      },
+      "id": 16
+    },
+    {
+      "a": {
+        "component": 14,
+        "pin": 0
+      },
+      "b": {
+        "component": 15,
+        "pin": 1
+      },
+      "id": 17
+    },
+    {
+      "a": {
+        "component": 14,
+        "pin": 1
+      },
+      "b": {
+        "component": 35,
+        "pin": 0
+      },
+      "id": 18
+    },
+    {
+      "a": {
+        "component": 15,
+        "pin": 0
+      },
+      "b": {
+        "component": 16,
+        "pin": 0
+      },
+      "id": 19
+    },
+    {
+      "a": {
+        "component": 34,
+        "pin": 1
+      },
+      "b": {
+        "component": 14,
+        "pin": 3
+      },
+      "id": 20
+    },
+    {
+      "a": {
+        "component": 36,
+        "pin": 0
+      },
+      "b": {
+        "component": 14,
+        "pin": 2
+      },
+      "id": 21
+    },
+    {
+      "a": {
+        "component": 35,
+        "pin": 0
+      },
+      "b": {
+        "component": 36,
+        "pin": 0
+      },
+      "id": 22
+    },
+    {
+      "a": {
+        "component": 33,
+        "pin": 0
+      },
+      "b": {
+        "component": 13,
+        "pin": 1
+      },
+      "id": 23
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 1
+      },
+      "b": {
+        "component": 42,
+        "pin": 0
+      },
+      "id": 24
+    },
+    {
+      "a": {
+        "component": 39,
+        "pin": 0
+      },
+      "b": {
+        "component": 42,
+        "pin": 0
+      },
+      "id": 25
+    },
+    {
+      "a": {
+        "component": 42,
+        "pin": 1
+      },
+      "b": {
+        "component": 43,
+        "pin": 1
+      },
+      "id": 26
+    },
+    {
+      "a": {
+        "component": 43,
+        "pin": 1
+      },
+      "b": {
+        "component": 44,
+        "pin": 1
+      },
+      "id": 27
+    },
+    {
+      "a": {
+        "component": 43,
+        "pin": 0
+      },
+      "b": {
+        "component": 44,
+        "pin": 0
+      },
+      "id": 28
+    },
+    {
+      "a": {
+        "component": 39,
+        "pin": 1
+      },
+      "b": {
+        "component": 45,
+        "pin": 0
+      },
+      "id": 29
+    },
+    {
+      "a": {
+        "component": 46,
+        "pin": 1
+      },
+      "b": {
+        "component": 39,
+        "pin": 3
+      },
+      "id": 30
+    },
+    {
+      "a": {
+        "component": 47,
+        "pin": 0
+      },
+      "b": {
+        "component": 39,
+        "pin": 2
+      },
+      "id": 31
+    },
+    {
+      "a": {
+        "component": 47,
+        "pin": 0
+      },
+      "b": {
+        "component": 45,
+        "pin": 0
+      },
+      "id": 32
+    },
+    {
+      "a": {
+        "component": 52,
+        "pin": 1
+      },
+      "b": {
+        "component": 53,
+        "pin": 0
+      },
+      "id": 33
+    },
+    {
+      "a": {
+        "component": 53,
+        "pin": 0
+      },
+      "b": {
+        "component": 54,
+        "pin": 0
+      },
+      "id": 34
+    },
+    {
+      "a": {
+        "component": 54,
+        "pin": 2
+      },
+      "b": {
+        "component": 55,
+        "pin": 0
+      },
+      "id": 35
+    },
+    {
+      "a": {
+        "component": 56,
+        "pin": 1
+      },
+      "b": {
+        "component": 52,
+        "pin": 1
+      },
+      "id": 36
+    },
+    {
+      "a": {
+        "component": 41,
+        "pin": 0
+      },
+      "b": {
+        "component": 57,
+        "pin": 0
+      },
+      "id": 37
+    },
+    {
+      "a": {
+        "component": 57,
+        "pin": 0
+      },
+      "b": {
+        "component": 58,
+        "pin": 0
+      },
+      "id": 38
+    },
+    {
+      "a": {
+        "component": 57,
+        "pin": 1
+      },
+      "b": {
+        "component": 58,
+        "pin": 1
+      },
+      "id": 39
+    },
+    {
+      "a": {
+        "component": 67,
+        "pin": 1
+      },
+      "b": {
+        "component": 68,
+        "pin": 0
+      },
+      "id": 40
+    },
+    {
+      "a": {
+        "component": 68,
+        "pin": 0
+      },
+      "b": {
+        "component": 69,
+        "pin": 0
+      },
+      "id": 41
+    },
+    {
+      "a": {
+        "component": 69,
+        "pin": 2
+      },
+      "b": {
+        "component": 70,
+        "pin": 0
+      },
+      "id": 42
+    },
+    {
+      "a": {
+        "component": 68,
+        "pin": 1
+      },
+      "b": {
+        "component": 69,
+        "pin": 1
+      },
+      "id": 43
+    },
+    {
+      "a": {
+        "component": 69,
+        "pin": 1
+      },
+      "b": {
+        "component": 70,
+        "pin": 1
+      },
+      "id": 44
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 0
+      },
+      "b": {
+        "component": 76,
+        "pin": 0
+      },
+      "id": 45
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 0
+      },
+      "b": {
+        "component": 74,
+        "pin": 1
+      },
+      "id": 46
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 0
+      },
+      "b": {
+        "component": 74,
+        "pin": 2
+      },
+      "id": 47
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 0
+      },
+      "b": {
+        "component": 75,
+        "pin": 4
+      },
+      "id": 48
+    },
+    {
+      "a": {
+        "component": 76,
+        "pin": 1
+      },
+      "b": {
+        "component": 83,
+        "pin": 0
+      },
+      "id": 49
+    },
+    {
+      "a": {
+        "component": 83,
+        "pin": 0
+      },
+      "b": {
+        "component": 84,
+        "pin": 0
+      },
+      "id": 50
+    },
+    {
+      "a": {
+        "component": 84,
+        "pin": 0
+      },
+      "b": {
+        "component": 85,
+        "pin": 0
+      },
+      "id": 51
+    },
+    {
+      "a": {
+        "component": 85,
+        "pin": 0
+      },
+      "b": {
+        "component": 86,
+        "pin": 0
+      },
+      "id": 52
+    },
+    {
+      "a": {
+        "component": 83,
+        "pin": 1
+      },
+      "b": {
+        "component": 84,
+        "pin": 1
+      },
+      "id": 53
+    },
+    {
+      "a": {
+        "component": 84,
+        "pin": 1
+      })sieda",
+        R"sieda(,
+      "b": {
+        "component": 85,
+        "pin": 1
+      },
+      "id": 54
+    },
+    {
+      "a": {
+        "component": 85,
+        "pin": 1
+      },
+      "b": {
+        "component": 87,
+        "pin": 1
+      },
+      "id": 55
+    },
+    {
+      "a": {
+        "component": 86,
+        "pin": 1
+      },
+      "b": {
+        "component": 87,
+        "pin": 0
+      },
+      "id": 56
+    },
+    {
+      "a": {
+        "component": 87,
+        "pin": 0
+      },
+      "b": {
+        "component": 88,
+        "pin": 0
+      },
+      "id": 57
+    },
+    {
+      "a": {
+        "component": 87,
+        "pin": 1
+      },
+      "b": {
+        "component": 89,
+        "pin": 0
+      },
+      "id": 58
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 6
+      },
+      "b": {
+        "component": 29,
+        "pin": 1
+      },
+      "id": 59
+    },
+    {
+      "a": {
+        "component": 29,
+        "pin": 0
+      },
+      "b": {
+        "component": 28,
+        "pin": 1
+      },
+      "id": 60
+    },
+    {
+      "a": {
+        "component": 29,
+        "pin": 1
+      },
+      "b": {
+        "component": 30,
+        "pin": 0
+      },
+      "id": 61
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 5
+      },
+      "b": {
+        "component": 27,
+        "pin": 0
+      },
+      "id": 62
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 4
+      },
+      "b": {
+        "component": 25,
+        "pin": 0
+      },
+      "id": 63
+    },
+    {
+      "a": {
+        "component": 25,
+        "pin": 0
+      },
+      "b": {
+        "component": 26,
+        "pin": 0
+      },
+      "id": 64
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 2
+      },
+      "b": {
+        "component": 24,
+        "pin": 0
+      },
+      "id": 65
+    },
+    {
+      "a": {
+        "component": 24,
+        "pin": 0
+      },
+      "b": {
+        "component": 22,
+        "pin": 1
+      },
+      "id": 66
+    },
+    {
+      "a": {
+        "component": 22,
+        "pin": 0
+      },
+      "b": {
+        "component": 21,
+        "pin": 1
+      },
+      "id": 67
+    },
+    {
+      "a": {
+        "component": 22,
+        "pin": 1
+      },
+      "b": {
+        "component": 23,
+        "pin": 0
+      },
+      "id": 68
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 1
+      },
+      "b": {
+        "component": 20,
+        "pin": 0
+      },
+      "id": 69
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 0
+      },
+      "b": {
+        "component": 18,
+        "pin": 1
+      },
+      "id": 70
+    },
+    {
+      "a": {
+        "component": 18,
+        "pin": 0
+      },
+      "b": {
+        "component": 17,
+        "pin": 1
+      },
+      "id": 71
+    },
+    {
+      "a": {
+        "component": 18,
+        "pin": 1
+      },
+      "b": {
+        "component": 19,
+        "pin": 0
+      },
+      "id": 72
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 9
+      },
+      "b": {
+        "component": 31,
+        "pin": 1
+      },
+      "id": 73
+    },
+    {
+      "a": {
+        "component": 31,
+        "pin": 1
+      },
+      "b": {
+        "component": 32,
+        "pin": 0
+      },
+      "id": 74
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 13
+      },
+      "b": {
+        "component": 37,
+        "pin": 0
+      },
+      "id": 75
+    },
+    {
+      "a": {
+        "component": 38,
+        "pin": 3
+      },
+      "b": {
+        "component": 50,
+        "pin": 0
+      },
+      "id": 76
+    },
+    {
+      "a": {
+        "component": 50,
+        "pin": 0
+      },
+      "b": {
+        "component": 49,
+        "pin": 1
+      },
+      "id": 77
+    },
+    {
+      "a": {
+        "component": 38,
+        "pin": 2
+      },
+      "b": {
+        "component": 48,
+        "pin": 0
+      },
+      "id": 78
+    },
+    {
+      "a": {
+        "component": 38,
+        "pin": 7
+      },
+      "b": {
+        "component": 51,
+        "pin": 0
+      },
+      "id": 79
+    },
+    {
+      "a": {
+        "component": 59,
+        "pin": 1
+      },
+      "b": {
+        "component": 62,
+        "pin": 1
+      },
+      "id": 80
+    },
+    {
+      "a": {
+        "component": 62,
+        "pin": 1
+      },
+      "b": {
+        "component": 65,
+        "pin": 0
+      },
+      "id": 81
+    },
+    {
+      "a": {
+        "component": 65,
+        "pin": 1
+      },
+      "b": {
+        "component": 66,
+        "pin": 0
+      },
+      "id": 82
+    },
+    {
+      "a": {
+        "component": 59,
+        "pin": 0
+      },
+      "b": {
+        "component": 61,
+        "pin": 1
+      },
+      "id": 83
+    },
+    {
+      "a": {
+        "component": 60,
+        "pin": 1
+      },
+      "b": {
+        "component": 63,
+        "pin": 1
+      },
+      "id": 84
+    },
+    {
+      "a": {
+        "component": 63,
+        "pin": 1
+      },
+      "b": {
+        "component": 64,
+        "pin": 0
+      },
+      "id": 85
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 3
+      },
+      "b": {
+        "component": 92,
+        "pin": 0
+      },
+      "id": 86
+    },
+    {
+      "a": {
+        "component": 92,
+        "pin": 0
+      },
+      "b": {
+        "component": 91,
+        "pin": 1
+      },
+      "id": 87
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 2
+      },
+      "b": {
+        "component": 93,
+        "pin": 0
+      },
+      "id": 88
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 6
+      },
+      "b": {
+        "component": 82,
+        "pin": 0
+      },
+      "id": 89
+    },
+    {
+      "a": {
+        "component": 82,
+        "pin": 0
+      },
+      "b": {
+        "component": 80,
+        "pin": 0
+      },
+      "id": 90
+    },
+    {
+      "a": {
+        "component": 80,
+        "pin": 0
+      },
+      "b": {
+        "component": 79,
+        "pin": 0
+      },
+      "id": 91
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 7
+      },
+      "b": {
+        "component": 90,
+        "pin": 0
+      },
+      "id": 92
+    },
+    {
+      "a": {
+        "component": 73,
+        "pin": 4
+      },
+      "b": {
+        "component": 78,
+        "pin": 0
+      },
+      "id": 93
+    },
+    {
+      "a": {
+        "component": 73,
+        "pin": 5
+      },
+      "b": {
+        "component": 81,
+        "pin": 1
+      },
+      "id": 94
+    },
+    {
+      "a": {
+        "component": 73,
+        "pin": 6
+      },
+      "b": {
+        "component": 77,
+        "pin": 0
+      },
+      "id": 95
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 2
+      },
+      "b": {
+        "component": 105,
+        "pin": 0
+      },
+      "id": 96
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 1
+      },
+      "b": {
+        "component": 99,
+        "pin": 1
+      },
+      "id": 97
+    },
+    {
+      "a": {
+        "component": 99,
+        "pin": 1
+      },
+      "b": {
+        "component": 97,
+        "pin": 1
+      },
+      "id": 98
+    },
+    {
+      "a": {
+        "component": 97,
+        "pin": 1
+      },
+      "b": {
+        "component": 98,
+        "pin": 0
+      },
+      "id": 99
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 0
+      },
+      "b": {
+        "component": 95,
+        "pin": 1
+      },
+      "id": 100
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 4
+      },
+      "b": {
+        "component": 106,
+        "pin": 0
+      },
+      "id": 101
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 5
+      },
+      "b": {
+        "component": 100,
+        "pin": 1
+      },
+      "id": 102
+    },
+    {
+      "a": {
+        "component": 100,
+        "pin": 1
+      },
+      "b": {
+        "component": 101,
+        "pin": 1
+      },
+      "id": 103
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 6
+      },
+      "b": {
+        "component": 96,
+        "pin": 1
+      },
+      "id": 104
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 7
+      },
+      "b": {
+        "component)sieda",
+        R"sieda(": 107,
+        "pin": 0
+      },
+      "id": 105
+    },
+    {
+      "a": {
+        "component": 107,
+        "pin": 0
+      },
+      "b": {
+        "component": 108,
+        "pin": 0
+      },
+      "id": 106
+    },
+    {
+      "a": {
+        "component": 108,
+        "pin": 0
+      },
+      "b": {
+        "component": 109,
+        "pin": 0
+      },
+      "id": 107
+    },
+    {
+      "a": {
+        "component": 109,
+        "pin": 0
+      },
+      "b": {
+        "component": 111,
+        "pin": 0
+      },
+      "id": 108
+    },
+    {
+      "a": {
+        "component": 111,
+        "pin": 1
+      },
+      "b": {
+        "component": 110,
+        "pin": 0
+      },
+      "id": 109
+    },
+    {
+      "a": {
+        "component": 102,
+        "pin": 5
+      },
+      "b": {
+        "component": 103,
+        "pin": 0
+      },
+      "id": 110
+    },
+    {
+      "a": {
+        "component": 683,
+        "pin": 0
+      },
+      "b": {
+        "component": 12,
+        "pin": 3
+      },
+      "id": 111
+    },
+    {
+      "a": {
+        "component": 684,
+        "pin": 0
+      },
+      "b": {
+        "component": 19,
+        "pin": 0
+      },
+      "id": 112
+    },
+    {
+      "a": {
+        "component": 685,
+        "pin": 0
+      },
+      "b": {
+        "component": 12,
+        "pin": 10
+      },
+      "id": 113
+    },
+    {
+      "a": {
+        "component": 686,
+        "pin": 0
+      },
+      "b": {
+        "component": 12,
+        "pin": 11
+      },
+      "id": 114
+    },
+    {
+      "a": {
+        "component": 687,
+        "pin": 0
+      },
+      "b": {
+        "component": 12,
+        "pin": 12
+      },
+      "id": 115
+    },
+    {
+      "a": {
+        "component": 688,
+        "pin": 0
+      },
+      "b": {
+        "component": 37,
+        "pin": 0
+      },
+      "id": 116
+    },
+    {
+      "a": {
+        "component": 689,
+        "pin": 0
+      },
+      "b": {
+        "component": 48,
+        "pin": 0
+      },
+      "id": 117
+    },
+    {
+      "a": {
+        "component": 690,
+        "pin": 0
+      },
+      "b": {
+        "component": 38,
+        "pin": 1
+      },
+      "id": 118
+    },
+    {
+      "a": {
+        "component": 691,
+        "pin": 0
+      },
+      "b": {
+        "component": 38,
+        "pin": 0
+      },
+      "id": 119
+    },
+    {
+      "a": {
+        "component": 692,
+        "pin": 0
+      },
+      "b": {
+        "component": 38,
+        "pin": 4
+      },
+      "id": 120
+    },
+    {
+      "a": {
+        "component": 693,
+        "pin": 0
+      },
+      "b": {
+        "component": 38,
+        "pin": 5
+      },
+      "id": 121
+    },
+    {
+      "a": {
+        "component": 694,
+        "pin": 0
+      },
+      "b": {
+        "component": 38,
+        "pin": 6
+      },
+      "id": 122
+    },
+    {
+      "a": {
+        "component": 695,
+        "pin": 0
+      },
+      "b": {
+        "component": 51,
+        "pin": 0
+      },
+      "id": 123
+    },
+    {
+      "a": {
+        "component": 696,
+        "pin": 0
+      },
+      "b": {
+        "component": 65,
+        "pin": 0
+      },
+      "id": 124
+    },
+    {
+      "a": {
+        "component": 697,
+        "pin": 0
+      },
+      "b": {
+        "component": 61,
+        "pin": 1
+      },
+      "id": 125
+    },
+    {
+      "a": {
+        "component": 698,
+        "pin": 0
+      },
+      "b": {
+        "component": 59,
+        "pin": 2
+      },
+      "id": 126
+    },
+    {
+      "a": {
+        "component": 699,
+        "pin": 0
+      },
+      "b": {
+        "component": 59,
+        "pin": 3
+      },
+      "id": 127
+    },
+    {
+      "a": {
+        "component": 700,
+        "pin": 0
+      },
+      "b": {
+        "component": 64,
+        "pin": 0
+      },
+      "id": 128
+    },
+    {
+      "a": {
+        "component": 701,
+        "pin": 0
+      },
+      "b": {
+        "component": 60,
+        "pin": 0
+      },
+      "id": 129
+    },
+    {
+      "a": {
+        "component": 702,
+        "pin": 0
+      },
+      "b": {
+        "component": 60,
+        "pin": 2
+      },
+      "id": 130
+    },
+    {
+      "a": {
+        "component": 703,
+        "pin": 0
+      },
+      "b": {
+        "component": 72,
+        "pin": 1
+      },
+      "id": 131
+    },
+    {
+      "a": {
+        "component": 704,
+        "pin": 0
+      },
+      "b": {
+        "component": 72,
+        "pin": 0
+      },
+      "id": 132
+    },
+    {
+      "a": {
+        "component": 705,
+        "pin": 0
+      },
+      "b": {
+        "component": 72,
+        "pin": 4
+      },
+      "id": 133
+    },
+    {
+      "a": {
+        "component": 706,
+        "pin": 0
+      },
+      "b": {
+        "component": 72,
+        "pin": 5
+      },
+      "id": 134
+    },
+    {
+      "a": {
+        "component": 707,
+        "pin": 0
+      },
+      "b": {
+        "component": 79,
+        "pin": 0
+      },
+      "id": 135
+    },
+    {
+      "a": {
+        "component": 708,
+        "pin": 0
+      },
+      "b": {
+        "component": 90,
+        "pin": 0
+      },
+      "id": 136
+    },
+    {
+      "a": {
+        "component": 709,
+        "pin": 0
+      },
+      "b": {
+        "component": 73,
+        "pin": 3
+      },
+      "id": 137
+    },
+    {
+      "a": {
+        "component": 710,
+        "pin": 0
+      },
+      "b": {
+        "component": 73,
+        "pin": 2
+      },
+      "id": 138
+    },
+    {
+      "a": {
+        "component": 711,
+        "pin": 0
+      },
+      "b": {
+        "component": 73,
+        "pin": 1
+      },
+      "id": 139
+    },
+    {
+      "a": {
+        "component": 712,
+        "pin": 0
+      },
+      "b": {
+        "component": 73,
+        "pin": 0
+      },
+      "id": 140
+    },
+    {
+      "a": {
+        "component": 713,
+        "pin": 0
+      },
+      "b": {
+        "component": 81,
+        "pin": 1
+      },
+      "id": 141
+    },
+    {
+      "a": {
+        "component": 714,
+        "pin": 0
+      },
+      "b": {
+        "component": 73,
+        "pin": 7
+      },
+      "id": 142
+    },
+    {
+      "a": {
+        "component": 715,
+        "pin": 0
+      },
+      "b": {
+        "component": 94,
+        "pin": 3
+      },
+      "id": 143
+    },
+    {
+      "a": {
+        "component": 716,
+        "pin": 0
+      },
+      "b": {
+        "component": 105,
+        "pin": 0
+      },
+      "id": 144
+    },
+    {
+      "a": {
+        "component": 717,
+        "pin": 0
+      },
+      "b": {
+        "component": 95,
+        "pin": 1
+      },
+      "id": 145
+    },
+    {
+      "a": {
+        "component": 718,
+        "pin": 0
+      },
+      "b": {
+        "component": 106,
+        "pin": 0
+      },
+      "id": 146
+    },
+    {
+      "a": {
+        "component": 719,
+        "pin": 0
+      },
+      "b": {
+        "component": 96,
+        "pin": 1
+      },
+      "id": 147
+    },
+    {
+      "a": {
+        "component": 720,
+        "pin": 0
+      },
+      "b": {
+        "component": 111,
+        "pin": 0
+      },
+      "id": 148
+    },
+    {
+      "a": {
+        "component": 721,
+        "pin": 0
+      },
+      "b": {
+        "component": 102,
+        "pin": 2
+      },
+      "id": 149
+    },
+    {
+      "a": {
+        "component": 722,
+        "pin": 0
+      },
+      "b": {
+        "component": 102,
+        "pin": 1
+      },
+      "id": 150
+    },
+    {
+      "a": {
+        "component": 723,
+        "pin": 0
+      },
+      "b": {
+        "component": 102,
+        "pin": 0
+      },
+      "id": 151
+    },
+    {
+      "a": {
+        "component": 724,
+        "pin": 0
+      },
+      "b": {
+        "component": 102,
+        "pin": 3
+      },
+      "id": 152
+    },
+    {
+      "a": {
+        "component": 725,
+        "pin": 0
+      },
+      "b": {
+        "component": 102,
+        "pin": 4
+      },
+      "id": 153
+    },
+    {
+      "a": {
+        "component": 726,
+        "pin": 0
+      },
+      "b": {
+        "component": 103,
+        "pin": 0
+      },
+      "id": 154
+    },
+    {
+      "a": {
+        "component": 727,
+        "pin": 0
+      },
+      "b": {
+        "component": 104,
+        "pin": 3
+      },
+      "id": 155
+    },
+    {
+      "a": {
+      )sieda",
+        R"sieda(  "component": 728,
+        "pin": 0
+      },
+      "b": {
+        "component": 104,
+        "pin": 2
+      },
+      "id": 156
+    },
+    {
+      "a": {
+        "component": 729,
+        "pin": 0
+      },
+      "b": {
+        "component": 104,
+        "pin": 1
+      },
+      "id": 157
+    },
+    {
+      "a": {
+        "component": 730,
+        "pin": 0
+      },
+      "b": {
+        "component": 104,
+        "pin": 0
+      },
+      "id": 158
+    },
+    {
+      "a": {
+        "component": 2,
+        "pin": 0
+      },
+      "b": {
+        "component": 731,
+        "pin": 0
+      },
+      "id": 159
+    },
+    {
+      "a": {
+        "component": 4,
+        "pin": 0
+      },
+      "b": {
+        "component": 732,
+        "pin": 0
+      },
+      "id": 160
+    },
+    {
+      "a": {
+        "component": 4,
+        "pin": 1
+      },
+      "b": {
+        "component": 733,
+        "pin": 0
+      },
+      "id": 161
+    },
+    {
+      "a": {
+        "component": 6,
+        "pin": 0
+      },
+      "b": {
+        "component": 734,
+        "pin": 0
+      },
+      "id": 162
+    },
+    {
+      "a": {
+        "component": 8,
+        "pin": 0
+      },
+      "b": {
+        "component": 735,
+        "pin": 0
+      },
+      "id": 163
+    },
+    {
+      "a": {
+        "component": 9,
+        "pin": 2
+      },
+      "b": {
+        "component": 736,
+        "pin": 0
+      },
+      "id": 164
+    },
+    {
+      "a": {
+        "component": 1,
+        "pin": 2
+      },
+      "b": {
+        "component": 737,
+        "pin": 0
+      },
+      "id": 165
+    },
+    {
+      "a": {
+        "component": 8,
+        "pin": 1
+      },
+      "b": {
+        "component": 738,
+        "pin": 0
+      },
+      "id": 166
+    },
+    {
+      "a": {
+        "component": 9,
+        "pin": 0
+      },
+      "b": {
+        "component": 739,
+        "pin": 0
+      },
+      "id": 167
+    },
+    {
+      "a": {
+        "component": 11,
+        "pin": 0
+      },
+      "b": {
+        "component": 740,
+        "pin": 0
+      },
+      "id": 168
+    },
+    {
+      "a": {
+        "component": 13,
+        "pin": 0
+      },
+      "b": {
+        "component": 741,
+        "pin": 0
+      },
+      "id": 169
+    },
+    {
+      "a": {
+        "component": 21,
+        "pin": 0
+      },
+      "b": {
+        "component": 742,
+        "pin": 0
+      },
+      "id": 170
+    },
+    {
+      "a": {
+        "component": 14,
+        "pin": 0
+      },
+      "b": {
+        "component": 743,
+        "pin": 0
+      },
+      "id": 171
+    },
+    {
+      "a": {
+        "component": 36,
+        "pin": 1
+      },
+      "b": {
+        "component": 744,
+        "pin": 0
+      },
+      "id": 172
+    },
+    {
+      "a": {
+        "component": 34,
+        "pin": 0
+      },
+      "b": {
+        "component": 745,
+        "pin": 0
+      },
+      "id": 173
+    },
+    {
+      "a": {
+        "component": 33,
+        "pin": 1
+      },
+      "b": {
+        "component": 746,
+        "pin": 0
+      },
+      "id": 174
+    },
+    {
+      "a": {
+        "component": 16,
+        "pin": 0
+      },
+      "b": {
+        "component": 747,
+        "pin": 0
+      },
+      "id": 175
+    },
+    {
+      "a": {
+        "component": 17,
+        "pin": 0
+      },
+      "b": {
+        "component": 748,
+        "pin": 0
+      },
+      "id": 176
+    },
+    {
+      "a": {
+        "component": 28,
+        "pin": 0
+      },
+      "b": {
+        "component": 749,
+        "pin": 0
+      },
+      "id": 177
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 0
+      },
+      "b": {
+        "component": 750,
+        "pin": 0
+      },
+      "id": 178
+    },
+    {
+      "a": {
+        "component": 44,
+        "pin": 0
+      },
+      "b": {
+        "component": 751,
+        "pin": 0
+      },
+      "id": 179
+    },
+    {
+      "a": {
+        "component": 56,
+        "pin": 0
+      },
+      "b": {
+        "component": 752,
+        "pin": 0
+      },
+      "id": 180
+    },
+    {
+      "a": {
+        "component": 20,
+        "pin": 1
+      },
+      "b": {
+        "component": 753,
+        "pin": 0
+      },
+      "id": 181
+    },
+    {
+      "a": {
+        "component": 39,
+        "pin": 0
+      },
+      "b": {
+        "component": 754,
+        "pin": 0
+      },
+      "id": 182
+    },
+    {
+      "a": {
+        "component": 44,
+        "pin": 1
+      },
+      "b": {
+        "component": 755,
+        "pin": 0
+      },
+      "id": 183
+    },
+    {
+      "a": {
+        "component": 47,
+        "pin": 1
+      },
+      "b": {
+        "component": 756,
+        "pin": 0
+      },
+      "id": 184
+    },
+    {
+      "a": {
+        "component": 46,
+        "pin": 0
+      },
+      "b": {
+        "component": 757,
+        "pin": 0
+      },
+      "id": 185
+    },
+    {
+      "a": {
+        "component": 49,
+        "pin": 0
+      },
+      "b": {
+        "component": 758,
+        "pin": 0
+      },
+      "id": 186
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 2
+      },
+      "b": {
+        "component": 759,
+        "pin": 0
+      },
+      "id": 187
+    },
+    {
+      "a": {
+        "component": 52,
+        "pin": 0
+      },
+      "b": {
+        "component": 760,
+        "pin": 0
+      },
+      "id": 188
+    },
+    {
+      "a": {
+        "component": 53,
+        "pin": 0
+      },
+      "b": {
+        "component": 761,
+        "pin": 0
+      },
+      "id": 189
+    },
+    {
+      "a": {
+        "component": 55,
+        "pin": 0
+      },
+      "b": {
+        "component": 762,
+        "pin": 0
+      },
+      "id": 190
+    },
+    {
+      "a": {
+        "component": 31,
+        "pin": 0
+      },
+      "b": {
+        "component": 763,
+        "pin": 0
+      },
+      "id": 191
+    },
+    {
+      "a": {
+        "component": 9,
+        "pin": 3
+      },
+      "b": {
+        "component": 764,
+        "pin": 0
+      },
+      "id": 192
+    },
+    {
+      "a": {
+        "component": 11,
+        "pin": 1
+      },
+      "b": {
+        "component": 765,
+        "pin": 0
+      },
+      "id": 193
+    },
+    {
+      "a": {
+        "component": 13,
+        "pin": 2
+      },
+      "b": {
+        "component": 766,
+        "pin": 0
+      },
+      "id": 194
+    },
+    {
+      "a": {
+        "component": 16,
+        "pin": 1
+      },
+      "b": {
+        "component": 767,
+        "pin": 0
+      },
+      "id": 195
+    },
+    {
+      "a": {
+        "component": 19,
+        "pin": 1
+      },
+      "b": {
+        "component": 768,
+        "pin": 0
+      },
+      "id": 196
+    },
+    {
+      "a": {
+        "component": 23,
+        "pin": 1
+      },
+      "b": {
+        "component": 769,
+        "pin": 0
+      },
+      "id": 197
+    },
+    {
+      "a": {
+        "component": 24,
+        "pin": 1
+      },
+      "b": {
+        "component": 770,
+        "pin": 0
+      },
+      "id": 198
+    },
+    {
+      "a": {
+        "component": 25,
+        "pin": 1
+      },
+      "b": {
+        "component": 771,
+        "pin": 0
+      },
+      "id": 199
+    },
+    {
+      "a": {
+        "component": 26,
+        "pin": 1
+      },
+      "b": {
+        "component": 772,
+        "pin": 0
+      },
+      "id": 200
+    },
+    {
+      "a": {
+        "component": 27,
+        "pin": 1
+      },
+      "b": {
+        "component": 773,
+        "pin": 0
+      },
+      "id": 201
+    },
+    {
+      "a": {
+        "component": 30,
+        "pin": 1
+      },
+      "b": {
+        "component": 774,
+        "pin": 0
+      },
+      "id": 202
+    },
+    {
+      "a": {
+        "component": 32,
+        "pin": 1
+      },
+      "b": {
+        "component": 775,
+        "pin": 0
+      },
+      "id": 203
+    },
+    {
+      "a": {
+        "component": 35,
+        "pin": 1
+      },
+      "b": {
+        "component": 776,
+        "pin": 0
+      },
+      "id": 204
+    },
+    {
+      "a": {
+        "component": 37,
+        "pin": 1
+      },
+      "b": {
+        "component": 777,
+        "pin": 0
+      },
+      "id": 205
+    },
+    {
+      "a": {
+        "component": 45,
+        "pin": 1
+      },
+      "b": {
+        "component": 778,
+        "pin": 0
+      )sieda",
+        R"sieda(},
+      "id": 206
+    },
+    {
+      "a": {
+        "component": 48,
+        "pin": 1
+      },
+      "b": {
+        "component": 779,
+        "pin": 0
+      },
+      "id": 207
+    },
+    {
+      "a": {
+        "component": 50,
+        "pin": 1
+      },
+      "b": {
+        "component": 780,
+        "pin": 0
+      },
+      "id": 208
+    },
+    {
+      "a": {
+        "component": 51,
+        "pin": 1
+      },
+      "b": {
+        "component": 781,
+        "pin": 0
+      },
+      "id": 209
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 3
+      },
+      "b": {
+        "component": 782,
+        "pin": 0
+      },
+      "id": 210
+    },
+    {
+      "a": {
+        "component": 53,
+        "pin": 1
+      },
+      "b": {
+        "component": 783,
+        "pin": 0
+      },
+      "id": 211
+    },
+    {
+      "a": {
+        "component": 54,
+        "pin": 1
+      },
+      "b": {
+        "component": 784,
+        "pin": 0
+      },
+      "id": 212
+    },
+    {
+      "a": {
+        "component": 55,
+        "pin": 1
+      },
+      "b": {
+        "component": 785,
+        "pin": 0
+      },
+      "id": 213
+    },
+    {
+      "a": {
+        "component": 71,
+        "pin": 0
+      },
+      "b": {
+        "component": 786,
+        "pin": 0
+      },
+      "id": 214
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 7
+      },
+      "b": {
+        "component": 787,
+        "pin": 0
+      },
+      "id": 215
+    },
+    {
+      "a": {
+        "component": 41,
+        "pin": 1
+      },
+      "b": {
+        "component": 788,
+        "pin": 0
+      },
+      "id": 216
+    },
+    {
+      "a": {
+        "component": 58,
+        "pin": 0
+      },
+      "b": {
+        "component": 789,
+        "pin": 0
+      },
+      "id": 217
+    },
+    {
+      "a": {
+        "component": 61,
+        "pin": 0
+      },
+      "b": {
+        "component": 790,
+        "pin": 0
+      },
+      "id": 218
+    },
+    {
+      "a": {
+        "component": 63,
+        "pin": 0
+      },
+      "b": {
+        "component": 791,
+        "pin": 0
+      },
+      "id": 219
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 4
+      },
+      "b": {
+        "component": 792,
+        "pin": 0
+      },
+      "id": 220
+    },
+    {
+      "a": {
+        "component": 62,
+        "pin": 0
+      },
+      "b": {
+        "component": 793,
+        "pin": 0
+      },
+      "id": 221
+    },
+    {
+      "a": {
+        "component": 66,
+        "pin": 1
+      },
+      "b": {
+        "component": 794,
+        "pin": 0
+      },
+      "id": 222
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 5
+      },
+      "b": {
+        "component": 795,
+        "pin": 0
+      },
+      "id": 223
+    },
+    {
+      "a": {
+        "component": 67,
+        "pin": 0
+      },
+      "b": {
+        "component": 796,
+        "pin": 0
+      },
+      "id": 224
+    },
+    {
+      "a": {
+        "component": 68,
+        "pin": 0
+      },
+      "b": {
+        "component": 797,
+        "pin": 0
+      },
+      "id": 225
+    },
+    {
+      "a": {
+        "component": 70,
+        "pin": 0
+      },
+      "b": {
+        "component": 798,
+        "pin": 0
+      },
+      "id": 226
+    },
+    {
+      "a": {
+        "component": 76,
+        "pin": 0
+      },
+      "b": {
+        "component": 799,
+        "pin": 0
+      },
+      "id": 227
+    },
+    {
+      "a": {
+        "component": 80,
+        "pin": 1
+      },
+      "b": {
+        "component": 800,
+        "pin": 0
+      },
+      "id": 228
+    },
+    {
+      "a": {
+        "component": 81,
+        "pin": 0
+      },
+      "b": {
+        "component": 801,
+        "pin": 0
+      },
+      "id": 229
+    },
+    {
+      "a": {
+        "component": 77,
+        "pin": 1
+      },
+      "b": {
+        "component": 802,
+        "pin": 0
+      },
+      "id": 230
+    },
+    {
+      "a": {
+        "component": 74,
+        "pin": 3
+      },
+      "b": {
+        "component": 803,
+        "pin": 0
+      },
+      "id": 231
+    },
+    {
+      "a": {
+        "component": 78,
+        "pin": 1
+      },
+      "b": {
+        "component": 804,
+        "pin": 0
+      },
+      "id": 232
+    },
+    {
+      "a": {
+        "component": 75,
+        "pin": 3
+      },
+      "b": {
+        "component": 805,
+        "pin": 0
+      },
+      "id": 233
+    },
+    {
+      "a": {
+        "component": 79,
+        "pin": 1
+      },
+      "b": {
+        "component": 806,
+        "pin": 0
+      },
+      "id": 234
+    },
+    {
+      "a": {
+        "component": 84,
+        "pin": 0
+      },
+      "b": {
+        "component": 807,
+        "pin": 0
+      },
+      "id": 235
+    },
+    {
+      "a": {
+        "component": 97,
+        "pin": 0
+      },
+      "b": {
+        "component": 808,
+        "pin": 0
+      },
+      "id": 236
+    },
+    {
+      "a": {
+        "component": 88,
+        "pin": 0
+      },
+      "b": {
+        "component": 809,
+        "pin": 0
+      },
+      "id": 237
+    },
+    {
+      "a": {
+        "component": 88,
+        "pin": 1
+      },
+      "b": {
+        "component": 810,
+        "pin": 0
+      },
+      "id": 238
+    },
+    {
+      "a": {
+        "component": 89,
+        "pin": 1
+      },
+      "b": {
+        "component": 811,
+        "pin": 0
+      },
+      "id": 239
+    },
+    {
+      "a": {
+        "component": 91,
+        "pin": 0
+      },
+      "b": {
+        "component": 812,
+        "pin": 0
+      },
+      "id": 240
+    },
+    {
+      "a": {
+        "component": 95,
+        "pin": 0
+      },
+      "b": {
+        "component": 813,
+        "pin": 0
+      },
+      "id": 241
+    },
+    {
+      "a": {
+        "component": 96,
+        "pin": 0
+      },
+      "b": {
+        "component": 814,
+        "pin": 0
+      },
+      "id": 242
+    },
+    {
+      "a": {
+        "component": 99,
+        "pin": 0
+      },
+      "b": {
+        "component": 815,
+        "pin": 0
+      },
+      "id": 243
+    },
+    {
+      "a": {
+        "component": 100,
+        "pin": 0
+      },
+      "b": {
+        "component": 816,
+        "pin": 0
+      },
+      "id": 244
+    },
+    {
+      "a": {
+        "component": 101,
+        "pin": 0
+      },
+      "b": {
+        "component": 817,
+        "pin": 0
+      },
+      "id": 245
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 6
+      },
+      "b": {
+        "component": 818,
+        "pin": 0
+      },
+      "id": 246
+    },
+    {
+      "a": {
+        "component": 58,
+        "pin": 1
+      },
+      "b": {
+        "component": 819,
+        "pin": 0
+      },
+      "id": 247
+    },
+    {
+      "a": {
+        "component": 64,
+        "pin": 1
+      },
+      "b": {
+        "component": 820,
+        "pin": 0
+      },
+      "id": 248
+    },
+    {
+      "a": {
+        "component": 40,
+        "pin": 4
+      },
+      "b": {
+        "component": 821,
+        "pin": 0
+      },
+      "id": 249
+    },
+    {
+      "a": {
+        "component": 70,
+        "pin": 1
+      },
+      "b": {
+        "component": 822,
+        "pin": 0
+      },
+      "id": 250
+    },
+    {
+      "a": {
+        "component": 71,
+        "pin": 1
+      },
+      "b": {
+        "component": 823,
+        "pin": 0
+      },
+      "id": 251
+    },
+    {
+      "a": {
+        "component": 75,
+        "pin": 0
+      },
+      "b": {
+        "component": 75,
+        "pin": 1
+      },
+      "id": 252
+    },
+    {
+      "a": {
+        "component": 75,
+        "pin": 0
+      },
+      "b": {
+        "component": 75,
+        "pin": 2
+      },
+      "id": 253
+    },
+    {
+      "a": {
+        "component": 75,
+        "pin": 0
+      },
+      "b": {
+        "component": 824,
+        "pin": 0
+      },
+      "id": 254
+    },
+    {
+      "a": {
+        "component": 82,
+        "pin": 1
+      },
+      "b": {
+        "component": 825,
+        "pin": 0
+      },
+      "id": 255
+    },
+    {
+      "a": {
+        "component": 84,
+        "pin": 1
+      },
+      "b": {
+        "component": 826,
+        "pin": 0
+      },
+      "id": 256
+    },
+    {
+      "a": {
+        "component": 90,
+        "pin": 1
+      },
+    )sieda",
+        R"sieda(  "b": {
+        "component": 827,
+        "pin": 0
+      },
+      "id": 257
+    },
+    {
+      "a": {
+        "component": 92,
+        "pin": 1
+      },
+      "b": {
+        "component": 828,
+        "pin": 0
+      },
+      "id": 258
+    },
+    {
+      "a": {
+        "component": 93,
+        "pin": 1
+      },
+      "b": {
+        "component": 829,
+        "pin": 0
+      },
+      "id": 259
+    },
+    {
+      "a": {
+        "component": 98,
+        "pin": 1
+      },
+      "b": {
+        "component": 830,
+        "pin": 0
+      },
+      "id": 260
+    },
+    {
+      "a": {
+        "component": 103,
+        "pin": 1
+      },
+      "b": {
+        "component": 831,
+        "pin": 0
+      },
+      "id": 261
+    },
+    {
+      "a": {
+        "component": 105,
+        "pin": 1
+      },
+      "b": {
+        "component": 832,
+        "pin": 0
+      },
+      "id": 262
+    },
+    {
+      "a": {
+        "component": 106,
+        "pin": 1
+      },
+      "b": {
+        "component": 833,
+        "pin": 0
+      },
+      "id": 263
+    },
+    {
+      "a": {
+        "component": 110,
+        "pin": 1
+      },
+      "b": {
+        "component": 834,
+        "pin": 0
+      },
+      "id": 264
+    },
+    {
+      "a": {
+        "component": 107,
+        "pin": 1
+      },
+      "b": {
+        "component": 835,
+        "pin": 0
+      },
+      "id": 265
+    },
+    {
+      "a": {
+        "component": 108,
+        "pin": 1
+      },
+      "b": {
+        "component": 836,
+        "pin": 0
+      },
+      "id": 266
+    },
+    {
+      "a": {
+        "component": 109,
+        "pin": 1
+      },
+      "b": {
+        "component": 837,
+        "pin": 0
+      },
+      "id": 267
+    },
+    {
+      "a": {
+        "component": 838,
+        "pin": 0
+      },
+      "b": {
+        "component": 839,
+        "pin": 0
+      },
+      "id": 268
+    },
+    {
+      "a": {
+        "component": 840,
+        "pin": 0
+      },
+      "b": {
+        "component": 841,
+        "pin": 0
+      },
+      "id": 269
+    },
+    {
+      "a": {
+        "component": 840,
+        "pin": 1
+      },
+      "b": {
+        "component": 842,
+        "pin": 0
+      },
+      "id": 270
+    },
+    {
+      "a": {
+        "component": 38,
+        "pin": 3
+      },
+      "b": {
+        "component": 843,
+        "pin": 0
+      },
+      "id": 271
+    },
+    {
+      "a": {
+        "component": 844,
+        "pin": 0
+      },
+      "b": {
+        "component": 845,
+        "pin": 0
+      },
+      "id": 272
+    },
+    {
+      "a": {
+        "component": 844,
+        "pin": 1
+      },
+      "b": {
+        "component": 846,
+        "pin": 0
+      },
+      "id": 273
+    },
+    {
+      "a": {
+        "component": 847,
+        "pin": 0
+      },
+      "b": {
+        "component": 848,
+        "pin": 0
+      },
+      "id": 274
+    },
+    {
+      "a": {
+        "component": 847,
+        "pin": 1
+      },
+      "b": {
+        "component": 849,
+        "pin": 0
+      },
+      "id": 275
+    },
+    {
+      "a": {
+        "component": 850,
+        "pin": 0
+      },
+      "b": {
+        "component": 851,
+        "pin": 0
+      },
+      "id": 276
+    },
+    {
+      "a": {
+        "component": 850,
+        "pin": 1
+      },
+      "b": {
+        "component": 852,
+        "pin": 0
+      },
+      "id": 277
+    },
+    {
+      "a": {
+        "component": 853,
+        "pin": 0
+      },
+      "b": {
+        "component": 854,
+        "pin": 0
+      },
+      "id": 278
+    },
+    {
+      "a": {
+        "component": 853,
+        "pin": 1
+      },
+      "b": {
+        "component": 855,
+        "pin": 0
+      },
+      "id": 279
+    },
+    {
+      "a": {
+        "component": 856,
+        "pin": 0
+      },
+      "b": {
+        "component": 857,
+        "pin": 0
+      },
+      "id": 280
+    },
+    {
+      "a": {
+        "component": 856,
+        "pin": 1
+      },
+      "b": {
+        "component": 858,
+        "pin": 0
+      },
+      "id": 281
+    },
+    {
+      "a": {
+        "component": 859,
+        "pin": 0
+      },
+      "b": {
+        "component": 860,
+        "pin": 0
+      },
+      "id": 282
+    },
+    {
+      "a": {
+        "component": 859,
+        "pin": 1
+      },
+      "b": {
+        "component": 861,
+        "pin": 0
+      },
+      "id": 283
+    },
+    {
+      "a": {
+        "component": 862,
+        "pin": 0
+      },
+      "b": {
+        "component": 863,
+        "pin": 0
+      },
+      "id": 284
+    },
+    {
+      "a": {
+        "component": 862,
+        "pin": 1
+      },
+      "b": {
+        "component": 864,
+        "pin": 0
+      },
+      "id": 285
+    },
+    {
+      "a": {
+        "component": 865,
+        "pin": 0
+      },
+      "b": {
+        "component": 866,
+        "pin": 0
+      },
+      "id": 286
+    },
+    {
+      "a": {
+        "component": 865,
+        "pin": 1
+      },
+      "b": {
+        "component": 867,
+        "pin": 0
+      },
+      "id": 287
+    },
+    {
+      "a": {
+        "component": 868,
+        "pin": 0
+      },
+      "b": {
+        "component": 869,
+        "pin": 0
+      },
+      "id": 288
+    },
+    {
+      "a": {
+        "component": 868,
+        "pin": 1
+      },
+      "b": {
+        "component": 870,
+        "pin": 0
+      },
+      "id": 289
+    },
+    {
+      "a": {
+        "component": 871,
+        "pin": 0
+      },
+      "b": {
+        "component": 872,
+        "pin": 0
+      },
+      "id": 290
+    },
+    {
+      "a": {
+        "component": 871,
+        "pin": 1
+      },
+      "b": {
+        "component": 873,
+        "pin": 0
+      },
+      "id": 291
+    },
+    {
+      "a": {
+        "component": 874,
+        "pin": 0
+      },
+      "b": {
+        "component": 875,
+        "pin": 0
+      },
+      "id": 292
+    },
+    {
+      "a": {
+        "component": 874,
+        "pin": 1
+      },
+      "b": {
+        "component": 876,
+        "pin": 0
+      },
+      "id": 293
+    },
+    {
+      "a": {
+        "component": 877,
+        "pin": 0
+      },
+      "b": {
+        "component": 878,
+        "pin": 0
+      },
+      "id": 294
+    },
+    {
+      "a": {
+        "component": 877,
+        "pin": 1
+      },
+      "b": {
+        "component": 879,
+        "pin": 0
+      },
+      "id": 295
+    },
+    {
+      "a": {
+        "component": 880,
+        "pin": 0
+      },
+      "b": {
+        "component": 881,
+        "pin": 0
+      },
+      "id": 296
+    },
+    {
+      "a": {
+        "component": 880,
+        "pin": 1
+      },
+      "b": {
+        "component": 882,
+        "pin": 0
+      },
+      "id": 297
+    },
+    {
+      "a": {
+        "component": 883,
+        "pin": 0
+      },
+      "b": {
+        "component": 884,
+        "pin": 0
+      },
+      "id": 298
+    },
+    {
+      "a": {
+        "component": 883,
+        "pin": 1
+      },
+      "b": {
+        "component": 885,
+        "pin": 0
+      },
+      "id": 299
+    },
+    {
+      "a": {
+        "component": 886,
+        "pin": 0
+      },
+      "b": {
+        "component": 887,
+        "pin": 0
+      },
+      "id": 300
+    },
+    {
+      "a": {
+        "component": 886,
+        "pin": 1
+      },
+      "b": {
+        "component": 888,
+        "pin": 0
+      },
+      "id": 301
+    },
+    {
+      "a": {
+        "component": 889,
+        "pin": 0
+      },
+      "b": {
+        "component": 890,
+        "pin": 0
+      },
+      "id": 302
+    },
+    {
+      "a": {
+        "component": 889,
+        "pin": 1
+      },
+      "b": {
+        "component": 891,
+        "pin": 0
+      },
+      "id": 303
+    },
+    {
+      "a": {
+        "component": 892,
+        "pin": 0
+      },
+      "b": {
+        "component": 893,
+        "pin": 0
+      },
+      "id": 304
+    },
+    {
+      "a": {
+        "component": 892,
+        "pin": 1
+      },
+      "b": {
+        "component": 894,
+        "pin": 0
+      },
+      "id": 305
+    },
+    {
+      "a": {
+        "component": 895,
+        "pin": 0
+      },
+      "b": {
+        "component": 896,
+        "pin": 0
+      },
+      "id": 306
+    },
+    {
+      "a": {
+        "component": 895,
+        "pin": 1
+      },
+      "b": {
+        "component": 897,
+        "pin": 0
+  )sieda",
+        R"sieda(    },
+      "id": 307
+    },
+    {
+      "a": {
+        "component": 898,
+        "pin": 0
+      },
+      "b": {
+        "component": 899,
+        "pin": 0
+      },
+      "id": 308
+    },
+    {
+      "a": {
+        "component": 898,
+        "pin": 1
+      },
+      "b": {
+        "component": 900,
+        "pin": 0
+      },
+      "id": 309
+    },
+    {
+      "a": {
+        "component": 901,
+        "pin": 0
+      },
+      "b": {
+        "component": 902,
+        "pin": 0
+      },
+      "id": 310
+    },
+    {
+      "a": {
+        "component": 901,
+        "pin": 1
+      },
+      "b": {
+        "component": 903,
+        "pin": 0
+      },
+      "id": 311
+    },
+    {
+      "a": {
+        "component": 73,
+        "pin": 4
+      },
+      "b": {
+        "component": 904,
+        "pin": 0
+      },
+      "id": 312
+    },
+    {
+      "a": {
+        "component": 905,
+        "pin": 0
+      },
+      "b": {
+        "component": 906,
+        "pin": 0
+      },
+      "id": 313
+    },
+    {
+      "a": {
+        "component": 905,
+        "pin": 1
+      },
+      "b": {
+        "component": 907,
+        "pin": 0
+      },
+      "id": 314
+    },
+    {
+      "a": {
+        "component": 908,
+        "pin": 0
+      },
+      "b": {
+        "component": 909,
+        "pin": 0
+      },
+      "id": 315
+    },
+    {
+      "a": {
+        "component": 908,
+        "pin": 1
+      },
+      "b": {
+        "component": 910,
+        "pin": 0
+      },
+      "id": 316
+    },
+    {
+      "a": {
+        "component": 911,
+        "pin": 0
+      },
+      "b": {
+        "component": 912,
+        "pin": 0
+      },
+      "id": 317
+    },
+    {
+      "a": {
+        "component": 911,
+        "pin": 1
+      },
+      "b": {
+        "component": 913,
+        "pin": 0
+      },
+      "id": 318
+    },
+    {
+      "a": {
+        "component": 914,
+        "pin": 0
+      },
+      "b": {
+        "component": 915,
+        "pin": 0
+      },
+      "id": 319
+    },
+    {
+      "a": {
+        "component": 914,
+        "pin": 1
+      },
+      "b": {
+        "component": 916,
+        "pin": 0
+      },
+      "id": 320
+    },
+    {
+      "a": {
+        "component": 917,
+        "pin": 0
+      },
+      "b": {
+        "component": 918,
+        "pin": 0
+      },
+      "id": 321
+    },
+    {
+      "a": {
+        "component": 917,
+        "pin": 1
+      },
+      "b": {
+        "component": 919,
+        "pin": 0
+      },
+      "id": 322
+    },
+    {
+      "a": {
+        "component": 920,
+        "pin": 0
+      },
+      "b": {
+        "component": 921,
+        "pin": 0
+      },
+      "id": 323
+    },
+    {
+      "a": {
+        "component": 920,
+        "pin": 1
+      },
+      "b": {
+        "component": 922,
+        "pin": 0
+      },
+      "id": 324
+    },
+    {
+      "a": {
+        "component": 923,
+        "pin": 0
+      },
+      "b": {
+        "component": 924,
+        "pin": 0
+      },
+      "id": 325
+    },
+    {
+      "a": {
+        "component": 923,
+        "pin": 1
+      },
+      "b": {
+        "component": 925,
+        "pin": 0
+      },
+      "id": 326
+    },
+    {
+      "a": {
+        "component": 926,
+        "pin": 0
+      },
+      "b": {
+        "component": 927,
+        "pin": 0
+      },
+      "id": 327
+    },
+    {
+      "a": {
+        "component": 926,
+        "pin": 1
+      },
+      "b": {
+        "component": 928,
+        "pin": 0
+      },
+      "id": 328
+    },
+    {
+      "a": {
+        "component": 929,
+        "pin": 0
+      },
+      "b": {
+        "component": 930,
+        "pin": 0
+      },
+      "id": 329
+    },
+    {
+      "a": {
+        "component": 929,
+        "pin": 1
+      },
+      "b": {
+        "component": 931,
+        "pin": 0
+      },
+      "id": 330
+    },
+    {
+      "a": {
+        "component": 932,
+        "pin": 0
+      },
+      "b": {
+        "component": 933,
+        "pin": 0
+      },
+      "id": 331
+    },
+    {
+      "a": {
+        "component": 932,
+        "pin": 1
+      },
+      "b": {
+        "component": 934,
+        "pin": 0
+      },
+      "id": 332
+    },
+    {
+      "a": {
+        "component": 935,
+        "pin": 0
+      },
+      "b": {
+        "component": 936,
+        "pin": 0
+      },
+      "id": 333
+    },
+    {
+      "a": {
+        "component": 935,
+        "pin": 1
+      },
+      "b": {
+        "component": 937,
+        "pin": 0
+      },
+      "id": 334
+    },
+    {
+      "a": {
+        "component": 938,
+        "pin": 0
+      },
+      "b": {
+        "component": 939,
+        "pin": 0
+      },
+      "id": 335
+    },
+    {
+      "a": {
+        "component": 938,
+        "pin": 1
+      },
+      "b": {
+        "component": 940,
+        "pin": 0
+      },
+      "id": 336
+    },
+    {
+      "a": {
+        "component": 941,
+        "pin": 0
+      },
+      "b": {
+        "component": 942,
+        "pin": 0
+      },
+      "id": 337
+    },
+    {
+      "a": {
+        "component": 941,
+        "pin": 1
+      },
+      "b": {
+        "component": 943,
+        "pin": 0
+      },
+      "id": 338
+    },
+    {
+      "a": {
+        "component": 944,
+        "pin": 0
+      },
+      "b": {
+        "component": 945,
+        "pin": 0
+      },
+      "id": 339
+    },
+    {
+      "a": {
+        "component": 944,
+        "pin": 1
+      },
+      "b": {
+        "component": 946,
+        "pin": 0
+      },
+      "id": 340
+    },
+    {
+      "a": {
+        "component": 947,
+        "pin": 0
+      },
+      "b": {
+        "component": 948,
+        "pin": 0
+      },
+      "id": 341
+    },
+    {
+      "a": {
+        "component": 947,
+        "pin": 1
+      },
+      "b": {
+        "component": 949,
+        "pin": 0
+      },
+      "id": 342
+    },
+    {
+      "a": {
+        "component": 950,
+        "pin": 0
+      },
+      "b": {
+        "component": 951,
+        "pin": 0
+      },
+      "id": 343
+    },
+    {
+      "a": {
+        "component": 950,
+        "pin": 1
+      },
+      "b": {
+        "component": 952,
+        "pin": 0
+      },
+      "id": 344
+    },
+    {
+      "a": {
+        "component": 953,
+        "pin": 0
+      },
+      "b": {
+        "component": 954,
+        "pin": 0
+      },
+      "id": 345
+    },
+    {
+      "a": {
+        "component": 953,
+        "pin": 1
+      },
+      "b": {
+        "component": 955,
+        "pin": 0
+      },
+      "id": 346
+    },
+    {
+      "a": {
+        "component": 14,
+        "pin": 3
+      },
+      "b": {
+        "component": 956,
+        "pin": 0
+      },
+      "id": 347
+    },
+    {
+      "a": {
+        "component": 957,
+        "pin": 0
+      },
+      "b": {
+        "component": 958,
+        "pin": 0
+      },
+      "id": 348
+    },
+    {
+      "a": {
+        "component": 957,
+        "pin": 1
+      },
+      "b": {
+        "component": 959,
+        "pin": 0
+      },
+      "id": 349
+    },
+    {
+      "a": {
+        "component": 21,
+        "pin": 1
+      },
+      "b": {
+        "component": 960,
+        "pin": 0
+      },
+      "id": 350
+    },
+    {
+      "a": {
+        "component": 961,
+        "pin": 0
+      },
+      "b": {
+        "component": 962,
+        "pin": 0
+      },
+      "id": 351
+    },
+    {
+      "a": {
+        "component": 961,
+        "pin": 1
+      },
+      "b": {
+        "component": 963,
+        "pin": 0
+      },
+      "id": 352
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 3
+      },
+      "b": {
+        "component": 964,
+        "pin": 0
+      },
+      "id": 353
+    },
+    {
+      "a": {
+        "component": 965,
+        "pin": 0
+      },
+      "b": {
+        "component": 966,
+        "pin": 0
+      },
+      "id": 354
+    },
+    {
+      "a": {
+        "component": 965,
+        "pin": 1
+      },
+      "b": {
+        "component": 967,
+        "pin": 0
+      },
+      "id": 355
+    },
+    {
+      "a": {
+        "component": 94,
+        "pin": 1
+      },
+      "b": {
+        "component": 968,
+        "pin": 0
+      },
+      "id": 356
+    },
+    {
+      "a": {
+        "component": 969,
+        "pin": 0
+      },
+      "b": {
+        "component": 970,
+        "pin": 0
+      },
+      "id": 357
+    },
+    {
+      "a": {
+      )sieda",
+        R"sieda(  "component": 969,
+        "pin": 1
+      },
+      "b": {
+        "component": 971,
+        "pin": 0
+      },
+      "id": 358
+    },
+    {
+      "a": {
+        "component": 72,
+        "pin": 2
+      },
+      "b": {
+        "component": 972,
+        "pin": 0
+      },
+      "id": 359
+    },
+    {
+      "a": {
+        "component": 973,
+        "pin": 0
+      },
+      "b": {
+        "component": 974,
+        "pin": 0
+      },
+      "id": 360
+    },
+    {
+      "a": {
+        "component": 973,
+        "pin": 1
+      },
+      "b": {
+        "component": 975,
+        "pin": 0
+      },
+      "id": 361
+    },
+    {
+      "a": {
+        "component": 976,
+        "pin": 0
+      },
+      "b": {
+        "component": 977,
+        "pin": 0
+      },
+      "id": 362
+    },
+    {
+      "a": {
+        "component": 976,
+        "pin": 1
+      },
+      "b": {
+        "component": 978,
+        "pin": 0
+      },
+      "id": 363
+    },
+    {
+      "a": {
+        "component": 13,
+        "pin": 1
+      },
+      "b": {
+        "component": 979,
+        "pin": 0
+      },
+      "id": 364
+    },
+    {
+      "a": {
+        "component": 980,
+        "pin": 0
+      },
+      "b": {
+        "component": 981,
+        "pin": 0
+      },
+      "id": 365
+    },
+    {
+      "a": {
+        "component": 980,
+        "pin": 1
+      },
+      "b": {
+        "component": 982,
+        "pin": 0
+      },
+      "id": 366
+    },
+    {
+      "a": {
+        "component": 983,
+        "pin": 0
+      },
+      "b": {
+        "component": 984,
+        "pin": 0
+      },
+      "id": 367
+    },
+    {
+      "a": {
+        "component": 983,
+        "pin": 1
+      },
+      "b": {
+        "component": 985,
+        "pin": 0
+      },
+      "id": 368
+    },
+    {
+      "a": {
+        "component": 986,
+        "pin": 0
+      },
+      "b": {
+        "component": 987,
+        "pin": 0
+      },
+      "id": 369
+    },
+    {
+      "a": {
+        "component": 986,
+        "pin": 1
+      },
+      "b": {
+        "component": 988,
+        "pin": 0
+      },
+      "id": 370
+    },
+    {
+      "a": {
+        "component": 989,
+        "pin": 0
+      },
+      "b": {
+        "component": 990,
+        "pin": 0
+      },
+      "id": 371
+    },
+    {
+      "a": {
+        "component": 989,
+        "pin": 1
+      },
+      "b": {
+        "component": 991,
+        "pin": 0
+      },
+      "id": 372
+    },
+    {
+      "a": {
+        "component": 992,
+        "pin": 0
+      },
+      "b": {
+        "component": 993,
+        "pin": 0
+      },
+      "id": 373
+    },
+    {
+      "a": {
+        "component": 992,
+        "pin": 1
+      },
+      "b": {
+        "component": 994,
+        "pin": 0
+      },
+      "id": 374
+    },
+    {
+      "a": {
+        "component": 995,
+        "pin": 0
+      },
+      "b": {
+        "component": 996,
+        "pin": 0
+      },
+      "id": 375
+    },
+    {
+      "a": {
+        "component": 995,
+        "pin": 1
+      },
+      "b": {
+        "component": 997,
+        "pin": 0
+      },
+      "id": 376
+    },
+    {
+      "a": {
+        "component": 998,
+        "pin": 0
+      },
+      "b": {
+        "component": 999,
+        "pin": 0
+      },
+      "id": 377
+    },
+    {
+      "a": {
+        "component": 998,
+        "pin": 1
+      },
+      "b": {
+        "component": 1000,
+        "pin": 0
+      },
+      "id": 378
+    },
+    {
+      "a": {
+        "component": 1001,
+        "pin": 0
+      },
+      "b": {
+        "component": 1002,
+        "pin": 0
+      },
+      "id": 379
+    },
+    {
+      "a": {
+        "component": 1001,
+        "pin": 1
+      },
+      "b": {
+        "component": 1003,
+        "pin": 0
+      },
+      "id": 380
+    },
+    {
+      "a": {
+        "component": 1004,
+        "pin": 0
+      },
+      "b": {
+        "component": 1005,
+        "pin": 0
+      },
+      "id": 381
+    },
+    {
+      "a": {
+        "component": 1004,
+        "pin": 1
+      },
+      "b": {
+        "component": 1006,
+        "pin": 0
+      },
+      "id": 382
+    },
+    {
+      "a": {
+        "component": 1007,
+        "pin": 0
+      },
+      "b": {
+        "component": 1008,
+        "pin": 0
+      },
+      "id": 383
+    },
+    {
+      "a": {
+        "component": 1007,
+        "pin": 1
+      },
+      "b": {
+        "component": 1009,
+        "pin": 0
+      },
+      "id": 384
+    },
+    {
+      "a": {
+        "component": 1010,
+        "pin": 0
+      },
+      "b": {
+        "component": 1011,
+        "pin": 0
+      },
+      "id": 385
+    },
+    {
+      "a": {
+        "component": 1010,
+        "pin": 1
+      },
+      "b": {
+        "component": 1012,
+        "pin": 0
+      },
+      "id": 386
+    },
+    {
+      "a": {
+        "component": 1013,
+        "pin": 0
+      },
+      "b": {
+        "component": 1014,
+        "pin": 0
+      },
+      "id": 387
+    },
+    {
+      "a": {
+        "component": 1013,
+        "pin": 1
+      },
+      "b": {
+        "component": 1015,
+        "pin": 0
+      },
+      "id": 388
+    },
+    {
+      "a": {
+        "component": 1016,
+        "pin": 0
+      },
+      "b": {
+        "component": 1017,
+        "pin": 0
+      },
+      "id": 389
+    },
+    {
+      "a": {
+        "component": 1016,
+        "pin": 1
+      },
+      "b": {
+        "component": 1018,
+        "pin": 0
+      },
+      "id": 390
+    },
+    {
+      "a": {
+        "component": 1019,
+        "pin": 0
+      },
+      "b": {
+        "component": 1020,
+        "pin": 0
+      },
+      "id": 391
+    },
+    {
+      "a": {
+        "component": 1019,
+        "pin": 1
+      },
+      "b": {
+        "component": 1021,
+        "pin": 0
+      },
+      "id": 392
+    },
+    {
+      "a": {
+        "component": 1022,
+        "pin": 0
+      },
+      "b": {
+        "component": 1023,
+        "pin": 0
+      },
+      "id": 393
+    },
+    {
+      "a": {
+        "component": 1022,
+        "pin": 1
+      },
+      "b": {
+        "component": 1024,
+        "pin": 0
+      },
+      "id": 394
+    },
+    {
+      "a": {
+        "component": 1025,
+        "pin": 0
+      },
+      "b": {
+        "component": 1026,
+        "pin": 0
+      },
+      "id": 395
+    },
+    {
+      "a": {
+        "component": 1025,
+        "pin": 1
+      },
+      "b": {
+        "component": 1027,
+        "pin": 0
+      },
+      "id": 396
+    },
+    {
+      "a": {
+        "component": 1028,
+        "pin": 0
+      },
+      "b": {
+        "component": 1029,
+        "pin": 0
+      },
+      "id": 397
+    },
+    {
+      "a": {
+        "component": 1028,
+        "pin": 1
+      },
+      "b": {
+        "component": 1030,
+        "pin": 0
+      },
+      "id": 398
+    },
+    {
+      "a": {
+        "component": 1031,
+        "pin": 0
+      },
+      "b": {
+        "component": 1032,
+        "pin": 0
+      },
+      "id": 399
+    },
+    {
+      "a": {
+        "component": 1031,
+        "pin": 1
+      },
+      "b": {
+        "component": 1033,
+        "pin": 0
+      },
+      "id": 400
+    },
+    {
+      "a": {
+        "component": 1034,
+        "pin": 0
+      },
+      "b": {
+        "component": 1035,
+        "pin": 0
+      },
+      "id": 401
+    },
+    {
+      "a": {
+        "component": 1034,
+        "pin": 1
+      },
+      "b": {
+        "component": 1036,
+        "pin": 0
+      },
+      "id": 402
+    },
+    {
+      "a": {
+        "component": 1037,
+        "pin": 0
+      },
+      "b": {
+        "component": 1038,
+        "pin": 0
+      },
+      "id": 403
+    },
+    {
+      "a": {
+        "component": 1037,
+        "pin": 1
+      },
+      "b": {
+        "component": 1039,
+        "pin": 0
+      },
+      "id": 404
+    },
+    {
+      "a": {
+        "component": 1040,
+        "pin": 0
+      },
+      "b": {
+        "component": 1041,
+        "pin": 0
+      },
+      "id": 405
+    },
+    {
+      "a": {
+        "component": 1040,
+        "pin": 1
+      },
+      "b": {
+        "component": 1042,
+        "pin": 0
+      },
+      "id": 406
+    },
+    {
+      "a": {
+        "component": 1043,
+        "pin": 0
+      },
+      "b": {
+        "component": 1044,
+        "pin": 0
+      },
+      "id": 407
+    },
+    {
+      "a": {)sieda",
+        R"sieda(
+        "component": 1043,
+        "pin": 1
+      },
+      "b": {
+        "component": 1045,
+        "pin": 0
+      },
+      "id": 408
+    },
+    {
+      "a": {
+        "component": 1046,
+        "pin": 0
+      },
+      "b": {
+        "component": 1047,
+        "pin": 0
+      },
+      "id": 409
+    },
+    {
+      "a": {
+        "component": 1046,
+        "pin": 1
+      },
+      "b": {
+        "component": 1048,
+        "pin": 0
+      },
+      "id": 410
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 4
+      },
+      "b": {
+        "component": 1049,
+        "pin": 0
+      },
+      "id": 411
+    },
+    {
+      "a": {
+        "component": 1050,
+        "pin": 0
+      },
+      "b": {
+        "component": 1051,
+        "pin": 0
+      },
+      "id": 412
+    },
+    {
+      "a": {
+        "component": 1050,
+        "pin": 1
+      },
+      "b": {
+        "component": 1052,
+        "pin": 0
+      },
+      "id": 413
+    },
+    {
+      "a": {
+        "component": 1053,
+        "pin": 0
+      },
+      "b": {
+        "component": 1054,
+        "pin": 0
+      },
+      "id": 414
+    },
+    {
+      "a": {
+        "component": 1053,
+        "pin": 1
+      },
+      "b": {
+        "component": 1055,
+        "pin": 0
+      },
+      "id": 415
+    },
+    {
+      "a": {
+        "component": 1056,
+        "pin": 0
+      },
+      "b": {
+        "component": 1057,
+        "pin": 0
+      },
+      "id": 416
+    },
+    {
+      "a": {
+        "component": 1056,
+        "pin": 1
+      },
+      "b": {
+        "component": 1058,
+        "pin": 0
+      },
+      "id": 417
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 5
+      },
+      "b": {
+        "component": 1059,
+        "pin": 0
+      },
+      "id": 418
+    },
+    {
+      "a": {
+        "component": 1060,
+        "pin": 0
+      },
+      "b": {
+        "component": 1061,
+        "pin": 0
+      },
+      "id": 419
+    },
+    {
+      "a": {
+        "component": 1060,
+        "pin": 1
+      },
+      "b": {
+        "component": 1062,
+        "pin": 0
+      },
+      "id": 420
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 6
+      },
+      "b": {
+        "component": 1063,
+        "pin": 0
+      },
+      "id": 421
+    },
+    {
+      "a": {
+        "component": 1064,
+        "pin": 0
+      },
+      "b": {
+        "component": 1065,
+        "pin": 0
+      },
+      "id": 422
+    },
+    {
+      "a": {
+        "component": 1064,
+        "pin": 1
+      },
+      "b": {
+        "component": 1066,
+        "pin": 0
+      },
+      "id": 423
+    },
+    {
+      "a": {
+        "component": 1067,
+        "pin": 0
+      },
+      "b": {
+        "component": 1068,
+        "pin": 0
+      },
+      "id": 424
+    },
+    {
+      "a": {
+        "component": 1067,
+        "pin": 1
+      },
+      "b": {
+        "component": 1069,
+        "pin": 0
+      },
+      "id": 425
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 9
+      },
+      "b": {
+        "component": 1070,
+        "pin": 0
+      },
+      "id": 426
+    },
+    {
+      "a": {
+        "component": 1071,
+        "pin": 0
+      },
+      "b": {
+        "component": 1072,
+        "pin": 0
+      },
+      "id": 427
+    },
+    {
+      "a": {
+        "component": 1071,
+        "pin": 1
+      },
+      "b": {
+        "component": 1073,
+        "pin": 0
+      },
+      "id": 428
+    },
+    {
+      "a": {
+        "component": 1074,
+        "pin": 0
+      },
+      "b": {
+        "component": 1075,
+        "pin": 0
+      },
+      "id": 429
+    },
+    {
+      "a": {
+        "component": 1074,
+        "pin": 1
+      },
+      "b": {
+        "component": 1076,
+        "pin": 0
+      },
+      "id": 430
+    },
+    {
+      "a": {
+        "component": 1077,
+        "pin": 0
+      },
+      "b": {
+        "component": 1078,
+        "pin": 0
+      },
+      "id": 431
+    },
+    {
+      "a": {
+        "component": 1077,
+        "pin": 1
+      },
+      "b": {
+        "component": 1079,
+        "pin": 0
+      },
+      "id": 432
+    },
+    {
+      "a": {
+        "component": 1080,
+        "pin": 0
+      },
+      "b": {
+        "component": 1081,
+        "pin": 0
+      },
+      "id": 433
+    },
+    {
+      "a": {
+        "component": 1080,
+        "pin": 1
+      },
+      "b": {
+        "component": 1082,
+        "pin": 0
+      },
+      "id": 434
+    },
+    {
+      "a": {
+        "component": 1083,
+        "pin": 0
+      },
+      "b": {
+        "component": 1084,
+        "pin": 0
+      },
+      "id": 435
+    },
+    {
+      "a": {
+        "component": 1083,
+        "pin": 1
+      },
+      "b": {
+        "component": 1085,
+        "pin": 0
+      },
+      "id": 436
+    },
+    {
+      "a": {
+        "component": 1086,
+        "pin": 0
+      },
+      "b": {
+        "component": 1087,
+        "pin": 0
+      },
+      "id": 437
+    },
+    {
+      "a": {
+        "component": 1086,
+        "pin": 1
+      },
+      "b": {
+        "component": 1088,
+        "pin": 0
+      },
+      "id": 438
+    },
+    {
+      "a": {
+        "component": 1089,
+        "pin": 0
+      },
+      "b": {
+        "component": 1090,
+        "pin": 0
+      },
+      "id": 439
+    },
+    {
+      "a": {
+        "component": 1089,
+        "pin": 1
+      },
+      "b": {
+        "component": 1091,
+        "pin": 0
+      },
+      "id": 440
+    },
+    {
+      "a": {
+        "component": 12,
+        "pin": 2
+      },
+      "b": {
+        "component": 1092,
+        "pin": 0
+      },
+      "id": 441
+    },
+    {
+      "a": {
+        "component": 1093,
+        "pin": 0
+      },
+      "b": {
+        "component": 1094,
+        "pin": 0
+      },
+      "id": 442
+    },
+    {
+      "a": {
+        "component": 1093,
+        "pin": 1
+      },
+      "b": {
+        "component": 1095,
+        "pin": 0
+      },
+      "id": 443
+    },
+    {
+      "a": {
+        "component": 1096,
+        "pin": 0
+      },
+      "b": {
+        "component": 1097,
+        "pin": 0
+      },
+      "id": 444
+    },
+    {
+      "a": {
+        "component": 1096,
+        "pin": 1
+      },
+      "b": {
+        "component": 1098,
+        "pin": 0
+      },
+      "id": 445
+    },
+    {
+      "a": {
+        "component": 1099,
+        "pin": 0
+      },
+      "b": {
+        "component": 1100,
+        "pin": 0
+      },
+      "id": 446
+    },
+    {
+      "a": {
+        "component": 1099,
+        "pin": 1
+      },
+      "b": {
+        "component": 1101,
+        "pin": 0
+      },
+      "id": 447
+    },
+    {
+      "a": {
+        "component": 14,
+        "pin": 1
+      },
+      "b": {
+        "component": 1102,
+        "pin": 0
+      },
+      "id": 448
+    },
+    {
+      "a": {
+        "component": 1103,
+        "pin": 0
+      },
+      "b": {
+        "component": 1104,
+        "pin": 0
+      },
+      "id": 449
+    },
+    {
+      "a": {
+        "component": 1103,
+        "pin": 1
+      },
+      "b": {
+        "component": 1105,
+        "pin": 0
+      },
+      "id": 450
+    },
+    {
+      "a": {
+        "component": 1106,
+        "pin": 0
+      },
+      "b": {
+        "component": 1107,
+        "pin": 0
+      },
+      "id": 451
+    },
+    {
+      "a": {
+        "component": 1106,
+        "pin": 1
+      },
+      "b": {
+        "component": 1108,
+        "pin": 0
+      },
+      "id": 452
+    },
+    {
+      "a": {
+        "component": 1109,
+        "pin": 0
+      },
+      "b": {
+        "component": 1110,
+        "pin": 0
+      },
+      "id": 453
+    },
+    {
+      "a": {
+        "component": 1109,
+        "pin": 1
+      },
+      "b": {
+        "component": 1111,
+        "pin": 0
+      },
+      "id": 454
+    },
+    {
+      "a": {
+        "component": 17,
+        "pin": 1
+      },
+      "b": {
+        "component": 1112,
+        "pin": 0
+      },
+      "id": 455
+    },
+    {
+      "a": {
+        "component": 1113,
+        "pin": 0
+      },
+      "b": {
+        "component": 1114,
+        "pin": 0
+      },
+      "id": 456
+    },
+    {
+      "a": {
+        "component": 1113,
+        "pin": 1
+      },
+      "b": {
+        "component": 1115,
+        "pin": 0
+      },
+     )sieda",
+        R"sieda( "id": 457
+    },
+    {
+      "a": {
+        "component": 1116,
+        "pin": 0
+      },
+      "b": {
+        "component": 1117,
+        "pin": 0
+      },
+      "id": 458
+    },
+    {
+      "a": {
+        "component": 1116,
+        "pin": 1
+      },
+      "b": {
+        "component": 1118,
+        "pin": 0
+      },
+      "id": 459
+    }
+  ],
+  "zones": [
+    {
+      "clearance": 0.5,
+      "layer": 0,
+      "net": "PGND",
+      "plane": false,
+      "polygon": [
+        {
+          "x": 85,
+          "y": 1
+        },
+        {
+          "x": 160,
+          "y": 1
+        },
+        {
+          "x": 160,
+          "y": 175
+        },
+        {
+          "x": 1,
+          "y": 175
+        },
+        {
+          "x": 1,
+          "y": 93
+        },
+        {
+          "x": 85,
+          "y": 93
+        }
+      ]
+    },
+    {
+      "clearance": 0.5,
+      "layer": 0,
+      "net": "SGND",
+      "plane": false,
+      "polygon": [
+        {
+          "x": 167,
+          "y": 1
+        },
+        {
+          "x": 269,
+          "y": 1
+        },
+        {
+          "x": 269,
+          "y": 175
+        },
+        {
+          "x": 167,
+          "y": 175
+        }
+      ]
+    },
+    {
+      "clearance": 0.5,
+      "layer": 0,
+      "net": "RECT",
+      "plane": false,
+      "polygon": [
+        {
+          "x": 60,
+          "y": 56
+        },
+        {
+          "x": 82,
+          "y": 56
+        },
+        {
+          "x": 82,
+          "y": 70.4
+        },
+        {
+          "x": 60,
+          "y": 70.4
+        }
+      ]
+    },
+    {
+      "clearance": 0.5,
+      "layer": 0,
+      "net": "RECT_RAW",
+      "plane": false,
+      "polygon": [
+        {
+          "x": 60,
+          "y": 70.4
+        },
+        {
+          "x": 82,
+          "y": 70.4
+        },
+        {
+          "x": 82,
+          "y": 82
+        },
+        {
+          "x": 60,
+          "y": 82
+        }
+      ]
+    }
+  ]
+})sieda",
+    };
+    std::string json;
+    for (const char* part : parts) json += part;
+    return json;
+}
