@@ -2993,6 +2993,21 @@ final class DesignStore: ObservableObject {
         workspace = .schematic
     }
 
+    /// Loads one of the core's built-in example projects (MCP `project_load_example`): finished boards, routed and verified.
+    func loadBuiltInExample(_ id: String) {
+        guard confirmDiscardChanges() else { return }
+        let (text, failed) = runTool("project_load_example", arguments: ["id": id])
+        guard !failed else {
+            statusMessage = text
+            return
+        }
+        undoStack.removeAll()
+        redoStack.removeAll()
+        documentURL = nil
+        isDirty = false
+        workspace = .pcb
+    }
+
     // MARK: - Project templates
 
     /// The user's project templates (Application Support/SiEDA/Templates/*.siedaproj), by name.

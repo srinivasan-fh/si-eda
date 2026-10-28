@@ -1922,3 +1922,6 @@
 "Still air" = "Ruhende Luft";
 "Thermal Analysis" = "Thermische Analyse";
 "Thermal Analysis…" = "Thermische Analyse…";
+"Production Boards" = "Serienplatinen";
+"SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 V AC auf 5–48 V / 1–5 A";
+"Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Geroutetes, geprüftes 2-Lagen-Netzteil mit seinen Fertigungsdaten (examples/smps-230vac-5-48v)";

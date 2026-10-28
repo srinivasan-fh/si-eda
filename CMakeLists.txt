@@ -20,6 +20,7 @@ if(SIEDA_FUZZ)
 endif()
 
 add_library(sieda_core STATIC
+    Core/src/ExampleProjects.cpp
     Core/src/Json.cpp
     Core/src/Units.cpp
     Core/src/Library.cpp
@@ -210,6 +211,9 @@ if(SIEDA_BUILD_TESTS)
                      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/sim_correlation_test.py
                              $<TARGET_FILE:sieda-mcp> ${NGSPICE})
         endif()
+        # The embedded example projects (Core/src/ExampleProjects.cpp) match examples/.
+        add_test(NAME sieda_examples_embedded
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_examples.py --check)
         # SiEDA Studio's server: token and Host checks, tool calls, /state, /quit.
         add_test(NAME sieda_studio
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/studio_test.py $<TARGET_FILE:sieda-studio>)

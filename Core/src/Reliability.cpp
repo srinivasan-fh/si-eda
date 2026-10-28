@@ -796,7 +796,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         bool groundPour = false;
         for (const auto& z : pcb.zones)
             for (const auto& n : nets)
-                if (n.name == z.net && n.isGround) groundPour = true;
+                if (n.name == z.net && (n.isGround || upper(n.name).find("GND") != std::string::npos)) groundPour = true;  // PGND, SGND, AGND …
         const bool critical = longRf || (!cls.fast.empty() && isOneOf(id, {"networking", "vlsi", "server", "hpc", "motherboard", "addin", "arm"}));
         if (!groundPour)
             add(critical ? Severity::Warning : Severity::Info, "REL_NO_REFERENCE_PLANE",

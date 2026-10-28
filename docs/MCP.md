@@ -439,7 +439,8 @@ What the agent gets back, so it can wire correctly without guessing:
 | `simulate_circuit` | `net`, `analysis` | Operating point, then a transient or AC analysis, explained. |
 
 Built-in examples (`project_list_examples`): `led_indicator`, `transistor_switch`, `rc_lowpass`,
-`opamp_noninverting`, `ne555_blinker`.
+`opamp_noninverting`, `ne555_blinker`, and the routed, verified production board `smps_230vac` (230 VAC to 5–48 V /
+1–5 A, [examples/smps-230vac-5-48v](../examples/smps-230vac-5-48v/README.md)).
 
 ## Python
 

@@ -1922,3 +1922,6 @@
 "Still air" = "Udara pegun";
 "Thermal Analysis" = "Analisis terma";
 "Thermal Analysis…" = "Analisis terma…";
+"Production Boards" = "Papan Pengeluaran";
+"SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC ke 5–48 V / 1–5 A";
+"Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Bekalan kuasa 2 lapisan yang dihalakan dan disahkan berserta output fabrikasinya (examples/smps-230vac-5-48v)";

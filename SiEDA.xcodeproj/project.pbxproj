@@ -208,6 +208,7 @@
 		E2863EF1680477E5EC6172CD = {isa = PBXBuildFile; fileRef = 6F713D3D022B8E6CABF26E5C; };
 		E39E12604687337239C21E5B = {isa = PBXBuildFile; fileRef = 2E8194B0F7B8AA32AE84594C; };
 		E48F305C4B73F61ECE6D047C = {isa = PBXBuildFile; fileRef = 94AEA8010C28DCB7576B2C06; };
+		E4D877983CE42E24E9251699 = {isa = PBXBuildFile; fileRef = 96DCFEC7FC2EB441F0D33A75; };
 		E5E9832B81B81A58A1A72832 = {isa = PBXBuildFile; fileRef = 2E647A6C898338BC192358C2; };
 		E5F8FB28288ADC59CC303638 = {isa = PBXBuildFile; fileRef = DCEA55FA55452583896F5342; };
 		E667F005148F0F4D717DC56D = {isa = PBXBuildFile; fileRef = 7623DA9341CCCB7CEF3EAB42; };
@@ -439,6 +440,7 @@
 		9558C18CE755FF980DD5B32B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BomLivePricingView.swift; sourceTree = "<group>"; };
 		95D82CBD596587E48DABCB80 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Naval.cpp; sourceTree = "<group>"; };
 		9660B1AE8F3C277BB8C2E6DB = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Model3D.cpp; sourceTree = "<group>"; };
+		96DCFEC7FC2EB441F0D33A75 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ExampleProjects.cpp; sourceTree = "<group>"; };
 		9A5200FC23BD8C0414FD7D75 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Automotive.hpp; sourceTree = "<group>"; };
 		9B648A12291572B1CDBF83AD = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Embedded.hpp; sourceTree = "<group>"; };
 		9B780D9F59521D3BDF902353 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasheetImporter.swift; sourceTree = "<group>"; };
@@ -826,6 +828,7 @@
 				CD3A16C7794D516C9E52E0BE,
 				553AC87409016AC6E3324A8A,
 				0F0833A5CA77AB73527A9023,
+				96DCFEC7FC2EB441F0D33A75,
 				19A32AB05C4FC519DD459887,
 				D8972BB0359DF00048543E42,
 				093215062DA71990759E16C7,
@@ -1395,6 +1398,7 @@
 				7E167CB23EE4FE64F8FB5249,
 				EA5B743B446FD1857E2C1661,
 				D955D5E0AF7F2908EFEC462B,
+				E4D877983CE42E24E9251699,
 				482CD12CF3DD25314FE03C7D,
 				F792108CCCD5F55F6F019BDF,
 				E138F2F67368416125FE5114,

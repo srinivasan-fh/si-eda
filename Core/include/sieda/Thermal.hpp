@@ -20,6 +20,7 @@ struct ThermalOptions {
     double cell = 0;                    // mm; 0 = chosen from the board size (at most ~20 000 cells)
     std::map<std::string, double> power;   // designator → W: replaces the DC operating point's dissipation
     std::map<std::string, double> thetaJB; // designator → °C/W junction-to-board (else estimated from the package)
+    std::map<std::string, double> heatsink; // designator → °C/W junction to ambient through its heatsink (θJC + θCS + θSA)
     double junctionLimitC = 125;        // THERMAL_JUNCTION above this
 };
 
@@ -29,8 +30,11 @@ struct ThermalPart {
     double power = 0;          // W
     std::string powerSource;   // "set" (options) or "dc" (DC operating point)
     double boardC = 0;         // hottest board cell under its pads
-    double junctionC = 0;      // boardC + power × θJB
+    double junctionC = 0;      // boardC + (power − toAirW) × θJB
     double thetaJB = 0;
+    double thetaHeatsink = 0;  // °C/W, 0 = none
+    double thetaBody = 0;      // °C/W from its body's top and sides to the air (footprint body size), 0 = none
+    double toAirW = 0;         // the share of its power leaving straight to the air (body + heatsink), not through the board
     bool thetaEstimated = true;
     Vec2 position;
 };
@@ -51,7 +55,7 @@ struct ThermalResult {
 };
 
 ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& options = {});
-/// Options from JSON: {ambient, hTop, hBottom, cell, power:{REF:W}, thetaJB:{REF:°C/W}, junctionLimit}.
+/// Options from JSON: {ambient, hTop, hBottom, cell, power:{REF:W}, thetaJB:{REF:°C/W}, heatsink:{REF:°C/W}, junctionLimit}.
 ThermalOptions thermalOptionsFromJson(const Json& j);
 /// {ambientC, maxC, hottest:{x,y}, totalPowerW, converged, iterations, parts:[…], findings:[…], notes:[…]} and, with
 /// `withMap`, map:{x0, y0, cell, nx, ny, t:[°C or null, row by row]}.

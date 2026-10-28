@@ -355,9 +355,16 @@ std::vector<RuleViolation> designReview(const Schematic& sch) {
         for (size_t g = 0; g < group.size(); ++g)
             for (int p = 0; p < 2; ++p) {
                 const int n = sch.netOf({group[g]->id, p});
-                // In series means on the LED's own net: a resistor elsewhere on a supply rail does not count.
-                if (n < 0 || sch.netRole(n) != NetRole::Signal) continue;
+                // In series means on the LED's own net: a resistor elsewhere on a supply rail does not count. A net of
+                // just the LED and one other pin is its own whatever its name says (PWR_LED reads as a rail).
+                if (n < 0) continue;
                 const auto& pins = nets[static_cast<size_t>(n)].pins;
+                if (sch.netRole(n) != NetRole::Signal) {
+                    size_t parts = 0;  // the net's part pins: labels and power symbols only name it
+                    for (const auto& pr : pins)
+                        if (const Component* o = sch.find(pr.component); o && (o->kind == ComponentKind::PartUnit || !isNetSymbolKind(o->kind))) ++parts;
+                    if (parts != 2) continue;
+                }
                 for (const auto& pr : pins) {
                     const Component* o = sch.find(pr.component);
                     if (!o || o == group[g]) continue;

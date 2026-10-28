@@ -139,9 +139,19 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
     // 2. DC operating point.
     {
         VerificationStage st{"simulation", "DC Simulation", StageStatus::Pass, "", {}, {}};
+        bool grounded = false;
+        for (const auto& n : sch.nets()) grounded |= n.isGround;
         if (empty) {
             st.status = StageStatus::Skipped;
             st.summary = "Nothing to simulate";
+        } else if (!hasSource && !grounded) {
+            // A board fed through its connectors with no ground symbol (an off-line supply's PGND / SGND): there is
+            // neither a stimulus nor a reference, so a DC solve says nothing about it.
+            st.status = StageStatus::Skipped;
+            st.summary = "No source or ground symbol to simulate";
+            st.findings.push_back(finding(Severity::Info, "VER_NO_SOURCE",
+                                          "No voltage source and no ground symbol: nothing to simulate (add a source "
+                                          "and a ground to simulate the circuit)."));
         } else {
             DcResult dc = Simulator(sch).dcOperatingPoint();
             if (!dc.converged) {

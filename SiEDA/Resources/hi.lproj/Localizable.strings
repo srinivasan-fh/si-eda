@@ -1922,3 +1922,6 @@
 "Still air" = "स्थिर हवा";
 "Thermal Analysis" = "तापीय विश्लेषण";
 "Thermal Analysis…" = "तापीय विश्लेषण…";
+"Production Boards" = "उत्पादन बोर्ड";
+"SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC से 5–48 V / 1–5 A";
+"Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "रूट किया गया, सत्यापित 2-परत पावर सप्लाई और उसकी निर्माण फ़ाइलें (examples/smps-230vac-5-48v)";
