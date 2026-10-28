@@ -1543,7 +1543,7 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
 
 // Wire links (pcb_add_jumpers, single-sided boards): a net the copper layer leaves in islands is joined by a wire link
 // soldered from the component side, a real part (JW1 …: schematic, BOM, both pins labelled with the net). For each
-// split net the shortest link along x or y (7.62–30.48 mm in 2.54 mm steps) from one island's copper to another's,
+// split net the shortest link along x or y (7.62–50.8 mm in 2.54 mm steps) from one island's copper to another's,
 // with a short stub track at either end, clear of other nets' copper by their class clearance, of holes, keep-outs,
 // the edge and every courtyard (its body of the bottom side's). Returns the refs added.
 Json addJumpers(McpServer& s, int maxLinks) {
@@ -1625,10 +1625,20 @@ Json addJumpers(McpServer& s, int maxLinks) {
                     return false;
             return st.segmentEdgeDistance(a, b) - width / 2 >= st.edgeClearance;
         };
-        std::vector<Rect> courtTop, courtBottom;
+        // The wire lies on the bottom (component) side: clear of the bodies there; its holes clear of those bodies and of
+        // the top side's courtyards (SMD parts on the copper side).
+        std::vector<Rect> bodies, noHoles;
         for (const auto& c : pr.schematic.components())
-            if (c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c))
-                (c.pcb.bottom ? courtBottom : courtTop).push_back(pr.pcb.courtyard(c));
+            if (const FootprintDef* fp = c.hasFootprint() && c.pcb.placed && pr.pcb.onBoard(c) ? Library::instance().footprint(c.footprintName()) : nullptr) {
+                if (!c.pcb.bottom) {
+                    noHoles.push_back(pr.pcb.courtyard(c));
+                    continue;
+                }
+                const bool turned = c.pcb.rotation % 180 != 0;
+                const Rect body = Rect::centered(c.pcb.position, turned ? fp->body.depth : fp->body.width,
+                                                 turned ? fp->body.width : fp->body.depth).inflated(0.3);
+                bodies.push_back(body), noHoles.push_back(body);
+            }
         constexpr double padD = 2.0;
         struct Link {
             double cost;
@@ -1643,10 +1653,10 @@ Json addJumpers(McpServer& s, int maxLinks) {
             for (const Spot& f : list)
                 for (int d = 0; d < 4; ++d) {
                     const Vec2 dir = d == 0 ? Vec2{1, 0} : d == 1 ? Vec2{-1, 0} : d == 2 ? Vec2{0, 1} : Vec2{0, -1};
-                    for (int steps = 3; steps <= 12; ++steps) {
+                    for (int steps = 3; steps <= 20; ++steps) {
                         const Vec2 b = f.at + dir * (steps * 2.54);
                         const Spot* near = nullptr;
-                        double nd = 3.0;
+                        double nd = 4.0;
                         for (const Spot& g : list)
                             if (groups[g.pad] != groups[f.pad] && (g.at - b).length() < nd) nd = (g.at - b).length(), near = &g;
                         if (near) cands.push_back({steps * 2.54 + nd + (f.stub - f.at).length() + (near->stub - near->at).length(),
@@ -1658,10 +1668,10 @@ Json addJumpers(McpServer& s, int maxLinks) {
                 if (best && c.cost >= best->cost) break;
                 if (refused.count(key(c.a)) && refused.count(key(c.b))) continue;
                 const Rect body = Rect{std::min(c.a.x, c.b.x), std::min(c.a.y, c.b.y), std::max(c.a.x, c.b.x),
-                                       std::max(c.a.y, c.b.y)}.inflated(padD / 2 + 0.25);
+                                       std::max(c.a.y, c.b.y)}.inflated(0.3);
                 const Rect ra = Rect::centered(c.a, padD + 0.5, padD + 0.5), rb = Rect::centered(c.b, padD + 0.5, padD + 0.5);
-                bool ok = std::none_of(courtBottom.begin(), courtBottom.end(), [&](const Rect& r) { return r.intersects(body); }) &&
-                          std::none_of(courtTop.begin(), courtTop.end(), [&](const Rect& r) { return r.intersects(ra) || r.intersects(rb); });
+                bool ok = std::none_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return r.intersects(body); }) &&
+                          std::none_of(noHoles.begin(), noHoles.end(), [&](const Rect& r) { return r.intersects(ra) || r.intersects(rb); });
                 ok = ok && clear(net, c.a, c.a, padD, true) && clear(net, c.b, c.b, padD, true);
                 ok = ok && (c.from.stub == c.a || clear(net, c.a, c.from.stub, w, false));
                 ok = ok && (c.to.at == c.b && c.to.stub == c.b ? true
@@ -6903,7 +6913,7 @@ void pcbTools(Table& t) {
           });
     t.add("pcb", "pcb_add_jumpers", "Wire links", Kind::Edit, false,
           "Single-sided boards: joins each net the copper leaves in islands by a wire link (JW1 …, a real part in the "
-          "schematic and BOM, both pins labelled with the net): the shortest straight link along x or y, 7.62–30.48 mm "
+          "schematic and BOM, both pins labelled with the net): the shortest straight link along x or y, 7.62–50.8 mm "
           "in 2.54 mm steps, from one island's copper to another's with short stub tracks, clear of other nets by their "
           "class clearance, of holes, keep-outs, the edge and courtyards; its body on the bottom (component) side. "
           "pcb_autoroute adds them by itself on a 1-layer board (jumpers: false skips).",
