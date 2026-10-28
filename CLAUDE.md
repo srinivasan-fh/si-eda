@@ -261,7 +261,8 @@
   `renderThermalPng`), app `ThermalView.swift` (Design → Thermal Analysis…), Studio Design menu; test
   `thermal_map_balances_power_and_spreads_through_copper` (energy balance, linearity, copper / airflow / heatsink cool it).
 - Production example `examples/smps-230vac-5-48v/` (230 VAC → 5–48 V / 1–5 A: PFC, flyback, sync buck; 2 layers, routed,
-  verified, fabrication outputs): its `.siedaproj` is embedded into the core by CMake (`embed.cmake` → `kSmpsExample`) as
+  verified, fabrication outputs): its `.siedaproj` is embedded into the core by `tools/embed_examples.py` (checked-in `Core/src/ExampleProjects.cpp`,
+  `smpsExampleJson`; CTest `sieda_examples_embedded` checks it is current — rerun the script after changing the project) as
   MCP example `smps_230vac` (`loadExample`), macOS File → New from Example → Production Boards (`loadBuiltInExample`);
   test `smps_example_is_routed_verified_and_its_fixes_hold` (DRC clean, verification without warnings). Fixes it brought:
   DIP / HEADER take a pitch above 2.54 (up to 15.24 mm, bigger pads / drills), placement refuses a pose nearer another net's

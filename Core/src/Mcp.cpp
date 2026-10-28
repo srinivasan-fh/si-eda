@@ -19,7 +19,7 @@
 
 namespace fs = std::filesystem;
 
-extern const char* const kSmpsExample;  // examples/smps-230vac-5-48v/smps_230vac.siedaproj, embedded by CMake
+std::string smpsExampleJson();  // examples/smps-230vac-5-48v/smps_230vac.siedaproj (ExampleProjects.cpp)
 
 namespace sieda::mcp {
 
@@ -615,7 +615,7 @@ const std::vector<McpExample>& mcpExamples() {
 
 bool loadExample(Project& p, const std::string& id) {
     if (id == "smps_230vac") {
-        p = Project::fromJson(Json::parse(::kSmpsExample));
+        p = Project::fromJson(Json::parse(::smpsExampleJson()));
         return true;
     }
     Project fresh;
