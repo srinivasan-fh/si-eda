@@ -1399,8 +1399,10 @@ std::unordered_map<int, std::vector<size_t>> groupPads(const std::vector<Pad>& p
 }
 
 /// neckDown with the pads' neck widths and the pads grouped by net computed once (routing calls it per track).
+/// `netClearance` (per net index, net classes) widens a class net's neck zone; empty = the board clearance for all.
 void neckDownWith(std::vector<Track>& out, const std::vector<Pad>& ps, const std::vector<double>& neck,
-                  const std::unordered_map<int, std::vector<size_t>>& padsByNet, double clearance) {
+                  const std::unordered_map<int, std::vector<size_t>>& padsByNet, double clearance,
+                  const std::vector<double>& netClearance = {}) {
     static const std::vector<size_t> kNone;
     for (int iter = 0; iter < 4; ++iter) {
         bool changed = false;
@@ -1413,7 +1415,8 @@ void neckDownWith(std::vector<Track>& out, const std::vector<Pad>& ps, const std
                 const size_t k = own[gi];
                 const Pad& p = ps[k];
                 if (p.net != t.net || !p.onLayer(t.layer) || neck[k] >= t.width - 1e-9) continue;
-                Rect zone = p.bounds().inflated(clearance + t.width / 2);
+                const double own = t.net >= 0 && static_cast<size_t>(t.net) < netClearance.size() ? netClearance[static_cast<size_t>(t.net)] : clearance;
+                Rect zone = p.bounds().inflated(std::max(clearance, own) + t.width / 2);
                 // Liang–Barsky clip of the segment to the zone.
                 double t0 = 0, t1 = 1;
                 Vec2 d = t.b - t.a;
@@ -3156,7 +3159,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         const double e = classExtra(net);
         return e > 1e-9 ? settings.viaDiameter / 2 + e : 0.0;
     };
-    const std::vector<double> neckWidths = padNeckWidths(ps);
+    std::vector<double> netClearance;  // per net: its class clearance (none without net classes)
+    if (!settings.netClearances.empty())
+        for (const auto& n : nets) netClearance.push_back(settings.clearanceFor(n.name));
+    const std::vector<double> neckWidths = padNeckWidths(ps, netClearance);
     const auto padsByNet = groupPads(ps, true);
     // Escape routing first: nets with a fine-pitch pad (one a base-width track must neck down to leave) route
     // before the rest, which would otherwise box those pads in.
@@ -3923,7 +3929,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         stats.trackLength += (t.b - t.a).length();
                         // Neck down now, so the grid keeps out only what the final (narrowed) copper needs.
                         std::vector<Track> pieces{t};
-                        neckDownWith(pieces, ps, neckWidths, padsByNet, settings.clearance);
+                        neckDownWith(pieces, ps, neckWidths, padsByNet, settings.clearance, netClearance);
                         // A step from a cell outside a neck zone into one inside it was judged at the neck's width, but
                         // its copper stays wide up to the zone's edge: that wide piece must clear the copper already
                         // down at its own width and class spacing, else it is necked too.
@@ -5599,7 +5605,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     std::vector<Track> unlockAgain;
     if (!keptT.empty() && bestTracks.size() >= keptT.size()) {
         std::vector<Track> routed(bestTracks.begin() + static_cast<std::ptrdiff_t>(keptT.size()), bestTracks.end());
-        neckDownWith(routed, ps, neckWidths, padsByNet, settings.clearance);
+        neckDownWith(routed, ps, neckWidths, padsByNet, settings.clearance, netClearance);
         bestTracks.resize(keptT.size());
         for (Track& t : bestTracks)
             if (!t.locked) {
@@ -5608,7 +5614,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
         bestTracks.insert(bestTracks.end(), routed.begin(), routed.end());
     } else {
-        neckDownWith(bestTracks, ps, neckWidths, padsByNet, settings.clearance);
+        neckDownWith(bestTracks, ps, neckWidths, padsByNet, settings.clearance, netClearance);
     }
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
@@ -5884,23 +5890,28 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
     return changes;
 }
 
-std::vector<double> PcbLayout::padNeckWidths(const std::vector<Pad>& ps) const {
+std::vector<double> PcbLayout::padNeckWidths(const std::vector<Pad>& ps, const std::vector<double>& netClearance) const {
     // Widest track that can leave a pad between its package neighbours: the pad's own width, limited so the track
-    // keeps the clearance to the nearest other-net pad of the same footprint; never below the fabrication minimum.
+    // keeps the clearance (the larger net class of the two, else the board's) to each other-net pad of the same
+    // footprint; never below the fabrication minimum.
     std::vector<double> out(ps.size());
     const auto byComponent = groupPads(ps, false);
+    auto clearanceOf = [&](int net) {
+        return net >= 0 && static_cast<size_t>(net) < netClearance.size() ? std::max(settings.clearance, netClearance[static_cast<size_t>(net)])
+                                                                          : settings.clearance;
+    };
     for (size_t i = 0; i < ps.size(); ++i) {
         const Pad& p = ps[i];
-        double minor = std::min(p.size.x, p.size.y);
-        double gap = std::numeric_limits<double>::max();
+        const double minor = std::min(p.size.x, p.size.y);
+        double limit = minor;
         for (size_t j : byComponent.at(p.componentId)) {
             const Pad& o = ps[j];
             if (j == i || o.componentId != p.componentId || (o.net == p.net && p.net >= 0)) continue;
             bool share = false;
             for (int l = 0; l < settings.layerCount && !share; ++l) share = p.onLayer(l) && o.onLayer(l);
-            if (share) gap = std::min(gap, rectRectDistance(p.bounds(), o.bounds()));
+            if (share)
+                limit = std::min(limit, 2 * (rectRectDistance(p.bounds(), o.bounds()) + minor / 2 - std::max(clearanceOf(p.net), clearanceOf(o.net))));
         }
-        double limit = gap < 1e6 ? 2 * (gap + minor / 2 - settings.clearance) : minor;
         out[i] = std::max(settings.minTrackWidth, std::min(minor, limit));
     }
     return out;

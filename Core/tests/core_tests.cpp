@@ -26268,6 +26268,24 @@ TEST(router_keeps_class_clearance_where_a_wide_track_necks) {
     CHECK(routed);
 }
 
+TEST(neck_widths_keep_net_class_clearance) {
+    // A 1206's pads 3 mm apart (1.85 mm gap): on the board's 0.3 mm a track up to the pad's 1.15 mm leaves it; with a
+    // 2 mm net class on either pad it is necked so its edge stays 2 mm from the other pad (2 × (1.85 + 0.575 − 2)).
+    PcbLayout pcb;
+    pcb.settings.clearance = 0.3;
+    std::vector<Pad> pads(2);
+    for (int k = 0; k < 2; ++k) {
+        pads[k].componentId = 7, pads[k].net = k;
+        pads[k].position = {10.0 + 3.0 * k, 10.0}, pads[k].size = {1.15, 1.8};
+    }
+    const auto plain = pcb.padNeckWidths(pads);
+    CHECK(std::fabs(plain[0] - 1.15) < 1e-9 && std::fabs(plain[1] - 1.15) < 1e-9);
+    for (const std::vector<double>& classes : {std::vector<double>{2.0, 0.3}, std::vector<double>{0.3, 2.0}}) {
+        const auto necked = pcb.padNeckWidths(pads, classes);
+        CHECK(std::fabs(necked[0] - 0.85) < 1e-9 && std::fabs(necked[1] - 0.85) < 1e-9);
+    }
+}
+
 TEST(smps_single_sided_example_is_routed_with_wire_links) {
     // examples/smps-230vac-5-48v-1layer: one copper layer, no vias, wire links (on a sheet of their own) where the
     // copper cannot cross; every connection routed, the DRC clean and verification without warnings.
