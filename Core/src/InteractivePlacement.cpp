@@ -10,6 +10,7 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/TrackGeometry.hpp"
 
 namespace sieda {
 
@@ -87,6 +88,33 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
         if (std::binary_search(ignore.begin(), ignore.end(), o.id)) continue;
         if (p.pcb.courtyard(o).intersects(probe))
             out.issues.push_back({"PLACE_OVERLAP", cand.ref + " would overlap the courtyard of " + o.ref + ".", o.id, true});
+    }
+    // Net classes asking for more than the board clearance (mains, a high-voltage bus): a pad nearer another net's
+    // pad than their class keeps is an illegal pose (DRC_NET_CLASS_CLEARANCE), so placement keeps them apart.
+    if (!s.netClearances.empty()) {
+        double reach = 0;
+        for (const auto& [name, c] : s.netClearances) reach = std::max(reach, c);
+        const auto& nets = p.schematic.nets();
+        auto need = [&](int n) { return n >= 0 && n < static_cast<int>(nets.size()) ? s.clearanceFor(nets[static_cast<size_t>(n)].name) : s.clearance; };
+        bool any = false;
+        for (const auto& pad : out.pads) any = any || need(pad.net) > s.clearance + kEps;
+        const Rect zone = cy.inflated(reach);
+        for (const auto& o : p.schematic.components()) {
+            if (o.id == cand.id || !o.hasFootprint() || !o.pcb.placed || !p.pcb.onBoard(o) || !p.pcb.courtyard(o).intersects(zone)) continue;
+            if (std::binary_search(ignore.begin(), ignore.end(), o.id)) continue;
+            bool hit = false;
+            for (const auto& theirs : padsAt(o, p.schematic, s)) {
+                if (!any && need(theirs.net) <= s.clearance + kEps) continue;
+                for (const auto& mine : out.pads)
+                    if (mine.net != theirs.net && (mine.throughHole || theirs.throughHole || mine.bottom == theirs.bottom) &&
+                        padPadDistance(mine, theirs) < std::max(need(mine.net), need(theirs.net)) - kEps)
+                        hit = true;
+                if (hit) break;
+            }
+            if (hit)
+                out.issues.push_back({"PLACE_NET_CLEARANCE", cand.ref + " would stand nearer " + o.ref +
+                                                                 " than their nets' class clearance.", o.id, true});
+        }
     }
     // Routing keep-outs over its pads: legal, but no track can reach them there.
     for (const auto& k : s.keepouts) {

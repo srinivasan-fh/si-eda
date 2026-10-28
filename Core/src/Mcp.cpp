@@ -19,6 +19,8 @@
 
 namespace fs = std::filesystem;
 
+extern const char* const kSmpsExample;  // examples/smps-230vac-5-48v/smps_230vac.siedaproj, embedded by CMake
+
 namespace sieda::mcp {
 
 const char* const kProtocolVersion = "2025-06-18";
@@ -604,11 +606,18 @@ const std::vector<McpExample>& mcpExamples() {
         {"rc_lowpass", "RC low-pass filter", "1 kHz sine source into a 1 kΩ / 100 nF low-pass (f3dB ≈ 1.6 kHz); net OUT."},
         {"opamp_noninverting", "Non-inverting amplifier", "Ideal op-amp with gain 2 (10 kΩ / 10 kΩ) from a 0.5 V input; net OUT."},
         {"ne555_blinker", "NE555 LED blinker", "9 V battery, NE555 astable (10 kΩ, 47 kΩ, 10 µF ≈ 1.4 Hz) driving an LED."},
+        {"smps_230vac", "SMPS 230 VAC to 5–48 V / 1–5 A",
+         "Production board: active PFC (L6563), isolated 52 V flyback (UC3843, ETD44) and a synchronous buck post-regulator "
+         "with CC/CV control; 2 layers, 200 × 130 mm, routed, DRC clean and verified (examples/smps-230vac-5-48v)."},
     };
     return examples;
 }
 
 bool loadExample(Project& p, const std::string& id) {
+    if (id == "smps_230vac") {
+        p = Project::fromJson(Json::parse(::kSmpsExample));
+        return true;
+    }
     Project fresh;
     auto& s = fresh.schematic;
     auto pin = [&](int c, const char* n) { return PinRef{c, s.pinIndex(c, n)}; };

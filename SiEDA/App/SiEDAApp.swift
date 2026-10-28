@@ -314,6 +314,10 @@ struct SiEDACommands: Commands {
                         }
                     }
                 }
+                Section("Production Boards") {
+                    Button("SMPS 230 VAC to 5–48 V / 1–5 A") { store.loadBuiltInExample("smps_230vac") }
+                        .help("Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)")
+                }
             }
             Menu("New from Template") {
                 let templates = store.templateURLs()

@@ -1922,3 +1922,6 @@
 "Still air" = "靜止空氣";
 "Thermal Analysis" = "熱分析";
 "Thermal Analysis…" = "熱分析…";
+"Production Boards" = "量產電路板";
+"SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC 轉 5–48 V / 1–5 A";
+"Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "已佈線並驗證的雙層電源及其製造輸出 (examples/smps-230vac-5-48v)";

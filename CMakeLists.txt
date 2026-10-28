@@ -19,7 +19,13 @@ if(SIEDA_FUZZ)
     add_compile_options(-fsanitize=fuzzer-no-link)
 endif()
 
+# Built-in example projects too large to build in code (MCP project_load_example), embedded from examples/.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/example_smps.cpp
+                   COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_CURRENT_SOURCE_DIR}/examples/smps-230vac-5-48v/smps_230vac.siedaproj
+                           -DOUT=${CMAKE_CURRENT_BINARY_DIR}/example_smps.cpp -DNAME=kSmpsExample -P ${CMAKE_CURRENT_SOURCE_DIR}/Core/studio/embed.cmake
+                   DEPENDS examples/smps-230vac-5-48v/smps_230vac.siedaproj Core/studio/embed.cmake)
 add_library(sieda_core STATIC
+    ${CMAKE_CURRENT_BINARY_DIR}/example_smps.cpp
     Core/src/Json.cpp
     Core/src/Units.cpp
     Core/src/Library.cpp

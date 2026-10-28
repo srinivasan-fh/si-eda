@@ -87,7 +87,7 @@ struct AutoSwapResult {
 /// mounting-hole keep-out (PLACE_HOLE), or the part is locked (PLACE_LOCKED). A routing keep-out over the part's pads
 /// (PLACE_KEEPOUT) is a warning: the pose is legal, but tracks cannot reach those pads there.
 struct PlacementIssue {
-    std::string code;     // PLACE_OVERLAP, PLACE_OUTSIDE, PLACE_HOLE, PLACE_LOCKED, PLACE_KEEPOUT
+    std::string code;     // PLACE_OVERLAP, PLACE_OUTSIDE, PLACE_HOLE, PLACE_LOCKED, PLACE_KEEPOUT, PLACE_NET_CLEARANCE
     std::string message;  // English, with the designators
     int other = -1;       // PLACE_OVERLAP: the part overlapped
     bool error = true;

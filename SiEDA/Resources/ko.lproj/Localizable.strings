@@ -1922,3 +1922,6 @@
 "Still air" = "정지 공기";
 "Thermal Analysis" = "열 해석";
 "Thermal Analysis…" = "열 해석…";
+"Production Boards" = "양산 보드";
+"SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC → 5–48 V / 1–5 A";
+"Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "배선·검증된 2층 전원 공급 장치와 제조 출력 (examples/smps-230vac-5-48v)";

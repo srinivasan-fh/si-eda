@@ -254,10 +254,21 @@
   when `BoardSettings::dfmPack` is set; `dfmReportJson` / `sieda_dfm_report_json` is the per-rule sign-off; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
 - Thermal analysis: `Core/src/Thermal.cpp` (`thermalAnalysis`: board as one sheet of laminate + per-layer copper coverage on a
-  grid, convection from both faces, part power from the DC operating point or `ThermalOptions::power`, PCG solve; junction =
-  board + power × θJB, `packageThetaJA` in Reliability.cpp), C `sieda_thermal_json`, MCP `pcb_thermal` (+ heat-map PNG
+  grid, convection from both faces, part power from the DC operating point or `ThermalOptions::power`, PCG solve (warm-started); each part's
+  body (footprint `BodyDef` top + sides, `thetaBody`) and optional heatsink (`ThermalOptions::heatsink`, θ junction to ambient)
+  take `toAirW` straight to the air, split by fixed-point iteration; junction = board + (power − toAirW) × θJB,
+  `packageThetaJA` in Reliability.cpp), C `sieda_thermal_json`, MCP `pcb_thermal` (+ heat-map PNG
   `renderThermalPng`), app `ThermalView.swift` (Design → Thermal Analysis…), Studio Design menu; test
-  `thermal_map_balances_power_and_spreads_through_copper` (energy balance, linearity, copper / airflow cool it).
+  `thermal_map_balances_power_and_spreads_through_copper` (energy balance, linearity, copper / airflow / heatsink cool it).
+- Production example `examples/smps-230vac-5-48v/` (230 VAC → 5–48 V / 1–5 A: PFC, flyback, sync buck; 2 layers, routed,
+  verified, fabrication outputs): its `.siedaproj` is embedded into the core by CMake (`embed.cmake` → `kSmpsExample`) as
+  MCP example `smps_230vac` (`loadExample`), macOS File → New from Example → Production Boards (`loadBuiltInExample`);
+  test `smps_example_is_routed_verified_and_its_fixes_hold` (DRC clean, verification without warnings). Fixes it brought:
+  DIP / HEADER take a pitch above 2.54 (up to 15.24 mm, bigger pads / drills), placement refuses a pose nearer another net's
+  pad than a net class's clearance (PLACE_NET_CLEARANCE in `collectIssues`; core `autoPlace` widens its keep-outs by the
+  class extra), the router's `wideClear` counts only the other net's class extra beyond its own (`beyond`) and neck zones
+  hold per layer (`neckLayers_`, classic grid too), VAL_LED_NO_RESISTOR takes a two-part net as the LED's own, a
+  connector-fed board with no source and no ground symbol skips the DC stage, PGND / SGND pours are reference planes.
 - PI: lumped PDN / IR drop in `Core/src/PowerIntegrity.cpp`; cavity model, plane mesh on the real pour shape
   (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,

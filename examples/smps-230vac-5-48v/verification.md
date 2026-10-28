@@ -1,0 +1,120 @@
+# Design Verification Report
+
+- **Project:** SMPS 230 VAC to 5-48 V 5 A (CC/CV)
+- **Industry profile:** Power Electronics (IEC 62368-1, IEC 61204, IPC-2221 B2 spacing, IPC-2152)
+- **Design rules:** IPC-2221 Class 3, 2 copper layers
+- **Verdict:** PASS (0 errors, 0 warnings, 32 notes)
+
+| Stage | Result | Summary |
+|---|---|---|
+| Electrical Rule Check | PASS | 0 errors, 0 warnings, 31 notes |
+| DC Simulation | SKIPPED | No source or ground symbol to simulate |
+| Circuit Validation | PASS | Values standard, parts within derated ratings |
+| Footprint Placement | PASS | 111 of 111 footprints placed |
+| Routing Completion | PASS | All connections routed |
+| Design Rule Check | PASS | Clean against IPC-2221 Class 3 |
+| Design for Reliability | PASS | No reliability risks found |
+| Manufacturing Outputs | PASS | 15 files generated and checked |
+
+## Electrical Rule Check — PASS
+
+0 errors, 0 warnings, 31 notes
+
+- 111 components, 73 nets
+
+| Severity | Code | Message |
+|---|---|---|
+| info | `ERC_TOUCHING_UNCONNECTED` | C27.1 touches a wire corner but is not connected to it: wire it, or move it clear. |
+| info | `ERC_NOT_SIMULATED` | J1 (TERMINAL-3P-5.08) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | F1 (FUSE-5X20-HOLDER) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | RV1 (S10K275) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | CX1 (X2-100N-275VAC) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | LF1 (CMC-2X10MH-6A) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | CX2 (X2-100N-275VAC) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | BR1 (GBU4M) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | U1 (L6563) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | LPFC (L-PFC-400U-ZCD) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | Q1 (C3M0065100K) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | DPFC (DIODE-TO220-2) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | CB1 (CAP-SNAPIN-30MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | Q2 (C3M0065100K) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | T1 (T-FLYBACK-ETD44) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | DOUT (DIODE-TO220-2) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | C11 (CAP-RADIAL-12.5MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | C12 (CAP-RADIAL-12.5MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | U3 (PC817) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | U4 (TL431AIDBZR) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | CY1 (CAP-Y1-DISC-10MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | Q3 (BSC040N10NS5) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | Q4 (BSC040N10NS5) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | LB (L-POWER-33U-10A) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | C18 (CAP-RADIAL-12.5MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | C19 (CAP-RADIAL-12.5MM) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | J2 (TERMINAL-2P-5.08) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | NT1 (NetTie-2) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | NT2 (NetTie-2) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | U10 (INA181A2IDBVR) has no simulation model. |
+| info | `ERC_NOT_SIMULATED` | J3 (PinHeader_1x04_P2.54mm) has no simulation model. |
+
+## DC Simulation — SKIPPED
+
+No source or ground symbol to simulate
+
+| Severity | Code | Message |
+|---|---|---|
+| info | `VER_NO_SOURCE` | No voltage source and no ground symbol: nothing to simulate (add a source and a ground to simulate the circuit). |
+
+## Circuit Validation — PASS
+
+Values standard, parts within derated ratings
+
+- Power Electronics derating: power 70 %, current 80 % of rating
+
+## Footprint Placement — PASS
+
+111 of 111 footprints placed
+
+- Board 200.0 × 130.0 mm, 2 copper layers
+
+## Routing Completion — PASS
+
+All connections routed
+
+- 691 track segments, 140 vias, 2737.4 mm of track
+
+## Design Rule Check — PASS
+
+Clean against IPC-2221 Class 3
+
+- Rules: track 0.40 mm, clearance 0.30 mm, via 0.35/0.75 mm (fab min 0.20/0.20 mm)
+
+## Design for Reliability — PASS
+
+No reliability risks found
+
+- Material: High-Tg FR-4, Tg ≥ 170 °C, low Z-axis CTE (IPC-4101/126)
+- Solder: SAC305 lead-free, IPC Class 3
+- Conformal coating: none
+
+## Manufacturing Outputs — PASS
+
+15 files generated and checked
+
+- Copper Top (Gerber) — 37.5 KB
+- Copper Bottom (Gerber) — 631.8 KB
+- Solder mask top (Gerber) — 8.2 KB
+- Solder mask bottom (Gerber) — 3.8 KB
+- Silkscreen top (Gerber) — 73.1 KB
+- Board outline (Gerber) — 0.3 KB
+- Drill (Excellon) — 4.7 KB, 261 holes
+- Bill of materials (CSV) — 5.1 KB
+- Pick and place (CSV) — 4.6 KB
+- SPICE netlist — 3.4 KB
+- Solder paste top (Gerber) — 4.6 KB
+- Silkscreen designators — 73.1 KB
+- IPC-D-356A test netlist — 31.8 KB
+- Gerber job file (X2) — 2.3 KB
+- Gerber zip for upload — 799.6 KB
+
+---
+Generated by SiEDA design verification.

@@ -457,7 +457,7 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         s.package.type = normalizePackage(pkg.get("type").asString("SOIC"), pinsFromName);
         s.package.pinCount = pkg.get("pinCount").asInt(pkg.get("pin_count").asInt(0));
         double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
-        s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 5.08 ? pitch : 0;
+        s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 15.24 ? pitch : 0;  // up to 15.24 mm: chokes, terminals
         s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
         const double depth = pkg.get("bodyDepth").asNumber(0);
         s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
@@ -775,8 +775,10 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         body = {bw, per * pitch + 0.5, 1.1, false, 0.12f, 0.12f, 0.13f};
     } else if (type == "DIP") {
         double row = bodyIn > 0 ? bodyIn / 2 : (n > 20 ? 7.62 : 3.81);  // bodySize = row spacing (7.62 / 15.24)
-        int per = dual(2.54, row, {1.6, 1.6}, true, 0.8);
-        body = {row * 2 - 1.3, per * 2.54, 3.5, false, 0.10f, 0.10f, 0.11f};
+        // 2.54 mm, or a wider pitch (transformers, chokes, mains parts) with larger pads and holes.
+        const double pitch = pitchIn > 2.54 ? pitchIn : 2.54, pad = pitch > 2.54 ? 2.2 : 1.6;
+        int per = dual(pitch, row, {pad, pad}, true, pitch > 2.54 ? 1.1 : 0.8);
+        body = {row * 2 - 1.3, per * pitch, 3.5, false, 0.10f, 0.10f, 0.11f};
     } else if (type == "QFN") {
         int per = std::max(1, n / 4);
         double pitch = pitchIn > 0 ? pitchIn : 0.5;
@@ -842,9 +844,11 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         for (int k = 0; k < side; ++k) pads.push_back({{w / 2, yTop + (side - 1 - k) * pitch}, {1.5, 0.9}, false, false, 0});
         body = {w, h, 3.1, false, 0.16f, 0.17f, 0.19f};
     } else if (type == "HEADER") {
-        double y0 = -(n - 1) * 2.54 / 2;
-        for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
-        body = {2.54, n * 2.54, 2.5, false, 0.08f, 0.08f, 0.08f};
+        // 2.54 mm, or a wider pitch (screw terminals: 3.5 / 5.0 / 5.08 mm) with larger pads and holes.
+        const double pitch = pitchIn > 2.54 ? pitchIn : 2.54, pad = pitch > 2.54 ? 2.4 : 1.7;
+        double y0 = -(n - 1) * pitch / 2;
+        for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * pitch}, {pad, pad}, true, i != 0, pitch > 2.54 ? 1.3 : 1.0});
+        body = {pitch > 2.54 ? pitch * 1.5 : 2.54, n * pitch, pitch > 2.54 ? 8.0 : 2.5, false, 0.08f, 0.08f, 0.08f};
     } else if (type == "HEADER2") {  // 2 × N, 2.54 mm, IDC numbering (1 2 / 3 4 / …)
         int rows = (n + 1) / 2;
         double y0 = -(rows - 1) * 2.54 / 2;

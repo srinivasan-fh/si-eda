@@ -125,7 +125,7 @@ ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& o) {
             }
         }
     }
-    std::vector<double> q(n, 0);
+    std::vector<std::vector<std::pair<long, double>>> feeds;  // per part: board cells and their share of its power
     int unplaced = 0;
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !pcb.onBoard(c) || isSourceKind(c.kind) || c.packageOnly) continue;
@@ -156,12 +156,21 @@ ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& o) {
             }
             into = {{k, 1.0}}, total = 1;
         }
-        for (const auto& [k, w] : into) q[static_cast<size_t>(k)] += part.power * w / total;
+        for (auto& f : into) f.second /= total;
+        feeds.push_back(std::move(into));
         r.totalPower += part.power;
         if (auto t = o.thetaJB.find(c.ref); t != o.thetaJB.end())
             part.thetaJB = std::max(0.0, t->second), part.thetaEstimated = false;
         else
             part.thetaJB = 0.35 * packageThetaJA(c);  // junction-to-board ≈ a third of θJA for leaded / QFN parts
+        if (auto t = o.heatsink.find(c.ref); t != o.heatsink.end() && t->second > 0) part.thetaHeatsink = t->second;
+        // Its body's top and sides also lose heat to the air (a transformer or an inductor sheds most of its own).
+        if (const FootprintDef* fp = Library::instance().footprint(c.footprintName()); fp && fp->body.width > 0 && fp->body.depth > 0) {
+            const BodyDef& b = fp->body;
+            const double skin = b.width * b.depth + 2 * std::max(0.0, b.height) * (b.width + b.depth);  // mm²
+            const double h = c.pcb.bottom ? o.hBottom : o.hTop;
+            if (h > 0) part.thetaBody = 1e6 / (h * skin);
+        }
         r.parts.push_back(part);
     }
 
@@ -196,31 +205,65 @@ ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& o) {
                 y[c] = v;
             }
     };
-    std::vector<double> x(n, 0), res = q, z(n, 0), dir(n, 0), ap(n, 0);
-    for (size_t c = 0; c < n; ++c) z[c] = diag[c] > 0 ? res[c] / diag[c] : 0;
-    dir = z;
-    double rz = 0, norm0 = 0;
-    for (size_t c = 0; c < n; ++c) rz += res[c] * z[c], norm0 += q[c] * q[c];
-    norm0 = std::sqrt(norm0);
-    r.converged = norm0 == 0;
-    for (int it = 0; it < 20000 && !r.converged; ++it) {
-        apply(dir, ap);
-        double pap = 0;
-        for (size_t c = 0; c < n; ++c) pap += dir[c] * ap[c];
-        if (pap <= 0) break;
-        const double alpha = rz / pap;
-        double norm = 0;
-        for (size_t c = 0; c < n; ++c) x[c] += alpha * dir[c], res[c] -= alpha * ap[c], norm += res[c] * res[c];
-        r.iterations = it + 1;
-        if (std::sqrt(norm) <= 1e-9 * norm0) {
-            r.converged = true;
-            break;
+    std::vector<double> x(n, 0), q(n, 0);
+    double norm0 = 0;
+    auto solve = [&] {  // warm-started from the last x
+        std::vector<double> res(n, 0), z(n, 0), dir(n, 0), ap(n, 0);
+        apply(x, ap);
+        double rz = 0, normQ = 0;
+        for (size_t c = 0; c < n; ++c) {
+            res[c] = q[c] - ap[c];
+            z[c] = diag[c] > 0 ? res[c] / diag[c] : 0;
+            rz += res[c] * z[c], normQ += q[c] * q[c];
         }
-        double rz2 = 0;
-        for (size_t c = 0; c < n; ++c) z[c] = diag[c] > 0 ? res[c] / diag[c] : 0, rz2 += res[c] * z[c];
-        const double beta = rz2 / rz;
-        rz = rz2;
-        for (size_t c = 0; c < n; ++c) dir[c] = z[c] + beta * dir[c];
+        dir = z;
+        norm0 = std::sqrt(normQ);
+        r.converged = norm0 == 0;
+        for (int it = 0; it < 20000 && !r.converged; ++it) {
+            apply(dir, ap);
+            double pap = 0;
+            for (size_t c = 0; c < n; ++c) pap += dir[c] * ap[c];
+            if (pap <= 0) break;
+            const double alpha = rz / pap;
+            double norm = 0;
+            for (size_t c = 0; c < n; ++c) x[c] += alpha * dir[c], res[c] -= alpha * ap[c], norm += res[c] * res[c];
+            ++r.iterations;
+            if (std::sqrt(norm) <= 1e-9 * norm0) {
+                r.converged = true;
+                break;
+            }
+            double rz2 = 0;
+            for (size_t c = 0; c < n; ++c) z[c] = diag[c] > 0 ? res[c] / diag[c] : 0, rz2 += res[c] * z[c];
+            const double beta = rz2 / rz;
+            rz = rz2;
+            for (size_t c = 0; c < n; ++c) dir[c] = z[c] + beta * dir[c];
+        }
+    };
+    auto boardRise = [&](const std::vector<std::pair<long, double>>& into) {
+        double t = 0;
+        for (const auto& f : into) t = std::max(t, x[static_cast<size_t>(f.first)]);
+        return t;
+    };
+    // A part splits its power: the junction drains to the board through θJB and straight to the air through its body
+    // (and heatsink), so P_board = P − (T_j − T_a) / θair with T_j set by the board under it. Repeated until it settles.
+    for (int pass = 0; pass < 30; ++pass) {
+        std::fill(q.begin(), q.end(), 0.0);
+        for (size_t p = 0; p < r.parts.size(); ++p)
+            for (const auto& [k, w] : feeds[p]) q[static_cast<size_t>(k)] += (r.parts[p].power - r.parts[p].toAirW) * w;
+        solve();
+        double change = 0;
+        for (size_t p = 0; p < r.parts.size(); ++p) {
+            auto& part = r.parts[p];
+            const double gH = (part.thetaHeatsink > 0 ? 1 / part.thetaHeatsink : 0) + (part.thetaBody > 0 ? 1 / part.thetaBody : 0);
+            if (gH <= 0) continue;
+            const double tb = boardRise(feeds[p]);  // over ambient
+            const double gB = part.thetaJB > 0 ? 1 / part.thetaJB : 1e6;
+            const double tj = (part.power + tb * gB) / (gB + gH);
+            const double hs = std::clamp(tj * gH, 0.0, part.power);
+            change = std::max(change, std::abs(hs - part.toAirW));
+            part.toAirW = 0.5 * (part.toAirW + hs);  // damped: the board answers every part at once
+        }
+        if (change < 1e-4) break;
     }
 
     r.temperature.assign(n, std::numeric_limits<double>::quiet_NaN());
@@ -241,7 +284,7 @@ ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& o) {
                     part.boardC = std::max(part.boardC, r.temperature[static_cast<size_t>(k)]);
         if (const long k = cellOf(part.position); k >= 0 && inside[static_cast<size_t>(k)])
             part.boardC = std::max(part.boardC, r.temperature[static_cast<size_t>(k)]);
-        part.junctionC = part.boardC + part.power * part.thetaJB;
+        part.junctionC = part.boardC + (part.power - part.toAirW) * part.thetaJB;
     }
     std::sort(r.parts.begin(), r.parts.end(), [](const ThermalPart& a, const ThermalPart& b) {
         return a.junctionC != b.junctionC ? a.junctionC > b.junctionC : a.ref < b.ref;
@@ -271,7 +314,8 @@ ThermalResult thermalAnalysis(const Project& project, const ThermalOptions& o) {
     if (!r.converged && norm0 > 0) r.notes.push_back("The solver stopped before converging: the map is approximate.");
     r.notes.push_back("Board model: one isothermal sheet (laminate + copper coverage per layer), " +
                       fmt("%.0f", o.hTop) + " / " + fmt("%.0f W/m²·K", o.hBottom) +
-                      " to the air from the top / bottom; junction = board + power × θJB.");
+                      " to the air from the top / bottom; each part's body (and heatsink) sheds part of its power to the air; junction = "
+                      "board + power into the board × θJB.");
     return r;
 }
 
@@ -282,10 +326,10 @@ ThermalOptions thermalOptionsFromJson(const Json& j) {
     o.hBottom = j.get("hBottom").asNumber(o.hBottom);
     o.cell = j.get("cell").asNumber(0);
     o.junctionLimitC = j.get("junctionLimit").asNumber(o.junctionLimitC);
-    for (const char* key : {"power", "thetaJB"})
+    for (auto [key, map] : {std::pair{"power", &o.power}, {"thetaJB", &o.thetaJB}, {"heatsink", &o.heatsink}})
         if (j.get(key).isObject())
             for (const auto& [ref, v] : j.get(key).fields())
-                if (v.isNumber()) (std::string(key) == "power" ? o.power : o.thetaJB)[ref] = v.asNumber();
+                if (v.isNumber()) (*map)[ref] = v.asNumber();
     return o;
 }
 
@@ -310,6 +354,8 @@ Json thermalJson(const ThermalResult& r, bool withMap) {
         e["junctionC"] = round1(p.junctionC);
         e["thetaJB"] = round1(p.thetaJB);
         e["thetaEstimated"] = p.thetaEstimated;
+        e["toAirW"] = std::round(p.toAirW * 1000) / 1000;  // straight from its body / heatsink to the air
+        if (p.thetaHeatsink > 0) e["thetaHeatsink"] = round1(p.thetaHeatsink);
         e["x"] = round1(p.position.x), e["y"] = round1(p.position.y);
         parts.push(e);
     }

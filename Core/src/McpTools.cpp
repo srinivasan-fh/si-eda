@@ -6231,8 +6231,10 @@ void pcbTools(Table& t) {
                           const Vec2 lo = Vec2{k.x0, k.y0} - c->pcb.position, hi = Vec2{k.x1, k.y1} - c->pcb.position;
                           const Vec2 mid = room.area.center();
                           std::vector<Vec2> spots;
-                          for (double y = room.area.y0 - lo.y; y <= room.area.y1 - hi.y + 1e-9; y += 0.25)
-                              for (double x = room.area.x0 - lo.x; x <= room.area.x1 - hi.x + 1e-9; x += 0.25) spots.push_back({x, y});
+                          // On the 0.25 mm grid the spacing check snaps to, so the pose checked is the pose placed.
+                          for (double y = std::ceil((room.area.y0 - lo.y) * 4 - 1e-6) / 4; y <= room.area.y1 - hi.y + 1e-9; y += 0.25)
+                              for (double x = std::ceil((room.area.x0 - lo.x) * 4 - 1e-6) / 4; x <= room.area.x1 - hi.x + 1e-9; x += 0.25)
+                                  spots.push_back({x, y});
                           std::sort(spots.begin(), spots.end(), [&](Vec2 u, Vec2 v) { return (u - mid).length() < (v - mid).length(); });
                           bool placed = false;
                           for (const Vec2 q : spots) {
@@ -6572,11 +6574,14 @@ void pcbTools(Table& t) {
                       for (Vec2 end : {ea, eb})
                           for (const auto& pad : pads) {
                               if (std::hypot(pad.position.x - end.x, pad.position.y - end.y) > 1e-3) continue;
-                              double largest = 0;  // an exposed pad is its part's largest pad
+                              // An exposed pad: an SMD pad larger than every other pad of its part (not one of a
+                              // through-hole part's equal pads).
+                              double others = 0;
                               for (const auto& q : pads)
-                                  if (q.componentId == pad.componentId) largest = std::max(largest, q.size.x * q.size.y);
+                                  if (q.componentId == pad.componentId && &q != &pad) others = std::max(others, q.size.x * q.size.y);
                               const Component* c = p->project.schematic.find(pad.componentId);
-                              if (c && pad.size.x * pad.size.y >= largest && largest > 4 && said.insert(c->ref).second)
+                              const double area = pad.size.x * pad.size.y;
+                              if (c && !pad.throughHole && area > others * 1.5 && area > 4 && said.insert(c->ref).second)
                                   hints.push(c->ref + "'s exposed pad: pcb_add_thermal_vias {\"ref\":\"" + c->ref +
                                              "\"} and a pour of its net on the bottom (pcb_add_pour) connect it.");
                           }
@@ -8447,12 +8452,14 @@ void teamTools(Table& t) {
           "Board temperature map: the steady-state temperature over the board from each part's dissipation (the DC "
           "operating point's, or `power` by designator), spread by the laminate and each layer's copper (tracks, pads, "
           "pours) and lost to the air from both faces. Gives the hottest spot, every powered part's board and junction "
-          "temperature (board + power × θJB, estimated from the package unless `thetaJB` gives it), THERMAL_JUNCTION / "
+          "temperature (board + power × θJB, estimated from the package unless `thetaJB` gives it; `heatsink` takes part of a part's power off the board), THERMAL_JUNCTION / "
           "THERMAL_BOARD findings and a heat-map picture.",
           Schema()
               .num("ambient", "Ambient air, °C (default 25)")
               .object("power", "Dissipation by designator, W, e.g. {\"U1\": 1.2} (replaces the DC operating point's)")
               .object("thetaJB", "Junction-to-board thermal resistance by designator, °C/W (from the datasheet)")
+              .object("heatsink", "Parts on a heatsink: junction-to-ambient through it by designator, °C/W (θJC + θCS + θSA); "
+                                  "the part's power splits between the heatsink and the board")
               .num("hTop", "Heat transfer to the air from the top face, W/m²·K (default 10 = still air; 25–50 with a fan)")
               .num("hBottom", "The same from the bottom face (default 10)")
               .num("junctionLimit", "THERMAL_JUNCTION above this junction temperature, °C (default 125)")

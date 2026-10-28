@@ -689,6 +689,19 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         const int da = domainOf[a], db = domainOf[b];
         return da >= 0 && db >= 0 && da != db ? isoGap : 0.0;
     };
+    // Net classes asking more than the board clearance (mains, a high-voltage bus): a part with such a net keeps that
+    // clearance (beyond the courtyard margin) from its neighbours, so their pads stand that far apart.
+    std::map<int, double> classOf;
+    if (!settings.netClearances.empty())
+        for (const auto& comp : comps)
+            for (int pin = 0; comp.hasFootprint() && pin < static_cast<int>(comp.def().pins.size()); ++pin)
+                if (const int n = sch.netOf({comp.id, pin}); n >= 0)
+                    classOf[comp.id] = std::max(classOf[comp.id], settings.clearanceFor(sch.nets()[static_cast<size_t>(n)].name));
+    auto classGap = [&](int a, int b) {
+        const auto ia = classOf.find(a), ib = classOf.find(b);
+        const double need = std::max(ia == classOf.end() ? 0.0 : ia->second, ib == classOf.end() ? 0.0 : ib->second);
+        return std::max(0.0, need - margin);
+    };
     std::map<int, double> escapeOf;
     for (const auto& comp : comps)
         if (comp.hasFootprint()) escapeOf[comp.id] = escape(comp);
@@ -723,7 +736,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         for (const auto& o : comps) {
             if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
             if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
-            keepOut.push_back(courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)));
+            keepOut.push_back(courtyard(o).inflated(margin / 2 + escapeOf[o.id] + std::max(barrierGap(o.id, c.id), classGap(o.id, c.id))));
         }
         for (const auto& ko : settings.keepouts)  // an all-layer keep-out (an antenna's area) holds no part
             if (ko.layer < 0) keepOut.push_back(ko.area.inflated(margin / 2));
@@ -1643,9 +1656,12 @@ public:
         });
     }
     /// Exact clearance test for a wide (net-class) track segment a–b of half-width `half` on layer l: the grid only
-    /// guarantees clearance for the base track width, so wide tracks are checked against the real copper.
+    /// guarantees clearance for the base track width, so wide tracks are checked against the real copper. `half`
+    /// carries the net's own class extra; another net's class adds only what it asks beyond that (the larger class
+    /// clearance of the two applies, as in the DRC).
     bool wideClear(int l, Vec2 a, Vec2 b, int net, double half) const {
-        const double need = s_.clearance + half - 1e-9;
+        const double need = s_.clearance + half - 1e-9, own = classExtra(net);
+        auto beyond = [&](int other) { return std::max(0.0, classExtra(other) - own); };
         for (Vec2 p : {a, b})
             if (s_.edgeDistance(p) < s_.edgeClearance + half - 1e-9 || s_.holeDistance(p) < half) return false;
         Rect box = Rect(a.x, a.y, b.x, b.y).inflated(need + maxHalf_ + maxClassExtra_);
@@ -1654,13 +1670,13 @@ public:
             const Pad& p = pads_[id];
             if (clash || (p.net == net && net >= 0) || !p.onLayer(l)) return;
             double d = padSegmentDistance(p, a, b);
-            if (d < need + classExtra(p.net)) clash = true;
+            if (d < need + beyond(p.net)) clash = true;
         });
         if (clash) return false;
         forBuckets(box, 1, buckets_, [&](size_t id) {
             const Copper& c = copperItems_[id];
             if (clash || c.net == net || (c.layer >= 0 && c.layer != l)) return;
-            if (segmentSegmentDistance(a, b, c.a, c.b) - c.half < need + classExtra(c.net)) clash = true;
+            if (segmentSegmentDistance(a, b, c.a, c.b) - c.half < need + beyond(c.net)) clash = true;
         });
         return !clash;
     }
@@ -2150,7 +2166,7 @@ class AStarWorkspace {
 public:
     explicit AStarWorkspace(size_t total, size_t cells)
         : cells_(cells), cost_(total), parent_(total), stamp_(total, 0), target_(cells, 0), targetLayers_(cells, 0),
-          neck_(cells, 0.0f), neckStamp_(cells, 0), via_(cells, 0), viaStamp_(cells, 0) {}
+          neck_(cells, 0.0f), neckStamp_(cells, 0), neckLayers_(cells, 0), via_(cells, 0), viaStamp_(cells, 0) {}
     AStarWorkspace(int cols, int rows, int layers, const routing::TileGrid& tiles)
         : cells_(static_cast<size_t>(cols) * static_cast<size_t>(rows)), corridor_(true), cols_(cols), rows_(rows),
           layers_(static_cast<size_t>(layers)), tiles_(tiles), tileSlot_(static_cast<size_t>(tiles.count()), -1) {
@@ -2258,18 +2274,18 @@ public:
         const size_t k = ci(c);
         return neckStamp_[k] == neckGen_ ? neck_[k] : 0.0f;
     }
-    /// The neck half-width for a track on `layer`. Neck-down narrows only tracks on the pad's own layers, so in
-    /// corridor mode the zone applies on those layers only (the classic router applies it on every layer, as before).
+    /// The neck half-width for a track on `layer`. Neck-down narrows only tracks on the pad's own layers, so the zone
+    /// applies on those layers only (on another layer the track is drawn full width and checked as such).
     float neck(size_t c, int layer) const {
         if (!allowed(c)) return 0.0f;
         const size_t k = ci(c);
         if (neckStamp_[k] != neckGen_) return 0.0f;
-        return !corridor_ || layer >= 32 || (neckLayers_[k] >> layer & 1u) ? neck_[k] : 0.0f;
+        return layer >= 32 || (neckLayers_[k] >> layer & 1u) ? neck_[k] : 0.0f;
     }
     void setNeck(size_t c, float h, uint32_t layers = ~0u) {
         if (!allowed(c)) return;
         const size_t k = ci(c);
-        if (corridor_) neckLayers_[k] = neckStamp_[k] == neckGen_ ? neckLayers_[k] | layers : layers;
+        neckLayers_[k] = neckStamp_[k] == neckGen_ ? neckLayers_[k] | layers : layers;
         neck_[k] = h;
         neckStamp_[k] = neckGen_;
         hasNeck_ = true;
@@ -2351,7 +2367,7 @@ private:
     std::vector<int> parent_;
     std::vector<uint32_t> stamp_, target_, targetLayers_;
     std::vector<float> neck_;
-    std::vector<uint32_t> neckStamp_, neckLayers_;  // neckLayers_: corridor mode, the pads' layers per cell
+    std::vector<uint32_t> neckStamp_, neckLayers_;  // neckLayers_: the pads' layers per cell
     std::vector<char> via_;  // viaAllowed per cell for the current search (net and grid are fixed during a search)
     std::vector<uint32_t> viaStamp_;
     std::vector<std::pair<float, int>> open_;
@@ -2554,7 +2570,8 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
             // checked exactly against its neighbours instead of the base-width grid keep-outs.
             const float nh = neckAt(nc, l);
             if (nh > 0) {
-                if (!g.inside(ni, nj) || !g.wideClear(l, g.pos(i, j), g.pos(ni, nj), net, nh)) continue;
+                // (a net-class track keeps its class clearance there too: the extra on the necked half-width)
+                if (!g.inside(ni, nj) || !g.wideClear(l, g.pos(i, j), g.pos(ni, nj), net, nh + g.classExtra(net))) continue;
             } else {
                 if (!g.passable(l, nc, net)) continue;
                 // Wide (net-class) tracks need their whole body clear.
@@ -4015,7 +4032,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                     for (int vl = 0; vl < grid.layers(); ++vl)
                         if (!grid.wideClear(vl, grid.pos(i, j), grid.pos(i, j), net, vh)) return false;
                 return !(wn > w + 1e-9 &&
-                         !grid.wideClear(layer, grid.pos(i, j), grid.pos(i, j), net, std::max(wn, settings.viaDiameter) / 2));
+                         !grid.wideClear(layer, grid.pos(i, j), grid.pos(i, j), net, std::max(wn, settings.viaDiameter) / 2 + grid.classExtra(net)));
             };
             bool any = false;
             for (int dj = -k; dj <= k && !any; ++dj)

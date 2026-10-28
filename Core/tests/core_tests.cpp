@@ -21213,6 +21213,10 @@ TEST(mcp_build_from_a_netlist_reviews_the_design) {
     CHECK(flagged(R"({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "D1", "kind": "led"},
                                 {"ref": "R1", "kind": "resistor"}],
                       "nets": {"VCC": ["V1.+", "D1.A", "R1.1"], "GND": ["V1.-", "D1.K"]}})", "VAL_LED_NO_RESISTOR"));
+    // An LED's own net is its series resistor's whatever its name says (PWR_LED reads as a rail): not flagged.
+    CHECK(!flagged(R"({"parts": [{"ref": "V1", "kind": "voltage_source", "value": "5"}, {"ref": "D1", "kind": "led"},
+                                 {"ref": "R1", "kind": "resistor", "value": "1k"}],
+                       "nets": {"VCC": ["V1.+", "R1.1"], "PWR_LED": ["R1.2", "D1.A"], "GND": ["V1.-", "D1.K"]}})", "VAL_LED_NO_RESISTOR"));
     // An LED whose cathode joins nothing never lights.
     CHECK(flagged(R"({"parts": [{"ref": "R1", "kind": "resistor"}, {"ref": "D1", "kind": "led"}],
                       "nets": {"LED": ["R1.2", "D1.A"]}})", "VAL_LED_OPEN"));
@@ -25238,7 +25242,7 @@ TEST(project_load_notes_newer_file_and_unknown_fields) {
         id["id"] = e.id;
         CHECK(!mcpFailed(mcpTool(m, "project_load_example", id)));
         Project& p = m.project()->project;
-        p.pcb.autoPlace(p.schematic, true);
+        if (p.pcb.tracks.empty()) p.pcb.autoPlace(p.schematic, true);
         const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
         if (!q.loadNotes.empty()) std::printf("    %s: %s\n", e.id.c_str(), q.loadNotes[0].c_str());
         CHECK(q.loadNotes.empty());
@@ -26156,14 +26160,16 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
     r = thermalAnalysis(s.project()->project, o);
     CHECK(r.converged && !r.parts.empty() && r.parts.front().ref == "R1" && r.parts.front().powerSource == "set");
-    // Steady state: everything dissipated leaves through the two faces.
+    // Steady state: everything dissipated leaves through the two faces or straight from the parts' bodies.
     auto toAir = [](const ThermalResult& t, const ThermalOptions& oo) {
         double w = 0;
         for (double v : t.temperature)
             if (!std::isnan(v)) w += (v - t.ambientC) * (oo.hTop + oo.hBottom) * t.cell * t.cell * 1e-6;
         return w;
     };
-    CHECK(std::fabs(toAir(r, o) - r.totalPower) < 0.01 * r.totalPower);
+    double viaBodies = 0;
+    for (const auto& p : r.parts) viaBodies += p.toAirW;
+    CHECK(viaBodies < r.totalPower && std::fabs(toAir(r, o) + viaBodies - r.totalPower) < 0.01 * r.totalPower);
     const double bare = r.maxC - r.ambientC;
     CHECK(bare > 5 && r.parts.front().junctionC > r.parts.front().boardC);
     // Linear: twice the power, twice the rise.
@@ -26179,6 +26185,16 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     ThermalOptions fan = o;
     fan.hTop = fan.hBottom = 40;
     CHECK(thermalAnalysis(s.project()->project, fan).maxC < poured.maxC);
+    // A heatsink takes part of the power off the board (beyond what its body sheds): the board and the junction run
+    // cooler, and the split balances (to the air = junction rise × (1/θhs + 1/θbody)).
+    ThermalOptions sunk = o;
+    sunk.heatsink["R1"] = 20;
+    const ThermalResult hs = thermalAnalysis(s.project()->project, sunk);
+    const ThermalPart& hp = hs.parts.front();
+    const double bodyOnly = poured.parts.front().toAirW;
+    CHECK(hp.toAirW > bodyOnly && hp.toAirW < hp.power && hs.maxC < poured.maxC && hp.junctionC < poured.parts.front().junctionC);
+    const double gAirPart = 1 / 20.0 + (hp.thetaBody > 0 ? 1 / hp.thetaBody : 0);
+    CHECK(std::fabs(hp.toAirW - (hp.junctionC - hs.ambientC) * gAirPart) < 0.01 * hp.power);
     const auto out = mcpTool(s, "pcb_thermal", Json::parse(R"({"power": {"R1": 3}, "map": true})"));
     const Json d = mcpData(out);
     CHECK(d.get("parts").size() >= 1 && d.get("findings").size() >= 1 && d.get("map").get("t").size() > 100);
@@ -26187,6 +26203,54 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     for (const auto& c : out.get("content").items()) picture |= c.get("type").asString("") == "image";
     CHECK(picture);
     std::filesystem::remove_all(root);
+}
+
+TEST(smps_example_is_routed_verified_and_its_fixes_hold) {
+    // The built-in production board (examples/smps-230vac-5-48v): loads routed, the DRC is clean and verification
+    // passes with no warning (a connector-fed board with no ground symbol skips the DC solve; PGND / SGND pours are
+    // reference planes; RECT_RAW carries one net class).
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "smps_230vac"})"))));
+    Project& p = s.project()->project;
+    CHECK(p.schematic.components().size() > 100 && !p.pcb.tracks.empty() && p.pcb.settings.width == 200);
+    const Json drc = mcpData(mcpTool(s, "pcb_drc"));
+    CHECK(drc.get("errors").asInt(1) == 0 && drc.get("unrouted").size() == 0);
+    const VerificationReport v = verifyDesign(p);
+    for (const auto& st : v.stages) {
+        CHECK(st.status != StageStatus::Fail && st.status != StageStatus::Warning);
+        for (const auto& f : st.findings) CHECK(f.code != "REL_NO_REFERENCE_PLANE" && f.code != "ERC_DIRECTIVE_CONFLICT");
+    }
+    // Wide-pitch DIP / HEADER packages (transformers, screw terminals) keep their pitch with larger pads and holes.
+    auto& reg = CustomPartRegistry::instance();
+    for (const char* pkg : {"DIP", "HEADER"}) {
+        CustomPartSpec spec;
+        spec.name = std::string("WIDE_") + pkg;
+        spec.package.type = pkg;
+        spec.package.pitch = 5.08;
+        for (int i = 1; i <= 4; ++i) spec.pins.push_back({std::to_string(i), "P" + std::to_string(i), PinType::Passive, ""});
+        const auto& pads = reg.registerPart(spec)->footprint.pads;
+        CHECK(pads.size() == 4 && std::fabs(std::fabs(pads[1].offset.y - pads[0].offset.y) - 5.08) < 1e-6);
+        CHECK(pads[0].drill >= 1.1 && pads[0].size.x >= 2.2);
+    }
+    // Placement keeps a net class's clearance: beside another net's pad, clear of its courtyard but nearer than the
+    // class asks, the pose is refused (PLACE_NET_CLEARANCE); without the class it is legal.
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [{"ref": "R1", "kind": "resistor", "package": "1206"},
+        {"ref": "R2", "kind": "resistor", "package": "1206"}], "nets": {"AC_L": ["R1.1"], "AC_N": ["R1.2"], "X": ["R2.1"], "Y": ["R2.2"]}})"))));
+    Project& q = s.project()->project;
+    q.pcb.settings.width = q.pcb.settings.height = 40;
+    const Component* r1 = q.schematic.findByRef("R1");
+    const Component* r2 = q.schematic.findByRef("R2");
+    CHECK(r1 && r2 && q.placeComponent(r1->id, {20, 20}, 0, false, 0).committed);
+    const double beside = q.pcb.courtyard(*r1).width() / 2 + 0.4 + q.pcb.courtyard(*r1).width() / 2;
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& i : q.checkPlacement(r2->id, {20 + beside, 20}, 0, false, 0).issues) c.insert(i.code);
+        return c;
+    };
+    CHECK(!codes().count("PLACE_NET_CLEARANCE") && !codes().count("PLACE_OVERLAP"));
+    q.pcb.settings.netClearances["AC_L"] = q.pcb.settings.netClearances["AC_N"] = 3.0;
+    CHECK(codes().count("PLACE_NET_CLEARANCE") && !codes().count("PLACE_OVERLAP"));
 }
 
 TEST(mcp_rule_pack_saves_applies_and_flags_drift) {

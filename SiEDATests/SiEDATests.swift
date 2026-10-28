@@ -6871,6 +6871,16 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(r.findings.contains { $0.code == "THERMAL_JUNCTION" })
     }
 
+    func testProductionExampleLoadsTheRoutedSmpsBoard() throws {
+        // File → New from Example → Production Boards loads the core's routed SMPS board as a fresh, clean document.
+        let store = DesignStore()
+        store.loadBuiltInExample("smps_230vac")
+        XCTAssertFalse(store.isDirty)
+        XCTAssertEqual(store.workspace, .pcb)
+        XCTAssertGreaterThan(store.snapshot.components.count, 100)
+        XCTAssertFalse(store.snapshot.tracks.isEmpty)
+    }
+
     func testCompanyLibraryWindowListsTheChosenFolder() throws {
         // The window lists the folder kept in user defaults (its name inside its parent is the tool's root).
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-lib-\(UUID().uuidString)")
