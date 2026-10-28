@@ -16,10 +16,17 @@ the full production package. It is also a built-in example: **File → New from 
 | Synchronous buck | U5 (UC3843), U8 (IR2104), Q3 / Q4 (BSC040N10NS5), LB (33 µH / 10 A), C18 / C19, J2 | 52 V → 5–48 V output |
 | CC / CV control | U7 (LM358), U9, U10 (INA181), R32 (10 mΩ Kelvin shunt via NT1 / NT2), J3 (VSET / ISET header) | Voltage set point (VSET) and current limit (ISET, 1–5 A) |
 
-111 parts, 73 nets, 2 layers, 200 × 130 mm, high-Tg FR-4, IPC-2221 Class 3 with the power-electronics profile
+112 parts, 73 nets, 2 layers, 200 × 130 mm, high-Tg FR-4, IPC-2221 Class 3 with the power-electronics profile
 (IEC 62368-1 spacing). Net classes (track width / clearance, mm): MAINS 1.5 / 2.5, HV 1.0 / 2.0, PWR52 2.0 / 0.5, OUT
 2.5 / 0.5. The board is laid out in rooms (AC input, PFC, flyback primary, secondary, buck); T1, U3 and CY1 bridge
-the gap between the primary and secondary rooms.
+the gap between the primary and secondary rooms. Six M3 holes hold it: MH1 by the AC inlet is plated and bonded to
+protective earth (net PE, the chassis screw), the other five are bare (NPTH, 8 mm keep-out).
+
+The schematic is drawn on six sheets, one per stage, with the power path left to right: AC input and EMI filter, PFC
+boost, flyback primary and bias, isolated 52 V bus and feedback, synchronous buck, CC / CV control.
+
+A single-sided version of the same supply (one copper layer, wire links) is in
+[../smps-230vac-5-48v-1layer](../smps-230vac-5-48v-1layer).
 
 ## Results
 
@@ -38,7 +45,7 @@ at half its rating (≈ 128 °C surface, rated 155 °C). Every semiconductor jun
 | File | Contents |
 |---|---|
 | [smps_230vac.siedaproj](smps_230vac.siedaproj) | The project: schematic, routed board, net classes, rooms, pours |
-| [schematic.pdf](schematic.pdf), [schematic.png](schematic.png) | Schematic |
+| [schematic.pdf](schematic.pdf), [schematic_1.png](schematic_1.png) … [schematic_6.png](schematic_6.png) | Schematic, one sheet per stage |
 | [pcb.png](pcb.png), [3d.png](3d.png) | Board and 3D renders |
 | [bom.csv](bom.csv) | Bill of materials |
 | [fabrication/](fabrication/) | Gerbers and drill (`smps_230vac-gerbers.zip`), fabrication drawing PDF, fab notes, assembly files (BOM, pick-and-place, CPL, interactive HTML BOM, test points, assembly drawing), DXF / FreeCAD / Fusion mechanical files, net lengths, SPICE netlist, bring-up checklist |
