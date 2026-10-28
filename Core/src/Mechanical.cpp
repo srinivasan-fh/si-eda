@@ -310,8 +310,11 @@ std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayou
         out.push_back(std::move(v));
     };
     std::vector<Body> bodies;
-    for (auto& b : partBodies(sch, pcb))
-        if (!b.c->sourcing.dnp) bodies.push_back(std::move(b));
+    for (auto& b : partBodies(sch, pcb)) {
+        const FootprintDef* fp = Library::instance().footprint(b.c->footprintName());
+        const bool wire = fp && fp->label.rfind("WIRELINK", 0) == 0;  // a wire link lies on the board, under the bodies
+        if (!b.c->sourcing.dnp && !wire) bodies.push_back(std::move(b));
+    }
     auto mm = [](double v) { return num(std::round(v * 100) / 100) + " mm"; };
     for (const Body& b : bodies) {
         const Component& c = *b.c;

@@ -8,7 +8,9 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
+#include <numeric>
 #include <iterator>
 #include <set>
 #include <sstream>
@@ -1548,7 +1550,10 @@ int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::strin
                 bool insulated = false) {
     SiedaProject* p = P(s);
     Project& pr = p->project;
-    const double dx = std::fabs(b.x - a.x), dy = std::fabs(b.y - a.y);
+    // On the bottom the part is mirrored: a link falling to the right (both offsets one sign) is drawn with its
+    // offsets swapped and placed a quarter turn round.
+    const bool swapped = (b.x - a.x) * (b.y - a.y) > 0;
+    const double dx = std::fabs(swapped ? b.y - a.y : b.x - a.x), dy = std::fabs(swapped ? b.x - a.x : b.y - a.y);
     auto mm = [](double v) {
         const long um = std::lround(v * 100);
         return std::to_string(um / 100) + "." + (um % 100 < 10 ? "0" : "") + std::to_string(um % 100);
@@ -1602,6 +1607,7 @@ int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::strin
 }
 
 // Places a wire link on the bottom (component side) with its holes on a and b: the quarter turn that puts them there.
+// Refused (ToolError) when none does.
 void placeWireLink(SiedaProject* p, int id, Vec2 a, Vec2 b) {
     const Vec2 mid = (a + b) * 0.5;
     for (int rot : {0, 90, 180, 270}) {
@@ -1611,6 +1617,7 @@ void placeWireLink(SiedaProject* p, int id, Vec2 a, Vec2 b) {
             if (pad.componentId == id) fits = fits && std::min((pad.position - a).length(), (pad.position - b).length()) < 0.01;
         if (fits) return;
     }
+    throw ToolError("Could not place wire link " + p->project.schematic.find(id)->ref + " on its holes");
 }
 
 // Wire links (pcb_add_jumpers, single-sided boards): a net the copper layer leaves in islands is joined by a wire link
@@ -1802,54 +1809,92 @@ Json bottomToLinks(McpServer& s) {
         }
     std::vector<Track> under, top;
     for (const Track& t : pcb.tracks) (t.layer == bottom && !t.arc ? under : top).push_back(t);
+    // Each piece of bottom copper joins the vias standing on it: they are the link holes, joined by the shortest
+    // links that keep them all together (Prim).
     auto key = [](Vec2 v) { return std::make_pair(std::lround(v.x * 1000), std::lround(v.y * 1000)); };
-    std::map<std::pair<long, long>, std::vector<size_t>> ends;
-    for (size_t i = 0; i < under.size(); ++i) ends[key(under[i].a)].push_back(i), ends[key(under[i].b)].push_back(i);
-    std::set<std::pair<long, long>> held;  // points a via or top copper stands on
-    for (const Via& v : pcb.vias) held.insert(key(v.position));
-    auto bend = [&](Vec2 q) { return ends[key(q)].size() == 2 && !held.count(key(q)); };
-    // Runs of bottom tracks through bends.
-    std::vector<char> used(under.size(), 0);
-    std::vector<std::pair<std::vector<Vec2>, int>> runs;  // points, net
-    for (size_t i = 0; i < under.size(); ++i) {
-        if (used[i]) continue;
-        // Walk back to the run's start, then forward collecting points.
-        size_t cur = i;
-        Vec2 from = under[i].a;
-        for (size_t guard = 0; bend(from) && guard < under.size(); ++guard) {
-            const auto& at = ends[key(from)];
-            const size_t prev = at[0] == cur ? at[1] : at[0];
-            from = key(under[prev].a) == key(from) ? under[prev].b : under[prev].a;
-            cur = prev;
-            if (cur == i) break;
+    std::vector<size_t> parent(under.size());
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<size_t(size_t)> find = [&](size_t x) { return parent[x] == x ? x : parent[x] = find(parent[x]); };
+    std::map<std::pair<long, long>, size_t> at;
+    for (size_t i = 0; i < under.size(); ++i)
+        for (Vec2 e : {under[i].a, under[i].b}) {
+            auto [it, fresh] = at.emplace(key(e), i);
+            if (!fresh) parent[find(i)] = find(it->second);
         }
-        std::vector<Vec2> pts{from};
-        Vec2 q = from;
-        for (size_t guard = 0; guard <= under.size(); ++guard) {
-            used[cur] = 1;
-            q = key(under[cur].a) == key(q) ? under[cur].b : under[cur].a;
-            pts.push_back(q);
-            if (!bend(q)) break;
-            const auto& at = ends[key(q)];
-            const size_t next = at[0] == cur ? at[1] : at[0];
-            if (used[next]) break;
-            cur = next;
-        }
-        runs.push_back({pts, under[i].net});
-    }
+    for (size_t i = 0; i < under.size(); ++i)  // a track ending on another's middle
+        for (size_t k = 0; k < under.size(); ++k)
+            if (i != k && find(i) != find(k) &&
+                std::min(trackPointDistance(under[k], under[i].a), trackPointDistance(under[k], under[i].b)) < 1e-3)
+                parent[find(i)] = find(k);
+    std::map<size_t, std::vector<Vec2>> holes;
+    std::map<size_t, int> pieceNet;
+    for (const Via& v : pcb.vias)
+        for (size_t i = 0; i < under.size(); ++i)
+            if (trackPointDistance(under[i], v.position) < 1e-3) {
+                holes[find(i)].push_back(v.position), pieceNet[find(i)] = under[i].net;
+                break;
+            }
     pcb.tracks = top;
+    std::vector<Vec2> viaAt;
+    for (const Via& v : pcb.vias) viaAt.push_back(v.position);
     pcb.vias.clear();
+    auto clearLine = [&](Vec2 a, Vec2 b) {
+        return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
+    };
+    // One wire per hole: a via that takes a second link gets a hole of its own 2.54 mm away, joined to it on top by a
+    // stub clear of other nets (the first clear direction, toward the far end first).
+    std::map<std::pair<long, long>, int> taken;
+    const double width = pcb.settings.trackWidth;
+    auto ends = [&](Vec2 v, Vec2 toward, int net) {
+        if (taken[key(v)]++ == 0) return v;
+        const double base = std::atan2(toward.y - v.y, toward.x - v.x);
+        for (int k = 0; k < 16; ++k) {
+            const double ang = base + (k % 2 ? 1 : -1) * ((k + 1) / 2) * M_PI / 8;
+            const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * 2.54;
+            if (taken.count(key(q)) || std::any_of(viaAt.begin(), viaAt.end(), [&](Vec2 h) {
+                    return (h - v).length() > 1e-6 && (h - q).length() < 2.0 + pcb.settings.clearance;
+                }))
+                continue;
+            try {  // the new hole clear of every pad and of other nets' tracks; its stub clear of other nets
+                checkClearOfOtherNets(pr, net, q, q, 2.0, -1);
+                checkClearOfOtherNets(pr, net, v, q, width, kTopLayer);
+                for (const Pad& pad : pcb.pads(pr.schematic))
+                    if (padPointDistance(pad, q) < 1.0 + pcb.settings.clearance) throw ToolError("pad");
+            } catch (const ToolError&) {
+                continue;
+            }
+            Track t;
+            t.a = v, t.b = q, t.net = net, t.layer = kTopLayer, t.width = width;
+            pcb.addTrack(t);
+            taken[key(q)] = 1;
+            return q;
+        }
+        return v;  // no room: the wires share the hole
+    };
+    struct Pair { int net; Vec2 a, b; };
+    std::vector<Pair> pairs;
     std::vector<std::tuple<int, Vec2, Vec2>> links;
     std::map<int, std::string> netNames;
     int serial = 0;
-    for (const auto& [pts, net] : runs) {
-        auto clearLine = [&](Vec2 a, Vec2 b) {
-            return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
-        };
-        if (!netNames.count(net)) netNames[net] = names.count(net) ? names[net] : std::string();
-        const Vec2 a = pts.front(), b = pts.back();
-        links.emplace_back(addWireLink(s, a, b, netNames[net], anchor.count(net) ? anchor[net] : std::string(), ++serial,
-                                       !clearLine(a, b)), a, b);
+    for (const auto& [piece, pts] : holes) {
+        const int net = pieceNet[piece];
+        std::vector<char> in(pts.size(), 0);
+        in[0] = 1;
+        for (size_t n = 1; n < pts.size(); ++n) {
+            double best = 1e18;
+            size_t bi = 0, bj = 0;
+            for (size_t i = 0; i < pts.size(); ++i)
+                for (size_t j = 0; in[i] && j < pts.size(); ++j)
+                    if (!in[j] && (pts[i] - pts[j]).length() < best) best = (pts[i] - pts[j]).length(), bi = i, bj = j;
+            in[bj] = 1;
+            pairs.push_back({net, ends(pts[bi], pts[bj], net), ends(pts[bj], pts[bi], net)});
+        }
+    }
+    for (const Pair& q : pairs) {
+        if (!netNames.count(q.net)) netNames[q.net] = names.count(q.net) ? names[q.net] : std::string();
+        links.emplace_back(addWireLink(s, q.a, q.b, netNames[q.net], anchor.count(q.net) ? anchor[q.net] : std::string(),
+                                       ++serial, !clearLine(q.a, q.b)),
+                           q.a, q.b);
     }
     takeJson(sieda_apply_pcb_eco(p, nullptr));
     Json added = Json::array();

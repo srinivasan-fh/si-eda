@@ -6141,9 +6141,13 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::vector<Rect> courtyards;
     for (const Component* c : placed) courtyards.push_back(courtyard(*c));
     const RectIndex courtyardIx(courtyards);
+    auto wire = [](const Component& c) {  // a wire link lies on the board under the other parts' bodies
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+        return fp && fp->label.rfind("WIRELINK", 0) == 0;
+    };
     for (size_t i = 0; i < placed.size(); ++i)
         for (size_t j : courtyardIx.query(courtyards[i], static_cast<long long>(i)))
-            if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) &&
+            if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) && !wire(*placed[i]) && !wire(*placed[j]) &&
                 courtyard(*placed[i]).intersects(courtyard(*placed[j])))
                 add(Severity::Warning, "DRC_COURTYARD_OVERLAP",
                     "Courtyards of " + placed[i]->ref + " and " + placed[j]->ref + " overlap.",
