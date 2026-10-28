@@ -1720,7 +1720,7 @@ Json addJumpers(McpServer& s, int maxLinks) {
                                                  turned ? fp->body.width : fp->body.depth).inflated(0.3);
                 bodies.push_back(body), noHoles.push_back(body);
             }
-        constexpr double padD = 2.0;
+        constexpr double padD = 1.6;  // a wire link's pad (WIRELINK: 1.6 mm, 0.8 mm hole for 0.6 mm wire)
         struct Link {
             double cost;
             int net;
@@ -1841,7 +1841,7 @@ Json bottomToLinks(McpServer& s) {
     auto clearLine = [&](Vec2 a, Vec2 b) {
         return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
     };
-    // One wire per hole: a via that takes a second link gets a hole of its own 2.54 mm away, joined to it on top by a
+    // One wire per hole: a via that takes a second link gets a hole of its own 2 mm away, joined to it on top by a
     // stub clear of other nets (the first clear direction, toward the far end first).
     std::map<std::pair<long, long>, int> taken;
     const double width = pcb.settings.trackWidth;
@@ -1851,16 +1851,16 @@ Json bottomToLinks(McpServer& s) {
         const double base = std::atan2(toward.y - v.y, toward.x - v.x);
         for (int k = 0; k < 16; ++k) {
             const double ang = base + (k % 2 ? 1 : -1) * ((k + 1) / 2) * M_PI / 8;
-            const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * 2.54;
+            const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * 2.0;
             if (taken.count(key(q)) || std::any_of(viaAt.begin(), viaAt.end(), [&](Vec2 h) {
-                    return (h - v).length() > 1e-6 && (h - q).length() < 2.0 + pcb.settings.clearance;
+                    return (h - v).length() > 1e-6 && (h - q).length() < 1.6 + pcb.settings.clearance;
                 }))
                 continue;
             try {  // the new hole clear of every pad and of other nets' tracks; its stub clear of other nets
-                checkClearOfOtherNets(pr, net, q, q, 2.0, -1);
+                checkClearOfOtherNets(pr, net, q, q, 1.6, -1);
                 checkClearOfOtherNets(pr, net, v, q, width, kTopLayer);
                 for (const Pad& pad : pcb.pads(pr.schematic))
-                    if (padPointDistance(pad, q) < 1.0 + pcb.settings.clearance) throw ToolError("pad");
+                    if (padPointDistance(pad, q) < 0.8 + pcb.settings.clearance) throw ToolError("pad");
             } catch (const ToolError&) {
                 continue;
             }

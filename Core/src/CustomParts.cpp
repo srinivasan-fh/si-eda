@@ -831,7 +831,7 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
     } else if (type == "WIRELINK") {  // a bare wire over copper a single-sided board cannot route: holes bodySize apart
         // along x and bodyDepth along y (a diagonal link)
         const double half = bodyIn > 0 ? bodyIn / 2 : 3.81, dy = exact && exact->bodyDepth > 0 ? exact->bodyDepth / 2 : 0;
-        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, i == 0 ? -dy : dy}, {2.0, 2.0}, true, true, 0.9});
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, i == 0 ? -dy : dy}, {1.6, 1.6}, true, true, 0.8});
         body = {half * 2, std::max(0.6, dy * 2), 0.6, false, 0.75f, 0.75f, 0.78f};
     } else if (type == "DISC") {  // radial disc (varistor, gas discharge tube): two leads 7.5 mm apart
         const double half = bodyIn > 0 ? bodyIn / 2 : 3.75;
