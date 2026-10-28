@@ -1828,14 +1828,28 @@ Json bottomToLinks(McpServer& s) {
             if (i != k && find(i) != find(k) &&
                 std::min(trackPointDistance(under[k], under[i].a), trackPointDistance(under[k], under[i].b)) < 1e-3)
                 parent[find(i)] = find(k);
+    // Pieces meeting at a via are one; a pad the bottom copper reaches (a part moved after routing) is a hole too,
+    // already holding its lead: the link takes a spare hole beside it.
+    struct End { Vec2 at; bool lead; double r; };  // a hole, whether a lead is in it, its copper's radius
+    std::vector<End> ends0;
+    for (const Via& v : pcb.vias) ends0.push_back({v.position, false, v.diameter / 2});
+    for (const Pad& pad : pcb.pads(pr.schematic))
+        if (pad.throughHole && !pad.npth) ends0.push_back({pad.position, true, std::min(pad.size.x, pad.size.y) / 2});
+    std::vector<std::vector<size_t>> on(ends0.size());
+    for (size_t h = 0; h < ends0.size(); ++h)
+        for (size_t i = 0; i < under.size(); ++i)
+            if (trackPointDistance(under[i], ends0[h].at) < ends0[h].r) {
+                if (!on[h].empty()) parent[find(i)] = find(on[h][0]);
+                on[h].push_back(i);
+            }
     std::map<size_t, std::vector<Vec2>> holes;
     std::map<size_t, int> pieceNet;
-    for (const Via& v : pcb.vias)
-        for (size_t i = 0; i < under.size(); ++i)
-            if (trackPointDistance(under[i], v.position) < 1e-3) {
-                holes[find(i)].push_back(v.position), pieceNet[find(i)] = under[i].net;
-                break;
-            }
+    std::set<std::pair<long, long>> leads;
+    for (size_t h = 0; h < ends0.size(); ++h)
+        if (!on[h].empty()) {
+            holes[find(on[h][0])].push_back(ends0[h].at), pieceNet[find(on[h][0])] = under[on[h][0]].net;
+            if (ends0[h].lead) leads.insert(key(ends0[h].at));
+        }
     std::vector<Vec2> viaAt;  // the vias and bottom copper stay until the links stand on the holes: Update PCB drops
     for (const Via& v : pcb.vias) viaAt.push_back(v.position);  // top copper that reaches no pad
     auto clearLine = [&](Vec2 a, Vec2 b) {
@@ -1844,16 +1858,19 @@ Json bottomToLinks(McpServer& s) {
     // One wire per hole: a via that takes a second link gets a hole of its own 2 mm away, joined to it on top by a
     // stub clear of other nets (the first clear direction, toward the far end first).
     std::map<std::pair<long, long>, int> taken;
+    std::vector<Vec2> spare;  // spare holes made so far
     const double width = pcb.settings.trackWidth;
     std::vector<Track> stubs;  // added once the links stand on their holes (Update PCB drops copper reaching no pad)
+    for (const auto& k : leads) taken[k] = 1;
     auto ends = [&](Vec2 v, Vec2 toward, int net) {
         if (taken[key(v)]++ == 0) return v;
         const double base = std::atan2(toward.y - v.y, toward.x - v.x);
-        for (int k = 0; k < 16; ++k) {
-            const double ang = base + (k % 2 ? 1 : -1) * ((k + 1) / 2) * M_PI / 8;
-            const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * 2.0;
-            if (taken.count(key(q)) || std::any_of(viaAt.begin(), viaAt.end(), [&](Vec2 h) {
-                    return (h - v).length() > 1e-6 && (h - q).length() < 1.6 + pcb.settings.clearance;
+        for (int k = 0; k < 96; ++k) {  // 16 directions at 2, 2.8 … 6 mm
+            const double ang = base + ((k % 16) % 2 ? 1 : -1) * (((k % 16) + 1) / 2) * M_PI / 8;
+            const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * (2.0 + 0.8 * (k / 16));
+            auto near = [&](Vec2 h) { return (h - v).length() > 1e-6 && (h - q).length() < 1.6 + pcb.settings.clearance; };
+            if (std::any_of(viaAt.begin(), viaAt.end(), near) || std::any_of(spare.begin(), spare.end(), [&](Vec2 h) {
+                    return (h - q).length() < 1.6 + pcb.settings.clearance;
                 }))
                 continue;
             try {  // the new hole clear of every pad and of other nets' tracks; its stub clear of other nets
@@ -1867,7 +1884,7 @@ Json bottomToLinks(McpServer& s) {
             Track t;
             t.a = v, t.b = q, t.net = net, t.layer = kTopLayer, t.width = width;
             stubs.push_back(t);
-            taken[key(q)] = 1;
+            spare.push_back(q);
             return q;
         }
         return v;  // no room: the wires share the hole
