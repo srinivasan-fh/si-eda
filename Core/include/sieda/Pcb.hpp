@@ -761,8 +761,9 @@ public:
     int applyHdiVias(const Schematic& sch);
     /// Narrows track ends that enter pads smaller than the track (fine-pitch neck-down).
     void neckDown(std::vector<Track>& out, const std::vector<Pad>& pads) const;
-    /// Per pad: the widest track that can leave it between its package neighbours (≥ the minimum track width).
-    std::vector<double> padNeckWidths(const std::vector<Pad>& pads) const;
+    /// Per pad: the widest track that can leave it between its package neighbours (≥ the minimum track width);
+    /// `netClearance` (per net index) keeps the net classes' clearance, empty = the board clearance.
+    std::vector<double> padNeckWidths(const std::vector<Pad>& pads, const std::vector<double>& netClearance = {}) const;
     /// Shrinks/grows the board to the placed footprints plus `margin` mm, shifting parts and copper together.
     bool fitBoardToComponents(Schematic& sch, double margin);
     /// Removes tracks/vias of nets that no longer exist after schematic edits.

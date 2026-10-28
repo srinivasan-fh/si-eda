@@ -26244,6 +26244,48 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     std::filesystem::remove_all(root);
 }
 
+TEST(router_keeps_class_clearance_where_a_wide_track_necks) {
+    // The single-sided SMPS's 2-layer stage round the shunt R32: ISNS_N is down, I_RTN (2.5 mm, 0.5 mm class) routes
+    // into R32.1 and necks at the pad. The search judges the last steps at the neck's width; the wide piece the neck
+    // leaves before it must still keep the class clearance to ISNS_N (it came 0.381 mm close).
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/routing/class_neck.siedaproj", std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    CHECK(!text.empty());
+    mcp::McpServer s;
+    s.project()->project = Project::fromJson(Json::parse(text));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_remove_copper", Json::parse(R"({"net": "I_RTN"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoroute", Json::parse(
+        R"({"pour": false, "jumpers": false, "preset": "nets", "options": {"nets": ["I_RTN"], "gloss": false, "minimizeVias": false}})"))));
+    const Json drc = mcpData(mcpTool(s, "pcb_drc"));
+    int close = 0;
+    for (const auto& v : drc.get("violations").items())
+        close += v.get("code").asString("") == "DRC_NET_CLASS_CLEARANCE" && v.get("message").asString("").find("I_RTN") != std::string::npos &&
+                 v.get("message").asString("").find("ISNS_N") != std::string::npos;
+    CHECK(close == 0);
+    bool routed = false;
+    for (const Track& t : s.project()->project.pcb.tracks)
+        routed = routed || s.project()->project.schematic.nets()[static_cast<size_t>(t.net)].name == "I_RTN";
+    CHECK(routed);
+}
+
+TEST(neck_widths_keep_net_class_clearance) {
+    // A 1206's pads 3 mm apart (1.85 mm gap): on the board's 0.3 mm a track up to the pad's 1.15 mm leaves it; with a
+    // 2 mm net class on either pad it is necked so its edge stays 2 mm from the other pad (2 × (1.85 + 0.575 − 2)).
+    PcbLayout pcb;
+    pcb.settings.clearance = 0.3;
+    std::vector<Pad> pads(2);
+    for (int k = 0; k < 2; ++k) {
+        pads[k].componentId = 7, pads[k].net = k;
+        pads[k].position = {10.0 + 3.0 * k, 10.0}, pads[k].size = {1.15, 1.8};
+    }
+    const auto plain = pcb.padNeckWidths(pads);
+    CHECK(std::fabs(plain[0] - 1.15) < 1e-9 && std::fabs(plain[1] - 1.15) < 1e-9);
+    for (const std::vector<double>& classes : {std::vector<double>{2.0, 0.3}, std::vector<double>{0.3, 2.0}}) {
+        const auto necked = pcb.padNeckWidths(pads, classes);
+        CHECK(std::fabs(necked[0] - 0.85) < 1e-9 && std::fabs(necked[1] - 0.85) < 1e-9);
+    }
+}
+
 TEST(smps_single_sided_example_is_routed_with_wire_links) {
     // examples/smps-230vac-5-48v-1layer: one copper layer, no vias, wire links (on a sheet of their own) where the
     // copper cannot cross; every connection routed, the DRC clean and verification without warnings.
