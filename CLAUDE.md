@@ -270,6 +270,14 @@
   class extra), the router's `wideClear` counts only the other net's class extra beyond its own (`beyond`) and neck zones
   hold per layer (`neckLayers_`, classic grid too), VAL_LED_NO_RESISTOR takes a two-part net as the LED's own, a
   connector-fed board with no source and no ground symbol skips the DC stage, PGND / SGND pours are reference planes.
+  Single-sided boards: package type WIRELINK (two holes bodySize apart; `Pad::wireLink`, joined in `copperClusters`)
+  and MCP `pcb_add_jumpers` (`addJumpers`, McpTools.cpp: shortest straight link per split net, real JW part labelled with
+  the net, stub tracks), run by `pcb_autoroute` on a 1-layer board (`jumpers`); a JSON package type TESTPOINT / NETTIE /
+  WIRELINK is kept by `normalizePackage`. THT power parts are drawn as their hardware (`drawPowerLook`, `lookKey` in
+  Mesh.cpp: transformer, electrolytic, toroid, TO-220 / TO-247, bridge, terminal, fuse holder, film, disc, axial, wire
+  link). MCP: a pin name several pins share ("Q3.S") is wired together by `schematic_connect` / `schematic_net_label`
+  (`namesakes`), `library_add_part` finds the project's own parts by name, `pcb_place_footprint` without x / y turns or
+  flips a placed part in place.
 - PI: lumped PDN / IR drop in `Core/src/PowerIntegrity.cpp`; cavity model, plane mesh on the real pour shape
   (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,

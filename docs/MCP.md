@@ -612,7 +612,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_builtin_kinds` | read | The built-in component kinds (schematic_add_component) with designator prefix, default value, footprint and pin names. |
 | `library_search` | read | Searches the standard-part catalog (regulators, MCUs, op-amps, logic, interfaces, sensors, connectors …). |
 | `library_part_details` | read | A catalog part's full description: manufacturer, package, units and every pin (number, name, type). |
-| `library_add_part` | edit | Places a standard catalog part (an IC, regulator, connector …) on the schematic, or a "Library:Symbol" from the user's own KiCad libraries (library_search libraryParts; its footprint comes with it). |
+| `library_add_part` | edit | Places a standard catalog part (an IC, regulator, connector …) or a part of the project's own library (library_create_part, by name) on the schematic, or a "Library:Symbol" from the user's own KiCad libraries (library_search libraryParts; its footprint comes with it). |
 | `library_create_part` | edit | Creates a part from a datasheet pin list: symbol and footprint are generated from the package. |
 | `library_place_custom_part` | edit | Places another instance of a part already in the project library (library_project_parts lists ids). |
 | `library_updates` | edit | Project parts whose catalog part has changed since they were added (pins, package, footprint), with how many placed instances use each. |
@@ -629,7 +629,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_company` | edit | A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in .history/<name>/). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (60)
+### pcb (61)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -646,7 +646,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_eco_preview` | read | What "Update PCB from schematic" would change: footprints to add / remove, nets, pours, rules (nets of a single pin are only counted: singlePinNets). |
 | `pcb_update_from_schematic` | edit | Forward annotation: places the footprints of new parts (Auto Place spots), removes parts that are gone, carries net rules, records the baseline. |
 | `pcb_autoplace` | edit | Automatic placement: all = true re-places every unlocked footprint (antenna parts and USB / connectors with an open end first, at the top / bottom edge facing out; edges: false skips that); false places only those not on the board yet. |
-| `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
+| `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm; without them a placed part turns or flips where it stands): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
 | `pcb_suggest_placement` | read | The nearest free legal spot for a footprint that keeps the assembly spacing, close to the pads it connects to (ground counts only for a part on ground alone). |
 | `pcb_align` | edit | Lines footprints' courtyards up on the outermost one's edge or centre line (left, right, top, bottom, centreX, centreY), or spaces them evenly between the outermost two (distributeX, distributeY: three or more). |
 | `pcb_layout_block` | edit | Reuses a laid-out group (an approved channel, a regulator block). |
@@ -657,6 +657,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_variant_check` | read | Checks the board as each assembly variant is built (the base design and every variant): its unfitted parts, connections between fitted parts still unrouted, and fitted parts whose courtyards overlap. |
 | `pcb_lock_footprint` | edit | Locks footprints where they are (Auto Place and the autorouter's placement keep them) or unlocks them: ref or refs. |
 | `pcb_autoroute` | edit | Routes the board. |
+| `pcb_add_jumpers` | edit | Single-sided boards: joins each net the copper leaves in islands by a wire link (JW1 …, a real part in the schematic and BOM, both pins labelled with the net): the shortest straight link along x or y, 7.62–30.48 mm in 2.54 mm steps, from one island's copper to another's with short stub tracks, clear of other nets by their class clearance, of holes, keep-outs, the edge and courtyards; its body on the bottom (component) side. |
 | `pcb_autoroute_presets` | read | The autorouter strategy presets with their options, and the board's current strategy. |
 | `pcb_route_report` | read | The last autoroute's report: differential pairs, lengths against their rules, quality metrics. |
 | `pcb_clear_routing` | edit (destructive) | Removes every track and via. |
