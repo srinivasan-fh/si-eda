@@ -78,6 +78,7 @@ add_library(sieda_core STATIC
     Core/src/Bom.cpp
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp
+    Core/src/Thermal.cpp
     Core/src/LengthMatch.cpp
     Core/src/LengthRules.cpp
     Core/src/Autoroute.cpp

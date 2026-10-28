@@ -253,6 +253,11 @@
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* (incl. DFM_ASPECT_RATIO, DFM_COPPER_BALANCE via `copperCoverage`) to `runDRC`
   when `BoardSettings::dfmPack` is set; `dfmReportJson` / `sieda_dfm_report_json` is the per-rule sign-off; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
+- Thermal analysis: `Core/src/Thermal.cpp` (`thermalAnalysis`: board as one sheet of laminate + per-layer copper coverage on a
+  grid, convection from both faces, part power from the DC operating point or `ThermalOptions::power`, PCG solve; junction =
+  board + power × θJB, `packageThetaJA` in Reliability.cpp), C `sieda_thermal_json`, MCP `pcb_thermal` (+ heat-map PNG
+  `renderThermalPng`), app `ThermalView.swift` (Design → Thermal Analysis…), Studio Design menu; test
+  `thermal_map_balances_power_and_spreads_through_copper` (energy balance, linearity, copper / airflow cool it).
 - PI: lumped PDN / IR drop in `Core/src/PowerIntegrity.cpp`; cavity model, plane mesh on the real pour shape
   (`planeMeshImpedance`, RLGC grid from the IR map's cells, banded LU), droop, decap plan in `Core/src/PdnPlanning.cpp`.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,

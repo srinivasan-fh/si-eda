@@ -6857,6 +6857,20 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(store.runTool("pcb_rule_pack", arguments: ["action": "show"]).text.contains("\"matchesPack\":true"))
     }
 
+    func testThermalAnalysisWindowDecodesTheMap() throws {
+        // Design → Thermal Analysis… runs pcb_thermal through the store and decodes the map, parts and findings.
+        let store = DesignStore()
+        XCTAssertFalse(store.runTool("project_load_example", arguments: ["id": "led_indicator"]).isError)
+        XCTAssertFalse(store.runTool("pcb_autoplace", arguments: ["all": true]).isError)
+        let out = store.runTool("pcb_thermal", arguments: ["power": ["R1": 2.0], "map": true, "image": false])
+        XCTAssertFalse(out.isError)
+        let r = try JSONDecoder().decode(ThermalView.ThermalResult.self, from: Data(out.text.utf8))
+        XCTAssertEqual(r.parts.first?.ref, "R1")
+        XCTAssertGreaterThan(r.maxC, r.ambientC + 10)
+        XCTAssertEqual(r.map.map { $0.t.count }, r.map.map { $0.nx * $0.ny })
+        XCTAssertTrue(r.findings.contains { $0.code == "THERMAL_JUNCTION" })
+    }
+
     func testCompanyLibraryWindowListsTheChosenFolder() throws {
         // The window lists the folder kept in user defaults (its name inside its parent is the tool's root).
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-lib-\(UUID().uuidString)")

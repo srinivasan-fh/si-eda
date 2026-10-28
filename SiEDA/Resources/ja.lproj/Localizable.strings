@@ -1908,3 +1908,17 @@
 "Owner" = "担当者";
 "Rooms and Partitions" = "ルームとパーティション";
 "Rooms and Partitions…" = "ルームとパーティション…";
+"Airflow" = "風量";
+"Ambient (°C)" = "周囲温度 (°C)";
+"Board (°C)" = "基板 (°C)";
+"Board temperature map" = "基板温度マップ";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "各部品の損失から求めた基板温度マップ：ホットスポットとジャンクション温度";
+"Fan" = "ファン";
+"Hottest" = "最高温度";
+"Junction (°C)" = "ジャンクション (°C)";
+"Light airflow" = "弱い送風";
+"Parts not listed take their power from the DC operating point." = "記載のない部品の電力はDC動作点から求めます。";
+"Power by part" = "部品ごとの電力";
+"Still air" = "自然空冷";
+"Thermal Analysis" = "熱解析";
+"Thermal Analysis…" = "熱解析…";

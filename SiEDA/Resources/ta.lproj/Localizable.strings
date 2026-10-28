@@ -1908,3 +1908,17 @@
 "Owner" = "உரிமையாளர்";
 "Rooms and Partitions" = "அறைகள் மற்றும் பிரிவுகள்";
 "Rooms and Partitions…" = "அறைகள் மற்றும் பிரிவுகள்…";
+"Airflow" = "காற்றோட்டம்";
+"Ambient (°C)" = "சுற்றுப்புறம் (°C)";
+"Board (°C)" = "பலகை (°C)";
+"Board temperature map" = "பலகை வெப்பநிலை வரைபடம்";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "ஒவ்வொரு பாகத்தின் மின் இழப்பிலிருந்து பலகை வெப்பநிலை வரைபடம்: வெப்பப் புள்ளிகள் மற்றும் சந்தி வெப்பநிலைகள்";
+"Fan" = "விசிறி";
+"Hottest" = "அதிக வெப்பம்";
+"Junction (°C)" = "சந்தி (°C)";
+"Light airflow" = "மெல்லிய காற்றோட்டம்";
+"Parts not listed take their power from the DC operating point." = "பட்டியலில் இல்லாத பாகங்கள் DC இயக்கப் புள்ளியிலிருந்து மின்திறனைப் பெறும்.";
+"Power by part" = "பாகம் வாரியான மின்திறன்";
+"Still air" = "அசையாக் காற்று";
+"Thermal Analysis" = "வெப்பப் பகுப்பாய்வு";
+"Thermal Analysis…" = "வெப்பப் பகுப்பாய்வு…";

@@ -1908,3 +1908,17 @@
 "Owner" = "स्वामी";
 "Rooms and Partitions" = "रूम और विभाजन";
 "Rooms and Partitions…" = "रूम और विभाजन…";
+"Airflow" = "वायु प्रवाह";
+"Ambient (°C)" = "परिवेश (°C)";
+"Board (°C)" = "बोर्ड (°C)";
+"Board temperature map" = "बोर्ड तापमान मानचित्र";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "हर पुर्ज़े के क्षय से बोर्ड तापमान मानचित्र: हॉट स्पॉट और जंक्शन तापमान";
+"Fan" = "पंखा";
+"Hottest" = "सबसे गर्म";
+"Junction (°C)" = "जंक्शन (°C)";
+"Light airflow" = "हल्का वायु प्रवाह";
+"Parts not listed take their power from the DC operating point." = "सूची में न दिए पुर्ज़े अपनी शक्ति DC ऑपरेटिंग पॉइंट से लेते हैं।";
+"Power by part" = "पुर्ज़े के अनुसार शक्ति";
+"Still air" = "स्थिर हवा";
+"Thermal Analysis" = "तापीय विश्लेषण";
+"Thermal Analysis…" = "तापीय विश्लेषण…";

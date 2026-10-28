@@ -1908,3 +1908,17 @@
 "Owner" = "গৰাকী";
 "Rooms and Partitions" = "ৰুম আৰু বিভাজন";
 "Rooms and Partitions…" = "ৰুম আৰু বিভাজন…";
+"Airflow" = "বায়ু প্ৰবাহ";
+"Ambient (°C)" = "পৰিৱেশ (°C)";
+"Board (°C)" = "ব'ৰ্ড (°C)";
+"Board temperature map" = "ব'ৰ্ডৰ উষ্ণতাৰ মানচিত্ৰ";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "প্ৰতিটো অংশৰ শক্তি ক্ষয়ৰ পৰা ব'ৰ্ডৰ উষ্ণতাৰ মানচিত্ৰ: হট স্পট আৰু জংচন উষ্ণতা";
+"Fan" = "পাংখা";
+"Hottest" = "আটাইতকৈ গৰম";
+"Junction (°C)" = "জংচন (°C)";
+"Light airflow" = "পাতল বায়ু প্ৰবাহ";
+"Parts not listed take their power from the DC operating point." = "তালিকাত নথকা অংশই DC অপাৰেটিং পইণ্টৰ পৰা শক্তি লয়।";
+"Power by part" = "অংশ অনুসৰি শক্তি";
+"Still air" = "স্থিৰ বায়ু";
+"Thermal Analysis" = "তাপীয় বিশ্লেষণ";
+"Thermal Analysis…" = "তাপীয় বিশ্লেষণ…";

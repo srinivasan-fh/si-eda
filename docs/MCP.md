@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 187 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 188 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -588,7 +588,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_replace` | edit | Replaces text in part values and net label names. |
 | `schematic_align` | edit | Aligns or distributes parts: left, right, top, bottom, centerX, centerY, distributeX, distributeY. |
 | `schematic_sheets` | read | The sheets with hierarchy (parent, depth), component counts, ports and the active sheet. |
-| `schematic_block` | writes files | Reusable design blocks. |
+| `schematic_block` | edit | Reusable design blocks. |
 | `schematic_sheet_edit` | edit | Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new parts go to), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
 | `schematic_move_to_sheet` | edit | Moves parts to another sheet (wires that would cross sheets are removed; join them with labels). |
 | `schematic_set_label_scope` | edit | Sets a net label's scope: global, local (its sheet), port (hierarchical port) or entry (sheet entry into targetSheet). |
@@ -625,10 +625,10 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_part_spec` | read | A project library part's full spec (library_project_parts ids), as library_create_part takes it: to edit it and save it back with library_replace_part. |
 | `library_replace_part` | edit | Saves an edited spec over a project library part: every placed instance takes the new symbol and footprint (same designators and nets by pin number), the old part leaves the library. |
 | `library_import_model` | edit | Imports a part's 3D model (STEP / VRML / STL / OBJ file in the root folder). |
-| `library_company` | writes files | A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in .history/<name>/). |
+| `library_company` | edit | A team library in a folder inside the root (one <name>.part.json per part, each saved version kept in .history/<name>/). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (59)
+### pcb (60)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -648,9 +648,9 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_place_footprint` | edit | Moves / turns / flips footprints (centre x, y in mm): one (ref, x, y …) or many at once (placements: [{ref, x, y, rotation, bottom, force}]). |
 | `pcb_suggest_placement` | read | The nearest free legal spot for a footprint that keeps the assembly spacing, close to the pads it connects to (ground counts only for a part on ground alone). |
 | `pcb_align` | edit | Lines footprints' courtyards up on the outermost one's edge or centre line (left, right, top, bottom, centreX, centreY), or spaces them evenly between the outermost two (distributeX, distributeY: three or more). |
-| `pcb_layout_block` | writes files | Reuses a laid-out group (an approved channel, a regulator block). |
+| `pcb_layout_block` | edit | Reuses a laid-out group (an approved channel, a regulator block). |
 | `pcb_partitions` | edit | Several engineers on one board: set the partitions [{name, owner, x0, y0, x1, y1}] (mm; [] removes them) or list them; check (owner, against = the base project file, e.g. |
-| `pcb_rule_pack` | writes files | A team's design rules as one file shared by every board: track / via sizes, clearances and fab minimums, net widths and clearances, pair and length rules, DFM pack and overrides, custom rules and routing policies (not the board's size, outline, stack-up or copper). |
+| `pcb_rule_pack` | edit | A team's design rules as one file shared by every board: track / via sizes, clearances and fab minimums, net widths and clearances, pair and length rules, DFM pack and overrides, custom rules and routing policies (not the board's size, outline, stack-up or copper). |
 | `pcb_routing_policies` | edit | Routing policies per schematic net class: the copper layers its nets may run on (the autorouter keeps them there; other layers only to leave their pads) and the most vias each may use. |
 | `pcb_rooms` | edit | Rooms: board areas a group of parts belongs in (a channel, a power stage). |
 | `pcb_variant_check` | read | Checks the board as each assembly variant is built (the base design and every variant): its unfitted parts, connections between fitted parts still unrouted, and fitted parts whose courtyards overlap. |
@@ -682,6 +682,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height), and rigid-flex bend areas checked against IPC-2223 (bend radius ≥ 6 / 12 / 24 × the flex thickness for 1 / 2 / more copper layers, 100 × when dynamic; no vias, parts or sharp track corners in the bend). |
 | `pcb_dfm_pack` | edit | Manufacturer DFM / DFA rule packs (JLCPCB, PCBWay, OSH Park, Eurocircuits, IPC Class 3). |
 | `pcb_custom_rules` | edit | Rule scripting: your own DRC rules as expressions over each track, via, pad, part or net. |
+| `pcb_thermal` | read | Board temperature map: the steady-state temperature over the board from each part's dissipation (the DC operating point's, or `power` by designator), spread by the laminate and each layer's copper (tracks, pads, pours) and lost to the air from both faces. |
 | `si_field_solver` | read | 2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect with copper roughness, laminate loss tangent). |
 | `pcb_copper_thieving` | edit | Copper thieving: a staggered grid of square dots in the free area of every copper layer, clear of other copper, the edge, holes, keep-outs and outer-layer part courtyards; it evens out plating and the mirror layers' copper (DFM_COPPER_BALANCE). |
 | `pcb_graphics` | edit | Logos and free drawings on the board: filled rectangles and lines on silk-top / silk-bottom, copper-<n> (netless copper; the DRC keeps it clear of other copper) or user-1 … user-4 (their own Gerbers in the fabrication package). |
@@ -779,4 +780,3 @@ Pictures of the schematic and the board (PNG or SVG).
 | `render_schematic` | read | A picture of one schematic sheet: PNG image (default) or SVG. |
 | `render_pcb` | read | A picture of the board: PNG image (default) or SVG. |
 | `render_3d` | read | A shaded 3D picture of the assembled board (PNG): board, copper finish, solder mask, silkscreen and every part's body, seen from the given side or any angle; parts can be hidden or isolated, lifted off (explode) or the board cut through (section). |
-

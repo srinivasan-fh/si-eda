@@ -1908,3 +1908,17 @@
 "Owner" = "ମାଲିକ";
 "Rooms and Partitions" = "ରୁମ ଓ ବିଭାଜନ";
 "Rooms and Partitions…" = "ରୁମ ଓ ବିଭାଜନ…";
+"Airflow" = "ବାୟୁ ପ୍ରବାହ";
+"Ambient (°C)" = "ପରିବେଶ (°C)";
+"Board (°C)" = "ବୋର୍ଡ (°C)";
+"Board temperature map" = "ବୋର୍ଡ ତାପମାତ୍ରା ମାନଚିତ୍ର";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "ପ୍ରତ୍ୟେକ ଅଂଶର କ୍ଷୟରୁ ବୋର୍ଡ ତାପମାତ୍ରା ମାନଚିତ୍ର: ହଟ ସ୍ପଟ ଏବଂ ଜଙ୍କସନ ତାପମାତ୍ରା";
+"Fan" = "ପଙ୍ଖା";
+"Hottest" = "ସବୁଠାରୁ ଗରମ";
+"Junction (°C)" = "ଜଙ୍କସନ (°C)";
+"Light airflow" = "ହାଲୁକା ବାୟୁ ପ୍ରବାହ";
+"Parts not listed take their power from the DC operating point." = "ତାଲିକାରେ ନଥିବା ଅଂଶ DC ଅପରେଟିଂ ପଏଣ୍ଟରୁ ଶକ୍ତି ନିଅନ୍ତି।";
+"Power by part" = "ଅଂଶ ଅନୁସାରେ ଶକ୍ତି";
+"Still air" = "ସ୍ଥିର ବାୟୁ";
+"Thermal Analysis" = "ତାପୀୟ ବିଶ୍ଳେଷଣ";
+"Thermal Analysis…" = "ତାପୀୟ ବିଶ୍ଳେଷଣ…";

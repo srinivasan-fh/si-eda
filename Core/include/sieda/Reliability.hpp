@@ -25,6 +25,10 @@ NetClassification classifyNets(const Project& project);
 /// The same from the schematic alone (`industry` "" = no RF board rule): what the autorouter uses.
 NetClassification classifyNets(const Schematic& sch, const std::string& industry);
 
+/// Junction-to-ambient thermal resistance (°C/W) of a part on a typical two-layer board (datasheet-typical values by
+/// package).
+double packageThetaJA(const Component& c);
+
 /// Spacing (mm) leakage-sensitive copper keeps from other nets: 0.5 mm uncoated, 0.25 mm under conformal coating.
 double leakageSpacing(const BoardSettings& s);
 /// Microstrip width (mm) for `ohms` on an outer layer over the nearest reference plane (IPC-2141, FR-4 εr 4.4).

@@ -29,6 +29,7 @@
 #include "sieda/Mechanical.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/Thermal.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/CloudSync.hpp"
 #include "sieda/ExternalLibrary.hpp"
@@ -8441,6 +8442,35 @@ void teamTools(Table& t) {
               Json j = takeJson(sieda_fab_quote(P(s), a.dump().c_str()));
               if (j.has("error") && a.has("fab")) throw ToolError(j.get("error").asString() + " (fabs: jlcpcb, pcbway, oshpark, eurocircuits, lioncircuits, pcbpower)");
               return out(j);
+          });
+    t.add("pcb", "pcb_thermal", "Thermal analysis", Kind::Read, true,
+          "Board temperature map: the steady-state temperature over the board from each part's dissipation (the DC "
+          "operating point's, or `power` by designator), spread by the laminate and each layer's copper (tracks, pads, "
+          "pours) and lost to the air from both faces. Gives the hottest spot, every powered part's board and junction "
+          "temperature (board + power × θJB, estimated from the package unless `thetaJB` gives it), THERMAL_JUNCTION / "
+          "THERMAL_BOARD findings and a heat-map picture.",
+          Schema()
+              .num("ambient", "Ambient air, °C (default 25)")
+              .object("power", "Dissipation by designator, W, e.g. {\"U1\": 1.2} (replaces the DC operating point's)")
+              .object("thetaJB", "Junction-to-board thermal resistance by designator, °C/W (from the datasheet)")
+              .num("hTop", "Heat transfer to the air from the top face, W/m²·K (default 10 = still air; 25–50 with a fan)")
+              .num("hBottom", "The same from the bottom face (default 10)")
+              .num("junctionLimit", "THERMAL_JUNCTION above this junction temperature, °C (default 125)")
+              .num("cell", "Grid cell, mm (default from the board size)")
+              .boolean("map", "Include the temperature grid (default false)")
+              .boolean("image", "Include the heat-map PNG (default true)")
+              .integer("width", "Image width in pixels (default 900, at most 2048)"),
+          [](McpServer& s, const Json& a) {
+              const ThermalResult r = thermalAnalysis(proj(s), thermalOptionsFromJson(a));
+              ToolOutput o = out(thermalJson(r, argBool(a, "map", false)));
+              if (argBool(a, "image", true) && r.nx > 0) {
+                  Json item = obj();
+                  item["type"] = "image";
+                  item["data"] = base64Encode(renderThermalPng(*P(s), r, argInt(a, "width", 900)));
+                  item["mimeType"] = "image/png";
+                  o.content.push(item);
+              }
+              return o;
           });
     t.add("pcb", "si_field_solver", "Field-solver impedance", Kind::Read, false,
           "2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the "

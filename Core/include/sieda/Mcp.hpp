@@ -25,6 +25,9 @@
 #include "sieda/Json.hpp"
 
 struct SiedaProject;  // sieda_c.h
+namespace sieda {
+struct ThermalResult;  // sieda/Thermal.hpp
+}
 
 namespace sieda::mcp {
 
@@ -188,6 +191,10 @@ struct Render3dOptions {
 };
 /// The assembled board in 3D (shaded, orthographic) as PNG: view iso (default), top, bottom, front, back, left, right.
 std::string render3dPng(const SiedaProject& project, const std::string& view, int width, const Render3dOptions& options = {});
+
+/// The board's temperature map (thermalAnalysis) as PNG: cells coloured ambient (blue) … hottest (red), courtyards
+/// with designators and powered parts' junction temperatures.
+std::string renderThermalPng(const SiedaProject& project, const ThermalResult& result, int width);
 
 /// A read-only viewer for any browser: one HTML file with every schematic sheet and the board as SVG, pan / zoom.
 std::string viewerHtml(const SiedaProject& project);

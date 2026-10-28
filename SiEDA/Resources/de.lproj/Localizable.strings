@@ -1908,3 +1908,17 @@
 "Owner" = "Eigentümer";
 "Rooms and Partitions" = "Räume und Partitionen";
 "Rooms and Partitions…" = "Räume und Partitionen…";
+"Airflow" = "Luftstrom";
+"Ambient (°C)" = "Umgebung (°C)";
+"Board (°C)" = "Platine (°C)";
+"Board temperature map" = "Temperaturkarte der Platine";
+"Board temperature map from each part's dissipation: hot spots and junction temperatures" = "Temperaturkarte der Platine aus der Verlustleistung jedes Bauteils: Hotspots und Sperrschichttemperaturen";
+"Fan" = "Lüfter";
+"Hottest" = "Am heißesten";
+"Junction (°C)" = "Sperrschicht (°C)";
+"Light airflow" = "Leichter Luftstrom";
+"Parts not listed take their power from the DC operating point." = "Nicht aufgeführte Bauteile erhalten ihre Leistung aus dem DC-Arbeitspunkt.";
+"Power by part" = "Leistung je Bauteil";
+"Still air" = "Ruhende Luft";
+"Thermal Analysis" = "Thermische Analyse";
+"Thermal Analysis…" = "Thermische Analyse…";

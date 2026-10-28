@@ -73,8 +73,9 @@ bool isOneOf(const std::string& id, std::initializer_list<const char*> ids) {
     return false;
 }
 
-/// Junction-to-ambient thermal resistance (°C/W) of a part on a typical two-layer board (datasheet-typical values).
-double thetaJA(const Component& c) {
+}  // namespace
+
+double packageThetaJA(const Component& c) {
     if (c.kind == ComponentKind::Custom)
         if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart)) {
             const std::string type = upper(part->spec.package.type);
@@ -101,6 +102,7 @@ double thetaJA(const Component& c) {
     return 120;
 }
 
+namespace {
 /// Glass transition temperature of the laminate the profile asks for.
 double laminateTg(const std::string& industry) {
     if (industry == "space") return 250;  // polyimide
@@ -701,7 +703,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         for (const auto& d : dc.devices) {
             const Component* c = sch.find(d.componentId);
             if (!c || !c->hasFootprint() || isSourceKind(c->kind) || std::fabs(d.power) < 0.1) continue;
-            double theta = thetaJA(*c);
+            double theta = packageThetaJA(*c);
             bool pour = false;
             for (const auto& p : pads)
                 if (p.componentId == c->id && zoneNets.count(p.net)) pour = true;
