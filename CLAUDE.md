@@ -175,6 +175,8 @@
   minimisation re-routes target nets shorter with cheap vias or longer through a waypoint before the meanders);
   `classic_router_copper_fingerprint` pins the classic router's and greedy placer's result — update its constant
   only on purpose. `sieda_route_bench --options '{json}' --save file` measures strategy options and lets `cmp` compare runs.
+  A wide piece a neck zone's edge leaves (the step into the zone was judged at the neck's width) is checked at its own
+  width and class spacing at commit (`wideClear`) and necked when it does not clear (test `router_keeps_class_clearance_where_a_wide_track_necks`, fixture `routing/class_neck.siedaproj`).
 - MCP (any AI client drives SiEDA): engine in `Core/src/Mcp.cpp` (JSON-RPC dispatch, root-folder sandbox, resources,
   prompts, examples; `Core/include/sieda/Mcp.hpp`), the data-driven tool table in `Core/src/McpTools.cpp` (handlers
   call the C API), PNG / SVG renders in `Core/src/McpRender.cpp`, C API `sieda_mcp_*` in `Core/src/sieda_c_mcp.cpp`

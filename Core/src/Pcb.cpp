@@ -3924,6 +3924,15 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         // Neck down now, so the grid keeps out only what the final (narrowed) copper needs.
                         std::vector<Track> pieces{t};
                         neckDownWith(pieces, ps, neckWidths, padsByNet, settings.clearance);
+                        // A step from a cell outside a neck zone into one inside it was judged at the neck's width, but
+                        // its copper stays wide up to the zone's edge: that wide piece must clear the copper already
+                        // down at its own width and class spacing, else it is necked too.
+                        double narrow = wn;
+                        for (const Track& piece : pieces) narrow = std::min(narrow, piece.width);
+                        for (Track& piece : pieces)
+                            if (piece.width > narrow + 1e-9 &&
+                                !grid.wideClear(layer, piece.a, piece.b, net, piece.width / 2 + grid.classExtra(net)))
+                                piece.width = narrow;
                         for (const Track& piece : pieces) {
                             outT.push_back(piece);
                             grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
