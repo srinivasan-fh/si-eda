@@ -30,9 +30,9 @@ MINIMUM FEATURES (check against the fab's capabilities)
   Edge clearance       0.60 mm
 
 HOLES
-  Plated (pads)        121
+  Plated (pads)        122
   Vias                 140
-  Non-plated           0 (mounting holes)
+  Non-plated           5 (mounting holes)
   Drill chart          finished size   plated pads   vias   non-plated
                         0.350 mm             0    140            0
                         0.800 mm            46      0            0
@@ -43,11 +43,12 @@ HOLES
                         1.500 mm             8      0            0
                         1.600 mm             6      0            0
                         2.000 mm             2      0            0
+                        3.200 mm             1      0            5
   Hole tolerance       finished size, plated +/-0.08 mm, non-plated +/-0.05 mm
 
 ASSEMBLY
-  Parts                111 top, 0 bottom (40 through-hole)
-  BOM lines            65, 65 still without a manufacturer part number
+  Parts                112 top, 0 bottom (41 through-hole)
+  BOM lines            66, 66 still without a manufacturer part number
   SMD pads             171 top, 0 bottom
   Stencil              top
   Coordinates          mm, origin at the board's lower-left corner (same as the Gerbers)
@@ -69,6 +70,8 @@ FILES
       Board outline (profile)
   gerbers/smps_230vac-PTH.drl
       Drill, plated (pads and vias)
+  gerbers/smps_230vac-NPTH.drl
+      Drill, non-plated (mounting holes)
   gerbers/smps_230vac-ipc356.ipc
       IPC-D-356A netlist (electrical test)
   gerbers/smps_230vac-job.gbrjob

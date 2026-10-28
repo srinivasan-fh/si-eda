@@ -3,6 +3,11 @@
 <text x="0" y="-9" font-family="Helvetica, Arial" font-size="3" fill="#111">SMPS 230 VAC to 5-48 V 5 A (CC/CV) — assembly drawing, top side</text>
 <g>
 <polygon fill="#f4f4ef" stroke="#222" stroke-width="0.2" points="0.0000,0.0000 200.0000,0.0000 200.0000,130.0000 0.0000,130.0000 "/>
+<circle cx="195.5000" cy="4.5000" r="1.6000" fill="white" stroke="#222" stroke-width="0.15"/>
+<circle cx="4.5000" cy="125.5000" r="1.6000" fill="white" stroke="#222" stroke-width="0.15"/>
+<circle cx="100.0000" cy="4.5000" r="1.6000" fill="white" stroke="#222" stroke-width="0.15"/>
+<circle cx="100.0000" cy="125.5000" r="1.6000" fill="white" stroke="#222" stroke-width="0.15"/>
+<circle cx="195.5000" cy="100.0000" r="1.6000" fill="white" stroke="#222" stroke-width="0.15"/>
 <rect x="3.8000" y="11.7200" width="2.4000" height="2.4000" fill="#c9c9c9"/>
 <rect x="3.8000" y="16.8000" width="2.4000" height="2.4000" fill="#c9c9c9"/>
 <rect x="3.8000" y="21.8800" width="2.4000" height="2.4000" fill="#c9c9c9"/>
@@ -295,6 +300,7 @@
 <rect x="146.9500" y="88.8500" width="1.0000" height="1.3000" fill="#c9c9c9"/>
 <rect x="145.3500" y="84.0500" width="1.3000" height="1.0000" fill="#c9c9c9"/>
 <rect x="145.3500" y="85.9500" width="1.3000" height="1.0000" fill="#c9c9c9"/>
+<rect x="1.5000" y="1.5000" width="6.0000" height="6.0000" fill="#c9c9c9"/>
 <rect x="1.0900" y="10.2800" width="7.8200" height="15.4400" fill="none" stroke="#1b4f9c" stroke-width="0.15"/>
 <circle cx="5.0000" cy="12.9200" r="0.25" fill="#c0392b"/>
 <text x="5.0000" y="18.7000" font-size="2.0000" font-family="Helvetica, Arial" text-anchor="middle" fill="#111">J1</text>
@@ -672,5 +678,8 @@
 <rect x="145.2000" y="83.9000" width="1.6000" height="3.2000" fill="none" stroke="#1b4f9c" stroke-width="0.15"/>
 <circle cx="146.0000" cy="84.5500" r="0.25" fill="#c0392b"/>
 <text x="146.0000" y="85.7800" font-size="0.8000" font-family="Helvetica, Arial" text-anchor="middle" fill="#111">R40</text>
+<rect x="1.4000" y="1.4000" width="6.2000" height="6.2000" fill="none" stroke="#1b4f9c" stroke-width="0.15"/>
+<circle cx="4.5000" cy="4.5000" r="0.25" fill="#c0392b"/>
+<text x="4.5000" y="5.2000" font-size="2.0000" font-family="Helvetica, Arial" text-anchor="middle" fill="#111">MH1</text>
 </g>
 </svg>

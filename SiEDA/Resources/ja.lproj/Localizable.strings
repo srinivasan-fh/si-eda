@@ -1925,3 +1925,5 @@
 "Production Boards" = "量産基板";
 "SMPS 230 VAC to 5–48 V / 1–5 A" = "SMPS 230 VAC → 5–48 V / 1–5 A";
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "配線・検証済みの2層電源と製造データ (examples/smps-230vac-5-48v)";
+"SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC → 5–48 V / 1–5 A（片面）";
+"Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "配線・検証済みの片面電源（ジャンパー線付き）と製造データ (examples/smps-230vac-5-48v-1layer)";

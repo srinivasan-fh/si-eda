@@ -1,0 +1,233 @@
+{
+ "ambientC": 40,
+ "converged": true,
+ "findings": [
+  {
+   "code": "THERMAL_JUNCTION",
+   "message": "R20 reaches about 131 \u00b0C at the junction (1.00 W, board 69 \u00b0C under it), above 125 \u00b0C: add copper under it (a pour of its ground / thermal-pad net), thermal vias to a plane, a larger package or airflow.",
+   "ref": "R20",
+   "severity": "warning"
+  }
+ ],
+ "hottest": {
+  "x": 205.8,
+  "y": 91.7
+ },
+ "iterations": 2123,
+ "maxC": 100.2,
+ "notes": [
+  "Board model: one isothermal sheet (laminate + copper coverage per layer), 40 / 40 W/m\u00b2\u00b7K to the air from the top / bottom; each part's body (and heatsink) sheds part of its power to the air; junction = board + power into the board \u00d7 \u03b8JB."
+ ],
+ "parts": [
+  {
+   "boardC": 68.8,
+   "junctionC": 131.3,
+   "powerSource": "set",
+   "powerW": 1,
+   "ref": "R20",
+   "thetaEstimated": false,
+   "thetaJB": 80,
+   "toAirW": 0.218,
+   "x": 115.4,
+   "y": 56.9
+  },
+  {
+   "boardC": 60.1,
+   "junctionC": 120.8,
+   "powerSource": "set",
+   "powerW": 0.8,
+   "ref": "RT1",
+   "thetaEstimated": false,
+   "thetaJB": 100,
+   "toAirW": 0.193,
+   "x": 70.2,
+   "y": 70.4
+  },
+  {
+   "boardC": 100.2,
+   "junctionC": 102.4,
+   "powerSource": "set",
+   "powerW": 1.2,
+   "ref": "Q3",
+   "thetaEstimated": false,
+   "thetaJB": 2,
+   "toAirW": 0.128,
+   "x": 205.2,
+   "y": 92.1
+  },
+  {
+   "boardC": 81.3,
+   "junctionC": 82.8,
+   "powerSource": "set",
+   "powerW": 0.8,
+   "ref": "Q4",
+   "thetaEstimated": false,
+   "thetaJB": 2,
+   "toAirW": 0.088,
+   "x": 205.2,
+   "y": 111
+  },
+  {
+   "boardC": 62.5,
+   "junctionC": 78.5,
+   "powerSource": "set",
+   "powerW": 1.5,
+   "ref": "LB",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 1.118,
+   "x": 236.3,
+   "y": 102.9
+  },
+  {
+   "boardC": 47.8,
+   "junctionC": 70.5,
+   "powerSource": "set",
+   "powerW": 3,
+   "ref": "T1",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 2.458,
+   "x": 163.4,
+   "y": 40.6
+  },
+  {
+   "boardC": 54.5,
+   "junctionC": 66.6,
+   "powerSource": "set",
+   "powerW": 0.3,
+   "ref": "R18",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 0.011,
+   "x": 131,
+   "y": 88
+  },
+  {
+   "boardC": 53.7,
+   "junctionC": 65.1,
+   "powerSource": "set",
+   "powerW": 3.5,
+   "ref": "Q2",
+   "thetaEstimated": true,
+   "thetaHeatsink": 8,
+   "thetaJB": 42,
+   "toAirW": 3.229,
+   "x": 129.6,
+   "y": 75.8
+  },
+  {
+   "boardC": 53.4,
+   "junctionC": 63.5,
+   "powerSource": "set",
+   "powerW": 0.25,
+   "ref": "R32",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 0.01,
+   "x": 251.1,
+   "y": 165.2
+  },
+  {
+   "boardC": 46.2,
+   "junctionC": 63.1,
+   "powerSource": "set",
+   "powerW": 1.5,
+   "ref": "LPFC",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 1.096,
+   "x": 32.4,
+   "y": 130
+  },
+  {
+   "boardC": 53.9,
+   "junctionC": 62.2,
+   "powerSource": "set",
+   "powerW": 4,
+   "ref": "DOUT",
+   "thetaEstimated": true,
+   "thetaHeatsink": 7,
+   "thetaJB": 21,
+   "toAirW": 3.604,
+   "x": 202.5,
+   "y": 16.3
+  },
+  {
+   "boardC": 52.2,
+   "junctionC": 61.5,
+   "powerSource": "set",
+   "powerW": 3,
+   "ref": "BR1",
+   "thetaEstimated": true,
+   "thetaHeatsink": 8,
+   "thetaJB": 42,
+   "toAirW": 2.779,
+   "x": 40.5,
+   "y": 82.6
+  },
+  {
+   "boardC": 47.9,
+   "junctionC": 59.4,
+   "powerSource": "set",
+   "powerW": 2.5,
+   "ref": "Q1",
+   "thetaEstimated": true,
+   "thetaHeatsink": 9,
+   "thetaJB": 42,
+   "toAirW": 2.226,
+   "x": 72.9,
+   "y": 159.8
+  },
+  {
+   "boardC": 50.8,
+   "junctionC": 58.9,
+   "powerSource": "set",
+   "powerW": 0.2,
+   "ref": "R13",
+   "thetaEstimated": true,
+   "thetaJB": 42,
+   "toAirW": 0.008,
+   "x": 105.3,
+   "y": 95.5
+  },
+  {
+   "boardC": 46.8,
+   "junctionC": 50.8,
+   "powerSource": "set",
+   "powerW": 0.4,
+   "ref": "U7",
+   "thetaEstimated": true,
+   "thetaJB": 21,
+   "toAirW": 0.208,
+   "x": 224.1,
+   "y": 54.2
+  },
+  {
+   "boardC": 46.8,
+   "junctionC": 49.4,
+   "powerSource": "set",
+   "powerW": 0.3,
+   "ref": "U6",
+   "thetaEstimated": true,
+   "thetaJB": 21,
+   "toAirW": 0.18,
+   "x": 106,
+   "y": 77.9
+  },
+  {
+   "boardC": 45.9,
+   "junctionC": 48.9,
+   "powerSource": "set",
+   "powerW": 1.2,
+   "ref": "DPFC",
+   "thetaEstimated": true,
+   "thetaHeatsink": 10,
+   "thetaJB": 21,
+   "toAirW": 1.059,
+   "x": 94.5,
+   "y": 159.8
+  }
+ ],
+ "totalPowerW": 25.45
+}

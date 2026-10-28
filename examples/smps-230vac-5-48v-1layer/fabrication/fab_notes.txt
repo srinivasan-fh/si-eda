@@ -1,0 +1,115 @@
+FABRICATION NOTES — SMPS 230 VAC to 5-48 V 5 A (CC/CV)
+========================================================
+
+Upload the *-gerbers.zip to the board house; use the assembly/ files for SMT assembly.
+
+BOARD
+  Size                 270.00 x 176.00 mm (rectangle)
+  Layers               1 (single-sided, copper on top)
+  Material             High-Tg FR-4, Tg ≥ 170 °C, low Z-axis CTE (IPC-4101/126)
+  Thickness            1.60 mm
+  Copper weight        1.0 oz outer
+  Surface finish       HASL lead-free
+  Solder mask          Green, top only; vias tented
+  Silkscreen           White, top and bottom
+  IPC class            3 (IPC-6012 / IPC-A-610; design rules: IPC-2221 Class 3)
+  Solder               SAC305 lead-free
+  Conformal coating    none
+  Electrical test      100 % (flying probe) against the IPC-D-356A netlist
+  Impedance control    50 ohm single-ended / 100 ohm differential +/-10 % (RF and pair nets; widths from the IPC-2141 stack-up — fab to adjust for its own prepreg)
+  Castellated holes: none   Edge connector: none
+
+RELIABILITY (industry profile: power)
+  - Bake boards before assembly to drive out absorbed moisture (IPC-1601); store sealed with desiccant
+
+MINIMUM FEATURES (check against the fab's capabilities)
+  Track width          0.200 mm
+  Clearance            0.300 mm (fab minimum checked by DRC: 0.200 mm)
+  Drill                0.800 mm
+  Annular ring         0.203 mm
+  Edge clearance       0.60 mm
+
+HOLES
+  Plated (pads)        298
+  Vias                 0
+  Non-plated           5 (mounting holes)
+  Drill chart          finished size   plated pads   vias   non-plated
+                        0.800 mm           222      0            0
+                        1.000 mm            26      0            0
+                        1.200 mm            10      0            0
+                        1.300 mm            17      0            0
+                        1.400 mm             6      0            0
+                        1.500 mm             8      0            0
+                        1.600 mm             6      0            0
+                        2.000 mm             2      0            0
+                        3.200 mm             1      0            5
+  Hole tolerance       finished size, plated +/-0.08 mm, non-plated +/-0.05 mm
+
+ASSEMBLY
+  Parts                71 top, 129 bottom (129 through-hole)
+  BOM lines            153, 153 still without a manufacturer part number
+  SMD pads             171 top, 0 bottom
+  Stencil              top
+  Coordinates          mm, origin at the board's lower-left corner (same as the Gerbers)
+
+FILES
+  gerbers/smps_230vac_1layer-F_Cu.gbr
+      Copper L1 (top)
+  gerbers/smps_230vac_1layer-F_Mask.gbr
+      Solder mask top
+  gerbers/smps_230vac_1layer-F_Paste.gbr
+      Solder paste top (stencil)
+  gerbers/smps_230vac_1layer-F_Silkscreen.gbr
+      Silkscreen top (outlines, designators)
+  gerbers/smps_230vac_1layer-B_Silkscreen.gbr
+      Silkscreen bottom
+  gerbers/smps_230vac_1layer-Edge_Cuts.gbr
+      Board outline (profile)
+  gerbers/smps_230vac_1layer-PTH.drl
+      Drill, plated (pads and vias)
+  gerbers/smps_230vac_1layer-NPTH.drl
+      Drill, non-plated (mounting holes)
+  gerbers/smps_230vac_1layer-ipc356.ipc
+      IPC-D-356A netlist (electrical test)
+  gerbers/smps_230vac_1layer-job.gbrjob
+      Gerber X2 job file (stack-up, finish, colours)
+  assembly/smps_230vac_1layer-bom.csv
+      Bill of materials
+  assembly/smps_230vac_1layer-bom_assembly.csv
+      BOM for assembly houses (JLCPCB / PCBWay columns)
+  assembly/smps_230vac_1layer-cpl.csv
+      Component placement list (CPL) for assembly
+  assembly/smps_230vac_1layer-pick_and_place.csv
+      Pick and place (all columns)
+  assembly/smps_230vac_1layer-assembly_top.svg
+      Assembly drawing, top
+  assembly/smps_230vac_1layer-assembly_bottom.svg
+      Assembly drawing, bottom
+  assembly/smps_230vac_1layer-test_points.csv
+      Test points per net for the bed-of-nails / flying-probe fixture
+  assembly/smps_230vac_1layer-interactive_bom.html
+      Interactive BOM and board viewer for hand assembly
+  smps_230vac_1layer-bring_up_checklist.md
+      Bring-up checklist: shorts, rails, clocks, resets, interfaces
+  smps_230vac_1layer-fab_drawing.pdf
+      Fabrication drawing: outline, dimensions, drill map and table, stack-up, notes, 3D / exploded / section views
+  smps_230vac_1layer-net_lengths.csv
+      Routed length, segments and vias per net, against its length rule
+  mechanical/smps_230vac_1layer.dxf
+      Board outline, holes, silk and courtyards for MCAD (DXF)
+  mechanical/smps_230vac_1layer.FCMacro
+      FreeCAD macro: board and parts; run again to send the placement back (IDF)
+  mechanical/smps_230vac_1layer_fusion.py
+      Autodesk Fusion script: board and parts; run again to send the placement back (IDF)
+  smps_230vac_1layer-netlist.cir
+      SPICE netlist
+  3d/smps_230vac_1layer.stl
+      3D assembly (STL)
+  smps_230vac_1layer-gerbers.zip
+      Gerbers + drills + job file + IPC netlist: upload this to the fab
+  smps_230vac_1layer-ipc2581.xml
+      IPC-2581C: copper, mask, silk, drills, nets, parts and BOM in one file
+  smps_230vac_1layer-odb.tgz
+      ODB++ v7 job (.tgz): layers, drills, components and nets
+  fab_notes.txt
+      Order sheet: these notes

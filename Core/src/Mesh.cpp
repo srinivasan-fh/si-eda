@@ -2,6 +2,7 @@
 #include "sieda/Model3D.hpp"
 
 #include "sieda/Embedded.hpp"
+#include "sieda/StandardParts.hpp"
 
 #include <algorithm>
 #include <array>
@@ -76,14 +77,29 @@ constexpr double kGlyphAdvance = 6.0;  // grid units per character (4 wide + 2 g
 
 /// The look a part's body is drawn with, from its footprint, part name, package and description: a generic box with
 /// leads unless it is a kind of part people recognise by its shape.
-enum class Look { Generic, Header, UsbC, UsbMicro, UsbA, Tactile, CrystalCan, CrystalSmd, Module, Diode, Led, Jst };
+enum class Look {
+    Generic, Header, UsbC, UsbMicro, UsbA, Tactile, CrystalCan, CrystalSmd, Module, Diode, Led, Jst,
+    // Through-hole power hardware: bobbin transformer, can electrolytic, upright toroid / choke, TO-220 / TO-247
+    // with their tab, single-in-line bridge, screw terminal, fuse holder, boxed film capacitor, disc (ceramic /
+    // safety cap, varistor, NTC),
+    // axial resistor / diode, a single-sided board's bare wire link.
+    Transformer, Electrolytic, Toroid, To220, To247, SipBridge, ScrewTerminal, FuseHolder, Film, Disc, Axial, WireLink
+};
 
-Look lookOf(const Component& c, const FootprintDef& fp) {
+/// Upper-case words a part's look is read from: footprint, value, part name, package, description and the KiCad
+/// footprint a catalog part follows.
+std::string lookKey(const Component& c, const FootprintDef& fp) {
     std::string key = fp.name + " " + c.value;
     if (c.kind == ComponentKind::Custom)
         if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart))
             key += " " + part->spec.name + " " + part->spec.package.type + " " + part->spec.description;
+    if (const StandardPart* sp = findStandardPart(c.def().name)) key += " " + sp->footprint;
     for (auto& ch : key) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    return key;
+}
+
+Look lookOf(const Component& c, const FootprintDef& fp) {
+    const std::string key = lookKey(c, fp);
     auto has = [&](const char* w) { return key.find(w) != std::string::npos; };
     const bool smd = !fp.pads.empty() && !fp.pads[0].throughHole;
     if (c.kind == ComponentKind::LED) return smd && !fp.body.cylinder ? Look::Led : Look::Generic;
@@ -101,6 +117,23 @@ Look lookOf(const Component& c, const FootprintDef& fp) {
     if ((c.ref.size() > 1 && c.ref[0] == 'Y' && std::isdigit(static_cast<unsigned char>(c.ref[1]))) || has("CRYSTAL"))
         return smd ? Look::CrystalSmd : Look::CrystalCan;
     if (has("JST") || has("_XH") || has(" XH") || has("_PH_")) return Look::Jst;
+    if (!smd && !fp.pads.empty()) {
+        if (has("WIRE_LINK") || has("WIRELINK")) return Look::WireLink;
+        if (has("TRANSFORMER") || has("ETD") || has("EFD") || has("PQ2") || has("PQ3") || has("BOBBIN")) return Look::Transformer;
+        if ((has("TERMINAL") || has("TERMINALBLOCK")) && !has("PINHEADER")) return Look::ScrewTerminal;
+        if (has("FUSE") && (has("HOLDER") || has("5X20"))) return Look::FuseHolder;
+        if (has("CHOKE") || has("TOROID") || has("COMMON-MODE") || has("COMMON MODE") || has("INDUCTOR")) return Look::Toroid;
+        if (has("ELECTROLYTIC") || has("SNAP-IN") || has("SNAPIN") || has("CP_RADIAL") || has("CAP_RADIAL") || has("CAP-RADIAL"))
+            return Look::Electrolytic;
+        if (has("TO-247") || has("TO247") || has("TO-3P")) return Look::To247;
+        if (has("TO-220") || has("TO220")) return Look::To220;
+        if (has("GBU") || has("KBU") || has("BRIDGE")) return Look::SipBridge;
+        if (has("X2") || has("FILM") || has("MKP") || has("MKT")) return Look::Film;
+        if (has("VARISTOR") || has("S10K") || has("S14K") || has("S20K") || has("NTC") || has("DISC") || has(" Y1") ||
+            has(" Y2") || has("-Y1") || has("-Y2"))
+            return Look::Disc;
+        if (has("AXIAL") || has("DO41") || has("DO-41") || has("DO201") || has("DO-201")) return Look::Axial;
+    }
     if (has("HEADER") || has("PINHEADER")) return Look::Header;
     const bool diodeRef = c.ref.size() > 1 && c.ref[0] == 'D' && std::isdigit(static_cast<unsigned char>(c.ref[1]));
     if (smd && fp.pads.size() == 2 && (c.kind == ComponentKind::Diode || diodeRef)) return Look::Diode;
@@ -344,6 +377,250 @@ const SolderMaskStyle* findSolderMask(const std::string& name) {
 }
 
 namespace {
+/// A circle of radius `r` round (`cx`, `cy`) as a convex polygon (counter-clockwise), for extruded round bodies.
+std::vector<Vec2> circlePoints(double r, double cx, double cy, int n = 24) {
+    std::vector<Vec2> pts;
+    for (int i = 0; i < n; ++i) pts.push_back({cx + r * std::cos(2 * kPi * i / n), cy + r * std::sin(2 * kPi * i / n)});
+    return pts;
+}
+
+/// Through-hole power hardware drawn as it looks on a real board: a bobbin transformer with its ferrite core and
+/// winding tape, an aluminium electrolytic can with its sleeve stripe and vent, an upright copper-wound toroid on its
+/// base, TO-220 / TO-247 packages standing on their leads with the metal tab and its hole, a single-in-line bridge, a
+/// screw terminal block with its screws and wire entries, a 5 × 20 mm fuse in its clips, a disc (ceramic / safety
+/// capacitor, varistor, NTC) on its leads, a boxed film capacitor and an axial resistor / diode with its colour bands. Sizes come from the
+/// footprint's body, else the pads; heights the package data lacks are the parts' usual ones.
+bool drawPowerLook(Look look, const PartFrame& f, const Component& c, const FootprintDef& fp, double t, double cu) {
+    Mesh& m = f.m;
+    const Rgba tin{0.78f, 0.78f, 0.80f, 1}, steel{0.82f, 0.83f, 0.85f, 1}, black{0.07f, 0.07f, 0.08f, 1};
+    const Rgba dark{0.02f, 0.02f, 0.03f, 1}, ferrite{0.20f, 0.20f, 0.22f, 1}, copper{0.80f, 0.45f, 0.20f, 1};
+    double px0 = 1e9, py0 = 1e9, px1 = -1e9, py1 = -1e9;
+    for (const auto& pd : fp.pads)
+        px0 = std::min(px0, pd.offset.x), px1 = std::max(px1, pd.offset.x), py0 = std::min(py0, pd.offset.y), py1 = std::max(py1, pd.offset.y);
+    // The pads' row: along local x or y; `rc` its middle, `tc` the line the pads stand on across it.
+    const bool rowX = px1 - px0 >= py1 - py0;
+    const double r0 = rowX ? px0 : py0, r1 = rowX ? px1 : py1, rc = (r0 + r1) / 2, tc = rowX ? (py0 + py1) / 2 : (px0 + px1) / 2;
+    const double rowLen = r1 - r0;
+    const double w = fp.body.width > 0 ? fp.body.width : px1 - px0 + 2, d = fp.body.depth > 0 ? fp.body.depth : py1 - py0 + 2;
+    const double along = rowX ? w : d, across = rowX ? d : w;
+    // A box given along the row (a0..a1) and across it (x0..x1).
+    auto rbox = [&](double a0, double a1, double x0, double x1, double h0, double h1, Rgba col) {
+        if (rowX) f.box(a0, x0, a1, x1, h0, h1, col);
+        else f.box(x0, a0, x1, a1, h0, h1, col);
+    };
+    // A round profile (in the row / height plane, x = along the row) pushed across the row from x0 to x1 — a disc
+    // or a plate's hole; or (in the across / height plane) pushed along the row — a tube, an axial body.
+    auto acrossRow = [&](const std::vector<Vec2>& profile, double x0, double x1, Rgba col) { f.extrude(profile, rowX, x0, x1, col); };
+    auto alongRow = [&](const std::vector<Vec2>& profile, double a0, double a1, Rgba col) { f.extrude(profile, !rowX, a0, a1, col); };
+    auto tails = [&](double len) {
+        m.surface = Surface::Tin;
+        for (const auto& pd : fp.pads)
+            if (pd.throughHole) {
+                const double r = std::clamp(pd.drill * 0.35, 0.25, 0.5);
+                f.box(pd.offset.x - r, pd.offset.y - r, pd.offset.x + r, pd.offset.y + r, -(t + 2 * cu + len), 0.0, tin);
+            }
+    };
+    // Leads from the board up to height h at each pad.
+    auto legs = [&](double h, double width) {
+        m.surface = Surface::Tin;
+        for (const auto& pd : fp.pads) f.box(pd.offset.x - width / 2, pd.offset.y - width / 2, pd.offset.x + width / 2, pd.offset.y + width / 2, 0, h, tin);
+    };
+    const std::string key = lookKey(c, fp);
+    auto has = [&](const char* s) { return key.find(s) != std::string::npos; };
+    switch (look) {
+        case Look::Transformer: {
+            // Bobbin base, winding tape round the centre leg, the ferrite core's outer legs and yokes.
+            const double H = fp.body.height > 3 ? fp.body.height : std::clamp(std::max(w, d) * 0.9, 12.0, 45.0);
+            const double L = std::max(w, d), D = std::min(w, d), leg = L * 0.13, coreD = D * 0.55, base = 2.5;
+            const bool coreX = w >= d;
+            auto cbox = [&](double a0, double a1, double x0, double x1, double h0, double h1, Rgba col) {
+                if (coreX) f.box(a0, x0, a1, x1, h0, h1, col);
+                else f.box(x0, a0, x1, a1, h0, h1, col);
+            };
+            m.surface = Surface::Plastic;
+            f.box(-w / 2, -d / 2, w / 2, d / 2, 0, base, black);
+            m.surface = Surface::Plastic;  // winding tape (polyester, yellow)
+            cbox(-L / 2 + leg + 0.4, L / 2 - leg - 0.4, -D / 2 + 0.4, D / 2 - 0.4, base + leg + 0.2, H - leg - 0.2, Rgba{0.93f, 0.78f, 0.16f, 1});
+            m.surface = Surface::Ceramic;  // ferrite
+            cbox(-L / 2, -L / 2 + leg, -coreD / 2, coreD / 2, base, H, ferrite);
+            cbox(L / 2 - leg, L / 2, -coreD / 2, coreD / 2, base, H, ferrite);
+            cbox(-L / 2, L / 2, -coreD / 2, coreD / 2, H - leg, H, ferrite);
+            cbox(-L / 2, L / 2, -coreD / 2, coreD / 2, base, base + leg, ferrite);
+            tails(2.0);
+            return true;
+        }
+        case Look::Electrolytic: {
+            const double r = std::min(w, d) / 2, D = 2 * r;
+            const double H = fp.body.height >= D * 0.8 ? fp.body.height : std::clamp(D * 1.6, 7.0, 45.0);
+            const bool snapIn = has("SNAP");
+            m.surface = Surface::Plastic;  // the printed sleeve
+            f.post(0, 0, r, 0.4, H - 0.3, snapIn ? black : Rgba{0.08f, 0.10f, 0.24f, 1}, 36);
+            // The minus stripe, on the side of the second pad.
+            const Vec2 minus = fp.pads.size() > 1 ? fp.pads[1].offset : Vec2{-1, 0};
+            const double ml = std::hypot(minus.x, minus.y) > 1e-6 ? std::hypot(minus.x, minus.y) : 1.0;
+            const double sx = minus.x / ml * (r - 0.25), sy = minus.y / ml * (r - 0.25);
+            m.surface = Surface::Marking;
+            f.box(sx - 0.45 - std::fabs(minus.y / ml) * r * 0.25, sy - 0.45 - std::fabs(minus.x / ml) * r * 0.25,
+                  sx + 0.45 + std::fabs(minus.y / ml) * r * 0.25, sy + 0.45 + std::fabs(minus.x / ml) * r * 0.25, 0.6, H - 0.5,
+                  Rgba{0.70f, 0.72f, 0.76f, 1});
+            m.surface = Surface::Tin;  // aluminium top with the pressure vent
+            f.post(0, 0, r * 0.93, H - 0.3, H, steel, 36);
+            m.surface = Surface::Hole;
+            f.box(-r * 0.6, -0.06, r * 0.6, 0.06, H, H + 0.01, dark);
+            f.box(-0.06, -r * 0.6, 0.06, r * 0.6, H, H + 0.01, dark);
+            m.surface = Surface::Plastic;  // rubber bung
+            f.post(0, 0, r * 0.9, 0, 0.4, black, 36);
+            tails(2.0);
+            return true;
+        }
+        case Look::Toroid: {
+            // An upright ring in the pads' row plane, wound with copper, on a plastic base.
+            const double Ro = std::min(along * 0.48, 16.0), Ri = Ro * 0.55, T = std::clamp(across * 0.55, 4.0, Ro * 0.75);
+            const double base = 1.5, cz = base + Ro;
+            const bool split = has("CMC") || has("COMMON");  // a common-mode choke: two windings apart
+            m.surface = Surface::Plastic;
+            rbox(rc - Ro, rc + Ro, tc - T / 2 - 0.6, tc + T / 2 + 0.6, 0, base, black);
+            const int n = 32;
+            for (int i = 0; i < n; ++i) {
+                const double a0 = 2 * kPi * i / n, a1 = 2 * kPi * (i + 1) / n, mid = (a0 + a1) / 2;
+                const bool core = split && std::fabs(std::cos(mid)) < 0.2;  // the bare core between the windings
+                const std::vector<Vec2> q = {{rc + Ri * std::cos(a0), cz + Ri * std::sin(a0)}, {rc + Ro * std::cos(a0), cz + Ro * std::sin(a0)},
+                                             {rc + Ro * std::cos(a1), cz + Ro * std::sin(a1)}, {rc + Ri * std::cos(a1), cz + Ri * std::sin(a1)}};
+                m.surface = core ? Surface::Ceramic : Surface::Gold;
+                acrossRow(q, tc - T / 2, tc + T / 2, core ? ferrite : (i % 2 ? copper : Rgba{0.72f, 0.40f, 0.17f, 1}));
+            }
+            tails(2.0);
+            return true;
+        }
+        case Look::To220: case Look::To247: case Look::SipBridge: {
+            // Standing on its leads: moulded body, the metal tab behind it (with its mounting hole), and the leads.
+            const bool big = look == Look::To247, sip = look == Look::SipBridge;
+            const double bw = sip ? std::max(22.0, rowLen + 4) : big ? 15.9 : 10.2, bt = sip ? 3.6 : big ? 5.0 : 4.5;
+            const double bh = sip ? 18.0 : big ? 20.5 : 9.2, lift = sip ? 1.5 : 3.0, tabH = sip ? 0 : big ? 4.5 : 6.3;
+            legs(lift + 0.5, big ? 1.2 : 0.8);
+            m.surface = Surface::Plastic;
+            rbox(rc - bw / 2, rc + bw / 2, tc - bt / 2 + (sip ? 0 : 1.3), tc + bt / 2, lift, lift + bh, black);
+            const double holeZ = sip ? lift + bh / 2 : lift + bh + tabH / 2 - (big ? 0 : 0.6);
+            if (!sip) {
+                m.surface = Surface::Tin;
+                rbox(rc - bw / 2, rc + bw / 2, tc - bt / 2, tc - bt / 2 + 1.3, lift, lift + bh + tabH, steel);
+            }
+            m.surface = Surface::Hole;  // the mounting hole, through the tab (or the bridge's body)
+            acrossRow(circlePoints(big ? 1.8 : 1.6, rc, holeZ, 20), tc - bt / 2 - 0.01, tc + bt / 2 + 0.01, dark);
+            tails(1.5);
+            return true;
+        }
+        case Look::ScrewTerminal: {
+            const double pitch = fp.pads.size() > 1 ? rowLen / static_cast<double>(fp.pads.size() - 1) : 5.08;
+            const double H = 10.0, X = std::max(7.6, across * 0.9);
+            m.surface = Surface::Plastic;
+            rbox(r0 - pitch / 2, r1 + pitch / 2, tc - X / 2, tc + X / 2, 0, H, Rgba{0.10f, 0.45f, 0.24f, 1});
+            for (const auto& pd : fp.pads) {
+                const double a = rowX ? pd.offset.x : pd.offset.y;
+                m.surface = Surface::Tin;  // the clamp screw, slotted
+                const double sx = rowX ? a : tc - X * 0.15, sy = rowX ? tc - X * 0.15 : a;
+                f.post(sx, sy, pitch * 0.3, H - 0.6, H + 0.05, steel, 20);
+                m.surface = Surface::Hole;
+                rbox(a - pitch * 0.25, a + pitch * 0.25, tc - X * 0.15 - 0.15, tc - X * 0.15 + 0.15, H + 0.05, H + 0.07, dark);
+                rbox(a - pitch * 0.3, a + pitch * 0.3, tc + X / 2, tc + X / 2 + 0.02, 2.5, 6.0, dark);  // wire entry
+            }
+            tails(1.5);
+            return true;
+        }
+        case Look::FuseHolder: {
+            // Black base, two spring clips, a 5 × 20 mm glass fuse with its metal caps.
+            const double H = 9.0, R = 2.6, cz = 6.6, len = std::min(20.0, rowLen + 6);
+            m.surface = Surface::Plastic;
+            rbox(rc - along / 2, rc + along / 2, tc - across / 2, tc + across / 2, 0, 1.5, black);
+            m.surface = Surface::Tin;
+            for (double e : {-1.0, 1.0}) {
+                const double a = rc + e * (len / 2 - 2.5);
+                rbox(a - 3.0, a + 3.0, tc - 3.2, tc - 2.8, 1.5, H, steel);
+                rbox(a - 3.0, a + 3.0, tc + 2.8, tc + 3.2, 1.5, H, steel);
+                alongRow(circlePoints(R + 0.15, tc, cz, 20), a - 2.5 + (e > 0 ? 0 : -0.01), a + 2.5, steel);
+            }
+            m.surface = Surface::Glass;
+            alongRow(circlePoints(R, tc, cz, 20), rc - len / 2 + 5, rc + len / 2 - 5, Rgba{0.80f, 0.88f, 0.92f, 0.45f});
+            legs(1.5, 0.8);
+            tails(1.5);
+            return true;
+        }
+        case Look::Film: {
+            // A boxed film capacitor (X2 / MKP) standing on its leads, its rating printed on the side.
+            const double L = rowLen + 3.0, X = std::clamp(across * 0.5, 5.0, 9.0), H = std::clamp(X * 1.7, 9.0, 16.0);
+            m.surface = Surface::Plastic;
+            rbox(rc - L / 2, rc + L / 2, tc - X / 2, tc + X / 2, 0.5, H, Rgba{0.95f, 0.80f, 0.22f, 1});
+            legs(0.5, 0.7);
+            tails(1.5);
+            return true;
+        }
+        case Look::Disc: {
+            // A disc standing on its two leads in the pads' plane.
+            const bool varistor = has("VARISTOR") || has("S10K") || has("S14K") || has("S20K");
+            const bool ntc = has("NTC"), safety = has("Y1") || has("Y2");
+            const double D = std::clamp(std::max({rowLen + 2.5, std::min(std::max(w, d), rowLen * 1.6 + 4)}), 4.0, 22.0);
+            const double T = std::clamp(std::min(w, d) * 0.6, 2.5, 6.0), lead = 3.0, cz = lead + D / 2;
+            const Rgba col = varistor ? Rgba{0.12f, 0.22f, 0.55f, 1} : ntc ? Rgba{0.10f, 0.14f, 0.10f, 1}
+                           : safety ? Rgba{0.18f, 0.40f, 0.78f, 1} : Rgba{0.86f, 0.52f, 0.14f, 1};
+            m.surface = Surface::Ceramic;
+            acrossRow(circlePoints(D / 2, rc, cz, 28), tc - T / 2, tc + T / 2, col);
+            legs(cz - D / 2 * 0.5, 0.6);
+            tails(1.5);
+            return true;
+        }
+        case Look::WireLink: {  // a tinned wire lying on the board from hole to hole
+            m.surface = Surface::Tin;
+            if (px1 - px0 > 0.5 && py1 - py0 > 0.5) {  // diagonal: short pieces along it
+                const Vec2 a = fp.pads[0].offset, b = fp.pads[1].offset;
+                const int n = std::max(2, static_cast<int>((b - a).length() / 0.5));
+                for (int i = 0; i < n; ++i) {
+                    const Vec2 q = a + (b - a) * ((i + 0.5) / n);
+                    f.box(q.x - 0.3, q.y - 0.3, q.x + 0.3, q.y + 0.3, 0.3, 0.9, tin);
+                }
+            } else
+                rbox(r0, r1, tc - 0.3, tc + 0.3, 0.3, 0.9, tin);
+            legs(0.6, 0.6);
+            return true;
+        }
+        case Look::Axial: {
+            // Lying on the board between its bent leads; colour bands (resistor) or the cathode band (diode).
+            const bool diode = c.kind == ComponentKind::Diode || has("DO41") || has("DO-41") || has("DO201") || has("DO-201");
+            const bool power = has("2W") || has("3W") || has("5W");
+            const double L = std::clamp(std::min(along, rowLen - 2.0), 3.0, 30.0) * (power ? 1.0 : 0.9);
+            const double r = std::clamp(across / 2, 0.9, 2.5) * (power ? 1.4 : 1.0), cz = r + 0.3;
+            m.surface = Surface::Tin;  // leads: along the row to above each pad, then down
+            rbox(r0, r1, tc - 0.3, tc + 0.3, cz - 0.3, cz + 0.3, tin);
+            legs(cz, 0.6);
+            m.surface = diode ? Surface::Plastic : Surface::Ceramic;
+            const Rgba body = diode ? black : power ? Rgba{0.30f, 0.52f, 0.36f, 1} : Rgba{0.82f, 0.71f, 0.52f, 1};
+            alongRow(circlePoints(r, tc, cz, 20), rc - L / 2, rc + L / 2, body);
+            m.surface = Surface::Marking;
+            if (diode) {
+                // The band at the cathode (pin K) end.
+                double ks = -1;
+                for (const auto& pd : fp.pads) {
+                    const int pin = pd.pinIndex;
+                    if (pin < 0 || pin >= static_cast<int>(c.def().pins.size())) continue;
+                    std::string n = c.def().pins[static_cast<size_t>(pin)].name;
+                    for (auto& ch : n) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                    if (n == "K" || n.rfind("CATH", 0) == 0) ks = ((rowX ? pd.offset.x : pd.offset.y) < rc) ? -1 : 1;
+                }
+                const double b0 = rc + ks * (L / 2 - L * 0.22), b1 = rc + ks * (L / 2 - L * 0.08);
+                alongRow(circlePoints(r + 0.02, tc, cz, 20), std::min(b0, b1), std::max(b0, b1), Rgba{0.80f, 0.80f, 0.82f, 1});
+            } else {
+                const Rgba bands[4] = {{0.55f, 0.30f, 0.10f, 1}, {0.05f, 0.05f, 0.05f, 1}, {0.90f, 0.75f, 0.10f, 1}, {0.85f, 0.70f, 0.25f, 1}};
+                for (int i = 0; i < 4; ++i) {
+                    const double b = rc - L / 2 + L * (0.18 + 0.17 * i + (i == 3 ? 0.08 : 0));
+                    alongRow(circlePoints(r + 0.02, tc, cz, 20), b, b + L * 0.07, bands[i]);
+                }
+            }
+            tails(1.5);
+            return true;
+        }
+        default: return false;
+    }
+}
+
 /// Draws a part with a recognisable shape (connectors, switches, crystals, modules, diodes, LEDs) in its own frame;
 /// false for a generic part (box and leads below). Through-hole leads poke `t` + copper through the board.
 bool drawLook(Look look, const PartFrame& f, const Component& c, const FootprintDef& fp, double t, double cu, Rgba lens) {
@@ -543,6 +820,9 @@ bool drawLook(Look look, const PartFrame& f, const Component& c, const Footprint
             tails(1.2, false);
             return true;
         }
+        case Look::Transformer: case Look::Electrolytic: case Look::Toroid: case Look::To220: case Look::To247:
+        case Look::SipBridge: case Look::ScrewTerminal: case Look::FuseHolder: case Look::Film: case Look::Disc: case Look::Axial: case Look::WireLink:
+            return drawPowerLook(look, f, c, fp, t, cu);
         case Look::Generic: break;
     }
     return false;

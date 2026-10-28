@@ -1,0 +1,76 @@
+type,designator,net,pad,x_mm,y_mm,side,size_mm,access,nearest_mm,probe
+pad,F1,AC_L,1,46.4000,165.1700,both,3.0000,both sides,22.6000,100 mil
+pad,LF1,AC_N,2,30.6500,112.8900,both,2.6000,both sides,19.5973,100 mil
+pad,MH1,PE,1,6.0800,169.9100,both,6.0000,both sides,18.3430,100 mil
+pad,F1,L_FUSED,2,23.8000,165.1700,both,3.0000,both sides,18.3430,100 mil
+pad,BR1,N_F,3,37.9600,93.4200,both,3.2000,both sides,5.0800,100 mil
+pad,BR1,L_F,2,43.0400,93.4200,both,3.2000,both sides,5.0800,100 mil
+pad,BR1,RECT_RAW,1,48.1200,93.4200,both,3.2000,both sides,5.0800,100 mil
+pad,BR1,PGND,4,32.8800,93.4200,both,3.2000,both sides,5.0800,100 mil
+pad,LPFC,RECT,1,44.9000,53.5300,both,2.8000,both sides,15.0000,100 mil
+pad,JW88,PFC_INV,1,108.5000,83.7500,both,1.6000,both sides,12.2577,100 mil
+pad,C1,N$1,1,72.3600,59.3300,top,1.0000,probe on pad,8.3377,100 mil
+pad,JW81,JW_NET81,1,90.7500,67.0000,both,1.6000,both sides,5.7009,100 mil
+pad,JW70,PFC_ISNS,1,84.0000,63.0000,both,1.6000,both sides,3.0104,100 mil
+pad,JW68,JW_NET68,1,111.0000,71.7500,both,1.6000,both sides,8.3217,100 mil
+pad,JW71,JW_NET71,1,81.0000,62.7500,both,1.6000,both sides,3.0104,100 mil
+pad,JW72,JW_NET72,1,92.2500,61.5000,both,1.6000,both sides,5.7009,100 mil
+pad,U1,N$2,8,79.8900,55.7500,top,0.6000,probe on pad,1.2700,50 mil
+pad,U1,N$3,9,81.1600,55.7500,top,0.6000,probe on pad,1.2700,50 mil
+pad,JW74,JW_NET74,1,74.2500,43.5000,both,1.6000,both sides,7.1107,100 mil
+pad,JW69,PFC_ZCD,1,81.2500,42.2500,both,1.6000,both sides,7.1107,100 mil
+pad,R12,PFC_GATE,1,88.4300,29.0000,top,1.0000,probe on pad,15.0703,100 mil
+pad,U6,VCC_P,3,103.4300,98.1500,both,1.9000,both sides,15.2665,100 mil
+pad,LPFC,JW_NET45,2,44.9000,38.5300,both,2.8000,both sides,15.0000,100 mil
+pad,LPFC,PFC_SW,4,19.9000,53.5300,both,2.8000,both sides,25.0000,100 mil
+pad,Q1,JW_NET84,2,72.9000,16.2500,both,1.9050,both sides,5.0800,100 mil
+pad,Q1,JW_NET39,4,67.8200,16.2500,both,1.9050,both sides,5.0800,100 mil
+pad,CB1,VBULK,1,131.9000,35.2000,both,3.2000,both sides,31.6418,100 mil
+pad,JW87,JW_NET87,1,118.0000,67.2500,both,1.6000,both sides,5.1493,100 mil
+pad,JW40,JW_NET40,1,80.5000,88.5000,both,1.6000,both sides,23.8183,100 mil
+pad,R9,N$4,2,122.8500,65.5200,top,1.1500,probe on pad,5.1493,100 mil
+pad,U2,FLY_COMP,1,117.2100,141.9000,both,1.6000,both sides,5.0800,100 mil
+pad,U2,FLY_ISNS,3,117.2100,136.8200,both,1.6000,both sides,2.5400,100 mil
+pad,U2,JW_NET2,4,117.2100,134.2800,both,1.6000,both sides,2.5400,100 mil
+pad,U2,FLY_OUT,6,109.5900,136.8200,both,1.6000,both sides,5.0800,100 mil
+pad,U2,FLY_VREF,8,109.5900,141.9000,both,1.6000,both sides,5.0800,100 mil
+pad,T1,FLY_SW,2,145.8500,132.8400,both,2.6000,both sides,5.0800,100 mil
+pad,Q2,N$5,2,129.6000,100.1800,both,1.9050,both sides,5.0800,100 mil
+pad,Q2,N$6,4,124.5200,100.1800,both,1.9050,both sides,5.0800,100 mil
+pad,T1,AUX_W,3,145.8500,137.9200,both,2.6000,both sides,5.0800,100 mil
+pad,T1,SGND,5,180.8500,143.0000,both,2.6000,both sides,5.0800,100 mil
+pad,T1,BIAS_W,6,180.8500,137.9200,both,2.6000,both sides,5.0800,100 mil
+pad,T1,SEC_W,8,180.8500,127.7600,both,2.6000,both sides,10.1600,100 mil
+pad,C11,V52,1,229.3000,157.0500,both,2.2000,both sides,15.1346,100 mil
+pad,DSN,SNUB,2,143.1000,101.2000,both,2.0000,both sides,13.5385,100 mil
+pad,DAUX,VAUX,2,126.9000,124.9000,both,2.0000,both sides,13.4863,100 mil
+pad,U3,OPTO_A,1,167.1600,100.1000,both,1.6000,both sides,2.5400,100 mil
+pad,U3,FB_K,2,167.1600,97.5600,both,1.6000,both sides,2.5400,100 mil
+pad,JW17,FB_REF,1,212.5000,138.7500,both,1.6000,both sides,9.9318,100 mil
+pad,R28,N$7,2,220.3300,144.8600,top,1.0000,probe on pad,9.9318,100 mil
+pad,DB,VBIAS_S,2,201.4700,121.8500,both,2.0000,both sides,20.0900,100 mil
+pad,U7,VCC_S,3,221.5600,121.8500,both,1.9000,both sides,19.1753,100 mil
+pad,U5,COMP2,1,188.7600,39.0100,both,1.6000,both sides,5.0800,100 mil
+pad,U5,JW_NET43,3,188.7600,33.9300,both,1.6000,both sides,2.5400,100 mil
+pad,U5,JW_NET41,4,188.7600,31.3900,both,1.6000,both sides,2.5400,100 mil
+pad,U5,BUCK_PWM,6,181.1400,33.9300,both,1.6000,both sides,7.6200,100 mil
+pad,J3,VREF5,1,263.2500,93.1600,both,1.7000,both sides,2.5400,100 mil
+pad,U8,BUCK_EN,3,191.4600,77.2500,both,1.6000,both sides,8.0322,100 mil
+pad,U8,JW_NET22,5,183.8400,74.7100,both,1.6000,both sides,5.0800,100 mil
+pad,LB,SW,1,243.7500,73.1100,both,3.0000,both sides,15.0000,100 mil
+pad,U8,N$8,7,183.8400,79.7900,both,1.6000,both sides,2.5400,100 mil
+pad,U8,BOOT,8,183.8400,82.3300,both,1.6000,both sides,2.5400,100 mil
+pad,JW24,HS_G,1,203.2500,80.2500,both,1.6000,both sides,11.7739,100 mil
+pad,JW37,LS_G,1,202.5000,68.5000,both,1.6000,both sides,11.7739,100 mil
+pad,LB,VOUT,2,228.7500,73.1100,both,3.0000,both sides,15.0000,100 mil
+pad,J2,I_RTN,2,263.2500,11.0000,both,2.4000,both sides,11.3353,100 mil
+pad,JW64,ISNS_P,1,247.5000,12.5000,both,1.6000,both sides,9.9954,100 mil
+pad,NT2,ISNS_N,2,253.8000,4.7400,top,0.6000,probe on pad,9.9954,100 mil
+pad,C23,CV_OUT,1,206.2700,27.0800,top,1.0000,probe on pad,4.2707,100 mil
+pad,JW42,JW_NET42,1,210.0000,25.0000,both,1.6000,both sides,4.2707,100 mil
+pad,J3,VSET,2,263.2500,90.6200,both,1.7000,both sides,2.5400,100 mil
+pad,J3,ISET,3,263.2500,88.0800,both,1.7000,both sides,2.5400,100 mil
+pad,C24,N$9,2,221.6700,20.9800,top,1.0000,probe on pad,1.9000,50 mil
+pad,C24,CC_OUT,1,219.7700,20.9800,top,1.0000,probe on pad,1.9000,50 mil
+pad,JW38,INA_OUT,1,237.5000,9.2500,both,1.6000,both sides,10.5149,100 mil
+pad,DPWR,N$10,1,196.8300,54.8300,top,1.0000,probe on pad,14.7992,100 mil

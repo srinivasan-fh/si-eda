@@ -22285,6 +22285,45 @@ TEST(assembly_mesh_draws_parts_by_their_shape) {
     sieda_mesh_free(mesh);
 }
 
+TEST(mcp_wire_links_join_a_single_sided_board) {
+    // A 1-layer board: a net left open is joined by a wire link (JW1, a part with both pins on the net, named first
+    // when it had no name); a project part is found by name; a placed part turns where it stands.
+    const auto root = mcpRoot("jumpers");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    for (const char* r : {"R1", "R2"})
+        CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", Json::parse(std::string(R"({"kind": "resistor", "package": "0805", "ref": ")") + r + "\"}"))));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_connect", Json::parse(R"({"from": "R1.2", "to": "R2.1"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "library_create_part", Json::parse(R"({"name": "MH-TEST", "refPrefix": "MH",
+        "package": {"type": "CUSTOM", "pinCount": 1, "bodySize": 6.0, "lands": [[0, 0, 6.0, 6.0, 3.2, 1, "1"]]},
+        "pins": [{"number": "1", "name": "PE", "type": "passive"}]})"))));
+    CHECK(!mcpFailed(mcpTool(s, "library_add_part", Json::parse(R"({"name": "mh-test", "ref": "MH1"})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"width": 50, "height": 30, "layers": 1})"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    for (const auto& [ref, x] : {std::pair<const char*, int>{"R1", 10}, {"R2", 32}, {"MH1", 44}})
+        CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(std::string(R"({"force": true, "y": 15, "ref": ")") + ref +
+                                                                          "\", \"x\": " + std::to_string(x) + "}"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"ref": "MH1", "rotation": 90, "force": true})"))));
+    const Project& pr = s.project()->project;
+    const Component* mh = pr.schematic.findByRef("MH1");
+    CHECK(mh->pcb.rotation == 90 && std::fabs(mh->pcb.position.x - 44) < 1e-6 && std::fabs(mh->pcb.position.y - 15) < 1e-6);
+    CHECK(pr.pcb.ratsnest(pr.schematic).size() == 1);
+    const Json links = mcpData(mcpTool(s, "pcb_add_jumpers", Json::object()));
+    CHECK(links.get("jumpersAdded").size() == 1);
+    CHECK(links.get("open").asInt(-1) == 0);
+    const Component* jw = pr.schematic.findByRef("JW1");
+    CHECK(jw != nullptr && jw->pcb.placed && jw->pcb.bottom);
+    int on = 0;
+    for (const Pad& pad : pr.pcb.pads(pr.schematic))
+        if (pad.componentId == jw->id)
+            for (const Net& n : pr.schematic.nets()) on += n.index == pad.net && n.name.rfind("JW_NET", 0) == 0;
+    CHECK(on == 2);
+    for (const auto& v : pr.pcb.runDRC(pr.schematic)) CHECK(v.severity != Severity::Error);
+}
+
 TEST(mcp_package_sizes_grown_board_and_pad_refs) {
     // A bare size picks the part's package ("0603" = R_0603); Update PCB says when Auto Place grew the board;
     // snapshot pads carry their part's designator.
@@ -26205,6 +26244,28 @@ TEST(thermal_map_balances_power_and_spreads_through_copper) {
     std::filesystem::remove_all(root);
 }
 
+TEST(smps_single_sided_example_is_routed_with_wire_links) {
+    // examples/smps-230vac-5-48v-1layer: one copper layer, no vias, wire links (on a sheet of their own) where the
+    // copper cannot cross; every connection routed, the DRC clean and verification without warnings.
+    mcp::McpServer s;
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", Json::parse(R"({"id": "smps_230vac_1layer"})"))));
+    Project& p = s.project()->project;
+    CHECK(p.pcb.settings.layerCount == 1 && p.pcb.vias.empty());
+    CHECK(std::all_of(p.pcb.tracks.begin(), p.pcb.tracks.end(), [](const Track& t) { return t.layer == 0; }));
+    int sheet = -1, links = 0;
+    for (const auto& sh : p.schematic.sheets())
+        if (sh.name == "Wire links") sheet = sh.id;
+    for (const auto& c : p.schematic.components())
+        if (c.ref.rfind("JW", 0) == 0 && !isNetSymbolKind(c.kind)) {
+            ++links;
+            CHECK(c.sheet == sheet && c.pcb.placed && c.pcb.bottom);
+        }
+    CHECK(links > 50);
+    const Json drc = mcpData(mcpTool(s, "pcb_drc"));
+    CHECK(drc.get("errors").asInt(1) == 0 && drc.get("warnings").asInt(1) == 0 && drc.get("unrouted").size() == 0);
+    for (const auto& st : verifyDesign(p).stages) CHECK(st.status != StageStatus::Fail && st.status != StageStatus::Warning);
+}
+
 TEST(smps_example_is_routed_verified_and_its_fixes_hold) {
     // The built-in production board (examples/smps-230vac-5-48v): loads routed, the DRC is clean and verification
     // passes with no warning (a connector-fed board with no ground symbol skips the DC solve; PGND / SGND pours are
@@ -26220,6 +26281,19 @@ TEST(smps_example_is_routed_verified_and_its_fixes_hold) {
         CHECK(st.status != StageStatus::Fail && st.status != StageStatus::Warning);
         for (const auto& f : st.findings) CHECK(f.code != "REL_NO_REFERENCE_PLANE" && f.code != "ERC_DIRECTIVE_CONFLICT");
     }
+    // Its through-hole power parts are drawn as the hardware (transformer, snap-in caps, TO-220 tabs standing up),
+    // not as low chip boxes.
+    SiedaMesh* mesh = sieda_mesh_build(s.project(), 1);
+    CHECK(mesh != nullptr);
+    double tallest = 0;
+    int tabs = 0;
+    for (int i = 0; i < sieda_mesh_vertex_count(mesh); ++i) {
+        const double y = sieda_mesh_positions(mesh)[3 * i + 1];
+        tallest = std::max(tallest, y);
+        tabs += sieda_mesh_surfaces(mesh)[i] == static_cast<uint8_t>(Surface::Tin) && y > 10;
+    }
+    sieda_mesh_free(mesh);
+    CHECK(tallest > 25 && tabs > 0);
     // Wide-pitch DIP / HEADER packages (transformers, screw terminals) keep their pitch with larger pads and holes.
     auto& reg = CustomPartRegistry::instance();
     for (const char* pkg : {"DIP", "HEADER"}) {

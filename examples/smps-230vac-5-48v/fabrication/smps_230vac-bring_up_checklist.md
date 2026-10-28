@@ -11,7 +11,6 @@ Work top to bottom; tick each line and write the measured value next to it.
 - [ ] Resistance VBIAS_S → GND is not a short (expect more than ~100 Ω; less points at a solder bridge or a reversed part).
 - [ ] Resistance VCC_S → GND is not a short (expect more than ~100 Ω; less points at a solder bridge or a reversed part).
 - [ ] Resistance VREF5 → GND is not a short (expect more than ~100 Ω; less points at a solder bridge or a reversed part).
-- [ ] Resistance PWR_LED → GND is not a short (expect more than ~100 Ω; less points at a solder bridge or a reversed part).
 
 ## 2. First power
 
@@ -26,7 +25,6 @@ Work top to bottom; tick each line and write the measured value next to it.
 - [ ] VBIAS_S — measure at the farthest load; ripple under 50 mV p-p (3 parts on the rail).
 - [ ] VCC_S — measure at the farthest load; ripple under 50 mV p-p (12 parts on the rail).
 - [ ] VREF5 — measure at the farthest load; ripple under 50 mV p-p (6 parts on the rail).
-- [ ] PWR_LED — measure at the farthest load; ripple under 50 mV p-p (2 parts on the rail).
 
 ## 4. Clocks, resets, boot
 

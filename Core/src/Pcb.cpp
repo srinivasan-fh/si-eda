@@ -396,6 +396,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.pasteGrid = pd.pasteGrid;
             p.inner = pd.inner;
             p.solder = pd.solder;
+            p.wireLink = fp->label.rfind("WIRELINK", 0) == 0;
             for (const Vec2& v : pd.outline) p.outline.push_back(transformFootprintPoint(pd.offset + v, c.pcb) - p.position);
             if (pd.npth) {  // a plain hole: no copper and no net, its keep-out the size of the drill
                 p.npth = true;
@@ -1183,6 +1184,8 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
     if (fills)
         for (const auto& f : *fills) ni += static_cast<size_t>(f.islands);
     DSU d(np + nt + nv + ni);
+    for (size_t p = 1; p < np; ++p)  // a wire link's wire joins its pads
+        if (pads[p].wireLink && pads[p - 1].wireLink && pads[p].componentId == pads[p - 1].componentId) d.unite(p - 1, p);
     if (fills) {
         size_t base = np + nt + nv;
         for (const auto& f : *fills) {
@@ -6138,9 +6141,13 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::vector<Rect> courtyards;
     for (const Component* c : placed) courtyards.push_back(courtyard(*c));
     const RectIndex courtyardIx(courtyards);
+    auto wire = [](const Component& c) {  // a wire link lies on the board under the other parts' bodies
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+        return fp && fp->label.rfind("WIRELINK", 0) == 0;
+    };
     for (size_t i = 0; i < placed.size(); ++i)
         for (size_t j : courtyardIx.query(courtyards[i], static_cast<long long>(i)))
-            if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) &&
+            if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) && !wire(*placed[i]) && !wire(*placed[j]) &&
                 courtyard(*placed[i]).intersects(courtyard(*placed[j])))
                 add(Severity::Warning, "DRC_COURTYARD_OVERLAP",
                     "Courtyards of " + placed[i]->ref + " and " + placed[j]->ref + " overlap.",

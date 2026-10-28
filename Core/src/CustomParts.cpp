@@ -48,7 +48,7 @@ PinType pinTypeFromName(const std::string& raw) {
 std::vector<std::string> supportedPackages() {
     return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE",
             "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL", "LGA", "CUSTOM",
-            "TESTPOINT", "NETTIE"};
+            "TESTPOINT", "NETTIE", "WIRELINK"};
 }
 
 std::vector<CustomPin> parsePinTable(const std::string& text) {
@@ -402,7 +402,8 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     }
     auto has = [&](const char* k) { return u.find(k) != std::string::npos; };
     std::string type;
-    if (u.rfind("LGA", 0) == 0 || has("LAND PATTERN")) type = "LGA";
+    if (u == "TESTPOINT" || u == "NETTIE" || u == "WIRELINK") type = u;
+    else if (u.rfind("LGA", 0) == 0 || has("LAND PATTERN")) type = "LGA";
     else if (u.rfind("CUSTOM", 0) == 0) type = "CUSTOM";
     else if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
     else if (has("TO-263") || has("TO263") || has("D2PAK") || has("DDPAK")) type = "TO263";
@@ -458,9 +459,10 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         s.package.pinCount = pkg.get("pinCount").asInt(pkg.get("pin_count").asInt(0));
         double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
         s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 15.24 ? pitch : 0;  // up to 15.24 mm: chokes, terminals
-        s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
+        const bool link = s.package.type == "WIRELINK";  // a wire link: any length, any offset across
+        s.package.bodySize = std::isfinite(body) && body > (link ? 0 : 0.5) && body <= (link ? 400 : 60) ? body : 0;
         const double depth = pkg.get("bodyDepth").asNumber(0);
-        s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        s.package.bodyDepth = std::isfinite(depth) && depth > (link ? 0 : 0.5) && depth <= (link ? 400 : 60) ? depth : 0;
         for (const Json& gj : pkg.get("graphics").items()) {
             const char* bad = "Each footprint graphic is [x0, y0, x1, y1, width, \"silk\" | \"fab\"] in mm (at most 500).";
             if (!gj.isArray() || gj.size() != 6 || s.package.graphics.size() >= 500) throw JsonError(bad);
@@ -826,6 +828,11 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
     } else if (type == "NETTIE") {  // two 0.6 mm pads that touch: the one place two nets are joined on purpose
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -0.3 : 0.3, 0}, {0.6, 0.6}, false, false, 0});
         body = {1.2, 0.6, 0.02, false, 0.80f, 0.50f, 0.25f};
+    } else if (type == "WIRELINK") {  // a bare wire over copper a single-sided board cannot route: holes bodySize apart
+        // along x and bodyDepth along y (a diagonal link)
+        const double half = bodyIn > 0 ? bodyIn / 2 : 3.81, dy = exact && exact->bodyDepth > 0 ? exact->bodyDepth / 2 : 0;
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, i == 0 ? -dy : dy}, {1.6, 1.6}, true, true, 0.8});
+        body = {half * 2, std::max(0.6, dy * 2), 0.6, false, 0.75f, 0.75f, 0.78f};
     } else if (type == "DISC") {  // radial disc (varistor, gas discharge tube): two leads 7.5 mm apart
         const double half = bodyIn > 0 ? bodyIn / 2 : 3.75;
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, 0}, {2.0, 2.0}, true, true, 1.0});
@@ -956,6 +963,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if (spec.package.type == "DISC" && pc != 2) throw JsonError("Radial disc parts have 2 pins.");
     if (spec.package.type == "TESTPOINT" && pc != 1) throw JsonError("A test point has 1 pad.");
     if (spec.package.type == "NETTIE" && pc != 2) throw JsonError("A net tie has 2 pads.");
+    if (spec.package.type == "WIRELINK" && pc != 2) throw JsonError("A wire link has 2 pads.");
     if (spec.package.type == "SOT223" && pc > 4) throw JsonError("SOT-223 packages have 3 leads and a tab.");
     if (spec.package.type == "TO263" && pc > 8) throw JsonError("TO-263 packages have at most 7 leads and a tab.");
     if (usesLandPattern(spec.package.type)) {
