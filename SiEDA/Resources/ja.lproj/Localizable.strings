@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "配線・検証済みの2層電源と製造データ (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC → 5–48 V / 1–5 A（片面）";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "配線・検証済みの片面電源（ジャンパー線付き）と製造データ (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "自動配線（片面）";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "片面配線: ジャンパー線 %d 本、未接続 %d、部品面へ移した部品 %d 個";

@@ -58,6 +58,23 @@ any number of threads.
 `setRouterStrategy(RouterStrategy::Classic | Corridor)` (C API `sieda_router_set_strategy`, benchmark `--router`)
 forces one or the other; the tests run the corridor router on small boards that way too.
 
+## Single-sided boards
+
+A whole-board route on a 1-layer board (MCP `pcb_autoroute`, the app's Auto Route) is one click:
+
+1. Through-hole parts on the copper side go to the component side (the bottom), each turned whichever way keeps
+   its pins nearest their nets (`flippedToComponentSide`). Wire links from an earlier run are removed first.
+2. The board is routed as two layers whose bottom stands for wire links: route-time keep-outs keep the bottom copper
+   off the component side's bodies and through-hole leads, and the vias (the links' holes, 0.8 mm drill) off SMD parts.
+3. Connections left open are ripped up with the nets round their pads (10, 6, then 14 mm) and routed again, the open
+   nets first; a try is kept only when fewer stay open (`ripUpRounds`).
+4. Each run of bottom copper becomes straight wire links between its vias (`linksFromBottom`; JW parts on the
+   schematic's "Wire links" sheet, in the BOM); the vias go and the board is one layer again.
+5. What is still open gets a straight link (`jumpersAdded`), and the ground net is poured on the copper layer.
+
+`links: false` keeps the older behaviour: route on the one layer and join what is left by straight links. The
+single-sided SMPS example (`examples/smps-230vac-5-48v-1layer`) was made this way.
+
 ## The corridor router (large boards)
 
 The board's fixed copper, pours and planes, clean-up, HDI vias and length matching are exactly those of the classic

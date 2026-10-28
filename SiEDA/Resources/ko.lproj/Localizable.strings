@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "배선·검증된 2층 전원 공급 장치와 제조 출력 (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC → 5–48 V / 1–5 A, 단면";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "배선·검증된 단면 전원 공급 장치(점퍼선 포함)와 제조 출력 (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "자동 배선 (단면)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "단면 배선: 점퍼선 %d개, 열린 연결 %d개, 부품면으로 옮긴 부품 %d개";

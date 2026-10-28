@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Bekalan kuasa 2 lapisan yang dihalakan dan disahkan berserta output fabrikasinya (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC ke 5–48 V / 1–5 A, satu sisi";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Bekalan kuasa satu sisi yang dihalakan dan disahkan dengan jumper wayar berserta output fabrikasinya (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "Laluan Auto (satu sisi)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Laluan satu sisi: %d pautan wayar, %d sambungan terbuka, %d komponen dipindah ke sisi komponen";

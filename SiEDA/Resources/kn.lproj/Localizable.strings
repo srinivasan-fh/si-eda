@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "ರೂಟ್ ಮಾಡಿದ, ಪರಿಶೀಲಿಸಿದ 2-ಪದರ ವಿದ್ಯುತ್ ಸರಬರಾಜು ಮತ್ತು ಅದರ ತಯಾರಿಕಾ ಫೈಲ್‌ಗಳು (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC ಇಂದ 5–48 V / 1–5 A, ಏಕ-ಬದಿ";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "ರೂಟ್ ಮಾಡಿದ, ಪರಿಶೀಲಿಸಿದ ಏಕ-ಬದಿ ವಿದ್ಯುತ್ ಸರಬರಾಜು, ತಂತಿ ಜಂಪರ್‌ಗಳು ಮತ್ತು ಅದರ ತಯಾರಿಕಾ ಫೈಲ್‌ಗಳು (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "ಸ್ವಯಂ ರೂಟ್ (ಏಕ-ಬದಿ)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "ಏಕ-ಬದಿ ರೂಟ್: %d ತಂತಿ ಲಿಂಕ್‌ಗಳು, %d ಸಂಪರ್ಕಗಳು ತೆರೆದಿವೆ, %d ಭಾಗಗಳನ್ನು ಘಟಕದ ಬದಿಗೆ ಸರಿಸಲಾಗಿದೆ";

@@ -280,7 +280,10 @@
   hole + stub), vias removed, 1 layer; links stand on a "Wire links" sheet (`addWireLink`, 4 to a row);
   `checkClearOfOtherNets` keeps net-class clearances; wire links are left out of PLACE_OVERLAP and `partClasses`
   (DRC_PART_SPACING). Single-sided production example `examples/smps-230vac-5-48v-1layer/` (MCP `smps_230vac_1layer`,
-  `smps1LayerExampleJson`, test `smps_single_sided_example_is_routed_with_wire_links`). THT power parts are drawn as their hardware (`drawPowerLook`, `lookKey` in
+  `smps1LayerExampleJson`, test `smps_single_sided_example_is_routed_with_wire_links`). One click on a 1-layer board:
+  `singleSidedAutoroute` (McpTools.cpp; `pcb_autoroute` whole-board, `links` default true): THT to the component side
+  (turn by shortest pins), route as 2 layers with "link …" keep-outs, rip-up rounds round open pads, JSON round trip,
+  `bottomToLinks`, `addJumpers`, ground pour; test `mcp_single_sided_autoroute_is_one_click`; guide docs/ROUTING.md. THT power parts are drawn as their hardware (`drawPowerLook`, `lookKey` in
   Mesh.cpp: transformer, electrolytic, toroid, TO-220 / TO-247, bridge, terminal, fuse holder, film, disc, axial, wire
   link). MCP: a pin name several pins share ("Q3.S") is wired together by `schematic_connect` / `schematic_net_label`
   (`namesakes`), `library_add_part` finds the project's own parts by name, `pcb_place_footprint` without x / y turns or

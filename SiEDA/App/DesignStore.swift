@@ -1631,6 +1631,7 @@ final class DesignStore: ObservableObject {
     /// mounting holes and edge clearance respected, connected parts kept close), then the whole board is routed
     /// cleanly from scratch and DRC-checked. One undo step.
     func autoRouteBoard() async {
+        if snapshot.board.layerCount == 1 { return await autoRouteSingleSided() }
         let unplaced = snapshot.components.contains { !$0.componentKind.isVirtual && !$0.footprint.isEmpty && !$0.pcb.placed }
         await autoRoute(clearFirst: !snapshot.tracks.isEmpty || !snapshot.vias.isEmpty, placeMissing: unplaced)
     }
@@ -1697,6 +1698,26 @@ final class DesignStore: ObservableObject {
             + ((stats.lengthTuned ?? 0) > 0 ? ", \(stats.lengthTuned ?? 0) nets length-matched with serpentines" : "")
             + swapSummary(stats)
         statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
+    }
+
+    /// Auto Route on a single-sided board (the core's `pcb_autoroute`): through-hole parts to the component side, routed
+    /// as two layers whose bottom becomes wire links, then straight links and a ground pour. One undo step.
+    func autoRouteSingleSided() async {
+        guard !isBusy else { return }
+        let r = await runToolInBackground("pcb_autoroute", arguments: [:], actionName: String(localized: "Auto Route (single-sided)"))
+        guard !r.isError, let json = try? JSONSerialization.jsonObject(with: Data(r.text.utf8)) as? [String: Any] else {
+            statusMessage = r.text
+            return
+        }
+        let links = (json["linksFromBottom"] as? Int ?? 0) + ((json["jumpersAdded"] as? [Any])?.count ?? 0)
+        let open = json["unroutedConnections"] as? Int ?? 0
+        let flipped = (json["flippedToComponentSide"] as? [Any])?.count ?? 0
+        statusMessage = String(format: String(localized: "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side"),
+                               links, open, flipped)
+        let checked = revision
+        let engine = self.engine
+        let drc = await runBusy("Checking design rules…") { engine.runDRCChecked() }
+        recordDRC(drc, at: checked)
     }
 
     /// Stops the running autoroute at its next progress report; the board is left as it was.

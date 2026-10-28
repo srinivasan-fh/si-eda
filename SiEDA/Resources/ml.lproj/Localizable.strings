@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "റൂട്ട് ചെയ്ത, പരിശോധിച്ച 2-പാളി പവർ സപ്ലൈയും അതിന്റെ നിർമ്മാണ ഫയലുകളും (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC മുതൽ 5–48 V / 1–5 A വരെ, ഒറ്റ-വശം";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "റൂട്ട് ചെയ്ത, പരിശോധിച്ച ഒറ്റ-വശ പവർ സപ്ലൈ, വയർ ജമ്പറുകളും അതിന്റെ നിർമ്മാണ ഫയലുകളും (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "ഓട്ടോ റൂട്ട് (ഒറ്റ-വശം)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "ഒറ്റ-വശ റൂട്ട്: %d വയർ ലിങ്കുകൾ, %d കണക്ഷനുകൾ തുറന്നിരിക്കുന്നു, %d ഭാഗങ്ങൾ ഘടക വശത്തേക്ക് നീക്കി";

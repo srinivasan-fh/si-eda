@@ -22324,6 +22324,51 @@ TEST(mcp_wire_links_join_a_single_sided_board) {
     for (const auto& v : pr.pcb.runDRC(pr.schematic)) CHECK(v.severity != Severity::Error);
 }
 
+TEST(mcp_single_sided_autoroute_is_one_click) {
+    // pcb_autoroute on a 1-layer board: the through-hole headers go to the component side, the board is routed as two
+    // layers whose bottom becomes a wire link where the swapped middle pair must cross, and nothing is left open; a
+    // second run replaces the earlier link; links: false keeps the one-layer route.
+    const auto root = mcpRoot("singlesided");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    auto board = [&] {
+        CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+        CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"({"parts": [{"ref": "J1", "part": "Header_1x04"},
+            {"ref": "J2", "part": "Header_1x04"}, {"ref": "R1", "kind": "resistor", "package": "0805"}],
+            "nets": {"A": ["J1.1", "J2.1"], "B": ["J1.2", "J2.3"], "C": ["J1.3", "J2.2"], "D": ["J1.4", "R1.1"], "E": ["R1.2", "J2.4"]},
+            "pins": false})"))));
+        CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", Json::parse(R"({"width": 40, "height": 30, "layers": 1, "trackWidth": 0.5, "clearance": 0.3})"))));
+        CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+        CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse(R"({"placements": [{"ref": "J1", "x": 2, "y": 15, "force": true},
+            {"ref": "J2", "x": 38, "y": 15, "force": true}, {"ref": "R1", "x": 20, "y": 24, "force": true}]})"))));
+    };
+    board();
+    const Project& pr = s.project()->project;
+    auto links = [&] {
+        int n = 0;
+        for (const auto& c : pr.schematic.components()) n += c.ref.rfind("JW", 0) == 0 && !isNetSymbolKind(c.kind);
+        return n;
+    };
+    Json r = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));
+    CHECK(r.get("flippedToComponentSide").size() == 2);
+    CHECK(r.get("linksFromBottom").asInt(0) >= 1 && r.get("unroutedConnections").asInt(-1) == 0 && r.get("errors").asInt(-1) == 0);
+    CHECK(pr.pcb.settings.layerCount == 1 && pr.pcb.vias.empty());
+    CHECK(std::all_of(pr.pcb.tracks.begin(), pr.pcb.tracks.end(), [](const Track& t) { return t.layer == 0; }));
+    CHECK(pr.schematic.findByRef("J1")->pcb.bottom && pr.schematic.findByRef("J2")->pcb.bottom && !pr.schematic.findByRef("R1")->pcb.bottom);
+    CHECK(std::none_of(pr.pcb.settings.keepouts.begin(), pr.pcb.settings.keepouts.end(),
+                       [](const RouteKeepout& k) { return k.name.rfind("link ", 0) == 0; }));
+    const int first = links();
+    CHECK(first >= 1);
+    for (const auto& v : pr.pcb.runDRC(pr.schematic)) CHECK(v.severity != Severity::Error);
+    r = mcpData(mcpTool(s, "pcb_autoroute", Json::object()));  // again: the earlier links go, new ones are laid
+    CHECK(r.get("earlierLinksRemoved").asInt(0) == first && r.get("unroutedConnections").asInt(-1) == 0 && links() == first);
+    board();  // links: false routes on the one layer and joins what is left by straight links
+    r = mcpData(mcpTool(s, "pcb_autoroute", Json::parse(R"({"links": false})")));
+    CHECK(!r.has("linksFromBottom") && !pr.schematic.findByRef("J1")->pcb.bottom);
+}
+
 TEST(mcp_package_sizes_grown_board_and_pad_refs) {
     // A bare size picks the part's package ("0603" = R_0603); Update PCB says when Auto Place grew the board;
     // snapshot pads carry their part's designator.
@@ -24599,6 +24644,7 @@ TEST(gerber_viewer_reads_multiline_incremental_step_repeat_and_excellon_zeros) {
     const GerberImage digits = parseGerber("M48\nMETRIC,LZ,000.000\nT1C0.8\n%\nT1\nX0125Y-001\nM30\n");
     CHECK(digits.shapes.size() == 1 && std::fabs(digits.shapes[0].a.x - 12.5) < 1e-9 && std::fabs(digits.shapes[0].a.y + 1) < 1e-9);
 }
+
 
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,

@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "ৰাউট কৰা, পৰীক্ষিত 2-স্তৰৰ পাৱাৰ ছাপ্লাই আৰু ইয়াৰ নিৰ্মাণ ফাইলসমূহ (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC ৰ পৰা 5–48 V / 1–5 A, এক-পৃষ্ঠীয়";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "ৰাউট কৰা, পৰীক্ষিত এক-পৃষ্ঠীয় পাৱাৰ ছাপ্লাই, তাঁৰৰ জাম্পাৰ আৰু ইয়াৰ নিৰ্মাণ ফাইলসমূহ (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "স্বয়ংক্ৰিয় ৰাউট (এক-পৃষ্ঠীয়)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "এক-পৃষ্ঠীয় ৰাউট: %d টা তাঁৰৰ সংযোগ, %d টা সংযোগ মুকলি, %d টা অংশ উপাদানৰ পিনলৈ নিয়া হ'ল";

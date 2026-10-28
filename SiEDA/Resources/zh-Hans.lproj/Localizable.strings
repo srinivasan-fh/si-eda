@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "已布线并验证的双层电源及其制造输出 (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC 转 5–48 V / 1–5 A（单面）";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "已布线并验证的单面电源（含跳线）及其制造输出 (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "自动布线（单面）";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "单面布线：%d 根跳线，%d 个连接未连通，%d 个元件移到元件面";

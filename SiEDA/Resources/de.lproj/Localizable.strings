@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Geroutetes, geprüftes 2-Lagen-Netzteil mit seinen Fertigungsdaten (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 V AC auf 5–48 V / 1–5 A, einseitig";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Geroutetes, geprüftes einseitiges Netzteil mit Drahtbrücken und seinen Fertigungsdaten (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "Automatisch routen (einseitig)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Einseitig geroutet: %d Drahtbrücken, %d Verbindungen offen, %d Bauteile auf die Bestückungsseite verlegt";

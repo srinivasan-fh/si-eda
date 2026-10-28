@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "Naka-route at na-verify na 2-layer na power supply kasama ang mga fabrication output nito (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC papuntang 5–48 V / 1–5 A, single-sided";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Naka-route at na-verify na single-sided na power supply na may mga wire jumper at mga fabrication output nito (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "Auto Route (single-sided)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Single-sided na route: %d wire link, %d koneksyong bukas, %d piyesang inilipat sa component side";
