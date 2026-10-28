@@ -459,9 +459,10 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         s.package.pinCount = pkg.get("pinCount").asInt(pkg.get("pin_count").asInt(0));
         double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
         s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 15.24 ? pitch : 0;  // up to 15.24 mm: chokes, terminals
-        s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
+        const bool link = s.package.type == "WIRELINK";  // a wire link: any length, any offset across
+        s.package.bodySize = std::isfinite(body) && body > (link ? 0 : 0.5) && body <= (link ? 400 : 60) ? body : 0;
         const double depth = pkg.get("bodyDepth").asNumber(0);
-        s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        s.package.bodyDepth = std::isfinite(depth) && depth > (link ? 0 : 0.5) && depth <= (link ? 400 : 60) ? depth : 0;
         for (const Json& gj : pkg.get("graphics").items()) {
             const char* bad = "Each footprint graphic is [x0, y0, x1, y1, width, \"silk\" | \"fab\"] in mm (at most 500).";
             if (!gj.isArray() || gj.size() != 6 || s.package.graphics.size() >= 500) throw JsonError(bad);

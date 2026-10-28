@@ -1544,7 +1544,8 @@ void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double wi
 // A wire link (WIRELINK part, refPrefix JW) from a to b on the schematic, both pins labelled with `net`; an unnamed
 // net (empty or N$…) is first named JW_NET<serial> by labelling `anchorPin`, and `net` comes back with that name. The
 // part is placed on the board by placeWireLink after an Update PCB.
-int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::string& anchorPin, int serial) {
+int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::string& anchorPin, int serial,
+                bool insulated = false) {
     SiedaProject* p = P(s);
     Project& pr = p->project;
     const double dx = std::fabs(b.x - a.x), dy = std::fabs(b.y - a.y);
@@ -1554,7 +1555,7 @@ int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::strin
     };
     const bool diagonal = dx > 0.01 && dy > 0.01;
     const std::string size = diagonal ? mm(dx) + "x" + mm(dy) : mm(std::max(dx, dy));
-    const std::string partName = "WIRE-LINK-" + size;
+    const std::string partName = (insulated ? "WIRE-JUMPER-" : "WIRE-LINK-") + size;
     std::string partId;
     for (const auto& id : pr.customLibrary)
         if (const CustomPart* cp = CustomPartRegistry::instance().find(id); cp && cp->spec.name == partName) partId = id;
@@ -1568,7 +1569,8 @@ int addWireLink(McpServer& s, Vec2 a, Vec2 b, std::string& net, const std::strin
         pkg["type"] = "WIRELINK", pkg["pinCount"] = 2, pkg["bodySize"] = diagonal ? dx : std::max(dx, dy);
         if (diagonal) pkg["bodyDepth"] = dy;
         spec["name"] = partName, spec["refPrefix"] = "JW", spec["defaultValue"] = "Wire link",
-        spec["description"] = "Wire link (jumper) of 0.6 mm tinned copper wire, " + size +
+        spec["description"] = (insulated ? "Insulated jumper wire (0.6 mm, formed round the parts below it), "
+                                         : "Wire link (jumper) of 0.6 mm tinned copper wire, ") + size +
                               " mm: joins copper a single-sided board cannot";
         spec["package"] = pkg, spec["pins"] = pins;
         char* err = nullptr;
@@ -1778,8 +1780,9 @@ Json addJumpers(McpServer& s, int maxLinks) {
 }
 
 // A two-layer route whose bottom copper stands for wire links (single-sided boards, pcb_add_jumpers fromBottom): each
-// run of bottom tracks becomes one straight wire link between its end holes when that line keeps clear of the bodies
-// on the bottom, else one link per track; the vias go and the board becomes single-sided.
+// run of bottom tracks becomes one link between the holes at its ends (a bare straight wire when that line keeps clear
+// of the bodies on the bottom, else an insulated jumper formed along the run); the vias go and the board becomes
+// single-sided.
 Json bottomToLinks(McpServer& s) {
     SiedaProject* p = P(s);
     Project& pr = p->project;
@@ -1843,15 +1846,10 @@ Json bottomToLinks(McpServer& s) {
         auto clearLine = [&](Vec2 a, Vec2 b) {
             return std::all_of(bodies.begin(), bodies.end(), [&](const Rect& r) { return segmentRectDistance(a, b, r) > 0.3; });
         };
-        std::vector<std::pair<Vec2, Vec2>> pieces;
-        const bool octile = std::fabs(std::fabs(pts.back().x - pts.front().x) - std::fabs(pts.back().y - pts.front().y)) < 0.01 ||
-                            std::fabs(pts.back().x - pts.front().x) < 0.01 || std::fabs(pts.back().y - pts.front().y) < 0.01;
-        if (pts.size() > 2 && octile && clearLine(pts.front(), pts.back())) pieces.push_back({pts.front(), pts.back()});
-        else
-            for (size_t k = 1; k < pts.size(); ++k) pieces.push_back({pts[k - 1], pts[k]});
         if (!netNames.count(net)) netNames[net] = names.count(net) ? names[net] : std::string();
-        for (const auto& [a, b] : pieces)
-            links.emplace_back(addWireLink(s, a, b, netNames[net], anchor.count(net) ? anchor[net] : std::string(), ++serial), a, b);
+        const Vec2 a = pts.front(), b = pts.back();
+        links.emplace_back(addWireLink(s, a, b, netNames[net], anchor.count(net) ? anchor[net] : std::string(), ++serial,
+                                       !clearLine(a, b)), a, b);
     }
     takeJson(sieda_apply_pcb_eco(p, nullptr));
     Json added = Json::array();
@@ -7034,7 +7032,7 @@ void pcbTools(Table& t) {
           "pcb_autoroute adds them by itself on a 1-layer board (jumpers: false skips).",
           Schema().integer("max", "Most links to add (default 200)")
               .boolean("fromBottom", "A 2-layer route instead: its bottom copper becomes wire links (one per run of "
-                                     "tracks, straight when clear of the bottom bodies), the vias go and the board "
+                                     "tracks between its end holes; an insulated jumper when the straight line meets a bottom body), the vias go and the board "
                                      "becomes single-sided"),
           [](McpServer& s, const Json& a) {
               Json j = obj();
