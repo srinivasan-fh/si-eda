@@ -82,8 +82,8 @@ enum class Look {
     // Through-hole power hardware: bobbin transformer, can electrolytic, upright toroid / choke, TO-220 / TO-247
     // with their tab, single-in-line bridge, screw terminal, fuse holder, boxed film capacitor, disc (ceramic /
     // safety cap, varistor, NTC),
-    // axial resistor / diode.
-    Transformer, Electrolytic, Toroid, To220, To247, SipBridge, ScrewTerminal, FuseHolder, Film, Disc, Axial
+    // axial resistor / diode, a single-sided board's bare wire link.
+    Transformer, Electrolytic, Toroid, To220, To247, SipBridge, ScrewTerminal, FuseHolder, Film, Disc, Axial, WireLink
 };
 
 /// Upper-case words a part's look is read from: footprint, value, part name, package, description and the KiCad
@@ -118,6 +118,7 @@ Look lookOf(const Component& c, const FootprintDef& fp) {
         return smd ? Look::CrystalSmd : Look::CrystalCan;
     if (has("JST") || has("_XH") || has(" XH") || has("_PH_")) return Look::Jst;
     if (!smd && !fp.pads.empty()) {
+        if (has("WIRE_LINK") || has("WIRELINK")) return Look::WireLink;
         if (has("TRANSFORMER") || has("ETD") || has("EFD") || has("PQ2") || has("PQ3") || has("BOBBIN")) return Look::Transformer;
         if ((has("TERMINAL") || has("TERMINALBLOCK")) && !has("PINHEADER")) return Look::ScrewTerminal;
         if (has("FUSE") && (has("HOLDER") || has("5X20"))) return Look::FuseHolder;
@@ -567,6 +568,12 @@ bool drawPowerLook(Look look, const PartFrame& f, const Component& c, const Foot
             tails(1.5);
             return true;
         }
+        case Look::WireLink: {  // a tinned wire lying on the board from hole to hole
+            m.surface = Surface::Tin;
+            rbox(r0, r1, tc - 0.3, tc + 0.3, 0.3, 0.9, tin);
+            legs(0.6, 0.6);
+            return true;
+        }
         case Look::Axial: {
             // Lying on the board between its bent leads; colour bands (resistor) or the cathode band (diode).
             const bool diode = c.kind == ComponentKind::Diode || has("DO41") || has("DO-41") || has("DO201") || has("DO-201");
@@ -806,7 +813,7 @@ bool drawLook(Look look, const PartFrame& f, const Component& c, const Footprint
             return true;
         }
         case Look::Transformer: case Look::Electrolytic: case Look::Toroid: case Look::To220: case Look::To247:
-        case Look::SipBridge: case Look::ScrewTerminal: case Look::FuseHolder: case Look::Film: case Look::Disc: case Look::Axial:
+        case Look::SipBridge: case Look::ScrewTerminal: case Look::FuseHolder: case Look::Film: case Look::Disc: case Look::Axial: case Look::WireLink:
             return drawPowerLook(look, f, c, fp, t, cu);
         case Look::Generic: break;
     }

@@ -483,6 +483,7 @@ struct Pad {
     /// Polygon pad round `position` (board frame; empty = rectangle / circle) and the inner-layer diameter (0 = size).
     std::vector<Vec2> outline{};
     double inner = 0, solder = 0;  // solder: a through-hole pad's diameter on the side opposite the part (0 = size)
+    bool wireLink = false;  // a wire link's (WIRELINK) pad: joined to the part's other pad by the wire
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
     bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };
