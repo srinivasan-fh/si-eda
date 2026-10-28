@@ -11,6 +11,7 @@
 #include <functional>
 #include <map>
 #include <numeric>
+#include <optional>
 #include <iterator>
 #include <set>
 #include <sstream>
@@ -1328,6 +1329,8 @@ std::map<int, PartClass> partClasses(const Project& pr) {
         if (!c.hasFootprint() || isNetSymbolKind(c.kind) || !pr.pcb.onBoard(c)) continue;
         std::string fp = c.footprintName();
         for (auto& ch : fp) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        const FootprintDef* def = Library::instance().footprint(c.footprintName());
+        if (def && def->label.rfind("WIRELINK", 0) == 0) continue;  // a wire link lies on the board under the bodies
         const auto pads = pr.checkPlacement(c.id, c.pcb.position, c.pcb.rotation, c.pcb.bottom, 0).pads;  // placed or not
         const size_t n = pads.size();
         const bool tht = std::any_of(pads.begin(), pads.end(), [](const Pad& pad) { return pad.throughHole; });
@@ -1522,25 +1525,32 @@ Json placeAtEdges(SiedaProject* p, std::vector<int>* held) {
 /// Refuses (ToolError) a hand-drawn segment a–b of `width` on `layer` (-1 = a via, every layer) that would come nearer
 /// than the board clearance to copper of another net: pads, tracks, vias.
 void checkClearOfOtherNets(const Project& pr, int net, Vec2 a, Vec2 b, double width, int layer) {
-    const double clr = pr.pcb.settings.clearance;
+    const auto& st = pr.pcb.settings;
+    std::map<int, std::string> names;  // a net class asking for more than the board clearance (mains) counts
+    for (const Net& n : pr.schematic.nets()) names[n.index] = n.name;
+    auto clr = [&](int other) {
+        return std::max(st.clearanceFor(names.count(net) ? names[net] : ""), st.clearanceFor(names.count(other) ? names[other] : ""));
+    };
     Track seg;
     seg.a = a, seg.b = b, seg.width = width, seg.layer = std::max(0, layer);
-    auto fail = [&](const std::string& what) { throw ToolError("Too close to " + what + " (board clearance " + Json(clr).dump() + " mm)"); };
+    auto fail = [&](const std::string& what, int other) {
+        throw ToolError("Too close to " + what + " (clearance " + Json(clr(other)).dump() + " mm)");
+    };
     for (const auto& pad : pr.pcb.pads(pr.schematic)) {
         if (pad.net == net || (layer >= 0 && !pad.onLayer(layer))) continue;
         const double d = pad.round ? roundPadTrackDistance(pad, seg) - padRadius(pad)
                                    : trackRectDistance(seg, pad.bounds());
-        if (d - width / 2 < clr - 1e-9) {
+        if (d - width / 2 < clr(pad.net) - 1e-9) {
             const Component* c = pr.schematic.find(pad.componentId);
-            fail("pad " + (c ? c->ref : std::string("?")) + "." + std::to_string(pad.padNumber));
+            fail("pad " + (c ? c->ref : std::string("?")) + "." + std::to_string(pad.padNumber), pad.net);
         }
     }
     for (const auto& t : pr.pcb.tracks)
-        if (t.net != net && (layer < 0 || t.layer == layer) && trackTrackDistance(seg, t) - width / 2 - t.width / 2 < clr - 1e-9)
-            fail("a track of another net (id " + std::to_string(t.id) + ")");
+        if (t.net != net && (layer < 0 || t.layer == layer) && trackTrackDistance(seg, t) - width / 2 - t.width / 2 < clr(t.net) - 1e-9)
+            fail("a track of another net (id " + std::to_string(t.id) + ")", t.net);
     for (const auto& v : pr.pcb.vias)
-        if (v.net != net && (layer < 0 || v.spans(layer)) && trackPointDistance(seg, v.position) - width / 2 - v.diameter / 2 < clr - 1e-9)
-            fail("a via of another net (id " + std::to_string(v.id) + ")");
+        if (v.net != net && (layer < 0 || v.spans(layer)) && trackPointDistance(seg, v.position) - width / 2 - v.diameter / 2 < clr(v.net) - 1e-9)
+            fail("a via of another net (id " + std::to_string(v.id) + ")", v.net);
 }
 
 // A wire link (WIRELINK part, refPrefix JW) from a to b on the schematic, both pins labelled with `net`; an unnamed
@@ -1862,10 +1872,10 @@ Json bottomToLinks(McpServer& s) {
     const double width = pcb.settings.trackWidth;
     std::vector<Track> stubs;  // added once the links stand on their holes (Update PCB drops copper reaching no pad)
     for (const auto& k : leads) taken[k] = 1;
-    auto ends = [&](Vec2 v, Vec2 toward, int net) {
+    auto ends = [&](Vec2 v, Vec2 toward, int net) -> std::optional<Vec2> {
         if (taken[key(v)]++ == 0) return v;
         const double base = std::atan2(toward.y - v.y, toward.x - v.x);
-        for (int k = 0; k < 96; ++k) {  // 16 directions at 2, 2.8 … 6 mm
+        for (int k = 0; k < 176; ++k) {  // 16 directions at 2, 2.8 … 10 mm
             const double ang = base + ((k % 16) % 2 ? 1 : -1) * (((k % 16) + 1) / 2) * M_PI / 8;
             const Vec2 q = v + Vec2{std::cos(ang), std::sin(ang)} * (2.0 + 0.8 * (k / 16));
             auto near = [&](Vec2 h) { return (h - v).length() > 1e-6 && (h - q).length() < 1.6 + pcb.settings.clearance; };
@@ -1887,7 +1897,7 @@ Json bottomToLinks(McpServer& s) {
             spare.push_back(q);
             return q;
         }
-        return v;  // no room: the wires share the hole
+        return std::nullopt;  // no room for another wire here
     };
     struct Pair { int net; Vec2 a, b; };
     std::vector<Pair> pairs;
@@ -1905,7 +1915,16 @@ Json bottomToLinks(McpServer& s) {
                 for (size_t j = 0; in[i] && j < pts.size(); ++j)
                     if (!in[j] && (pts[i] - pts[j]).length() < best) best = (pts[i] - pts[j]).length(), bi = i, bj = j;
             in[bj] = 1;
-            pairs.push_back({net, ends(pts[bi], pts[bj], net), ends(pts[bj], pts[bi], net)});
+            const Vec2 b = ends(pts[bj], pts[bi], net).value_or(pts[bj]);
+            // The new hole joins the nearest hole of the piece with room for another wire (sharing one only if none has).
+            std::vector<size_t> by;
+            for (size_t i = 0; i < pts.size(); ++i)
+                if (in[i] && i != bj) by.push_back(i);
+            std::sort(by.begin(), by.end(), [&](size_t x, size_t y) { return (pts[x] - pts[bj]).length() < (pts[y] - pts[bj]).length(); });
+            std::optional<Vec2> a;
+            for (size_t i : by)
+                if ((a = ends(pts[i], pts[bj], net))) break;
+            pairs.push_back({net, a.value_or(pts[bi]), b});
         }
     }
     for (const Pair& q : pairs) {

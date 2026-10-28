@@ -83,8 +83,13 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
     // Other parts' courtyards on the same side.
     const int own = plane(cand, s);
     const Rect probe = cy.inflated(gap);
+    auto wire = [](const Component& c) {  // a wire link lies on the board under the other parts' bodies
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+        return fp && fp->label.rfind("WIRELINK", 0) == 0;
+    };
+    const bool candWire = wire(cand);
     for (const auto& o : p.schematic.components()) {
-        if (o.id == cand.id || !o.hasFootprint() || !o.pcb.placed || plane(o, s) != own) continue;
+        if (o.id == cand.id || !o.hasFootprint() || !o.pcb.placed || plane(o, s) != own || candWire || wire(o)) continue;
         if (std::binary_search(ignore.begin(), ignore.end(), o.id)) continue;
         if (p.pcb.courtyard(o).intersects(probe))
             out.issues.push_back({"PLACE_OVERLAP", cand.ref + " would overlap the courtyard of " + o.ref + ".", o.id, true});
