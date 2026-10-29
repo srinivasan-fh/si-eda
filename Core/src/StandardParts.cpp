@@ -821,10 +821,10 @@ std::vector<StandardPart> build() {
         pkg.bodyDepth = 4.72;
         pkg.lands = {{-1.33, -1.86, 0.6, 0.4}, {-1.33, -0.81, 0.6, 0.4}, {-1.33, 0.24, 0.6, 0.4}, {-1.33, 1.29, 0.6, 0.4},
                      {0, 1.29, 1.56, 1.56},    {1.33, 1.29, 0.6, 0.4},   {1.33, 0.24, 0.6, 0.4},  {1.33, -0.81, 0.6, 0.4},
-                     {1.33, -1.86, 0.6, 0.4},  {0, 1.29, 0.25, 0.25, 0.25, true, "-"}};
-        const double step = std::acos(-1.0) / 24;
-        for (int k = 0; k <= 48; ++k) pkg.lands[4].outline.push_back({0.78 * std::cos(k * step), 0.78 * std::sin(k * step)});
-        for (int k = 48; k >= 0; --k) pkg.lands[4].outline.push_back({0.48 * std::cos(k * step), 0.48 * std::sin(k * step)});
+                     {1.33, -1.86, 0.6, 0.4},  {0, 1.29, 0.3, 0.3, 0.25, true, "-"}};
+        const double step = std::acos(-1.0) / 15;  // 31 + 31 points: within a pad outline's 64
+        for (int k = 0; k <= 30; ++k) pkg.lands[4].outline.push_back({0.78 * std::cos(k * step), 0.78 * std::sin(k * step)});
+        for (int k = 30; k >= 0; --k) pkg.lands[4].outline.push_back({0.48 * std::cos(k * step), 0.48 * std::sin(k * step)});
         pkg.lands.back().npth = true;
     }
     parts.push_back(part("Motor Control", "L293DD", "STMicroelectronics",

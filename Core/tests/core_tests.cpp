@@ -1172,6 +1172,14 @@ TEST(standard_values_and_parts) {
     for (const auto& sp : standardParts()) {
         auto part = CustomPartRegistry::instance().registerPart(sp.spec);
         CHECK(part->footprint.pads.size() >= sp.spec.pins.size());
+        // The app places a catalog part from its JSON: it must read back and register.
+        bool readBack = false;
+        try {
+            readBack = CustomPartRegistry::instance().registerPart(customPartSpecFromJson(customPartSpecToJson(sp.spec))) != nullptr;
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", sp.spec.name.c_str(), e.what());
+        }
+        CHECK(readBack);
         // Every package pad maps to a pin (no anonymous pads on the standard parts but plain holes: a microphone's
         // sound port).
         for (const auto& pad : part->footprint.pads) CHECK(pad.pinIndex >= 0 || pad.npth);
