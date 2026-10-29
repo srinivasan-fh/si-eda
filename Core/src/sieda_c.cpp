@@ -1914,6 +1914,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "bringup") return dup(bringUpChecklist(p));
         if (f == "fab_drawing") return dup(exportBoardDrawingPdf(p));
         if (f == "net_lengths") return dup(exportNetLengthReport(p.schematic, p.pcb));
+        if (f == "junit") return dup(testReportJUnit(p, verifyDesign(p)));
         return nullptr;
     } catch (...) {
         return nullptr;

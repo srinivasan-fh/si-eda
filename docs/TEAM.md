@@ -125,10 +125,21 @@ current. Approvals are saved in the project only when there are any.
 ## Controlled release
 
 MCP `output_release` (`dir`, `revision`, optional `previous`) writes a release folder: the fabrication package, the
-project as released, the verification report, `evidence.json` (design fingerprint, verdict, approvals of this revision,
+project as released, the verification report (`verification.md`, and `test_report.xml` as JUnit XML for test-management / QMS tools), `evidence.json` (design fingerprint, verdict, approvals of this revision,
 requirements trace, waivers, bench measurements), a change notice against the previous revision and
 `MANIFEST.sha256` (check it with `shasum -a 256 -c MANIFEST.sha256`). `ready` is true when the verification did not
 fail, at least one approval is current and no requirement is missing its parts.
+
+## Test management, QMS and CI
+
+The verification also comes as a **JUnit XML test report** — **File → Export → Test Report for Test Management / CI**,
+MCP `output_export` format `junit`, `sieda-cli design.siedaproj out/` (`out/test_report.xml`) and every controlled
+release (`test_report.xml`, in its manifest). Test-management and QMS tools that import JUnit results (TestRail, Xray,
+Zephyr, Azure DevOps, GitLab, Jenkins) read it as test runs: one suite per verification stage (the stage fails or is
+skipped as the stage does; each error finding is a failed case, each warning a passed case with the warning as its
+output), then the requirements (traced passes; a missing or untraced part fails) and the bench measurements (inside
+their limits passes; a measurement taken on an earlier revision says so). The CI templates in `docs/ci/` keep it with
+the build; GitLab shows it in the merge request's test tab.
 
 - **Requirements** (`verify_requirements`): each requirement names the parts that meet it; the trace says which are
   traced, which name a part that is gone, and which parts no requirement names.

@@ -1636,6 +1636,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case bringUp = "bringup"
     case fabDrawing = "fab_drawing"
     case netLengths = "net_lengths"
+    case junit
 
     var id: String { rawValue }
 
@@ -1680,6 +1681,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .bringUp: return "bring_up_checklist.md"
         case .fabDrawing: return "fab_drawing.pdf"
         case .netLengths: return "net_lengths.csv"
+        case .junit: return "test_report.xml"
         }
     }
 
@@ -1724,6 +1726,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .bringUp: return "Bring-Up Checklist (Markdown)"
         case .fabDrawing: return "Fabrication Drawing — Dimensions, Drill Map, Stack-up (PDF)"
         case .netLengths: return "Net-Length Report (CSV)"
+        case .junit: return "Test Report for Test Management / CI (JUnit XML)"
         }
     }
 }

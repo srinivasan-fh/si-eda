@@ -37,6 +37,7 @@
 #include "sieda/CloudSync.hpp"
 #include "sieda/ExternalLibrary.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Verification.hpp"
 
 namespace fs = std::filesystem;
 
@@ -8859,7 +8860,7 @@ void outputTools(Table& t) {
           });
     t.add("output", "output_release", "Controlled release", Kind::Files, false,
           "A controlled release in a folder inside the root: the fabrication package (fabrication/), the project as "
-          "released (<name>-rev<revision>.siedaproj), the verification report, the evidence (design fingerprint, "
+          "released (<name>-rev<revision>.siedaproj), the verification report (Markdown and JUnit XML), the evidence (design fingerprint, "
           "approvals of this revision, requirements trace, waivers, bench measurements), a change notice against previous (an older "
           ".siedaproj) and MANIFEST.sha256 with every file's SHA-256 (check with shasum -a 256 -c). ready = "
           "verification not failed, at least one current approval and no requirement missing its parts.",
@@ -8883,8 +8884,10 @@ void outputTools(Table& t) {
               const std::string saved = takeText(sieda_project_save_json(P(s)));
               auto write = [&](const std::string& name, const std::string& text) { s.writeFile((fs::path(dir) / name).string(), text); };
               write(base + "-rev" + revision + ".siedaproj", saved);
-              const Json verification = takeJson(sieda_run_verification(P(s)));
+              const VerificationReport report = verifyDesign(proj(s));
+              const Json verification = report.toJson();
               write("verification.md", verification.get("markdown").asString(""));
+              write("test_report.xml", testReportJUnit(proj(s), report));  // the same checks for test-management / QMS tools
               Json evidence = obj();
               evidence["revision"] = revision, evidence["designHash"] = proj(s).designHash();
               evidence["verdict"] = verification.get("verdict");
@@ -8959,7 +8962,8 @@ void outputTools(Table& t) {
           "freecad / fusion (FreeCAD macro / Autodesk Fusion script: board and parts by designator; run again it writes the "
           "moved placement as IDF for pcb_import_idf_placement), testpoints (probe point per net, CSV), html_bom (interactive BOM / board viewer), bringup (bring-up "
           "checklist, Markdown), fab_drawing (fabrication drawing PDF: dimensions, drill map / table, stack-up, "
-          "revisions), net_lengths (routed length per net, CSV). variant: an assembly variant for the assembly outputs.",
+          "revisions), net_lengths (routed length per net, CSV), junit (design verification as a JUnit XML test report for "
+          "test-management / QMS tools and CI: a suite per stage, requirements and bench measurements). variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
           [](McpServer& s, const Json& a) {
               const std::string f = requireStr(a, "format");

@@ -23,3 +23,5 @@ sieda-check:
     name: fabrication-package
     paths:
       - out/
+    reports:
+      junit: out/test_report.xml   # each verification stage, requirement and bench measurement in the MR's test tab

@@ -228,10 +228,11 @@ int main(int argc, char** argv) {
         bool ok = writeFabricationPackage(project, dir, &written, &error);
         ok &= writeFile(dir + "design.siedaproj", project.toJson().dump(true));
         ok &= writeFile(dir + "verification_report.md", verification.toMarkdown());
+        ok &= writeFile(dir + "test_report.xml", testReportJUnit(project, verification));  // JUnit: test management / CI
         for (const auto& f : written) std::printf("  %s\n", f.c_str());
         if (!error.empty()) std::printf("  error: %s\n", error.c_str());
         std::printf("\n%s the fabrication package (%zu files) to %s\n", ok ? "Wrote" : "FAILED writing",
-                    written.size() + 2, dir.c_str());
+                    written.size() + 3, dir.c_str());
         if (!ok) return 1;
     }
     return verification.passed() ? 0 : 1;

@@ -51,4 +51,11 @@ struct VerificationOptions {
 
 VerificationReport verifyDesign(const Project& project, const VerificationOptions& options = {});
 
+/// The verification as a JUnit XML test report for test-management / QMS tools and CI (TestRail, Xray, Zephyr, Azure
+/// DevOps, GitLab, Jenkins read it): a test suite per stage (the stage itself one case: failed when the stage fails,
+/// skipped when skipped; each error finding a failed case, each warning a passed case with the warning as its output),
+/// then the requirements (traced passes; missing or untraced parts fail) and the bench measurements (inside their
+/// limits passes; the output says when one was taken on an earlier revision), when the project has them.
+std::string testReportJUnit(const Project& project, const VerificationReport& report);
+
 }  // namespace sieda

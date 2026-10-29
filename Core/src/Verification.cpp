@@ -517,4 +517,103 @@ std::string VerificationReport::toMarkdown() const {
     return o.str();
 }
 
+std::string testReportJUnit(const Project& project, const VerificationReport& report) {
+    auto esc = [](const std::string& text) {
+        std::string out;
+        for (const char c : text) {
+            switch (c) {
+                case '&': out += "&amp;"; break;
+                case '<': out += "&lt;"; break;
+                case '>': out += "&gt;"; break;
+                case '"': out += "&quot;"; break;
+                case '\'': out += "&apos;"; break;
+                default:
+                    if (static_cast<unsigned char>(c) >= 0x20 || c == '\n' || c == '\t') out += c;  // XML 1.0 has no other controls
+            }
+        }
+        return out;
+    };
+    struct Case {
+        std::string name, failure, output;  // failure: the failure's message (empty = passed)
+        bool skipped = false;
+    };
+    struct Suite {
+        std::string id, name;
+        std::vector<Case> cases;
+    };
+    std::vector<Suite> suites;
+    for (const auto& st : report.stages) {
+        Suite s{st.id, st.title, {}};
+        std::string details = st.summary;
+        for (const auto& d : st.details) details += "\n" + d;
+        s.cases.push_back({st.title, st.status == StageStatus::Fail ? st.summary : "", details, st.status == StageStatus::Skipped});
+        for (const auto& v : st.findings)
+            if (v.severity == Severity::Error) s.cases.push_back({v.code + ": " + v.message, v.message, "", false});
+            else if (v.severity == Severity::Warning) s.cases.push_back({v.code + ": " + v.message, "", "Warning: " + v.message, false});
+        suites.push_back(std::move(s));
+    }
+    if (!project.requirementItems.empty()) {
+        Suite s{"requirements", "Requirements", {}};
+        for (const auto& r : project.requirementItems) {
+            std::string missing;
+            for (const auto& ref : r.refs)
+                if (!project.schematic.findByRef(ref)) missing += (missing.empty() ? "" : ", ") + ref;
+            const std::string failure = r.refs.empty() ? "No part traces this requirement" : missing.empty() ? "" : "Not in the design: " + missing;
+            std::string refs;
+            for (const auto& ref : r.refs) refs += (refs.empty() ? "" : ", ") + ref;
+            s.cases.push_back({r.id + (r.text.empty() ? "" : ": " + r.text), failure, refs.empty() ? "" : "Traced by " + refs, false});
+        }
+        suites.push_back(std::move(s));
+    }
+    if (!project.measurements.empty()) {
+        Suite s{"measurements", "Bench measurements", {}};
+        const std::string revision = project.designHash();
+        for (const auto& m : project.measurements) {
+            char value[160];
+            std::snprintf(value, sizeof value, "%g %s", m.value, m.unit.c_str());
+            auto num = [](bool has, double v) {
+                char b[32];
+                std::snprintf(b, sizeof b, "%g", v);
+                return has ? std::string(b) : std::string("-");
+            };
+            const std::string limits = m.hasMin || m.hasMax ? " (limits " + num(m.hasMin, m.min) + " to " + num(m.hasMax, m.max) + ")" : "";
+            const bool pass = (!m.hasMin || m.value >= m.min) && (!m.hasMax || m.value <= m.max);
+            std::string output = std::string("Measured ") + value + limits + (m.date.empty() ? "" : " on " + m.date);
+            if (m.revision != revision) output += ", on an earlier revision of the design";
+            if (!m.note.empty()) output += ". " + m.note;
+            s.cases.push_back({m.what, pass ? "" : std::string("Outside its limits: ") + value + limits, output, false});
+        }
+        suites.push_back(std::move(s));
+    }
+    auto counts = [](const std::vector<Case>& cases, int& tests, int& failures, int& skipped) {
+        for (const auto& c : cases) ++tests, failures += !c.failure.empty(), skipped += c.skipped;
+    };
+    int tests = 0, failures = 0, skipped = 0;
+    for (const auto& s : suites) counts(s.cases, tests, failures, skipped);
+    std::ostringstream o;
+    o << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites name=\"" << esc("SiEDA design verification: " + report.projectName)
+      << "\" tests=\"" << tests << "\" failures=\"" << failures << "\" errors=\"0\" skipped=\"" << skipped << "\">\n";
+    for (const auto& s : suites) {
+        int t = 0, f = 0, k = 0;
+        counts(s.cases, t, f, k);
+        o << "  <testsuite name=\"" << esc(s.name) << "\" id=\"" << esc(s.id) << "\" tests=\"" << t << "\" failures=\"" << f
+          << "\" errors=\"0\" skipped=\"" << k << "\">\n";
+        for (const auto& c : s.cases) {
+            o << "    <testcase classname=\"sieda." << esc(s.id) << "\" name=\"" << esc(c.name) << "\"";
+            if (c.failure.empty() && !c.skipped && c.output.empty()) {
+                o << "/>\n";
+                continue;
+            }
+            o << ">\n";
+            if (c.skipped) o << "      <skipped message=\"" << esc(c.output.substr(0, c.output.find('\n'))) << "\"/>\n";
+            if (!c.failure.empty()) o << "      <failure message=\"" << esc(c.failure) << "\" type=\"" << esc(s.id) << "\"/>\n";
+            if (!c.output.empty()) o << "      <system-out>" << esc(c.output) << "</system-out>\n";
+            o << "    </testcase>\n";
+        }
+        o << "  </testsuite>\n";
+    }
+    o << "</testsuites>\n";
+    return o.str();
+}
+
 }  // namespace sieda

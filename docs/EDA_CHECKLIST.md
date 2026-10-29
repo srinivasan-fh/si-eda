@@ -201,7 +201,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Panels, fiducials, release checklist, ➕ stack-up docs, per-variant outputs | ✅ | |
 | P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab order form + estimate from your price table ✅; Gerber-level package comparison (File → Compare Packages…, MCP `output_compare_packages`) ✅; live quote APIs ⏳ (partner keys) |
 | P2 | ➕ Direct order / quote APIs (incl. Indian vendors) | 🟡 | File → Order Boards: order form, published-limit check, order page (JLCPCB, PCBWay, OSH Park, Eurocircuits, Lion Circuits, PCB Power) ✅; vendors' partner APIs ⏳ |
-| P3 | Release signatures, change notices, MES / QMS | 🟡 | release manifest of SHA-256 hashes and a change notice against the previous revision (`output_release`) ✅; MES / QMS ⏳ |
+| P3 | Release signatures, change notices, MES / QMS | 🟡 | release manifest of SHA-256 hashes and a change notice against the previous revision (`output_release`) ✅; QMS evidence as a JUnit test report in every release ✅; MES ⏳ |
 
 ## 10. Documentation and drawings
 
@@ -349,7 +349,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Bring-up checklist from rails, clocks, interfaces | ✅ | `bringUpChecklist` (Markdown, in the package) |
 | P2 | Flying-probe / bed-of-nails export | ✅ | IPC-D-356 ✅; test-point report with the nearest probe on the same side and its probe class (100 / 75 / 50 mil) ✅ |
 | P2 | Measured results and field failures linked to the design | ✅ | bench measurements with limits on the design revision (MCP `verify_measurements`), in the release evidence |
-| P3 | Test-management / QMS integration | ⏳ | |
+| P3 | Test-management / QMS integration | 🟡 | verification, requirements trace and bench measurements as a JUnit XML test report (File → Export, MCP `output_export` `junit`, `sieda-cli`, every controlled release, CI templates) that test-management and QMS tools import ✅; direct links to a named QMS ⏳ (its API) |
 
 ## 22–23. Editions, monetisation, community
 
