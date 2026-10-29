@@ -7,19 +7,19 @@ part (package, pitch, body, datasheet link) and an empty pin table to fill in fr
 
 | File | Part number | Manufacturer | Package | Status |
 |---|---|---|---|---|
-| [TMS320F28379D](TMS320F28379D.md) | TMS320F28379DPTPS | Texas Instruments | HLQFP-176 (PTP) | TODO |
-| [DRV8301](DRV8301.md) | DRV8301DCAR | Texas Instruments | HTSSOP-56 (DCA) | TODO |
-| [DRV8353](DRV8353.md) | DRV8353RTAWRQ1 | Texas Instruments | WQFN-40 6×6 (RTA) | TODO |
-| [TPS65381](TPS65381.md) | TPS65381AQDAPRQ1 | Texas Instruments | HTSSOP-32 (DAP) | TODO |
-| [LM5116](LM5116.md) | LM5116MH/NOPB | Texas Instruments | HTSSOP-20 (PWP) | TODO |
-| [TJA1101](TJA1101.md) | TJA1101HN | NXP Semiconductors | HVQFN-36 6×6 | TODO |
-| [MA702](MA702.md) | MA702GQ | Monolithic Power Systems | QFN-16 3×3 | TODO |
-| [BMX160](BMX160.md) | BMX160 | Bosch Sensortec | LGA-14 2.5×3.0 | TODO |
-| [ADS1256](ADS1256.md) | ADS1256IDBR | Texas Instruments | SSOP-28 (DB) | TODO |
+| [TMS320F28379D](TMS320F28379D.md) | TMS320F28379DPTPS | Texas Instruments | HLQFP-176 (PTP) | verified (datasheet SPRS880P (revised February 2024), page 13) |
+| [DRV8301](DRV8301.md) | DRV8301DCAR | Texas Instruments | HTSSOP-56 (DCA) | verified (datasheet SLOS719F (rev. F, January 2016), page 3–5) |
+| [DRV8353](DRV8353.md) | DRV8353SRTAR | Texas Instruments | WQFN-40 6×6 (RTA) | verified (datasheet SLVSDY6A (DRV835x, revised June 2019), page 6) |
+| [TPS65381](TPS65381.md) | TPS65381QDAPRQ1 | Texas Instruments | HTSSOP-32 (DAP) | verified (datasheet SLVSBC4G (TPS65381-Q1, revised June 2017), page 27) |
+| [LM5116](LM5116.md) | LM5116MH/NOPB | Texas Instruments | HTSSOP-20 (PWP) | verified (datasheet SNVS499I (rev. I, November 2023), page 3–4) |
+| [TJA1101](TJA1101.md) | TJA1101BHN | NXP Semiconductors | HVQFN-36 6×6 | verified (datasheet TJA1101B Rev. 1 (1 March 2021), page 4–6) |
+| [MA702](MA702.md) | MA702GQ | Monolithic Power Systems | QFN-16 3×3 | verified (datasheet MA702 Rev. 1.2 (2022-08-08), page 8) |
+| [BMX160](BMX160.md) | BMX160 | Bosch Sensortec | LGA-14 2.5×3.0 | verified (datasheet BST-BMX160-DS000-12 (revision 1.2, January 2019), page 101) |
+| [ADS1256](ADS1256.md) | ADS1256IDBR | Texas Instruments | SSOP-28 (DB) | verified (datasheet SBAS288K (rev. K, September 2013), page 5) |
 | [ATSAMD51P20A](ATSAMD51P20A.md) | ATSAMD51P20A-AUT | Microchip | TQFP-128 14×14 | TODO |
 | [INMP441](INMP441.md) | INMP441ACEZ-R7 | TDK InvenSense | LGA 4.72×3.76 | TODO |
 | [JQ6500](JQ6500.md) | JQ6500 | Jiaqi (JQ) | SOP-16 | TODO |
-| [WT2003HP8](WT2003HP8.md) | WT2003HP8-16S | Waytronic | SOP-16 | TODO |
+| [WT2003HP8](WT2003HP8.md) | WT2003HP8-32N | Waytronic | QFN-32 4×4 | verified (datasheet WT2003HX V1.15, page 7) |
 | [SYN6288](SYN6288.md) | SYN6288 | Beijing Yutone (宇音天下) | SSOP-28 | TODO |
 
 ### From the semiconductor IC reference (October 2026)

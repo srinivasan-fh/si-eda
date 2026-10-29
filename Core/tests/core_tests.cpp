@@ -2623,6 +2623,8 @@ TEST(production_parts_catalog) {
         "TMC2160-TA", "TMC5160A-TA", "AS5047D-ATSM", "INA240A1EDRQ1", "TCAN1042VDRQ1", "ADM2587EBRWZ",
         "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU", "MT48LC16M16A2TG-6A", "W9812G6KH-6", "IS42S16400J-7TL",
         "MT41K256M16HA-125", "AS4C256M16D3-12BCN", "MT40A512M16LY-062E",
+        "ADS1256IDBR", "DRV8301DCAR", "LM5116MH/NOPB", "MA702GQ", "TJA1101BHN", "WT2003HP8-32N",
+        "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -2936,7 +2938,7 @@ TEST(microcontroller_library_by_vendor) {
     // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
     // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
     CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 29);
-    CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
+    CHECK(perGroup["Microcontrollers · Texas Instruments"] == 11);
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.
     CHECK(perGroup["Microcontrollers · Microchip"] == 24);
