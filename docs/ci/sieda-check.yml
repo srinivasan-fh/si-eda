@@ -23,6 +23,7 @@ jobs:
           cmake --build .sieda/build -j --target sieda-cli
       - name: Check the design and write the fabrication package
         # Exit code 1 when design verification fails (ERC / DRC errors, unrouted nets, missing outputs).
+        # out/test_report.xml is the verification as a JUnit report for test-management tools.
         run: .sieda/build/sieda-cli "$DESIGN" out/
       - uses: actions/upload-artifact@v4
         if: always()

@@ -36,6 +36,7 @@
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "../src/SiedaProjectInternal.hpp"
+#include "../src/XmlRead.hpp"
 #include "sieda/Channel.hpp"
 #include "sieda/Eye.hpp"
 #include "sieda/LossyLine.hpp"
@@ -25902,7 +25903,7 @@ TEST(controlled_release_with_evidence_change_notice_and_manifest) {
     const Json r = mcpData(mcpTool(m, "output_release", args));
     CHECK(r.get("approvedNow").asInt() == 1 && r.get("files").asInt() > 10);
     const auto dir = root / "release" / "B";
-    for (const char* f : {"MANIFEST.sha256", "evidence.json", "verification.md", "change_notice.md"})
+    for (const char* f : {"MANIFEST.sha256", "evidence.json", "verification.md", "test_report.xml", "change_notice.md"})
         CHECK(std::filesystem::exists(dir / f));
     // The manifest's line for the evidence file holds that file's SHA-256.
     std::ifstream ev(dir / "evidence.json", std::ios::binary), mf(dir / "MANIFEST.sha256");
@@ -25934,6 +25935,57 @@ TEST(bench_measurements_link_to_the_design_revision) {
     CHECK(!r.get("measurements")[0].get("current").asBool(true));  // taken on an earlier revision
     const Project back = Project::fromJson(Json::parse(p.toJson().dump()));
     CHECK(back.measurements.size() == 2 && back.measurements[1].hasMax && !back.measurements[1].hasMin);
+}
+
+TEST(junit_test_report_lists_stages_requirements_and_measurements) {
+    // The verification as JUnit XML: well formed, one suite per stage then the requirements and bench measurements, the
+    // counts matching the cases, a failed stage / missing or untraced requirement / out-of-limit measurement failing,
+    // XML specials escaped and control characters dropped.
+    Project p = amplifierProject();
+    const std::string ref = p.schematic.components().front().ref;
+    p.requirementItems = {{"REQ-1", "Gain <20 dB & \"stable\"\x01", {ref}}, {"REQ-2", "Protection", {"U99"}}, {"REQ-3", "", {}}};
+    Project::Measurement in, out;
+    in.what = "+5V rail", in.value = 5.02, in.unit = "V", in.hasMin = in.hasMax = true, in.min = 4.9, in.max = 5.1;
+    in.revision = p.designHash();
+    out = in, out.what = "Idle current", out.value = 0.05, out.unit = "A", out.hasMin = false, out.max = 0.02, out.revision = "old";
+    p.measurements = {in, out};
+    const VerificationReport report = verifyDesign(p);
+    const std::string xml = testReportJUnit(p, report);
+    XmlNode root;
+    CHECK(parseXml(xml, root) && root.kids.size() == 1 && root.kids[0].name == "testsuites");
+    const XmlNode& all = root.kids[0];
+    CHECK(all.kids.size() == report.stages.size() + 2);
+    int tests = 0, failures = 0, skipped = 0;
+    for (const auto& suite : all.kids) {
+        int t = 0, f = 0;
+        for (const auto& c : suite.kids) t += c.name == "testcase", f += c.child("failure") != nullptr, skipped += c.child("skipped") != nullptr;
+        CHECK(std::to_string(t) == suite.attrs.at("tests") && std::to_string(f) == suite.attrs.at("failures"));
+        tests += t, failures += f;
+    }
+    CHECK(std::to_string(tests) == all.attrs.at("tests") && std::to_string(failures) == all.attrs.at("failures"));
+    CHECK(std::to_string(skipped) == all.attrs.at("skipped"));
+    for (size_t i = 0; i < report.stages.size(); ++i) {  // the stage's own case fails exactly when the stage does
+        const XmlNode& stage = all.kids[i].kids.front();
+        CHECK(all.kids[i].attrs.at("id") == report.stages[i].id && stage.attrs.at("name") == report.stages[i].title);
+        CHECK((stage.child("failure") != nullptr) == (report.stages[i].status == StageStatus::Fail));
+    }
+    const XmlNode& req = all.kids[report.stages.size()];
+    CHECK(req.attrs.at("id") == "requirements" && req.kids.size() == 3);
+    CHECK(req.kids[0].attrs.at("name") == "REQ-1: Gain <20 dB & \"stable\"" && !req.kids[0].child("failure"));
+    CHECK(req.kids[1].child("failure") && req.kids[1].child("failure")->attrs.at("message") == "Not in the design: U99");
+    CHECK(req.kids[2].child("failure") != nullptr);
+    const XmlNode& meas = all.kids.back();
+    CHECK(meas.attrs.at("id") == "measurements" && meas.kids.size() == 2);
+    CHECK(!meas.kids[0].child("failure") && meas.kids[0].child("system-out")->text.find("limits 4.9 to 5.1") != std::string::npos);
+    CHECK(meas.kids[1].child("failure") && meas.kids[1].child("system-out")->text.find("earlier revision") != std::string::npos);
+    CHECK(xml.find('\x01') == std::string::npos);
+    // The same report through the export and the CLI-facing C API.
+    SiedaProject* sp = sieda_project_new("amp");
+    sp->project = p;
+    char* text = sieda_export(sp, "junit");
+    CHECK(text && std::string(text).rfind("<?xml", 0) == 0);
+    sieda_string_free(text);
+    sieda_project_free(sp);
 }
 
 TEST(routes_round_trip_through_hyperlynx_ipc2581_and_pads) {

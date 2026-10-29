@@ -100,7 +100,7 @@
   "sieda.block/1": clip + FNV fingerprint + approver). Traceability `Project::requirementItems` (`verify_requirements`),
   bench measurements `Project::measurements` (`verify_measurements`; both saved only when present, neither changes
   `designHash`). Controlled release `output_release` (fabrication/, project copy, verification.md, evidence.json,
-  change_notice.md, MANIFEST.sha256 via `sha256Hex` in Documents.cpp). Pin / gate swaps skip pairs across I/O banks on
+  change_notice.md, test_report.xml, MANIFEST.sha256 via `sha256Hex` in Documents.cpp). JUnit XML test report `testReportJUnit` (Verification.cpp: suite per stage, requirements, measurements; export "junit", sieda-cli `out/test_report.xml`, docs/ci templates; test `junit_test_report_lists_stages_requirements_and_measurements`). Pin / gate swaps skip pairs across I/O banks on
   different VCCO nets (`crossesBankVoltage`, PcbSwap.cpp). Eagle canvas preset (two-letter command sequences).
   Route exchange `Core/src/RouteExchange.cpp`: `exportHyperlynx` (export "hyperlynx": inches, Y up, ARC clockwise) and
   `importRoutes` (PADS ASCII / HyperLynx (METRIC = cm) / IPC-2581 detected from the text; frame fitted by named pins, else
