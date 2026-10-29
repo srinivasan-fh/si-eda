@@ -36,6 +36,7 @@
 #include "sieda/Autoroute.hpp"
 #include "sieda/CloudSync.hpp"
 #include "sieda/ExternalLibrary.hpp"
+#include "sieda/Fabrication.hpp"
 
 namespace fs = std::filesystem;
 
@@ -9153,6 +9154,72 @@ void teamTools(Table& t) {
               Json j = takeJson(sieda_fab_quote(P(s), a.dump().c_str()));
               if (j.has("error") && a.has("fab")) throw ToolError(j.get("error").asString() + " (fabs: jlcpcb, pcbway, oshpark, eurocircuits, lioncircuits, pcbpower)");
               return out(j);
+          });
+    t.add("output", "output_compare_packages", "Compare fabrication packages", Kind::Read, false,
+          "Compares two fabrication packages at the Gerber level, as the fab will see them: each Gerber layer (paired by "
+          "its X2 file function, else by its file name without the board name) drawn on a grid and compared — same / "
+          "changed / added / removed, copper area added and removed, and where (the changed patches, largest first, "
+          "centre and size in mm); each drill file hole by hole (added, removed, resized); every other file by its "
+          "bytes. a / b: a package folder or .zip inside the root, or \"current\" for the open project's package as "
+          "it would be written now (b's default). With layer, a picture of that layer: b's artwork with the changes "
+          "boxed (green added, red removed).",
+          Schema().str("a", "Older package: folder or .zip inside the root, or \"current\"", true)
+              .str("b", "Newer package: folder or .zip inside the root, or \"current\" (default)")
+              .num("resolution", "Grid cell, mm (default 0.05; 0.01–1)")
+              .str("layer", "A layer key from the result to draw as a picture")
+              .integer("width", "Picture width in pixels (default 1200, at most 2048)"),
+          [](McpServer& s, const Json& a) {
+              auto package = [&](const std::string& path) {
+                  std::map<std::string, std::string> files;
+                  if (path == "current") {
+                      for (auto& f : fabricationPackage(proj(s)))
+                          if (f.path.size() < 4 || f.path.substr(f.path.size() - 4) != ".zip") files[f.path] = std::move(f.content);
+                      return files;
+                  }
+                  const std::string full = s.resolvePath(path, false);
+                  std::error_code ec;
+                  if (!fs::is_directory(full, ec)) {
+                      try {
+                          return readZipArchive(readFileArg(s, path).asString());
+                      } catch (const std::runtime_error& e) {
+                          throw ToolError(path + ": " + e.what());
+                      }
+                  }
+                  s.checkLinksInside(full);
+                  size_t total = 0;
+                  for (fs::recursive_directory_iterator it(full, ec), end; !ec && it != end; it.increment(ec)) {
+                      if (it->is_symlink(ec) || !it->is_regular_file(ec)) continue;
+                      const std::string rel = fs::relative(it->path(), full, ec).generic_string();
+                      if (rel.size() >= 4 && rel.substr(rel.size() - 4) == ".zip") continue;  // the zip of the gerbers beside it
+                      total += static_cast<size_t>(it->file_size(ec));
+                      check(files.size() < 2000 && total <= (size_t(256) << 20), path + " holds more than 2000 files or 256 MB");
+                      std::ifstream in(it->path(), std::ios::binary);
+                      std::stringstream ss;
+                      ss << in.rdbuf();
+                      files[rel] = ss.str();
+                  }
+                  check(!files.empty(), path + " has no files");
+                  return files;
+              };
+              const std::string pa = requireStr(a, "a"), pb = a.has("b") ? argStr(a, "b") : std::string("current");
+              const auto A = package(pa), B = package(pb);
+              Json j = compareFabPackages(A, B, argNum(a, "resolution", 0.05));
+              j["a"] = pa, j["b"] = pb;
+              ToolOutput o = out(j);
+              if (a.has("layer")) {
+                  const std::string key = argStr(a, "layer");
+                  const Json* layer = nullptr;
+                  for (const Json& l : j.get("layers").items())
+                      if (l.get("layer").asString() == key) layer = &l;
+                  check(layer && layer->has("fileB"), "No layer " + key + " in b (see layers[].layer)");
+                  const GerberImage img = parseGerber(B.at(layer->get("fileB").asString()));
+                  Json item = obj();
+                  item["type"] = "image";
+                  item["data"] = base64Encode(renderPackageDiffPng(img, *layer, argInt(a, "width", 1200)));
+                  item["mimeType"] = "image/png";
+                  o.content.push(item);
+              }
+              return o;
           });
     t.add("pcb", "pcb_thermal", "Thermal analysis", Kind::Read, true,
           "Board temperature map: the steady-state temperature over the board from each part's dissipation (the DC "

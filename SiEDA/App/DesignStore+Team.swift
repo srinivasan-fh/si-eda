@@ -563,6 +563,39 @@ extension DesignStore {
         inform(String(localized: "Check Variants"), lines.joined(separator: "\n"))
     }
 
+    /// Compares a released fabrication package (its folder or a .zip) with the package this design writes now, at the
+    /// Gerber level (MCP output_compare_packages): each layer same / changed with the copper added and removed and
+    /// where, drills hole by hole, the other files by their bytes.
+    func compareFabricationPackages() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.zip, .folder]
+        panel.message = String(localized: "Choose a released fabrication package (its folder or .zip) to compare with this design.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let r = tool("output_compare_packages", ["a": url.lastPathComponent], root: url.deletingLastPathComponent().path) else { return }
+        if r["identical"] as? Bool ?? false {
+            inform(String(localized: "Compare Packages…"), String(localized: "The package matches this design."))
+            return
+        }
+        var lines = ((r["layers"] as? [[String: Any]]) ?? []).compactMap { l -> String? in
+            let name = l["layer"] as? String ?? "", status = l["status"] as? String ?? ""
+            guard status != "same" else { return nil }
+            if let added = l["holesAdded"] as? Int {
+                return "\(name): \(added) holes added, \(l["holesRemoved"] as? Int ?? 0) removed, \(l["holesResized"] as? Int ?? 0) resized"
+            }
+            if status == "changed" {
+                let first = (l["where"] as? [[String: Any]])?.first
+                let at = first.map { String(format: " (largest at %.1f, %.1f mm)", $0["x"] as? Double ?? 0, $0["y"] as? Double ?? 0) } ?? ""
+                return String(format: "%@: +%.2f / −%.2f mm² in %d places", name, l["addedMm2"] as? Double ?? 0,
+                              l["removedMm2"] as? Double ?? 0, l["changes"] as? Int ?? 0) + at
+            }
+            return "\(name): \(status)"
+        }
+        lines += ((r["otherFiles"] as? [[String: Any]]) ?? []).map { "\($0["file"] as? String ?? ""): \($0["status"] as? String ?? "")" }
+        inform(String(localized: "Compare Packages…"), lines.joined(separator: "\n"))
+    }
+
     // MARK: Team rule packs (the board's design rules as one shared file)
 
     func saveRulePack() {

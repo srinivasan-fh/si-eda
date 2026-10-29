@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Auto Route (single-sided)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side";
+"Compare Packages…" = "Compare Packages…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Compare a released fabrication package with this design's, layer by layer and hole by hole";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Choose a released fabrication package (its folder or .zip) to compare with this design.";
+"The package matches this design." = "The package matches this design.";

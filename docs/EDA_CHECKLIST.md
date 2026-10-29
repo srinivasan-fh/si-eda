@@ -199,7 +199,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Gerber X2, IPC-2581, ODB++, ➕ IPC-D-356 | ✅ | |
 | P1 | DFM / DFA, drill-to-copper, mask bridge, polarity, fab profiles | ✅ | |
 | P1 | Panels, fiducials, release checklist, ➕ stack-up docs, per-variant outputs | ✅ | |
-| P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab order form + estimate from your price table ✅; live quote APIs ⏳ (partner keys) |
+| P2 | Quote comparison, assembly cost, DFT, yield risk, package compare | 🟡 | cost roll-up ✅; fab order form + estimate from your price table ✅; Gerber-level package comparison (File → Compare Packages…, MCP `output_compare_packages`) ✅; live quote APIs ⏳ (partner keys) |
 | P2 | ➕ Direct order / quote APIs (incl. Indian vendors) | 🟡 | File → Order Boards: order form, published-limit check, order page (JLCPCB, PCBWay, OSH Park, Eurocircuits, Lion Circuits, PCB Power) ✅; vendors' partner APIs ⏳ |
 | P3 | Release signatures, change notices, MES / QMS | 🟡 | release manifest of SHA-256 hashes and a change notice against the previous revision (`output_release`) ✅; MES / QMS ⏳ |
 
@@ -403,7 +403,7 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 17. ~~In-app Git~~ ✅, ~~browser viewer~~ ✅, ~~file locking~~ ✅, approvals (§15)
 18. Fixed-point (nm) geometry database (~~user coordinates on a 1 nm grid~~ ✅), ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
 19. ~~Rigid-flex folding in 3D~~ ✅, native MCAD connectors (~~FreeCAD, Fusion~~ ✅; SolidWorks, Onshape) (§8)
-20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), Gerber-level package comparison (§9 P2)
+20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), ~~Gerber-level package comparison~~ ✅ (§9 P2)
 21. Windows / Linux app (§1 P0): ~~SiEDA Studio (views, checks, outputs, every tool, GitHub sync)~~ ✅; interactive drawing editors
 22. ~~Signed installers and auto-update, SBOM, reproducible builds (§19, §20)~~ ✅
 23. Enterprise: teams, RBAC, SSO, audit, self-hosting, PLM / ERP (§15, §19 P3)

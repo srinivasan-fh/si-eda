@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "배선·검증된 단면 전원 공급 장치(점퍼선 포함)와 제조 출력 (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "자동 배선 (단면)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "단면 배선: 점퍼선 %d개, 열린 연결 %d개, 부품면으로 옮긴 부품 %d개";
+"Compare Packages…" = "패키지 비교…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "릴리스된 제조 패키지를 이 설계의 패키지와 레이어별, 홀별로 비교합니다";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "이 설계와 비교할 릴리스된 제조 패키지(폴더 또는 .zip)를 선택하세요.";
+"The package matches this design." = "패키지가 이 설계와 일치합니다.";

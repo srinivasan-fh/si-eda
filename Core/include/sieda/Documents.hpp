@@ -3,6 +3,8 @@
 // board viewer for hand assembly, and a bring-up checklist drawn from the design's rails, clocks, resets and buses.
 #pragma once
 
+#include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -79,6 +81,20 @@ GerberImage parseGerber(const std::string& text);
 /// {"kind","bounds":[x0,y0,x1,y1],"strokes":[[x0,y0,x1,y1,w,clear]],"flashes":[[x,y,w,h,"C",clear]],
 ///  "regions":[[clear,x,y,x,y,…]],"warnings":[…],"error"} (clear 1 = clear polarity) — the C API's and the app's form.
 std::string gerberImageJson(const GerberImage& image);
+
+/// The files of a .zip archive (stored or deflated entries), path → bytes; folders are skipped. Throws
+/// std::runtime_error on a malformed or ZIP64 archive, more than 2000 entries or more than 256 MB unpacked.
+std::map<std::string, std::string> readZipArchive(const std::string& bytes);
+/// `image` painted on a w × h grid of `res` mm cells from (x0, y0) (row 0 at the bottom): 1 copper, 0 none; clear
+/// polarity shapes erase, in file order.
+std::vector<uint8_t> rasterizeGerber(const GerberImage& image, double x0, double y0, double res, int w, int h);
+/// Two fabrication packages (path → bytes, e.g. a folder's files or readZipArchive) compared: each Gerber layer paired
+/// by its X2 file function (else by its file name without the board name every file starts with) and compared on a
+/// `resolution` mm grid — status same / changed / added / removed, copper area added and removed and where (the
+/// changed patches, largest first); each drill file hole by hole (added, removed, resized); the other files by their
+/// bytes. {"identical", "layers": [...], "otherFiles": [...]}.
+Json compareFabPackages(const std::map<std::string, std::string>& a, const std::map<std::string, std::string>& b,
+                        double resolution = 0.05);
 
 /// Net-length report (CSV): per routed net its track length (arcs measured as arcs), segments, vias and, with a
 /// length rule, the target, tolerance and whether it is met.

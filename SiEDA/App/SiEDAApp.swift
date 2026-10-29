@@ -353,6 +353,8 @@ struct SiEDACommands: Commands {
             Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
                 .keyboardShortcut(shortcuts.shortcut("fabPackage"))
             Button("Order Boards…") { store.showFabOrder = true }
+            Button("Compare Packages…") { store.compareFabricationPackages() }
+                .help("Compare a released fabrication package with this design's, layer by layer and hole by hole")
             Menu("Export") {
                 ForEach(ExportFormat.allCases) { format in
                     Button(format.displayName) { Task { await store.export(format) } }

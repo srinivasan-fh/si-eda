@@ -27,6 +27,7 @@
 struct SiedaProject;  // sieda_c.h
 namespace sieda {
 struct ThermalResult;  // sieda/Thermal.hpp
+struct GerberImage;    // sieda/Documents.hpp
 }
 
 namespace sieda::mcp {
@@ -195,6 +196,10 @@ std::string render3dPng(const SiedaProject& project, const std::string& view, in
 /// The board's temperature map (thermalAnalysis) as PNG: cells coloured ambient (blue) … hottest (red), courtyards
 /// with designators and powered parts' junction temperatures.
 std::string renderThermalPng(const SiedaProject& project, const ThermalResult& result, int width);
+
+/// One layer of a fabrication package comparison (compareFabPackages) as PNG: the newer artwork `b` in grey, each
+/// changed patch of `layer` ("where") boxed — green added, red removed, orange both.
+std::string renderPackageDiffPng(const GerberImage& b, const Json& layer, int width);
 
 /// A read-only viewer for any browser: one HTML file with every schematic sheet and the board as SVG, pan / zoom.
 std::string viewerHtml(const SiedaProject& project);

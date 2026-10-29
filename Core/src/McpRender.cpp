@@ -11,6 +11,7 @@
 
 #include "McpInternal.hpp"
 #include "SiedaProjectInternal.hpp"
+#include "sieda/Documents.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Mcp.hpp"
 #include "sieda/Mesh.hpp"
@@ -940,6 +941,29 @@ std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& la
 
 std::string renderThermalPng(const SiedaProject& project, const ThermalResult& result, int width) {
     return toPng(thermalScene(project.project, result), width);
+}
+
+std::string renderPackageDiffPng(const GerberImage& b, const Json& layer, int width) {
+    Scene s;
+    s.background = "#101418";
+    s.bounds = Rect(b.x0, b.y0, b.x1, b.y1);
+    for (const auto& g : b.shapes) {
+        const std::string c = g.clear ? s.background : "#8a9099";
+        if (g.kind == GerberShape::Stroke) s.line(g.a, g.b, g.width, c);
+        else if (g.kind == GerberShape::Region) s.polygon(g.points, true, 0, c);
+        else if (g.aperture == 'R' || g.aperture == 'O') s.box(Rect::centered(g.a, g.width, g.height > 0 ? g.height : g.width), true, 0, c);
+        else s.disc(g.a, g.width / 2, c);
+    }
+    const double span = std::max({1.0, b.x1 - b.x0, b.y1 - b.y0});  // markers stay visible on a large board
+    for (const Json& w : layer.get("where").items()) {
+        const Rect r = Rect::centered({w.get("x").asNumber(), w.get("y").asNumber()}, w.get("w").asNumber(), w.get("h").asNumber())
+                           .inflated(std::max(0.3, span * 0.012));
+        const bool added = w.has("addedMm2"), removed = w.has("removedMm2");
+        s.box(r, false, std::max(0.15, span * 0.004), added && removed ? "#ff9a1f" : added ? "#2fd36b" : "#ff4040");
+        s.bounds = Rect(std::min(s.bounds.x0, r.x0), std::min(s.bounds.y0, r.y0), std::max(s.bounds.x1, r.x1), std::max(s.bounds.y1, r.y1));
+    }
+    s.bounds = s.bounds.inflated(1);
+    return toPng(s, width);
 }
 
 std::string viewerHtml(const SiedaProject& project) {

@@ -87,6 +87,11 @@ and the tool reference are in [docs/MCP.md](MCP.md).
   their capability page). SiEDA has no built-in prices; **Price Table…** loads your fab's prices
   (`sieda.fabprice/1` JSON: currency, setup, perCm2, minimum, layers factors, quantity factors, options, leadDays)
   for an estimate. MCP `output_fab_quote`.
+- **Compare Packages…** (File menu; Studio File → Compare Packages…): a released fabrication package (its folder
+  or .zip) against the package this design writes now, as the fab sees it: each Gerber layer drawn on a 0.05 mm grid
+  (paired by its X2 file function, else its file name) — copper added and removed and where — each drill file hole by
+  hole (added, removed, resized), the other files by their bytes (a job file's creation date aside). MCP
+  `output_compare_packages` compares any two packages and draws a changed layer with the changes boxed.
 - **Price watch** (**BOM → Live Pricing**): every look compares each part number with the last one and flags prices
   that rose or fell 10 % or more, stock short for the build or halved, a part turned NRND / EOL / obsolete, or no
   longer listed (Application Support/SiEDA/PriceWatch.json).

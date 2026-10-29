@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Gerouteerde, geverifieerde enkelzijdige voeding met draadbruggen en de productiebestanden (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Automatisch routeren (enkelzijdig)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Enkelzijdig gerouteerd: %d draadbruggen, %d verbindingen open, %d onderdelen naar de componentzijde verplaatst";
+"Compare Packages…" = "Pakketten vergelijken…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Een vrijgegeven productiepakket vergelijken met dat van dit ontwerp, laag voor laag en gat voor gat";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Kies een vrijgegeven productiepakket (map of .zip) om met dit ontwerp te vergelijken.";
+"The package matches this design." = "Het pakket komt overeen met dit ontwerp.";

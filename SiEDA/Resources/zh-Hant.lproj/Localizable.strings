@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "已佈線並驗證的單面電源（含跳線）及其製造輸出 (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "自動佈線（單面）";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "單面佈線：%d 根跳線，%d 個連接未連通，%d 個元件移到元件面";
+"Compare Packages…" = "比較製造包…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "逐層、逐孔比較已發佈的製造包與本設計的製造包";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "選擇一個已發佈的製造包（資料夾或 .zip）與本設計進行比較。";
+"The package matches this design." = "製造包與本設計一致。";
