@@ -15,7 +15,8 @@
   the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift: `.history/<name>/` keeps the last 20 saves, `library.sharedFolder` = a team folder with Footprints / 3D Models). Pad copper is measured only through
   `TrackGeometry.hpp` (`padPointDistance` / `padSegmentDistance` / `padTrackDistance` / `padPadDistance`: a round pad
   with w ≠ h is an oval = stadium round `padSpine`, circles keep their exact arithmetic; `padOnLayer` = the pad stack's
-  `inner` / `solder` circle on that layer) in DRC, connectivity, pours and routers; ovals export as Gerber `O`,
+  `inner` / `solder` circle on that layer; a polygon pad by its outline, even-odd, so a keyhole outline keeps its hole open: the
+  INMP441's ground ring round its NPTH sound port, test `polygon_pads_are_measured_by_their_outline`) in DRC, connectivity, pours and routers; ovals export as Gerber `O`,
   IPC-2581 `Oval`, ODB++ `oval`. NPTH pads have no annular ring (DRC / DFM); via-to-edge DRC counts the via radius.
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and

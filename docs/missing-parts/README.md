@@ -17,7 +17,7 @@ part (package, pitch, body, datasheet link) and an empty pin table to fill in fr
 | [BMX160](BMX160.md) | BMX160 | Bosch Sensortec | LGA-14 2.5×3.0 | verified (datasheet BST-BMX160-DS000-12 (revision 1.2, January 2019), page 101) |
 | [ADS1256](ADS1256.md) | ADS1256IDBR | Texas Instruments | SSOP-28 (DB) | verified (datasheet SBAS288K (rev. K, September 2013), page 5) |
 | [ATSAMD51P20A](ATSAMD51P20A.md) | ATSAMD51P20A-AUT | Microchip | TQFP-128 14×14 | TODO |
-| [INMP441](INMP441.md) | INMP441ACEZ-R7 | TDK InvenSense | LGA 4.72×3.76 | TODO |
+| [INMP441](INMP441.md) | INMP441ACEZ-R0 | TDK InvenSense | LGA_CAV-9 4.72×3.76 | verified (datasheet DS-INMP441-00 revision 1.1, page 8) |
 | [JQ6500](JQ6500.md) | JQ6500 | Jiaqi (JQ) | SOP-16 | TODO |
 | [WT2003HP8](WT2003HP8.md) | WT2003HP8-32N | Waytronic | QFN-32 4×4 | verified (datasheet WT2003HX V1.15, page 7) |
 | [SYN6288](SYN6288.md) | SYN6288 | Beijing Yutone (宇音天下) | SSOP-28 | TODO |

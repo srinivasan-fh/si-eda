@@ -1172,8 +1172,9 @@ TEST(standard_values_and_parts) {
     for (const auto& sp : standardParts()) {
         auto part = CustomPartRegistry::instance().registerPart(sp.spec);
         CHECK(part->footprint.pads.size() >= sp.spec.pins.size());
-        // Every package pad maps to a pin (no anonymous pads on the standard parts).
-        for (const auto& pad : part->footprint.pads) CHECK(pad.pinIndex >= 0);
+        // Every package pad maps to a pin (no anonymous pads on the standard parts but plain holes: a microphone's
+        // sound port).
+        for (const auto& pad : part->footprint.pads) CHECK(pad.pinIndex >= 0 || pad.npth);
     }
     const StandardPart* mega = findStandardPart("ATmega328P");
     CHECK(mega && mega->spec.pins.size() == 28 && mega->spec.pins[6].name == "VCC");
@@ -2610,6 +2611,28 @@ TEST(complex_design_flow_is_fast) {
     CHECK(mesh < 5.0);
 }
 
+TEST(polygon_pads_are_measured_by_their_outline) {
+    // INMP441: pin 5 is a ground ring (keyhole outline) round the sound port, a non-plated hole inside its bounds.
+    const StandardPart* mic = findStandardPart("INMP441ACEZ-R0");
+    CHECK(mic != nullptr);
+    if (!mic) return;
+    CHECK(checkLandPattern(mic->spec).empty());
+    const auto& ring = mic->spec.package.lands[4];
+    Pad p;
+    p.position = {ring.x, ring.y};
+    p.size = {ring.w, ring.h};
+    p.outline = ring.outline;
+    CHECK(std::fabs(padPointDistance(p, p.position) - 0.48) < 0.01);   // the open centre, to the inner edge
+    CHECK(padPointDistance(p, p.position + Vec2{0, 0.6}) == 0.0);        // on the copper ring
+    CHECK(std::fabs(padPointDistance(p, p.position + Vec2{1.0, 0}) - 0.22) < 0.01);
+    Pad hole;
+    hole.position = p.position;
+    hole.size = {0.25, 0.25};
+    hole.round = true;
+    CHECK(std::fabs(padPadDistance(p, hole) - 0.355) < 0.01);
+    CHECK(std::fabs(padSegmentDistance(p, p.position + Vec2{-2, 1}, p.position + Vec2{2, 1}) - 0.22) < 0.01);
+}
+
 TEST(production_parts_catalog) {
     // The robotics / automotive / industrial catalog: every orderable part number is in the library on its real
     // package, with datasheet pin names, and registers as a placeable part.
@@ -2624,7 +2647,7 @@ TEST(production_parts_catalog) {
         "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU", "MT48LC16M16A2TG-6A", "W9812G6KH-6", "IS42S16400J-7TL",
         "MT41K256M16HA-125", "AS4C256M16D3-12BCN", "MT40A512M16LY-062E",
         "ADS1256IDBR", "DRV8301DCAR", "LM5116MH/NOPB", "MA702GQ", "TJA1101BHN", "WT2003HP8-32N",
-        "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS",
+        "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS", "INMP441ACEZ-R0",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -5845,6 +5868,7 @@ TEST(library_footprints_keep_pads_apart) {
         for (size_t i = 0; i < pads.size(); ++i)
             for (size_t j = i + 1; j < pads.size(); ++j) {
                 if (pads[i].pinIndex >= 0 && pads[i].pinIndex == pads[j].pinIndex) continue;
+                if (pads[i].npth || pads[j].npth) continue;  // a plain hole has no copper
                 const Rect a = Rect::centered(pads[i].offset, pads[i].size.x, pads[i].size.y);
                 const Rect b = Rect::centered(pads[j].offset, pads[j].size.x, pads[j].size.y);
                 double gap = std::hypot(std::max({0.0, b.x0 - a.x1, a.x0 - b.x1}), std::max({0.0, b.y0 - a.y1, a.y0 - b.y1}));

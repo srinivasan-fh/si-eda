@@ -1,4 +1,5 @@
 #include "sieda/CustomParts.hpp"
+#include "sieda/Pcb.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1576,7 +1577,7 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
             out.push_back({"warning", "LAND_NO_PIN", "Pad " + std::to_string(n) + " belongs to no pin (pin " + pin +
                                                      " is not in the pin list); mark it \"-\" if it is mechanical.", {n}});
         const auto& l = lands[i];
-        if (l.drill > 0 && (std::min(l.w, l.h) - l.drill) / 2 < 0.1 - 1e-9)
+        if (l.drill > 0 && !l.npth && (std::min(l.w, l.h) - l.drill) / 2 < 0.1 - 1e-9)  // a non-plated hole has no ring
             out.push_back({"warning", "LAND_ANNULAR",
                            "Pad " + std::to_string(n) + ": annular ring below 0.1 mm (grow the pad or shrink the drill).", {n}});
     }
@@ -1584,6 +1585,18 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
         if (!covered.count(upper(p.number)))
             out.push_back({"error", "LAND_NO_PAD", "Pin " + p.number + " (" + p.name + ") has no pad.", {}});
     auto gap = [](const PackageSpec::Land& a, const PackageSpec::Land& b) {
+        if (!a.outline.empty() || !b.outline.empty()) {  // a polygon pad by its outline, as the DRC measures it
+            auto pad = [](const PackageSpec::Land& l) {
+                Pad p;
+                p.position = {l.x, l.y};
+                p.size = {l.w, l.h};
+                p.round = l.round;
+                p.outline = l.outline;
+                return p;
+            };
+            const double d = padPadDistance(pad(a), pad(b));
+            return d > 0 ? d : -1.0;  // touching or overlapping
+        }
         if (a.round && b.round && std::fabs(a.w - a.h) < 1e-9 && std::fabs(b.w - b.h) < 1e-9)
             return std::hypot(a.x - b.x, a.y - b.y) - (a.w + b.w) / 2;
         const double dx = std::fabs(a.x - b.x) - (a.w + b.w) / 2, dy = std::fabs(a.y - b.y) - (a.h + b.h) / 2;
@@ -1596,7 +1609,7 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
             if (pi == pj && pi != "-") continue;  // pads of one pin may touch (split exposed pad, tab)
             const double g = gap(lands[i], lands[j]);
             const int a = static_cast<int>(i) + 1, b = static_cast<int>(j) + 1;
-            char text[160];
+            char text[256];  // room for any %.3f gap
             if (g < 0) {
                 std::snprintf(text, sizeof text, "Pads %d and %d overlap.", a, b);
                 out.push_back({"error", "LAND_OVERLAP", text, {a, b}});

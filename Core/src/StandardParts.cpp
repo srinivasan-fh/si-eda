@@ -1,6 +1,7 @@
 #include "sieda/StandardParts.hpp"
 
 #include <cctype>
+#include <cmath>
 #include <tuple>
 
 namespace sieda {
@@ -807,6 +808,25 @@ std::vector<StandardPart> build() {
             {"169", "VDD", T::PowerIn}, {"170", "GPIO88", T::Bidirectional}, {"171", "GPIO89", T::Bidirectional}, {"172", "GPIO90", T::Bidirectional},
             {"173", "GPIO91", T::Bidirectional}, {"174", "GPIO92", T::Bidirectional}, {"175", "GPIO93", T::Bidirectional}, {"176", "GPIO94", T::Bidirectional},
             {"EP", "VSS", T::PowerIn}});
+    catalog(parts, "Audio", "INMP441ACEZ-R0", "TDK InvenSense",
+            "Omnidirectional MEMS microphone, I²S output, bottom port, LGA_CAV 4.72 × 3.76 mm",
+            "MK", "LGA", 9, 0, 3.76, "LGA_CAV-9 4.72×3.76 (InvenSense land pattern)",
+            {{"1", "SCK", T::Input}, {"2", "SD", T::Output}, {"3", "WS", T::Input}, {"4", "L/R", T::Input},
+            {"5", "GND", T::PowerIn}, {"6", "GND", T::PowerIn}, {"7", "VDD", T::PowerIn}, {"8", "CHIPEN", T::Input},
+            {"9", "GND", T::PowerIn}});
+    {
+        // Datasheet land pattern turned a quarter so pin 1 is top-left; pin 5 is the ground ring (Ø1.56 / Ø0.96)
+        // round the sound port, drawn as a keyhole outline, and the port itself is a 0.25 mm non-plated hole.
+        auto& pkg = parts.back().spec.package;
+        pkg.bodyDepth = 4.72;
+        pkg.lands = {{-1.33, -1.86, 0.6, 0.4}, {-1.33, -0.81, 0.6, 0.4}, {-1.33, 0.24, 0.6, 0.4}, {-1.33, 1.29, 0.6, 0.4},
+                     {0, 1.29, 1.56, 1.56},    {1.33, 1.29, 0.6, 0.4},   {1.33, 0.24, 0.6, 0.4},  {1.33, -0.81, 0.6, 0.4},
+                     {1.33, -1.86, 0.6, 0.4},  {0, 1.29, 0.25, 0.25, 0.25, true, "-"}};
+        const double step = std::acos(-1.0) / 24;
+        for (int k = 0; k <= 48; ++k) pkg.lands[4].outline.push_back({0.78 * std::cos(k * step), 0.78 * std::sin(k * step)});
+        for (int k = 48; k >= 0; --k) pkg.lands[4].outline.push_back({0.48 * std::cos(k * step), 0.48 * std::sin(k * step)});
+        pkg.lands.back().npth = true;
+    }
     parts.push_back(part("Motor Control", "L293DD", "STMicroelectronics",
                          "Quad half-H driver with clamp diodes, 600 mA per channel, SOIC-20 (GND pins 4-7 / 14-17 sink heat)",
                          "SOIC", 20, "U",

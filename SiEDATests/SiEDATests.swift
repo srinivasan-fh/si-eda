@@ -3164,7 +3164,8 @@ final class PartsCatalogTests: XCTestCase {
                      "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "LM74700QDBVRQ1", "LTC4359IMS8#PBF", "PC817X3NSZ0F",
                      "TLP281-4", "Crystal_16MHz", "Crystal_16MHz_3225", "Crystal_32.768kHz_3215", "Crystal_32.768kHz_Cylinder",
                      "ADS1256IDBR", "DRV8301DCAR", "LM5116MH/NOPB", "MA702GQ", "TJA1101BHN", "WT2003HP8-32N",
-                     "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS"]
+                     "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS",
+                     "INMP441ACEZ-R0"]
         let store = DesignStore()
         store.aiEnabled = false
         var x = 0.0
