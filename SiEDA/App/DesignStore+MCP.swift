@@ -243,6 +243,26 @@ final class MCPStoreBridge {
         return MCPBridgeOutcome(response: response.text, tool: name, changed: changed)
     }
 
+    /// One tool call for the app's own commands with the core's work off the main thread, the store busy meanwhile: a
+    /// change is one undo step named `actionName`. The tool's text result and whether it failed.
+    @MainActor
+    func callToolInBackground(_ name: String, arguments: [String: Any], actionName: String,
+                              store: DesignStore) async -> (text: String, isError: Bool) {
+        let request: [String: Any] = ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                      "params": ["name": name, "arguments": arguments]]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return ("The core did not answer", true) }
+        let call = coreCall(String(decoding: data, as: UTF8.self), store: store)
+        let response = MCPResponseBox()
+        _ = await store.performExternalEditInBackground(actionName) { engine in
+            response.text = call.run(engine)
+            return true
+        }
+        guard let reply = try? JSONSerialization.jsonObject(with: Data(response.text.utf8)) as? [String: Any],
+              let result = reply["result"] as? [String: Any] else { return ("The core did not answer", true) }
+        let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+        return (text, result["isError"] as? Bool ?? false)
+    }
+
     /// `callCore` off the main thread, the store busy meanwhile.
     @MainActor
     private func callCoreInBackground(_ text: String, store: DesignStore) async -> String {
@@ -735,6 +755,14 @@ extension DesignStore {
               let result = reply["result"] as? [String: Any] else { return ("The core did not answer", true) }
         let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         return (text, result["isError"] as? Bool ?? false)
+    }
+}
+
+extension DesignStore {
+    /// `runTool` with the core's work off the main thread (a change is one undo step named `actionName`).
+    @MainActor
+    func runToolInBackground(_ name: String, arguments: [String: Any], actionName: String) async -> (text: String, isError: Bool) {
+        await MCPStoreBridge().callToolInBackground(name, arguments: arguments, actionName: actionName, store: self)
     }
 }
 

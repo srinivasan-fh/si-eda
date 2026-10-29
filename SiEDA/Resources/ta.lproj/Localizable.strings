@@ -1927,3 +1927,5 @@
 "Routed, verified 2-layer power supply with its fabrication outputs (examples/smps-230vac-5-48v)" = "வழித்தடமிட்ட, சரிபார்த்த 2-அடுக்கு மின்வழங்கியும் அதன் தயாரிப்புக் கோப்புகளும் (examples/smps-230vac-5-48v)";
 "SMPS 230 VAC to 5–48 V / 1–5 A, single-sided" = "SMPS 230 VAC இலிருந்து 5–48 V / 1–5 A, ஒற்றைப் பக்கம்";
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "வழித்தடமிட்ட, சரிபார்த்த ஒற்றைப் பக்க மின்வழங்கி, கம்பி இணைப்பிகளும் அதன் தயாரிப்புக் கோப்புகளும் (examples/smps-230vac-5-48v-1layer)";
+"Auto Route (single-sided)" = "தானியங்கி வழித்தடம் (ஒற்றைப் பக்கம்)";
+"Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "ஒற்றைப் பக்க வழித்தடம்: %d கம்பி இணைப்புகள், %d இணைப்புகள் திறந்துள்ளன, %d பாகங்கள் கூறுப் பக்கத்திற்கு நகர்த்தப்பட்டன";

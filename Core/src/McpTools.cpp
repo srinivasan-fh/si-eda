@@ -1959,6 +1959,208 @@ Json bottomToLinks(McpServer& s) {
     return added;
 }
 
+// One click on a single-sided board (pcb_autoroute on 1 layer): through-hole parts go to the component side (the bottom,
+// each turned whichever way keeps its connections shortest); the board is routed as two layers whose bottom stands for
+// wire links (kept off the component side's bodies and leads, its vias off the SMD parts); what is left open is ripped
+// up round its pads and routed again, the open nets first; the bottom copper becomes wire links (bottomToLinks) and
+// straight links join what is still open (addJumpers); last the ground net is poured on the copper.
+Json singleSidedAutoroute(McpServer& s, const Json& a) {
+    SiedaProject* p = P(s);
+    auto tool = [&](const char* name, const Json& args) {
+        for (const auto& t : mcpTools())
+            if (t.name == name) return t.handler(s, args).data;
+        throw ToolError(std::string("missing tool ") + name);
+    };
+    auto isLink = [](const Component& c) {
+        const FootprintDef* fp = c.hasFootprint() ? Library::instance().footprint(c.footprintName()) : nullptr;
+        return fp && fp->label.rfind("WIRELINK", 0) == 0;
+    };
+    Json j = obj();
+    // Links from an earlier run go first: this run lays its own.
+    {
+        std::vector<std::string> old;
+        for (const auto& c : p->project.schematic.components())
+            if (isLink(c)) old.push_back(c.ref);
+        for (const auto& ref : old) {
+            Json r = obj();
+            r["ref"] = ref;
+            tool("schematic_remove_component", r);
+        }
+        if (!old.empty()) {
+            takeJson(sieda_apply_pcb_eco(p, nullptr));
+            j["earlierLinksRemoved"] = static_cast<int>(old.size());
+        }
+    }
+    sieda_pcb_autoplace(p, 0);
+    // Through-hole parts to the component side.
+    {
+        Project& pr = p->project;
+        std::map<int, bool> allTht;
+        for (const Pad& pad : pr.pcb.pads(pr.schematic)) {
+            auto [it, fresh] = allTht.emplace(pad.componentId, pad.throughHole);
+            if (!fresh) it->second = it->second && pad.throughHole;
+        }
+        std::vector<int> flip;
+        for (const auto& c : pr.schematic.components())
+            if (c.hasFootprint() && c.pcb.placed && !c.pcb.bottom && pr.pcb.onBoard(c) && allTht.count(c.id) && allTht[c.id] && !isLink(c))
+                flip.push_back(c.id);
+        Json flipped = Json::array();
+        for (int id : flip) {
+            const Vec2 at = pr.schematic.find(id)->pcb.position;
+            const int rot = pr.schematic.find(id)->pcb.rotation;
+            double best = 1e18;
+            int bestRot = rot;
+            for (int r : {rot, (rot + 180) % 360}) {  // mirrored, then the turn that keeps each pin nearest its net
+                takeJson(sieda_pcb_place_footprint(p, id, at.x, at.y, r, 1, 0, 1));
+                const auto now = pr.pcb.pads(pr.schematic);
+                double cost = 0;
+                for (const Pad& pad : now) {
+                    if (pad.componentId != id || pad.net < 0) continue;
+                    double d = 1e18;
+                    for (const Pad& q : now)
+                        if (q.componentId != id && q.net == pad.net) d = std::min(d, (q.position - pad.position).length());
+                    if (d < 1e18) cost += d;
+                }
+                if (cost < best - 1e-9) best = cost, bestRot = r;
+            }
+            takeJson(sieda_pcb_place_footprint(p, id, at.x, at.y, bestRot, 1, 0, 1));
+            flipped.push(pr.schematic.find(id)->ref);
+        }
+        if (flipped.size()) j["flippedToComponentSide"] = flipped;
+    }
+    // Two layers, the bottom kept where a wire link may lie; vias the size of a link's hole. Pours wait until the
+    // links are in: every net is joined by copper of its own, so no pad depends on a pour reaching it on one layer.
+    const BoardSettings saved = p->project.pcb.settings;
+    const auto pours = p->project.pcb.zones;
+    p->project.pcb.zones.clear();
+    {
+        Project& pr = p->project;
+        auto& kos = pr.pcb.settings.keepouts;
+        for (const auto& c : pr.schematic.components()) {
+            if (!c.hasFootprint() || !c.pcb.placed || !pr.pcb.onBoard(c) || isLink(c)) continue;
+            RouteKeepout k;
+            if (c.pcb.bottom) {
+                const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+                if (!fp) continue;
+                const bool turned = c.pcb.rotation % 180 != 0;
+                k.name = "link body " + c.ref;
+                k.area = Rect::centered(c.pcb.position, turned ? fp->body.depth : fp->body.width,
+                                        turned ? fp->body.width : fp->body.depth).inflated(0.3);
+                k.layer = 1;
+            } else {
+                k.name = "link smd " + c.ref;
+                k.area = pr.pcb.courtyard(c);
+                k.tracks = false;
+            }
+            kos.push_back(k);
+        }
+        for (const Pad& pad : pr.pcb.pads(pr.schematic))
+            if (pad.throughHole && !pad.npth) {
+                const double r = std::max(pad.size.x, pad.size.y) / 2 + 1.0;
+                RouteKeepout k;
+                k.name = "link pad";
+                k.area = Rect(pad.position.x - r, pad.position.y - r, pad.position.x + r, pad.position.y + r);
+                k.layer = 1;
+                k.vias = false;
+                kos.push_back(k);
+            }
+        pr.pcb.settings.layerCount = 2;
+        pr.pcb.settings.viaDrill = 0.8, pr.pcb.settings.viaDiameter = 1.6;
+    }
+    Json route = a;
+    route["pour"] = false, route["jumpers"] = false;
+    const Json routed = tool("pcb_autoroute", route);
+    if (routed.has("stats")) j["stats"] = routed.get("stats");
+    // What is left open: the nets with copper round its pads ripped up, the open ones routed first.
+    auto openNets = [&] {
+        std::set<int> nets;
+        const auto pads = p->project.pcb.pads(p->project.schematic);
+        for (const auto& [ea, eb] : p->project.pcb.ratsnest(p->project.schematic))
+            for (const Pad& pad : pads)
+                if (pad.net >= 0 && ((pad.position - ea).length() < 1e-3 || (pad.position - eb).length() < 1e-3)) nets.insert(pad.net);
+        return nets;
+    };
+    auto openCount = [&] { return p->project.pcb.ratsnest(p->project.schematic).size(); };
+    auto routeNets = [&](const std::set<int>& nets) {
+        for (int pass = 0; pass < 2; ++pass) {
+            Json list = Json::array();
+            for (int n : openNets())
+                if (nets.count(n)) list.push(p->project.schematic.nets()[static_cast<size_t>(n)].name);
+            if (!list.size()) return;
+            Json r = obj(), o = obj();
+            o["nets"] = list;
+            o["shapeCompletion"] = pass > 0;
+            r["preset"] = "nets", r["options"] = o, r["pour"] = false, r["jumpers"] = false;
+            tool("pcb_autoroute", r);
+        }
+    };
+    int repaired = 0;
+    for (int round = 0; round < 3 && openCount() > 0; ++round)
+        for (double reach : {10.0, 6.0, 14.0}) {
+            const size_t before = openCount();
+            const std::set<int> first = openNets();
+            std::vector<Vec2> ends;
+            for (const auto& [ea, eb] : p->project.pcb.ratsnest(p->project.schematic)) ends.push_back(ea), ends.push_back(eb);
+            auto near = [&](Vec2 v) {
+                return std::any_of(ends.begin(), ends.end(), [&](Vec2 e) { return std::fabs(e.x - v.x) < reach && std::fabs(e.y - v.y) < reach; });
+            };
+            std::set<int> rest;
+            for (const Track& t : p->project.pcb.tracks)
+                if (t.net >= 0 && !first.count(t.net) && (near(t.a) || near(t.b))) rest.insert(t.net);
+            for (const Via& v : p->project.pcb.vias)
+                if (v.net >= 0 && !first.count(v.net) && near(v.position)) rest.insert(v.net);
+            const Project keep = p->project;
+            for (const std::set<int>* group : std::initializer_list<const std::set<int>*>{&first, &rest})
+                for (int n : *group) {
+                    Json r = obj();
+                    r["net"] = p->project.schematic.nets()[static_cast<size_t>(n)].name;
+                    tool("pcb_remove_copper", r);
+                }
+            routeNets(first);
+            routeNets(rest);
+            if (openCount() < before) {
+                ++repaired;
+                break;
+            }
+            p->project = keep;
+            p->router.reset();
+        }
+    if (repaired) j["ripUpRounds"] = repaired;
+    // The copper as a file holds it (1 nm grid), then the bottom becomes wire links.
+    p->project = Project::fromJson(p->project.toJson());
+    p->router.reset();
+    const Json links = bottomToLinks(s);
+    j["linksFromBottom"] = static_cast<int>(links.size());
+    auto& st = p->project.pcb.settings;
+    st.keepouts = saved.keepouts;
+    st.viaDrill = saved.viaDrill, st.viaDiameter = saved.viaDiameter;
+    st.layerCount = 1;
+    if (openCount() > 0) {
+        const Json more = addJumpers(s, 200);
+        if (more.size()) j["jumpersAdded"] = more;
+    }
+    p->project.pcb.zones = pours;
+    if (!pours.empty())
+        if (const Json necked = neckTombstones(p->project); necked.size()) j["tombstoningPrevented"] = necked;
+    if (p->project.pcb.zones.empty() && argBool(a, "pour", true))
+        for (const auto& n : p->project.schematic.nets())
+            if (p->project.schematic.netRole(n.index) == NetRole::Ground && !n.name.empty()) {
+                Json r = obj();
+                r["net"] = n.name, r["layer"] = 0;
+                tool("pcb_add_pour", r);
+                j["groundPour"] = n.name + " poured on the copper layer (pour: false skips; pcb_remove_pour removes it)";
+                break;
+            }
+    const Json drc = tool("pcb_drc", obj());
+    j["drc"] = drc.get("status");
+    j["errors"] = drc.get("errors");
+    j["warnings"] = drc.get("warnings");
+    j["unroutedConnections"] = static_cast<int>(openCount());
+    j["singleSided"] = "Routed as two layers whose bottom copper became wire links (JW…, on the component side; links: "
+                       "false routes on the one copper layer and joins what is left by straight links)";
+    return j;
+}
+
 // Layout reuse (pcb_layout_block): a group's placement relative to its first part and the copper inside the group,
 // nets named by the group pin they reach ("part index:pin index") so the layout lands on another group of the same
 // parts.
@@ -6846,9 +7048,20 @@ void pcbTools(Table& t) {
               .boolean("clearFirst", "Remove the existing routing first")
               .boolean("powerWidths", "Route power / ground nets without a width of their own 0.4 mm wide (default true)")
               .boolean("pour", "A whole-board route on a board with no pour pours the ground net first: both layers of a 2-layer board, else the bottom (default true)")
-              .boolean("jumpers", "A 1-layer board: join what is left open by wire links (pcb_add_jumpers; default true)"),
+              .boolean("jumpers", "A 1-layer board: join what is left open by wire links (pcb_add_jumpers; default true)")
+              .boolean("links", "A whole-board route on a 1-layer board: through-hole parts to the component side, routed as two "
+                                "layers whose bottom copper becomes wire links (default true; false routes on the one layer and "
+                                "joins what is left by straight links)"),
           [](McpServer& s, const Json& a) {
               SiedaProject* p = P(s);
+              {  // one click on a single-sided board
+                  const std::string preset = argStr(a, "preset", "");
+                  const Json& o = a.get("options");
+                  const bool scoped = preset == "nets" || preset == "netclass" || preset == "area" || preset == "fanout" ||
+                                      o.has("nets") || o.has("netClass") || o.has("area") || o.get("fanoutOnly").asBool(false);
+                  if (p->project.pcb.settings.layerCount == 1 && !scoped && argBool(a, "jumpers", true) && argBool(a, "links", true))
+                      return out(singleSidedAutoroute(s, a));
+              }
               const auto stitched = stitchingVias(p->project);  // re-laid after a whole-board route clears them
               const AutorouteOptions previous = p->project.pcb.settings.autorouter;
               if (a.has("preset") || a.get("options").isObject()) {
