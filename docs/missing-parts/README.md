@@ -16,7 +16,7 @@ part (package, pitch, body, datasheet link) and an empty pin table to fill in fr
 | [MA702](MA702.md) | MA702GQ | Monolithic Power Systems | QFN-16 3×3 | verified (datasheet MA702 Rev. 1.2 (2022-08-08), page 8) |
 | [BMX160](BMX160.md) | BMX160 | Bosch Sensortec | LGA-14 2.5×3.0 | verified (datasheet BST-BMX160-DS000-12 (revision 1.2, January 2019), page 101) |
 | [ADS1256](ADS1256.md) | ADS1256IDBR | Texas Instruments | SSOP-28 (DB) | verified (datasheet SBAS288K (rev. K, September 2013), page 5) |
-| [ATSAMD51P20A](ATSAMD51P20A.md) | ATSAMD51P20A-AUT | Microchip | TQFP-128 14×14 | TODO |
+| [ATSAMD51P20A](ATSAMD51P20A.md) | ATSAMD51P20A-AUT | Microchip | TQFP-128 14×14 | verified (datasheet DS60001507N, page 26) |
 | [INMP441](INMP441.md) | INMP441ACEZ-R0 | TDK InvenSense | LGA_CAV-9 4.72×3.76 | verified (datasheet DS-INMP441-00 revision 1.1, page 8) |
 | [JQ6500](JQ6500.md) | JQ6500 | Jiaqi (JQ) | SOP-16 | TODO |
 | [WT2003HP8](WT2003HP8.md) | WT2003HP8-32N | Waytronic | QFN-32 4×4 | verified (datasheet WT2003HX V1.15, page 7) |

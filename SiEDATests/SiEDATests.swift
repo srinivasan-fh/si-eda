@@ -1633,7 +1633,8 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         // + the missing-parts list's TMS320F28379DPTPS.
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 11)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)
+        // + the missing-parts list's ATSAMD51P20A-AUT.
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 25)
         // ESP32-C3 / S3 / PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
         // C3-WROOM-02 / C3-MINI-1 modules.
         XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 10)
@@ -3165,7 +3166,7 @@ final class PartsCatalogTests: XCTestCase {
                      "TLP281-4", "Crystal_16MHz", "Crystal_16MHz_3225", "Crystal_32.768kHz_3215", "Crystal_32.768kHz_Cylinder",
                      "ADS1256IDBR", "DRV8301DCAR", "LM5116MH/NOPB", "MA702GQ", "TJA1101BHN", "WT2003HP8-32N",
                      "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS",
-                     "INMP441ACEZ-R0"]
+                     "INMP441ACEZ-R0", "ATSAMD51P20A-AUT"]
         let store = DesignStore()
         store.aiEnabled = false
         var x = 0.0
