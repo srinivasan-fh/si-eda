@@ -814,6 +814,10 @@ Scene pcbScene(const Project& project, const std::vector<int>& layersIn, bool po
             const Vec2 a = wide ? Vec2{r.x0 + rad, p.position.y} : Vec2{p.position.x, r.y0 + rad};
             const Vec2 c = wide ? Vec2{r.x1 - rad, p.position.y} : Vec2{p.position.x, r.y1 - rad};
             s.line(a, c, 2 * rad, padC);
+        } else if (!p.outline.empty()) {  // polygon pad: its outline (a keyhole outline keeps its hole open)
+            std::vector<Vec2> pts;
+            for (const Vec2& v : p.outline) pts.push_back(p.position + v);
+            s.polygon(std::move(pts), true, 0, padC);
         } else {
             s.box(r, true, 0, padC);
         }

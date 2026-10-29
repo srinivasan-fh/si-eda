@@ -125,18 +125,50 @@ inline double roundPadTrackDistance(const Pad& p, const Track& t) {
     const auto [c, d] = padSpine(p);
     return trackSegmentDistance(t, c, d);
 }
-/// Distance from a point / segment / track centre line to the pad copper (0 inside); a polygon pad by its bounds.
+/// Polygon pad (`Pad::outline` round `position`): its copper is the outline's even-odd inside, so a keyhole outline
+/// keeps its hole open (a microphone's ground ring round the sound port), measured by its edges. Pads without an
+/// outline keep the rectangle / circle arithmetic, bit for bit.
+inline bool padOutlineContains(const Pad& p, Vec2 q) {
+    bool in = false;
+    const auto& o = p.outline;
+    for (size_t i = 0, j = o.size() - 1; i < o.size(); j = i++) {
+        const Vec2 a = p.position + o[i], b = p.position + o[j];
+        if ((a.y > q.y) != (b.y > q.y) && q.x < (b.x - a.x) * (q.y - a.y) / (b.y - a.y) + a.x) in = !in;
+    }
+    return in;
+}
+template <class Edge>
+inline double padOutlineEdges(const Pad& p, Edge dist) {
+    double d = 1e18;
+    for (size_t i = 0, j = p.outline.size() - 1; i < p.outline.size(); j = i++)
+        d = std::min(d, dist(p.position + p.outline[j], p.position + p.outline[i]));
+    return d;
+}
+/// Distance from a point / segment / track centre line to the pad copper (0 inside).
 inline double padPointDistance(const Pad& p, Vec2 q) {
+    if (!p.outline.empty())
+        return padOutlineContains(p, q) ? 0.0 : padOutlineEdges(p, [&](Vec2 a, Vec2 b) { return pointSegmentDistance(q, a, b); });
     return p.round ? std::max(0.0, roundPadPointDistance(p, q) - padRadius(p)) : pointRectDistance(q, p.bounds());
 }
 inline double padSegmentDistance(const Pad& p, Vec2 a, Vec2 b) {
+    if (!p.outline.empty())
+        return padOutlineContains(p, a) || padOutlineContains(p, b)
+                   ? 0.0
+                   : padOutlineEdges(p, [&](Vec2 c, Vec2 d) { return segmentSegmentDistance(a, b, c, d); });
     return p.round ? std::max(0.0, roundPadSegmentDistance(p, a, b) - padRadius(p)) : segmentRectDistance(a, b, p.bounds());
 }
 inline double padTrackDistance(const Pad& p, const Track& t) {
+    if (!p.outline.empty())
+        return padOutlineContains(p, t.a) ? 0.0 : padOutlineEdges(p, [&](Vec2 c, Vec2 d) { return trackSegmentDistance(t, c, d); });
     return p.round ? std::max(0.0, roundPadTrackDistance(p, t) - padRadius(p)) : trackRectDistance(t, p.bounds());
 }
 /// Copper-to-copper distance of two pads (0 when they touch).
 inline double padPadDistance(const Pad& a, const Pad& b) {
+    if (!a.outline.empty() || !b.outline.empty()) {
+        const Pad &poly = a.outline.empty() ? b : a, &other = &poly == &a ? b : a;
+        if (padOutlineContains(poly, other.position)) return 0.0;
+        return padOutlineEdges(poly, [&](Vec2 c, Vec2 d) { return padSegmentDistance(other, c, d); });
+    }
     if (!a.round && !b.round) return rectRectDistance(a.bounds(), b.bounds());
     if (a.round && b.round) {
         if (a.size.x == a.size.y && b.size.x == b.size.y)
