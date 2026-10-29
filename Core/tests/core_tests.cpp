@@ -2656,6 +2656,10 @@ TEST(production_parts_catalog) {
         "MT41K256M16HA-125", "AS4C256M16D3-12BCN", "MT40A512M16LY-062E",
         "ADS1256IDBR", "DRV8301DCAR", "LM5116MH/NOPB", "MA702GQ", "TJA1101BHN", "WT2003HP8-32N",
         "TPS65381QDAPRQ1", "DRV8353SRTAR", "BMX160", "TMS320F28379DPTPS", "INMP441ACEZ-R0",
+        "ATSAMD51P20A-AUT",
+        "INA826AIDR", "TLV1701AIDBVR", "TLV3201AIDBVR", "OPA380AIDGKR", "DAC80501MDGSR", "TPS61291DRVR",
+        "TPS22918DBVR", "UCC28180D", "SN65HVD3082EDR", "ISO7741DWR", "TDC7200PWR", "LMP91000SDX/NOPB", "PGA280AIPW",
+        "ADS124S08IPBS", "ADS1292RIPBS", "LP5024RSMR", "TPS6521901RHBR", "TLV320AIC3204IRHBR", "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB", "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -2972,7 +2976,7 @@ TEST(microcontroller_library_by_vendor) {
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 11);
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.
-    CHECK(perGroup["Microcontrollers · Microchip"] == 24);
+    CHECK(perGroup["Microcontrollers · Microchip"] == 25);
     // ESP32-C3, ESP32-S3, ESP32-PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
     // C3-WROOM-02 / C3-MINI-1 modules.
     CHECK(perGroup["Microcontrollers · Espressif"] == 10);
