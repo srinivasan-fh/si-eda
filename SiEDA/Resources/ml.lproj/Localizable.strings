@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "റൂട്ട് ചെയ്ത, പരിശോധിച്ച ഒറ്റ-വശ പവർ സപ്ലൈ, വയർ ജമ്പറുകളും അതിന്റെ നിർമ്മാണ ഫയലുകളും (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "ഓട്ടോ റൂട്ട് (ഒറ്റ-വശം)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "ഒറ്റ-വശ റൂട്ട്: %d വയർ ലിങ്കുകൾ, %d കണക്ഷനുകൾ തുറന്നിരിക്കുന്നു, %d ഭാഗങ്ങൾ ഘടക വശത്തേക്ക് നീക്കി";
+"Compare Packages…" = "പാക്കേജുകൾ താരതമ്യം ചെയ്യുക…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "റിലീസ് ചെയ്ത ഫാബ്രിക്കേഷൻ പാക്കേജ് ഈ ഡിസൈനിന്റെ പാക്കേജുമായി പാളി തോറും ദ്വാരം തോറും താരതമ്യം ചെയ്യുക";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "ഈ ഡിസൈനുമായി താരതമ്യം ചെയ്യാൻ റിലീസ് ചെയ്ത ഫാബ്രിക്കേഷൻ പാക്കേജ് (ഫോൾഡർ അല്ലെങ്കിൽ .zip) തിരഞ്ഞെടുക്കുക.";
+"The package matches this design." = "പാക്കേജ് ഈ ഡിസൈനുമായി പൊരുത്തപ്പെടുന്നു.";

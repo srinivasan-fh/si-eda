@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Naka-route at na-verify na single-sided na power supply na may mga wire jumper at mga fabrication output nito (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Auto Route (single-sided)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Single-sided na route: %d wire link, %d koneksyong bukas, %d piyesang inilipat sa component side";
+"Compare Packages…" = "Ihambing ang mga Package…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Ihambing ang isang na-release na fabrication package sa package ng disenyong ito, layer por layer at butas por butas";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Pumili ng na-release na fabrication package (folder o .zip) na ihahambing sa disenyong ito.";
+"The package matches this design." = "Tugma ang package sa disenyong ito.";

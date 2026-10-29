@@ -115,6 +115,12 @@
   schema, price breaks, BOM roll-up, catalog match), app in `SiEDA/Suppliers/` (URLSession clients, Keychain keys,
   offline cache), `SupplierSearchView`, `BomLivePricingView`; guide in `docs/SUPPLIERS.md`. Tests never use the
   network: core fixtures in `Core/tests/fixtures/suppliers/`, app tests stub `URLProtocol`. Never hard-code a key.
+- Fabrication package comparison: `Core/src/FabCompare.cpp` (`readZipArchive`: own bounds-checked inflate, 2000 entries /
+  256 MB; `compareFabPackages`: layers paired by X2 FileFunction else name minus the common prefix, rasterised ≤ 16 M
+  cells, changed patches; drills hole by hole; other files by bytes minus CreationDate lines), MCP `output_compare_packages`
+  (folder / .zip / "current" = `fabricationPackage`; `layer` → `renderPackageDiffPng`), macOS File → Compare Packages…
+  (`compareFabricationPackages`, DesignStore+Team.swift), Studio File menu, `idf` fuzz target; test
+  `fab_package_compare_reads_zips_and_finds_changed_copper`.
 - Gerber viewer / reference layers: `parseGerber` + `gerberImageJson` in `Documents.cpp` (Gerber X2 / RS-274X,
   Excellon (LZ / TZ, `;FILE_FORMAT=a:b`, nothing kept between files) and ODB++ layer `features` files (kind "odb"); Gerber `%SR` step-repeat expanded (copies capped), `%FSLI` incremental; `idf` fuzz target), `Project::referenceLayers` (saved only when present; snapshot always lists their names),
   C `sieda_gerber_parse` / `sieda_pcb_*reference_layer*`, MCP `pcb_reference_layer`, app `GerberViewerView.swift` and

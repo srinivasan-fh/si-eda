@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Bộ nguồn một mặt đã đi dây và kiểm tra, có dây nối tắt và các tệp sản xuất (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Tự động đi dây (một mặt)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Đi dây một mặt: %d dây nối tắt, %d kết nối còn hở, %d linh kiện chuyển sang mặt linh kiện";
+"Compare Packages…" = "So sánh gói…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "So sánh gói sản xuất đã phát hành với gói của thiết kế này, từng lớp và từng lỗ khoan";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Chọn một gói sản xuất đã phát hành (thư mục hoặc .zip) để so sánh với thiết kế này.";
+"The package matches this design." = "Gói khớp với thiết kế này.";

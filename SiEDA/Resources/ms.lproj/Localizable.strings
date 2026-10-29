@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Bekalan kuasa satu sisi yang dihalakan dan disahkan dengan jumper wayar berserta output fabrikasinya (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Laluan Auto (satu sisi)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Laluan satu sisi: %d pautan wayar, %d sambungan terbuka, %d komponen dipindah ke sisi komponen";
+"Compare Packages…" = "Bandingkan Pakej…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Bandingkan pakej fabrikasi yang dikeluarkan dengan pakej reka bentuk ini, lapisan demi lapisan dan lubang demi lubang";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Pilih pakej fabrikasi yang dikeluarkan (folder atau .zip) untuk dibandingkan dengan reka bentuk ini.";
+"The package matches this design." = "Pakej ini sepadan dengan reka bentuk ini.";

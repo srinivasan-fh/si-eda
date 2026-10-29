@@ -24645,6 +24645,96 @@ TEST(gerber_viewer_reads_multiline_incremental_step_repeat_and_excellon_zeros) {
     CHECK(digits.shapes.size() == 1 && std::fabs(digits.shapes[0].a.x - 12.5) < 1e-9 && std::fabs(digits.shapes[0].a.y + 1) < 1e-9);
 }
 
+TEST(fab_package_compare_reads_zips_and_finds_changed_copper) {
+    // A .zip with deflated (fixed and dynamic codes) and stored entries reads back byte for byte; a cut archive is an
+    // error, not a crash. Through MCP: a written package compares identical with the design it came from; moving a
+    // resistor changes the copper layers where it was and where it went (drills stay the same), the package's own
+    // gerber zip pairs with the folder layer for layer, and a layer comes back as a picture.
+    static const char kZip[] =
+        "\x50\x4b\x03\x04\x14\x00\x00\x00\x08\x00\xd4\xac\x5c\x5d\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x04\x00"
+        "\x00\x00\x70\x6b\x67\x2f\x03\x00\x50\x4b\x03\x04\x14\x00\x00\x00\x08\x00\xd4\xac\x5c\x5d\xc9\x30\x21\x10\x3c\x00"
+        "\x00\x00\x4c\x00\x00\x00\x12\x00\x00\x00\x70\x6b\x67\x2f\x62\x6f\x61\x72\x64\x2d\x46\x5f\x43\x75\x2e\x67\x62\x72"
+        "\x53\x75\x0b\xf6\x71\x8c\x30\x31\x8b\x34\x31\xd3\x52\xe5\x52\xf5\xf5\xf7\xf5\x05\xd1\x8e\x2e\x2e\x86\x06\xce\x3a"
+        "\x06\x7a\xa6\x06\x20\x00\x14\x02\xf2\xb5\xb8\x22\x0c\x22\x0d\x5c\x0c\x8c\x80\x0c\x43\x03\x08\x00\xf1\x0d\xb5\xb8"
+        "\x7c\x41\x82\x00\x50\x4b\x03\x04\x14\x00\x00\x00\x08\x00\xd4\xac\x5c\x5d\xc4\xd2\x1a\x24\x9c\x00\x00\x00\x76\x07"
+        "\x00\x00\x0d\x00\x00\x00\x70\x6b\x67\x2f\x6e\x6f\x74\x65\x73\x2e\x74\x78\x74\x95\xd4\xcd\x09\xc2\x50\x14\x44\xe1"
+        "\xbd\x55\xdc\x02\x82\x78\x67\x8c\x7f\x7b\x11\x21\xd8\x83\xc8\x53\x83\xe4\x19\x12\xec\x5f\xec\xc0\xb3\x3f\xbb\x8f"
+        "\x99\xae\xaf\x25\x56\x87\xb8\xbd\xc7\xb1\x4c\xe1\x36\x3e\x43\x13\xf7\xbe\xf6\xf3\x33\x8e\x97\xf3\xa9\x89\xe1\x3a"
+        "\xbf\xe2\x31\x95\x52\x97\x8b\xee\x97\x27\xcb\xc5\x72\xb3\x7c\xcd\xf2\x96\xe5\x1b\x96\x6f\x59\xbe\x63\xf9\x1e\x32"
+        "\x51\x56\xe8\x9a\x10\x36\xa1\x6c\x42\xda\x84\xb6\x09\x71\x13\xea\x26\xe4\x4d\xe8\x2b\xe8\x2b\xba\x5b\xe8\x2b\xe8"
+        "\x2b\xe8\x2b\xe8\x2b\xe8\x2b\xe8\x2b\xe8\x2b\xe8\x6b\xe8\x6b\xe8\x6b\x7a\xcc\xd0\xd7\xd0\xd7\xd0\xd7\xd0\xd7\xd0"
+        "\xd7\xd0\xd7\xff\xfb\x7e\x01\x50\x4b\x03\x04\x14\x00\x00\x00\x00\x00\xd4\xac\x5c\x5d\x55\xdb\xb3\x1a\x03\x00\x00"
+        "\x00\x03\x00\x00\x00\x0e\x00\x00\x00\x70\x6b\x67\x2f\x73\x74\x6f\x72\x65\x64\x2e\x74\x78\x74\x72\x61\x77\x50\x4b"
+        "\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xd4\xac\x5c\x5d\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x04\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x10\x00\xfd\x41\x00\x00\x00\x00\x70\x6b\x67\x2f\x50\x4b\x01\x02\x14\x03\x14\x00"
+        "\x00\x00\x08\x00\xd4\xac\x5c\x5d\xc9\x30\x21\x10\x3c\x00\x00\x00\x4c\x00\x00\x00\x12\x00\x00\x00\x00\x00\x00\x00"
+        "\x00\x00\x00\x00\x80\x01\x24\x00\x00\x00\x70\x6b\x67\x2f\x62\x6f\x61\x72\x64\x2d\x46\x5f\x43\x75\x2e\x67\x62\x72"
+        "\x50\x4b\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xd4\xac\x5c\x5d\xc4\xd2\x1a\x24\x9c\x00\x00\x00\x76\x07\x00\x00"
+        "\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x01\x90\x00\x00\x00\x70\x6b\x67\x2f\x6e\x6f\x74\x65\x73\x2e"
+        "\x74\x78\x74\x50\x4b\x01\x02\x14\x03\x14\x00\x00\x00\x00\x00\xd4\xac\x5c\x5d\x55\xdb\xb3\x1a\x03\x00\x00\x00\x03"
+        "\x00\x00\x00\x0e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x01\x57\x01\x00\x00\x70\x6b\x67\x2f\x73\x74\x6f"
+        "\x72\x65\x64\x2e\x74\x78\x74\x50\x4b\x05\x06\x00\x00\x00\x00\x04\x00\x04\x00\xe9\x00\x00\x00\x86\x01\x00\x00\x00"
+        "\x00";
+    const std::string zip(kZip, sizeof kZip - 1);  // holds NUL bytes
+    std::string notes;
+    for (int i = 0; i < 40; ++i) notes += "Line " + std::to_string(i) + ": copper 35 um, finish ENIG, mask green.\n";
+    const auto files = readZipArchive(zip);
+    CHECK(files.size() == 3 && files.at("pkg/notes.txt") == notes && files.at("pkg/stored.txt") == "raw");
+    CHECK(parseGerber(files.at("pkg/board-F_Cu.gbr")).shapes.size() == 1);
+    bool threw = false;
+    try {
+        (void)readZipArchive(zip.substr(0, zip.size() / 2) + zip.substr(zip.size() - 22));
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    CHECK(threw);
+
+    const auto root = mcpRoot("pkgcompare");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(s, "project_new", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_build", Json::parse(R"J({
+        "parts": [{"ref": "J1", "part": "PinHeader_1x02_P2.54mm"}, {"ref": "R1", "kind": "resistor", "value": "10k"}],
+        "nets": {"A": ["J1.1", "R1.1"], "GND": ["J1.2", "R1.2"]}, "pins": false})J"))));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic", Json::object())));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_autoplace", Json::parse(R"({"all": true})"))));
+    CHECK(!mcpFailed(mcpTool(s, "output_fabrication_package", Json::parse(R"({"dir": "rel1"})"))));
+    Json r = mcpData(mcpTool(s, "output_compare_packages", Json::parse(R"({"a": "rel1"})")));
+    CHECK(r.get("identical").asBool(false) && r.get("layers").size() >= 6);
+    const Project& pr = s.project()->project;
+    const Vec2 at = pr.schematic.findByRef("R1")->pcb.position;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_place_footprint", Json::parse("{\"placements\": [{\"ref\": \"R1\", \"force\": true, \"x\": " +
+                                                                          std::to_string(at.x + 3) + ", \"y\": " + std::to_string(at.y) + "}]}"))));
+    r = mcpData(mcpTool(s, "output_compare_packages", Json::parse(R"({"a": "rel1"})")));
+    CHECK(!r.get("identical").asBool(true));
+    int changed = 0;
+    for (const Json& l : r.get("layers").items()) {
+        if (l.get("status").asString() != "changed") continue;
+        CHECK(l.get("layer").asString().rfind("drill", 0) != 0);  // R1 has no holes
+        ++changed;
+        CHECK(l.get("where").size() >= 1);
+        const Json& w = l.get("where")[0];
+        CHECK(std::fabs(w.get("x").asNumber() - (at.x + 1.5)) < 3);  // the old and new spots side by side
+    }
+    CHECK(changed >= 2);
+    // The gerber zip of the release against its folder: every layer the same.
+    std::string zipName;
+    for (const auto& e : std::filesystem::directory_iterator(root / "rel1"))
+        if (e.path().extension() == ".zip") zipName = e.path().filename().string();
+    Json args = Json::object();
+    args["a"] = "rel1/" + zipName, args["b"] = "rel1";
+    r = mcpData(mcpTool(s, "output_compare_packages", args));
+    for (const Json& l : r.get("layers").items()) CHECK(l.get("status").asString() == "same");
+    // A changed layer as a picture.
+    std::string key;
+    const Json now = mcpData(mcpTool(s, "output_compare_packages", Json::parse(R"({"a": "rel1"})")));
+    for (const Json& l : now.get("layers").items())
+        if (l.get("status").asString() == "changed") key = l.get("layer").asString();
+    args = Json::object();
+    args["a"] = "rel1", args["layer"] = key;
+    const Json pic = mcpTool(s, "output_compare_packages", args);
+    CHECK(!mcpFailed(pic) && pic.get("content").size() == 2 && pic.get("content")[1].get("mimeType").asString() == "image/png");
+    CHECK(mcpFailed(mcpTool(s, "output_compare_packages", Json::parse(R"({"a": "../outside"})"))));
+}
 
 TEST(fab_drawing_dimensions_revisions_and_net_lengths) {
     // The fabrication drawing PDF: overall and user dimensions, a drill map symbol per hole size with its table row,

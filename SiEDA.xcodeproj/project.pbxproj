@@ -123,6 +123,7 @@
 		86C49DE7C586D6367C1CA8C3 = {isa = PBXBuildFile; fileRef = 5A82BF05E3E5BFCE7181C0EB; };
 		86CC31E95C144F30082F7BE6 = {isa = PBXBuildFile; fileRef = 1B0ACB2E53FA3129896C5F95; };
 		888430C53C0DD3C455384FC8 = {isa = PBXBuildFile; fileRef = ECE22D74E68984DE3F0FCCC8; };
+		89BBD20B6F07D98319C2175D = {isa = PBXBuildFile; fileRef = A20ED57228B8527AEBA6EC58; };
 		8A31929501458CDAC3444CA1 = {isa = PBXBuildFile; fileRef = 4948511C3F66BCF11536263B; };
 		8DA069493A75EB98940AC208 = {isa = PBXBuildFile; fileRef = A4EEF06B763841210168AEB3; };
 		8EB510497D82C58195A186E6 = {isa = PBXBuildFile; fileRef = A5389408EEF183EEC611E330; };
@@ -447,6 +448,7 @@
 		9C890483D5507791CDABC4EA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CloudSync.hpp; sourceTree = "<group>"; };
 		9D3FEE3DF2AB401E23FD7EF3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHooks.swift; sourceTree = "<group>"; };
 		9ED8EACAFA77375D35C88B94 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bom.hpp; sourceTree = "<group>"; };
+		A20ED57228B8527AEBA6EC58 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FabCompare.cpp; sourceTree = "<group>"; };
 		A2EDE2F8A06002C18CF33658 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PcbSwap.cpp; sourceTree = "<group>"; };
 		A2F99F3A480C92D82686F84B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamViews.swift; sourceTree = "<group>"; };
 		A35BF18EFBC4ACF877624981 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Naval.hpp; sourceTree = "<group>"; };
@@ -832,6 +834,7 @@
 				19A32AB05C4FC519DD459887,
 				D8972BB0359DF00048543E42,
 				093215062DA71990759E16C7,
+				A20ED57228B8527AEBA6EC58,
 				B3A704C1C14460AAAB9247DD,
 				E75D7DE7D08DFA800FFAA790,
 				390EDC8F9CED69E83F1FA26B,
@@ -1402,6 +1405,7 @@
 				482CD12CF3DD25314FE03C7D,
 				F792108CCCD5F55F6F019BDF,
 				E138F2F67368416125FE5114,
+				89BBD20B6F07D98319C2175D,
 				A2C29375611553B35C90A99A,
 				B49EF7DDF4B0D9905AA40643,
 				F9ECE46D3096C5B24581227E,

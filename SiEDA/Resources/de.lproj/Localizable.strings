@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "Geroutetes, geprüftes einseitiges Netzteil mit Drahtbrücken und seinen Fertigungsdaten (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "Automatisch routen (einseitig)";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "Einseitig geroutet: %d Drahtbrücken, %d Verbindungen offen, %d Bauteile auf die Bestückungsseite verlegt";
+"Compare Packages…" = "Pakete vergleichen…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Ein freigegebenes Fertigungspaket mit dem dieses Entwurfs vergleichen, Lage für Lage und Bohrung für Bohrung";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "Ein freigegebenes Fertigungspaket (Ordner oder .zip) zum Vergleich mit diesem Entwurf auswählen.";
+"The package matches this design." = "Das Paket stimmt mit diesem Entwurf überein.";

@@ -1929,3 +1929,7 @@
 "Routed, verified single-sided power supply with wire links and its fabrication outputs (examples/smps-230vac-5-48v-1layer)" = "配線・検証済みの片面電源（ジャンパー線付き）と製造データ (examples/smps-230vac-5-48v-1layer)";
 "Auto Route (single-sided)" = "自動配線（片面）";
 "Single-sided route: %d wire links, %d connections open, %d parts moved to the component side" = "片面配線: ジャンパー線 %d 本、未接続 %d、部品面へ移した部品 %d 個";
+"Compare Packages…" = "パッケージを比較…";
+"Compare a released fabrication package with this design's, layer by layer and hole by hole" = "リリース済みの製造パッケージをこの設計のものとレイヤーごと・穴ごとに比較します";
+"Choose a released fabrication package (its folder or .zip) to compare with this design." = "この設計と比較するリリース済みの製造パッケージ（フォルダーまたは .zip）を選択してください。";
+"The package matches this design." = "パッケージはこの設計と一致しています。";
