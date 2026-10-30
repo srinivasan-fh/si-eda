@@ -304,7 +304,7 @@ struct SiEDACommands: Commands {
             }
         }
         CommandGroup(replacing: .newItem) {
-            Button("New Project") { store.newProject() }
+            Button("New Project") { shortcuts.noteUse("newProject", in: store); store.newProject() }
                 .keyboardShortcut(shortcuts.shortcut("newProject"))
             Menu("New from Example") {
                 ForEach(OfflineProvider.categories, id: \.self) { category in
@@ -328,7 +328,7 @@ struct SiEDACommands: Commands {
                     Button(url.deletingPathExtension().lastPathComponent) { store.newFromTemplate(url) }
                 }
             }
-            Button("Open…") { store.openProject() }
+            Button("Open…") { shortcuts.noteUse("open", in: store); store.openProject() }
                 .keyboardShortcut(shortcuts.shortcut("open"))
             Menu("Open Recent") {
                 let recents = NSDocumentController.shared.recentDocumentURLs
@@ -344,13 +344,13 @@ struct SiEDACommands: Commands {
             }
         }
         CommandGroup(replacing: .saveItem) {
-            Button("Save") { store.save() }
+            Button("Save") { shortcuts.noteUse("save", in: store); store.save() }
                 .keyboardShortcut(shortcuts.shortcut("save"))
-            Button("Save As…") { store.saveAs() }
+            Button("Save As…") { shortcuts.noteUse("saveAs", in: store); store.saveAs() }
                 .keyboardShortcut(shortcuts.shortcut("saveAs"))
             Button("Save as Template…") { store.saveAsTemplate() }
             Divider()
-            Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
+            Button("Export Fabrication Package…") { shortcuts.noteUse("fabPackage", in: store); Task { await store.exportFabricationPackage() } }
                 .keyboardShortcut(shortcuts.shortcut("fabPackage"))
             Button("Order Boards…") { store.showFabOrder = true }
             Button("Compare Packages…") { store.compareFabricationPackages() }
@@ -400,6 +400,7 @@ struct SiEDACommands: Commands {
         }
         CommandGroup(after: .help) {
             Button("Welcome Tour…") { store.showWelcomeTour = true }
+            Button("Lessons…") { store.showLessons = true }
             Button("Keyboard Shortcuts") { store.showShortcuts = true }
                 .keyboardShortcut("/", modifiers: .command)
             Button("Performance…") { store.showPerformance = true }
@@ -415,7 +416,7 @@ struct SiEDACommands: Commands {
         CommandGroup(after: .toolbar) {
             let canvas = store.workspace.hasCanvas
             Divider()
-            Button("Command Palette…") { store.showCommandPalette.toggle() }
+            Button("Command Palette…") { shortcuts.noteUse("palette", in: store); store.showCommandPalette.toggle() }
                 .keyboardShortcut(shortcuts.shortcut("palette"))
             Button("Zoom In") { store.requestView(.zoomIn) }
                 .keyboardShortcut("=", modifiers: .command)
@@ -423,7 +424,7 @@ struct SiEDACommands: Commands {
             Button("Zoom Out") { store.requestView(.zoomOut) }
                 .keyboardShortcut("-", modifiers: .command)
                 .disabled(!canvas)
-            Button("Zoom to Fit") { store.requestView(.fit) }
+            Button("Zoom to Fit") { shortcuts.noteUse("zoomFit", in: store); store.requestView(.fit) }
                 .keyboardShortcut(shortcuts.shortcut("zoomFit"))
                 .disabled(!canvas)
             Button("Zoom to Selection") { store.requestView(.fitSelection) }
@@ -451,19 +452,20 @@ struct SiEDACommands: Commands {
             Divider()
         }
         CommandMenu("Design") {
-            Button("Run Electrical Rule Check") { store.runERC(); store.showChecks(.rules) }
+            Button("Run Electrical Rule Check") { shortcuts.noteUse("erc", in: store); store.runERC(); store.showChecks(.rules) }
                 .keyboardShortcut(shortcuts.shortcut("erc"))
             Button("DC Operating Point") {
+                shortcuts.noteUse("dcOp", in: store)
                 Task { await store.simulateDC(); store.workspace = .simulation }
             }
             .keyboardShortcut(shortcuts.shortcut("dcOp"))
             Divider()
-            Button("Auto-Place Footprints") { Task { await store.autoPlaceInBackground(all: true) } }
+            Button("Auto-Place Footprints") { shortcuts.noteUse("autoPlace", in: store); Task { await store.autoPlaceInBackground(all: true) } }
                 .keyboardShortcut(shortcuts.shortcut("autoPlace"))
             Button("Fit Board to Components") { store.fitBoard() }
-            Button("Auto Route Board") { Task { await store.autoRouteBoard() } }
+            Button("Auto Route Board") { shortcuts.noteUse("autoRoute", in: store); Task { await store.autoRouteBoard() } }
                 .keyboardShortcut(shortcuts.shortcut("autoRoute"))
-            Button("Run Design Rule Check") { store.runDRC(); store.showChecks(.rules) }
+            Button("Run Design Rule Check") { shortcuts.noteUse("drc", in: store); store.runDRC(); store.showChecks(.rules) }
                 .keyboardShortcut(shortcuts.shortcut("drc"))
             Button("Add Thermal Vias") { store.addThermalVias() }
                 .help("Stitch vias at the selected (or every) power MOSFET's drain / tab pad")

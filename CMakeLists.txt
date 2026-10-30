@@ -115,6 +115,7 @@ add_library(sieda_core STATIC
     Core/src/sieda_c_placement.cpp
     Core/src/Mcp.cpp
     Core/src/McpTools.cpp
+    Core/src/Lessons.cpp
     Core/src/McpRender.cpp
     Core/src/sieda_c_mcp.cpp
 )

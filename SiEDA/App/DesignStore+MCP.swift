@@ -117,8 +117,9 @@ final class MCPStoreBridge {
     }
 
     /// Options for the core: read-only and the folder files may be read from / written to ("" = no file access).
-    static func optionsJSON(readOnly: Bool, allowedRoot: String) -> String {
+    static func optionsJSON(readOnly: Bool, allowedRoot: String, actor: String = "") -> String {
         var options: [String: Any] = ["readOnly": readOnly, "allowedRoot": allowedRoot, "serverName": "sieda-app"]
+        if !actor.isEmpty { options["actor"] = actor }  // the app's own menus: "user" in the activity log
         if ActivityLog.enabled { options["activityLog"] = ActivityLog.folder.path }  // AI clients' calls, by client name
         guard let data = try? JSONSerialization.data(withJSONObject: options, options: [.sortedKeys]) else { return "{}" }
         return String(decoding: data, as: UTF8.self)
@@ -127,10 +128,10 @@ final class MCPStoreBridge {
     private(set) var readOnly = false
     private(set) var allowedRoot = ""
 
-    func configure(readOnly: Bool, allowedRoot: String) {
+    func configure(readOnly: Bool, allowedRoot: String, actor: String = "") {
         self.readOnly = readOnly
         self.allowedRoot = allowedRoot
-        let json = Self.optionsJSON(readOnly: readOnly, allowedRoot: allowedRoot)
+        let json = Self.optionsJSON(readOnly: readOnly, allowedRoot: allowedRoot, actor: actor)
         guard json != appliedOptions else { return }
         if sieda_mcp_set_options(server, json) == 1 { appliedOptions = json }
     }
@@ -749,7 +750,7 @@ extension DesignStore {
         let request: [String: Any] = ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
                                       "params": ["name": name, "arguments": arguments]]
         let bridge = MCPStoreBridge()
-        if !root.isEmpty { bridge.configure(readOnly: false, allowedRoot: root) }
+        bridge.configure(readOnly: false, allowedRoot: root, actor: "user")
         guard let data = try? JSONSerialization.data(withJSONObject: request),
               let outcome = bridge.handle(String(decoding: data, as: UTF8.self), store: self).first,
               let reply = try? JSONSerialization.jsonObject(with: Data(outcome.response.utf8)) as? [String: Any],

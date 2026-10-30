@@ -250,7 +250,12 @@
   `defaultActivityLogDir()` for `sieda-mcp` / `sieda-studio`, `--activity-log` / `--no-activity-log`,
   `SIEDA_ACTIVITY_LOG=off`; C API servers only when set); the macOS app's own edits go to the same folder through
   Swift `ActivityLog` (DesignStore+MCP.swift, `finishEdit`, setting "activityLog.enabled"); test
-  `mcp_activity_log_records_who_did_what`. Live app endpoint (off by default,
+  `mcp_activity_log_records_who_did_what`. Lessons: `Core/src/Lessons.cpp` (MCP `project_lessons`, built-in lessons as
+  JSON, "sieda.lesson/1" files from `McpOptions::lessonDirs` (`--lessons-dir`, SIEDA_LESSONS_DIRS) or a team folder's
+  Lessons/; checks run read-only tools only, through `callToolUnlogged`; state `McpServer::lesson` / `lessonStep`); every
+  built-in lesson must finish through its own `solution`s (test `mcp_lessons_run_built_in_and_team_lessons`); app
+  `LessonsView` (Onboarding.swift), Studio `lessons()`; menu-use shortcut tips `ShortcutStore.noteUse` (SettingsView.swift),
+  Studio `noteMenuUse` / quick keys; guide `docs/LESSONS.md`. Live app endpoint (off by default,
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients

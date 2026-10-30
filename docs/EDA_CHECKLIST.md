@@ -286,7 +286,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Keyboard presets for KiCad / Altium / Eagle users | ✅ | KiCad, Altium and Eagle canvas presets (Eagle: the first two letters of its commands — n e NET, a d ADD, r o ROUTE, r a RATSNEST), two-key sequences |
 | P1 | Tutorials, pre-manufacturing checklist, examples, layouts, accessibility | ✅ | |
 | P1 | ➕ Migration guides, ➕ pen / trackpad gestures | ✅ | trackpad; `docs/MIGRATING.md` |
-| P2–P3 | Personalised shortcuts, lessons, org training | ⏳ | |
+| P2–P3 | Personalised shortcuts, lessons, org training | ✅ | menu commands you keep choosing get their shortcut shown or a quick key offered; Help → Lessons… with steps checked against the design (MCP `project_lessons`); a company's own `.lesson.json` lessons from its team folder or `--lessons-dir` ([LESSONS.md](LESSONS.md)) |
 
 ## 17. Import, export, interoperability
 

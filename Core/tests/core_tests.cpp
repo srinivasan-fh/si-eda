@@ -20690,6 +20690,63 @@ TEST(mcp_activity_log_records_who_did_what) {
     CHECK(std::distance(std::filesystem::directory_iterator(root / "logs"), {}) == 1);
 }
 
+// Lessons: each built-in lesson runs from its start through every step's "show me" solution, a step is not passed
+// before it is done, and a team folder's own lessons are listed, run and validated (checks may only read).
+TEST(mcp_lessons_run_built_in_and_team_lessons) {
+    const auto root = mcpRoot("lessons");
+    mcp::McpServer s(mcpOptions(root));
+    auto call = [&](const char* json) {
+        Json r = s.callTool("project_lessons", Json::parse(json));
+        CHECK(!r.get("isError").asBool(true));
+        return Json::parse(r.get("content")[0].get("text").asString(""));
+    };
+    const Json list = call(R"({"action":"list"})");
+    CHECK(list.get("lessons").size() >= 3);
+    for (const auto& l : list.get("lessons").items()) {
+        const std::string id = l.get("id").asString("");
+        Json start = Json::object();
+        start["action"] = "start";
+        start["id"] = id;
+        Json r = s.callTool("project_lessons", start);
+        CHECK(!r.get("isError").asBool(true));
+        const Json first = call(R"({"action":"check"})");  // nothing done yet
+        CHECK(!first.get("passed").asBool(true));
+        CHECK(first.get("notYet").size() > 0);
+        CHECK(first.get("step").asInt(0) == 1);
+        Json last;
+        for (int i = 0; i < l.get("steps").asInt(0); ++i) {
+            last = call(R"({"action":"show"})");
+            if (!last.get("passed").asBool(false)) std::printf("  %s step %d: %s\n", id.c_str(), i + 1, last.dump().c_str());
+            CHECK(last.get("passed").asBool(false));
+        }
+        CHECK(last.get("done").asBool(false));
+    }
+    // A team folder's lessons: a rule walkthrough checked by the DRC, and a broken one validate reports.
+    std::filesystem::create_directories(root / "team" / "Lessons");
+    std::ofstream(root / "team" / "Lessons" / "acme_rules.lesson.json") << R"({"format":"sieda.lesson/1","id":"acme_rules",
+      "title":"ACME board rules","start":[{"tool":"project_load_example","args":{"id":"led_indicator"}}],
+      "steps":[{"text":"Place and route the board, then run the DRC: ACME ships no board with DRC errors.",
+        "check":[{"tool":"project_summary","path":"board.tracks","atLeast":1},{"tool":"pcb_drc","path":"errors","equals":0}],
+        "solution":[{"tool":"pcb_update_from_schematic"},{"tool":"pcb_autoplace"},{"tool":"pcb_autoroute"}]}]})";
+    std::ofstream(root / "team" / "Lessons" / "broken.lesson.json") << R"({"format":"sieda.lesson/1","id":"broken","title":"x",
+      "steps":[{"text":"t","check":[{"tool":"pcb_autoroute","path":"x","equals":1}]},{"text":"","check":[]}]})";
+    const Json team = call(R"({"action":"list","folder":"team"})");
+    bool found = false;
+    for (const auto& l : team.get("lessons").items())
+        if (l.get("id").asString("") == "acme_rules") found = l.get("source").asString("") == "team";
+    CHECK(found);
+    CHECK(!s.callTool("project_lessons", Json::parse(R"({"action":"start","id":"acme_rules","folder":"team"})")).get("isError").asBool(true));
+    CHECK(call(R"({"action":"show"})").get("done").asBool(false));
+    const Json v = call(R"({"action":"validate","path":"team/Lessons/broken.lesson.json"})");
+    CHECK(!v.get("valid").asBool(true));
+    const std::string problems = v.dump();
+    CHECK(problems.find("pcb_autoroute changes the design") != std::string::npos);
+    CHECK(problems.find("step 2: no text") != std::string::npos);
+    CHECK(call(R"({"action":"validate","folder":"team"})").dump().find("acme_rules") != std::string::npos);
+    CHECK(s.callTool("project_lessons", Json::parse(R"({"action":"start","id":"broken","folder":"team"})")).get("isError").asBool(false));
+    CHECK(s.callTool("project_lessons", Json::parse(R"({"action":"start","id":"nope"})")).get("isError").asBool(false));
+}
+
 TEST(mcp_tools_list_schemas) {
     mcp::McpServer s;
     Json r = mcpRequest(s, "tools/list");

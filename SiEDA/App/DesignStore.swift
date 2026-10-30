@@ -95,6 +95,7 @@ final class DesignStore: ObservableObject {
     /// Help → Welcome Tour (shown once on first launch) and Help → Keyboard Shortcuts (Onboarding.swift).
     @Published var showWelcomeTour = false
     @Published var showShortcuts = false
+    @Published var showLessons = false
     @Published var showPerformance = false
     /// Reports cached per design revision (`cached(_:_:)`).
     private var revisionCache: [String: (revision: Int, value: Any)] = [:]

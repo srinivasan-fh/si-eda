@@ -3124,6 +3124,16 @@ void projectTools(Table& t) {
               j["examples"] = list;
               return out(j);
           });
+    t.add("project", "project_lessons", "Lessons", Kind::Edit, false,
+          "Step-by-step lessons checked against the design: list (built-in, the organisation's lesson folders and a "
+          "team folder's Lessons/), start (id; sets up its project), check (is the current step done? then the next), "
+          "show (does the current step for you, then checks it), status, stop, validate (a lesson file's problems, for "
+          "authors). Lesson files: <name>.lesson.json, format sieda.lesson/1 (docs/LESSONS.md).",
+          Schema().str("action", "list, start, check, show, status, stop or validate", false,
+                       {"list", "start", "check", "show", "status", "stop", "validate"})
+              .str("id", "start: lesson id").str("folder", "A team folder in the root (its Lessons/ subfolder)")
+              .str("path", "validate: a .lesson.json file in the root"),
+          [](McpServer& s, const Json& a) { return lessonsTool(s, a); });
     t.add("project", "project_load_example", "Load example", Kind::Destructive, false,
           "Replaces the open project with a built-in example design (schematic and board size; route it with "
           "pcb_update_from_schematic and pcb_autoroute).",

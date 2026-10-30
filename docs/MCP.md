@@ -541,7 +541,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (20)
+### project (21)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -554,6 +554,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_cloud` | edit (destructive) | A GitHub repository as the project's cloud, through your own git and its sign-in (Git Credential Manager, gh auth login or SSH keys; SiEDA keeps no token). |
 | `project_export_json` | read | The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants. |
 | `project_list_examples` | read | The built-in example designs (ids for project_load_example). |
+| `project_lessons` | edit | Step-by-step lessons checked against the design: list (built-in, the organisation's lesson folders and a team folder's Lessons/), start (id; sets up its project), check (is the current step done? then the next), show (does the current step for you, then checks it), status, stop, validate (a lesson file's problems, for authors). |
 | `project_load_example` | edit (destructive) | Replaces the open project with a built-in example design (schematic and board size; route it with pcb_update_from_schematic and pcb_autoroute). |
 | `project_summary` | read | Where the design stands: name, file, part / net / sheet counts, board size and layers, placement and routing progress, and the session (read-only, root folder). |
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |

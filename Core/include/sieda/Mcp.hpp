@@ -55,6 +55,11 @@ struct McpOptions {
     /// (the AI client's name from initialize, or "user" for the host's own UI), the tool, its arguments, outcome and
     /// time. Empty: nothing is logged. Kept on this computer only; set only by whoever starts the server.
     std::string activityLog;
+    /// Folders of an organisation's own lessons (<name>.lesson.json, "sieda.lesson/1"): read-only, listed by
+    /// project_lessons beside the built-in ones. Set only by whoever starts the server (--lessons-dir, SIEDA_LESSONS_DIRS).
+    std::vector<std::string> lessonDirs;
+    /// Who every call comes from in the activity log ("user" for a host's own UI); "" = the AI client's name.
+    std::string actor;
 
     static McpOptions fromJson(const Json& j);  // {"readOnly","allowedRoot","toolFilter":[…],"docsDir","serverName","activityLog"}
     Json toJson() const;
@@ -139,6 +144,12 @@ public:
     /// = the AI client named by initialize's clientInfo ("ai:<name>").
     void setActor(std::string actor) { actor_ = std::move(actor); }
 
+    /// callTool without the activity log line (lesson checks run tools on the learner's behalf).
+    Json callToolUnlogged(const std::string& name, const Json& arguments);
+    /// The lesson running (project_lessons, Lessons.cpp; null = none) and the step the learner is on.
+    Json lesson;
+    int lessonStep = 0;
+
     bool toolEnabled(const McpTool& tool) const;
     const std::string& protocolVersion() const { return protocol_; }
     /// Notes for this session (e.g. the last tool's warnings): appended to tool results by handlers.
@@ -174,15 +185,16 @@ private:
     std::vector<std::string> redo_;  // states `undo` stepped back from, newest last
     std::vector<std::string> undo_;  // project states before the last design-changing calls, oldest first
     uint64_t undoOf_ = 0;  // the serial of the project they belong to (history clears when it changes)
-    std::string actor_, client_ = "ai";
-    bool lastChanged_ = false;  // the last tool call changed the design  // activity log: the host's override, the AI client from initialize
-    Json callToolUnlogged(const std::string& name, const Json& arguments);
+    std::string actor_, client_ = "ai";  // activity log: the host's override, the AI client from initialize
+    bool lastChanged_ = false;           // the last tool call changed the design
 };
 
 /// The per-user folder the activity log goes to by default: ~/Library/Logs/SiEDA/Activity (macOS),
 /// %LOCALAPPDATA%\SiEDA\Logs\Activity (Windows), $XDG_STATE_HOME or ~/.local/state + /sieda/activity (Linux).
 /// SIEDA_ACTIVITY_LOG overrides it ("off" = no log). "" when no home folder is known.
 std::string defaultActivityLogDir();
+/// SIEDA_LESSONS_DIRS split like PATH (':' — ';' on Windows): an organisation's lesson folders.
+std::vector<std::string> lessonDirsFromEnvironment();
 /// Appends one line to <dir>/<UTC date>.log (folder created): "time<TAB>actor<TAB>action<TAB>fields…". Tabs and
 /// line breaks in the fields become spaces. Never throws; safe from several threads.
 void appendActivity(const std::string& dir, const std::string& actor, const std::string& action,

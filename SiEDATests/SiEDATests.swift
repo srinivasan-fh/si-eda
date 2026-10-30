@@ -6739,6 +6739,12 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(second.hasSuffix("\tuser\tRoute net\n"), second)
     }
 
+    func testShortcutSymbolsFollowTheMenuOrder() {
+        XCTAssertEqual(ShortcutStore.symbols("cmd+shift+r"), "⇧⌘R")
+        XCTAssertEqual(ShortcutStore.symbols("ctrl+opt+3"), "⌃⌥3")
+        XCTAssertEqual(ShortcutStore.symbols(""), "")
+    }
+
     func testUpdateVersionsCompareNumerically() {
         XCTAssertTrue(UpdateChecker.isNewer("v1.10", than: "1.9"))
         XCTAssertTrue(UpdateChecker.isNewer("1.2.0", than: "1.2.0-beta"))

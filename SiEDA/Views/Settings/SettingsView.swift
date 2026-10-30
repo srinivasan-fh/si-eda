@@ -481,6 +481,46 @@ final class ShortcutStore: ObservableObject {
 
     func shortcut(_ id: String) -> KeyboardShortcut? { Self.parse(text(id)) }
 
+    /// Personalised shortcuts: a command picked from the menu again and again (not by its key) shows its shortcut in
+    /// the status line every third time; one with no shortcut is offered a free ⌃⌥1…9 once, after four menu picks.
+    /// Counts in user defaults "shortcuts.menuUse"; "shortcuts.offered" remembers the offers made.
+    @MainActor
+    func noteUse(_ id: String, in store: DesignStore) {
+        guard NSApp.currentEvent?.type != .keyDown else { return }  // came from its key: nothing to suggest
+        let defaults = UserDefaults.standard
+        var use = defaults.dictionary(forKey: "shortcuts.menuUse") as? [String: Int] ?? [:]
+        let count = (use[id] ?? 0) + 1
+        use[id] = count
+        defaults.set(use, forKey: "shortcuts.menuUse")
+        let title = Self.commands.first { $0.id == id }?.title ?? id
+        let current = text(id)
+        if !current.isEmpty {
+            if count % 3 == 0 { store.statusMessage = String(localized: "Tip: ") + Self.symbols(current) + " — " + String(localized: String.LocalizationValue(title)) }
+            return
+        }
+        var offered = defaults.stringArray(forKey: "shortcuts.offered") ?? []
+        guard count >= 4, !offered.contains(id),
+              let free = (1...9).map({ "ctrl+opt+\($0)" }).first(where: { key in !(Self.commands.map { text($0.id).lowercased() }).contains(key) })
+        else { return }
+        offered.append(id)
+        defaults.set(offered, forKey: "shortcuts.offered")
+        let alert = NSAlert()
+        alert.messageText = String(localized: "You often choose this from the menus:") + " " + String(localized: String.LocalizationValue(title))
+        alert.informativeText = String(localized: "Give it a shortcut?") + " " + Self.symbols(free)
+        alert.addButton(withTitle: String(localized: "Assign"))
+        alert.addButton(withTitle: String(localized: "Not Now"))
+        if alert.runModal() == .alertFirstButtonReturn { set(id, free) }
+    }
+
+    /// "cmd+shift+k" as the menu shows it: ⇧⌘K (modifiers in the menu's order ⌃⌥⇧⌘).
+    static func symbols(_ text: String) -> String {
+        let parts = text.lowercased().split(separator: "+").map(String.init)
+        let order: [([String], String)] = [(["ctrl", "control"], "⌃"), (["opt", "option", "alt"], "⌥"), (["shift"], "⇧"), (["cmd", "command"], "⌘")]
+        let mods = order.filter { o in parts.contains { o.0.contains($0) } }.map { $0.1 }.joined()
+        let key = parts.last(where: { p in !order.contains { $0.0.contains(p) } }) ?? ""
+        return mods + key.uppercased()
+    }
+
     /// Canvas key presets for people coming from another tool: overrides of the standard keys (SiEDA = none).
     /// Altium: its Place-menu sequences (P, W wire · P, N net label · P, O power port · P, P part · P, T track), L flips a
     /// part to the other side.

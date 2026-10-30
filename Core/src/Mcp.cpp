@@ -156,10 +156,14 @@ McpOptions McpOptions::fromJson(const Json& j) {
     o.docsDir = j.get("docsDir").asString("");
     o.serverName = j.get("serverName").asString("sieda");
     o.activityLog = j.get("activityLog").asString("");
+    o.actor = j.get("actor").asString("");
     if (o.serverName.empty()) o.serverName = "sieda";
     if (j.get("libraryDirs").isArray())
         for (const auto& d : j.get("libraryDirs").items())
             if (d.isString() && !d.asString().empty()) o.libraryDirs.push_back(d.asString());
+    if (j.get("lessonDirs").isArray())
+        for (const auto& d : j.get("lessonDirs").items())
+            if (d.isString() && !d.asString().empty()) o.lessonDirs.push_back(d.asString());
     if (j.get("toolFilter").isArray())
         for (const auto& t : j.get("toolFilter").items())
             if (t.isString() && !t.asString().empty()) o.toolFilter.push_back(t.asString());
@@ -179,6 +183,12 @@ Json McpOptions::toJson() const {
     j["docsDir"] = docsDir;
     j["serverName"] = serverName;
     if (!activityLog.empty()) j["activityLog"] = activityLog;
+    if (!actor.empty()) j["actor"] = actor;
+    if (!lessonDirs.empty()) {
+        Json l = Json::array();
+        for (const auto& d : lessonDirs) l.push(d);
+        j["lessonDirs"] = l;
+    }
     return j;
 }
 
@@ -936,7 +946,7 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
     auto ms = [&] {
         return std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count()) + " ms";
     };
-    const std::string who = actor_.empty() ? client_ : actor_;
+    const std::string who = !actor_.empty() ? actor_ : !options_.actor.empty() ? options_.actor : client_;
     const std::string file = projectPath_.empty() ? "-" : fs::path(projectPath_).filename().string();
     const std::string args = clip(arguments.isNull() ? "{}" : arguments.dump(), 2000);
     try {

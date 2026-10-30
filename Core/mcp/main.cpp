@@ -21,6 +21,7 @@
 //   --activity-log <dir> folder of the activity log (one <UTC date>.log per day: every tool call, by which AI client);
 //                      default the per-user log folder (SIEDA_ACTIVITY_LOG; "off" = none)
 //   --no-activity-log  log nothing
+//   --lessons-dir <dir> an organisation's lesson folder (<name>.lesson.json), read-only; repeatable (SIEDA_LESSONS_DIRS)
 //                      (also SIEDA_LIBRARY_DIRS, separated like PATH)
 #include <cstdio>
 #include <cstdlib>
@@ -46,7 +47,7 @@ namespace fs = std::filesystem;
 namespace {
 void usage() {
     std::fprintf(stderr,
-                 "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log]\n"
+                 "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>]\n"
                  "       sieda-mcp --connect http://127.0.0.1:39717/mcp [--token <t>] [--timeout <s>]\n"
                  "       sieda-mcp --diff <old.siedaproj> <new.siedaproj> [--json]\n"
                  "       sieda-mcp --merge <base> <ours> <theirs>   (writes the result into <ours>)\n"
@@ -107,6 +108,7 @@ int main(int argc, char** argv) {
     options.allowedRoot = fs::current_path(ec).string();
     options.docsDir = defaultDocsDir(argv[0]);
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
+    options.lessonDirs = sieda::mcp::lessonDirsFromEnvironment();
     options.activityLog = sieda::mcp::defaultActivityLogDir();
     if (argc >= 4 && std::strcmp(argv[1], "--diff") == 0)
         return diff(argv[2], argv[3], argc >= 5 && std::strcmp(argv[4], "--json") == 0, nullptr);
@@ -138,6 +140,8 @@ int main(int argc, char** argv) {
             options.docsDir = value();
         } else if (a == "--library-dir") {
             options.libraryDirs.push_back(fs::absolute(value(), ec).string());
+        } else if (a == "--lessons-dir") {
+            options.lessonDirs.push_back(fs::absolute(value(), ec).string());
         } else if (a == "--activity-log") {
             options.activityLog = fs::absolute(value(), ec).string();
         } else if (a == "--no-activity-log") {
