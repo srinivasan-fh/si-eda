@@ -26273,6 +26273,37 @@ TEST(saved_copper_lies_on_the_nanometre_grid) {
     CHECK(q.pcb.runDRC(q.schematic).size() == p.pcb.runDRC(p.schematic).size());
 }
 
+TEST(fabrication_package_is_the_same_before_saving_and_after_reopening) {
+    // The fabrication package is built from the board as saved: the same files before saving and after reopening,
+    // the 3D model's facet normals included (only the job file's creation time and the zip holding it differ).
+    mcp::McpServer s;
+    Json ex = Json::object();
+    ex["id"] = "transistor_switch";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    for (const char* tool : {"pcb_update_from_schematic", "pcb_autoplace", "pcb_autoroute"}) CHECK(!mcpFailed(mcpTool(s, tool, Json::object())));
+    const Project& p = s.project()->project;
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    bool offGrid = false;
+    for (const auto& t : p.pcb.tracks) offGrid = offGrid || nm(t.a.x) != t.a.x || nm(t.a.y) != t.a.y || nm(t.b.x) != t.b.x || nm(t.b.y) != t.b.y;
+    CHECK(offGrid);  // the MCP route's finishing passes leave copper off the grid in memory: two different boards
+    auto withoutDates = [](std::string text) {
+        std::string out;
+        for (size_t at = 0; at < text.size();) {
+            const size_t end = std::min(text.find('\n', at), text.size());
+            if (text.substr(at, end - at).find("CreationDate") == std::string::npos) out.append(text, at, end - at + 1);
+            at = end + 1;
+        }
+        return out;
+    };
+    const auto live = fabricationPackage(p), reopened = fabricationPackage(q);
+    CHECK(live.size() == reopened.size());
+    for (size_t i = 0; i < std::min(live.size(), reopened.size()); ++i) {
+        CHECK(live[i].path == reopened[i].path);
+        if (live[i].path.size() > 4 && live[i].path.compare(live[i].path.size() - 4, 4, ".zip") == 0) continue;
+        CHECK(withoutDates(live[i].content) == withoutDates(reopened[i].content));
+    }
+}
+
 /// Removes a folder git has used: its object files are read-only on Windows, where remove_all refuses them.
 void removeRepositoryFolder(const std::filesystem::path& root) {
     namespace fs = std::filesystem;

@@ -538,6 +538,27 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
 }
 
 std::vector<FabFile> fabricationPackage(const Project& project, const std::string& baseName, bool assembly3d) {
+    // Router and pour copper is computed in floating point; the file keeps it on the 1 nm grid. Build the package
+    // from the board as saved, so one made before saving matches one made after reopening byte for byte.
+    auto off = [](double v) { return nm(v) != v; };
+    auto offVec = [&](Vec2 p) { return off(p.x) || off(p.y); };
+    const auto& tracks = project.pcb.tracks;
+    const auto& vias = project.pcb.vias;
+    if (std::any_of(tracks.begin(), tracks.end(), [&](const Track& t) {
+            return offVec(t.a) || offVec(t.b) || off(t.width) || (t.arc && offVec(t.mid));
+        }) ||
+        std::any_of(vias.begin(), vias.end(), [&](const Via& v) {
+            return offVec(v.position) || off(v.drill) || off(v.diameter);
+        })) {
+        Project onGrid = project;
+        auto snap = [](Vec2& p) { p = {nm(p.x), nm(p.y)}; };
+        for (auto& t : onGrid.pcb.tracks) {
+            snap(t.a), snap(t.b), t.width = nm(t.width);
+            if (t.arc) snap(t.mid);
+        }
+        for (auto& v : onGrid.pcb.vias) snap(v.position), v.drill = nm(v.drill), v.diameter = nm(v.diameter);
+        return fabricationPackage(onGrid, baseName, assembly3d);
+    }
     const auto& sch = project.schematic;
     const auto& pcb = project.pcb;
     const auto& s = pcb.settings;
