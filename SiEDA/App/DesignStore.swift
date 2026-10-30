@@ -95,6 +95,7 @@ final class DesignStore: ObservableObject {
     /// Help → Welcome Tour (shown once on first launch) and Help → Keyboard Shortcuts (Onboarding.swift).
     @Published var showWelcomeTour = false
     @Published var showShortcuts = false
+    @Published var showLessons = false
     @Published var showPerformance = false
     /// Reports cached per design revision (`cached(_:_:)`).
     private var revisionCache: [String: (revision: Int, value: Any)] = [:]
@@ -427,6 +428,8 @@ final class DesignStore: ObservableObject {
         if editTimings.count > PerformanceLog.capacity { editTimings.removeFirst(editTimings.count - PerformanceLog.capacity) }
         statusMessage = actionName
         CrashReporter.note(actionName)
+        ActivityLog.append(action: actionName, fields: ["changed", String(format: "%.0f ms", stateMs + engineMs),
+                                                        documentURL?.lastPathComponent ?? "-"])
         scheduleRecoverySave()
     }
 

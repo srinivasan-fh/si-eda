@@ -55,6 +55,7 @@ Every guide in one place, grouped by what you are doing. Each one starts with it
 | Guide | Covers |
 |---|---|
 | [SiEDA Studio (Linux, Windows) and GitHub sync](STUDIO.md) | The app on Linux and Windows; GitHub repositories as the cloud, share links |
+| [Lessons and shortcuts](LESSONS.md) | Step-by-step lessons checked against the design, your company's own lessons, personal shortcut suggestions |
 | [Team work](TEAM.md) | Version compare, Git diff / merge drivers, variants, review comments, co-editing |
 | [File format](FILE_FORMAT.md) | The `.siedaproj` project file |
 | [Interface languages](LOCALIZATION.md) | The 20 interface languages and how to add strings |

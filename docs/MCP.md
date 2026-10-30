@@ -278,6 +278,15 @@ local agent host below) instead.
   - *Undo*: every change the AI makes is one undo step, and `project_open` never discards unsaved work.
   - *Same sandbox*: files only inside the allowed folder (the open document's folder unless you pick one); read-only
     mode as above.
+- **Activity log.** Every tool call is written to a plain-text log, one file per UTC day (`2026-10-30.log`), so you
+  can see how AI clients (and people) build boards and improve SiEDA from it. Each line is tab-separated: time, who
+  (`ai:<client> <version>` from the client's `initialize`, `ai` when it gives no name, `user` for Studio's own page and
+  the macOS app's edits), the tool, the outcome (`changed` = the design changed, `ok`, `error`), how long it took, the
+  project file, the arguments (clipped to 2000 characters) and the start of the result (400). The log stays on this
+  computer: `~/Library/Logs/SiEDA/Activity` (macOS), `~/.local/state/sieda/activity` or `$XDG_STATE_HOME/sieda/activity`
+  (Linux), `%LOCALAPPDATA%\SiEDA\Logs\Activity` (Windows). `--activity-log <dir>` moves it, `--no-activity-log` or
+  `SIEDA_ACTIVITY_LOG=off` turns it off (`sieda-mcp` and `sieda-studio`); in the app, Settings → MCP → Keep Activity Log
+  (on by default) and Show Activity Logs. A server made through the C API logs only with `"activityLog": "<dir>"`.
 - **Bounded answers.** Waveforms, sweeps and curves are decimated (`maxPoints`), long outputs are truncated inline
   (give `path` to write them whole), violation lists are capped at 100 (errors first).
 
@@ -532,7 +541,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (20)
+### project (21)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -545,6 +554,7 @@ Create, open, save and inspect projects; built-in examples.
 | `project_cloud` | edit (destructive) | A GitHub repository as the project's cloud, through your own git and its sign-in (Git Credential Manager, gh auth login or SSH keys; SiEDA keeps no token). |
 | `project_export_json` | read | The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants. |
 | `project_list_examples` | read | The built-in example designs (ids for project_load_example). |
+| `project_lessons` | edit | Step-by-step lessons checked against the design: list (built-in, the organisation's lesson folders and a team folder's Lessons/), start (id; sets up its project), check (is the current step done? then the next), show (does the current step for you, then checks it), status, stop, validate (a lesson file's problems, for authors). |
 | `project_load_example` | edit (destructive) | Replaces the open project with a built-in example design (schematic and board size; route it with pcb_update_from_schematic and pcb_autoroute). |
 | `project_summary` | read | Where the design stands: name, file, part / net / sheet counts, board size and layers, placement and routing progress, and the session (read-only, root folder). |
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |

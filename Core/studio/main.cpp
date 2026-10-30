@@ -8,6 +8,9 @@
 //   --port <n>        port on 127.0.0.1 (default: any free port)
 //   --no-browser      print the address without opening a browser
 //   --library-dir     a KiCad library folder to search and place parts from (read-only; also SIEDA_LIBRARY_DIRS)
+//   --activity-log <dir> / --no-activity-log   where the dated activity log goes (default the per-user log folder):
+//                     the page's actions are logged as "user", an AI client's on /mcp by its name
+//   --lessons-dir <dir> an organisation's lesson folder (<name>.lesson.json); also SIEDA_LESSONS_DIRS
 //
 // Security: it listens on 127.0.0.1 only and every request needs the random token in the printed address (the page
 // sends it back as a header, which other web pages cannot add without a CORS preflight this server never answers);
@@ -212,6 +215,8 @@ int main(int argc, char** argv) {
 #endif
     options.allowedRoot = home ? std::string(home) : fs::current_path(ec).string();
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
+    options.lessonDirs = sieda::mcp::lessonDirsFromEnvironment();
+    options.activityLog = sieda::mcp::defaultActivityLogDir();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto value = [&]() -> std::string {
@@ -226,9 +231,12 @@ int main(int argc, char** argv) {
         else if (a == "--port") port = std::atoi(value().c_str());
         else if (a == "--no-browser") browser = false;
         else if (a == "--library-dir") options.libraryDirs.push_back(fs::absolute(value(), ec).string());
+        else if (a == "--lessons-dir") options.lessonDirs.push_back(fs::absolute(value(), ec).string());
+        else if (a == "--activity-log") options.activityLog = fs::absolute(value(), ec).string();
+        else if (a == "--no-activity-log") options.activityLog.clear();
         else if (a == "--version") return std::puts("sieda-studio " SIEDA_STUDIO_VERSION), 0;
         else {
-            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>]\n");
+            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>]\n");
             return 2;
         }
     }
@@ -298,6 +306,7 @@ int main(int argc, char** argv) {
             const Json& words = all.get(queryValue(r.query, "lang"));
             reply(client, 200, "application/json; charset=utf-8", words.isObject() ? words.dump() : "{}");
         } else if (r.method == "POST" && (r.path == "/rpc" || r.path == "/mcp")) {
+            server.setActor(r.path == "/rpc" ? "user" : "");  // the page is the user; /mcp is an AI client
             const std::string out = server.handle(r.body);
             reply(client, 200, "application/json", out.empty() ? "{}" : out);
         } else if (r.method == "POST" && r.path == "/quit") {

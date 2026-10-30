@@ -15,6 +15,8 @@ namespace sieda::mcp {
 
 /// Builds the tool table (McpTools.cpp).
 std::vector<McpTool> buildTools();
+/// project_lessons (Lessons.cpp): list / start / check / show / status / stop / validate.
+ToolOutput lessonsTool(McpServer& s, const Json& args);
 /// Loads a built-in example into `project` (Mcp.cpp). False for an unknown id.
 bool loadExample(Project& project, const std::string& id);
 

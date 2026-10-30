@@ -110,6 +110,10 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <dialog id="libDlg" style="width:min(900px,96vw)"><b data-en="Company Library">Company Library</b><div class="row"><label data-en="Folder">Folder</label><input id="libFolder" style="width:180px" onchange="libList()">
 <input id="libSearch" placeholder="Search parts" style="flex:1" oninput="libShow()"><button onclick="libPublish()" data-en="Publish Selected Part">Publish Selected Part</button></div>
 <div id="libRows" style="max-height:55vh;overflow:auto;margin-top:8px"></div><div class="row"><button class="primary" onclick="libDlg.close()">Done</button></div></dialog>
+<dialog id="lessonDlg" style="width:min(720px,96vw)"><b data-en="Lessons">Lessons</b><div class="row"><label data-en="Team folder">Team folder</label><input id="lessonFolder" style="flex:1" placeholder="team" onchange="lessons()"></div>
+<div id="lessonRows" style="max-height:40vh;overflow:auto;margin-top:8px"></div><div id="lessonStep" class="card" hidden></div>
+<div class="row"><button onclick="lessonDo('check')" data-en="Check My Work">Check My Work</button><button onclick="lessonDo('show')" data-en="Show Me">Show Me</button>
+<button onclick="lessonDo('stop')" data-en="Stop Lesson">Stop Lesson</button><button class="primary" onclick="lessonDlg.close()" data-en="Done">Done</button></div></dialog>
 <dialog id="areaDlg" style="width:min(900px,96vw)"><b data-en="Rooms and Partitions">Rooms and Partitions</b><div id="areaRows" style="max-height:60vh;overflow:auto"></div>
 <p id="areaErr" class="error"></p><div class="row"><button onclick="areaAdd('rooms')" data-en="Add Room">Add Room</button><button onclick="areaAdd('partitions')" data-en="Add Partition">Add Partition</button>
 <span style="flex:1"></span><button onclick="areaDlg.close()" data-en="Cancel">Cancel</button><button class="primary" onclick="areaApply()" data-en="Apply">Apply</button></div></dialog>
@@ -490,13 +494,38 @@ const MENUS={
  "Team":[["Company Library…",()=>companyLibrary()],["Compare with Another Version…",F("project_diff")],["Merge Versions…",F("project_merge")],
   ["Design Review…",F("project_review_comments")],["Add Review Comment…",F("project_review_comment")],["Approvals…",F("verify_approvals")],
   ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")]],
- "Help":[["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
+ "Help":[["Lessons…",()=>lessons()],["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
 function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
   it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");
  document.querySelectorAll("#menubar .mb").forEach(mb=>{const m=mb.querySelector("[data-m]").dataset.m;
   mb.querySelector("[data-m]").onclick=e=>{e.stopPropagation();const open=mb.classList.contains("open");closeMenus();if(!open)mb.classList.add("open");};
   mb.querySelector("[data-m]").onmouseenter=()=>{if(document.querySelector("#menubar .open")&&!mb.classList.contains("open")){closeMenus();mb.classList.add("open");}};
-  mb.querySelectorAll("[data-i]").forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();const it=MENUS[m][b.dataset.i];it[1](it[0]);});});}
+  mb.querySelectorAll("[data-i]").forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();const it=MENUS[m][b.dataset.i];noteMenuUse(m,it[0]);it[1](it[0]);});});}
+// Personalised shortcuts: a command picked from the menus again and again gets its shortcut shown, or (once) the offer
+// of a quick key Alt+1…9 of its own (localStorage "studio.quickKeys"; Help › Keyboard Shortcuts lists them).
+const KEYS={"Save":"Ctrl+S","Undo":"Ctrl+Z","Redo":"Ctrl+Shift+Z","Command Palette…":"Ctrl+K"};
+const jpref=(k,v)=>{if(v!==undefined){pref(k,JSON.stringify(v));return v;}try{return JSON.parse(pref(k)||"{}");}catch{return {};}};
+function noteMenuUse(m,label){const use=jpref("studio.menuUse"),id=m+"\t"+label,n=use[id]=(use[id]||0)+1;jpref("studio.menuUse",use);
+ const quick=jpref("studio.quickKeys"),mine=Object.keys(quick).find(d=>quick[d]===id);
+ if(KEYS[label]){if(n%3===0)status(tr("Tip: ")+KEYS[label]+" — "+tr(label));return;}
+ if(mine){if(n%5===0)status(tr("Tip: ")+"Alt+"+mine+" — "+tr(label));return;}
+ const asked=jpref("studio.quickAsked");if(n<4||asked[id])return;asked[id]=1;jpref("studio.quickAsked",asked);
+ const free=[1,2,3,4,5,6,7,8,9].find(d=>!quick[d]);if(!free)return;
+ if(confirm(tr("You often choose this from the menus:")+" "+tr(m)+" › "+tr(label)+"\n"+tr("Give it a shortcut?")+" Alt+"+free)){quick[free]=id;jpref("studio.quickKeys",quick);status("Alt+"+free+" — "+tr(label));}}
+function runQuickKey(d){const id=jpref("studio.quickKeys")[d];if(!id)return false;const [m,label]=id.split("\t"),it=(MENUS[m]||[]).find(x=>x&&x[0]===label);if(!it)return false;it[1](it[0]);return true;}
+// Lessons (MCP project_lessons): built-in ones, the organisation's (--lessons-dir) and a team folder's Lessons/.
+async function lessons(){$("lessonFolder").value=$("lessonFolder").value||pref("studio.lessonFolder");pref("studio.lessonFolder",$("lessonFolder").value);
+ const a={action:"list"};if($("lessonFolder").value)a.folder=$("lessonFolder").value;let r;try{r=(await run("project_lessons",a)).data;}catch(e){status(e.message,"error");return;}
+ $("lessonRows").innerHTML=`<table>${r.lessons.map(l=>`<tr><td><b>${esc(l.title)}</b><br><span class="info">${esc(l.summary||"")} · ${esc(tr(l.level||""))} · ${esc(tr(l.source))} · ${l.steps} ${esc(tr("steps"))}</span></td>
+  <td><button data-l="${esc(l.id)}">${esc(tr("Start"))}</button></td></tr>`).join("")}</table>`+(r.problems?`<p class="info">${esc(r.problems.join("; "))}</p>`:"");
+ $("lessonRows").querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{const s={action:"start",id:b.dataset.l};if($("lessonFolder").value)s.folder=$("lessonFolder").value;
+  try{lessonShow((await act("project_lessons",s)).data);}catch(e){status(e.message,"error");}});
+ lessonShow(r.current);if(!lessonDlg.open)lessonDlg.showModal();}
+function lessonShow(st){const el=$("lessonStep");if(!st){el.hidden=true;return;}el.hidden=false;
+ el.innerHTML=st.done?`<b>${esc(st.title)}</b><p>${esc(tr("Lesson complete: every step checked."))}</p>`:
+  `<b>${esc(st.title)} — ${esc(tr("Step"))} ${st.step} / ${st.steps}: ${esc(st.stepTitle||"")}</b><p>${esc(st.text)}</p>${st.hint?`<p class="info">${esc(st.hint)}</p>`:""}`+
+  (st.notYet?`<p class="error">${st.notYet.map(esc).join("<br>")}</p>`:st.passed?`<p>✓ ${esc(tr("Well done: next step."))}</p>`:"");}
+async function lessonDo(action){try{const r=(await act("project_lessons",{action})).data;if(action==="stop")$("lessonStep").hidden=true;else lessonShow(r);}catch(e){status(e.message,"error");}}
 function closeMenus(){document.querySelectorAll("#menubar .open").forEach(x=>x.classList.remove("open"));}
 addEventListener("click",closeMenus);
 async function redo(){await act("project_redo",{});}
@@ -529,7 +558,8 @@ async function palette(){if(!tools.length)await loadTools();
  $("dlgList").onclick=e=>{const v=e.target.dataset.v;if(v!==undefined){dlg.close();items[v].f();}};
  $("dlgOk").onclick=()=>{const first=$("dlgList").querySelector("li");dlg.close();if(first)items[first.dataset.v].f();};dlg.showModal();$("dlgInput").focus();}
 function shortcuts(){alert(tr("Keyboard Shortcuts")+"\n\nCtrl+K  "+tr("Command Palette…")+"\nCtrl+S  "+tr("Save")+"\nCtrl+Z  "+tr("Undo")+"\nCtrl+Shift+Z / Ctrl+Y  "+tr("Redo")+
- "\n\nSchematic: S select, W wire, L label, G ground, P place, R rotate, Delete\nBoard: S select, X route, D pair, V via, M measure, H highlight net, R rotate, F flip, K lock, Delete");}
+ "\n\nSchematic: S select, W wire, L label, G ground, P place, R rotate, Delete\nBoard: S select, X route, D pair, V via, M measure, H highlight net, R rotate, F flip, K lock, Delete"+
+ Object.entries(jpref("studio.quickKeys")).map(([d,id])=>"\nAlt+"+d+"  "+id.split("\t").map(tr).join(" › ")).join(""));}
 
 // Interface language (the macOS app's 20 tables, the keys Studio shows; GET /i18n) and theme (the macOS themes).
 const LANGS=[["en","English"],["zh-Hant","繁體中文"],["ko","한국어"],["zh-Hans","简体中文"],["ja","日本語"],["ms","Bahasa Melayu"],["nl","Nederlands"],["de","Deutsch"],
@@ -590,7 +620,7 @@ addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(documen
   if(k){if(e.key==="Escape"){pend=null;drag=null;hl=null;setTool(k,"select");}
    if(key==="r"&&sel[k])partOp("rotate");if((e.key==="Delete"||e.key==="Backspace")&&k==="sch"&&sel.sch)partOp("delete");
    const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",d:"pair",v:"via",s:"select",m:"measure"};if(keys[key])setTool(k,keys[key]);
-   if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();}if((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.shiftKey&&e.key.toLowerCase()==="z"))&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();redo();return;}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+   if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&/^Digit[1-9]$/.test(e.code)&&runQuickKey(e.code.slice(5))){e.preventDefault();return;}if((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.shiftKey&&e.key.toLowerCase()==="z"))&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();redo();return;}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
 panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
 panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||e.shiftKey||!!boardPart(pt)||!!wireAt(pt);};$("pcbView").onrelease=pcbRelease;

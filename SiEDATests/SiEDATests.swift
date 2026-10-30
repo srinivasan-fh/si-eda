@@ -6724,6 +6724,27 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(lines[1].contains("\tpcb_drc\tread\t"))
     }
 
+    func testActivityLogWritesOneFilePerDay() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("activity-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let day = Date(timeIntervalSince1970: 1_793_000_000)  // 2026-10-26 UTC
+        ActivityLog.append(action: "Move R1", fields: ["changed", "3 ms", "board.siedaproj"], in: folder, date: day)
+        ActivityLog.append(action: "Route\tnet", in: folder, date: day.addingTimeInterval(86_400))
+        ActivityLog.flush()
+        let files = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
+        XCTAssertEqual(files, ["2026-10-26.log", "2026-10-27.log"])
+        let first = try String(contentsOf: folder.appendingPathComponent(files[0]), encoding: .utf8)
+        XCTAssertTrue(first.hasSuffix("\tuser\tMove R1\tchanged\t3 ms\tboard.siedaproj\n"), first)
+        let second = try String(contentsOf: folder.appendingPathComponent(files[1]), encoding: .utf8)
+        XCTAssertTrue(second.hasSuffix("\tuser\tRoute net\n"), second)
+    }
+
+    func testShortcutSymbolsFollowTheMenuOrder() {
+        XCTAssertEqual(ShortcutStore.symbols("cmd+shift+r"), "⇧⌘R")
+        XCTAssertEqual(ShortcutStore.symbols("ctrl+opt+3"), "⌃⌥3")
+        XCTAssertEqual(ShortcutStore.symbols(""), "")
+    }
+
     func testUpdateVersionsCompareNumerically() {
         XCTAssertTrue(UpdateChecker.isNewer("v1.10", than: "1.9"))
         XCTAssertTrue(UpdateChecker.isNewer("1.2.0", than: "1.2.0-beta"))
