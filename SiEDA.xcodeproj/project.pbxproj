@@ -86,6 +86,7 @@
 		5DC08A9929AC1D5F72AD3527 = {isa = PBXBuildFile; fileRef = A45E448C357B4A89C66CFE33; };
 		5DD2CFCE7C09FA1BA6240814 = {isa = PBXBuildFile; fileRef = 1B5938541226E7FE9A36D9D2; };
 		5DD9C3CF50EE20D940C59000 = {isa = PBXBuildFile; fileRef = 8A209C69A46FDB8579933968; };
+		5E3F699AEE62CF5C0E9F78C4 = {isa = PBXBuildFile; fileRef = DBF3BDF14D6BAF8219EC6911; };
 		60AE10143DCFA6F2E918863A = {isa = PBXBuildFile; fileRef = 921B2819EF3E6FB02EB71875; };
 		614BF00B3F1BE2ADA8F7F963 = {isa = PBXBuildFile; fileRef = 25D8A72BCBE227BB87A6F906; };
 		61C5665FE4659BE3BACF1121 = {isa = PBXBuildFile; fileRef = 2CB815EC0203E93D606FDC12; };
@@ -523,6 +524,7 @@
 		D8A1F587F4C663F44F8E70B7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SignalIntegrity.hpp; sourceTree = "<group>"; };
 		DB4F7DFDEFEBDCC2273D77C2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptStudioView.swift; sourceTree = "<group>"; };
 		DB5FB3116B534225DB0915D6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicAppearanceViews.swift; sourceTree = "<group>"; };
+		DBF3BDF14D6BAF8219EC6911 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Lessons.cpp; sourceTree = "<group>"; };
 		DCA642B6ED42847C57E4E461 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSimulation.swift; sourceTree = "<group>"; };
 		DCEA55FA55452583896F5342 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c_autoroute.cpp; sourceTree = "<group>"; };
 		DD82CA7E1E84D65F143C6DAB = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = make_dataset.py; sourceTree = "<group>"; };
@@ -850,6 +852,7 @@
 				3B8AAF03382758779EE08604,
 				4948511C3F66BCF11536263B,
 				27476DDBA2D0F9C1BF663B95,
+				DBF3BDF14D6BAF8219EC6911,
 				E0E3155DFC35436C47F59BCE,
 				E07F7BBC0D69042C454EADE6,
 				22CD15B1A2CEBA2CB2CFE507,
@@ -1421,6 +1424,7 @@
 				3D5D45FB5BEA3347870ADE14,
 				8A31929501458CDAC3444CA1,
 				39E82F038A0777A2DD3C329A,
+				5E3F699AEE62CF5C0E9F78C4,
 				2F37DBCC1B97825D126178A5,
 				0387ADBBCD02EF68D164ABC6,
 				DC5EB9FE2D3D603EED35F32D,
