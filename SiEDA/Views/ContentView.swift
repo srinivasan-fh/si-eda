@@ -123,7 +123,7 @@ struct ContentView: View {
     /// The heavy workspaces (`keptAlive`), once opened, stay alive behind the one on screen: switching back shows them
     /// at once instead of building the editor, its canvas or 3D scene again. A hidden one is disabled (no shortcuts), takes no
     /// clicks and, through `editorActive`, draws nothing and ignores the mouse, keys, zoom requests and focus.
-    /// The 3D scenes stop rendering, animating and rebuilding while hidden. Every other workspace is built when shown.
+    /// The 3D scenes stop rendering, animating and rebuilding while hidden; the BOM rebuilds its report when shown.
     @State private var keptEditors: [Workspace] = []
 
     private var workspaceView: some View {
@@ -150,9 +150,9 @@ struct ContentView: View {
         .onChange(of: store.workspace) { _, now in keep(now) }
     }
 
-    /// The workspaces kept alive between switches: the canvases, the 3D scene (lights, shadows, the board's mesh) and
-    /// the simulation and check views. The Prompt Studio, library and BOM are light and built when shown.
-    static let keptAlive: Set<Workspace> = [.schematic, .pcb, .threeD, .simulation, .checks]
+    /// The workspaces kept alive between switches: every one (canvases, the 3D scene with its lights, shadows and mesh,
+    /// simulation, checks, Prompt Studio, the library editor and the BOM).
+    static let keptAlive = Set(Workspace.allCases)
 
     private func keep(_ workspace: Workspace) {
         if Self.keptAlive.contains(workspace), !keptEditors.contains(workspace) { keptEditors.append(workspace) }

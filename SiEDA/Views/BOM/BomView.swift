@@ -5,6 +5,8 @@ import SwiftUI
 /// project and flows into the BOM / assembly CSVs and the fabrication package.
 struct BomView: View {
     @EnvironmentObject private var store: DesignStore
+    /// False while kept behind another workspace (ContentView): the report waits and is rebuilt once when shown.
+    @Environment(\.editorActive) private var active
     @State private var report = BomReport.empty
     @State private var filter = Filter.all
     @State private var showLivePricing = false
@@ -82,7 +84,7 @@ struct BomView: View {
             }
         }
         .background(Theme.navy)
-        .task(id: store.revision) { report = store.bomReport }
+        .task(id: active ? store.revision : -1) { if active { report = store.bomReport } }
         .sheet(isPresented: $showLivePricing) { BomLivePricingView(report: report).environmentObject(store) }
     }
 

@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 struct ComponentLibraryView: View {
     @EnvironmentObject private var store: DesignStore
     @EnvironmentObject private var settings: AISettings
+    /// False while kept behind another workspace (ContentView); shown again, it opens a part asked for meanwhile.
+    @Environment(\.editorActive) private var active
 
     @State private var selectedId: String?
     @State private var draft = CustomPartSpec()
@@ -91,14 +93,9 @@ struct ComponentLibraryView: View {
         }
         .onAppear {
             loadRobotKits()
-            if let focus = store.libraryFocusPartId, let part = store.snapshot.customParts.first(where: { $0.id == focus }) {
-                load(part)
-                store.libraryFocusPartId = nil
-            } else if draft.pins.isEmpty, let first = store.snapshot.customParts.first {
-                load(first)
-            }
-            refreshPreview()
+            openFocusedPart()
         }
+        .onChange(of: active) { _, shown in if shown { openFocusedPart() } }
         .onChange(of: draft) { _, _ in
             // An arranged symbol follows the pin list: new pins join the shorter side, removed pins leave it.
             if draft.symbolLayout != nil {
@@ -607,6 +604,17 @@ struct ComponentLibraryView: View {
         case .success(let editable): footprintSource = editable
         case .failure(let error): footprintError = error.localizedDescription
         }
+    }
+
+    /// The part another view asked to edit (`libraryFocusPartId`), else the first one when nothing is loaded yet.
+    private func openFocusedPart() {
+        if let focus = store.libraryFocusPartId, let part = store.snapshot.customParts.first(where: { $0.id == focus }) {
+            load(part)
+            store.libraryFocusPartId = nil
+        } else if draft.pins.isEmpty, let first = store.snapshot.customParts.first {
+            load(first)
+        }
+        refreshPreview()
     }
 
     private func load(_ part: CustomPartInfo) {
