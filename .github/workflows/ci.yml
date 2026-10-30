@@ -135,6 +135,14 @@ jobs:
           set -o pipefail
           : > xcodebuild.log
           # If the live-window test reports a hang, sample the stuck app so the log shows where the main thread is.
+          # Temporary: sample the schematic / PCB switch loop of testSchematicAndPcbSwitchProfile.
+          ( while sleep 0.5; do
+              if grep -q "\[SwitchProfile\] sampling" xcodebuild.log 2>/dev/null; then
+                pid=$(pgrep -x SiEDA | head -1)
+                [ -n "$pid" ] && sample "$pid" 8 -mayDie -file switch-sample.txt >/dev/null 2>&1
+                break
+              fi
+            done ) &
           ( while sleep 2; do
               if grep -q "\[LiveWindow\] HUNG" xcodebuild.log 2>/dev/null; then
                 pid=$(pgrep -x SiEDA | head -1)
@@ -158,6 +166,14 @@ jobs:
           # (Whole-module compilation above makes the compiler report every type error in one run.)
           awk '{ gsub(/%/, "%25"); buf = buf $0 "%0A"; if (NR % 6 == 0) { print "::error title=xcodebuild::" buf; buf = "" } }
                END { if (buf != "") print "::error title=xcodebuild::" buf }' errors.txt
+      - name: Schematic / PCB switch profile (temporary)
+        if: always()
+        run: |
+          grep "\[SwitchProfile\]" xcodebuild.log || true
+          [ -f switch-sample.txt ] || { echo "No switch sample."; exit 0; }
+          awk '/^Sort by top of stack/{on=1} on' switch-sample.txt | head -60
+          # The main thread's heaviest paths, cut to frames with 30+ samples so the tree stays readable.
+          awk '/^Call graph:/{on=1} on' switch-sample.txt | awk '{ if (match($0, /[0-9]+ /)) { n = substr($0, RSTART, RLENGTH) + 0; if (n >= 30) print } }' | cut -c1-220 | head -400
       - name: Main-thread sample of a hang
         if: failure()
         run: |

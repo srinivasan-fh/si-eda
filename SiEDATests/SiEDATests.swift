@@ -843,6 +843,47 @@ final class LiveWindowTests: XCTestCase {
         }
         progress.set("done")
     }
+
+    /// Times switches into the schematic and the PCB editor with a placed design, then switches between them for
+    /// a while with "[SwitchProfile] sampling" printed first: CI samples the main thread meanwhile (ci.yml).
+    func testSchematicAndPcbSwitchProfile() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
+        let root = ContentView()
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(AgentOrchestrator())
+            .documentWindowFrame()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: root)
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        spin(0.5)
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        store.autoPlace(all: true)
+        spin(0.5)
+        func time(_ workspace: Workspace) -> Double {
+            let start = CFAbsoluteTimeGetCurrent()
+            store.workspace = workspace
+            spin(0.02)
+            return (CFAbsoluteTimeGetCurrent() - start) * 1000
+        }
+        for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
+            print(String(format: "[SwitchProfile] %@: %.0f ms", workspace.title, time(workspace)))
+        }
+        print("[SwitchProfile] sampling")
+        fflush(stdout)
+        let end = Date().addingTimeInterval(12)
+        var round = 0
+        while Date() < end {
+            _ = time(round % 2 == 0 ? .pcb : .schematic)
+            round += 1
+        }
+        print("[SwitchProfile] done after \(round) switches")
+    }
 }
 
 /// The three basic user flows driven through `DesignStore`, the same entry points the editors' clicks call:
