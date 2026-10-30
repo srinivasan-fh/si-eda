@@ -139,7 +139,7 @@ jobs:
           ( while sleep 0.5; do
               if grep -q "\[SwitchProfile\] sampling" xcodebuild.log 2>/dev/null; then
                 pid=$(pgrep -x SiEDA | head -1)
-                [ -n "$pid" ] && sample "$pid" 8 -mayDie -file switch-sample.txt >/dev/null 2>&1
+                [ -n "$pid" ] && sample "$pid" 20 -mayDie -file switch-sample.txt >/dev/null 2>&1
                 break
               fi
             done ) &
@@ -171,9 +171,13 @@ jobs:
         run: |
           grep "\[SwitchProfile\]" xcodebuild.log || true
           [ -f switch-sample.txt ] || { echo "No switch sample."; exit 0; }
-          awk '/^Sort by top of stack/{on=1} on' switch-sample.txt | head -60
-          # The main thread's heaviest paths, cut to frames with 30+ samples so the tree stays readable.
-          awk '/^Call graph:/{on=1} on' switch-sample.txt | awk '{ if (match($0, /[0-9]+ /)) { n = substr($0, RSTART, RLENGTH) + 0; if (n >= 30) print } }' | cut -c1-220 | head -400
+          # Inclusive main-thread samples per frame of the app (and per SwiftUI / AppKit frame), heaviest first.
+          awk '/Main Thread/{on=1; next} on && /Thread_[0-9]+/{on=0} on' switch-sample.txt \
+            | sed -E 's/^[ +!:|]+//' \
+            | awk '{ n = $1 + 0; $1 = ""; sub(/^ /, ""); sub(/ +\+ [0-9]+ +\[0x[0-9a-f]+\].*/, ""); if (n > m[$0]) m[$0] = n }
+                   END { for (k in m) print m[k] "\t" k }' > frames.txt
+          echo "== app frames"; grep "SiEDA" frames.txt | sort -rn | head -80 | cut -c1-240
+          echo "== SwiftUI / AppKit frames"; grep -E "SwiftUI|AppKit|AttributeGraph" frames.txt | sort -rn | head -60 | cut -c1-240
       - name: Main-thread sample of a hang
         if: failure()
         run: |

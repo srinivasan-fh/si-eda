@@ -876,7 +876,7 @@ final class LiveWindowTests: XCTestCase {
         }
         print("[SwitchProfile] sampling")
         fflush(stdout)
-        let end = Date().addingTimeInterval(12)
+        let end = Date().addingTimeInterval(45)  // xcodebuild shows the marker some seconds late
         var round = 0
         while Date() < end {
             _ = time(round % 2 == 0 ? .pcb : .schematic)
