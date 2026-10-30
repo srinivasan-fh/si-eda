@@ -2,7 +2,7 @@
 //
 // Newline-delimited JSON-RPC 2.0 on stdin / stdout (one message per line); logs go to stderr only.
 //
-//   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir> …]
+//   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir> …] [--activity-log <dir> | --no-activity-log]
 //   sieda-mcp --diff <old> <new> [--json] what changed between two project files (exit 1 when they differ)
 //   sieda-mcp --git-diff <git's 7 args>  the same as Git's external diff driver (docs/TEAM.md)
 //   sieda-mcp --merge <base> <ours> <theirs>  three-way merge into <ours> (Git's merge driver; exit 1 on conflicts)
@@ -18,6 +18,9 @@
 //   --tools <list>     comma-separated groups / tool names / prefixes* to offer (default all), e.g. "project,schematic,pcb"
 //   --docs <dir>       folder of the Markdown guides served as resources (default: the repository's docs/)
 //   --library-dir <dir> a KiCad library folder (symbols / footprints) to search and place from, read-only; repeatable
+//   --activity-log <dir> folder of the activity log (one <UTC date>.log per day: every tool call, by which AI client);
+//                      default the per-user log folder (SIEDA_ACTIVITY_LOG; "off" = none)
+//   --no-activity-log  log nothing
 //                      (also SIEDA_LIBRARY_DIRS, separated like PATH)
 #include <cstdio>
 #include <cstdlib>
@@ -43,7 +46,7 @@ namespace fs = std::filesystem;
 namespace {
 void usage() {
     std::fprintf(stderr,
-                 "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir>]\n"
+                 "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log]\n"
                  "       sieda-mcp --connect http://127.0.0.1:39717/mcp [--token <t>] [--timeout <s>]\n"
                  "       sieda-mcp --diff <old.siedaproj> <new.siedaproj> [--json]\n"
                  "       sieda-mcp --merge <base> <ours> <theirs>   (writes the result into <ours>)\n"
@@ -104,6 +107,7 @@ int main(int argc, char** argv) {
     options.allowedRoot = fs::current_path(ec).string();
     options.docsDir = defaultDocsDir(argv[0]);
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
+    options.activityLog = sieda::mcp::defaultActivityLogDir();
     if (argc >= 4 && std::strcmp(argv[1], "--diff") == 0)
         return diff(argv[2], argv[3], argc >= 5 && std::strcmp(argv[4], "--json") == 0, nullptr);
     if (argc >= 5 && std::strcmp(argv[1], "--merge") == 0) return merge(argv[2], argv[3], argv[4]);
@@ -134,6 +138,10 @@ int main(int argc, char** argv) {
             options.docsDir = value();
         } else if (a == "--library-dir") {
             options.libraryDirs.push_back(fs::absolute(value(), ec).string());
+        } else if (a == "--activity-log") {
+            options.activityLog = fs::absolute(value(), ec).string();
+        } else if (a == "--no-activity-log") {
+            options.activityLog.clear();
         } else if (a == "--connect") {
             connectUrl = value();
         } else if (a == "--token") {

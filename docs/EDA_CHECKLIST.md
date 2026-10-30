@@ -259,7 +259,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | ➕ Every extracted value cites its source and confidence | ✅ | each datasheet pin carries its page and a 0 – 1 confidence; the import notes list the pins below 70 % |
 | P1 | Explain violations, suggested fixes, datasheet drafts, alternates, NL edits, review lists, change summaries | ✅ | |
 | P2 | Draft schematics, placement, routing hints, protection, BOM optimisation, review, agent interface | ✅ | MCP |
-| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model, AI audit log of every live-endpoint tool call ✅; org policies, knowledge bases ⏳ |
+| P3 | Org policies, audit of AI use, private models, knowledge bases | 🟡 | private on-device model, AI audit log of every live-endpoint tool call, dated activity log of every AI and user action (MCP, Studio, app) ✅; org policies, knowledge bases ⏳ |
 | — | Safety: no silent net changes, diffs, re-run checks, fail safe offline | ✅ | `schematic_connect` refuses merges without `merge` |
 
 ## 15. Collaboration, versioning, review

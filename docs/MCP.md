@@ -278,6 +278,15 @@ local agent host below) instead.
   - *Undo*: every change the AI makes is one undo step, and `project_open` never discards unsaved work.
   - *Same sandbox*: files only inside the allowed folder (the open document's folder unless you pick one); read-only
     mode as above.
+- **Activity log.** Every tool call is written to a plain-text log, one file per UTC day (`2026-10-30.log`), so you
+  can see how AI clients (and people) build boards and improve SiEDA from it. Each line is tab-separated: time, who
+  (`ai:<client> <version>` from the client's `initialize`, `ai` when it gives no name, `user` for Studio's own page and
+  the macOS app's edits), the tool, the outcome (`changed` = the design changed, `ok`, `error`), how long it took, the
+  project file, the arguments (clipped to 2000 characters) and the start of the result (400). The log stays on this
+  computer: `~/Library/Logs/SiEDA/Activity` (macOS), `~/.local/state/sieda/activity` or `$XDG_STATE_HOME/sieda/activity`
+  (Linux), `%LOCALAPPDATA%\SiEDA\Logs\Activity` (Windows). `--activity-log <dir>` moves it, `--no-activity-log` or
+  `SIEDA_ACTIVITY_LOG=off` turns it off (`sieda-mcp` and `sieda-studio`); in the app, Settings → MCP → Keep Activity Log
+  (on by default) and Show Activity Logs. A server made through the C API logs only with `"activityLog": "<dir>"`.
 - **Bounded answers.** Waveforms, sweeps and curves are decimated (`maxPoints`), long outputs are truncated inline
   (give `path` to write them whole), violation lists are capped at 100 (errors first).
 

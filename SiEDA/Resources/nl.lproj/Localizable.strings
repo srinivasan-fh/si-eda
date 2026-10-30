@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Een vrijgegeven productiepakket vergelijken met dat van dit ontwerp, laag voor laag en gat voor gat";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "Kies een vrijgegeven productiepakket (map of .zip) om met dit ontwerp te vergelijken.";
 "The package matches this design." = "Het pakket komt overeen met dit ontwerp.";
+"Keep Activity Log" = "Activiteitenlogboek bijhouden";
+"Show Activity Logs" = "Activiteitenlogboeken tonen";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "Eén tekstbestand per dag met alle toolaanroepen van elke AI-client en uw eigen bewerkingen, alleen op deze Mac";

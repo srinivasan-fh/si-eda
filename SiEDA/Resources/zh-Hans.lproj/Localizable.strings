@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "逐层、逐孔比较已发布的制造包与本设计的制造包";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "选择一个已发布的制造包（文件夹或 .zip）与本设计进行比较。";
 "The package matches this design." = "制造包与本设计一致。";
+"Keep Activity Log" = "保留活动日志";
+"Show Activity Logs" = "显示活动日志";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "每天一个文本文件,记录每个 AI 客户端的工具调用和您自己的编辑,仅保存在这台 Mac 上";

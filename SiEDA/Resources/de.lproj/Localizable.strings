@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Ein freigegebenes Fertigungspaket mit dem dieses Entwurfs vergleichen, Lage für Lage und Bohrung für Bohrung";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "Ein freigegebenes Fertigungspaket (Ordner oder .zip) zum Vergleich mit diesem Entwurf auswählen.";
 "The package matches this design." = "Das Paket stimmt mit diesem Entwurf überein.";
+"Keep Activity Log" = "Aktivitätsprotokoll führen";
+"Show Activity Logs" = "Aktivitätsprotokolle anzeigen";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "Eine Textdatei pro Tag mit allen Tool-Aufrufen jedes KI-Clients und Ihren eigenen Änderungen, nur auf diesem Mac";

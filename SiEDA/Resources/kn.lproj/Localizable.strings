@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "ಬಿಡುಗಡೆಯಾದ ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಪ್ಯಾಕೇಜ್ ಅನ್ನು ಈ ವಿನ್ಯಾಸದ ಪ್ಯಾಕೇಜ್‌ನೊಂದಿಗೆ ಪದರ ಪದರವಾಗಿ ಮತ್ತು ರಂಧ್ರ ರಂಧ್ರವಾಗಿ ಹೋಲಿಸಿ";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "ಈ ವಿನ್ಯಾಸದೊಂದಿಗೆ ಹೋಲಿಸಲು ಬಿಡುಗಡೆಯಾದ ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಪ್ಯಾಕೇಜ್ (ಫೋಲ್ಡರ್ ಅಥವಾ .zip) ಆಯ್ಕೆಮಾಡಿ.";
 "The package matches this design." = "ಪ್ಯಾಕೇಜ್ ಈ ವಿನ್ಯಾಸಕ್ಕೆ ಹೊಂದುತ್ತದೆ.";
+"Keep Activity Log" = "ಚಟುವಟಿಕೆ ಲಾಗ್ ಇರಿಸಿ";
+"Show Activity Logs" = "ಚಟುವಟಿಕೆ ಲಾಗ್‌ಗಳನ್ನು ತೋರಿಸಿ";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "ಪ್ರತಿ AI ಕ್ಲೈಂಟ್‌ನ ಟೂಲ್ ಕರೆಗಳು ಮತ್ತು ನಿಮ್ಮ ಸ್ವಂತ ಸಂಪಾದನೆಗಳ ದಿನಕ್ಕೆ ಒಂದು ಪಠ್ಯ ಫೈಲ್, ಈ Mac ನಲ್ಲಿ ಮಾತ್ರ";

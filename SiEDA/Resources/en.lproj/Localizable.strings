@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "Compare a released fabrication package with this design's, layer by layer and hole by hole";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "Choose a released fabrication package (its folder or .zip) to compare with this design.";
 "The package matches this design." = "The package matches this design.";
+"Keep Activity Log" = "Keep Activity Log";
+"Show Activity Logs" = "Show Activity Logs";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "One text file per day of every AI client's tool calls and your own edits, on this Mac only";

@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "リリース済みの製造パッケージをこの設計のものとレイヤーごと・穴ごとに比較します";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "この設計と比較するリリース済みの製造パッケージ（フォルダーまたは .zip）を選択してください。";
 "The package matches this design." = "パッケージはこの設計と一致しています。";
+"Keep Activity Log" = "アクティビティログを記録";
+"Show Activity Logs" = "アクティビティログを表示";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "各AIクライアントのツール呼び出しとご自身の編集を1日1つのテキストファイルに記録(このMacのみ)";

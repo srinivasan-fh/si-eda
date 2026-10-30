@@ -1933,3 +1933,6 @@
 "Compare a released fabrication package with this design's, layer by layer and hole by hole" = "ପ୍ରକାଶିତ ଫ୍ୟାବ୍ରିକେସନ ପ୍ୟାକେଜକୁ ଏହି ଡିଜାଇନର ପ୍ୟାକେଜ ସହ ସ୍ତର ପରେ ସ୍ତର ଏବଂ ଛିଦ୍ର ପରେ ଛିଦ୍ର ତୁଳନା କରନ୍ତୁ";
 "Choose a released fabrication package (its folder or .zip) to compare with this design." = "ଏହି ଡିଜାଇନ ସହ ତୁଳନା ପାଇଁ ଏକ ପ୍ରକାଶିତ ଫ୍ୟାବ୍ରିକେସନ ପ୍ୟାକେଜ (ଫୋଲ୍ଡର କିମ୍ବା .zip) ବାଛନ୍ତୁ।";
 "The package matches this design." = "ପ୍ୟାକେଜ ଏହି ଡିଜାଇନ ସହ ମେଳ ଖାଉଛି।";
+"Keep Activity Log" = "କାର୍ଯ୍ୟକଳାପ ଲଗ୍ ରଖନ୍ତୁ";
+"Show Activity Logs" = "କାର୍ଯ୍ୟକଳାପ ଲଗ୍ ଦେଖାନ୍ତୁ";
+"One text file per day of every AI client's tool calls and your own edits, on this Mac only" = "ପ୍ରତ୍ୟେକ AI କ୍ଲାଏଣ୍ଟର ଟୁଲ୍ କଲ୍ ଏବଂ ଆପଣଙ୍କ ନିଜ ସମ୍ପାଦନାର ଦିନକୁ ଗୋଟିଏ ଟେକ୍ସଟ୍ ଫାଇଲ୍, କେବଳ ଏହି Mac ରେ";

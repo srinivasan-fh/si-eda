@@ -7,6 +7,7 @@ struct MCPSettingsView: View {
     @ObservedObject private var mcp = MCPLiveServer.shared
     @State private var showToken = false
     @State private var portDraft = ""
+    @AppStorage(ActivityLog.enabledKey) private var keepActivityLog = true
 
     var body: some View {
         Form {
@@ -46,6 +47,10 @@ struct MCPSettingsView: View {
             Button("Show AI Audit Log") { NSWorkspace.shared.activateFileViewerSelecting([AIAudit.file]) }
                 .disabled(!FileManager.default.fileExists(atPath: AIAudit.file.path))
                 .help("Every tool an AI client called here: time, tool, whether it changed the design, the project")
+            Toggle("Keep Activity Log", isOn: $keepActivityLog)
+                .help("One text file per day of every AI client's tool calls and your own edits, on this Mac only")
+            Button("Show Activity Logs") { NSWorkspace.shared.activateFileViewerSelecting([ActivityLog.folder]) }
+                .disabled(!FileManager.default.fileExists(atPath: ActivityLog.folder.path))
         } header: {
             Text("Live server")
         }

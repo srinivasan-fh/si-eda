@@ -2,10 +2,15 @@
 // the built-in examples. The tools are in McpTools.cpp, the renderer in McpRender.cpp. See docs/MCP.md.
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -150,6 +155,7 @@ McpOptions McpOptions::fromJson(const Json& j) {
     o.allowedRoot = j.get("allowedRoot").asString("");
     o.docsDir = j.get("docsDir").asString("");
     o.serverName = j.get("serverName").asString("sieda");
+    o.activityLog = j.get("activityLog").asString("");
     if (o.serverName.empty()) o.serverName = "sieda";
     if (j.get("libraryDirs").isArray())
         for (const auto& d : j.get("libraryDirs").items())
@@ -172,6 +178,7 @@ Json McpOptions::toJson() const {
     j["libraryDirs"] = dirs;
     j["docsDir"] = docsDir;
     j["serverName"] = serverName;
+    if (!activityLog.empty()) j["activityLog"] = activityLog;
     return j;
 }
 
@@ -867,7 +874,87 @@ Json McpServer::toolsListJson() const {
     return r;
 }
 
+// ---- activity log -------------------------------------------------------------------------------------------------
+
+std::string defaultActivityLogDir() {
+    if (const char* env = std::getenv("SIEDA_ACTIVITY_LOG")) return std::string(env) == "off" ? "" : env;
+#ifdef _WIN32
+    if (const char* local = std::getenv("LOCALAPPDATA")) return (fs::path(local) / "SiEDA" / "Logs" / "Activity").string();
+    return "";
+#else
+    const char* home = std::getenv("HOME");
+#ifdef __APPLE__
+    return home ? (fs::path(home) / "Library" / "Logs" / "SiEDA" / "Activity").string() : "";
+#else
+    if (const char* state = std::getenv("XDG_STATE_HOME"); state && *state) return (fs::path(state) / "sieda" / "activity").string();
+    return home ? (fs::path(home) / ".local" / "state" / "sieda" / "activity").string() : "";
+#endif
+#endif
+}
+
+void appendActivity(const std::string& dir, const std::string& actor, const std::string& action,
+                    const std::vector<std::string>& fields) {
+    if (dir.empty()) return;
+    static std::mutex lock;
+    try {
+        const auto now = std::chrono::system_clock::now();
+        const std::time_t t = std::chrono::system_clock::to_time_t(now);
+        std::tm tm{};
+#ifdef _WIN32
+        gmtime_s(&tm, &t);
+#else
+        gmtime_r(&t, &tm);
+#endif
+        char day[16], stamp[40];
+        std::strftime(day, sizeof day, "%Y-%m-%d", &tm);
+        const int ms = int(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000);
+        std::snprintf(stamp, sizeof stamp, "%sT%02d:%02d:%02d.%03dZ", day, tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
+        auto clean = [](std::string s) {
+            for (char& c : s)
+                if (c == '\t' || c == '\n' || c == '\r') c = ' ';
+            return s;
+        };
+        std::string line = std::string(stamp) + "\t" + clean(actor) + "\t" + clean(action);
+        for (const auto& f : fields) line += "\t" + clean(f);
+        line += "\n";
+        std::lock_guard<std::mutex> guard(lock);
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        const fs::path file = fs::path(dir) / (std::string(day) + ".log");
+        if (fs::is_symlink(file, ec)) return;  // never written through a link
+        std::ofstream(file, std::ios::binary | std::ios::app) << line;
+    } catch (...) {
+    }
+}
+
+// Every tool call goes into the activity log: who (the AI client or the host's user), the tool, the project, the
+// outcome ("changed" = the design changed), the time it took, the arguments and the start of the result (clipped).
 Json McpServer::callTool(const std::string& name, const Json& arguments) {
+    if (options_.activityLog.empty()) return callToolUnlogged(name, arguments);
+    const auto t0 = std::chrono::steady_clock::now();
+    auto clip = [](std::string s, size_t n) { return s.size() > n ? s.substr(0, n) + "…" : s; };
+    auto ms = [&] {
+        return std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count()) + " ms";
+    };
+    const std::string who = actor_.empty() ? client_ : actor_;
+    const std::string file = projectPath_.empty() ? "-" : fs::path(projectPath_).filename().string();
+    const std::string args = clip(arguments.isNull() ? "{}" : arguments.dump(), 2000);
+    try {
+        Json r = callToolUnlogged(name, arguments);
+        std::string outcome = r.get("isError").asBool(false) ? "error" : "ok";
+        if (outcome == "ok" && lastChanged_) outcome = "changed";
+        std::string text;
+        if (r.get("content").isArray() && r.get("content").size() > 0) text = r.get("content").items()[0].get("text").asString("");
+        appendActivity(options_.activityLog, who, name, {outcome, ms(), file, args, clip(text, 400)});
+        return r;
+    } catch (const std::exception& e) {
+        appendActivity(options_.activityLog, who, name, {"error", ms(), file, args, e.what()});
+        throw;
+    }
+}
+
+Json McpServer::callToolUnlogged(const std::string& name, const Json& arguments) {
+    lastChanged_ = false;
     const McpTool* tool = nullptr;
     for (const auto& t : mcpTools())
         if (t.name == name && toolEnabled(t)) tool = &t;
@@ -910,6 +997,7 @@ Json McpServer::callTool(const std::string& name, const Json& arguments) {
         }
     }
     if ((name == "project_save" || name == "project_save_as") && !options_.readOnly) saveUndoHistory();
+    lastChanged_ = changed;
     if (changed && onChange_) onChange_(name);
     Json content = Json::array();
     content.push(textContent(out.data.isString() ? out.data.asString() : out.data.dump()));
@@ -1316,6 +1404,11 @@ Json McpServer::handleMessage(const Json& msg, bool* respond) {
                                                                                                  : std::string(kProtocolVersion);
             result = Json::object();
             result["protocolVersion"] = protocol_;
+            if (actor_.empty()) {
+                const Json& ci = params.get("clientInfo");
+                const std::string n = ci.get("name").asString(""), v = ci.get("version").asString("");
+                client_ = n.empty() ? "ai" : "ai:" + n.substr(0, 80) + (v.empty() ? "" : " " + v.substr(0, 40));
+            }
             Json caps = Json::object();
             Json tools = Json::object();
             tools["listChanged"] = false;

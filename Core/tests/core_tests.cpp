@@ -20650,6 +20650,46 @@ TEST(mcp_initialize_handshake) {
     CHECK(s.handle("   ").empty());
 }
 
+// Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
+// the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_activity_log_records_who_did_what) {
+    const auto root = mcpRoot("activity");
+    mcp::McpOptions o = mcpOptions(root);
+    o.activityLog = (root / "logs").string();
+    mcp::McpServer s(o);
+    Json params = Json::object();
+    params["protocolVersion"] = "2025-06-18";
+    Json client = Json::object();
+    client["name"] = "agent-x";
+    client["version"] = "2";
+    params["clientInfo"] = client;
+    mcpRequest(s, "initialize", params);
+    Json args = Json::object();
+    args["id"] = "transistor_switch";
+    CHECK(!s.callTool("project_load_example", args).get("isError").asBool(true));
+    CHECK(!s.callTool("project_summary", Json::object()).get("isError").asBool(true));
+    s.setActor("user");
+    CHECK(s.callTool("schematic_move_component", Json::parse(R"({"ref":"NOPE","x":0,"y":0})")).get("isError").asBool(false));
+    std::vector<std::string> lines;
+    for (const auto& e : std::filesystem::directory_iterator(root / "logs")) {
+        CHECK(e.path().extension() == ".log");
+        CHECK(e.path().stem().string().size() == 10);  // YYYY-MM-DD
+        std::ifstream in(e.path());
+        for (std::string l; std::getline(in, l);) lines.push_back(l);
+    }
+    CHECK(lines.size() == 3);
+    if (lines.size() == 3) {
+        CHECK(lines[0].find("\tai:agent-x 2\tproject_load_example\tchanged\t") != std::string::npos);
+        CHECK(lines[0].find("transistor_switch") != std::string::npos);
+        CHECK(lines[1].find("\tai:agent-x 2\tproject_summary\tok\t") != std::string::npos);
+        CHECK(lines[2].find("\tuser\tschematic_move_component\terror\t") != std::string::npos);
+    }
+    // No folder: nothing is written.
+    mcp::McpServer quiet(mcpOptions(root));
+    quiet.callTool("project_summary", Json::object());
+    CHECK(std::distance(std::filesystem::directory_iterator(root / "logs"), {}) == 1);
+}
+
 TEST(mcp_tools_list_schemas) {
     mcp::McpServer s;
     Json r = mcpRequest(s, "tools/list");
