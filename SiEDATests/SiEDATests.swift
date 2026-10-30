@@ -1625,7 +1625,7 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
         // + the robotics spares' LPC1769 (CNC / 3D-printer controllers) and the general-purpose catalog's RP2350B.
-        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 12)
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 13)
         // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6, the robotics spares'
         // STM32F446RET6, STM32G474RET6 and STM32H723VGT6, and 11 general-purpose STM32s.
         // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
@@ -3174,7 +3174,7 @@ final class PartsCatalogTests: XCTestCase {
                      "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB",
                      "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
                      "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1",
-                     "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1"]
+                     "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100"]
         let store = DesignStore()
         store.aiEnabled = false
         var x = 0.0

@@ -31,7 +31,7 @@ in these files come from each vendor's ordering information and still need check
 | File | Part number | Manufacturer | Package | Status |
 |---|---|---|---|---|
 | [PIC16F18446](PIC16F18446.md) | PIC16F18446-I/SS | Microchip | SSOP-20 5.30 mm (SS) | verified (datasheet DS40001985B, page 7) |
-| [LPC55S69](LPC55S69.md) | LPC55S69JBD100 | NXP Semiconductors | HTQFP-100 14×14 | TODO |
+| [LPC55S69](LPC55S69.md) | LPC55S69JBD100 | NXP Semiconductors | HLQFP-100 14×14 with exposed pad (SOT1570-3) | verified (datasheet LPC55S6x Rev. 2.5 (29 August 2024), page 8) |
 | [RA6M5](RA6M5.md) | R7FA6M5BH3CFC | Renesas | LQFP-176 24×24 | TODO |
 | [TC375](TC375.md) | SAK-TC375TP-96F300W AA | Infineon | LQFP-176 with exposed pad | TODO |
 | [S32K344](S32K344.md) | FS32K344 (172 HDQFP) | NXP Semiconductors | 172-pin HDQFP (confirm) | TODO |

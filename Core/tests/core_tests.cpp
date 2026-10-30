@@ -2660,7 +2660,7 @@ TEST(production_parts_catalog) {
         "INA826AIDR", "TLV1701AIDBVR", "TLV3201AIDBVR", "OPA380AIDGKR", "DAC80501MDGSR", "TPS61291DRVR",
         "TPS22918DBVR", "UCC28180D", "SN65HVD3082EDR", "ISO7741DWR", "TDC7200PWR", "LMP91000SDX/NOPB", "PGA280AIPW",
         "ADS124S08IPBS", "ADS1292RIPBS", "LP5024RSMR", "TPS6521901RHBR", "TLV320AIC3204IRHBR", "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB", "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
-        "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1", "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1",
+        "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1", "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -2968,8 +2968,8 @@ TEST(microcontroller_library_by_vendor) {
     std::map<std::string, int> perGroup;
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
-    // + the catalog's LPC1769 (CNC / 3D-printer boards) and the general-purpose RP2350B.
-    CHECK(perGroup["Microcontrollers · Arm"] == 12);
+    // + the catalog's LPC1769 (CNC / 3D-printer boards), the general-purpose RP2350B and the LPC55S69.
+    CHECK(perGroup["Microcontrollers · Arm"] == 13);
     // + the catalog's STM32F405 / H743 / F765, the robotics spares STM32F446 / G474 / H723 and 11 general-purpose
     // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
     // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
