@@ -111,6 +111,7 @@ struct OptionsBar<Content: View>: View {
 
     @Environment(\.editorFocusMode) private var focusMode
     @State private var revealed = false
+    @State private var barWidth: CGFloat = 0
 
     var body: some View {
         if focusMode && !revealed {
@@ -131,14 +132,19 @@ struct OptionsBar<Content: View>: View {
         Group {
             if scrollsWhenNarrow {
                 // On narrow windows the controls scroll sideways instead of forcing the workspace wider than the window.
-                ViewThatFits(in: .horizontal) {
+                // One copy of the controls, at least as wide as the bar so its spacers still push items right: a
+                // ViewThatFits with a scrolling and a plain copy built and measured every AppKit control twice,
+                // most of the time a switch to the schematic or the PCB editor took.
+                ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) { content }
                         .padding(.horizontal, 12)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) { content }
-                            .padding(.horizontal, 12)
-                    }
+                        .frame(minWidth: barWidth, maxHeight: .infinity, alignment: .leading)
                 }
+                .background(GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { barWidth = geometry.size.width }
+                        .onChange(of: geometry.size.width) { _, width in barWidth = width }
+                })
             } else {
                 HStack(spacing: 12) { content }
                     .padding(.horizontal, 12)

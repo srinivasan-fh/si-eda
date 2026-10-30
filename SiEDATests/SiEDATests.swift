@@ -844,9 +844,9 @@ final class LiveWindowTests: XCTestCase {
         progress.set("done")
     }
 
-    /// Times switches into the schematic and the PCB editor with a placed design, then switches between them for
-    /// a while with "[SwitchProfile] sampling" printed first: CI samples the main thread meanwhile (ci.yml).
-    func testSchematicAndPcbSwitchProfile() throws {
+    /// Prints how long switches into the schematic and the PCB editor take with a placed design (the CI log keeps
+    /// the numbers; most of a switch is laying out the editor's AppKit controls, see `OptionsBar`).
+    func testSchematicAndPcbSwitchTimes() throws {
         let store = DesignStore()
         let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
         let root = ContentView()
@@ -872,17 +872,8 @@ final class LiveWindowTests: XCTestCase {
             return (CFAbsoluteTimeGetCurrent() - start) * 1000
         }
         for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
-            print(String(format: "[SwitchProfile] %@: %.0f ms", workspace.title, time(workspace)))
+            print(String(format: "[SwitchTimes] %@: %.0f ms", workspace.title, time(workspace)))
         }
-        print("[SwitchProfile] sampling")
-        fflush(stdout)
-        let end = Date().addingTimeInterval(45)  // xcodebuild shows the marker some seconds late
-        var round = 0
-        while Date() < end {
-            _ = time(round % 2 == 0 ? .pcb : .schematic)
-            round += 1
-        }
-        print("[SwitchProfile] done after \(round) switches")
     }
 }
 
