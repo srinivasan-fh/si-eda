@@ -10,7 +10,7 @@
   object: corner, npth, mask, paste, pasteGrid, chamfer, outline (polygon pads: `Pad::outline`, Gerber G36 regions,
   3D prisms), inner / solder (pad stack: inner layers / the side opposite the part); carried by `PadDef` / `Pad` into the Gerbers, drills, IPC-2581 / ODB++). Footprint
   silk / fab lines: `PackageSpec::graphics` = Swift `CustomPartSpec.Graphic` (same JSON), `FootprintDef::lines`,
-  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. More land checks in `landChecksMore` (LAND_PASTE /
+  `PcbLayout::footprintLines`, snapshot `courtyards[].lines`. Two supply pins of one name may share joined copper (`supplyNamesake` in `checkLandPattern`, as stacked symbol pins: TPS63070 VIN 12 + 13); more land checks in `landChecksMore` (LAND_PASTE /
   SILK_PAD / PIN1 / NUMBERING / COURTYARD, LAND_MASK_SLIVER in the pair loop) must stay quiet on every catalog part;
   the user's own footprints: `UserFootprintLibrary` (FootprintDraft.swift: `.history/<name>/` keeps the last 20 saves, `library.sharedFolder` = a team folder with Footprints / 3D Models). Pad copper is measured only through
   `TrackGeometry.hpp` (`padPointDistance` / `padSegmentDistance` / `padTrackDistance` / `padPadDistance`: a round pad
