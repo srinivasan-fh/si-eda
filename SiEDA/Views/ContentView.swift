@@ -120,7 +120,42 @@ struct ContentView: View {
         }
     }
 
-    private var workspaceView: some View { Self.workspaceView(store.workspace) }
+    /// The schematic and PCB editors, once opened, stay alive behind the one on screen: switching back shows them at
+    /// once instead of building the editor and its canvas again. A hidden one is disabled (no shortcuts), takes no
+    /// clicks and, through `editorActive`, draws nothing and ignores the mouse, keys, zoom requests and focus.
+    /// Every other workspace is built when shown, as before.
+    @State private var keptEditors: [Workspace] = []
+
+    private var workspaceView: some View {
+        let current = store.workspace
+        return ZStack {
+            // The current editor joins the kept ones in the same ForEach, so it is not built twice when `keep` runs.
+            let kept = keptEditors + (Self.keptAlive.contains(current) && !keptEditors.contains(current) ? [current] : [])
+            ForEach(kept, id: \.self) { editor in
+                let shown = editor == current
+                Self.workspaceView(editor)
+                    .environment(\.editorActive, shown)
+                    .opacity(shown ? 1 : 0)
+                    .allowsHitTesting(shown)
+                    .disabled(!shown)
+                    .accessibilityHidden(!shown)
+                    .zIndex(shown ? 1 : 0)
+            }
+            if !Self.keptAlive.contains(current) {
+                Self.workspaceView(current).zIndex(1)
+            }
+        }
+        .transaction { $0.animation = nil }  // a workspace appears at once, never animated in
+        .onAppear { keep(current) }
+        .onChange(of: store.workspace) { _, now in keep(now) }
+    }
+
+    /// The editors kept alive between switches (the heavy canvases people switch between most).
+    static let keptAlive: Set<Workspace> = [.schematic, .pcb]
+
+    private func keep(_ workspace: Workspace) {
+        if Self.keptAlive.contains(workspace), !keptEditors.contains(workspace) { keptEditors.append(workspace) }
+    }
 
     /// The editor of a workspace (also used by the layout tests).
     @ViewBuilder

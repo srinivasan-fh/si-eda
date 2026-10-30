@@ -27,7 +27,18 @@ private struct EditorFocusModeKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct EditorActiveKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 extension EnvironmentValues {
+    /// False for an editor kept alive behind the one on screen (ContentView keeps the schematic and PCB editors
+    /// between workspace switches): its canvas draws nothing and takes no mouse, keys, zoom requests or focus.
+    var editorActive: Bool {
+        get { self[EditorActiveKey.self] }
+        set { self[EditorActiveKey.self] = newValue }
+    }
+
     /// True in focus mode: options bars collapse to a hover strip.
     var editorFocusMode: Bool {
         get { self[EditorFocusModeKey.self] }

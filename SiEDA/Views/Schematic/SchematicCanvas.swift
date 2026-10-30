@@ -59,6 +59,8 @@ struct SchematicCanvas: View {
     @State private var moveAlone = false      // ⌥-drag: the parts move without their wires
     @FocusState private var focused: Bool
     @AppStorage("canvas.gpu") private var gpuCanvas = false
+    /// False while kept behind another workspace (ContentView): no drawing, input, zoom requests or focus.
+    @Environment(\.editorActive) private var active
 
     private let scaleLimits = Viewport.schematicLimits
 
@@ -110,9 +112,10 @@ struct SchematicCanvas: View {
             }
             .settledSize(geo.size, into: $canvasSize)
             .onChange(of: store.viewRequest) { _, request in
-                if let request { perform(request.command, size: geo.size) }
+                if active, let request { perform(request.command, size: geo.size) }
             }
-            .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
+            .onChange(of: store.fitToken) { _, _ in if active { fitToContent(size: geo.size) } }
+            .onChange(of: active) { _, now in focused = now }
             .onChange(of: pendingWire) { _, end in wireStart = end.flatMap { describe($0) } }
             .onChange(of: store.revision) { _, _ in
                 // Undo or delete can remove the part or wire a wire was started from.
@@ -148,7 +151,7 @@ struct SchematicCanvas: View {
             )
             .canvasMouseInput(onScroll: { event, point in viewport.handleScroll(event, at: point, limits: scaleLimits) },
                               onPan: { viewport.pan(by: $0) },
-                              onRightClick: { contextMenu(at: viewport.toWorld($0)) })
+                              onRightClick: { contextMenu(at: viewport.toWorld($0)) }, active: active)
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let p):
@@ -816,6 +819,7 @@ struct SchematicCanvas: View {
     static func ledColour(_ value: String) -> Color { ComponentKind.ledColour(value).color }
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
+        guard active else { return }  // kept behind another workspace: nothing to draw until it is shown again
         let snap = store.sheetSnapshot
         let pal = style.palette
         ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(pal.background.color))
