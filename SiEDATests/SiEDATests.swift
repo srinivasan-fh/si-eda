@@ -1625,7 +1625,7 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
         // + the robotics spares' LPC1769 (CNC / 3D-printer controllers) and the general-purpose catalog's RP2350B.
-        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 12)
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 13)
         // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6, the robotics spares'
         // STM32F446RET6, STM32G474RET6 and STM32H723VGT6, and 11 general-purpose STM32s.
         // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
@@ -1634,7 +1634,7 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 11)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
         // + the missing-parts list's ATSAMD51P20A-AUT.
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 25)
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 26)
         // ESP32-C3 / S3 / PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
         // C3-WROOM-02 / C3-MINI-1 modules.
         XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 10)
@@ -3172,7 +3172,9 @@ final class PartsCatalogTests: XCTestCase {
                      "PGA280AIPW",
                      "ADS124S08IPBS", "ADS1292RIPBS", "LP5024RSMR", "TPS6521901RHBR", "TLV320AIC3204IRHBR",
                      "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB",
-                     "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR"]
+                     "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
+                     "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1",
+                     "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100"]
         let store = DesignStore()
         store.aiEnabled = false
         var x = 0.0

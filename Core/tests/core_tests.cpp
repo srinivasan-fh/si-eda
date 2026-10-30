@@ -2660,6 +2660,7 @@ TEST(production_parts_catalog) {
         "INA826AIDR", "TLV1701AIDBVR", "TLV3201AIDBVR", "OPA380AIDGKR", "DAC80501MDGSR", "TPS61291DRVR",
         "TPS22918DBVR", "UCC28180D", "SN65HVD3082EDR", "ISO7741DWR", "TDC7200PWR", "LMP91000SDX/NOPB", "PGA280AIPW",
         "ADS124S08IPBS", "ADS1292RIPBS", "LP5024RSMR", "TPS6521901RHBR", "TLV320AIC3204IRHBR", "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB", "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
+        "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1", "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -2967,8 +2968,8 @@ TEST(microcontroller_library_by_vendor) {
     std::map<std::string, int> perGroup;
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
-    // + the catalog's LPC1769 (CNC / 3D-printer boards) and the general-purpose RP2350B.
-    CHECK(perGroup["Microcontrollers · Arm"] == 12);
+    // + the catalog's LPC1769 (CNC / 3D-printer boards), the general-purpose RP2350B and the LPC55S69.
+    CHECK(perGroup["Microcontrollers · Arm"] == 13);
     // + the catalog's STM32F405 / H743 / F765, the robotics spares STM32F446 / G474 / H723 and 11 general-purpose
     // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
     // + the IC reference's STM32L052K8T6 and STM32U575ZGT6Q.
@@ -2976,7 +2977,7 @@ TEST(microcontroller_library_by_vendor) {
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 11);
     // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
     // general-purpose AVR / SAM D parts.
-    CHECK(perGroup["Microcontrollers · Microchip"] == 25);
+    CHECK(perGroup["Microcontrollers · Microchip"] == 26);
     // ESP32-C3, ESP32-S3, ESP32-PICO-D4, the low-power ESP32-C6 / H2 and the S3-WROOM-1 / S3-MINI-1 / C6-MINI-1 /
     // C3-WROOM-02 / C3-MINI-1 modules.
     CHECK(perGroup["Microcontrollers · Espressif"] == 10);
@@ -26270,6 +26271,37 @@ TEST(saved_copper_lies_on_the_nanometre_grid) {
     for (const auto& v : saved.get("vias").items()) CHECK(onGrid(v.get("x")) && onGrid(v.get("y")));
     const Project q = Project::fromJson(saved);
     CHECK(q.pcb.runDRC(q.schematic).size() == p.pcb.runDRC(p.schematic).size());
+}
+
+TEST(fabrication_package_is_the_same_before_saving_and_after_reopening) {
+    // The fabrication package is built from the board as saved: the same files before saving and after reopening,
+    // the 3D model's facet normals included (only the job file's creation time and the zip holding it differ).
+    mcp::McpServer s;
+    Json ex = Json::object();
+    ex["id"] = "transistor_switch";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    for (const char* tool : {"pcb_update_from_schematic", "pcb_autoplace", "pcb_autoroute"}) CHECK(!mcpFailed(mcpTool(s, tool, Json::object())));
+    const Project& p = s.project()->project;
+    const Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    bool offGrid = false;
+    for (const auto& t : p.pcb.tracks) offGrid = offGrid || nm(t.a.x) != t.a.x || nm(t.a.y) != t.a.y || nm(t.b.x) != t.b.x || nm(t.b.y) != t.b.y;
+    CHECK(offGrid);  // the MCP route's finishing passes leave copper off the grid in memory: two different boards
+    auto withoutDates = [](std::string text) {
+        std::string out;
+        for (size_t at = 0; at < text.size();) {
+            const size_t end = std::min(text.find('\n', at), text.size());
+            if (text.substr(at, end - at).find("CreationDate") == std::string::npos) out.append(text, at, end - at + 1);
+            at = end + 1;
+        }
+        return out;
+    };
+    const auto live = fabricationPackage(p), reopened = fabricationPackage(q);
+    CHECK(live.size() == reopened.size());
+    for (size_t i = 0; i < std::min(live.size(), reopened.size()); ++i) {
+        CHECK(live[i].path == reopened[i].path);
+        if (live[i].path.size() > 4 && live[i].path.compare(live[i].path.size() - 4, 4, ".zip") == 0) continue;
+        CHECK(withoutDates(live[i].content) == withoutDates(reopened[i].content));
+    }
 }
 
 /// Removes a folder git has used: its object files are read-only on Windows, where remove_all refuses them.

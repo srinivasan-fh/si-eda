@@ -30,8 +30,8 @@ in these files come from each vendor's ordering information and still need check
 
 | File | Part number | Manufacturer | Package | Status |
 |---|---|---|---|---|
-| [PIC16F18446](PIC16F18446.md) | PIC16F18446-I/SS | Microchip | SSOP-20 (SS) | TODO |
-| [LPC55S69](LPC55S69.md) | LPC55S69JBD100 | NXP Semiconductors | HTQFP-100 14×14 | TODO |
+| [PIC16F18446](PIC16F18446.md) | PIC16F18446-I/SS | Microchip | SSOP-20 5.30 mm (SS) | verified (datasheet DS40001985B, page 7) |
+| [LPC55S69](LPC55S69.md) | LPC55S69JBD100 | NXP Semiconductors | HLQFP-100 14×14 with exposed pad (SOT1570-3) | verified (datasheet LPC55S6x Rev. 2.5 (29 August 2024), page 8) |
 | [RA6M5](RA6M5.md) | R7FA6M5BH3CFC | Renesas | LQFP-176 24×24 | TODO |
 | [TC375](TC375.md) | SAK-TC375TP-96F300W AA | Infineon | LQFP-176 with exposed pad | TODO |
 | [S32K344](S32K344.md) | FS32K344 (172 HDQFP) | NXP Semiconductors | 172-pin HDQFP (confirm) | TODO |
@@ -48,9 +48,9 @@ in these files come from each vendor's ordering information and still need check
 | [MX25L128](MX25L128.md) | MX25L12833FM2I-10G | Macronix | SOP-8 200 mil | TODO |
 | [MX25L256](MX25L256.md) | MX25L25645GM2I-08G | Macronix | SOP-8 200 mil | TODO |
 | [W25N01GV](W25N01GV.md) | W25N01GVZEIG | Winbond | WSON-8 8×6 | TODO |
-| [24AA02E48](24AA02E48.md) | 24AA02E48T-I/OT | Microchip | SOT-23-5 | TODO |
+| [24AA02E48](24AA02E48.md) | 24AA02E48T-I/OT | Microchip | SOT-23-5 (OT) | verified (datasheet DS20002124G, page 6) |
 | [MB85RC256V](MB85RC256V.md) | MB85RC256VPNF-G-JNERE1 | Fujitsu (RAMXEED) | SOP-8 150 mil | TODO |
-| [FM24CL64B](FM24CL64B.md) | FM24CL64B-GTR | Infineon (Cypress) | SOIC-8 150 mil | TODO |
+| [FM24CL64B](FM24CL64B.md) | FM24CL64B-GATR | Infineon (Cypress) | SOIC-8 150 mil | verified (datasheet 001-84457 Rev. *F, page 3) |
 | [AS6C62256](AS6C62256.md) | AS6C62256-55SCN | Alliance Memory | SOP-28 330 mil | TODO |
 | [INA826](INA826.md) | INA826AIDR | Texas Instruments | SOIC-8 (D) | verified (datasheet SBOS562G (revised June 2020), page 4) |
 | [TLV1701](TLV1701.md) | TLV1701AIDBVR | Texas Instruments | SOT-23-5 (DBV) | verified (datasheet SBOS589D (revised June 2015), page 5) |
@@ -67,7 +67,7 @@ in these files come from each vendor's ordering information and still need check
 | [DAC80501](DAC80501.md) | DAC80501MDGSR | Texas Instruments | VSSOP-10 (DGS) | verified (datasheet SBAS794E (revised August 2023), page 3) |
 | [AD5683R](AD5683R.md) | AD5683RBRMZ | Analog Devices | MSOP-10 | TODO |
 | [ADS1292R](ADS1292R.md) | ADS1292RIPBS | Texas Instruments | TQFP-32 5×5 (PBS) | verified (datasheet SBAS502C (revised April 2020), page 4) |
-| [CAP1298](CAP1298.md) | CAP1298-1-CP-TR | Microchip | QFN-20 4×4 | TODO |
+| [CAP1298](CAP1298.md) | CAP1298-1-A4-TR | Microchip | QFN-16 3×3 (A4) | verified (datasheet DS00001571B, page 5) |
 | [MP1584](MP1584.md) | MP1584EN-LF-Z | Monolithic Power Systems | SOIC-8 with exposed pad | TODO |
 | [TPS61291](TPS61291.md) | TPS61291DRVR | Texas Instruments | WSON-6 2×2 (DRV) | verified (datasheet SLVSBX9A (September 2014), page 3) |
 | [TPS63070](TPS63070.md) | TPS63070RNMR | Texas Instruments | VQFN-HR-15 2.5×3 (RNM) — irregular pads | TODO |
@@ -83,11 +83,11 @@ in these files come from each vendor's ordering information and still need check
 | [TPS22918](TPS22918.md) | TPS22918DBVR | Texas Instruments | SOT-23-6 (DBV) | verified (datasheet SLVSD76C (revised July 2017), page 3) |
 | [LP5024](LP5024.md) | LP5024RSMR | Texas Instruments | VQFN-32 4×4 (RSM) | verified (datasheet SLVSEB8C (revised July 2024), page 5) |
 | [DRV8323](DRV8323.md) | DRV8323SRTAR | Texas Instruments | WQFN-40 6×6 (RTA) | verified (datasheet SLVSDJ3D (revised March 2022), page 8) |
-| [6EDL7141](6EDL7141.md) | 6EDL7141XUMA1 | Infineon | VQFN-48 7×7 | TODO |
+| [6EDL7141](6EDL7141.md) | 6EDL7141XUMA1 | Infineon | VQFN-48 7×7 (PG-VQFN-48-78) | verified (datasheet Revision 1.20 (2024-03-22), page 8) |
 | [UCC28180](UCC28180.md) | UCC28180D | Texas Instruments | SOIC-8 (D) | verified (datasheet SLUSBQ5D (revised July 2016), page 4) |
 | [TOP247](TOP247.md) | TOP247YN | Power Integrations | TO-220-7C (Y) | TODO |
-| [IKW40N120H3](IKW40N120H3.md) | IKW40N120H3 | Infineon | TO-247-3 | TODO |
-| [IMW120R030M1H](IMW120R030M1H.md) | IMW120R030M1H | Infineon | TO-247-3 | TODO |
+| [IKW40N120H3](IKW40N120H3.md) | IKW40N120H3FKSA1 | Infineon | TO-247-3 (PG-TO247-3) | verified (datasheet Revision 1.20 (2025-06-12), page 1) |
+| [IMW120R030M1H](IMW120R030M1H.md) | IMW120R030M1HXKSA1 | Infineon | TO-247-3 (PG-TO247-3) | verified (datasheet Revision 2.2 (2020-12-11), page 1) |
 | [BZX55C5V1](BZX55C5V1.md) | BZX55C5V1 | Vishay | DO-35 axial | TODO |
 | [SMBJ5.0A](SMBJ5.0A.md) | SMBJ5.0A | Littelfuse | SMB (DO-214AA) | TODO |
 | [MB10S](MB10S.md) | MB10S | onsemi | SOIC-4 (MBS / TO-269AA) | TODO |
@@ -97,7 +97,7 @@ in these files come from each vendor's ordering information and still need check
 | [LMX2594](LMX2594.md) | LMX2594RHAR | Texas Instruments | VQFN-40 6×6 (RHA) | verified (datasheet SNAS696C (revised April 2019), page 7) |
 | [PE4259](PE4259.md) | PE4259 | pSemi (Murata) | SC-70-6 | TODO |
 | [DP83867](DP83867.md) | DP83867IRRGZR | Texas Instruments | VQFN-48 7×7 (RGZ) | verified (datasheet SNLS484J (revised June 2026), page 5) |
-| [KSZ9897](KSZ9897.md) | KSZ9897RTXC | Microchip | TQFP-128 14×14 with exposed pad | TODO |
+| [KSZ9897](KSZ9897.md) | KSZ9897RTXC | Microchip | TQFP-128 14×14 with exposed pad (TX) | verified (datasheet DS00002330E, page 10) |
 | [SN65HVD3082E](SN65HVD3082E.md) | SN65HVD3082EDR | Texas Instruments | SOIC-8 (D) | verified (datasheet SLLS562O (revised July 2023), page 4) |
 | [LIS2DW12](LIS2DW12.md) | LIS2DW12TR | STMicroelectronics | LGA-12 2×2 (land pattern needed) | TODO |
 | [ICM-42688-P](ICM-42688-P.md) | ICM-42688-P | TDK InvenSense | LGA-14 2.5×3 (land pattern needed) | TODO |
@@ -113,7 +113,7 @@ in these files come from each vendor's ordering information and still need check
 | [AD2S1210](AD2S1210.md) | AD2S1210BSTZ | Analog Devices | LQFP-48 7×7 | TODO |
 | [Si8233](Si8233.md) | Si8233BB-D-IS1 | Skyworks (Silicon Labs) | SOIC-16W | TODO |
 | [ISO7741](ISO7741.md) | ISO7741DWR | Texas Instruments | SOIC-16W (DW) | verified (datasheet SLLSEP4K (revised August 2026), page 5) |
-| [SLB9670](SLB9670.md) | SLB9670VQ20FW785XTMA1 | Infineon | VQFN-32 5×5 | TODO |
+| [SLB9670](SLB9670.md) | SLB9670VQ20FW785XTMA1 | Infineon | VQFN-32 5×5 (PG-VQFN-32-13) | verified (datasheet Revision 1.5 (2024-08-07), page 7) |
 | [DS28E15](DS28E15.md) | DS28E15P+ | Analog Devices | TSOC-6 | TODO |
 | [SN65DSI86](SN65DSI86.md) | SN65DSI86ZXHR | Texas Instruments | nFBGA-64 5×5 0.5 mm (ZXH) | verified (datasheet SLLSEH2C (revised October 2020), page 5) |
 | [LT8912B](LT8912B.md) | LT8912B | Lontium | QFN-64 (confirm) | TODO |

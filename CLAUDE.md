@@ -87,7 +87,9 @@
   never hard-coded; byte-identical Linux CLI rebuild; SBOM `tools/make_sbom.py`), update check `UpdateChecker`
   (UpdateChecker.swift; daily check off by default). Datasheet pins carry `page` / `confidence`
   (`DatasheetSchema.Citations` notes). User-entered board coordinates go through `nm()` (Geometry.hpp, 1 nm grid) in
-  the C API; computed geometry (router, pours) stays double. Detached editors: `WindowGroup(id: "editor", for: String)`
+  the C API; computed geometry (router, pours) stays double, and `fabricationPackage` snaps tracks / vias to the grid first
+  (the board as saved: the same package before saving and after reopening, test
+  `fabrication_package_is_the_same_before_saving_and_after_reopening`). Detached editors: `WindowGroup(id: "editor", for: String)`
   in SiEDAApp.swift (Window → Open in New Window, same store). Read-only browser viewer: `mcp::viewerHtml`
   (McpRender.cpp, export "viewer"). Customer templates: `TitleBlockEditor` (user defaults "titleBlock.customers").
   Netlist import `map` / `fidelity` in `importNetlist` (McpTools.cpp). GPU canvas: `gpuRendered` (EditorChrome.swift,
