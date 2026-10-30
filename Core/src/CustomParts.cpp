@@ -1568,6 +1568,20 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
     const auto& lands = spec.package.lands;
     std::set<std::string> pinNumbers;
     for (const auto& p : spec.pins) pinNumbers.insert(upper(p.number));
+    // Two supply pins of one name (as stacked symbol pins, SYM_STACK) may share copper: datasheets join VIN or VOUT
+    // pads into one land.
+    auto supplyNamesake = [&](const std::string& a, const std::string& b) {
+        const CustomPin* pa = nullptr;
+        const CustomPin* pb = nullptr;
+        for (const auto& p : spec.pins) {
+            if (upper(p.number) == a) pa = &p;
+            if (upper(p.number) == b) pb = &p;
+        }
+        auto supply = [](const CustomPin& p) {
+            return p.type == PinType::PowerIn || p.type == PinType::PowerOut || groundPinName(upper(p.name));
+        };
+        return pa && pb && pa->name == pb->name && supply(*pa) && supply(*pb);
+    };
     std::set<std::string> covered;
     for (size_t i = 0; i < lands.size(); ++i) {
         const std::string pin = landPin(spec.package, i);
@@ -1607,6 +1621,7 @@ std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGa
         for (size_t j = i + 1; j < lands.size(); ++j) {
             const std::string pi = landPin(spec.package, i), pj = landPin(spec.package, j);
             if (pi == pj && pi != "-") continue;  // pads of one pin may touch (split exposed pad, tab)
+            if (supplyNamesake(pi, pj)) continue;  // one supply's pins on joined copper (a merged VIN / VOUT pad)
             const double g = gap(lands[i], lands[j]);
             const int a = static_cast<int>(i) + 1, b = static_cast<int>(j) + 1;
             char text[256];  // room for any %.3f gap

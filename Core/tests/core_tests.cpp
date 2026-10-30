@@ -2660,7 +2660,7 @@ TEST(production_parts_catalog) {
         "INA826AIDR", "TLV1701AIDBVR", "TLV3201AIDBVR", "OPA380AIDGKR", "DAC80501MDGSR", "TPS61291DRVR",
         "TPS22918DBVR", "UCC28180D", "SN65HVD3082EDR", "ISO7741DWR", "TDC7200PWR", "LMP91000SDX/NOPB", "PGA280AIPW",
         "ADS124S08IPBS", "ADS1292RIPBS", "LP5024RSMR", "TPS6521901RHBR", "TLV320AIC3204IRHBR", "CDCE6214RGET", "TPA3255DDV", "TPA3116D2DAD", "LMX2594RHAR", "LMK04828BISQ/NOPB", "DP83867IRRGZR", "DRV8323SRTAR", "BQ79616PAPR", "SN65DSI86ZXHR",
-        "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1", "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100",
+        "24AA02E48T-I/OT", "CAP1298-1-A4-TR", "KSZ9897RTXC", "PIC16F18446-I/SS", "6EDL7141XUMA1", "FM24CL64B-GATR", "SLB9670VQ20FW785XTMA1", "IKW40N120H3FKSA1", "IMW120R030M1HXKSA1", "LPC55S69JBD100", "TPS63070RNMR", "TPS259470ARPWR",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -4599,6 +4599,16 @@ TEST(footprint_editor_checks_geometry_and_c_api) {
     CHECK(checkLandPattern(with({L(0, 0, 1, 1), L(3, 0, 1, 1), L(0.5, 0, 1, 1, 0, false, "1")})).empty());
     CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1), L(3, 0, 1, 1), L(6, 0, 2, 2, 1, true, "-"),
                                         L(6.5, 0, 2, 2, 1, true, "-")}))).count("LAND_OVERLAP") == 1);
+    // Two supply pins of one name may share joined copper (a datasheet's merged VIN pad); signal pins of one name may
+    // not, nor supply pins of different names.
+    CustomPartSpec vin = two;
+    vin.pins = {{"1", "VIN", PinType::PowerIn, ""}, {"2", "VIN", PinType::PowerIn, ""}};
+    vin.package.lands = {L(0, 0, 1, 1), L(0.9, 0, 1, 1)};
+    CHECK(checkLandPattern(vin).empty());
+    vin.pins[1].name = "VOUT";
+    CHECK(codes(checkLandPattern(vin)).count("LAND_OVERLAP") == 1);
+    vin.pins = {{"1", "D", PinType::Bidirectional, ""}, {"2", "D", PinType::Bidirectional, ""}};
+    CHECK(codes(checkLandPattern(vin)).count("LAND_OVERLAP") == 1);
     // Pin references are case-insensitive ("ep" is pin "EP").
     CustomPartSpec ep = two;
     ep.pins.push_back({"EP", "GND", PinType::PowerIn, ""});
@@ -5872,7 +5882,8 @@ TEST(every_package_type_autoroutes) {
 
 TEST(library_footprints_keep_pads_apart) {
     // No footprint puts copper of two different pins closer than 0.1 mm (an exposed pad or a corner pad touching a
-    // pin pad would short them on the board). A net tie joins its two pads on purpose.
+    // pin pad would short them on the board). A net tie joins its two pads on purpose, and two supply pins of one name
+    // may share a datasheet's joined pad (TPS63070 VIN 12 + 13).
     for (const auto& sp : standardParts()) {
         if (sp.spec.package.type == "NETTIE") continue;
         auto part = CustomPartRegistry::instance().registerPart(sp.spec);
@@ -5882,6 +5893,12 @@ TEST(library_footprints_keep_pads_apart) {
             for (size_t j = i + 1; j < pads.size(); ++j) {
                 if (pads[i].pinIndex >= 0 && pads[i].pinIndex == pads[j].pinIndex) continue;
                 if (pads[i].npth || pads[j].npth) continue;  // a plain hole has no copper
+                if (pads[i].pinIndex >= 0 && pads[j].pinIndex >= 0) {
+                    const auto& pa = sp.spec.pins[pads[i].pinIndex];
+                    const auto& pb = sp.spec.pins[pads[j].pinIndex];
+                    auto supply = [](PinType t) { return t == PinType::PowerIn || t == PinType::PowerOut; };
+                    if (pa.name == pb.name && supply(pa.type) && supply(pb.type)) continue;
+                }
                 const Rect a = Rect::centered(pads[i].offset, pads[i].size.x, pads[i].size.y);
                 const Rect b = Rect::centered(pads[j].offset, pads[j].size.x, pads[j].size.y);
                 double gap = std::hypot(std::max({0.0, b.x0 - a.x1, a.x0 - b.x1}), std::max({0.0, b.y0 - a.y1, a.y0 - b.y1}));

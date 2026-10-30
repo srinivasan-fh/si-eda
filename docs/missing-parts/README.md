@@ -70,16 +70,16 @@ in these files come from each vendor's ordering information and still need check
 | [CAP1298](CAP1298.md) | CAP1298-1-A4-TR | Microchip | QFN-16 3×3 (A4) | verified (datasheet DS00001571B, page 5) |
 | [MP1584](MP1584.md) | MP1584EN-LF-Z | Monolithic Power Systems | SOIC-8 with exposed pad | TODO |
 | [TPS61291](TPS61291.md) | TPS61291DRVR | Texas Instruments | WSON-6 2×2 (DRV) | verified (datasheet SLVSBX9A (September 2014), page 3) |
-| [TPS63070](TPS63070.md) | TPS63070RNMR | Texas Instruments | VQFN-HR-15 2.5×3 (RNM) — irregular pads | TODO |
+| [TPS63070](TPS63070.md) | TPS63070RNMR | Texas Instruments | VQFN-HR-15 2.5×3 (RNM0015A, TI land pattern) | verified (datasheet SLVSC58B (revised March 2019), page 3) |
 | [LTC3115-1](LTC3115-1.md) | LTC3115EDHD-1#PBF | Analog Devices | DFN-16 5×4 (DHD) | TODO |
 | [TPS65219](TPS65219.md) | TPS6521901RHBR | Texas Instruments | VQFN-32 5×5 (RHB) | verified (datasheet SLVSGA0D (revised April 2026), page 4) |
 | [PCA9430](PCA9430.md) | PCA9430 (confirm the orderable code) | NXP Semiconductors | confirm from the datasheet | TODO |
 | [MAX77650](MAX77650.md) | MAX77650EWV+ | Analog Devices | WLP-30 (ball grid) | TODO |
-| [TPS25750](TPS25750.md) | TPS25750DRJKR (confirm) | Texas Instruments | WQFN-38 (confirm) | TODO |
+| [TPS25750](TPS25750.md) | TPS25750DRJKR (confirm) | Texas Instruments | WQFN-38 (confirm) | TODO (NRND; comb land pattern not fully dimensioned) |
 | [LTC6811](LTC6811.md) | LTC6811HG-1#PBF | Analog Devices | SSOP-48 5.3 mm | TODO |
 | [S-8261](S-8261.md) | S-8261ABJMD-G3JT2U | ABLIC | SOT-23-6 | TODO |
 | [LTC4215](LTC4215.md) | LTC4215CGN#PBF | Analog Devices | SSOP-16 (GN) | TODO |
-| [TPS25947](TPS25947.md) | TPS25947 (confirm the orderable code) | Texas Instruments | confirm from the datasheet | TODO |
+| [TPS25947](TPS25947.md) | TPS259470ARPWR | Texas Instruments | VQFN-HR-10 2×2 (RPW0010A, TI land pattern) | verified (datasheet SLVSFC9C (revised May 2026), page 5) |
 | [TPS22918](TPS22918.md) | TPS22918DBVR | Texas Instruments | SOT-23-6 (DBV) | verified (datasheet SLVSD76C (revised July 2017), page 3) |
 | [LP5024](LP5024.md) | LP5024RSMR | Texas Instruments | VQFN-32 4×4 (RSM) | verified (datasheet SLVSEB8C (revised July 2024), page 5) |
 | [DRV8323](DRV8323.md) | DRV8323SRTAR | Texas Instruments | WQFN-40 6×6 (RTA) | verified (datasheet SLVSDJ3D (revised March 2022), page 8) |

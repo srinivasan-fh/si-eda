@@ -1244,6 +1244,23 @@ std::vector<StandardPart> build() {
             {"93", "PIO1_11", T::Bidirectional}, {"94", "PIO0_30", T::Bidirectional}, {"95", "VDD", T::PowerIn}, {"96", "USB0_3V3", T::PowerIn},
             {"97", "USB0_DP", T::Bidirectional}, {"98", "USB0_DM", T::Bidirectional}, {"99", "USB0_VSS", T::PowerIn}, {"100", "VDD", T::PowerIn},
             {"EP", "VSS", T::PowerIn}});
+    catalog(parts, "Power", "TPS63070RNMR", "Texas Instruments",
+            "2–16 V input, 2.5–9 V output buck-boost converter, 2 A (Vin ≥ 4 V), adjustable",
+            "U", "LGA", 15, 0, 2.5, "VQFN-HR-15 2.5×3 (RNM0015A, TI land pattern)",
+            {{"1", "PS/SYNC", T::Input}, {"2", "PG", T::OpenCollector}, {"3", "VAUX", T::PowerOut}, {"4", "GND", T::PowerIn},
+            {"5", "FB", T::Input}, {"6", "FB2", T::Output}, {"7", "VOUT", T::PowerOut}, {"8", "VOUT", T::PowerOut},
+            {"9", "L2", T::Passive}, {"10", "PGND", T::PowerIn}, {"11", "L1", T::Passive}, {"12", "VIN", T::PowerIn},
+            {"13", "VIN", T::PowerIn}, {"14", "EN", T::Input}, {"15", "VSEL", T::Input}});
+    parts.back().spec.package.lands = {{-1.15, -0.75, 0.6, 0.25, 0, false, "1"}, {-1.15, -0.25, 0.6, 0.25, 0, false, "2"}, {-1.15, 0.25, 0.6, 0.25, 0, false, "3"}, {-1.15, 0.75, 0.6, 0.25, 0, false, "4"}, {-0.725, 1.4, 0.25, 0.6, 0, false, "5"}, {-0.225, 1.4, 0.25, 0.6, 0, false, "6"}, {0.275, 1.4, 0.25, 0.6, 0, false, "7"}, {0.775, 1.4, 0.25, 0.6, 0, false, "8"}, {0.525, 1.525, 0.25, 0.35, 0, false, "8"}, {0.775, 0.5, 1.35, 0.25, 0, false, "9"}, {0.6, 0, 1.7, 0.25, 0, false, "10"}, {0.775, -0.5, 1.35, 0.25, 0, false, "11"}, {0.775, -1.4, 0.25, 0.6, 0, false, "12"}, {0.525, -1.525, 0.25, 0.35, 0, false, "12"}, {0.275, -1.4, 0.25, 0.6, 0, false, "13"}, {-0.225, -1.4, 0.25, 0.6, 0, false, "14"}, {-0.725, -1.4, 0.25, 0.6, 0, false, "15"}};
+    parts.back().spec.package.bodyDepth = 3.0;
+    catalog(parts, "Power", "TPS259470ARPWR", "Texas Instruments",
+            "2.7–23 V, 5 A eFuse with adjustable OVLO, AUXOFF and fault flag (auto-retry)",
+            "U", "LGA", 10, 0, 2, "VQFN-HR-10 2×2 (RPW0010A, TI land pattern)",
+            {{"1", "EN/UVLO", T::Input}, {"2", "OVLO", T::Input}, {"3", "AUXOFF", T::OpenCollector}, {"4", "nFLT", T::OpenCollector},
+            {"5", "IN", T::PowerIn}, {"6", "OUT", T::PowerOut}, {"7", "DVDT", T::Passive}, {"8", "GND", T::PowerIn},
+            {"9", "ILM", T::Passive}, {"10", "ITIMER", T::Passive}});
+    parts.back().spec.package.lands = {{-0.9, -0.7, 0.6, 0.3, 0, false, "1"}, {-0.725, -0.875, 0.25, 0.65, 0, false, "1"}, {-0.9, -0.225, 0.6, 0.25, 0, false, "2"}, {-0.9, 0.225, 0.6, 0.25, 0, false, "3"}, {-0.9, 0.7, 0.6, 0.3, 0, false, "4"}, {-0.725, 0.875, 0.25, 0.65, 0, false, "4"}, {-0.25, 0, 0.3, 2.4, 0, false, "5"}, {0.25, 0, 0.3, 2.4, 0, false, "6"}, {0.9, 0.7, 0.6, 0.3, 0, false, "7"}, {0.725, 0.875, 0.25, 0.65, 0, false, "7"}, {0.9, 0.225, 0.6, 0.25, 0, false, "8"}, {0.9, -0.225, 0.6, 0.25, 0, false, "9"}, {0.9, -0.7, 0.6, 0.3, 0, false, "10"}, {0.725, -0.875, 0.25, 0.65, 0, false, "10"}};
+    parts.back().spec.package.bodyDepth = 2.0;
     catalog(parts, "Audio", "INMP441ACEZ-R0", "TDK InvenSense",
             "Omnidirectional MEMS microphone, I²S output, bottom port, LGA_CAV 4.72 × 3.76 mm",
             "MK", "LGA", 9, 0, 3.76, "LGA_CAV-9 4.72×3.76 (InvenSense land pattern)",
