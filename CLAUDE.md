@@ -389,11 +389,7 @@
     `DesignSnapshot.customPartIndex`; canvas hover is written only when the snapped grid point (schematic) or the hovered
     net / 3 points of movement (PCB) changes. Panels show / hide without a per-frame editor rebuild: canvases hand their size to the editor once it settles
     (`settledSize`, EditorChrome.swift), the inspector and the components / nets sidebar toggle without animation (`ContentView.setInspector` / `setSidebar`, the system sidebar button removed), the picker's
-    catalog filter is a static cache. Workspace switches: every workspace stays alive once opened (`ContentView.keptEditors` / `keptAlive`); a hidden one gets `editorActive` = false (FocusMode.swift): its canvas
-    draws nothing and ignores mouse (`canvasMouseInput` `active`), Delete, zoom / fit requests and focus, its 3D / X-ray
-    `SCNView` is hidden and paused and skips mesh rebuilds (`BoardSceneView` / `XRayStackView` `active`, caught up when shown,
-    camera kept), the HUD's animation stops, the BOM's report waits until shown, the library opens a part asked for
-    meanwhile (`libraryFocusPartId`) when shown, and it is disabled (no shortcuts). Any new canvas input, monitor or `store`-driven side effect in those editors must check it. `Project::snapshot` walks the cached pours by reference (`copperFills`
+    catalog filter is a static cache. `Project::snapshot` walks the cached pours by reference (`copperFills`
     copies every cell grid).
   - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
     arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and

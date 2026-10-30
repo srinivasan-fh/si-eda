@@ -92,7 +92,6 @@ enum PCBLayer: Hashable, Identifiable {
 /// PCB layout workspace: tool strip, options bar with design rules, canvas, Altium-style layer tabs.
 struct PCBEditorView: View {
     @EnvironmentObject private var store: DesignStore
-    @Environment(\.editorActive) private var editorActive
     @State private var viewport = ViewMemory.value("pcb.viewport", Viewport(scale: 12, offset: CGSize(width: 80, height: 80)))
     @State private var canvasSize: CGSize = .zero
     @State private var visible: Set<PCBLayer> = ViewMemory.value("pcb.visible", PCBLayer.defaultVisible)
@@ -522,7 +521,7 @@ struct PCBEditorView: View {
                     if show3DBeside {  // the board in 3D beside the layout, following every edit
                         Divider()
                         BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
-                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""), active: editorActive)
+                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""))
                             .frame(minWidth: 240, maxWidth: .infinity)
                     }
                 }
@@ -865,8 +864,6 @@ struct PCBCanvas: View {
     @State private var shapePoints: [CGPoint] = []  // corners of the pour / outline / cutout being drawn
     @FocusState private var focused: Bool
     @AppStorage("canvas.gpu") private var gpuCanvas = false
-    /// False while kept behind another workspace (ContentView): no drawing, input, zoom requests or focus.
-    @Environment(\.editorActive) private var active
 
     private let limits = Viewport.pcbLimits
 
@@ -893,7 +890,7 @@ struct PCBCanvas: View {
                 )
                 .canvasMouseInput(onScroll: { event, point in viewport.handleScroll(event, at: point, limits: limits) },
                                   onPan: { viewport.pan(by: $0) },
-                                  onRightClick: { contextMenu(at: viewport.toWorld($0)) }, active: active)
+                                  onRightClick: { contextMenu(at: viewport.toWorld($0)) })
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p):
@@ -1029,10 +1026,9 @@ struct PCBCanvas: View {
                 }
                 .settledSize(geo.size, into: $canvasSize)
                 .onChange(of: store.viewRequest) { _, request in
-                    if active, let request { perform(request.command, size: geo.size) }
+                    if let request { perform(request.command, size: geo.size) }
                 }
-                .onChange(of: store.fitToken) { _, _ in if active { fit(geo.size) } }
-                .onChange(of: active) { _, now in focused = now }
+                .onChange(of: store.fitToken) { _, _ in fit(geo.size) }
         }
     }
 
@@ -1420,7 +1416,6 @@ struct PCBCanvas: View {
     // MARK: - Drawing
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
-        guard active else { return }  // kept behind another workspace: nothing to draw until it is shown again
         let snap = store.snapshot
         let screen = CGAffineTransform(translationX: viewport.offset.width, y: viewport.offset.height)
             .scaledBy(x: viewport.scale, y: viewport.scale)

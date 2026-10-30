@@ -33,8 +33,6 @@ struct XRayStackView: NSViewRepresentable {
     let revision: Int
     let settings: XRaySettings
     let resetToken: Int
-    /// False while the 3D workspace is kept behind another one: nothing renders, animates or rebuilds.
-    var active = true
 
     final class Coordinator {
         var builtRevision = -1
@@ -91,9 +89,6 @@ struct XRayStackView: NSViewRepresentable {
 
     func updateNSView(_ view: SCNView, context: Context) {
         let c = context.coordinator
-        view.isHidden = !active
-        view.scene?.isPaused = !active
-        guard active else { return }  // shown again: the revision check below catches up
         if c.meshRevision != revision {
             c.layerMeshes = [:]
             for layer in 0..<max(1, snapshot.board.layerCount) {

@@ -531,12 +531,12 @@ struct CanvasInputMonitor: NSViewRepresentable {
     var onPan: (CGSize) -> Void
     /// A right click without a drag: the context menu for what is under the pointer (empty: no menu).
     var onRightClick: ((CGPoint) -> [CanvasMenuItem])?
-    /// False while the editor is hidden behind another workspace: its events go to the one on screen.
-    var active = true
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
-        updateNSView(view, context: context)
+        view.onScroll = onScroll
+        view.onPan = onPan
+        view.onRightClick = onRightClick
         return view
     }
 
@@ -544,14 +544,12 @@ struct CanvasInputMonitor: NSViewRepresentable {
         view.onScroll = onScroll
         view.onPan = onPan
         view.onRightClick = onRightClick
-        view.active = active
     }
 
     final class MonitorView: NSView {
         var onScroll: ((NSEvent, CGPoint) -> Void)?
         var onPan: ((CGSize) -> Void)?
         var onRightClick: ((CGPoint) -> [CanvasMenuItem])?
-        var active = true
         private var monitors: [Any] = []
         private var panning = false
         private var panDistance: CGFloat = 0
@@ -561,7 +559,7 @@ struct CanvasInputMonitor: NSViewRepresentable {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }  // never intercept mouse clicks
 
         private func contains(_ event: NSEvent) -> CGPoint? {
-            guard active, event.window === window else { return nil }
+            guard event.window === window else { return nil }
             let point = convert(event.locationInWindow, from: nil)
             return bounds.contains(point) ? point : nil
         }
@@ -656,8 +654,8 @@ extension View {
     /// Scroll / pinch-free mouse navigation: scroll events (location in the view's top-left coordinates) and
     /// middle- or right-button drags (screen-point deltas).
     func canvasMouseInput(onScroll: @escaping (NSEvent, CGPoint) -> Void, onPan: @escaping (CGSize) -> Void,
-                          onRightClick: ((CGPoint) -> [CanvasMenuItem])? = nil, active: Bool = true) -> some View {
-        background(CanvasInputMonitor(onScroll: onScroll, onPan: onPan, onRightClick: onRightClick, active: active))
+                          onRightClick: ((CGPoint) -> [CanvasMenuItem])? = nil) -> some View {
+        background(CanvasInputMonitor(onScroll: onScroll, onPan: onPan, onRightClick: onRightClick))
     }
 }
 

@@ -36,7 +36,6 @@ enum SchematicTool: Equatable {
 struct SchematicEditorView: View {
     @EnvironmentObject private var store: DesignStore
     @EnvironmentObject private var settings: AISettings
-    @Environment(\.editorActive) private var editorActive
     @State private var tool: SchematicTool = .select
     @State private var pickerKind: ComponentKind = .resistor
     @State private var showPicker = true
@@ -324,7 +323,7 @@ struct SchematicEditorView: View {
         }
         .sheet(isPresented: $store.showSchematicColours) { SchematicThemeEditor() }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
-            editorActive && (store.selectedWire != nil || !store.selection.isEmpty)
+            store.selectedWire != nil || !store.selection.isEmpty
         })
     }
 
