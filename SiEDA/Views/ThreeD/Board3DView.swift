@@ -8,6 +8,8 @@ import SwiftUI
 /// - **X-Ray Stack**: every copper layer floats apart in a holographic, additive-glow exploded view with
 ///   through-vias as light pillars, wireframe component bodies and a scanning beam.
 struct Board3DWorkspace: View {
+    /// False while kept behind another workspace (ContentView): the scenes and the HUD's animation stop.
+    @Environment(\.editorActive) private var active
     enum Mode: String, CaseIterable, Identifiable {
         case assembly = "Assembly"
         case xray = "X-Ray Stack"
@@ -101,8 +103,8 @@ struct Board3DWorkspace: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if mode == .xray {
                     XRayStackView(engine: store.engine, snapshot: store.snapshot, revision: store.revision,
-                                  settings: xray, resetToken: resetCamera)
-                    if xray.hud {
+                                  settings: xray, resetToken: resetCamera, active: active)
+                    if xray.hud && active {
                         HoloHUDOverlay(title: store.snapshot.name, readouts: hudReadouts)
                     }
                     layerLegend
@@ -120,7 +122,7 @@ struct Board3DWorkspace: View {
                                                finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats,
                                                look: look, camera: camera, clashes: clashBodies,
                                                selected: store.snapshot.bodies.filter { store.selection.contains($0.component) },
-                                               onClick: clicked, onSaveView: saveView)
+                                               onClick: clicked, onSaveView: saveView, active: active)
                                 if !panels || measuring { pickInfo.padding(12) }
                             }
                             if panels {
@@ -581,8 +583,12 @@ struct BoardSceneView: NSViewRepresentable {
     var selected: [SnapBody] = []
     var onClick: (SCNVector3, CGPoint) -> Void = { _, _ in }
     var onSaveView: (String, [Double]) -> Void = { _, _ in }
+    /// False while the 3D workspace is kept behind another one: nothing renders, animates or rebuilds.
+    var active = true
 
     final class Coordinator: NSObject {
+        /// Hidden since the last update: the edits made meanwhile are caught up at once, the camera kept.
+        var wasHidden = false
         var lastRevision = -1
         /// An edit's mesh rebuild, waiting for edits to pause (each edit bumps the revision).
         var pendingRebuild: DispatchWorkItem?
@@ -701,13 +707,22 @@ struct BoardSceneView: NSViewRepresentable {
 
     func updateNSView(_ view: SCNView, context: Context) {
         let c = context.coordinator
+        view.isHidden = !active
+        view.scene?.isPaused = !active
+        guard active else {
+            c.wasHidden = true
+            c.pendingRebuild?.cancel()
+            return
+        }
+        let returning = c.wasHidden
+        c.wasHidden = false
         c.board = board
         c.onClick = onClick
         c.onSaveView = onSaveView
         let meshKey = ["\(look.hiddenParts.sorted())", "\(look.standoffs)", "\(look.enclosure)", "\(look.fold)"]
         if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish || c.lastMesh != meshKey {
             // Only an edit (side-by-side with an editor): rebuild once the edits pause, not on every one.
-            let onlyEdit = c.lastRevision >= 0 && c.lastComponents == includeComponents && c.lastFinish == finish && c.lastMesh == meshKey
+            let onlyEdit = !returning && c.lastRevision >= 0 && c.lastComponents == includeComponents && c.lastFinish == finish && c.lastMesh == meshKey
             c.lastRevision = revision
             c.lastComponents = includeComponents
             c.lastFinish = finish
@@ -724,7 +739,7 @@ struct BoardSceneView: NSViewRepresentable {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
             } else {
                 rebuild(c)
-                if c.lastReset == 0 { placeCamera(c, view: view) }
+                if c.lastReset == 0 && !returning { placeCamera(c, view: view) }
             }
         }
         if c.lastReset != resetToken {

@@ -92,6 +92,7 @@ enum PCBLayer: Hashable, Identifiable {
 /// PCB layout workspace: tool strip, options bar with design rules, canvas, Altium-style layer tabs.
 struct PCBEditorView: View {
     @EnvironmentObject private var store: DesignStore
+    @Environment(\.editorActive) private var editorActive
     @State private var viewport = ViewMemory.value("pcb.viewport", Viewport(scale: 12, offset: CGSize(width: 80, height: 80)))
     @State private var canvasSize: CGSize = .zero
     @State private var visible: Set<PCBLayer> = ViewMemory.value("pcb.visible", PCBLayer.defaultVisible)
@@ -521,7 +522,7 @@ struct PCBEditorView: View {
                     if show3DBeside {  // the board in 3D beside the layout, following every edit
                         Divider()
                         BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
-                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""))
+                                       board: store.snapshot.board, resetToken: 0, stats: .constant(""), active: editorActive)
                             .frame(minWidth: 240, maxWidth: .infinity)
                     }
                 }
