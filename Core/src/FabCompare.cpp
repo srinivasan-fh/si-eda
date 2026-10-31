@@ -266,11 +266,18 @@ struct Grid {
     int w, h;
 };
 
+// A cell index clamped to [lo, hi] before it becomes an int: hostile coordinates (1e23, NaN) must not overflow the cast.
+int clampCell(double v, int lo, int hi) {
+    if (!(v > lo)) return lo;
+    if (v > hi) return hi;
+    return static_cast<int>(v);
+}
+
 void paint(std::vector<uint8_t>& cells, const Grid& g, const GerberShape& s) {
     const uint8_t v = s.clear ? 0 : 1;
     auto span = [&](double lo, double hi, int n, double o) {
-        return std::pair<int, int>{std::max(0, static_cast<int>(std::floor((lo - o) / g.res))),
-                                   std::min(n - 1, static_cast<int>(std::ceil((hi - o) / g.res)))};
+        return std::pair<int, int>{clampCell(std::floor((lo - o) / g.res), 0, n),
+                                   clampCell(std::ceil((hi - o) / g.res), -1, n - 1)};
     };
     auto cell = [&](int i, int j) { return Vec2{g.x0 + (i + 0.5) * g.res, g.y0 + (j + 0.5) * g.res}; };
     if (s.kind == GerberShape::Region) {
@@ -288,8 +295,8 @@ void paint(std::vector<uint8_t>& cells, const Grid& g, const GerberShape& s) {
             }
             std::sort(xs.begin(), xs.end());
             for (size_t k = 0; k + 1 < xs.size(); k += 2) {
-                const int i0 = std::max(0, static_cast<int>(std::ceil((xs[k] - g.x0) / g.res - 0.5)));
-                const int i1 = std::min(g.w - 1, static_cast<int>(std::floor((xs[k + 1] - g.x0) / g.res - 0.5)));
+                const int i0 = clampCell(std::ceil((xs[k] - g.x0) / g.res - 0.5), 0, g.w);
+                const int i1 = clampCell(std::floor((xs[k + 1] - g.x0) / g.res - 0.5), -1, g.w - 1);
                 for (int i = i0; i <= i1; ++i) cells[static_cast<size_t>(j) * g.w + i] = v;
             }
         }
@@ -445,9 +452,15 @@ Json compareFabPackages(const std::map<std::string, std::string>& a, const std::
         // Artwork: both images on one grid over their joined bounds.
         const double x0 = std::min(A->image.x0, B->image.x0) - 1, y0 = std::min(A->image.y0, B->image.y0) - 1;
         const double x1 = std::max(A->image.x1, B->image.x1) + 1, y1 = std::max(A->image.y1, B->image.y1) + 1;
+        if (!std::isfinite(x1 - x0) || !std::isfinite(y1 - y0)) {  // a hostile file's coordinates: no raster to compare
+            identical = false;
+            j["status"] = "changed";
+            layers.push(j);
+            continue;
+        }
         double res = resolution;
         while ((x1 - x0) / res * ((y1 - y0) / res) > 16e6) res *= 1.5;  // at most ~16 M cells a layer
-        const int w = std::max(1, static_cast<int>(std::ceil((x1 - x0) / res))), h = std::max(1, static_cast<int>(std::ceil((y1 - y0) / res)));
+        const int w = clampCell(std::ceil((x1 - x0) / res), 1, 16000000), h = clampCell(std::ceil((y1 - y0) / res), 1, 16000000);
         const auto ca = rasterizeGerber(A->image, x0, y0, res, w, h), cb = rasterizeGerber(B->image, x0, y0, res, w, h);
         size_t add = 0, rem = 0, both = 0;
         std::vector<uint8_t> diff(ca.size(), 0);  // 1 removed, 2 added

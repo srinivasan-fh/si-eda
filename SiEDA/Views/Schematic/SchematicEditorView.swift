@@ -590,6 +590,9 @@ struct DevicePicker: View {
     var onImport: () -> Void = {}
     var onPick: (ComponentKind) -> Void
     @State private var search = ""
+    /// The standard catalog (about 1,600 parts) is listed only when asked for or searched: building its rows made
+    /// every switch to the schematic slower.
+    @State private var showStandard = false
     @State private var selectedCustom: String?
     /// Icons only: a narrow column of device icons, each named in its tooltip (the palette's compact mode).
     @AppStorage(DevicePicker.iconsOnlyKey) private var iconsOnly = false
@@ -791,7 +794,16 @@ struct DevicePicker: View {
                     .foregroundStyle(Theme.lightBlue)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    if !filteredStandard.isEmpty {
+                    if search.isEmpty && !showStandard {
+                        Button { showStandard = true } label: {
+                            Label("Standard Parts (\(StandardLibrary.parts.count))", systemImage: "chevron.right")
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(Theme.lightBlue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .help("List the standard parts catalog (or type in the search field)")
+                    } else if !filteredStandard.isEmpty {
                         header("Standard Parts")
                         ForEach(filteredStandard) { part in
                             row(highlighted: false) {
