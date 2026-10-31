@@ -391,7 +391,7 @@ struct StatusBar: View {
 
 extension Workspace {
     /// Drawn icons that read as the job (a resistor, a board with a trace, an oscilloscope trace, an IC for the parts
-    /// library, a board with a part in 3D); the others use SF Symbols.
+    /// library, a board with a part in 3D, a checklist clipboard, a parts table); the others use SF Symbols.
     var icon: Image {
         switch self {
         case .schematic: return Image("WorkspaceSchematic")
@@ -399,6 +399,8 @@ extension Workspace {
         case .simulation: return Image("WorkspaceSimulation")
         case .library: return Image("WorkspaceLibrary")
         case .threeD: return Image("Workspace3D")
+        case .checks: return Image("WorkspaceChecks")
+        case .bom: return Image("WorkspaceBOM")
         default: return Image(systemName: systemImage)
         }
     }
