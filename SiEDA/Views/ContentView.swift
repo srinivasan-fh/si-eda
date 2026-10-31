@@ -159,7 +159,7 @@ struct ContentView: View {
         ToolbarItem(placement: .principal) {
             Picker("Workspace", selection: $store.workspace) {
                 ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    Label(LocalizedStringKey(w.title), systemImage: w.systemImage).tag(w)
+                    Label { Text(LocalizedStringKey(w.title)) } icon: { w.icon }.tag(w)
                 }
             }
             .pickerStyle(.segmented)
@@ -386,5 +386,17 @@ struct StatusBar: View {
     private var modeLabel: some View {
         Label(settings.aiEnabled ? "AI on" : "Manual mode", systemImage: settings.aiEnabled ? "sparkles" : "hand.raised")
             .lineLimit(1)
+    }
+}
+
+extension Workspace {
+    /// Drawn icons that read as the job (a resistor, a board with a trace, an oscilloscope trace); the others use SF Symbols.
+    var icon: Image {
+        switch self {
+        case .schematic: return Image("WorkspaceSchematic")
+        case .pcb: return Image("WorkspacePCB")
+        case .simulation: return Image("WorkspaceSimulation")
+        default: return Image(systemName: systemImage)
+        }
     }
 }
