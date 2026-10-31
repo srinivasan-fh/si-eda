@@ -668,13 +668,19 @@ struct LayersPanel: View {
     @AppStorage("pcb.pick.parts") private var pickParts = true
     @AppStorage("pcb.pick.copper") private var pickCopper = true
     @AppStorage("pcb.pourClearance") private var pourClearance = false
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
-        // Scrolls when the window is short (many layers): the panel never sets the workspace's minimum height.
-        ViewThatFits(in: .vertical) {
-            content
-            ScrollView { content }
+        // Scrolls when the window is short (many layers): the panel never sets the workspace's minimum height. One
+        // copy of the controls, as tall as they are (a ViewThatFits with a scrolling copy built them all twice).
+        ScrollView {
+            content.background(GeometryReader { geometry in
+                Color.clear
+                    .onAppear { contentHeight = geometry.size.height }
+                    .onChange(of: geometry.size.height) { _, height in contentHeight = height }
+            })
         }
+        .frame(maxHeight: contentHeight > 0 ? contentHeight : nil)
         .frame(width: 210)
         .bluePanel()
     }
