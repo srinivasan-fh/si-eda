@@ -40,17 +40,11 @@ struct ToolStrip<Content: View>: View {
     var body: some View {
         if horizontal {
             // On narrow windows the tools scroll sideways instead of forcing the workspace wider than the window.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 4) {
-                    content
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 8)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) { content }
-                        .padding(.horizontal, 8)
-                }
+            FillingScrollView(axis: .horizontal) {
+                HStack(spacing: 4) { content }
+                    .padding(.horizontal, 8)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, 3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.deepBlue)
@@ -58,16 +52,9 @@ struct ToolStrip<Content: View>: View {
             .environment(\.toolStripHorizontal, true)
         } else {
             // On short windows the tools scroll instead of forcing the workspace taller than the window.
-            ViewThatFits(in: .vertical) {
-                VStack(spacing: 4) {
-                    content
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 8)
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 4) { content }
-                        .padding(.vertical, 8)
-                }
+            FillingScrollView(axis: .vertical) {
+                VStack(spacing: 4) { content }
+                    .padding(.vertical, 8)
             }
             .padding(.horizontal, 5)
             .frame(width: 44)
@@ -75,6 +62,28 @@ struct ToolStrip<Content: View>: View {
             .background(Theme.deepBlue)
             .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
         }
+    }
+}
+
+/// A scroll view whose content is at least as long as the view along `axis` (laid out from the leading / top edge):
+/// one copy of the content that scrolls only when it does not fit. A `ViewThatFits` with a plain and a scrolling copy
+/// builds and measures every control twice, which made workspace switches slow.
+struct FillingScrollView<Content: View>: View {
+    var axis: Axis
+    @ViewBuilder var content: Content
+    @State private var length: CGFloat = 0
+
+    var body: some View {
+        ScrollView(axis == .horizontal ? .horizontal : .vertical, showsIndicators: false) {
+            content.frame(minWidth: axis == .horizontal ? length : nil, minHeight: axis == .vertical ? length : nil,
+                          alignment: axis == .horizontal ? .leading : .top)
+        }
+        .background(GeometryReader { geometry in
+            let length = axis == .horizontal ? geometry.size.width : geometry.size.height
+            Color.clear
+                .onAppear { self.length = length }
+                .onChange(of: length) { _, new in self.length = new }
+        })
     }
 }
 
@@ -111,7 +120,6 @@ struct OptionsBar<Content: View>: View {
 
     @Environment(\.editorFocusMode) private var focusMode
     @State private var revealed = false
-    @State private var barWidth: CGFloat = 0
 
     var body: some View {
         if focusMode && !revealed {
@@ -132,19 +140,11 @@ struct OptionsBar<Content: View>: View {
         Group {
             if scrollsWhenNarrow {
                 // On narrow windows the controls scroll sideways instead of forcing the workspace wider than the window.
-                // One copy of the controls, at least as wide as the bar so its spacers still push items right: a
-                // ViewThatFits with a scrolling and a plain copy built and measured every AppKit control twice,
-                // most of the time a switch to the schematic or the PCB editor took.
-                ScrollView(.horizontal, showsIndicators: false) {
+                FillingScrollView(axis: .horizontal) {
                     HStack(spacing: 12) { content }
                         .padding(.horizontal, 12)
-                        .frame(minWidth: barWidth, maxHeight: .infinity, alignment: .leading)
+                        .frame(maxHeight: .infinity)
                 }
-                .background(GeometryReader { geometry in
-                    Color.clear
-                        .onAppear { barWidth = geometry.size.width }
-                        .onChange(of: geometry.size.width) { _, width in barWidth = width }
-                })
             } else {
                 HStack(spacing: 12) { content }
                     .padding(.horizontal, 12)
