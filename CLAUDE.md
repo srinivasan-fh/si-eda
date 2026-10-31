@@ -389,7 +389,7 @@
     `DesignSnapshot.customPartIndex`; canvas hover is written only when the snapped grid point (schematic) or the hovered
     net / 3 points of movement (PCB) changes. Panels show / hide without a per-frame editor rebuild: canvases hand their size to the editor once it settles
     (`settledSize`, EditorChrome.swift), the inspector and the components / nets sidebar toggle without animation (`ContentView.setInspector` / `setSidebar`, the system sidebar button removed), the picker's
-    catalog filter is a static cache. A workspace switch is mostly AppKit laying out the editor's controls: `OptionsBar`, `ToolStrip` and the PCB `LayersPanel` build their controls once (`FillingScrollView`: a scroll view whose content is at least its length; the layers panel's scroll view is as tall as its content), never a `ViewThatFits` with a second copy of controls, and fixed core tables (autoroute presets, sheet templates) are read once; `testSchematicAndPcbSwitchTimes` prints the switch times in the CI log. `Project::snapshot` walks the cached pours by reference (`copperFills`
+    catalog filter is a static cache. A workspace switch is mostly AppKit laying out the editor's controls: `OptionsBar`, `ToolStrip` and the PCB `LayersPanel` build their controls once (`FillingScrollView`: a scroll view whose content is at least its length; the layers panel's scroll view is as tall as its content), never a `ViewThatFits` with a second copy of controls, fixed core tables (autoroute presets, sheet templates) are read once, and the device picker lists the ~1,600 standard parts only when expanded or searched (`DevicePicker.showStandard`); `testSchematicAndPcbSwitchTimes` prints the switch times in the CI log, also with the 268-part SMPS board (switching does not grow with the design: the time is AppKit laying out controls). `Project::snapshot` walks the cached pours by reference (`copperFills`
     copies every cell grid).
   - **JSON values:** 40-byte `std::variant`s; objects are flat vectors in `std::map` key order (`Json::Object`),
     arrays `reserve`d where the count is known. `Json::dump` uses `std::to_chars`, a no-escape fast path and
@@ -419,7 +419,7 @@
     `performInBackground` (one undo step); the placement ghost's check is coalesced like `moveRoute`
     (`movePlacementGhostNow` checks synchronously).
   - **`sieda-mcp --connect`:** only connects to 127.0.0.1 / localhost / ::1 and caps replies at 64 MB.
-- Hardening: importers' union-find is iterative; schematic wire spans join through `joinSpans` (LibraryImport.cpp: row /
+- Hardening: importers' union-find is iterative; the package compare's raster clamps cell indexes before the int cast (`clampCell`, FabCompare.cpp) and skips a non-finite extent; schematic wire spans join through `joinSpans` (LibraryImport.cpp: row /
   column index, capped diagonal scan); VRML `USE` walks stop after 1 000 000 nodes; the SPICE netlist writes ref / value /
   model through `spiceSafe` and part definitions through `withoutControlBlocks` (Export.hpp); `Json::asInt` saturates
   (layers / via spans clamped); `sieda-mcp --connect` dechunks without `at + size` overflow.

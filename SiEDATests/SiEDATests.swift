@@ -899,16 +899,6 @@ final class LiveWindowTests: XCTestCase {
         for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
             print(String(format: "[SwitchTimes] SMPS %@: %.0f ms", workspace.title, timeBig(workspace)))
         }
-        // Temporary: CI samples the main thread while the editors switch (ci.yml).
-        print("[SwitchProfile] sampling")
-        fflush(stdout)
-        let end = Date().addingTimeInterval(45)
-        var round = 0
-        while Date() < end {
-            _ = timeBig(round % 2 == 0 ? .pcb : .schematic)
-            round += 1
-        }
-        print("[SwitchProfile] done after \(round) switches")
     }
 }
 

@@ -135,14 +135,6 @@ jobs:
           set -o pipefail
           : > xcodebuild.log
           # If the live-window test reports a hang, sample the stuck app so the log shows where the main thread is.
-          # Temporary: sample the schematic / PCB switch loop of testSchematicAndPcbSwitchTimes.
-          ( while sleep 0.5; do
-              if grep -q "\[SwitchProfile\] sampling" xcodebuild.log 2>/dev/null; then
-                pid=$(pgrep -x SiEDA | head -1)
-                [ -n "$pid" ] && sample "$pid" 20 -mayDie -file switch-sample.txt >/dev/null 2>&1
-                break
-              fi
-            done ) &
           ( while sleep 2; do
               if grep -q "\[LiveWindow\] HUNG" xcodebuild.log 2>/dev/null; then
                 pid=$(pgrep -x SiEDA | head -1)
@@ -166,18 +158,6 @@ jobs:
           # (Whole-module compilation above makes the compiler report every type error in one run.)
           awk '{ gsub(/%/, "%25"); buf = buf $0 "%0A"; if (NR % 6 == 0) { print "::error title=xcodebuild::" buf; buf = "" } }
                END { if (buf != "") print "::error title=xcodebuild::" buf }' errors.txt
-      - name: Schematic / PCB switch profile (temporary)
-        if: always()
-        run: |
-          grep "\[Switch" xcodebuild.log || true
-          [ -f switch-sample.txt ] || { echo "No switch sample."; exit 0; }
-          # Inclusive main-thread samples per frame, heaviest first.
-          awk '/Main Thread/{on=1; next} on && /Thread_[0-9]+/{on=0} on' switch-sample.txt \
-            | sed -E 's/^[ +!:|]+//' \
-            | awk '{ n = $1 + 0; $1 = ""; sub(/^ /, ""); sub(/ +\+ [0-9]+ +\[0x[0-9a-f]+\].*/, ""); if (n > m[$0]) m[$0] = n }
-                   END { for (k in m) print m[k] "\t" k }' > frames.txt
-          echo "== app frames"; grep "SiEDA" frames.txt | sort -rn | head -100 | cut -c1-240
-          echo "== SwiftUI / AppKit / CoreGraphics frames"; grep -E "SwiftUI|AppKit|AttributeGraph|CoreGraphics|QuartzCore" frames.txt | sort -rn | head -70 | cut -c1-240
       - name: Main-thread sample of a hang
         if: failure()
         run: |

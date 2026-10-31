@@ -24799,6 +24799,22 @@ TEST(gerber_viewer_reads_multiline_incremental_step_repeat_and_excellon_zeros) {
     CHECK(digits.shapes.size() == 1 && std::fabs(digits.shapes[0].a.x - 12.5) < 1e-9 && std::fabs(digits.shapes[0].a.y + 1) < 1e-9);
 }
 
+TEST(fab_package_compare_survives_absurd_coordinates) {
+    // Fuzzer find: artwork 1e23 mm away grows the compare grid's cell size until the board fits 16 M cells, and the
+    // cell index casts then overflowed int (undefined behaviour; UBSan in CI). Indexes are clamped before the cast:
+    // the layers compare (thin strokes cover no cell at that size), whatever the coordinates.
+    const std::string head = "%FSLAX46Y46*%%MOMM*%%ADD10C,0.100000*%D10*";
+    const std::string far = head + "G36*X0Y0D02*X1000000Y0D01*X222222222222222222222222222222Y1000000D01*G37*"
+                                   "X0Y0D02*X-333333333333333333333333333333Y5D01*M02*";
+    const std::string near = head + "X0Y0D02*X1000000Y0D01*M02*";
+    const Json r = compareFabPackages({{"a-F_Cu.gbr", far}}, {{"a-F_Cu.gbr", near}});
+    CHECK(r.get("layers").items().size() == 1);
+    const Json& layer = r.get("layers").items()[0];
+    CHECK(layer.get("resolution").asNumber(0) > 1e6);  // the grid search took the huge-extent path
+    const std::string status = layer.get("status").asString();
+    CHECK(status == "same" || status == "changed");
+}
+
 TEST(fab_package_compare_reads_zips_and_finds_changed_copper) {
     // A .zip with deflated (fixed and dynamic codes) and stored entries reads back byte for byte; a cut archive is an
     // error, not a crash. Through MCP: a written package compares identical with the design it came from; moving a
