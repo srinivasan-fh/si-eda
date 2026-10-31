@@ -1879,10 +1879,10 @@ extension EDAEngine {
         withHandle { sieda_set_sheet_symbol_size($0, Int32(id), width, height) } == 1
     }
 
-    /// Drawing templates (A4 … A0, ANSI A … E).
-    static func sheetTemplates() -> [SheetTemplateInfo] {
+    /// Drawing templates (A4 … A0, ANSI A … E): a fixed table, read from the core once (menus list it on every redraw).
+    static func sheetTemplates() -> [SheetTemplateInfo] { sheetTemplateTable }
+    private static let sheetTemplateTable: [SheetTemplateInfo] =
         decode([SheetTemplateInfo].self, from: take(sieda_sheet_templates_json())) ?? []
-    }
 
     /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
     /// One schematic sheet as an SVG ("svg") or PNG ("png") image `width` pixels wide.

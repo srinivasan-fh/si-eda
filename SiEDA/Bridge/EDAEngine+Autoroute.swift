@@ -183,9 +183,10 @@ extension EDAEngine {
     }
 
     /// The preset strategies (default, fast, high quality, fan-out only, selected nets, net class, area).
-    static func autoroutePresets() -> [AutoroutePreset] {
+    /// A fixed table, read from the core once (the PCB editor's strategy menu lists it on every redraw).
+    static func autoroutePresets() -> [AutoroutePreset] { autoroutePresetTable }
+    private static let autoroutePresetTable: [AutoroutePreset] =
         decode([AutoroutePreset].self, from: take(sieda_autoroute_presets())) ?? []
-    }
 
     /// The last autoroute's report (empty before the first route).
     func routeReport() -> RouteReport {

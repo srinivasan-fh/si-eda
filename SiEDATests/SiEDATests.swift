@@ -843,6 +843,38 @@ final class LiveWindowTests: XCTestCase {
         }
         progress.set("done")
     }
+
+    /// Prints how long switches into the schematic and the PCB editor take with a placed design (the CI log keeps
+    /// the numbers; most of a switch is laying out the editor's AppKit controls, see `OptionsBar`).
+    func testSchematicAndPcbSwitchTimes() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
+        let root = ContentView()
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(AgentOrchestrator())
+            .documentWindowFrame()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: root)
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        spin(0.5)
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        store.autoPlace(all: true)
+        spin(0.5)
+        func time(_ workspace: Workspace) -> Double {
+            let start = CFAbsoluteTimeGetCurrent()
+            store.workspace = workspace
+            spin(0.02)
+            return (CFAbsoluteTimeGetCurrent() - start) * 1000
+        }
+        for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
+            print(String(format: "[SwitchTimes] %@: %.0f ms", workspace.title, time(workspace)))
+        }
+    }
 }
 
 /// The three basic user flows driven through `DesignStore`, the same entry points the editors' clicks call:

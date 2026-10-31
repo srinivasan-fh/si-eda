@@ -131,17 +131,16 @@ struct SchematicEditorView: View {
                         store.requestView(.zoomArea)
                     }
                 }
-                OptionsBar {  // scrolls sideways on narrow windows: the Arrange, Back Annotate, Messages and PDF controls need the room
-                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
-                    Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
-                    Divider().frame(height: 18)
-                    Text(hint)
-                        .foregroundStyle(wireStart == nil ? Theme.textMuted : Theme.skyBlue)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                OptionsBar {  // icons only: the tool and its instructions are the wrench's tooltip
+                    Image(systemName: "wrench.and.screwdriver")
+                        .foregroundStyle(wireStart == nil ? Theme.blue : Theme.skyBlue)
+                        .help(tool.title + " — " + hint)
+                        .accessibilityLabel(Text(verbatim: tool.title))
                     Toggle("Live probes", isOn: $store.showDCOverlay)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
+                        .labelsHidden()
+                        .help("Live probes")
                     Button { store.showFind = true } label: { Image(systemName: "magnifyingglass") }
                         .buttonStyle(.borderless)
                         .keyboardShortcut("f", modifiers: [.command])
@@ -175,7 +174,7 @@ struct SchematicEditorView: View {
                         Button("Distribute Vertically") { store.align("distributeY", byOutline: alignByOutline) }
                         Toggle("Align by Symbol Outline", isOn: $alignByOutline)
                     } label: {
-                        Label("Arrange", systemImage: "square.on.square.dashed")
+                        Label("Arrange", systemImage: "square.on.square.dashed").labelStyle(.iconOnly)
                     }
                     .fixedSize()
                     .help("Copy, paste, paste array (designators numbered on, labels counted up), align and distribute")
@@ -194,11 +193,11 @@ struct SchematicEditorView: View {
                         Button("Update PCB") { updatingPCB = true }
                             .help("Engineering change order: review and execute the schematic's changes on the board")
                     } label: {
-                        Label("Back Annotate", systemImage: "arrow.uturn.left.square")
+                        Label("Back Annotate", systemImage: "arrow.uturn.left.square").labelStyle(.iconOnly)
                     }
                     .fixedSize()
                     .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
-                    Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
+                    Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle").labelStyle(.iconOnly) }
                         .help("Every ERC message of every sheet; click one to go there")
                     Menu {
                         Button("PDF…") { store.exportSchematicPDF() }
@@ -207,7 +206,7 @@ struct SchematicEditorView: View {
                         Divider()
                         Button("Print…") { store.printSchematic() }
                     } label: {
-                        Label("PDF", systemImage: "doc.richtext")
+                        Label("PDF", systemImage: "doc.richtext").labelStyle(.iconOnly)
                     }
                     .fixedSize()
                     .help("PDF of every sheet with bookmarks, frames and title blocks")
