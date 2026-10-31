@@ -874,6 +874,41 @@ final class LiveWindowTests: XCTestCase {
         for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
             print(String(format: "[SwitchTimes] %@: %.0f ms", workspace.title, time(workspace)))
         }
+        window.close()
+        // A production board (268 parts, routed, poured) in a fresh window: what grows with the design.
+        let big = DesignStore()
+        big.loadBuiltInExample("smps_230vac")
+        let bigWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                                 styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                                 backing: .buffered, defer: false)
+        bigWindow.isReleasedWhenClosed = false
+        bigWindow.contentViewController = NSHostingController(rootView: ContentView()
+            .environmentObject(big)
+            .environmentObject(settings)
+            .environmentObject(AgentOrchestrator())
+            .documentWindowFrame())
+        bigWindow.makeKeyAndOrderFront(nil)
+        defer { bigWindow.close() }
+        spin(1)
+        func timeBig(_ workspace: Workspace) -> Double {
+            let start = CFAbsoluteTimeGetCurrent()
+            big.workspace = workspace
+            spin(0.02)
+            return (CFAbsoluteTimeGetCurrent() - start) * 1000
+        }
+        for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
+            print(String(format: "[SwitchTimes] SMPS %@: %.0f ms", workspace.title, timeBig(workspace)))
+        }
+        // Temporary: CI samples the main thread while the editors switch (ci.yml).
+        print("[SwitchProfile] sampling")
+        fflush(stdout)
+        let end = Date().addingTimeInterval(45)
+        var round = 0
+        while Date() < end {
+            _ = timeBig(round % 2 == 0 ? .pcb : .schematic)
+            round += 1
+        }
+        print("[SwitchProfile] done after \(round) switches")
     }
 }
 
