@@ -865,14 +865,19 @@ final class LiveWindowTests: XCTestCase {
         store.loadExample(OfflineProvider.templates[8].industryPlan)
         store.autoPlace(all: true)
         spin(0.5)
-        func time(_ workspace: Workspace) -> Double {
+        // First frame = the window laid out and drawn once (what the user sees first); full = with the deferred bars.
+        func time(_ store: DesignStore, _ window: NSWindow, _ workspace: Workspace) -> (Double, Double) {
             let start = CFAbsoluteTimeGetCurrent()
             store.workspace = workspace
+            window.contentView?.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+            let first = (CFAbsoluteTimeGetCurrent() - start) * 1000
             spin(0.02)
-            return (CFAbsoluteTimeGetCurrent() - start) * 1000
+            return (first, (CFAbsoluteTimeGetCurrent() - start) * 1000)
         }
         for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
-            print(String(format: "[SwitchTimes] %@: %.0f ms", workspace.title, time(workspace)))
+            let (first, full) = time(store, window, workspace)
+            print(String(format: "[SwitchTimes] %@: first frame %.0f ms, full %.0f ms", workspace.title, first, full))
         }
         window.close()
         // A production board (268 parts, routed, poured) in a fresh window: what grows with the design.
@@ -890,14 +895,9 @@ final class LiveWindowTests: XCTestCase {
         bigWindow.makeKeyAndOrderFront(nil)
         defer { bigWindow.close() }
         spin(1)
-        func timeBig(_ workspace: Workspace) -> Double {
-            let start = CFAbsoluteTimeGetCurrent()
-            big.workspace = workspace
-            spin(0.02)
-            return (CFAbsoluteTimeGetCurrent() - start) * 1000
-        }
         for workspace in [Workspace.simulation, .schematic, .simulation, .pcb, .simulation, .schematic, .pcb] {
-            print(String(format: "[SwitchTimes] SMPS %@: %.0f ms", workspace.title, timeBig(workspace)))
+            let (first, full) = time(big, bigWindow, workspace)
+            print(String(format: "[SwitchTimes] SMPS %@: first frame %.0f ms, full %.0f ms", workspace.title, first, full))
         }
     }
 }

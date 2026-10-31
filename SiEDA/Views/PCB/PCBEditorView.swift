@@ -107,6 +107,7 @@ struct PCBEditorView: View {
     @State private var tuneAmplitudeText = ""
     @State private var tuneSpacingText = ""
     @State private var showLayersPanel = ViewMemory.value("pcb.layersPanel", true)
+    @State private var panelsBuilt = false
     @State private var showBoardSetup = false
     @State private var showLengthRules = false
 
@@ -445,7 +446,7 @@ struct PCBEditorView: View {
                                 .padding(10)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                         }
-                        if showLayersPanel {
+                        if showLayersPanel && panelsBuilt {
                             LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
                                         visible: $visible, active: $activeLayer)
                                 .canvasScrollShield()
@@ -535,6 +536,7 @@ struct PCBEditorView: View {
         .remembers(visible, as: "pcb.visible")
         .remembers(activeLayer, as: "pcb.activeLayer")
         .remembers(showLayersPanel, as: "pcb.layersPanel")
+        .onAppear { DispatchQueue.main.async { panelsBuilt = true } }  // canvas first, the layers panel a frame later
         .onAppear { syncRuleFields() }
         .onDisappear { store.cancelRoute() }
         .onChange(of: store.snapshot.board) { old, board in

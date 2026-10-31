@@ -120,9 +120,17 @@ struct OptionsBar<Content: View>: View {
 
     @Environment(\.editorFocusMode) private var focusMode
     @State private var revealed = false
+    /// Built one frame after the editor appears: a workspace switch first shows the canvas, then lays out the
+    /// bar's AppKit controls (most of a switch's time) in the next run-loop pass.
+    @State private var built = false
 
     var body: some View {
-        if focusMode && !revealed {
+        if !built {
+            Rectangle()
+                .fill(Theme.deepBlue.opacity(0.92))
+                .frame(height: focusMode ? 4 : 36)
+                .onAppear { DispatchQueue.main.async { built = true } }
+        } else if focusMode && !revealed {
             // Focus mode: a thin strip; the bar comes back while the pointer is over it.
             Rectangle()
                 .fill(Theme.deepBlue.opacity(0.6))
