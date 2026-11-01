@@ -5,15 +5,22 @@
 :root{--bg:#f4f6fa;--panel:#fff;--ink:#17202e;--mute:#5d6b80;--line:#d9dfe8;--accent:#3b6fe0;--bar:#16233a;--bad:#c62e2e;--warn:#b26b00;--ok:#1d8a4e}
 @media (prefers-color-scheme:dark){:root{--bg:#0e1522;--panel:#151f31;--ink:#e6ebf3;--mute:#93a1b8;--line:#26344d;--accent:#5b8dff;--bar:#0a101b}}
 *{box-sizing:border-box}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column}
-header{display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--bar);color:#fff;flex-wrap:wrap}
-header b{font-size:15px;margin-right:6px}header .name{color:#b9c7e0;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+header{display:flex;flex-direction:column;background:var(--bar);color:#fff}
+.menurow{display:flex;align-items:center;gap:6px;padding:2px 12px;border-bottom:1px solid #ffffff14;font-size:13px}
+.toolrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:5px 12px}
+header b{font-size:15px;margin-right:6px}header .name{color:#b9c7e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22vw;font-size:12.5px}
+.lead,.trail{display:flex;align-items:center;gap:6px;min-width:0}.trail{justify-content:flex-end}
+.seg{display:flex;background:#0006;border:1px solid #ffffff22;border-radius:8px;padding:2px;gap:2px;overflow-x:auto;max-width:100%}
+.seg button{background:none!important;border:0!important;color:#c9d5ea;padding:5px 10px;border-radius:6px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.seg button.on{background:var(--accent)!important;color:#fff}.seg button:hover:not(.on){background:#ffffff14!important}
+.ico{display:inline-block;width:18px;height:18px;flex:none;background:currentColor;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.tb{background:none!important;border:0!important;color:#dfe7f5;padding:5px 7px;display:flex;align-items:center;gap:5px}.tb:hover{background:#ffffff14!important}
+@media (max-width:1100px){.seg .lbl{display:none}}
 button,select,input,textarea{font:inherit;color:inherit}
 button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 11px;cursor:pointer}
 button:hover{border-color:var(--accent)}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 header button{background:#24375a;border-color:#2f4670;color:#fff}
 .main{flex:1;display:flex;min-height:0}
-nav{width:150px;padding:10px 8px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:3px}
-nav button{text-align:left;border:0;background:none;padding:8px 10px}nav button.on{background:var(--accent);color:#fff}
 section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:10px;overflow:auto}section.on{display:flex}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row label{color:var(--mute)}
 .view{flex:1;min-height:300px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:grab}
@@ -21,7 +28,12 @@ section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:1
 .view .over{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .work{flex:1;display:flex;gap:10px;min-height:0}.side{width:230px;display:flex;flex-direction:column;gap:8px}.side input{width:100%}
 .tools button.on{background:var(--accent);border-color:var(--accent);color:#fff}.plot{background:#fff;border:1px solid var(--line);border-radius:8px;width:100%;height:340px}
-.dark3d{background:#1b2230}
+.dark3d{background:#1b2230}.empty{text-align:center;margin-top:18vh}
+.strip{display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:8px}.strip.vertical{flex-direction:column;align-self:flex-start}
+.strip button{border:0;background:none;padding:6px 7px;border-radius:6px;display:flex}.strip button:hover{background:var(--bg)}.strip select{margin:3px}
+.optbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;flex:none;min-height:36px}.row>.optbar{flex:1}
+#pcbView{background:#0b111c}
+aside.devices{width:220px;display:flex;flex-direction:column;gap:6px;min-height:0}aside.devices select{width:100%;flex:1;min-height:120px}aside.devices input{width:100%}
 table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
 .error{color:var(--bad)}.warning{color:var(--warn)}.info{color:var(--mute)}.okc{color:var(--ok)}
@@ -33,47 +45,40 @@ pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;paddi
 footer{padding:5px 12px;border-top:1px solid var(--line);background:var(--panel);color:var(--mute);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);min-width:min(520px,92vw)}
 dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padding:6px;border-radius:5px;cursor:pointer}dialog li:hover{background:var(--bg)}
-@media (max-width:700px){nav{width:auto;flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}.main{flex-direction:column}}
+@media (max-width:760px){.toolrow{grid-template-columns:1fr;justify-items:start}}
 #menubar{display:flex;gap:1px}.mb{position:relative}.mb>button{background:none!important;border:0!important;color:#fff;padding:5px 9px}.mb>button:hover,.mb.open>button{background:#24375a!important}
 .drop{display:none;position:absolute;left:0;top:100%;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px;min-width:270px;max-height:80vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 .mb.open>.drop{display:block}.drop button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 10px;border-radius:5px;color:var(--ink)}.drop button:hover{background:var(--accent);color:#fff}
 .drop hr{border:0;border-top:1px solid var(--line);margin:4px 0}.drop .sub{color:var(--mute);font-size:12px;padding:6px 10px 2px;font-weight:600}
 .ff{display:grid;grid-template-columns:150px 1fr;gap:2px 10px;margin:6px 0;align-items:start}.ff small{grid-column:2}.ff textarea{min-height:64px}
 #formDlg{width:min(720px,94vw)}#formFields{max-height:56vh;overflow:auto}
+.setTabs{background:var(--bg);border-color:var(--line);margin:10px 0;width:max-content}.setTabs button{color:var(--ink)}
+#setDlg h4{margin:14px 0 4px;color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.04em}.chk{display:flex;gap:8px;align-items:center;margin:4px 0}
 
 :root[data-theme="navy"]{--bg:#0e1522;--panel:#151f31;--ink:#e6ebf3;--mute:#93a1b8;--line:#26344d;--accent:#5b8dff;--bar:#0a101b}
 :root[data-theme="matrix"]{--bg:#06110a;--panel:#0b1a10;--ink:#c8f7d4;--mute:#6fae80;--line:#173a22;--accent:#2fd36b;--bar:#030a05}
 :root[data-theme="graphite"]{--bg:#1c1d20;--panel:#26282c;--ink:#e8e8ea;--mute:#a0a3aa;--line:#3a3d43;--accent:#8e9bb5;--bar:#141518}
 :root[data-theme="light"]{--bg:#f4f6fa;--panel:#fff;--ink:#17202e;--mute:#5d6b80;--line:#d9dfe8;--accent:#3b6fe0;--bar:#16233a}
 </style></head><body>
-<header><b>SiEDA</b><span id="menubar"></span><span class="name" id="name">No project</span>
-<button onclick="newProject()">New</button><button onclick="openDialog()">Open…</button><button onclick="save()">Save</button>
-<button onclick="saveAs()">Save As…</button><button onclick="examples()">Examples…</button><button onclick="undo()">Undo</button><button onclick="redo()">Redo</button>
-<button onclick="quit()">Quit</button></header>
-<div class="main"><nav id="nav"></nav>
-<section data-tab="Schematic"><div class="row tools" id="schTools"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()">
-<button data-t="select" title="Select / move (drag a part; R rotates, Delete removes)">Select</button><button data-t="wire" title="Wire: click a pin, then another (W)">Wire</button>
-<button data-t="label" title="Net label on a pin (L)">Label</button><button data-t="ground" title="Ground a pin (G)">Ground</button><button data-t="place" title="Place the part chosen on the right (P)">Place</button>
-<button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info" id="schHint"></span></div>
-<div class="work"><div class="view" id="schView"></div><div class="side"><div class="card"><b>Part</b><div id="schSel" class="info">Click a part to select it.</div></div>
-<div class="card"><b>Place</b><select id="kind" style="width:100%;margin:6px 0"></select><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()">
-<select id="partHits" size="5" style="width:100%;margin-top:6px"></select><div class="info">Choose, then click Place and click the sheet.</div></div></div></div></section>
-<section data-tab="Board"><div class="row"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
+<header><div class="menurow"><b>SiEDA</b><span id="menubar"></span></div><div class="toolrow"><div class="lead"><span class="name" id="name">No project</span></div>
+<div class="seg" id="wsPicker" role="tablist"></div><div class="trail"><button class="tb" onclick="undo()" title="Undo"><i class="ico" data-ico="undo"></i></button>
+<button class="tb" onclick="redo()" title="Redo"><i class="ico" data-ico="redo"></i></button>
+<button class="tb" onclick="selectTab('Checks');verify()" title="Verify Design"><i class="ico" data-ico="seal"></i><span>Check</span></button></div></div></header>
+<div class="main">
+<section data-tab="Schematic"><div class="row"><div class="tools strip" id="schTools"><button data-t="select" title="Select / move (drag a part; R rotates, Delete removes)"><i class="ico" data-ico="cursor"></i></button><button data-t="wire" title="Wire: click a pin, then another (W)"><i class="ico" data-ico="wire"></i></button><button data-t="label" title="Net label on a pin (L)"><i class="ico" data-ico="tag"></i></button><button data-t="ground" title="Ground a pin (G)"><i class="ico" data-ico="ground"></i></button><button data-t="place" title="Place the part chosen on the right (P)"><i class="ico" data-ico="place"></i></button></div><div class="optbar"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()"><button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info" id="schHint"></span></div></div><div class="work"><aside class="devices"><b>Devices</b><input id="devSearch" placeholder="Search devices" oninput="filterKinds()"><select id="kind" size="14"></select><b>Standard Parts</b><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()"><select id="partHits" size="6"></select><div class="info">Choose, then click Place and click the sheet.</div></aside><div class="view" id="schView"></div><aside class="side"><div class="card"><b>Part</b><div id="schSel" class="info">Click a part to select it.</div></div></aside></div></section>
+<section data-tab="Board"><div class="row optbar"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
 <button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
 <button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button>
 <button onclick="act('pcb_teardrops',{})" title="Teardrops where tracks meet pads and vias">Teardrops</button><button onclick="act('pcb_edit_copper',{action:'gloss'})" title="Pull every track tight">Gloss</button>
 <button onclick="act('pcb_edit_copper',{action:'minimize_vias'})" title="Route nets again with fewer vias (kept only when better)">Fewer vias</button><button onclick="act('pcb_stitch_vias',{})" title="Stitch the ground pours together">Stitch GND</button>
 <button onclick="outlineDialog()" title="Board shape">Outline…</button><button onclick="act('pcb_rooms',{action:'place'})" title="Move parts outside their room into it">Place rooms</button><button onclick="variantCheck()" title="Check the board as each assembly variant is built">Check variants</button></div>
-<div class="row tools" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)">Select</button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)">Route</button>
-<button data-t="pair" title="Differential pair: click a pad of either member (D)">Pair</button><button data-t="via" title="Via on the net of the nearest pad (V)">Via</button><button data-t="rip" title="Remove the copper of a pad's net">Rip net</button>
-<button data-t="measure" title="Measure between two points (M)">Measure</button><button data-t="pour" title="Copper pour: click its corners, double-click to close">Pour</button><button data-t="keepout" title="Keep-out: drag a rectangle">Keep-out</button>
-<button data-t="cutout" title="Board cutout: click its corners, double-click to close">Cutout</button><button data-t="hole" title="Mounting hole (M3)">Hole</button><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
-<div class="work"><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Selection</b><div id="pcbSel" class="info">Click a part, track or via. Shift-click or shift-drag selects several parts.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
-<section data-tab="Library"><div class="row"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
+<div class="row optbar"><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
+<div class="work"><div class="tools strip vertical" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)"><i class="ico" data-ico="cursor"></i></button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)"><i class="ico" data-ico="route"></i></button><button data-t="pair" title="Differential pair: click a pad of either member (D)"><i class="ico" data-ico="pair"></i></button><button data-t="via" title="Via on the net of the nearest pad (V)"><i class="ico" data-ico="via"></i></button><button data-t="rip" title="Remove the copper of a pad's net"><i class="ico" data-ico="scissors"></i></button><button data-t="measure" title="Measure between two points (M)"><i class="ico" data-ico="ruler"></i></button><button data-t="pour" title="Copper pour: click its corners, double-click to close"><i class="ico" data-ico="pour"></i></button><button data-t="keepout" title="Keep-out: drag a rectangle"><i class="ico" data-ico="keepout"></i></button><button data-t="cutout" title="Board cutout: click its corners, double-click to close"><i class="ico" data-ico="cutout"></i></button><button data-t="hole" title="Mounting hole (M3)"><i class="ico" data-ico="hole"></i></button></div><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Selection</b><div id="pcbSel" class="info">Click a part, track or via. Shift-click or shift-drag selects several parts.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
+<section data-tab="Library"><div class="row optbar"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
 <label>Package</label><select id="lpPkg" onchange="lp.custom=null;lpUpdate()"></select><label>Pads</label><input id="lpCount" type="number" min="1" max="1024" value="8" style="width:70px" onchange="lp.custom=null;lpPinCount();lpUpdate()">
 <label>Pitch</label><input id="lpPitch" placeholder="auto" style="width:70px" onchange="lp.custom=null;lpUpdate()"><button onclick="lpEditPads()" title="Turn the package into pads you can drag and edit">Edit pads</button>
 <button class="primary" id="lpSave" onclick="lpCreate()">Create and place</button></div>
-<div class="row"><label>Open part</label><select id="lpOpen" onchange="lpOpen(this.value)" onfocus="lpParts()"><option value="">New part</option></select>
+<div class="row optbar"><label>Open part</label><select id="lpOpen" onchange="lpOpen(this.value)" onfocus="lpParts()"><option value="">New part</option></select>
 <button onclick="lpFromFootprint()" title="Start the pads from a library footprint">From footprint…</button><button onclick="$('lpIpc').hidden=!$('lpIpc').hidden" title="IPC-7351 pads from the datasheet's lead dimensions">IPC calculator…</button>
 <button onclick="lpModel()" title="STEP / VRML / STL / OBJ file in the root folder">3D model…</button><span id="lpModelName" class="info"></span>
 <input id="lpMfr" placeholder="Manufacturer" style="width:130px" oninput="lpUpdate()"><input id="lpDesc" placeholder="Description" style="width:180px" oninput="lpUpdate()"><input id="lpDs" placeholder="Datasheet URL" style="width:180px" oninput="lpUpdate()"><span id="lpScore" class="info"></span></div>
@@ -86,12 +91,12 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
 <div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
 <div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
-<section data-tab="3D"><div class="row"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
-<section data-tab="Simulate"><div class="row"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option></select>
-<span id="simArgs"></span><button class="primary" onclick="simulate()">Run</button></div><div id="simOut"></div></section>
-<section data-tab="Checks"><div class="row"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
-<button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"></div></section>
-<section data-tab="BOM"><div class="row"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
+<section data-tab="3D"><div class="row optbar"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
+<section data-tab="Simulate"><div class="row optbar"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option></select>
+<span id="simArgs"></span><button class="primary" onclick="simulate()">Run</button></div><div id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
+<section data-tab="Checks"><div class="row optbar"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
+<button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"><p class="info empty">Run ERC, DRC or Verify design to list every problem here.</p></div></section>
+<section data-tab="BOM"><div class="row optbar"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
 <section data-tab="Cloud"><div class="card"><b>GitHub cloud sync</b><p class="info">Your project syncs through a GitHub repository with your own git sign-in (Git Credential Manager, <code>gh auth login</code> or SSH keys). A public repository's links open for anyone; a private one's for its collaborators only.</p>
 <div class="row"><label>Repository</label><input id="repo" placeholder="owner/name" style="flex:1;min-width:200px"><label>Branch</label><input id="branch" value="main" style="width:110px"><button onclick="cloud('connect')">Connect</button></div>
 <div class="row" style="margin-top:8px"><input id="msg" placeholder="What changed (commit message)" style="flex:1;min-width:200px"><button onclick="cloud('pull')">Pull</button><button class="primary" onclick="cloud('push')">Push</button><button onclick="cloud('share')">Share links</button><button onclick="cloud('status')">Status</button></div></div>
@@ -102,11 +107,26 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <dialog id="dlg"><b id="dlgTitle"></b><ul id="dlgList"></ul><div class="row"><input id="dlgInput" style="flex:1"><button class="primary" id="dlgOk">OK</button><button onclick="dlg.close()">Cancel</button></div></dialog>
 <dialog id="formDlg"><b id="formTitle"></b><p id="formDesc" class="info"></p><div id="formFields"></div>
 <div class="row"><button class="primary" id="formRun">Run</button><button onclick="formDlg.close()">Close</button></div><pre id="formOut" hidden></pre><div id="formImg"></div></dialog>
-<dialog id="setDlg"><b data-en="Settings">Settings</b><div class="ff"><span data-en="Theme">Theme</span><select id="setTheme"><option value="">Auto</option><option value="navy">Midnight Navy</option>
-<option value="matrix">Matrix Green</option><option value="graphite">Graphite</option><option value="light">Light</option></select></div>
-<div class="ff"><span data-en="Interface language">Interface language</span><select id="setLang"></select></div>
-<p class="info" data-en="The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.">The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.</p>
-<div class="row"><button class="primary" onclick="setDlg.close()">Done</button></div></dialog>
+<dialog id="setDlg" style="width:min(640px,94vw)"><b data-en="Settings">Settings</b>
+<div class="seg setTabs" id="setTabs"><button data-st="general" data-en="General">General</button><button data-st="appearance" data-en="Appearance">Appearance</button><button data-st="language" data-en="Language">Language</button></div>
+<div data-sp="general"><h4 data-en="Startup">Startup</h4>
+<label class="chk"><input type="checkbox" id="setReopen"><span data-en="Reopen last project and workspace at launch">Reopen last project and workspace at launch</span></label>
+<h4 data-en="Projects">Projects</h4><div class="ff"><span data-en="Projects Folder">Projects Folder</span><input id="setFolder" placeholder="designs"></div>
+<label class="chk"><input type="checkbox" id="setAutosave"><span data-en="Save projects automatically">Save projects automatically</span></label>
+<div class="ff"><span data-en="Autosave Delay">Autosave Delay</span><select id="setDelay"><option>3</option><option>10</option><option>30</option><option>60</option></select></div>
+<h4 data-en="New Projects">New Projects</h4><div class="ff"><span data-en="Copper Layers">Copper Layers</span><select id="setLayers"><option value="" data-en="Default">Default</option><option>1</option><option>2</option><option>4</option><option>6</option></select></div>
+<div class="ff"><span data-en="Track Width (mm)">Track Width (mm)</span><input id="setTrack" type="number" step="0.01" min="0"></div>
+<div class="ff"><span data-en="Clearance (mm)">Clearance (mm)</span><input id="setClear" type="number" step="0.01" min="0"></div>
+<h4 data-en="Mouse and Trackpad">Mouse and Trackpad</h4>
+<label class="chk"><input type="checkbox" id="setWheel"><span data-en="Mouse wheel pans (hold Ctrl to zoom)">Mouse wheel pans (hold Ctrl to zoom)</span></label>
+<label class="chk"><input type="checkbox" id="setReverse"><span data-en="Reverse zoom direction">Reverse zoom direction</span></label>
+<h4 data-en="Advanced">Advanced</h4><div class="row"><button onclick="exportSettings()" data-en="Export Settings…">Export Settings…</button><button onclick="$('setImport').click()" data-en="Import Settings…">Import Settings…</button>
+<input type="file" id="setImport" accept=".json,application/json" hidden onchange="importSettings(this.files[0])"><button onclick="resetSettings()" data-en="Reset All Preferences…">Reset All Preferences…</button></div></div>
+<div data-sp="appearance" hidden><div class="ff"><span data-en="App Theme">App Theme</span><select id="setTheme"><option value="navy">Midnight Navy</option>
+<option value="matrix">Matrix Green</option><option value="graphite">Graphite</option><option value="light">Light</option></select></div></div>
+<div data-sp="language" hidden><div class="ff"><span data-en="Interface language">Interface language</span><select id="setLang"></select></div>
+<p class="info" data-en="The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.">The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.</p></div>
+<div class="row"><button class="primary" onclick="setDlg.close()" data-en="Done">Done</button></div></dialog>
 <dialog id="libDlg" style="width:min(900px,96vw)"><b data-en="Company Library">Company Library</b><div class="row"><label data-en="Folder">Folder</label><input id="libFolder" style="width:180px" onchange="libList()">
 <input id="libSearch" placeholder="Search parts" style="flex:1" oninput="libShow()"><button onclick="libPublish()" data-en="Publish Selected Part">Publish Selected Part</button></div>
 <div id="libRows" style="max-height:55vh;overflow:auto;margin-top:8px"></div><div class="row"><button class="primary" onclick="libDlg.close()">Done</button></div></dialog>
@@ -130,13 +150,14 @@ async function run(name,args={}){status("Running "+name+"…");document.body.sty
   if(data&&data.committed===false)status(name+": not done. "+(data.note||(data.issues||[]).join("; "))+(data.tooClose?" ("+data.tooClose.join(", ")+")":""),"warning");else status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
 async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);status(keep,cls);return r;}
 async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
- if(!force&&s.revision===rev)return;rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;layerOptions();}catch{}draw();}
+ if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev)scheduleAutosave();rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;layerOptions();}catch{}draw();}
 const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
 function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
  const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
  v.doFit=()=>{const i=el.querySelector("img");if(!i||!i.naturalWidth)return;v.k=Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight);v.x=(el.clientWidth-i.naturalWidth*v.k)/2;v.y=(el.clientHeight-i.naturalHeight*v.k)/2;apply();};
  v.at=e=>{const r=el.getBoundingClientRect(),i=el.querySelector("img");if(!i)return[0,0];const px=(e.clientX-r.left-v.x)/v.k,py=(e.clientY-r.top-v.y)/v.k;return[v.vb[0]+px/i.naturalWidth*v.vb[2],v.vb[1]+py/i.naturalHeight*v.vb[3]];};
- el.onwheel=e=>{e.preventDefault();const r=el.getBoundingClientRect(),f=e.deltaY>0?1/1.15:1.15,mx=e.clientX-r.left,my=e.clientY-r.top;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;apply();};
+ el.onwheel=e=>{e.preventDefault();if(pref("studio.wheelPans")==="1"&&!e.ctrlKey&&!e.metaKey){v.x-=e.shiftKey?e.deltaY:e.deltaX;v.y-=e.shiftKey?0:e.deltaY;v.fit=false;apply();return;}
+  const r=el.getBoundingClientRect(),f=(e.deltaY>0)!==(pref("studio.reverseZoom")==="1")?1/1.15:1.15,mx=e.clientX-r.left,my=e.clientY-r.top;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;apply();};
  el.onmousedown=e=>{if(e.button===0&&el.onpress&&el.onpress(v.at(e),e))return;pan=[e.clientX,e.clientY];el.style.cursor="grabbing";};
  addEventListener("mouseup",e=>{if(drag&&drag.el===el){const d=drag;drag=null;el.onrelease&&el.onrelease(v.at(e),d);}pan=null;el.style.cursor="";});
  el.onmousemove=e=>{if(el.onhover&&el.onhover(v.at(e)))return;if(drag&&drag.el===el){drag.at=v.at(e);overlay(el);return;}if(!pan)return;v.x+=e.clientX-pan[0];v.y+=e.clientY-pan[1];pan=[e.clientX,e.clientY];v.fit=false;apply();};
@@ -164,7 +185,7 @@ function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChi
  if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
   if(sch){const c=sheetParts().find(c=>c.ref===drag.ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0]+dx,y:b[1]+dy,width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2});}}
   else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.2)",stroke:"#5b8dff","stroke-width":0.2});}}
- if(!sch)boardOverlay(o);
+ if(el.id==="pcbView")boardOverlay(o);
  if(!sch&&live&&live.pv)drawLive(o,live.pv);
  if(!sch)for(const m of marks)shape(o,"circle",{cx:m.x,cy:m.y,r:0.8,fill:"none",stroke:m.severity==="error"?"#ff3b3b":"#ffb300","stroke-width":0.25});}
 const snapTo=(v,g)=>Math.round(v/g)*g;
@@ -408,6 +429,7 @@ async function variantCheck(){const r=(await run("pcb_variant_check")).data;
 let boardRooms=[];
 async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
  $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
+function filterKinds(){const q=$("devSearch").value.toLowerCase();[...$("kind").options].forEach(o=>o.hidden=!!q&&!o.textContent.toLowerCase().includes(q));}
 async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
  $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
@@ -453,11 +475,12 @@ async function runTool(){let args;try{args=JSON.parse($("toolArgs").value||"{}")
  try{const r=await run($("tool").value,args);$("toolOut").textContent=JSON.stringify(r.data,null,2);await refresh(true);}catch(e){$("toolOut").textContent=e.message;}}
 function ask(title,items,value,onOk){$("dlgTitle").textContent=title;$("dlgList").innerHTML=items.map(i=>`<li data-v="${esc(i.v)}">${esc(i.t)}</li>`).join("");$("dlgInput").value=value||"";
  $("dlgList").onclick=e=>{const v=e.target.dataset.v;if(v!==undefined){dlg.close();onOk(v);}};$("dlgOk").onclick=()=>{dlg.close();if($("dlgInput").value)onOk($("dlgInput").value);};dlg.showModal();}
-async function openDialog(){await refresh(true);ask("Open a project (in "+state.root+")",(state.files||[]).map(f=>({t:f,v:f})),"",p=>act("project_open",{path:p}));}
+async function openDialog(){await refresh(true);const dir=pref("studio.projectFolder").replace(/\/+$/,""),files=state.files||[],inDir=f=>dir&&f.startsWith(dir+"/");
+ ask("Open a project (in "+state.root+")",[...files.filter(inDir),...files.filter(f=>!inDir(f))].map(f=>({t:f,v:f})),"",p=>act("project_open",{path:p}));}
 async function examples(){const r=await run("project_list_examples");ask("Load an example",r.data.examples.map(e=>({t:e.title+" — "+e.description,v:e.id})),"",id=>act("project_load_example",{id}));}
-async function newProject(){if(confirm("Start a new project? Unsaved changes are lost."))act("project_new",{name:"Untitled"});}
+async function newProject(){if(confirm("Start a new project? Unsaved changes are lost.")){await act("project_new",{name:"Untitled"});await applyNewProjectDefaults();}}
 async function save(){if(!state.project)return saveAs();await act("project_save",{});}
-async function saveAs(){const p=prompt("Save as (path inside "+state.root+")","designs/my_board.siedaproj");if(p)await act("project_save_as",{path:p});}
+async function saveAs(){const p=prompt("Save as (path inside "+state.root+")",(pref("studio.projectFolder").replace(/\/+$/,"")||"designs")+"/my_board.siedaproj");if(p)await act("project_save_as",{path:p});}
 async function undo(){await act("project_undo",{});}
 async function quit(){if(confirm("Quit SiEDA Studio? Save first if needed.")){await post("/quit",{});document.body.innerHTML="<p style='padding:20px'>SiEDA Studio has stopped. You can close this tab.</p>";}}
 
@@ -566,16 +589,35 @@ const LANGS=[["en","English"],["zh-Hant","繁體中文"],["ko","한국어"],["zh
  ["vi","Tiếng Việt"],["fil","Filipino"],["hi","हिन्दी"],["te","తెలుగు"],["as","অসমীয়া"],["gu","ગુજરાતી"],["kn","ಕನ್ನಡ"],["ml","മലയാളം"],["mr","मराठी"],["or","ଓଡ଼ିଆ"],["pa","ਪੰਜਾਬੀ"],["ta","தமிழ்"]];
 let words={};const tr=t=>words[t]||t;
 const pref=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v);}catch{}return v||"";};
-function translateDom(){document.querySelectorAll("nav button,section button,section label,section b,section th,section div.info,section p,header>button,dialog [data-en],footer").forEach(el=>{
+function translateDom(){document.querySelectorAll("nav button,section button,section label,section b,section th,section div.info,section p,header .tb span,dialog [data-en],footer").forEach(el=>{
   if(el.children.length)return;const en=el.dataset.en||(el.dataset.en=el.textContent.trim());if(en)el.textContent=tr(en);});
  document.querySelectorAll("[title],[placeholder]").forEach(el=>{for(const a of["title","placeholder"]){const v=el.getAttribute(a);if(!v)continue;
-  const k="en"+a;if(!el.dataset[k])el.dataset[k]=v;el.setAttribute(a,tr(el.dataset[k]));}});menuBar();}
+  const k="en"+a;if(!el.dataset[k])el.dataset[k]=v;el.setAttribute(a,tr(el.dataset[k]));}});menuBar();workspacePicker();}
 async function setLanguage(code){words={};if(code&&code!=="en"){try{words=await (await fetch("/i18n?lang="+encodeURIComponent(code),{headers:{"X-Sieda-Token":TOKEN}})).json();}catch{words={};}}
  document.documentElement.lang=code||"en";translateDom();}
-function setTheme(t){if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;}
-function settings(){$("setTheme").value=pref("studio.theme");$("setLang").innerHTML=LANGS.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
+function setTheme(t){document.documentElement.dataset.theme=t||"navy";}
+// Settings like the macOS app's: General (start-up, projects, new-project defaults, mouse, export / import / reset), Appearance, Language.
+function settings(){$("setTheme").value=pref("studio.theme")||"navy";$("setLang").innerHTML=LANGS.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
  $("setLang").value=pref("studio.lang")||"en";$("setTheme").onchange=()=>setTheme(pref("studio.theme",$("setTheme").value));
- $("setLang").onchange=()=>setLanguage(pref("studio.lang",$("setLang").value));setDlg.showModal();}
+ $("setLang").onchange=()=>setLanguage(pref("studio.lang",$("setLang").value));
+ const box=(id,key,on)=>{$(id).checked=on?pref(key)!=="0":pref(key)==="1";$(id).onchange=()=>pref(key,$(id).checked?"1":"0");};
+ box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");
+ const field=(id,key,def)=>{$(id).value=pref(key)||def;$(id).onchange=()=>pref(key,$(id).value);};
+ field("setFolder","studio.projectFolder","");field("setDelay","studio.autosaveSeconds","3");field("setLayers","studio.newLayers","");field("setTrack","studio.newTrack","");field("setClear","studio.newClear","");
+ const pane=n=>{document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st===n));document.querySelectorAll("#setDlg [data-sp]").forEach(d=>d.hidden=d.dataset.sp!==n);};
+ document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.onclick=()=>pane(b.dataset.st));pane("general");setDlg.showModal();}
+const studioKeys=()=>{const out={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith("studio."))out[k]=localStorage.getItem(k);}}catch{}return out;};
+function exportSettings(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({format:"sieda.studio-settings/1",settings:studioKeys()},null,1)],{type:"application/json"}));
+ a.download="sieda-studio-settings.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+async function importSettings(file){if(!file)return;try{const j=JSON.parse(await file.text());if(j.format!=="sieda.studio-settings/1")throw new Error("format");
+  for(const[k,v]of Object.entries(j.settings||{}))if(k.startsWith("studio.")&&typeof v==="string")pref(k,v);location.reload();}catch{status(tr("Import Settings…")+" ✗","error");}}
+function resetSettings(){if(!confirm(tr("Reset all preferences?")))return;try{Object.keys(studioKeys()).forEach(k=>localStorage.removeItem(k));}catch{}location.reload();}
+// Settings › General: save the open project a pause after each change; give a new project the chosen layers / track / clearance.
+let autosaveTimer=null;
+function scheduleAutosave(){clearTimeout(autosaveTimer);if(pref("studio.autosave")!=="1"||!state.project)return;
+ autosaveTimer=setTimeout(()=>run("project_save",{}).catch(()=>{}),1000*(Number(pref("studio.autosaveSeconds"))||3));}
+async function applyNewProjectDefaults(){const a={},n=k=>Number(pref(k));if([1,2,4,6].includes(n("studio.newLayers")))a.layers=n("studio.newLayers");
+ if(n("studio.newTrack")>0.05)a.trackWidth=n("studio.newTrack");if(n("studio.newClear")>0.05)a.clearance=n("studio.newClear");if(Object.keys(a).length)await act("pcb_set_board",a);}
 // Company library window: the folder's parts (library_company), search, place / release / retire / alternates.
 let libParts=[];
 async function companyLibrary(){$("libFolder").value=pref("studio.libFolder")||"library";libDlg.showModal();await libList();}
@@ -609,8 +651,39 @@ function areaAdd(k){areas[k].push({name:String(areas[k].length+1),refs:[],owner:
 async function areaApply(){const box=a=>({name:a.name,x0:Math.min(a.x0,a.x1),y0:Math.min(a.y0,a.y1),x1:Math.max(a.x0,a.x1),y1:Math.max(a.y0,a.y1)});
  try{await act("pcb_rooms",{action:"set",rooms:areas.rooms.map(a=>({...box(a),refs:a.refs||[]}))});await act("pcb_partitions",{action:"set",partitions:areas.partitions.map(a=>({...box(a),owner:a.owner||""}))});areaDlg.close();}
  catch(e){$("areaErr").textContent=e.message;}}
-function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",(b.dataset.en||b.textContent)===name));draw();}
-document.querySelectorAll("section").forEach(s=>{const b=document.createElement("button");b.textContent=s.dataset.tab;b.onclick=()=>selectTab(s.dataset.tab);$("nav").append(b);});
+// The macOS app's toolbar: one picker of workspaces, drawn with the same icons (SiEDA/Assets.xcassets Workspace*); Cloud and
+// Tools open from Team › Cloud Sync and Help › All Engine Commands. The workspace last used comes back at the next start.
+const SVG=(body,sw)=>`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'><g fill='none' stroke='#000' stroke-width='${sw||1.5}' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`)}")`;
+const ICONS={schematic:SVG("<path d='M1 9H4L5 6L7 12L9 6L11 12L13 6L14 9H17'/>"),
+ library:SVG("<path d='M5.25 1.75H7.5A1.5 1.5 0 0 0 10.5 1.75H12.75V16.25H5.25Z'/><path d='M2 5H5.25M2 9H5.25M2 13H5.25M12.75 5H16M12.75 9H16M12.75 13H16'/>"),
+ pcb:SVG("<rect x='1.25' y='1.25' width='15.5' height='15.5' rx='2.5'/><path d='M5 5.5H9L12.5 9V12.5'/><circle cx='5.5' cy='12.5' r='1.6'/><circle cx='5' cy='5.5' r='1.7' fill='#000'/><circle cx='12.5' cy='12.5' r='1.7' fill='#000'/>"),
+ threeD:SVG("<path d='M1 10.5L9 6.5L17 10.5L9 14.5Z'/><path d='M1 10.5V12.5L9 16.5L17 12.5V10.5M9 14.5V16.5'/><path d='M6 6L9 4.5L12 6L9 7.5Z'/><path d='M6 6V9L9 10.5L12 9V6M9 7.5V10.5'/>",1.4),
+ sim:SVG("<rect x='1.25' y='2.25' width='15.5' height='13.5' rx='2.5'/><path d='M3.5 9C5 3.75 7.25 3.75 9 9S13 14.25 14.5 9'/>"),
+ seal:SVG("<path d='M9 1.5L10.6 3L12.8 2.7L13.5 4.8L15.5 5.8L15 8L16.2 9.9L14.6 11.4L14.6 13.6L12.5 14.1L11.2 15.9L9 15.3L6.8 15.9L5.5 14.1L3.4 13.6L3.4 11.4L1.8 9.9L3 8L2.5 5.8L4.5 4.8L5.2 2.7L7.4 3Z'/><path d='M6.2 9.2L8.2 11.1L11.8 6.9'/>",1.3),
+ bom:SVG("<rect x='1.75' y='2.25' width='14.5' height='13.5' rx='2'/><path d='M1.75 6.25H16.25M1.75 9.5H16.25M1.75 12.75H16.25M6.25 6.25V15.75'/>"),
+ cursor:SVG("<path d='M4 2L4 15L7.5 11.5L10 16.5L12 15.5L9.5 10.5L14.5 10.5Z'/>",1.3),
+ wire:SVG("<circle cx='3' cy='14' r='1.6'/><path d='M4.5 14H9V4H13.5'/><circle cx='15' cy='4' r='1.6'/>"),
+ tag:SVG("<path d='M2 5H11L15.5 9L11 13H2Z'/><circle cx='6' cy='9' r='1'/>"),
+ ground:SVG("<path d='M9 2V9M3 9H15M5.5 12H12.5M7.5 15H10.5'/>"),
+ place:SVG("<rect x='2.25' y='2.25' width='13.5' height='13.5' rx='2.5'/><path d='M9 5.5V12.5M5.5 9H12.5'/>"),
+ route:SVG("<circle cx='3.5' cy='14.5' r='1.6'/><path d='M4.7 13.3L9 9H14.5'/><path d='M12 6.5L14.5 9L12 11.5'/>"),
+ pair:SVG("<path d='M2 7H8L11 4H16M2 11H8L11 14H16'/>"),
+ via:SVG("<circle cx='9' cy='9' r='6'/><circle cx='9' cy='9' r='2.3'/>"),
+ scissors:SVG("<circle cx='4.5' cy='13.5' r='2.2'/><circle cx='13.5' cy='13.5' r='2.2'/><path d='M6 12L14 3M12 12L4 3'/>"),
+ ruler:SVG("<path d='M2 12L12 2L16 6L6 16Z'/><path d='M5 9L6.5 10.5M7.5 6.5L9 8M10 4L11.5 5.5'/>",1.3),
+ pour:SVG("<path d='M3 3H15V15H3Z'/><path d='M3 8L8 3M3 13L13 3M5 15L15 5M10 15L15 10'/>",1.2),
+ keepout:SVG("<rect x='2.5' y='2.5' width='13' height='13' rx='1' stroke-dasharray='2.5 2'/><path d='M6 6L12 12M12 6L6 12'/>"),
+ cutout:SVG("<rect x='2' y='2' width='14' height='14' rx='2'/><rect x='6' y='6' width='6' height='6' stroke-dasharray='2 1.5'/>",1.3),
+ hole:SVG("<circle cx='9' cy='9' r='6.5'/><circle cx='9' cy='9' r='3.5'/><path d='M9 1.5V4M9 14V16.5M1.5 9H4M14 9H16.5'/>",1.2),
+ undo:SVG("<path d='M6.5 4L3 7.5L6.5 11'/><path d='M3 7.5H11A4 4 0 0 1 11 15.5H8'/>"),redo:SVG("<path d='M11.5 4L15 7.5L11.5 11'/><path d='M15 7.5H7A4 4 0 0 0 7 15.5H10'/>")};
+const WORKSPACES=[["Schematic","Schematic","schematic"],["Library","Library","library"],["Board","PCB Layout","pcb"],["3D","3D Viewer","threeD"],
+ ["Simulate","Simulation","sim"],["Checks","Design Checks","seal"],["BOM","BOM","bom"]];
+function iconize(root){(root||document).querySelectorAll("[data-ico]").forEach(i=>i.style.setProperty("--m",ICONS[i.dataset.ico]));}
+function workspacePicker(){$("wsPicker").innerHTML=WORKSPACES.map(([id,title,ico])=>`<button role="tab" data-ws="${id}" title="${esc(tr(title))}"><i class="ico" data-ico="${ico}"></i><span class="lbl">${esc(tr(title))}</span></button>`).join("");
+ iconize($("wsPicker"));$("wsPicker").querySelectorAll("[data-ws]").forEach(b=>{b.onclick=()=>selectTab(b.dataset.ws);b.classList.toggle("on",b.dataset.ws===tab);});}
+function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));
+ document.querySelectorAll("#wsPicker [data-ws]").forEach(b=>b.classList.toggle("on",b.dataset.ws===name));if(WORKSPACES.some(w=>w[0]===name))pref("studio.workspace",name);draw();}
+iconize();workspacePicker();
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
   if(k==="pcb"&&live){if(e.key==="Escape")liveStep("cancel");if(e.key==="Enter")liveStep("commit");if(key==="v")liveStep("via");if(key==="backspace"||key==="escape"||key==="enter"||key==="v")return;}
@@ -630,5 +703,7 @@ setTheme(pref("studio.theme"));
 (async()=>{await setLanguage(pref("studio.lang"));await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
  try{const r=await run("library_builtin_kinds");$("kind").innerHTML=r.data.kinds.map(k=>`<option value="${esc(k.kind)}">${esc(k.name)} (${esc(k.defaultValue)})</option>`).join("");}catch{}
  $("partHits").onchange=()=>setTool("sch","place");$("kind").onchange=()=>{$("partHits").selectedIndex=-1;setTool("sch","place");};
- selectTab("Schematic");await refresh(true);setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
+ const last=pref("studio.workspace");selectTab(WORKSPACES.some(w=>w[0]===last)?last:"Schematic");await refresh(true);
+ // Like the macOS app: reopen the project last opened or saved (Settings › General can turn it off).
+ if(!state.project&&pref("studio.reopenLast")!=="0"&&pref("studio.lastProject")){try{await act("project_open",{path:pref("studio.lastProject")});}catch{status(tr("Ready."));}}setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
 </script></body></html>
