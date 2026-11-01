@@ -914,6 +914,51 @@ final class DesignFlowTests: XCTestCase {
         return store
     }
 
+    /// Settings → General: new projects take the chosen layers / track / clearance, and the undo history is kept
+    /// beside a saved project and comes back when that same file is opened again.
+    func testPreferencesShapeNewProjectsAndKeepUndoWithTheFile() throws {
+        let defaults = UserDefaults.standard
+        let keys = [DesignStore.newLayersKey, DesignStore.newTrackWidthKey, DesignStore.newClearanceKey, DesignStore.persistUndoKey]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
+        defaults.set(4, forKey: DesignStore.newLayersKey)
+        defaults.set(0.3, forKey: DesignStore.newTrackWidthKey)
+        defaults.set(0.25, forKey: DesignStore.newClearanceKey)
+        let store = freshStore()
+        store.newProject()
+        XCTAssertEqual(store.snapshot.board.layerCount, 4)
+        XCTAssertEqual(store.snapshot.board.trackWidth, 0.3, accuracy: 1e-6)
+        XCTAssertEqual(store.snapshot.board.clearance, 0.25, accuracy: 1e-6)
+
+        defaults.set(true, forKey: DesignStore.persistUndoKey)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("undo-\(UUID().uuidString).siedaproj")
+        let history = DesignStore.undoHistoryURL(for: url)
+        defer { [url, history].forEach { try? FileManager.default.removeItem(at: $0) } }
+        try store.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        store.open(url: url)
+        _ = store.addComponent(.resistor, at: CGPoint(x: 0, y: 0))
+        _ = store.addComponent(.capacitor, at: CGPoint(x: 120, y: 0))
+        let steps = store.undoDepth
+        XCTAssertGreaterThan(steps, 0)
+        XCTAssertTrue(store.save())
+        let deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: history.path), Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let reopened = freshStore()
+        reopened.open(url: url)
+        XCTAssertEqual(reopened.undoDepth, steps)
+        XCTAssertTrue(reopened.canUndo)
+        reopened.undo()
+        XCTAssertEqual(reopened.snapshot.components.count, store.snapshot.components.count - 1)
+
+        // A file changed elsewhere does not take an old history.
+        try (try String(contentsOf: url, encoding: .utf8) + " ").write(to: url, atomically: true, encoding: .utf8)
+        let changed = freshStore()
+        changed.open(url: url)
+        XCTAssertEqual(changed.undoDepth, 0)
+    }
+
     /// Launch: the project last opened and the workspace last used come back (DesignStore.restoreLastSession).
     func testLaunchReopensTheLastProjectAndWorkspace() throws {
         let defaults = UserDefaults.standard
@@ -938,6 +983,14 @@ final class DesignFlowTests: XCTestCase {
         XCTAssertEqual(relaunched.workspace, .pcb)
         relaunched.workspace = .simulation  // remembered from now on
         XCTAssertEqual(defaults.string(forKey: DesignStore.lastWorkspaceKey), Workspace.simulation.rawValue)
+
+        // Settings → General can turn it off: nothing is reopened.
+        defaults.set(false, forKey: DesignStore.reopenLastKey)
+        let off = freshStore()
+        off.restoreLastSession()
+        defaults.removeObject(forKey: DesignStore.reopenLastKey)
+        XCTAssertNil(off.documentURL)
+        XCTAssertEqual(off.workspace, .schematic)
 
         // A missing file leaves the empty design; the workspace still comes back.
         try FileManager.default.removeItem(at: url)

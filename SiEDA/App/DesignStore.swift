@@ -75,6 +75,15 @@ final class DesignStore: ObservableObject {
     /// The project and workspace the next launch reopens (`restoreLastSession`).
     static let lastProjectKey = "app.lastProject"
     static let lastWorkspaceKey = "app.lastWorkspace"
+    /// Settings → General: reopen the last project and workspace at launch (on by default).
+    static let reopenLastKey = "app.reopenLastProject"
+    /// Settings → General: the folder Open and Save panels start in (empty = the system's choice).
+    static let projectFolderKey = "app.projectFolder"
+    static var projectFolder: URL? {
+        guard let path = UserDefaults.standard.string(forKey: projectFolderKey), !path.isEmpty,
+              FileManager.default.fileExists(atPath: path) else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
     /// Set once the launch has restored the last session: workspace changes made before it (the window's own
     /// start-up) must not overwrite the saved one.
     private var sessionRestored = false
@@ -150,6 +159,7 @@ final class DesignStore: ObservableObject {
     func restoreLastSession() {
         defer { sessionRestored = true }
         let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.reopenLastKey) as? Bool ?? true else { return }
         let lastWorkspace = defaults.string(forKey: Self.lastWorkspaceKey).flatMap(Workspace.init(rawValue:))
         if documentURL == nil, !isDirty, snapshot.components.isEmpty,
            let path = defaults.string(forKey: Self.lastProjectKey), FileManager.default.fileExists(atPath: path) {
@@ -222,7 +232,12 @@ final class DesignStore: ObservableObject {
 
     private var undoStack: [String] = []
     private var redoStack: [String] = []
-    private let undoLimit = 100
+    /// Undo depth, set in Settings → General (`undoLimitKey`, 100 by default; the byte limit still applies).
+    private var undoLimit: Int {
+        let steps = UserDefaults.standard.integer(forKey: Self.undoLimitKey)
+        return steps > 0 ? steps : 100
+    }
+    static let undoLimitKey = "app.undoLimit"
     /// Memory budget for the undo + redo history (each step is a full design snapshot): big boards keep fewer
     /// steps instead of growing without bound.
     var historyByteLimit = 96 * 1024 * 1024
@@ -232,6 +247,37 @@ final class DesignStore: ObservableObject {
         undoStack.reduce(0) { $0 + $1.utf8.count } + redoStack.reduce(0) { $0 + $1.utf8.count }
     }
     var undoDepth: Int { undoStack.count }
+
+    /// Settings → General: keep the undo history beside the saved project (`.<file>.undo`, newest 30 steps, at most
+    /// 32 MB) and bring it back when that same file is opened again (matched by an FNV-1a hash of its bytes).
+    static let persistUndoKey = "app.persistUndo"
+    static func undoHistoryURL(for url: URL) -> URL {
+        url.deletingLastPathComponent().appendingPathComponent("." + url.lastPathComponent + ".undo")
+    }
+    private static func fingerprint(_ text: String) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in text.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01b3 }
+        return String(hash, radix: 16)
+    }
+    private func saveUndoHistory(for url: URL, json: String) {
+        guard UserDefaults.standard.bool(forKey: Self.persistUndoKey) else { return }
+        var steps = Array(undoStack.suffix(30))
+        var bytes = steps.reduce(0) { $0 + $1.utf8.count }
+        while bytes > 32 << 20, !steps.isEmpty { bytes -= steps.removeFirst().utf8.count }
+        let payload: [String: Any] = ["format": "sieda.undo/1", "file": Self.fingerprint(json), "undo": steps]
+        let target = Self.undoHistoryURL(for: url)
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONSerialization.data(withJSONObject: payload) { try? data.write(to: target, options: .atomic) }
+        }
+    }
+    private func loadUndoHistory(for url: URL, json: String) {
+        guard UserDefaults.standard.bool(forKey: Self.persistUndoKey),
+              let data = try? Data(contentsOf: Self.undoHistoryURL(for: url)),
+              let saved = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              saved["file"] as? String == Self.fingerprint(json), let steps = saved["undo"] as? [String] else { return }
+        undoStack = steps
+        trimHistory()
+    }
 
     /// Records an undo step and clears redo, keeping the history within `undoLimit` steps and `historyByteLimit`.
     private func pushUndo(_ state: String) {
@@ -254,7 +300,14 @@ final class DesignStore: ObservableObject {
         didSet { scheduleRecoverySave() }
     }
     /// Seconds of inactivity before unsaved work is autosaved for recovery.
-    var recoveryDelay: TimeInterval = 3
+    /// Pause before the recovery copy (and, with autosave, the project file) is written; nil = Settings → General
+    /// ("app.autosaveSeconds", 3 s by default). Tests set it directly.
+    var recoveryDelay: TimeInterval?
+    static let autosaveDelayKey = "app.autosaveSeconds"
+    static var autosaveDelay: TimeInterval {
+        let seconds = UserDefaults.standard.double(forKey: autosaveDelayKey)
+        return seconds > 0 ? seconds : 3
+    }
     private var recoveryWork: DispatchWorkItem?
     private var memoryObserver: NSObjectProtocol?
 
@@ -298,7 +351,7 @@ final class DesignStore: ObservableObject {
             MainActor.assumeIsolated { self?.saveRecoveryNow() }
         }
         recoveryWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + recoveryDelay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (recoveryDelay ?? Self.autosaveDelay), execute: work)
     }
 
     /// Writes the recovery autosave now (the file write itself happens off the main thread).
@@ -1168,7 +1221,12 @@ final class DesignStore: ObservableObject {
         performChecked("Added sheet \(title)", invalidatesAnalysis: false,
                        failureMessage: "A sheet named \(title) already exists") { engine in
             id = engine.addSheet(title, parent: parent)
-            if let id { engine.setActiveSheet(id) }
+            if let id {
+                engine.setActiveSheet(id)
+                if let size = UserDefaults.standard.string(forKey: Self.newSheetSizeKey), !size.isEmpty {
+                    _ = engine.setSheetSize(id, size: size)
+                }
+            }
             return id != nil
         }
         if id != nil {
@@ -3015,7 +3073,10 @@ final class DesignStore: ObservableObject {
 
     func newProject() {
         guard confirmDiscardChanges() else { return }
-        perform("New project", recordUndo: false) { $0.reset() }
+        perform("New project", recordUndo: false) { engine in
+            engine.reset()
+            Self.applyNewProjectDefaults(engine)
+        }
         undoStack.removeAll()
         redoStack.removeAll()
         documentURL = nil
@@ -3023,6 +3084,24 @@ final class DesignStore: ObservableObject {
         resetChecks()
         routeStats = nil
         workspace = startWorkspace
+    }
+
+    /// Settings → General → New Projects: copper layers, track width and clearance a new project starts with
+    /// (each left at the core's default while unset).
+    static let newLayersKey = "newProject.layers"
+    static let newTrackWidthKey = "newProject.trackWidth"
+    static let newClearanceKey = "newProject.clearance"
+    static let newSheetSizeKey = "newSheet.size"
+    static func applyNewProjectDefaults(_ engine: EDAEngine) {
+        let defaults = UserDefaults.standard
+        let layers = defaults.integer(forKey: newLayersKey)
+        if [1, 2, 4, 6].contains(layers) { engine.setLayerCount(layers) }
+        let track = defaults.double(forKey: newTrackWidthKey), clearance = defaults.double(forKey: newClearanceKey)
+        if track > 0.05 || clearance > 0.05, let board = engine.snapshot()?.board {
+            engine.setBoard(width: board.width, height: board.height,
+                            trackWidth: track > 0.05 ? track : board.trackWidth,
+                            clearance: clearance > 0.05 ? clearance : board.clearance)
+        }
     }
 
     /// Loads one of the built-in reference designs (works fully offline, no AI involved).
@@ -3111,6 +3190,7 @@ final class DesignStore: ObservableObject {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.siedaProject, .json]
         panel.allowsMultipleSelection = false
+        if let folder = Self.projectFolder { panel.directoryURL = folder }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         open(url: url)
     }
@@ -3136,6 +3216,7 @@ final class DesignStore: ObservableObject {
             collaboration.documentChanged(url: url, json: json)
             undoStack.removeAll()
             redoStack.removeAll()
+            loadUndoHistory(for: url, json: json)
             isDirty = false
             selection = []
             selectedWire = nil
@@ -3177,6 +3258,7 @@ final class DesignStore: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.siedaProject]
         panel.nameFieldStringValue = (snapshot.name.isEmpty ? "Untitled" : snapshot.name) + ".siedaproj"
+        if documentURL == nil, let folder = Self.projectFolder { panel.directoryURL = folder }
         guard panel.runModal() == .OK, let url = panel.url else { return false }
         return write(to: url)
     }
@@ -3192,6 +3274,7 @@ final class DesignStore: ObservableObject {
             documentURL = url
             ProjectHooks.run("after-save", project: url)
             collaboration.documentChanged(url: url, json: json)
+            saveUndoHistory(for: url, json: json)
             isDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
             CrashReporter.note("Saved \(url.lastPathComponent)")
