@@ -133,6 +133,7 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <h4 data-en="Mouse and Trackpad">Mouse and Trackpad</h4>
 <label class="chk"><input type="checkbox" id="setWheel"><span data-en="Mouse wheel pans (hold Ctrl to zoom)">Mouse wheel pans (hold Ctrl to zoom)</span></label>
 <label class="chk"><input type="checkbox" id="setReverse"><span data-en="Reverse zoom direction">Reverse zoom direction</span></label>
+<h4 data-en="Plug-ins">Plug-ins</h4><label class="chk"><input type="checkbox" id="setPluginSandbox"><span data-en="Sandbox plug-ins (no network; they write only in their copy of the project)">Sandbox plug-ins (no network; they write only in their copy of the project)</span></label>
 <h4 data-en="Advanced">Advanced</h4><div class="row"><button onclick="exportSettings()" data-en="Export Settings…">Export Settings…</button><button onclick="$('setImport').click()" data-en="Import Settings…">Import Settings…</button>
 <input type="file" id="setImport" accept=".json,application/json" hidden onchange="importSettings(this.files[0])"><button onclick="resetSettings()" data-en="Reset All Preferences…">Reset All Preferences…</button></div></div>
 <div data-sp="appearance" hidden><div class="ff"><span data-en="App Theme">App Theme</span><select id="setTheme"><option value="navy">Midnight Navy</option>
@@ -582,6 +583,16 @@ async function aiSend(){const msg=$("aiInput").value.trim(),model=$("aiModel").v
   if(d.added){b.innerHTML=`<b>${esc(d.title||tr("Circuit"))}</b><div>${tr("Added to the schematic")}: ${esc(d.added.join(", "))} · ${d.links} ${tr("links")}</div>`+(d.failed?`<div class=warning>${esc(d.failed.join("; "))}</div>`:"")+`<div class=info>${sec} s</div><button onclick="selectTab('Schematic')">${tr("Show in Schematic")}</button> <button onclick="act('project_undo',{})">${tr("Undo")}</button>`;await refresh(true);}
   else b.innerHTML=(d.note?`<div class=warning>${esc(d.note)}</div>`:"")+`<div style="white-space:pre-wrap">${esc(d.reply||JSON.stringify(d.plan||{},null,1))}</div><div class=info>${sec} s</div>`;}
  catch(e){b.innerHTML=`<span class=error>${esc(e.message)}</span>`;}finally{$("aiSendBtn").disabled=false;}}
+// Plug-ins (the macOS app's Design → Plug-ins): executables in the user's plug-in folder, run by Studio itself on a copy
+// of the design (SIEDA_PROJECT); a changed copy replaces the design as one undo step.
+async function plugins(){const r=await (await fetch("/plugins",{headers:{"X-Sieda-Token":TOKEN}})).json(),list=r.plugins||[];
+ ask(tr("Plug-ins")+" — "+r.folder,list.length?list.map(n=>({t:n,v:n})):[{t:tr("No plug-ins yet: put an executable script in this folder."),v:""}],"",n=>{if(n)runPlugin(n);});$("dlgInput").hidden=true;dlg.addEventListener("close",()=>$("dlgInput").hidden=false,{once:true});}
+async function runPlugin(name){status(tr("Running")+" "+name+"…");
+ try{const r=await (await fetch("/plugins/run",{method:"POST",headers:{"X-Sieda-Token":TOKEN,"Content-Type":"application/json"},body:JSON.stringify({name,sandbox:pref("studio.pluginSandbox")!=="0"})})).json();
+  if(r.error){status(r.error,"error");return;}if(r.applied)await refresh(true);
+  status(name+": "+(r.applied?tr("design changed (Undo takes it back)"):tr("no changes to the design")),r.applied?"okc":"");
+  if((r.output||"").trim()){$("formTitle").textContent=name;$("formDesc").textContent="";$("formFields").replaceChildren();$("formRun").hidden=true;$("formOut").hidden=false;$("formOut").textContent=r.output;$("formImg").replaceChildren();formDlg.showModal();formDlg.addEventListener("close",()=>$("formRun").hidden=false,{once:true});}}
+ catch(e){status(e.message,"error");}}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -631,7 +642,7 @@ const MENUS={
   ["Check Partitions Against Base…",F("pcb_partitions",{action:"check"})],["Routing Policy…",F("pcb_routing_policies")],["Check Variants",()=>variantCheck()],0,
   ["Team Rule Pack"],["Save Rule Pack…",F("pcb_rule_pack",{action:"save",path:"team.rules.json"})],["Apply Rule Pack…",F("pcb_rule_pack",{action:"apply",path:"team.rules.json"})],
   ["Compare with Rule Pack…",F("pcb_rule_pack",{action:"check",path:"team.rules.json"})],0,
-  ["Industry Profile…",F("project_set_info")],["Design Rules…",F("pcb_set_board")],["Verify Design",()=>{selectTab("Checks");verify();}]],
+  ["Industry Profile…",F("project_set_info")],["Design Rules…",F("pcb_set_board")],["Verify Design",()=>{selectTab("Checks");verify();}],["Plug-ins…",()=>plugins()]],
  "Board Setup":[["Board…",F("pcb_set_board")],["Board Outline…",F("pcb_set_outline")],["Stack-up…",F("pcb_set_stackup")],["Blind / Buried Vias (HDI)…",F("pcb_set_hdi")],
   ["Manufacturer Rules…",F("pcb_dfm_pack")],["Custom Rules…",F("pcb_custom_rules")],["Net Widths…",F("pcb_set_net_width")],["Length Rules…",F("pcb_length_rules")],
   ["Pair Rules…",F("pcb_pair_rules")],["Keep-outs…",F("pcb_set_keepouts")],["Mechanical Limits…",F("pcb_mechanical_limits")],["Production Panel…",F("pcb_panel")],
@@ -724,7 +735,7 @@ function settings(){$("setTheme").value=pref("studio.theme")||"navy";$("setLang"
  $("setLang").value=pref("studio.lang")||"en";$("setTheme").onchange=()=>setTheme(pref("studio.theme",$("setTheme").value));
  $("setLang").onchange=()=>setLanguage(pref("studio.lang",$("setLang").value));
  const box=(id,key,on)=>{$(id).checked=on?pref(key)!=="0":pref(key)==="1";$(id).onchange=()=>pref(key,$(id).checked?"1":"0");};
- box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");
+ box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");box("setPluginSandbox","studio.pluginSandbox",true);
  const field=(id,key,def)=>{$(id).value=pref(key)||def;$(id).onchange=()=>pref(key,$(id).value);};
  field("setFolder","studio.projectFolder","");field("setDelay","studio.autosaveSeconds","3");field("setLayers","studio.newLayers","");field("setTrack","studio.newTrack","");field("setClear","studio.newClear","");
  const pane=n=>{document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st===n));document.querySelectorAll("#setDlg [data-sp]").forEach(d=>d.hidden=d.dataset.sp!==n);};

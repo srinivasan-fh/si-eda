@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 196 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 197 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -555,6 +555,7 @@ Create, open, save and inspect projects; built-in examples.
 | `ai_assistant` | edit | The built-in AI (no outside app or account): a .gguf model run on this computer's CPU by SiEDA's own engine (Llama, Mistral, Qwen), as the macOS app's Super Intelligence → Local LLM / Own LLM. |
 | `project_live` | edit | Live co-editing of a shared project file (a synced folder, network share or Git working copy), as the macOS app's Live Collaboration: join {user?} starts it on the saved project; sync {save?} merges a teammate's save into the open design (three-way, base = the file as last read or written: both sides' parts, wires, copper and settings kept, a field both changed keeps yours and is listed in conflicts), then with save writes the design back; leave stops. |
 | `project_git` | edit (destructive) | Git for the folder holding the project (the root folder while unsaved), as the macOS app's File → Git…, through your own git (no shell, no repository hooks, never prompts): status (branch, branches, changes, history), init, commit {message} (saves the project, then commits every change), diff {file?}, switch {branch}, branch {branch} (new branch, switched to), tag {name}, pull (fast-forward only), push (with tags) and clone {url, dir?} (into a folder inside the root; its first .siedaproj is opened). |
+| `project_load_json` | edit | Replaces the open design with a whole project as JSON (.siedaproj text, e.g. |
 | `project_export_json` | read | The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants. |
 | `project_list_examples` | read | The built-in example designs (ids for project_load_example). |
 | `project_lessons` | edit | Step-by-step lessons checked against the design: list (built-in, the organisation's lesson folders and a team folder's Lessons/), start (id; sets up its project), check (is the current step done? then the next), show (does the current step for you, then checks it), status, stop, validate (a lesson file's problems, for authors). |

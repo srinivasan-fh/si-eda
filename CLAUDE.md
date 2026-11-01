@@ -329,7 +329,9 @@
   `importIdfPlacement`); rule scripting `Core/src/CustomRules.cpp` (`BoardSettings::customRules`, saved only when
   present, RULE_<NAME> / RULE_SYNTAX in `runDRC`, tokens capped at 500, C `sieda_pcb_custom_rules`, MCP
   `pcb_custom_rules`, app Board Setup → Custom Rules); plug-ins `ProjectPlugins` (ProjectHooks.swift: Application
-  Support/SiEDA/Plugins only, run on a project copy, changes = one undo step via `performExternalEdit`).
+  Support/SiEDA/Plugins only, run on a project copy, changes = one undo step via `performExternalEdit`); Studio's run by its host
+  (`runPlugin` in Core/studio/main.cpp, routes `/plugins`, `/plugins/run`: XDG data / %APPDATA% SiEDA/Plugins only, bwrap sandbox,
+  changes through MCP `project_load_json`).
 - Board objects (guide in `docs/MCAD.md`): copper thieving `copperThieving` / `copperFills` in `Zones.cpp` (dots as
   extra fills with zone and net -1; output code reads `copperFills`, connectivity keeps `zoneFills`); artwork
   `BoardSettings::graphics` (`BoardGraphic`, raster logos, user layers `exportUserLayerGerber`, DRC_GRAPHIC_COPPER),

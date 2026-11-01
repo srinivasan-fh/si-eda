@@ -3622,6 +3622,21 @@ void projectTools(Table& t) {
               j["history"] = lines(run({"log", "--oneline", "--decorate", "-n", "30"}, dir).output);
               return out(j);
           });
+    t.add("project", "project_load_json", "Replace with project JSON", Kind::Edit, false,
+          "Replaces the open design with a whole project as JSON (.siedaproj text, e.g. what a plug-in or script made "
+          "of project_export_json) as one undo step; the project's file and name stay. Refused when it does not load.",
+          Schema().str("json", "The project (.siedaproj JSON text)", true),
+          [](McpServer& s, const Json& a) {
+              Project next;
+              try {
+                  next = Project::fromJson(Json::parse(requireStr(a, "json")));
+              } catch (const std::exception& e) {
+                  throw ToolError(std::string("Not a project: ") + e.what());
+              }
+              P(s)->project = std::move(next);
+              P(s)->router.reset();
+              return out(projectSummary(s));
+          });
     t.add("project", "project_export_json", "Project JSON", Kind::Read, true,
           "The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_project_save_json(P(s)))); });
