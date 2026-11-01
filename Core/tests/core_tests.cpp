@@ -26597,6 +26597,17 @@ TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
     CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
     CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
     CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
+    // picks: each shown part's box on the picture (click to cross-probe); the picture itself is unchanged.
+    Json picked = mcpTool(s, "render_3d", Json::parse(R"({"width": 320, "picks": true, "hide": ["R1"]})"));
+    CHECK(picked.get("content").items()[1].get("data").asString("") == image(R"({"width": 320, "hide": ["R1"]})"));
+    const Json parts = Json::parse(picked.get("content").items()[0].get("text").asString()).get("parts");
+    CHECK(parts.size() >= 2);
+    for (const auto& p : parts.items()) {
+        CHECK(p.get("ref").asString() != "R1");
+        const auto& b = p.get("box").items();
+        CHECK(b[0].asNumber() < b[2].asNumber() && b[1].asNumber() < b[3].asNumber());
+        CHECK(b[0].asNumber() >= 0 && b[2].asNumber() <= 320);
+    }
 }
 
 TEST(thermal_map_balances_power_and_spreads_through_copper) {

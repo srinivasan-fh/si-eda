@@ -108,9 +108,11 @@ void foldFlexRegions(Mesh& m, const BoardSettings& s);
 
 /// Orthographic z-buffer picture of `m` (RGB rows, `width` × `height`), seen from `pitch` / `yaw` (radians, as
 /// render_3d); `white` = white page background (drawings), else the dark render backdrop. `sectionZ` (finite) cuts
-/// away everything nearer the eye than board y = sectionZ (a section view). Written in McpRender.cpp.
+/// away everything nearer the eye than board y = sectionZ (a section view). `frame` (10 doubles, optional) receives the
+/// projection: right xyz, up xyz, x0, y1, scale, margin — pixel = ((p·right − x0)·scale + margin,
+/// (y1 − p·up)·scale + margin). Written in McpRender.cpp.
 std::vector<uint8_t> rasterizeMesh(const Mesh& m, double pitch, double yaw, int width, int& height, bool white,
-                                   double sectionZ = NAN);
+                                   double sectionZ = NAN, double* frame = nullptr);
 /// zlib stream of `data` (PNG / PDF images; `stride` = bytes per row).
 std::string zlibStream(const std::string& data, size_t stride);
 

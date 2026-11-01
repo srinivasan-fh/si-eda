@@ -9895,7 +9895,8 @@ void renderTools(Table& t) {
               .num("explode", "Lift the parts off both sides (0 – 1)")
               .num("section", "Cut through the board at y (mm): everything nearer the eye is removed")
               .boolean("fold", "Fold rigid-flex bends (default true)")
-              .num("pitch", "Camera elevation (degrees; overrides the view)").num("yaw", "Camera turn (degrees; overrides the view)"),
+              .num("pitch", "Camera elevation (degrees; overrides the view)").num("yaw", "Camera turn (degrees; overrides the view)")
+              .boolean("picks", "Also list each shown part's box on the picture (pixels: x0, y0, x1, y1) to pick by a click"),
           [](McpServer& s, const Json& a) {
               Render3dOptions o;
               const Schematic& sch = P(s)->project.schematic;
@@ -9910,7 +9911,22 @@ void renderTools(Table& t) {
               if (a.has("section")) o.section = argNum(a, "section", 0);
               if (a.has("pitch")) o.pitchDeg = argNum(a, "pitch", 0);
               if (a.has("yaw")) o.yawDeg = argNum(a, "yaw", 0);
-              return imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000), o), "board3d");
+              std::vector<Render3dPick> picks;
+              if (argBool(a, "picks", false)) o.picks = &picks;
+              ToolOutput out = imageOutput("png", render3dPng(*P(s), argStr(a, "view", "iso"), argInt(a, "width", 1000), o), "board3d");
+              if (o.picks) {
+                  Json list = Json::array();
+                  for (const auto& p : picks) {
+                      Json j = obj();
+                      j["component"] = p.component, j["ref"] = p.ref;
+                      Json box = Json::array();
+                      for (double v : {p.x0, p.y0, p.x1, p.y1}) box.push(v);
+                      j["box"] = box;
+                      list.push(j);
+                  }
+                  out.data["parts"] = list;
+              }
+              return out;
           });
 }
 

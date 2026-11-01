@@ -91,7 +91,10 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
 <div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
 <div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
-<section data-tab="3D"><div class="row optbar"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
+<section data-tab="3D"><div class="row optbar"><label>Camera</label><select id="view3d" onchange="v3.pitch=v3.yaw=null;draw()"><option value="iso">Isometric</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="front">Front</option><option value="back">Back</option><option value="left">Left</option><option value="right">Right</option></select>
+<label>Explode</label><input id="explode3d" type="range" min="0" max="1" step="0.05" value="0" style="width:110px" onchange="draw()"><label><input type="checkbox" id="section3d" onchange="draw()"> Section</label><input id="sectionY" type="range" min="0" max="100" step="0.5" value="50" style="width:110px" onchange="if($('section3d').checked)draw()"><span id="sectionAt" class="info"></span>
+<label><input type="checkbox" id="fold3d" checked onchange="draw()"> Fold Flex</label><button onclick="v3.hidden.clear();v3.isolate=null;draw()">Show All</button><span class="info">Drag to orbit, Shift-drag pans, wheel zooms, click a part to pick it.</span></div>
+<div class="work"><aside class="side"><div class="card" style="flex:1;overflow:auto"><b>Parts</b><div id="parts3d"></div></div></aside><div class="view dark3d" id="v3d"></div><aside class="side"><div class="card"><b>Part</b><div id="pick3d" class="info">Click a part on the board.</div></div></aside></div></section>
 <section data-tab="Simulate"><div class="row optbar"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option><option value="live">Live (run the board)</option></select>
 <span id="simArgs"></span><button class="primary" id="simRun" onclick="simulate()">Run</button></div><div id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
 <section data-tab="Checks"><div class="row optbar"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
@@ -150,7 +153,7 @@ async function run(name,args={}){status("Running "+name+"…");document.body.sty
   if(data&&data.committed===false)status(name+": not done. "+(data.note||(data.issues||[]).join("; "))+(data.tooClose?" ("+data.tooClose.join(", ")+")":""),"warning");else status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
 async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);status(keep,cls);return r;}
 async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
- if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev){scheduleAutosave();if(sim.on)setTimeout(liveStart);}rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;layerOptions();}catch{}draw();}
+ if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev){scheduleAutosave();if(sim.on)setTimeout(liveStart);}rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;state.board=sum.board;layerOptions();}catch{}draw();}
 const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
 function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
  const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
@@ -178,7 +181,7 @@ function padAt(pt,lim){let best=null,d0=lim;for(const p of snap.pads||[]){const 
 function boardPart(pt){const cs=snap.courtyards||[];for(const k of cs)if(pt[0]>=k.x0&&pt[0]<=k.x1&&pt[1]>=k.y0&&pt[1]<=k.y1)return(snap.components||[]).find(c=>c.id===k.component);return null;}
 const padName=p=>{const c=(snap.components||[]).find(c=>c.id===p.component);return c?c.ref+"."+((c.pins||[])[p.pin]||{name:p.number}).name:"";};
 const netName=i=>((snap.nets||[]).find(n=>n.index===i)||{}).name;
-function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
+function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();if(el.id==="v3d"){const i=el.querySelector("img"),q=v3.picks.find(p=>p.ref===v3.picked);if(i&&q){o.setAttribute("viewBox",`0 0 ${i.naturalWidth} ${i.naturalHeight}`);const [x0,y0,x1,y1]=q.box;shape(o,"rect",{x:x0,y:y0,width:x1-x0,height:y1-y0,fill:"none",stroke:"#ffd43b","stroke-width":2,"stroke-dasharray":"6 4"});}return;}const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
  if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"none",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}
  if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"none",stroke:"#5b8dff","stroke-width":0.2,"stroke-dasharray":"0.6 0.4"});}
  if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});
@@ -436,7 +439,7 @@ async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];if(l[0]==="i")args.layers=[+l.slice(1)];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
- if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
+ if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
  if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
 function simForm(){const k=$("simKind").value;if(k!=="live")liveStop();$("simRun").hidden=k==="live";if(k==="live"){liveForm();return;}$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
  :k==="ac"?`<label>From</label> <input id="simStart" value="1" style="width:80px"> <label>To</label> <input id="simStop" value="1MEG" style="width:90px">`:"";}
@@ -503,6 +506,35 @@ function liveView(){const st=sim.st||{},out=$("simOut");if(!sim.on&&!st.time)ret
  const mc=$("liveMcus");for(const m of st.mcus||[]){let c=$("mcu"+m.component);if(!c){mc.insertAdjacentHTML("beforeend",`<div class="card" id="mcu${m.component}"><b>${esc(m.ref)}</b> <span class=info data-ms></span><pre class="serial" style="max-height:160px;overflow:auto;background:#0f1520;color:#9fe59f;padding:6px"></pre><div class=row><input id="ser${m.component}" placeholder="${tr("Send to the serial port")}" onkeydown="if(event.key==='Enter')liveSend(${m.component})" style="flex:1"><button onclick="liveSend(${m.component})">${tr("Send")}</button></div></div>`);c=$("mcu"+m.component);}
   c.querySelector("[data-ms]").textContent=`${m.model} · ${m.status||""} · ${(m.clockHz/1e6).toFixed(1)} MHz`;const pre=c.querySelector("pre");if(pre.textContent!==m.serial){pre.textContent=m.serial||"";pre.scrollTop=pre.scrollHeight;}}
  $("liveVolts").innerHTML="<table><tr><th>Net</th><th>Voltage (V)</th></tr>"+(st.nets||[]).map(n=>`<tr><td>${esc(n.name)}</td><td>${fmt(n.voltage)}</td></tr>`).join("")+"</table>";}
+// Interactive 3D (MCP render_3d), as the macOS 3D view: orbit by dragging (pitch / yaw), camera presets, parts hidden or
+// isolated, explode, section cut, rigid-flex fold, and a click picks a part (render_3d picks) to show it in the editors.
+let v3={pitch:null,yaw:null,hidden:new Set(),isolate:null,picks:[],picked:null,busy:false,again:0};
+const VIEW_ANGLES={iso:[34.4,31.5],top:[89.99,0],bottom:[-89.99,0],front:[11.5,0],back:[11.5,180],left:[11.5,-90],right:[11.5,90]};
+function args3d(width){const a={view:$("view3d").value,width,picks:true,explode:+$("explode3d").value,fold:$("fold3d").checked};if(v3.pitch!=null){a.pitch=v3.pitch;a.yaw=v3.yaw;}
+ if(v3.hidden.size)a.hide=[...v3.hidden];if(v3.isolate)a.isolate=[v3.isolate];
+ const h=(state.board||{}).height||100;if($("section3d").checked){a.section=+$("sectionY").value/100*h;$("sectionAt").textContent=`y = ${a.section.toFixed(1)} mm`;}else $("sectionAt").textContent="";return a;}
+async function render3d(width){if(v3.busy){v3.again=width;return;}v3.busy=true;
+ try{const r=await rpc("tools/call",{name:"render_3d",arguments:args3d(width)});const img=(r.content||[]).find(c=>c.type==="image"),t=(r.content||[]).find(c=>c.type==="text");
+  if(r.isError)throw new Error(t&&t.text);v3.picks=(t?JSON.parse(t.text).parts:null)||[];showImage("v3d","data:image/png;base64,"+img.data);}catch(e){status("render_3d: "+e.message,"error");}
+ finally{v3.busy=false;if(v3.again){const w=v3.again;v3.again=0;render3d(w);}}}
+function parts3d(){const list=(snap.components||[]).filter(c=>c.pcb&&c.pcb.placed!==false&&c.footprint);
+ $("parts3d").innerHTML=list.map(c=>`<div class="row" style="gap:4px;margin:2px 0"><input type="checkbox" title="${tr("Show")}" data-h3="${esc(c.ref)}" style="width:auto"${v3.hidden.has(c.ref)?"":" checked"}><a href="#" data-p3="${esc(c.ref)}" style="flex:1;color:inherit;text-decoration:none">${esc(c.ref)} <span class=info>${esc(c.value||"")}</span></a><button data-i3="${esc(c.ref)}" class="${v3.isolate===c.ref?"primary":""}" title="${tr("Show only this part")}">${tr("Only")}</button></div>`).join("")||`<span class=info>${tr("No parts on the board yet.")}</span>`;
+ for(const e of document.querySelectorAll("[data-h3]"))e.onchange=()=>{e.checked?v3.hidden.delete(e.dataset.h3):v3.hidden.add(e.dataset.h3);render3d(1200);};
+ for(const e of document.querySelectorAll("[data-i3]"))e.onclick=()=>{v3.isolate=v3.isolate===e.dataset.i3?null:e.dataset.i3;parts3d();render3d(1200);};
+ for(const e of document.querySelectorAll("[data-p3]"))e.onclick=ev=>{ev.preventDefault();pick3d(e.dataset.p3);};}
+function pick3d(ref){v3.picked=ref;const c=(snap.components||[]).find(c=>c.ref===ref);if(!c){$("pick3d").textContent=tr("Click a part on the board.");return;}const b=c.pcb||{};
+ $("pick3d").innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.value||"")}</div><div class=info>${esc(c.footprint||"")}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation||0}° · ${tr(b.bottom?"bottom":"top")}</div>
+ <div class="row" style="margin-top:6px;flex-wrap:wrap"><button onclick="probe3d('Board')">${tr("Show in PCB")}</button><button onclick="probe3d('Schematic')">${tr("Show in Schematic")}</button><button onclick="v3.hidden.add(v3.picked);parts3d();render3d(1200)">${tr("Hide")}</button><button onclick="v3.isolate=v3.picked;parts3d();render3d(1200)">${tr("Only")}</button></div>`;
+ for(const e of document.querySelectorAll("[data-p3]"))e.style.fontWeight=e.dataset.p3===ref?"700":"";overlay($("v3d"));}
+async function probe3d(tab){const ref=v3.picked,c=(snap.components||[]).find(c=>c.ref===ref)||{};if(tab==="Schematic"&&c.sheet)$("sheet").value=c.sheet;await selectTab(tab);selectPart(tab==="Board"?"pcb":"sch",ref);}
+function orbit3d(){const el=$("v3d");panZoom(el);
+ el.onpress=(at,e)=>{if(e.shiftKey)return false;const [p0,y0]=v3.pitch!=null?[v3.pitch,v3.yaw]:VIEW_ANGLES[$("view3d").value];const start={x:e.clientX,y:e.clientY,p0,y0,moved:false,i:el.querySelector("img")};
+  const move=ev=>{const dx=ev.clientX-start.x,dy=ev.clientY-start.y;if(!start.moved&&Math.hypot(dx,dy)<4)return;start.moved=true;v3.yaw=((start.y0-dx*0.5)%360+540)%360-180;v3.pitch=Math.max(-89.9,Math.min(89.9,start.p0+dy*0.4));render3d(560);};
+  const up=ev=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);if(start.moved){render3d(1200);return;}
+   const v=views.v3d,i=start.i;if(!i)return;const r=el.getBoundingClientRect(),px=(ev.clientX-r.left-v.x)/v.k,py=(ev.clientY-r.top-v.y)/v.k;
+   let best=null;for(const p of v3.picks){const [x0,y0,x1,y1]=p.box;if(px>=x0&&px<=x1&&py>=y0&&py<=y1){const a=(x1-x0)*(y1-y0);if(!best||a<best.a)best={ref:p.ref,a};}}
+   if(best)pick3d(best.ref);};
+  addEventListener("mousemove",move);addEventListener("mouseup",up);return true;};}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -726,7 +758,7 @@ function workspacePicker(){$("wsPicker").innerHTML=WORKSPACES.map(([id,title,ico
  iconize($("wsPicker"));$("wsPicker").querySelectorAll("[data-ws]").forEach(b=>{b.onclick=()=>selectTab(b.dataset.ws);b.classList.toggle("on",b.dataset.ws===tab);});}
 function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));
  document.querySelectorAll("#wsPicker [data-ws]").forEach(b=>b.classList.toggle("on",b.dataset.ws===name));if(WORKSPACES.some(w=>w[0]===name))pref("studio.workspace",name);draw();}
-iconize();workspacePicker();
+iconize();workspacePicker();orbit3d();
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
   if(k==="pcb"&&live){if(e.key==="Escape")liveStep("cancel");if(e.key==="Enter")liveStep("commit");if(key==="v")liveStep("via");if(key==="backspace"||key==="escape"||key==="enter"||key==="v")return;}

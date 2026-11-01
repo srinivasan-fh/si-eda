@@ -218,8 +218,16 @@ std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& la
 /// 3D view tools: parts left out (hide / isolate, by component id), explode (0 = none, 1 = parts lifted one board
 /// size off both sides), a section cut at board y (mm; NaN = none), rigid-flex folded, and a free camera (degrees;
 /// NaN = the view's own).
+/// A part's box on a render_3d picture (pixels), for click-to-pick.
+struct Render3dPick {
+    int component;
+    std::string ref;
+    double x0, y0, x1, y1;
+};
 struct Render3dOptions {
     std::set<int> hidden;
+    /// Filled with each shown part's screen box when set.
+    std::vector<Render3dPick>* picks = nullptr;
     double explode = 0;
     double section = NAN;
     bool fold = true;
