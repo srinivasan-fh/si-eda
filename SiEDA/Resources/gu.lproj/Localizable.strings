@@ -1952,3 +1952,16 @@
 "The core did not answer" = "કોરે જવાબ ન આપ્યો";
 "Team folder" = "ટીમ ફોલ્ડર";
 "List the standard parts catalog (or type in the search field)" = "માનક ભાગોની સૂચિ બતાવો (અથવા શોધ ક્ષેત્રમાં લખો)";
+"General" = "સામાન્ય";
+"Startup" = "શરૂઆત";
+"Reopen last project and workspace at launch" = "લૉન્ચ પર છેલ્લો પ્રોજેક્ટ અને વર્કસ્પેસ ફરી ખોલો";
+"Show Welcome Tour at Next Launch" = "આગલા લૉન્ચ પર સ્વાગત ટૂર બતાવો";
+"Projects" = "પ્રોજેક્ટ";
+"Projects Folder" = "પ્રોજેક્ટ ફોલ્ડર";
+"Undo Steps" = "પૂર્વવત્ પગલાં";
+"Clear Recent Projects" = "તાજેતરના પ્રોજેક્ટ સાફ કરો";
+"Team and Library" = "ટીમ અને લાઇબ્રેરી";
+"Advanced" = "અદ્યતન";
+"Reset All Preferences…" = "બધી પસંદગીઓ રીસેટ કરો…";
+"Reset all preferences?" = "બધી પસંદગીઓ રીસેટ કરવી છે?";
+"Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "દરેક સેટિંગ તેના ડિફૉલ્ટ પર પાછી જાય છે; કીચેનની કી અને પાસવર્ડ રાખવામાં આવે છે. પછી SiEDA બંધ થશે.";

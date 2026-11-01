@@ -1952,3 +1952,16 @@
 "The core did not answer" = "코어가 응답하지 않았습니다";
 "Team folder" = "팀 폴더";
 "List the standard parts catalog (or type in the search field)" = "표준 부품 카탈로그 표시 (또는 검색 필드에 입력)";
+"General" = "일반";
+"Startup" = "시작";
+"Reopen last project and workspace at launch" = "시작할 때 마지막 프로젝트와 작업 공간 열기";
+"Show Welcome Tour at Next Launch" = "다음 실행 시 환영 투어 보기";
+"Projects" = "프로젝트";
+"Projects Folder" = "프로젝트 폴더";
+"Undo Steps" = "실행 취소 단계";
+"Clear Recent Projects" = "최근 프로젝트 지우기";
+"Team and Library" = "팀 및 라이브러리";
+"Advanced" = "고급";
+"Reset All Preferences…" = "모든 환경설정 재설정…";
+"Reset all preferences?" = "모든 환경설정을 재설정하시겠습니까?";
+"Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "모든 설정이 기본값으로 돌아갑니다. 키체인의 키와 암호는 유지됩니다. 그런 다음 SiEDA가 종료됩니다.";

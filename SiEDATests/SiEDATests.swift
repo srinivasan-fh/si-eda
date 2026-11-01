@@ -939,6 +939,14 @@ final class DesignFlowTests: XCTestCase {
         relaunched.workspace = .simulation  // remembered from now on
         XCTAssertEqual(defaults.string(forKey: DesignStore.lastWorkspaceKey), Workspace.simulation.rawValue)
 
+        // Settings → General can turn it off: nothing is reopened.
+        defaults.set(false, forKey: DesignStore.reopenLastKey)
+        let off = freshStore()
+        off.restoreLastSession()
+        defaults.removeObject(forKey: DesignStore.reopenLastKey)
+        XCTAssertNil(off.documentURL)
+        XCTAssertEqual(off.workspace, .schematic)
+
         // A missing file leaves the empty design; the workspace still comes back.
         try FileManager.default.removeItem(at: url)
         let again = freshStore()

@@ -1952,3 +1952,16 @@
 "The core did not answer" = "కోర్ సమాధానం ఇవ్వలేదు";
 "Team folder" = "జట్టు ఫోల్డర్";
 "List the standard parts catalog (or type in the search field)" = "ప్రామాణిక భాగాల జాబితాను చూపించు (లేదా శోధన ఫీల్డ్‌లో టైప్ చేయండి)";
+"General" = "సాధారణం";
+"Startup" = "ప్రారంభం";
+"Reopen last project and workspace at launch" = "ప్రారంభంలో చివరి ప్రాజెక్ట్ మరియు వర్క్‌స్పేస్‌ను మళ్లీ తెరువు";
+"Show Welcome Tour at Next Launch" = "తదుపరి ప్రారంభంలో స్వాగత పర్యటన చూపించు";
+"Projects" = "ప్రాజెక్ట్‌లు";
+"Projects Folder" = "ప్రాజెక్ట్‌ల ఫోల్డర్";
+"Undo Steps" = "రద్దు దశలు";
+"Clear Recent Projects" = "ఇటీవలి ప్రాజెక్ట్‌లను క్లియర్ చేయి";
+"Team and Library" = "టీమ్ మరియు లైబ్రరీ";
+"Advanced" = "అధునాతనం";
+"Reset All Preferences…" = "అన్ని ప్రాధాన్యతలను రీసెట్ చేయి…";
+"Reset all preferences?" = "అన్ని ప్రాధాన్యతలను రీసెట్ చేయాలా?";
+"Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "ప్రతి సెట్టింగ్ దాని డిఫాల్ట్‌కు తిరిగి వస్తుంది; కీచైన్‌లోని కీలు మరియు పాస్‌వర్డ్‌లు ఉంచబడతాయి. ఆ తర్వాత SiEDA మూసివేయబడుతుంది.";

@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     var body: some View {
         TabView {
+            GeneralSettings()
+                .tabItem { Label("General", systemImage: "gearshape") }
             AIModelSettings()
                 .tabItem { Label("AI Models", systemImage: "sparkles") }
             AppearanceSettings()
@@ -284,17 +286,129 @@ struct AccountSettings: View {
     }
 }
 
-private struct AppearanceSettings: View {
+/// Settings every app has: start-up, where projects live, saving and undo, updates, team folders, reset.
+private struct GeneralSettings: View {
+    @AppStorage(DesignStore.reopenLastKey) private var reopenLast = true
     @AppStorage("showSplashScreen") private var showSplashScreen = true
+    @AppStorage(DesignStore.projectFolderKey) private var projectFolder = ""
+    @AppStorage(DesignStore.autosaveKey) private var autosave = false
+    @AppStorage(DesignStore.undoLimitKey) private var undoSteps = 100
+    @AppStorage(UpdateChecker.autoKey) private var checkUpdates = false
+    @AppStorage("library.sharedFolder") private var sharedLibrary = ""
+    @AppStorage(BeginnerMode.key) private var beginner = false
+    @AppStorage(ProjectPlugins.sandboxKey) private var sandboxPlugins = true
+    @State private var tourQueued = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Reopen last project and workspace at launch", isOn: $reopenLast)
+                Toggle("Show splash screen at launch", isOn: $showSplashScreen)
+                Text("The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                Button("Show Welcome Tour at Next Launch") {
+                    UserDefaults.standard.set(false, forKey: WelcomeTourView.shownKey)
+                    tourQueued = true
+                }
+                .disabled(tourQueued)
+                Toggle("Beginner mode", isOn: $beginner)
+                Text("A bar over the workspace names the next step of the board (parts, board, routing, checks and order) with a button for it; the Library workspace is hidden.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+            } header: {
+                Text("Startup")
+            }
+            Section {
+                HStack {
+                    Text("Projects Folder")
+                    Text(verbatim: projectFolder.isEmpty ? "—" : (projectFolder as NSString).abbreviatingWithTildeInPath)
+                        .foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.middle)
+                    Button("Choose…") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = false
+                        panel.canCreateDirectories = true
+                        if panel.runModal() == .OK, let url = panel.url { projectFolder = url.path }
+                    }
+                    if !projectFolder.isEmpty { Button("Clear") { projectFolder = "" } }
+                }
+                Toggle("Save projects automatically", isOn: $autosave)
+                Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                Picker("Undo Steps", selection: $undoSteps) {
+                    ForEach([50, 100, 200, 500], id: \.self) { Text(verbatim: "\($0)").tag($0) }
+                }
+                Button("Clear Recent Projects") {
+                    NSDocumentController.shared.clearRecentDocuments(nil)
+                    UserDefaults.standard.removeObject(forKey: DesignStore.lastProjectKey)
+                }
+                Toggle("Check for updates once a day", isOn: $checkUpdates)
+                Text("Asks GitHub for the latest SiEDA release and offers its signed disk image when it is newer. Off: only Help → Check for Updates… asks.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+            } header: {
+                Text("Projects")
+            }
+            Section {
+                HStack {
+                    Text("Shared Library Folder")
+                    Text(verbatim: sharedLibrary.isEmpty ? "—" : (sharedLibrary as NSString).abbreviatingWithTildeInPath)
+                        .foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.middle)
+                    Button("Choose…") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = false
+                        panel.canCreateDirectories = true
+                        if panel.runModal() == .OK, let url = panel.url { sharedLibrary = url.path }
+                    }
+                    if !sharedLibrary.isEmpty { Button("Clear") { sharedLibrary = "" } }
+                }
+                .help("A team folder (network drive or synced folder): My Footprints are kept in its Footprints folder with their version history, and 3D models are picked from its 3D Models folder")
+                Toggle("Sandbox plug-ins", isOn: $sandboxPlugins)
+                Text("A plug-in runs with no network access and may write only to its copy of the project.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                Button("Open Event Hooks Folder") { ProjectHooks.openFolder() }
+                    .help("Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set")
+            } header: {
+                Text("Team and Library")
+            }
+            Section {
+                HStack {
+                    Button("Export Settings…") { SettingsTransfer.exportWithPanel() }
+                    Button("Import Settings…") { SettingsTransfer.importWithPanel() }
+                }
+                .help("Shortcuts, themes, colours, library favourites and tags, and other preferences as one file (keys and passwords stay in the Keychain)")
+                Button("Reset All Preferences…", role: .destructive) { Self.resetAll() }
+            } header: {
+                Text("Advanced")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// Every preference back to its default (the Keychain is left alone), then quit so nothing keeps an old value.
+    private static func resetAll() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "Reset all preferences?")
+        alert.informativeText = String(localized: "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits.")
+        alert.addButton(withTitle: String(localized: "Reset"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn, let domain = Bundle.main.bundleIdentifier else { return }
+        UserDefaults.standard.removePersistentDomain(forName: domain)
+        NSApp.terminate(nil)
+    }
+}
+
+
+private struct AppearanceSettings: View {
     /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
-    @AppStorage(DesignStore.autosaveKey) private var autosave = false
-    @AppStorage("library.sharedFolder") private var sharedLibrary = ""
-    @AppStorage(BeginnerMode.key) private var beginner = false
-    @AppStorage(UpdateChecker.autoKey) private var checkUpdates = false
     @AppStorage("canvas.gpu") private var gpuCanvas = false
-    @AppStorage(ProjectPlugins.sandboxKey) private var sandboxPlugins = true
     @AppStorage(Theme.layerPaletteKey) private var layerPalette = ""
     @AppStorage(Theme.displayUnitKey) private var displayUnit = "mm"
     @State private var customisingSchematic = false
@@ -317,49 +431,8 @@ private struct AppearanceSettings: View {
                 Text("Colour-blind safe (Okabe–Ito)").tag("colourblind")
             }
             .help("Copper layer colours told apart without red / green: orange top, sky-blue bottom, yellow, bluish-green, vermillion and purple inner layers")
-            HStack {
-                Button("Export Settings…") { SettingsTransfer.exportWithPanel() }
-                Button("Import Settings…") { SettingsTransfer.importWithPanel() }
-            }
-            .help("Shortcuts, themes, colours, library favourites and tags, and other preferences as one file (keys and passwords stay in the Keychain)")
-            HStack {
-                Text("Shared Library Folder")
-                Text(verbatim: sharedLibrary.isEmpty ? "—" : (sharedLibrary as NSString).abbreviatingWithTildeInPath)
-                    .foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.middle)
-                Button("Choose…") {
-                    let panel = NSOpenPanel()
-                    panel.canChooseDirectories = true
-                    panel.canChooseFiles = false
-                    panel.canCreateDirectories = true
-                    if panel.runModal() == .OK, let url = panel.url { sharedLibrary = url.path }
-                }
-                if !sharedLibrary.isEmpty { Button("Clear") { sharedLibrary = "" } }
-            }
-            .help("A team folder (network drive or synced folder): My Footprints are kept in its Footprints folder with their version history, and 3D models are picked from its 3D Models folder")
-            Button("Open Event Hooks Folder") { ProjectHooks.openFolder() }
-                .help("Scripts named after-open, after-save, after-verify or after-export in this folder run after that event, with SIEDA_PROJECT and SIEDA_OUTPUT set")
-            Toggle("Beginner mode", isOn: $beginner)
-            Text("A bar over the workspace names the next step of the board (parts, board, routing, checks and order) with a button for it; the Library workspace is hidden.")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-            Toggle("Sandbox plug-ins", isOn: $sandboxPlugins)
-            Text("A plug-in runs with no network access and may write only to its copy of the project.")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
             Toggle("GPU canvas rendering", isOn: $gpuCanvas)
             Text("Draws the schematic and board canvases through Metal: smoother on large boards, the same picture.")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-            Toggle("Check for updates once a day", isOn: $checkUpdates)
-            Text("Asks GitHub for the latest SiEDA release and offers its signed disk image when it is newer. Off: only Help → Check for Updates… asks.")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-            Toggle("Save projects automatically", isOn: $autosave)
-            Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-            Toggle("Show splash screen at launch", isOn: $showSplashScreen)
-            Text("The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             schematicSection

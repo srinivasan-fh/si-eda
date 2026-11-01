@@ -75,6 +75,15 @@ final class DesignStore: ObservableObject {
     /// The project and workspace the next launch reopens (`restoreLastSession`).
     static let lastProjectKey = "app.lastProject"
     static let lastWorkspaceKey = "app.lastWorkspace"
+    /// Settings → General: reopen the last project and workspace at launch (on by default).
+    static let reopenLastKey = "app.reopenLastProject"
+    /// Settings → General: the folder Open and Save panels start in (empty = the system's choice).
+    static let projectFolderKey = "app.projectFolder"
+    static var projectFolder: URL? {
+        guard let path = UserDefaults.standard.string(forKey: projectFolderKey), !path.isEmpty,
+              FileManager.default.fileExists(atPath: path) else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
     /// Set once the launch has restored the last session: workspace changes made before it (the window's own
     /// start-up) must not overwrite the saved one.
     private var sessionRestored = false
@@ -150,6 +159,7 @@ final class DesignStore: ObservableObject {
     func restoreLastSession() {
         defer { sessionRestored = true }
         let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.reopenLastKey) as? Bool ?? true else { return }
         let lastWorkspace = defaults.string(forKey: Self.lastWorkspaceKey).flatMap(Workspace.init(rawValue:))
         if documentURL == nil, !isDirty, snapshot.components.isEmpty,
            let path = defaults.string(forKey: Self.lastProjectKey), FileManager.default.fileExists(atPath: path) {
@@ -222,7 +232,12 @@ final class DesignStore: ObservableObject {
 
     private var undoStack: [String] = []
     private var redoStack: [String] = []
-    private let undoLimit = 100
+    /// Undo depth, set in Settings → General (`undoLimitKey`, 100 by default; the byte limit still applies).
+    private var undoLimit: Int {
+        let steps = UserDefaults.standard.integer(forKey: Self.undoLimitKey)
+        return steps > 0 ? steps : 100
+    }
+    static let undoLimitKey = "app.undoLimit"
     /// Memory budget for the undo + redo history (each step is a full design snapshot): big boards keep fewer
     /// steps instead of growing without bound.
     var historyByteLimit = 96 * 1024 * 1024
@@ -3111,6 +3126,7 @@ final class DesignStore: ObservableObject {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.siedaProject, .json]
         panel.allowsMultipleSelection = false
+        if let folder = Self.projectFolder { panel.directoryURL = folder }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         open(url: url)
     }
@@ -3177,6 +3193,7 @@ final class DesignStore: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.siedaProject]
         panel.nameFieldStringValue = (snapshot.name.isEmpty ? "Untitled" : snapshot.name) + ".siedaproj"
+        if documentURL == nil, let folder = Self.projectFolder { panel.directoryURL = folder }
         guard panel.runModal() == .OK, let url = panel.url else { return false }
         return write(to: url)
     }

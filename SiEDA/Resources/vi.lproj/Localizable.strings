@@ -1952,3 +1952,16 @@
 "The core did not answer" = "Lõi không trả lời";
 "Team folder" = "Thư mục nhóm";
 "List the standard parts catalog (or type in the search field)" = "Hiển thị danh mục linh kiện tiêu chuẩn (hoặc gõ vào ô tìm kiếm)";
+"General" = "Chung";
+"Startup" = "Khởi động";
+"Reopen last project and workspace at launch" = "Mở lại dự án và không gian làm việc gần nhất khi khởi động";
+"Show Welcome Tour at Next Launch" = "Hiện chuyến tham quan chào mừng ở lần khởi động tới";
+"Projects" = "Dự án";
+"Projects Folder" = "Thư mục dự án";
+"Undo Steps" = "Số bước hoàn tác";
+"Clear Recent Projects" = "Xóa dự án gần đây";
+"Team and Library" = "Nhóm và thư viện";
+"Advanced" = "Nâng cao";
+"Reset All Preferences…" = "Đặt lại mọi tùy chọn…";
+"Reset all preferences?" = "Đặt lại mọi tùy chọn?";
+"Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Mọi cài đặt trở về mặc định; khóa và mật khẩu trong Chuỗi khóa được giữ lại. Sau đó SiEDA sẽ thoát.";

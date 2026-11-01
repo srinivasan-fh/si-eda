@@ -1952,3 +1952,16 @@
 "The core did not answer" = "The core did not answer";
 "Team folder" = "Team folder";
 "List the standard parts catalog (or type in the search field)" = "List the standard parts catalog (or type in the search field)";
+"General" = "General";
+"Startup" = "Startup";
+"Reopen last project and workspace at launch" = "Reopen last project and workspace at launch";
+"Show Welcome Tour at Next Launch" = "Show Welcome Tour at Next Launch";
+"Projects" = "Projects";
+"Projects Folder" = "Projects Folder";
+"Undo Steps" = "Undo Steps";
+"Clear Recent Projects" = "Clear Recent Projects";
+"Team and Library" = "Team and Library";
+"Advanced" = "Advanced";
+"Reset All Preferences…" = "Reset All Preferences…";
+"Reset all preferences?" = "Reset all preferences?";
+"Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits.";
