@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "すべての設定をリセット…";
 "Reset all preferences?" = "すべての設定をリセットしますか？";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "すべての設定が既定値に戻ります。キーチェーンのキーとパスワードは保持されます。その後 SiEDA は終了します。";
+"Autosave Delay" = "自動保存までの間隔";
+"Keep undo history with the project" = "取り消し履歴をプロジェクトと一緒に保存";
+"New Projects" = "新規プロジェクト";
+"Copper Layers" = "銅箔層";
+"Track Width (mm)" = "配線幅 (mm)";
+"New Sheet Size" = "新しいシートのサイズ";
+"Mouse and Trackpad" = "マウスとトラックパッド";
+"Reverse zoom direction" = "ズーム方向を反転";
+"Mouse wheel pans (hold ⌘ to zoom)" = "マウスホイールでパン（⌘ を押しながらズーム）";

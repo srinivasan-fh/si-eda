@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "Reset All Preferences…";
 "Reset all preferences?" = "Reset all preferences?";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits.";
+"Autosave Delay" = "Autosave Delay";
+"Keep undo history with the project" = "Keep undo history with the project";
+"New Projects" = "New Projects";
+"Copper Layers" = "Copper Layers";
+"Track Width (mm)" = "Track Width (mm)";
+"New Sheet Size" = "New Sheet Size";
+"Mouse and Trackpad" = "Mouse and Trackpad";
+"Reverse zoom direction" = "Reverse zoom direction";
+"Mouse wheel pans (hold ⌘ to zoom)" = "Mouse wheel pans (hold ⌘ to zoom)";

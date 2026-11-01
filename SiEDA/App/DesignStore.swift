@@ -248,6 +248,37 @@ final class DesignStore: ObservableObject {
     }
     var undoDepth: Int { undoStack.count }
 
+    /// Settings → General: keep the undo history beside the saved project (`.<file>.undo`, newest 30 steps, at most
+    /// 32 MB) and bring it back when that same file is opened again (matched by an FNV-1a hash of its bytes).
+    static let persistUndoKey = "app.persistUndo"
+    static func undoHistoryURL(for url: URL) -> URL {
+        url.deletingLastPathComponent().appendingPathComponent("." + url.lastPathComponent + ".undo")
+    }
+    private static func fingerprint(_ text: String) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in text.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01b3 }
+        return String(hash, radix: 16)
+    }
+    private func saveUndoHistory(for url: URL, json: String) {
+        guard UserDefaults.standard.bool(forKey: Self.persistUndoKey) else { return }
+        var steps = Array(undoStack.suffix(30))
+        var bytes = steps.reduce(0) { $0 + $1.utf8.count }
+        while bytes > 32 << 20, !steps.isEmpty { bytes -= steps.removeFirst().utf8.count }
+        let payload: [String: Any] = ["format": "sieda.undo/1", "file": Self.fingerprint(json), "undo": steps]
+        let target = Self.undoHistoryURL(for: url)
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONSerialization.data(withJSONObject: payload) { try? data.write(to: target, options: .atomic) }
+        }
+    }
+    private func loadUndoHistory(for url: URL, json: String) {
+        guard UserDefaults.standard.bool(forKey: Self.persistUndoKey),
+              let data = try? Data(contentsOf: Self.undoHistoryURL(for: url)),
+              let saved = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              saved["file"] as? String == Self.fingerprint(json), let steps = saved["undo"] as? [String] else { return }
+        undoStack = steps
+        trimHistory()
+    }
+
     /// Records an undo step and clears redo, keeping the history within `undoLimit` steps and `historyByteLimit`.
     private func pushUndo(_ state: String) {
         undoStack.append(state)
@@ -269,7 +300,14 @@ final class DesignStore: ObservableObject {
         didSet { scheduleRecoverySave() }
     }
     /// Seconds of inactivity before unsaved work is autosaved for recovery.
-    var recoveryDelay: TimeInterval = 3
+    /// Pause before the recovery copy (and, with autosave, the project file) is written; nil = Settings → General
+    /// ("app.autosaveSeconds", 3 s by default). Tests set it directly.
+    var recoveryDelay: TimeInterval?
+    static let autosaveDelayKey = "app.autosaveSeconds"
+    static var autosaveDelay: TimeInterval {
+        let seconds = UserDefaults.standard.double(forKey: autosaveDelayKey)
+        return seconds > 0 ? seconds : 3
+    }
     private var recoveryWork: DispatchWorkItem?
     private var memoryObserver: NSObjectProtocol?
 
@@ -313,7 +351,7 @@ final class DesignStore: ObservableObject {
             MainActor.assumeIsolated { self?.saveRecoveryNow() }
         }
         recoveryWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + recoveryDelay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (recoveryDelay ?? Self.autosaveDelay), execute: work)
     }
 
     /// Writes the recovery autosave now (the file write itself happens off the main thread).
@@ -1183,7 +1221,12 @@ final class DesignStore: ObservableObject {
         performChecked("Added sheet \(title)", invalidatesAnalysis: false,
                        failureMessage: "A sheet named \(title) already exists") { engine in
             id = engine.addSheet(title, parent: parent)
-            if let id { engine.setActiveSheet(id) }
+            if let id {
+                engine.setActiveSheet(id)
+                if let size = UserDefaults.standard.string(forKey: Self.newSheetSizeKey), !size.isEmpty {
+                    _ = engine.setSheetSize(id, size: size)
+                }
+            }
             return id != nil
         }
         if id != nil {
@@ -3030,7 +3073,10 @@ final class DesignStore: ObservableObject {
 
     func newProject() {
         guard confirmDiscardChanges() else { return }
-        perform("New project", recordUndo: false) { $0.reset() }
+        perform("New project", recordUndo: false) { engine in
+            engine.reset()
+            Self.applyNewProjectDefaults(engine)
+        }
         undoStack.removeAll()
         redoStack.removeAll()
         documentURL = nil
@@ -3038,6 +3084,24 @@ final class DesignStore: ObservableObject {
         resetChecks()
         routeStats = nil
         workspace = startWorkspace
+    }
+
+    /// Settings → General → New Projects: copper layers, track width and clearance a new project starts with
+    /// (each left at the core's default while unset).
+    static let newLayersKey = "newProject.layers"
+    static let newTrackWidthKey = "newProject.trackWidth"
+    static let newClearanceKey = "newProject.clearance"
+    static let newSheetSizeKey = "newSheet.size"
+    static func applyNewProjectDefaults(_ engine: EDAEngine) {
+        let defaults = UserDefaults.standard
+        let layers = defaults.integer(forKey: newLayersKey)
+        if [1, 2, 4, 6].contains(layers) { engine.setLayerCount(layers) }
+        let track = defaults.double(forKey: newTrackWidthKey), clearance = defaults.double(forKey: newClearanceKey)
+        if track > 0.05 || clearance > 0.05, let board = engine.snapshot()?.board {
+            engine.setBoard(width: board.width, height: board.height,
+                            trackWidth: track > 0.05 ? track : board.trackWidth,
+                            clearance: clearance > 0.05 ? clearance : board.clearance)
+        }
     }
 
     /// Loads one of the built-in reference designs (works fully offline, no AI involved).
@@ -3152,6 +3216,7 @@ final class DesignStore: ObservableObject {
             collaboration.documentChanged(url: url, json: json)
             undoStack.removeAll()
             redoStack.removeAll()
+            loadUndoHistory(for: url, json: json)
             isDirty = false
             selection = []
             selectedWire = nil
@@ -3209,6 +3274,7 @@ final class DesignStore: ObservableObject {
             documentURL = url
             ProjectHooks.run("after-save", project: url)
             collaboration.documentChanged(url: url, json: json)
+            saveUndoHistory(for: url, json: json)
             isDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
             CrashReporter.note("Saved \(url.lastPathComponent)")

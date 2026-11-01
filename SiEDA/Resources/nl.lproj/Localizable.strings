@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "Alle voorkeuren herstellen…";
 "Reset all preferences?" = "Alle voorkeuren herstellen?";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Elke instelling keert terug naar de standaardwaarde; sleutels en wachtwoorden in de sleutelhanger blijven bewaard. Daarna stopt SiEDA.";
+"Autosave Delay" = "Vertraging automatisch bewaren";
+"Keep undo history with the project" = "Ongedaan-maken-geschiedenis bij het project bewaren";
+"New Projects" = "Nieuwe projecten";
+"Copper Layers" = "Koperlagen";
+"Track Width (mm)" = "Spoorbreedte (mm)";
+"New Sheet Size" = "Bladformaat nieuwe bladen";
+"Mouse and Trackpad" = "Muis en trackpad";
+"Reverse zoom direction" = "Zoomrichting omkeren";
+"Mouse wheel pans (hold ⌘ to zoom)" = "Muiswiel schuift (houd ⌘ ingedrukt om te zoomen)";

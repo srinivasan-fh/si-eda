@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "Đặt lại mọi tùy chọn…";
 "Reset all preferences?" = "Đặt lại mọi tùy chọn?";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Mọi cài đặt trở về mặc định; khóa và mật khẩu trong Chuỗi khóa được giữ lại. Sau đó SiEDA sẽ thoát.";
+"Autosave Delay" = "Độ trễ tự lưu";
+"Keep undo history with the project" = "Giữ lịch sử hoàn tác cùng dự án";
+"New Projects" = "Dự án mới";
+"Copper Layers" = "Số lớp đồng";
+"Track Width (mm)" = "Độ rộng đường mạch (mm)";
+"New Sheet Size" = "Khổ trang mới";
+"Mouse and Trackpad" = "Chuột và bàn di chuột";
+"Reverse zoom direction" = "Đảo chiều thu phóng";
+"Mouse wheel pans (hold ⌘ to zoom)" = "Con lăn chuột di chuyển khung nhìn (giữ ⌘ để thu phóng)";

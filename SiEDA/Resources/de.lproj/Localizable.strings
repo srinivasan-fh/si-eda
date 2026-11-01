@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "Alle Einstellungen zurücksetzen…";
 "Reset all preferences?" = "Alle Einstellungen zurücksetzen?";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "Jede Einstellung kehrt zu ihrem Standardwert zurück; Schlüssel und Passwörter im Schlüsselbund bleiben erhalten. Danach wird SiEDA beendet.";
+"Autosave Delay" = "Verzögerung beim automatischen Sichern";
+"Keep undo history with the project" = "Rückgängig-Verlauf mit dem Projekt sichern";
+"New Projects" = "Neue Projekte";
+"Copper Layers" = "Kupferlagen";
+"Track Width (mm)" = "Leiterbahnbreite (mm)";
+"New Sheet Size" = "Blattgröße neuer Blätter";
+"Mouse and Trackpad" = "Maus und Trackpad";
+"Reverse zoom direction" = "Zoomrichtung umkehren";
+"Mouse wheel pans (hold ⌘ to zoom)" = "Mausrad verschiebt (⌘ halten zum Zoomen)";

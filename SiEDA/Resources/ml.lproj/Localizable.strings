@@ -1965,3 +1965,12 @@
 "Reset All Preferences…" = "എല്ലാ മുൻഗണനകളും പുനഃസജ്ജമാക്കുക…";
 "Reset all preferences?" = "എല്ലാ മുൻഗണനകളും പുനഃസജ്ജമാക്കണോ?";
 "Every setting returns to its default; keys and passwords in the Keychain are kept. SiEDA then quits." = "ഓരോ ക്രമീകരണവും അതിന്റെ സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുന്നു; കീചെയിനിലെ കീകളും പാസ്‌വേഡുകളും സൂക്ഷിക്കും. തുടർന്ന് SiEDA അടയ്ക്കും.";
+"Autosave Delay" = "ഓട്ടോസേവ് കാലതാമസം";
+"Keep undo history with the project" = "പഴയപടിയാക്കൽ ചരിത്രം പ്രോജക്റ്റിനൊപ്പം സൂക്ഷിക്കുക";
+"New Projects" = "പുതിയ പ്രോജക്റ്റുകൾ";
+"Copper Layers" = "ചെമ്പ് പാളികൾ";
+"Track Width (mm)" = "ട്രാക്ക് വീതി (mm)";
+"New Sheet Size" = "പുതിയ ഷീറ്റ് വലുപ്പം";
+"Mouse and Trackpad" = "മൗസും ട്രാക്ക്പാഡും";
+"Reverse zoom direction" = "സൂം ദിശ വിപരീതമാക്കുക";
+"Mouse wheel pans (hold ⌘ to zoom)" = "മൗസ് വീൽ പാൻ ചെയ്യുന്നു (സൂമിന് ⌘ പിടിക്കുക)";

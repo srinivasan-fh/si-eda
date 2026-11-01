@@ -297,6 +297,14 @@ private struct GeneralSettings: View {
     @AppStorage("library.sharedFolder") private var sharedLibrary = ""
     @AppStorage(BeginnerMode.key) private var beginner = false
     @AppStorage(ProjectPlugins.sandboxKey) private var sandboxPlugins = true
+    @AppStorage(DesignStore.autosaveDelayKey) private var autosaveSeconds = 3.0
+    @AppStorage(DesignStore.persistUndoKey) private var persistUndo = false
+    @AppStorage(DesignStore.newLayersKey) private var newLayers = 0
+    @AppStorage(DesignStore.newTrackWidthKey) private var newTrackWidth = 0.0
+    @AppStorage(DesignStore.newClearanceKey) private var newClearance = 0.0
+    @AppStorage(DesignStore.newSheetSizeKey) private var newSheetSize = ""
+    @AppStorage(Viewport.reverseZoomKey) private var reverseZoom = false
+    @AppStorage(Viewport.wheelPansKey) private var wheelPans = false
     @State private var tourQueued = false
 
     var body: some View {
@@ -337,9 +345,13 @@ private struct GeneralSettings: View {
                 Text("A project that has a file is saved to it a few seconds after each change (a recovery copy is always kept).")
                     .font(.caption)
                     .foregroundStyle(Theme.textMuted)
+                Picker("Autosave Delay", selection: $autosaveSeconds) {
+                    ForEach([3.0, 10.0, 30.0, 60.0], id: \.self) { Text(verbatim: "\(Int($0)) s").tag($0) }
+                }
                 Picker("Undo Steps", selection: $undoSteps) {
                     ForEach([50, 100, 200, 500], id: \.self) { Text(verbatim: "\($0)").tag($0) }
                 }
+                Toggle("Keep undo history with the project", isOn: $persistUndo)
                 Button("Clear Recent Projects") {
                     NSDocumentController.shared.clearRecentDocuments(nil)
                     UserDefaults.standard.removeObject(forKey: DesignStore.lastProjectKey)
@@ -350,6 +362,26 @@ private struct GeneralSettings: View {
                     .foregroundStyle(Theme.textMuted)
             } header: {
                 Text("Projects")
+            }
+            Section {
+                Picker("Copper Layers", selection: $newLayers) {
+                    Text("Default").tag(0)
+                    ForEach([1, 2, 4, 6], id: \.self) { Text(verbatim: "\($0)").tag($0) }
+                }
+                TextField("Track Width (mm)", value: $newTrackWidth, format: .number.precision(.fractionLength(0...3)))
+                TextField("Clearance (mm)", value: $newClearance, format: .number.precision(.fractionLength(0...3)))
+                Picker("New Sheet Size", selection: $newSheetSize) {
+                    Text("Auto").tag("")
+                    ForEach(EDAEngine.sheetTemplates()) { Text(verbatim: $0.name).tag($0.name) }
+                }
+            } header: {
+                Text("New Projects")
+            }
+            Section {
+                Toggle("Mouse wheel pans (hold ⌘ to zoom)", isOn: $wheelPans)
+                Toggle("Reverse zoom direction", isOn: $reverseZoom)
+            } header: {
+                Text("Mouse and Trackpad")
             }
             Section {
                 HStack {

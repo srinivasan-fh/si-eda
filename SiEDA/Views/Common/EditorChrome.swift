@@ -676,17 +676,28 @@ extension View {
 extension Viewport {
     /// Trackpad scroll pans; pinch, a mouse wheel, or scrolling with ⌘/⌥/⌃ held zooms around the cursor;
     /// ⇧ + mouse wheel pans horizontally.
+    /// Settings → General → Mouse and Trackpad.
+    static let reverseZoomKey = "canvas.reverseZoom"
+    static let wheelPansKey = "canvas.wheelPans"
+
     mutating func handleScroll(_ event: NSEvent, at point: CGPoint, limits: ClosedRange<CGFloat>) {
         let flags = event.modifierFlags
         let zoomModifier = !flags.intersection([.command, .option, .control]).isEmpty
-        if !event.hasPreciseScrollingDeltas, flags.contains(.shift), !zoomModifier {
+        let defaults = UserDefaults.standard
+        let reverse: CGFloat = defaults.bool(forKey: Self.reverseZoomKey) ? -1 : 1
+        if !event.hasPreciseScrollingDeltas, !zoomModifier, defaults.bool(forKey: Self.wheelPansKey) {
+            // Settings → Mouse wheel pans: the wheel scrolls the view (⇧ sideways), ⌘ / ⌥ / ⌃ + wheel zooms.
+            let dx = flags.contains(.shift) ? (event.scrollingDeltaX != 0 ? event.scrollingDeltaX : event.scrollingDeltaY) : event.scrollingDeltaX
+            let dy = flags.contains(.shift) ? 0 : event.scrollingDeltaY
+            pan(by: CGSize(width: dx * 8, height: dy * 8))
+        } else if !event.hasPreciseScrollingDeltas, flags.contains(.shift), !zoomModifier {
             // Mouse wheel with ⇧: macOS reports it as horizontal scrolling.
             let delta = event.scrollingDeltaX != 0 ? event.scrollingDeltaX : event.scrollingDeltaY
             pan(by: CGSize(width: delta * 8, height: 0))
         } else if zoomModifier || !event.hasPreciseScrollingDeltas {
             let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 8
             guard delta != 0 else { return }
-            zoom(by: exp(delta * 0.01), anchor: point, limits: limits)
+            zoom(by: exp(reverse * delta * 0.01), anchor: point, limits: limits)
         } else {
             pan(by: CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY))
         }
