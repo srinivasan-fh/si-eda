@@ -66,8 +66,18 @@ final class DesignStore: ObservableObject {
     /// What the schematic canvas shows: the active sheet's components and wires (the whole design on one sheet).
     @Published private(set) var sheetSnapshot: DesignSnapshot = .empty
     @Published var workspace: Workspace = .schematic {
-        didSet { if workspace != oldValue { CrashReporter.note("Workspace: \(workspace.title)") } }
+        didSet {
+            guard workspace != oldValue else { return }
+            CrashReporter.note("Workspace: \(workspace.title)")
+            if sessionRestored { UserDefaults.standard.set(workspace.rawValue, forKey: Self.lastWorkspaceKey) }
+        }
     }
+    /// The project and workspace the next launch reopens (`restoreLastSession`).
+    static let lastProjectKey = "app.lastProject"
+    static let lastWorkspaceKey = "app.lastWorkspace"
+    /// Set once the launch has restored the last session: workspace changes made before it (the window's own
+    /// start-up) must not overwrite the saved one.
+    private var sessionRestored = false
     @Published var selection: Set<Int> = [] {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
@@ -134,6 +144,19 @@ final class DesignStore: ObservableObject {
     }
     /// The schematic is the landing page (Super Intelligence stays one click away in the toolbar).
     var startWorkspace: Workspace { .schematic }
+
+    /// At launch: reopen the project last opened or saved and return to the workspace last used, unless a file
+    /// opened from Finder or recovered unsaved work is already showing.
+    func restoreLastSession() {
+        defer { sessionRestored = true }
+        let defaults = UserDefaults.standard
+        let lastWorkspace = defaults.string(forKey: Self.lastWorkspaceKey).flatMap(Workspace.init(rawValue:))
+        if documentURL == nil, !isDirty, snapshot.components.isEmpty,
+           let path = defaults.string(forKey: Self.lastProjectKey), FileManager.default.fileExists(atPath: path) {
+            open(url: URL(fileURLWithPath: path))
+        }
+        if let lastWorkspace, Workspace.visible(aiEnabled: aiEnabled).contains(lastWorkspace) { workspace = lastWorkspace }
+    }
     /// Custom part the Component Library should open (set when jumping from the inspector).
     @Published var libraryFocusPartId: String?
     @Published private(set) var isBusy = false
@@ -3130,6 +3153,7 @@ final class DesignStore: ObservableObject {
             workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
             statusMessage = "Opened \(url.lastPathComponent)"
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            UserDefaults.standard.set(url.path, forKey: Self.lastProjectKey)
             let notes = engine.loadNotes()
             if !notes.isEmpty {  // a file from a newer SiEDA: say what would be lost before anyone saves over it
                 let alert = NSAlert()
@@ -3172,6 +3196,7 @@ final class DesignStore: ObservableObject {
             statusMessage = "Saved \(url.lastPathComponent)"
             CrashReporter.note("Saved \(url.lastPathComponent)")
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            UserDefaults.standard.set(url.path, forKey: Self.lastProjectKey)
             return true
         } catch {
             present(error, title: "Could not save project")
