@@ -8099,6 +8099,124 @@ void simTools(Table& t) {
                   if (r.has(k)) j[k] = r.get(k);
               return out(j);
           });
+    t.add("sim", "sim_live", "Live simulation (run the board)", Kind::Read, false,
+          "Runs the schematic in real time, like the macOS app's Run: start (a snapshot of the circuit at t = 0), run "
+          "(advance by duration seconds in steps of step, firmware included; a scope trace of every net), state, switch "
+          "(open / close a switch or hold a push-button), serial (text to a microcontroller's USART) and stop. Every "
+          "action returns the state: time, net voltages, LED brightness, switches, microcontrollers (status, serial "
+          "output) and the trace.",
+          Schema()
+              .str("action", "start, run, state, switch, serial or stop", true, {"start", "run", "state", "switch", "serial", "stop"})
+              .num("duration", "Seconds to advance (run; default 0.05)")
+              .num("step", "Analog step in seconds (run; default 50e-6)")
+              .integer("tracePoints", "Scope samples per net (run; default 120)")
+              .integer("component", "Switch or microcontroller component id")
+              .boolean("closed", "Switch state (switch)")
+              .str("text", "Serial input (serial)"),
+          [](McpServer& s, const Json& a) {
+              const std::string act = argStr(a, "action");
+              auto sim = [&]() -> SiedaLiveSim* {
+                  if (!s.liveSim) throw ToolError("No live simulation is running: call sim_live with action start");
+                  return static_cast<SiedaLiveSim*>(s.liveSim.get());
+              };
+              if (act == "stop") {
+                  s.liveSim.reset();
+                  Json r = obj();
+                  r["running"] = false;
+                  return ToolOutput{r};
+              }
+              if (act == "start") {
+                  s.liveSim.reset();
+                  char* err = nullptr;
+                  SiedaLiveSim* live = sieda_live_start(P(s), &err);
+                  if (!live) {
+                      const std::string why = err ? err : "the circuit cannot be simulated";
+                      sieda_string_free(err);
+                      throw ToolError("Live simulation did not start: " + why);
+                  }
+                  s.liveSim = std::shared_ptr<void>(live, [](void* p) { sieda_live_free(static_cast<SiedaLiveSim*>(p)); });
+              } else if (act == "run") {
+                  const double duration = std::clamp(argNum(a, "duration", 0.05), 1e-6, 1.0);
+                  const double step = std::clamp(argNum(a, "step", 50e-6), 1e-7, duration);
+                  char* err = nullptr;
+                  if (sieda_live_run(sim(), duration, step, std::clamp(argInt(a, "tracePoints", 120), 2, 2000), &err) != 1) {
+                      const std::string why = err ? err : "?";
+                      sieda_string_free(err);
+                      s.liveSim.reset();
+                      throw ToolError("Live simulation stopped: " + why);
+                  }
+              } else if (act == "switch") {
+                  sieda_live_set_switch(sim(), argInt(a, "component", -1), argBool(a, "closed", false) ? 1 : 0);
+              } else if (act == "serial") {
+                  sieda_live_serial_input(sim(), argInt(a, "component", -1), argStr(a, "text").c_str());
+              } else if (act != "state") {
+                  throw ToolError("Unknown action " + act);
+              }
+              Json r = takeJson(sieda_live_state(sim()));
+              r["running"] = true;
+              return ToolOutput{r};
+          });
+
+    t.add("sim", "sim_firmware", "Microcontroller firmware", Kind::Edit, true,
+          "Firmware the live simulation runs on a microcontroller (ATmega328P, ATtiny85): examples lists the built-in "
+          "programs; set attaches one (example id), Intel HEX text (hex) or a .hex file (path), with an optional clock; "
+          "get returns the component's firmware; clear removes it.",
+          Schema()
+              .str("action", "examples, set, get or clear", true, {"examples", "set", "get", "clear"})
+              .integer("component", "Microcontroller component id")
+              .str("example", "Built-in example id (set)")
+              .str("hex", "Intel HEX text (set)")
+              .str("path", ".hex file inside the root folder (set)")
+              .str("name", "Firmware name shown on the part")
+              .num("clockHz", "Clock in Hz (default: 16 MHz ATmega328P, 8 MHz ATtiny85)"),
+          [](McpServer& s, const Json& a) {
+              const std::string act = argStr(a, "action");
+              if (act == "examples") {
+                  Json r = obj();
+                  r["examples"] = takeJson(sieda_firmware_examples_json());
+                  return ToolOutput{r};
+              }
+              const int id = argInt(a, "component", -1);
+              if (act == "get") {
+                  char* hex = sieda_component_firmware(P(s), id);
+                  Json r = obj();
+                  r["component"] = id;
+                  r["hex"] = std::string(hex ? hex : "");
+                  sieda_string_free(hex);
+                  return ToolOutput{r};
+              }
+              std::string hex, name = argStr(a, "name");
+              if (act == "set") {
+                  if (a.has("example")) {
+                      char* h = sieda_firmware_example_hex(argStr(a, "example").c_str());
+                      if (!h) throw ToolError("Unknown firmware example " + argStr(a, "example"));
+                      hex = h;
+                      sieda_string_free(h);
+                      if (name.empty()) name = argStr(a, "example");
+                  } else if (a.has("path")) {
+                      hex = readFileArg(s, argStr(a, "path")).asString();
+                      if (name.empty()) name = fs::path(argStr(a, "path")).filename().string();
+                  } else {
+                      hex = argStr(a, "hex");
+                  }
+                  if (hex.empty()) throw ToolError("Give example, hex or path");
+              } else if (act != "clear") {
+                  throw ToolError("Unknown action " + act);
+              }
+              char* err = nullptr;
+              if (sieda_set_firmware(P(s), id, hex.c_str(), name.c_str(), argNum(a, "clockHz", 0), &err) != 1) {
+                  const std::string why = err ? err : "?";
+                  sieda_string_free(err);
+                  throw ToolError("Firmware not set: " + why);
+              }
+              s.liveSim.reset();  // the board runs the new program from a fresh start
+              Json r = obj();
+              r["component"] = id;
+              r["firmware"] = act == "clear" ? std::string() : name;
+              r["bytes"] = static_cast<int64_t>(hex.size());
+              return ToolOutput{r};
+          });
+
     t.add("sim", "sim_transient", "Transient analysis", Kind::Read, true,
           "Time-domain simulation to stop (s or \"10m\") with step. Returns the chosen nets' waveforms (decimated to "
           "maxPoints) and per-net measurements (min, max, average, rms, final, rise / fall time, overshoot, "

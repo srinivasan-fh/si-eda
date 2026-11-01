@@ -26,7 +26,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 188 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 193 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -715,6 +715,8 @@ Circuit simulation: DC, transient, AC, noise, sweeps, Monte Carlo, FFT, measurem
 | Tool | Kind | What it does |
 |---|---|---|
 | `sim_dc_op` | read | DC operating point of the schematic (the active variant as assembled): every net voltage and each part's current, voltage and dissipation. |
+| `sim_live` | read | Runs the schematic in real time, like the macOS app's Run: start (a snapshot of the circuit at t = 0), run (advance by duration seconds in steps of step, firmware included; a scope trace of every net), state, switch (open / close a switch or hold a push-button), serial (text to a microcontroller's USART) and stop. |
+| `sim_firmware` | edit | Firmware the live simulation runs on a microcontroller (ATmega328P, ATtiny85): examples lists the built-in programs; set attaches one (example id), Intel HEX text (hex) or a .hex file (path), with an optional clock; get returns the component's firmware; clear removes it. |
 | `sim_transient` | read | Time-domain simulation to stop (s or "10m") with step. |
 | `sim_ac` | read | Small-signal frequency sweep: magnitude (dB) and phase per net with metrics (low-frequency gain, peak, f3dB, bandwidth, unity gain, phase margin). |
 | `sim_dc_sweep` | read | Sweeps a source from start to stop in step and returns net voltages and part currents along the sweep. |

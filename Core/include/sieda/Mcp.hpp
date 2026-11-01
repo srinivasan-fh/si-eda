@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -148,6 +149,8 @@ public:
     Json callToolUnlogged(const std::string& name, const Json& arguments);
     /// The lesson running (project_lessons, Lessons.cpp; null = none) and the step the learner is on.
     Json lesson;
+    /// sim_live: the running live simulation (a SiedaLiveSim*, freed with sieda_live_free), or empty.
+    std::shared_ptr<void> liveSim;
     int lessonStep = 0;
 
     bool toolEnabled(const McpTool& tool) const;

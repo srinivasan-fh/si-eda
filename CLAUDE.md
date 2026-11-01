@@ -30,7 +30,7 @@
   `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it; a sheet-numbered channel ref held by another part takes the next free number; suffixed blocks share one logical numbering in `annotateBlocks`), graphical
   buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
-  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; Update PCB (forward ECO,
+  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; live board run over MCP `sim_live` (`McpServer::liveSim`) + `sim_firmware` (Studio Simulation → Live); Update PCB (forward ECO,
   `pcbSync` baseline) in `Core/src/Eco.cpp` (its new parts placed by hand afterwards: `Core/src/InteractivePlacement.cpp`,
 `SiEDA/App/DesignStore+Placement.swift`, `SiEDA/Views/PCB/PlaceNewPartsOverlay.swift`), PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
   `Core/src/SchematicPdf.cpp` with TrueType subsetting and optional HarfBuzz shaping (`TrueTypeFont::shape`, CMake `SIEDA_HARFBUZZ`) in `Core/src/PdfFont.cpp`; app in `SiEDA/Views/Schematic/`;

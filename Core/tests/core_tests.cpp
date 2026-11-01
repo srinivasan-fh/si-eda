@@ -20652,6 +20652,30 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_live_simulation_runs_the_board_and_takes_firmware) {
+    const auto root = mcpRoot("live");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!s.callTool("project_load_example", Json::parse(R"({"id":"led_indicator"})")).get("isError").asBool(true));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    CHECK(s.callTool("sim_live", Json::parse(R"({"action":"run"})")).get("isError").asBool(false));  // not started
+    Json started = s.callTool("sim_live", Json::parse(R"({"action":"start"})"));
+    CHECK(!started.get("isError").asBool(true));
+    Json run = s.callTool("sim_live", Json::parse(R"({"action":"run","duration":0.02,"step":1e-4,"tracePoints":40})"));
+    CHECK(!run.get("isError").asBool(true));
+    const Json st = data(run);
+    CHECK(st.get("running").asBool(false));
+    CHECK_NEAR(st.get("time").asNumber(), 0.02, 1e-9);
+    CHECK(!st.get("leds").items().empty());
+    CHECK(st.get("leds").items()[0].get("brightness").asNumber() > 0.1);
+    CHECK(st.get("trace").get("time").items().size() == 40);
+    CHECK(!data(s.callTool("sim_live", Json::parse(R"({"action":"stop"})"))).get("running").asBool(true));
+    CHECK(s.callTool("sim_live", Json::parse(R"({"action":"state"})")).get("isError").asBool(false));
+    const Json ex = data(s.callTool("sim_firmware", Json::parse(R"({"action":"examples"})")));
+    CHECK(!ex.get("examples").items().empty());
+    CHECK(s.callTool("sim_firmware", Json::parse(R"({"action":"set","component":0,"example":"button_interrupt"})"))
+              .get("isError").asBool(false));  // not a microcontroller
+}
+
 TEST(mcp_activity_log_records_who_did_what) {
     const auto root = mcpRoot("activity");
     mcp::McpOptions o = mcpOptions(root);
