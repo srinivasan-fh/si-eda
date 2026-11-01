@@ -914,6 +914,39 @@ final class DesignFlowTests: XCTestCase {
         return store
     }
 
+    /// Launch: the project last opened and the workspace last used come back (DesignStore.restoreLastSession).
+    func testLaunchReopensTheLastProjectAndWorkspace() throws {
+        let defaults = UserDefaults.standard
+        let saved = (defaults.object(forKey: DesignStore.lastProjectKey), defaults.object(forKey: DesignStore.lastWorkspaceKey))
+        defer {
+            defaults.set(saved.0, forKey: DesignStore.lastProjectKey)
+            defaults.set(saved.1, forKey: DesignStore.lastWorkspaceKey)
+        }
+        let source = freshStore()
+        source.loadBuiltInExample("smps_230vac")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("last-session-\(UUID().uuidString).siedaproj")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try source.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        source.open(url: url)
+        XCTAssertEqual(defaults.string(forKey: DesignStore.lastProjectKey), url.path)
+        defaults.set(Workspace.pcb.rawValue, forKey: DesignStore.lastWorkspaceKey)
+
+        let relaunched = freshStore()
+        relaunched.restoreLastSession()
+        XCTAssertEqual(relaunched.documentURL, url)
+        XCTAssertEqual(relaunched.snapshot.components.count, source.snapshot.components.count)
+        XCTAssertEqual(relaunched.workspace, .pcb)
+        relaunched.workspace = .simulation  // remembered from now on
+        XCTAssertEqual(defaults.string(forKey: DesignStore.lastWorkspaceKey), Workspace.simulation.rawValue)
+
+        // A missing file leaves the empty design; the workspace still comes back.
+        try FileManager.default.removeItem(at: url)
+        let again = freshStore()
+        again.restoreLastSession()
+        XCTAssertNil(again.documentURL)
+        XCTAssertEqual(again.workspace, .simulation)
+    }
+
     func testCircuitDesignFlow() async throws {
         let store = freshStore()
         // Place: each placement selects the new part, like a click with the place tool.

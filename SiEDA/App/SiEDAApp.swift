@@ -54,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if activeStore !== store {
             activeStore = store
             attachDiagnostics(to: store)
+            openPending()
+            // After the crash-recovery offer (queued by attachDiagnostics) and any file opened from Finder.
+            if !CrashReporter.isRunningTests {
+                DispatchQueue.main.async { MainActor.assumeIsolated { store.restoreLastSession() } }
+            }
+            return
         }
         openPending()
     }
