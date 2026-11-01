@@ -5,6 +5,9 @@
 #include <array>
 #include <regex>
 #include <cmath>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -3105,6 +3108,145 @@ void projectTools(Table& t) {
               } catch (const std::exception& e) {
                   throw ToolError(e.what());
               }
+              return out(j);
+          });
+    t.add("project", "project_live", "Live collaboration", Kind::Edit, false,
+          "Live co-editing of a shared project file (a synced folder, network share or Git working copy), as the macOS "
+          "app's Live Collaboration: join {user?} starts it on the saved project; sync {save?} merges a teammate's save "
+          "into the open design (three-way, base = the file as last read or written: both sides' parts, wires, copper "
+          "and settings kept, a field both changed keeps yours and is listed in conflicts), then with save writes the "
+          "design back; leave stops. Presence: .<file>.presence/<user>@<host>.json beside the file (the others listed "
+          "in peers while seen in the last 60 s; the macOS app reads and writes the same files).",
+          Schema().str("action", "What to do", true, {"join", "sync", "leave", "status"})
+              .str("user", "Your name shown to the others (default the system user)")
+              .boolean("save", "sync: also write the design to the shared file (default false)"),
+          [](McpServer& s, const Json& a) {
+              const std::string action = requireStr(a, "action");
+              Json& live = s.coEdit;
+              auto env = [](const char* k, const char* alt) {
+                  const char* v = std::getenv(k);
+                  if (!v || !*v) v = std::getenv(alt);
+                  return std::string(v && *v ? v : "");
+              };
+              auto presenceFile = [&](const std::string& path, const std::string& id) {
+                  std::string name;
+                  for (unsigned char c : id) name += std::isalnum(c) || c == '@' || c == '-' || c >= 0x80 ? char(c) : '_';
+                  const fs::path f(path);
+                  return f.parent_path() / ("." + f.filename().string() + ".presence") / (name + ".json");
+              };
+              auto iso = [](std::time_t t) {
+                  char b[32];
+                  std::tm tm{};
+#ifdef _WIN32
+                  gmtime_s(&tm, &t);
+#else
+                  gmtime_r(&t, &tm);
+#endif
+                  std::strftime(b, sizeof b, "%Y-%m-%dT%H:%M:%SZ", &tm);
+                  return std::string(b);
+              };
+              auto parseIso = [](const std::string& v) -> std::time_t {
+                  std::tm tm{};
+                  if (std::sscanf(v.c_str(), "%d-%d-%dT%d:%d:%d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min,
+                                  &tm.tm_sec) != 6)
+                      return 0;
+                  tm.tm_year -= 1900, tm.tm_mon -= 1;
+#ifdef _WIN32
+                  return _mkgmtime(&tm);
+#else
+                  return timegm(&tm);
+#endif
+              };
+              auto readFile = [](const std::string& path) {
+                  std::ifstream in(path, std::ios::binary);
+                  std::stringstream ss;
+                  ss << in.rdbuf();
+                  return ss.str();
+              };
+              auto leave = [&] {
+                  if (live.isObject()) {
+                      std::error_code ec;
+                      fs::remove(presenceFile(live.get("path").asString(), live.get("user").asString() + "@" +
+                                                                              live.get("host").asString()), ec);
+                  }
+                  live = Json();
+              };
+              Json j = obj();
+              if (action == "leave") {
+                  leave();
+                  j["live"] = false;
+                  return out(j);
+              }
+              if (action == "status" && !live.isObject()) {
+                  j["live"] = false;
+                  return out(j);
+              }
+              if (s.projectPath().empty()) throw ToolError("Save the project in a shared folder first (project_save_as).");
+              const std::string path = s.projectPath();
+              if (action == "join" || !live.isObject() || live.get("path").asString() != path) {
+                  if (action != "join") throw ToolError("Not live: join first.");
+                  leave();
+                  if (!fs::exists(path)) s.writeFile(path, takeText(sieda_project_save_json(P(s))));
+                  live = obj();
+                  live["path"] = path;
+                  live["base"] = readFile(path);
+                  std::string user = argStr(a, "user");
+                  if (user.empty()) user = env("USER", "USERNAME");
+                  std::string host = env("HOSTNAME", "COMPUTERNAME");
+                  live["user"] = user.empty() ? "SiEDA Studio" : user;
+                  live["host"] = host.empty() ? "studio" : host;
+              }
+              if (action == "sync") {
+                  const std::string theirs = fs::exists(path) ? readFile(path) : std::string();
+                  const std::string base = live.get("base").asString();
+                  if (!theirs.empty() && theirs != base) {
+                      const std::string ours = takeText(sieda_project_save_json(P(s)));
+                      Json r = takeJson(sieda_merge_projects(base.c_str(), ours.c_str(), theirs.c_str()));
+                      live["base"] = theirs;
+                      if (r.has("error")) {
+                          j["note"] = "A teammate's save could not be merged; it was left on disk: " + r.get("error").asString();
+                      } else {
+                          P(s)->project = Project::fromJson(r.get("merged"));
+                          P(s)->router.reset();
+                          j["merged"] = true;
+                          j["conflicts"] = r.get("conflicts");
+                      }
+                  }
+                  if (argBool(a, "save", false)) {
+                      const std::string ours = takeText(sieda_project_save_json(P(s)));
+                      if (ours != live.get("base").asString()) {
+                          s.writeFile(path, ours);
+                          live["base"] = ours;
+                          j["saved"] = true;
+                      }
+                  }
+              }
+              // Presence: refresh ours, list the others seen in the last minute.
+              const std::time_t now = std::time(nullptr);
+              const std::string me = live.get("user").asString() + "@" + live.get("host").asString();
+              const fs::path mine = presenceFile(path, me);
+              Json p = obj();
+              p["user"] = live.get("user"), p["host"] = live.get("host"), p["time"] = iso(now);
+              std::error_code ec;
+              fs::create_directories(mine.parent_path(), ec);
+              { std::ofstream(mine, std::ios::binary) << p.dump(); }
+              Json peers = Json::array();
+              for (const auto& e : fs::directory_iterator(mine.parent_path(), ec)) {
+                  if (e.path() == mine || e.path().extension() != ".json" || e.is_symlink()) continue;
+                  try {
+                      const Json q = Json::parse(readFile(e.path().string()));
+                      if (std::difftime(now, parseIso(q.get("time").asString())) < 60) {
+                          Json peer = obj();
+                          peer["user"] = q.get("user"), peer["host"] = q.get("host");
+                          peers.push(peer);
+                      }
+                  } catch (...) {
+                  }
+              }
+              j["live"] = true;
+              j["path"] = path;
+              j["user"] = live.get("user");
+              j["peers"] = peers;
               return out(j);
           });
     t.add("project", "project_git", "Git", Kind::Destructive, false,

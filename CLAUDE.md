@@ -372,7 +372,7 @@
   (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
   in `Core/src/ProjectDiff.cpp`; app
   `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; live co-editing of a shared file
-  (auto-save, 2 s watch, three-way merge as one undo step, presence folder) in `SiEDA/App/LiveCollaboration.swift`;
+  (auto-save, 2 s watch, three-way merge as one undo step, presence folder) in `SiEDA/App/LiveCollaboration.swift`, Studio's through MCP `project_live` (`McpServer::coEdit`; same presence files);
   guides `docs/MCAD.md`, `docs/TEAM.md`.
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.

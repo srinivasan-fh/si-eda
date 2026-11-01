@@ -113,7 +113,7 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="card"><div class="row"><input id="gitUrl" placeholder="Clone from URL" style="flex:1"><input id="gitDir" placeholder="into folder (inside the root)" style="width:200px"><button onclick="git('clone',{url:$('gitUrl').value,dir:$('gitDir').value||'.'})">Clone…</button></div><pre id="gitOut" class="info"></pre></div></section>
 <section data-tab="Tools"><div class="row"><input id="toolFilter" placeholder="Filter tools" oninput="listTools()" style="flex:1"><select id="tool" onchange="pickTool()" style="flex:2"></select></div>
 <div class="card"><div id="toolDesc" class="info"></div></div><textarea id="toolArgs">{}</textarea><div class="row"><button class="primary" onclick="runTool()">Run tool</button><span class="info">Every SiEDA feature is an MCP tool; arguments are JSON.</span></div><pre id="toolOut"></pre></section>
-</div><footer id="status">Ready.</footer>
+</div><footer id="status">Ready.</footer><span id="coBadge" hidden style="position:fixed;right:12px;bottom:4px;font-size:12.5px;padding:1px 8px;border-radius:9px;background:#2b8a3e;color:#fff;cursor:default"></span>
 <dialog id="dlg"><b id="dlgTitle"></b><ul id="dlgList"></ul><div class="row"><input id="dlgInput" style="flex:1"><button class="primary" id="dlgOk">OK</button><button onclick="dlg.close()">Cancel</button></div></dialog>
 <dialog id="formDlg"><b id="formTitle"></b><p id="formDesc" class="info"></p><div id="formFields"></div>
 <div class="row"><button class="primary" id="formRun">Run</button><button onclick="formDlg.close()">Close</button></div><pre id="formOut" hidden></pre><div id="formImg"></div></dialog>
@@ -552,6 +552,20 @@ async function git(action,args={}){$("gitOut").textContent="git "+action+"…";
    $("gitBranch").innerHTML=(d.branches||[]).map(b=>`<option${b===d.branch?" selected":""}>${esc(b)}</option>`).join("");}
   if(action==="init")return git("status");if(["switch","pull","clone","commit"].includes(action))refresh(true);}
  catch(e){$("gitOut").textContent=e.message;}}
+// Live collaboration (MCP project_live), as the macOS app's: each edit is saved to the shared file a second later, the
+// file is checked every 2 s and a teammate's save merged in (three-way), and who else has it open shows in the corner.
+let co={on:false,timer:0,saveT:0,busy:false,conflicts:[]};
+async function coToggle(){if(co.on){co.on=false;clearInterval(co.timer);clearTimeout(co.saveT);try{await run("project_live",{action:"leave"});}catch{}$("coBadge").hidden=true;status(tr("Live collaboration off"));return;}
+ if(!state.project){status(tr("Save the project in a shared folder first (Save As…)."),"warning");return;}
+ const user=pref("studio.userName")||prompt(tr("Your name shown to the others"),"");if(user)pref("studio.userName",user);
+ try{const r=await run("project_live",{action:"join",...(user?{user}:{})});co.on=true;co.conflicts=[];coBadge(r.data);co.timer=setInterval(()=>coSync(false),2000);status(tr("Live collaboration on"),"okc");}catch{}}
+async function coSync(save){if(!co.on||co.busy)return;co.busy=true;
+ try{const r=await rpc("tools/call",{name:"project_live",arguments:{action:"sync",save}});const t=(r.content||[]).find(c=>c.type==="text"),d=t?JSON.parse(t.text):{};
+  if(r.isError){status("project_live: "+(t&&t.text),"error");return;}
+  if(d.merged){co.conflicts=d.conflicts||[];await refresh(true);status(co.conflicts.length?tr("Merged a teammate's changes")+" — "+co.conflicts.length+" "+tr("conflicting field(s) kept yours"):tr("Merged a teammate's changes"),co.conflicts.length?"warning":"okc");}
+  else if(d.note)status(d.note,"warning");coBadge(d);}catch{}finally{co.busy=false;}}
+function coBadge(d){const b=$("coBadge"),peers=(d.peers||[]).map(p=>p.user);b.hidden=false;b.textContent="● "+tr("Live")+(peers.length?" · "+peers.join(", "):"")+(co.conflicts.length?" · "+co.conflicts.length+" ⚠":"");
+ b.title=(peers.length?tr("Also editing")+": "+(d.peers||[]).map(p=>p.user+" ("+p.host+")").join(", "):tr("No one else has the file open"))+(co.conflicts.length?"\n"+co.conflicts.join("\n"):"");}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -608,7 +622,7 @@ const MENUS={
   ["Copper Thieving…",F("pcb_copper_thieving")],["Boards…",F("pcb_boards")],["Signal Integrity…",F("si_set_options")],["Field Solver…",F("si_field_solver")]],
  "Team":[["Company Library…",()=>companyLibrary()],["Compare with Another Version…",F("project_diff")],["Merge Versions…",F("project_merge")],
   ["Design Review…",F("project_review_comments")],["Add Review Comment…",F("project_review_comment")],["Approvals…",F("verify_approvals")],
-  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")],["Git…",()=>selectTab("Git")]],
+  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")],["Git…",()=>selectTab("Git")],["Live Collaboration",()=>coToggle()]],
  "Help":[["Lessons…",()=>lessons()],["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
 function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
   it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");
@@ -706,7 +720,7 @@ async function importSettings(file){if(!file)return;try{const j=JSON.parse(await
 function resetSettings(){if(!confirm(tr("Reset all preferences?")))return;try{Object.keys(studioKeys()).forEach(k=>localStorage.removeItem(k));}catch{}location.reload();}
 // Settings › General: save the open project a pause after each change; give a new project the chosen layers / track / clearance.
 let autosaveTimer=null;
-function scheduleAutosave(){clearTimeout(autosaveTimer);if(pref("studio.autosave")!=="1"||!state.project)return;
+function scheduleAutosave(){clearTimeout(autosaveTimer);if(co.on){clearTimeout(co.saveT);co.saveT=setTimeout(()=>coSync(true),1000);return;}if(pref("studio.autosave")!=="1"||!state.project)return;
  autosaveTimer=setTimeout(()=>run("project_save",{}).catch(()=>{}),1000*(Number(pref("studio.autosaveSeconds"))||3));}
 async function applyNewProjectDefaults(){const a={},n=k=>Number(pref(k));if([1,2,4,6].includes(n("studio.newLayers")))a.layers=n("studio.newLayers");
  if(n("studio.newTrack")>0.05)a.trackWidth=n("studio.newTrack");if(n("studio.newClear")>0.05)a.clearance=n("studio.newClear");if(Object.keys(a).length)await act("pcb_set_board",a);}

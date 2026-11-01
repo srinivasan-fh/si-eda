@@ -20652,6 +20652,32 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_live_collaboration_merges_teammates_saves_and_lists_them) {
+    const auto root = mcpRoot("coedit");
+    mcp::McpServer alice(mcpOptions(root)), bob(mcpOptions(root));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    auto call = [](mcp::McpServer& s, const char* name, const char* args) { return s.callTool(name, Json::parse(args)); };
+    CHECK(call(alice, "project_live", R"({"action":"sync"})").get("isError").asBool(false));  // nothing saved yet
+    CHECK(!call(alice, "project_load_example", R"({"id":"led_indicator"})").get("isError").asBool(true));
+    CHECK(!call(alice, "project_save_as", R"({"path":"shared/led.siedaproj"})").get("isError").asBool(true));
+    CHECK(!call(bob, "project_open", R"({"path":"shared/led.siedaproj"})").get("isError").asBool(true));
+    CHECK(!call(alice, "project_live", R"({"action":"join","user":"alice"})").get("isError").asBool(true));
+    const Json joined = data(call(bob, "project_live", R"({"action":"join","user":"bob"})"));
+    CHECK(joined.get("peers").size() == 1 && joined.get("peers").items()[0].get("user").asString() == "alice");
+    CHECK(!call(alice, "schematic_set_value", R"({"ref":"R1","value":"680"})").get("isError").asBool(true));
+    CHECK(data(call(alice, "project_live", R"({"action":"sync","save":true})")).get("saved").asBool(false));
+    CHECK(!call(bob, "pcb_set_board", R"({"width":42})").get("isError").asBool(true));
+    const Json merged = data(call(bob, "project_live", R"({"action":"sync","save":true})"));
+    CHECK(merged.get("merged").asBool(false) && merged.get("conflicts").size() == 0);
+    const std::string bobs = data(call(bob, "project_export_json", "{}")).dump();
+    CHECK(bobs.find("\"680\"") != std::string::npos);  // alice's change, kept with bob's own
+    const Json back = data(call(alice, "project_live", R"({"action":"sync"})"));
+    CHECK(back.get("merged").asBool(false));
+    CHECK(data(call(alice, "project_export_json", "{}")).get("board").get("width").asNumber() == 42);
+    CHECK(!call(bob, "project_live", R"({"action":"leave"})").get("isError").asBool(true));
+    CHECK(data(call(alice, "project_live", R"({"action":"status"})")).get("peers").size() == 0);
+}
+
 TEST(mcp_git_commits_branches_diffs_and_switches_the_project_folder) {
     if (std::system("git --version > /dev/null 2>&1") != 0) return;  // no git on this machine
     const auto root = mcpRoot("git");

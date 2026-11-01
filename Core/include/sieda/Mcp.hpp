@@ -151,6 +151,8 @@ public:
     Json lesson;
     /// sim_live: the running live simulation (a SiedaLiveSim*, freed with sieda_live_free), or empty.
     std::shared_ptr<void> liveSim;
+    /// project_live: {path, base (the file as last read / merged / written), user, host} while co-editing, else null.
+    Json coEdit;
     int lessonStep = 0;
 
     bool toolEnabled(const McpTool& tool) const;
