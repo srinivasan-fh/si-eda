@@ -3110,7 +3110,7 @@ void projectTools(Table& t) {
               }
               return out(j);
           });
-    t.add("project", "ai_assistant", "AI assistant", Kind::Edit, false,
+    t.add("project", "project_assistant", "AI assistant", Kind::Edit, false,
           "The built-in AI (no outside app or account): a .gguf model run on this computer's CPU by SiEDA's own engine "
           "(Llama, Mistral, Qwen), as the macOS app's Super Intelligence → Local LLM / Own LLM. models lists the model "
           "files (the server's model folders and the root's Models/ folder; SiEDA's own circuit model "
@@ -3167,7 +3167,7 @@ void projectTools(Table& t) {
                       path = (fs::path(d) / file).string();
                       break;
                   }
-              if (path.empty()) throw ToolError("No model " + file + " in the model folders (ai_assistant models).");
+              if (path.empty()) throw ToolError("No model " + file + " in the model folders (project_assistant models).");
               if (s.llmPath != path || !s.llm) {
                   char* err = nullptr;
                   SiedaLlm* m = sieda_llm_open(path.c_str(), &err);

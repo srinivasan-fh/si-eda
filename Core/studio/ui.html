@@ -570,16 +570,16 @@ async function coSync(save){if(!co.on||co.busy)return;co.busy=true;
   else if(d.note)status(d.note,"warning");coBadge(d);}catch{}finally{co.busy=false;}}
 function coBadge(d){const b=$("coBadge"),peers=(d.peers||[]).map(p=>p.user);b.hidden=false;b.textContent="● "+tr("Live")+(peers.length?" · "+peers.join(", "):"")+(co.conflicts.length?" · "+co.conflicts.length+" ⚠":"");
  b.title=(peers.length?tr("Also editing")+": "+(d.peers||[]).map(p=>p.user+" ("+p.host+")").join(", "):tr("No one else has the file open"))+(co.conflicts.length?"\n"+co.conflicts.join("\n"):"");}
-// Super Intelligence (MCP ai_assistant), as the macOS window's Local / Own LLM: SiEDA's engine runs a .gguf model on
+// Super Intelligence (MCP project_assistant), as the macOS window's Local / Own LLM: SiEDA's engine runs a .gguf model on
 // this computer; Design adds the planned circuit to the schematic, Ask answers about the open design.
-async function aiModels(){try{const d=(await run("ai_assistant",{action:"models"})).data,m=d.models||[],keep=pref("studio.aiModel");
+async function aiModels(){try{const d=(await run("project_assistant",{action:"models"})).data,m=d.models||[],keep=pref("studio.aiModel");
  $("aiModel").innerHTML=m.map(x=>`<option value="${esc(x.file)}"${x.file===keep?" selected":""}>${esc(x.file)} (${x.megabytes} MB${x.circuit?", "+tr("SiEDA circuit model"):""})</option>`).join("");
  $("aiMode").value=pref("studio.aiMode")||"design";$("aiInfo").textContent=m.length?"":tr("No models yet: put a .gguf file in the root's Models folder.");aiModeShow();}catch{}}
 function aiModeShow(){const c=/^sieda-circuit/.test($("aiModel").value);$("aiMode").disabled=c;if(c)$("aiMode").value="design";}
 function aiBubble(who,html){const d=document.createElement("div");d.className="card";d.style.cssText=who==="me"?"align-self:flex-end;max-width:75%;background:var(--accent,#3b6fe0);color:#fff":"align-self:flex-start;max-width:85%";d.innerHTML=html;$("aiLog").append(d);$("aiLog").scrollTop=$("aiLog").scrollHeight;return d;}
 async function aiSend(){const msg=$("aiInput").value.trim(),model=$("aiModel").value;if(!msg||!model)return;$("aiInput").value="";aiBubble("me",esc(msg));
  const b=aiBubble("ai",`<span class=info>${tr("Thinking…")}</span>`),t0=performance.now();$("aiSendBtn").disabled=true;
- try{const r=await run("ai_assistant",{action:"ask",model,message:msg,mode:$("aiMode").value}),d=r.data,sec=((performance.now()-t0)/1000).toFixed(1);
+ try{const r=await run("project_assistant",{action:"ask",model,message:msg,mode:$("aiMode").value}),d=r.data,sec=((performance.now()-t0)/1000).toFixed(1);
   if(d.added){b.innerHTML=`<b>${esc(d.title||tr("Circuit"))}</b><div>${tr("Added to the schematic")}: ${esc(d.added.join(", "))} · ${d.links} ${tr("links")}</div>`+(d.failed?`<div class=warning>${esc(d.failed.join("; "))}</div>`:"")+`<div class=info>${sec} s</div><button onclick="selectTab('Schematic')">${tr("Show in Schematic")}</button> <button onclick="act('project_undo',{})">${tr("Undo")}</button>`;await refresh(true);}
   else b.innerHTML=(d.note?`<div class=warning>${esc(d.note)}</div>`:"")+`<div style="white-space:pre-wrap">${esc(d.reply||JSON.stringify(d.plan||{},null,1))}</div><div class=info>${sec} s</div>`;}
  catch(e){b.innerHTML=`<span class=error>${esc(e.message)}</span>`;}finally{$("aiSendBtn").disabled=false;}}
