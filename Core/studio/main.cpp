@@ -23,6 +23,7 @@
 #include <cstring>
 #include <filesystem>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -216,6 +217,22 @@ int main(int argc, char** argv) {
     options.allowedRoot = home ? std::string(home) : fs::current_path(ec).string();
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
     options.lessonDirs = sieda::mcp::lessonDirsFromEnvironment();
+    {   // Built-in AI models: beside the executable (release archives carry sieda-circuit-v1.gguf), share/sieda/models,
+        // a build folder inside the source tree, then SIEDA_MODELS_DIRS.
+        const fs::path exe = fs::weakly_canonical(fs::absolute(argv[0], ec), ec).parent_path();
+        for (const fs::path& d : {exe, exe / ".." / "share" / "sieda" / "models", exe / ".." / "SiEDA" / "Resources" / "Models"})
+            if (fs::is_directory(d, ec)) options.modelDirs.push_back(fs::weakly_canonical(d, ec).string());
+        if (const char* env = std::getenv("SIEDA_MODELS_DIRS")) {
+#ifdef _WIN32
+            const char sep = ';';
+#else
+            const char sep = ':';
+#endif
+            std::stringstream ss(env);
+            for (std::string d; std::getline(ss, d, sep);)
+                if (!d.empty()) options.modelDirs.push_back(d);
+        }
+    }
     options.activityLog = sieda::mcp::defaultActivityLogDir();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -232,11 +249,12 @@ int main(int argc, char** argv) {
         else if (a == "--no-browser") browser = false;
         else if (a == "--library-dir") options.libraryDirs.push_back(fs::absolute(value(), ec).string());
         else if (a == "--lessons-dir") options.lessonDirs.push_back(fs::absolute(value(), ec).string());
+        else if (a == "--models-dir") options.modelDirs.push_back(fs::absolute(value(), ec).string());
         else if (a == "--activity-log") options.activityLog = fs::absolute(value(), ec).string();
         else if (a == "--no-activity-log") options.activityLog.clear();
         else if (a == "--version") return std::puts("sieda-studio " SIEDA_STUDIO_VERSION), 0;
         else {
-            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>]\n");
+            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>] [--models-dir <dir>]\n");
             return 2;
         }
     }

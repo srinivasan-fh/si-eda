@@ -20652,6 +20652,26 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_ai_assistant_designs_with_the_built_in_circuit_model) {
+    const auto root = mcpRoot("assistant");
+    auto opts = mcpOptions(root);
+    opts.modelDirs = {std::string(SIEDA_DOCS_DIR) + "/../SiEDA/Resources/Models"};
+    mcp::McpServer s(opts);
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    const Json models = data(s.callTool("ai_assistant", Json::parse(R"({"action":"models"})")));
+    CHECK(models.get("models").size() >= 1 && models.get("models").items()[0].get("circuit").asBool(false));
+    CHECK(s.callTool("ai_assistant", Json::parse(R"({"action":"ask","model":"../x.gguf","message":"hi"})")).get("isError").asBool(false));
+    Json r = s.callTool("ai_assistant", Json::parse(R"({"action":"ask","model":"sieda-circuit-v1.gguf","message":"Design an LED indicator"})"));
+    CHECK(!r.get("isError").asBool(true));
+    const Json d = data(r);
+    CHECK(d.get("added").size() >= 3 && d.get("links").asInt() >= 3 && !d.has("failed"));
+    CHECK(d.get("plan").dump().find("\"led\"") != std::string::npos);
+    // A request naming a circuit the model knows is asked by that circuit's title.
+    const Json reg = data(s.callTool("ai_assistant", Json::parse(R"({"action":"ask","model":"sieda-circuit-v1.gguf","message":"5 V linear regulator from 12 V","apply":false})")));
+    CHECK(reg.get("plan").get("title").asString().find("Regulator") != std::string::npos);
+    CHECK(!s.callTool("ai_assistant", Json::parse(R"({"action":"forget"})")).get("isError").asBool(true));
+}
+
 TEST(mcp_live_collaboration_merges_teammates_saves_and_lists_them) {
     const auto root = mcpRoot("coedit");
     mcp::McpServer alice(mcpOptions(root)), bob(mcpOptions(root));

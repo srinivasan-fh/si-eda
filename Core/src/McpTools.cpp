@@ -3110,6 +3110,251 @@ void projectTools(Table& t) {
               }
               return out(j);
           });
+    t.add("project", "ai_assistant", "AI assistant", Kind::Edit, false,
+          "The built-in AI (no outside app or account): a .gguf model run on this computer's CPU by SiEDA's own engine "
+          "(Llama, Mistral, Qwen), as the macOS app's Super Intelligence → Local LLM / Own LLM. models lists the model "
+          "files (the server's model folders and the root's Models/ folder; SiEDA's own circuit model "
+          "sieda-circuit-v1.gguf ships beside Studio); ask {model, message, mode} answers: design (default) asks for a "
+          "circuit plan and adds it to the schematic (parts, values, every pin-to-pin link; apply false only returns "
+          "it), chat answers a question about the open design. The circuit model always designs. forget closes the "
+          "model.",
+          Schema().str("action", "What to do", true, {"models", "ask", "forget"})
+              .str("model", "Model file name (.gguf) from models")
+              .str("message", "Your request or question")
+              .str("mode", "design (a circuit for the schematic) or chat (an answer)", false, {"design", "chat"})
+              .boolean("apply", "design: add the circuit to the schematic (default true)")
+              .integer("maxTokens", "Longest reply in tokens (default 2000)"),
+          [](McpServer& s, const Json& a) {
+              const std::string action = requireStr(a, "action");
+              std::vector<std::string> dirs = s.options().modelDirs;
+              try {
+                  const std::string own = s.resolvePath("Models", false);
+                  if (fs::is_directory(own)) dirs.push_back(own);
+              } catch (const ToolError&) {
+              }
+              auto isCircuit = [](const std::string& f) { return f.rfind("sieda-circuit", 0) == 0; };
+              Json j = obj();
+              if (action == "forget") {
+                  s.llm.reset(), s.llmPath.clear();
+                  j["forgotten"] = true;
+                  return out(j);
+              }
+              if (action == "models") {
+                  Json list = Json::array();
+                  std::set<std::string> seen;
+                  for (const auto& d : dirs) {
+                      std::error_code ec;
+                      for (const auto& e : fs::directory_iterator(d, ec)) {
+                          const std::string f = e.path().filename().string();
+                          if (e.path().extension() != ".gguf" || !seen.insert(f).second) continue;
+                          Json m = obj();
+                          m["file"] = f, m["folder"] = d, m["circuit"] = isCircuit(f);
+                          m["megabytes"] = std::round(static_cast<double>(fs::file_size(e.path(), ec)) / 1e5) / 10;
+                          list.push(m);
+                      }
+                  }
+                  j["models"] = list;
+                  j["folders"] = Json::array();
+                  for (const auto& d : dirs) j["folders"].push(d);
+                  return out(j);
+              }
+              const std::string file = requireStr(a, "model"), message = requireStr(a, "message");
+              if (file.find_first_of("/\\") != std::string::npos || file.find("..") != std::string::npos)
+                  throw ToolError("Give a model file name from models.");
+              std::string path;
+              for (const auto& d : dirs)
+                  if (fs::is_regular_file(fs::path(d) / file)) {
+                      path = (fs::path(d) / file).string();
+                      break;
+                  }
+              if (path.empty()) throw ToolError("No model " + file + " in the model folders (ai_assistant models).");
+              if (s.llmPath != path || !s.llm) {
+                  char* err = nullptr;
+                  SiedaLlm* m = sieda_llm_open(path.c_str(), &err);
+                  if (!m) {
+                      const std::string why = err ? err : "?";
+                      sieda_string_free(err);
+                      throw ToolError("The model did not open: " + why);
+                  }
+                  s.llm = std::shared_ptr<void>(m, [](void* p) { sieda_llm_close(static_cast<SiedaLlm*>(p)); });
+                  s.llmPath = path;
+              }
+              const bool circuit = isCircuit(file), design = circuit || argStr(a, "mode", "design") == "design";
+              std::string system;
+              if (circuit) {
+                  system = "You are an electronics design assistant.";  // the turn the circuit model was trained with
+              } else if (design) {
+                  system = "You are SiEDA's electronics design assistant. Reply with ONE JSON object only: {\"title\": "
+                           "\"…\", \"components\": [{\"ref\": \"R1\", \"kind\": \"resistor\", \"value\": \"10k\", \"x\": 0, "
+                           "\"y\": 0, \"rotation\": 0}], \"connections\": [{\"from\": \"R1.2\", \"to\": \"D1.A\"}]}. Kinds: "
+                           "resistor, capacitor, inductor, diode, led, voltage_source, current_source, ground, npn, nmos, "
+                           "opamp, switch, connector, fuse, net_label (pin N, value = net name), battery; a catalog part "
+                           "is custom:<part number>. Pins: 1 / 2 for two-pin parts, A / K for diodes and LEDs, + / - for "
+                           "sources, GND for ground, B / C / E, G / D / S, IN+ / IN- / OUT, or a part's pin number. x / y "
+                           "on a 10-unit grid.";
+              } else {
+                  Json summary = projectSummary(s);
+                  std::string ctx = summary.dump();
+                  if (ctx.size() > 6000) ctx.resize(6000);
+                  std::string nl = takeText(sieda_spice_netlist(P(s)));
+                  if (nl.size() > 8000) nl.resize(8000);
+                  system = "You are SiEDA's electronics design assistant. Answer briefly and concretely about the open "
+                           "design.\nDesign summary: " + ctx + "\nNetlist: " + nl;
+              }
+              Json opts = obj();
+              opts["maxTokens"] = std::clamp(argInt(a, "maxTokens", 2000), 16, 8192);
+              opts["temperature"] = 0;
+              opts["json"] = design && !circuit;
+              // The circuit model writes a circuit it knows from its title: a request naming one ("5 V linear regulator
+              // from 12 V") is asked as "Design a <title>" (the circuits are listed in its card beside the model), as
+              // the macOS app routes it; the values the request fixes are put back afterwards (circuitPlanValues).
+              std::string ask = message;
+              if (circuit) {
+                  auto words = [](const std::string& t) {
+                      std::set<std::string> w;
+                      std::string cur;
+                      for (char ch : t + " ") {
+                          const unsigned char c = static_cast<unsigned char>(ch);
+                          if (std::isalnum(c)) cur += static_cast<char>(std::tolower(c));
+                          else if (!cur.empty()) w.insert(cur), cur.clear();
+                      }
+                      return w;
+                  };
+                  std::ifstream in(fs::path(path).replace_extension(".json"), std::ios::binary);
+                  std::stringstream card;
+                  card << in.rdbuf();
+                  try {
+                      const std::set<std::string> said = words(message);
+                      double best = 0;
+                      const Json known = Json::parse(card.str());
+                      for (const auto& c : known.get("circuits").items()) {
+                          const std::string title = c.asString();
+                          const std::set<std::string> tw = words(title);
+                          int hit = 0, strong = 0;
+                          for (const auto& w : tw)
+                              if (said.count(w)) ++hit, strong += w.size() >= 3;
+                          const double score = tw.empty() ? 0 : static_cast<double>(hit) / tw.size() + 0.001 * tw.size();
+                          if (strong >= 1 && hit >= 2 && hit * 4 >= static_cast<int>(tw.size()) * 3 && score > best) {
+                              best = score;
+                              std::string lower = title;
+                              for (char& ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                              ask = "Design a " + lower;
+                          }
+                      }
+                  } catch (const std::exception&) {
+                  }
+              }
+              char* err = nullptr;
+              char* raw = sieda_llm_chat(static_cast<SiedaLlm*>(s.llm.get()), system.c_str(), ask.c_str(),
+                                         opts.dump().c_str(), nullptr, nullptr, &err);
+              if (!raw) {
+                  const std::string why = err ? err : "?";
+                  sieda_string_free(err);
+                  throw ToolError("The model stopped: " + why);
+              }
+              std::string reply = raw;
+              sieda_string_free(raw);
+              j["model"] = file;
+              if (ask != message) j["asked"] = ask;
+              if (!design) {
+                  j["reply"] = reply;
+                  return out(j);
+              }
+              if (circuit) reply = takeText(sieda_circuit_plan_values(message.c_str(), reply.c_str()));
+              const size_t b = reply.find('{'), e = reply.rfind('}');
+              Json plan;
+              try {
+                  if (b == std::string::npos || e == std::string::npos || e < b) throw std::runtime_error("no JSON");
+                  plan = Json::parse(reply.substr(b, e - b + 1));
+              } catch (const std::exception&) {
+                  j["reply"] = reply;
+                  j["note"] = "The reply is not a circuit plan.";
+                  return out(j);
+              }
+              // A usable plan: parts with kinds, unique designators, links naming its parts.
+              std::set<std::string> refs;
+              std::string problem;
+              for (const auto& c : plan.get("components").items()) {
+                  if (c.get("kind").asString().empty()) problem = "a part without a kind";
+                  if (!refs.insert(c.get("ref").asString()).second) problem = "repeated designator " + c.get("ref").asString();
+              }
+              if (refs.empty()) problem = "no parts";
+              for (const auto& c : plan.get("connections").items())
+                  for (const char* k : {"from", "to"}) {
+                      const std::string end = c.get(k).asString();
+                      if (!refs.count(end.substr(0, end.find('.')))) problem = "link to unknown part " + end;
+                  }
+              j["plan"] = plan;
+              if (!problem.empty()) {
+                  j["note"] = "The plan is not usable: " + problem;
+                  return out(j);
+              }
+              if (!argBool(a, "apply", true)) return out(j);
+              // Add it beside what the active sheet holds; designators are the next free ones.
+              auto tool = [&](const char* name, const Json& args) {
+                  for (const auto& t : mcpTools())
+                      if (t.name == name) {
+                          const std::string bad = validateArguments(t.inputSchema, args);
+                          if (!bad.empty()) throw ToolError(bad);
+                          return t.handler(s, args).data;
+                      }
+                  throw ToolError(std::string("missing tool ") + name);
+              };
+              double right = -1e30, minX = 1e30;
+              for (const auto& c : proj(s).schematic.components()) right = std::max(right, static_cast<double>(c.position.x));
+              for (const auto& c : plan.get("components").items()) minX = std::min(minX, c.get("x").asNumber(0));
+              const double dx = right > -1e29 ? std::round((right + 200 - minX) / 10) * 10 : 0;
+              std::map<std::string, std::string> renamed;
+              Json added = Json::array(), failed = Json::array();
+              for (const auto& c : plan.get("components").items()) {
+                  const std::string kind = c.get("kind").asString(), ref = c.get("ref").asString();
+                  Json args = obj();
+                  args["x"] = c.get("x").asNumber(0) + dx;
+                  args["y"] = c.get("y").asNumber(0);
+                  if (c.has("rotation")) args["rotation"] = c.get("rotation").asInt(0);
+                  try {
+                      Json r;
+                      if (kind.rfind("custom:", 0) == 0) {
+                          args["name"] = kind.substr(7);
+                          r = tool("library_add_part", args);
+                          if (c.has("value") && c.get("value").asString() != kind.substr(7))
+                              tool("schematic_set_value", Json::parse("{\"ref\":" + Json(r.get("ref").asString()).dump() +
+                                                                      ",\"value\":" + Json(c.get("value").asString()).dump() + "}"));
+                      } else {
+                          args["kind"] = kind;
+                          if (c.has("value")) args["value"] = c.get("value").asString();
+                          r = tool("schematic_add_component", args);
+                      }
+                      renamed[ref] = r.get("ref").asString();
+                      added.push(r.get("ref").asString());
+                  } catch (const std::exception& ex) {
+                      failed.push(ref + " (" + kind + "): " + ex.what());
+                  }
+              }
+              Json pairs = Json::array();
+              for (const auto& c : plan.get("connections").items()) {
+                  Json pair = Json::array();
+                  for (const char* k : {"from", "to"}) {
+                      const std::string end = c.get(k).asString(), r = end.substr(0, end.find('.'));
+                      if (!renamed.count(r)) break;
+                      pair.push(renamed[r] + end.substr(r.size()));
+                  }
+                  if (pair.size() == 2) pairs.push(pair);
+              }
+              for (const auto& p : pairs.items()) try {
+                      Json args = obj();
+                      args["connections"] = Json::array();
+                      args["connections"].push(p);
+                      tool("schematic_connect", args);
+                  } catch (const std::exception& ex) {
+                      failed.push(p.items()[0].asString() + " – " + p.items()[1].asString() + ": " + ex.what());
+                  }
+              j["added"] = added;
+              j["links"] = static_cast<int>(pairs.size());
+              if (failed.size()) j["failed"] = failed;
+              j["title"] = plan.get("title");
+              return out(j);
+          });
     t.add("project", "project_live", "Live collaboration", Kind::Edit, false,
           "Live co-editing of a shared project file (a synced folder, network share or Git working copy), as the macOS "
           "app's Live Collaboration: join {user?} starts it on the saved project; sync {save?} merges a teammate's save "

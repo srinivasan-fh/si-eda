@@ -59,6 +59,9 @@ struct McpOptions {
     /// Folders of an organisation's own lessons (<name>.lesson.json, "sieda.lesson/1"): read-only, listed by
     /// project_lessons beside the built-in ones. Set only by whoever starts the server (--lessons-dir, SIEDA_LESSONS_DIRS).
     std::vector<std::string> lessonDirs;
+    /// Folders holding built-in-engine models (.gguf) for ai_assistant, besides the root's Models/ folder. Set only by
+    /// whoever starts the server (sieda-studio: beside its executable, --models-dir, SIEDA_MODELS_DIRS).
+    std::vector<std::string> modelDirs;
     /// Who every call comes from in the activity log ("user" for a host's own UI); "" = the AI client's name.
     std::string actor;
 
@@ -153,6 +156,9 @@ public:
     std::shared_ptr<void> liveSim;
     /// project_live: {path, base (the file as last read / merged / written), user, host} while co-editing, else null.
     Json coEdit;
+    /// ai_assistant: the open model (a SiedaLlm*, closed with sieda_llm_close) and its file.
+    std::shared_ptr<void> llm;
+    std::string llmPath;
     int lessonStep = 0;
 
     bool toolEnabled(const McpTool& tool) const;
