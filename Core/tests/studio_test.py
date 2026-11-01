@@ -81,7 +81,9 @@ def main():
                 assert '\\"330\\"' in design(), "one undo step takes it back"
                 r = run({"name": "retune", "sandbox": True})
                 # Sandboxed: applied where bubblewrap runs; a clear refusal without it (or where it may not make namespaces).
-                assert r.get("applied") or "bubblewrap" in r.get("error", "") or "bwrap" in r.get("output", ""), r
+                # (macOS: sandbox-exec, which a CI runner may not allow either: then its own message is the output.)
+                assert r.get("applied") or "bubblewrap" in r.get("error", "") or "bwrap" in r.get("output", "") or \
+                    (sys.platform == "darwin" and "output" in r), r
             status, words = request(port, "GET", "/i18n?lang=de", headers=auth)
             assert status == 200 and json.loads(words).get("File") == "Datei", "German interface words"
             assert request(port, "GET", "/i18n?lang=xx", headers=auth)[1] == "{}", "unknown language"

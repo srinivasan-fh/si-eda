@@ -223,7 +223,7 @@ Json pluginList() {
     return list;
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)  // bubblewrap is looked up on Linux only
 std::string findInPath(const char* tool) {
     const char* path = std::getenv("PATH");
     std::stringstream ss(path ? path : "/usr/bin:/bin");
