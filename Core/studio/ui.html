@@ -104,6 +104,13 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="row"><label>Repository</label><input id="repo" placeholder="owner/name" style="flex:1;min-width:200px"><label>Branch</label><input id="branch" value="main" style="width:110px"><button onclick="cloud('connect')">Connect</button></div>
 <div class="row" style="margin-top:8px"><input id="msg" placeholder="What changed (commit message)" style="flex:1;min-width:200px"><button onclick="cloud('pull')">Pull</button><button class="primary" onclick="cloud('push')">Push</button><button onclick="cloud('share')">Share links</button><button onclick="cloud('status')">Status</button></div></div>
 <div id="cloudOut"></div></section>
+<section data-tab="Git"><div class="row optbar"><b>Git</b><span id="gitFolder" class="info"></span><span style="flex:1"></span><label>Branch</label><select id="gitBranch" onchange="git('switch',{branch:this.value})"></select><button onclick="git('status')">Refresh</button></div>
+<div id="gitNoRepo" class="card" hidden><p class="info">This folder is not a Git repository.</p><button class="primary" onclick="git('init')">Create Repository Here</button></div>
+<div id="gitRepo" class="work" hidden><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="card"><b>Changes</b><pre id="gitChanges" style="max-height:120px;overflow:auto"></pre>
+<div class="row"><input id="gitMsg" placeholder="Commit message" style="flex:1"><button class="primary" onclick="if($('gitMsg').value.trim())git('commit',{message:$('gitMsg').value}).then(()=>$('gitMsg').value='')">Save and Commit All</button><button onclick="git('diff')">Show Changes</button></div>
+<div class="row" style="margin-top:6px"><input id="gitRef" placeholder="Branch or tag name" style="flex:1"><button onclick="git('branch',{branch:$('gitRef').value})">New Branch</button><button onclick="git('tag',{name:$('gitRef').value})">Tag</button><button onclick="git('pull')">Pull</button><button onclick="git('push')">Push</button></div></div>
+<div class="card" style="flex:1;overflow:auto"><b>History</b><pre id="gitLog"></pre></div></div><div class="card" style="flex:1;overflow:auto;min-width:0"><b>Diff</b><pre id="gitDiff" class="info">Show Changes lists what changed since the last commit.</pre></div></div>
+<div class="card"><div class="row"><input id="gitUrl" placeholder="Clone from URL" style="flex:1"><input id="gitDir" placeholder="into folder (inside the root)" style="width:200px"><button onclick="git('clone',{url:$('gitUrl').value,dir:$('gitDir').value||'.'})">Clone…</button></div><pre id="gitOut" class="info"></pre></div></section>
 <section data-tab="Tools"><div class="row"><input id="toolFilter" placeholder="Filter tools" oninput="listTools()" style="flex:1"><select id="tool" onchange="pickTool()" style="flex:2"></select></div>
 <div class="card"><div id="toolDesc" class="info"></div></div><textarea id="toolArgs">{}</textarea><div class="row"><button class="primary" onclick="runTool()">Run tool</button><span class="info">Every SiEDA feature is an MCP tool; arguments are JSON.</span></div><pre id="toolOut"></pre></section>
 </div><footer id="status">Ready.</footer>
@@ -440,7 +447,7 @@ async function draw(){try{
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];if(l[0]==="i")args.layers=[+l.slice(1)];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
- if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
+ if(tab==="BOM")bom();if(tab==="Git")git("status");if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
 function simForm(){const k=$("simKind").value;if(k!=="live")liveStop();$("simRun").hidden=k==="live";if(k==="live"){liveForm();return;}$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
  :k==="ac"?`<label>From</label> <input id="simStart" value="1" style="width:80px"> <label>To</label> <input id="simStop" value="1MEG" style="width:90px">`:"";}
 const fmt=v=>{const a=Math.abs(v);if(!isFinite(v))return"—";if(a!==0&&(a<1e-3||a>=1e4))return v.toExponential(3);return(+v.toPrecision(5)).toString();};
@@ -535,6 +542,16 @@ function orbit3d(){const el=$("v3d");panZoom(el);
    let best=null;for(const p of v3.picks){const [x0,y0,x1,y1]=p.box;if(px>=x0&&px<=x1&&py>=y0&&py<=y1){const a=(x1-x0)*(y1-y0);if(!best||a<best.a)best={ref:p.ref,a};}}
    if(best)pick3d(best.ref);};
   addEventListener("mousemove",move);addEventListener("mouseup",up);return true;};}
+// Git (MCP project_git), as the macOS app's Git window: the project's folder — status, commit, diff, branches, tags,
+// pull / push, history and clone.
+async function git(action,args={}){$("gitOut").textContent="git "+action+"…";
+ try{const r=await run("project_git",{action,...args}),d=r.data;$("gitFolder").textContent=d.folder||"";$("gitOut").textContent=d.output||"";
+  if(d.diff!==undefined){$("gitDiff").className="";$("gitDiff").innerHTML=esc((d.stat?d.stat+"\n\n":"")+(d.diff||tr("No changes"))).split("\n").map(l=>l[0]==="+"&&!l.startsWith("+++")?`<span style="color:#51cf66">${l}</span>`:l[0]==="-"&&!l.startsWith("---")?`<span style="color:#ff6b6b">${l}</span>`:l).join("\n");}
+  if(d.repository===false){$("gitNoRepo").hidden=false;$("gitRepo").hidden=true;$("gitBranch").replaceChildren();return;}
+  if(d.repository){$("gitNoRepo").hidden=true;$("gitRepo").hidden=false;$("gitChanges").textContent=(d.changes||[]).join("\n")||tr("No changes");$("gitLog").textContent=(d.history||[]).join("\n");
+   $("gitBranch").innerHTML=(d.branches||[]).map(b=>`<option${b===d.branch?" selected":""}>${esc(b)}</option>`).join("");}
+  if(action==="init")return git("status");if(["switch","pull","clone","commit"].includes(action))refresh(true);}
+ catch(e){$("gitOut").textContent=e.message;}}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -591,7 +608,7 @@ const MENUS={
   ["Copper Thieving…",F("pcb_copper_thieving")],["Boards…",F("pcb_boards")],["Signal Integrity…",F("si_set_options")],["Field Solver…",F("si_field_solver")]],
  "Team":[["Company Library…",()=>companyLibrary()],["Compare with Another Version…",F("project_diff")],["Merge Versions…",F("project_merge")],
   ["Design Review…",F("project_review_comments")],["Add Review Comment…",F("project_review_comment")],["Approvals…",F("verify_approvals")],
-  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")]],
+  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")],["Git…",()=>selectTab("Git")]],
  "Help":[["Lessons…",()=>lessons()],["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
 function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
   it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");

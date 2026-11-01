@@ -20652,6 +20652,39 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_git_commits_branches_diffs_and_switches_the_project_folder) {
+    if (std::system("git --version > /dev/null 2>&1") != 0) return;  // no git on this machine
+    const auto root = mcpRoot("git");
+    mcp::McpServer s(mcpOptions(root));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    auto git = [&](const char* args) { return s.callTool("project_git", Json::parse(args)); };
+    CHECK(!s.callTool("project_load_example", Json::parse(R"({"id":"led_indicator"})")).get("isError").asBool(true));
+    CHECK(!s.callTool("project_save_as", Json::parse(R"({"path":"work/led.siedaproj"})")).get("isError").asBool(true));
+    CHECK(!data(git(R"({"action":"status"})")).get("repository").asBool(true));
+    CHECK(git(R"({"action":"commit","message":"x"})").get("isError").asBool(false));  // not a repository yet
+    CHECK(!git(R"({"action":"init"})").get("isError").asBool(true));
+    Json c = git(R"({"action":"commit","message":"First design"})");
+    CHECK(!c.get("isError").asBool(true));
+    CHECK(data(c).get("history").size() == 1);
+    CHECK(data(c).get("changes").size() == 0);
+    const std::string main = data(c).get("branch").asString();
+    CHECK(!git(R"({"action":"tag","name":"v1"})").get("isError").asBool(true));
+    CHECK(git(R"({"action":"tag","name":"-bad"})").get("isError").asBool(false));
+    CHECK(!git(R"({"action":"branch","branch":"rev-b"})").get("isError").asBool(true));
+    CHECK(!s.callTool("schematic_set_value", Json::parse(R"({"ref":"R1","value":"680"})")).get("isError").asBool(true));
+    const Json d = data(git(R"({"action":"diff"})"));
+    CHECK(d.get("diff").asString().find("680") != std::string::npos);
+    CHECK(!git(R"({"action":"commit","message":"R1 680"})").get("isError").asBool(true));
+    Json back = git(("{\"action\":\"switch\",\"branch\":\"" + main + "\"}").c_str());
+    CHECK(!back.get("isError").asBool(true));
+    CHECK(data(back).get("branches").size() == 2);
+    CHECK(data(git(R"({"action":"status"})")).get("history").items()[0].asString().find("v1") != std::string::npos);
+    const Json proj = data(s.callTool("project_export_json", Json::object()));
+    CHECK(proj.dump().find("\"680\"") == std::string::npos);  // reopened as on the first branch
+    CHECK(git(R"({"action":"clone","url":"ext::sh -c touch% /tmp/x"})").get("isError").asBool(false));
+    CHECK(git(R"({"action":"diff","file":"../x"})").get("isError").asBool(false));
+}
+
 TEST(mcp_live_simulation_runs_the_board_and_takes_firmware) {
     const auto root = mcpRoot("live");
     mcp::McpServer s(mcpOptions(root));

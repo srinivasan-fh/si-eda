@@ -3107,6 +3107,134 @@ void projectTools(Table& t) {
               }
               return out(j);
           });
+    t.add("project", "project_git", "Git", Kind::Destructive, false,
+          "Git for the folder holding the project (the root folder while unsaved), as the macOS app's File → Git…, "
+          "through your own git (no shell, no repository hooks, never prompts): status (branch, branches, changes, "
+          "history), init, commit {message} (saves the project, then commits every change), diff {file?}, switch "
+          "{branch}, branch {branch} (new branch, switched to), tag {name}, pull (fast-forward only), push (with tags) "
+          "and clone {url, dir?} (into a folder inside the root; its first .siedaproj is opened). After switch / pull "
+          "the project is reopened from disk.",
+          Schema().str("action", "What to do", true,
+                       {"status", "init", "commit", "diff", "switch", "branch", "tag", "pull", "push", "clone"})
+              .str("message", "Commit message").str("branch", "Branch name (switch, branch)").str("name", "Tag name")
+              .str("file", "diff: one file (relative to the folder)").str("url", "clone: https://, ssh:// or git@host:path URL")
+              .str("dir", "clone: folder inside the root to clone into (default the root)"),
+          [](McpServer& s, const Json& a) {
+              const std::string action = requireStr(a, "action");
+              if (action != "status" && action != "diff" && s.options().readOnly) throw ToolError("Read-only server.");
+              const std::string dir = s.projectPath().empty() ? s.resolvePath(".", false)
+                                                              : fs::path(s.projectPath()).parent_path().string();
+              auto run = [&](const std::vector<std::string>& args, const std::string& in) {
+                  cloud::GitRun r = cloud::git(in, args);
+                  if (r.code == -1) throw ToolError("git could not be started: install git.");
+                  return r;
+              };
+              auto text = [](std::string o) { return o.substr(0, o.find_last_not_of(" \r\n") + 1); };
+              auto lines = [&](const std::string& o) {
+                  Json l = Json::array();
+                  std::stringstream ss(o);
+                  for (std::string x; std::getline(ss, x);)
+                      if (!x.empty()) l.push(x);
+                  return l;
+              };
+              auto must = [&](const std::vector<std::string>& args, const std::string& in) {
+                  cloud::GitRun r = run(args, in);
+                  if (!r.ok()) throw ToolError("git: " + text(r.output));
+                  return text(r.output);
+              };
+              auto saveProject = [&] {
+                  if (!s.projectPath().empty()) s.writeFile(s.projectPath(), takeText(sieda_project_save_json(P(s))));
+              };
+              auto reopen = [&] {
+                  if (!s.projectPath().empty() && fs::exists(s.projectPath())) s.openProject(s.projectPath());
+              };
+              auto ref = [&](const char* key) {
+                  const std::string r = requireStr(a, key);
+                  if (!cloud::validBranch(r)) throw ToolError("Not a valid name: \"" + r + "\"");
+                  return r;
+              };
+              Json j = obj();
+              j["folder"] = dir;
+              const bool repo = run({"rev-parse", "--is-inside-work-tree"}, dir).ok();
+              if (action == "clone") {
+                  const std::string url = requireStr(a, "url");
+                  const bool urlOk = (url.rfind("https://", 0) == 0 || url.rfind("ssh://", 0) == 0 ||
+                                      (url.rfind("git@", 0) == 0 && url.find(':') != std::string::npos)) &&
+                                     url.find_first_of(" \t\r\n") == std::string::npos;
+                  if (!urlOk) throw ToolError("Give an https://, ssh:// or git@host:path URL.");
+                  const std::string parent = s.resolvePath(argStr(a, "dir", "."), true);
+                  fs::create_directories(parent);
+                  std::string name = fs::path(url.substr(url.find_last_of("/:") + 1)).stem().string();
+                  if (name.empty() || name[0] == '.' || name[0] == '-') throw ToolError("Cannot name a folder after " + url);
+                  const fs::path target = fs::path(parent) / name;
+                  if (fs::exists(target)) throw ToolError(target.string() + " already exists.");
+                  j["output"] = must({"clone", "--", url, name}, parent);
+                  s.checkLinksInside(target.string());
+                  j["cloned"] = target.string();
+                  std::vector<fs::path> projects;
+                  for (const auto& e : fs::directory_iterator(target))
+                      if (e.path().extension() == ".siedaproj") projects.push_back(e.path());
+                  std::sort(projects.begin(), projects.end());
+                  if (!projects.empty()) {
+                      s.openProject(projects.front().string());
+                      j["opened"] = projects.front().string();
+                  }
+                  return out(j);
+              }
+              if (action == "init") {
+                  if (repo) throw ToolError("Already a Git repository.");
+                  j["output"] = must({"init"}, dir);
+                  return out(j);
+              }
+              if (!repo) {
+                  if (action != "status") throw ToolError("This folder is not a Git repository: init first.");
+                  j["repository"] = false;
+                  return out(j);
+              }
+              if (action == "commit") {
+                  const std::string message = requireStr(a, "message");
+                  saveProject();
+                  must({"add", "-A"}, dir);
+                  std::vector<std::string> args{"commit", "-m", message};
+                  if (text(run({"config", "user.email"}, dir).output).empty())  // as cloud::commit: a name git accepts
+                      args.insert(args.begin(), {"-c", "user.name=SiEDA", "-c", "user.email=sieda@localhost"});
+                  j["output"] = must(args, dir);
+              } else if (action == "diff") {
+                  std::vector<std::string> args{"diff", "--no-color", "--no-ext-diff", "HEAD"};
+                  if (a.has("file")) {
+                      const std::string f = argStr(a, "file");
+                      if (f.empty() || f[0] == '-' || f[0] == '/' || f.find("..") != std::string::npos)
+                          throw ToolError("Give a file inside the folder.");
+                      args.push_back("--");
+                      args.push_back(f);
+                  }
+                  saveProject();
+                  std::vector<std::string> stat = args;
+                  stat.insert(stat.begin() + 1, "--stat");
+                  j["stat"] = text(run(stat, dir).output);
+                  std::string d = run(args, dir).output;
+                  if (d.size() > 200000) d = d.substr(0, 200000) + "\n… (cut at 200 kB)";
+                  j["diff"] = d;
+              } else if (action == "switch") {
+                  j["output"] = must({"switch", ref("branch")}, dir);
+                  reopen();
+              } else if (action == "branch") {
+                  j["output"] = must({"switch", "-c", ref("branch")}, dir);
+              } else if (action == "tag") {
+                  j["output"] = must({"tag", ref("name")}, dir);
+              } else if (action == "pull") {
+                  j["output"] = must({"pull", "--ff-only"}, dir);
+                  reopen();
+              } else if (action == "push") {
+                  j["output"] = must({"push", "--follow-tags"}, dir);
+              }
+              j["repository"] = true;
+              j["branch"] = text(run({"branch", "--show-current"}, dir).output);
+              j["branches"] = lines(run({"branch", "--format=%(refname:short)"}, dir).output);
+              j["changes"] = lines(run({"status", "--short"}, dir).output);
+              j["history"] = lines(run({"log", "--oneline", "--decorate", "-n", "30"}, dir).output);
+              return out(j);
+          });
     t.add("project", "project_export_json", "Project JSON", Kind::Read, true,
           "The whole project as saved (.siedaproj JSON): schematic, library, board, rules, variants.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_project_save_json(P(s)))); });
