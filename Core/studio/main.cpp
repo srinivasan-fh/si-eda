@@ -21,8 +21,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -35,6 +38,8 @@ using Socket = SOCKET;
 #define closeSocket closesocket
 #else
 #include <arpa/inet.h>
+#include <poll.h>
+#include <signal.h>
 #include <netinet/in.h>
 #include <spawn.h>
 #include <sys/socket.h>
@@ -181,6 +186,198 @@ void openBrowser(const std::string& url) {
 #endif
 }
 
+/// Plug-ins (as the macOS app's ProjectPlugins): executables in the user's own plug-in folder only — never from a
+/// project or a path a request names. One runs on a copy of the design in a fresh temporary folder (SIEDA_PROJECT names
+/// the file, SIEDA_PLUGIN the plug-in); what it prints (first 64 KB) is shown and, when it changed the copy, the copy
+/// replaces the design as one undo step. Sandboxed (the default): no network, writes only in that folder — bubblewrap
+/// on Linux; sandboxing is not available on Windows, where a plug-in runs only with the sandbox turned off.
+fs::path pluginFolder() {
+#ifdef _WIN32
+    const char* base = std::getenv("APPDATA");
+    return fs::path(base ? base : ".") / "SiEDA" / "Plugins";
+#else
+    if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg) return fs::path(xdg) / "SiEDA" / "Plugins";
+    const char* home = std::getenv("HOME");
+    return fs::path(home ? home : ".") / ".local" / "share" / "SiEDA" / "Plugins";
+#endif
+}
+
+Json pluginList() {
+    Json list = Json::array();
+    std::error_code ec;
+    std::vector<std::string> names;
+    for (const auto& e : fs::directory_iterator(pluginFolder(), ec)) {
+        if (!e.is_regular_file(ec) || e.is_symlink(ec)) continue;
+        const std::string name = e.path().filename().string();
+        if (name.empty() || name[0] == '.') continue;
+#ifdef _WIN32
+        const std::string ext = e.path().extension().string();
+        if (ext != ".exe" && ext != ".bat" && ext != ".cmd") continue;
+#else
+        if ((e.status(ec).permissions() & fs::perms::owner_exec) == fs::perms::none) continue;
+#endif
+        names.push_back(name);
+    }
+    std::sort(names.begin(), names.end());
+    for (const auto& n : names) list.push(n);
+    return list;
+}
+
+#if !defined(_WIN32) && !defined(__APPLE__)  // bubblewrap is looked up on Linux only
+std::string findInPath(const char* tool) {
+    const char* path = std::getenv("PATH");
+    std::stringstream ss(path ? path : "/usr/bin:/bin");
+    for (std::string d; std::getline(ss, d, ':');)
+        if (!d.empty() && access((fs::path(d) / tool).c_str(), X_OK) == 0) return (fs::path(d) / tool).string();
+    return {};
+}
+#endif
+
+/// {"output", "changed", "json"?} or {"error"}.
+Json runPlugin(const std::string& name, const std::string& design, bool sandbox) {
+    Json r = Json::object();
+    const Json known = pluginList();
+    bool listed = false;
+    for (const auto& n : known.items()) listed = listed || n.asString() == name;
+    if (!listed) return r["error"] = "No plug-in " + name + " in " + pluginFolder().string(), r;
+    const fs::path plugin = pluginFolder() / name;
+    std::error_code ec;
+    std::random_device rd;
+    const fs::path dir = fs::temp_directory_path(ec) / ("sieda-plugin-" + std::to_string(rd()) + std::to_string(rd()));
+    fs::create_directories(dir, ec);
+    const fs::path file = dir / "project.siedaproj";
+    { std::ofstream(file, std::ios::binary) << design; }
+    std::string output;
+    bool timedOut = false;
+#ifdef _WIN32
+    if (sandbox) {
+        fs::remove_all(dir, ec);
+        return r["error"] = "Sandboxing plug-ins is not available on Windows: turn off Settings → General → Sandbox plug-ins "
+                            "to run them with your own rights.", r;
+    }
+    SetEnvironmentVariableA("SIEDA_PROJECT", file.string().c_str());
+    SetEnvironmentVariableA("SIEDA_PLUGIN", name.c_str());
+    SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
+    HANDLE readEnd = nullptr, writeEnd = nullptr;
+    CreatePipe(&readEnd, &writeEnd, &sa, 0);
+    SetHandleInformation(readEnd, HANDLE_FLAG_INHERIT, 0);
+    STARTUPINFOA si{};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdOutput = si.hStdError = writeEnd;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    PROCESS_INFORMATION pi{};
+    std::string cmd = "\"" + plugin.string() + "\"";
+    const bool started = CreateProcessA(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
+                                        dir.string().c_str(), &si, &pi);
+    CloseHandle(writeEnd);
+    if (!started) {
+        CloseHandle(readEnd);
+        fs::remove_all(dir, ec);
+        return r["error"] = "Could not start " + name, r;
+    }
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+    for (;;) {
+        DWORD avail = 0;
+        if (PeekNamedPipe(readEnd, nullptr, 0, nullptr, &avail, nullptr) && avail) {
+            char buf[4096];
+            DWORD got = 0;
+            if (ReadFile(readEnd, buf, std::min<DWORD>(avail, sizeof buf), &got, nullptr) && got && output.size() < 65536)
+                output.append(buf, got);
+            continue;
+        }
+        if (WaitForSingleObject(pi.hProcess, 50) == WAIT_OBJECT_0) {
+            DWORD got = 0;
+            char buf[4096];
+            while (PeekNamedPipe(readEnd, nullptr, 0, nullptr, &avail, nullptr) && avail &&
+                   ReadFile(readEnd, buf, std::min<DWORD>(avail, sizeof buf), &got, nullptr) && got)
+                if (output.size() < 65536) output.append(buf, got);
+            break;
+        }
+        if (std::chrono::steady_clock::now() > deadline) {
+            TerminateProcess(pi.hProcess, 1);
+            timedOut = true;
+            break;
+        }
+    }
+    CloseHandle(readEnd);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+#else
+    std::vector<std::string> args;
+    if (sandbox) {
+#ifdef __APPLE__
+        const std::string sb = "/usr/bin/sandbox-exec";
+        args = {sb, "-p",
+                "(version 1)(allow default)(deny network*)(deny file-write*)(allow file-write* (subpath \"" + dir.string() +
+                    "\") (subpath \"/private" + dir.string() + "\") (literal \"/dev/null\") (literal \"/dev/tty\"))",
+                plugin.string()};
+#else
+        const std::string bwrap = findInPath("bwrap");
+        if (bwrap.empty()) {
+            fs::remove_all(dir, ec);
+            return r["error"] = "Sandboxed plug-ins need bubblewrap (bwrap): install it (e.g. apt install bubblewrap), or "
+                                "turn off Settings → General → Sandbox plug-ins to run them with your own rights.", r;
+        }
+        args = {bwrap, "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "--bind", dir.string(),
+                dir.string(), "--unshare-net", "--die-with-parent", "--chdir", dir.string(), "--", plugin.string()};
+#endif
+    } else {
+        args = {plugin.string()};
+    }
+    int fds[2];
+    if (pipe(fds) != 0) return fs::remove_all(dir, ec), r["error"] = "Could not start " + name, r;
+    const pid_t pid = fork();
+    if (pid == 0) {
+        dup2(fds[1], 1), dup2(fds[1], 2);
+        close(fds[0]), close(fds[1]);
+        if (chdir(dir.c_str()) != 0) _exit(126);
+        setenv("SIEDA_PROJECT", file.c_str(), 1);
+        setenv("SIEDA_PLUGIN", name.c_str(), 1);
+        std::vector<char*> argv;
+        for (auto& a : args) argv.push_back(a.data());
+        argv.push_back(nullptr);
+        execv(argv[0], argv.data());
+        _exit(127);
+    }
+    close(fds[1]);
+    if (pid < 0) {
+        close(fds[0]);
+        fs::remove_all(dir, ec);
+        return r["error"] = "Could not start " + name, r;
+    }
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+    for (;;) {
+        pollfd p{fds[0], POLLIN, 0};
+        const int left = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count());
+        if (left <= 0) {
+            kill(pid, SIGKILL);
+            timedOut = true;
+            break;
+        }
+        if (poll(&p, 1, std::min(left, 500)) <= 0) continue;
+        char buf[4096];
+        const ssize_t got = read(fds[0], buf, sizeof buf);
+        if (got <= 0) break;
+        if (output.size() < 65536) output.append(buf, static_cast<size_t>(got));
+    }
+    close(fds[0]);
+    int status = 0;
+    waitpid(pid, &status, 0);
+    if (!timedOut && WIFEXITED(status) && WEXITSTATUS(status) == 127 && output.empty()) output = "Could not start " + name;
+#endif
+    if (output.size() > 65536) output.resize(65536);
+    if (timedOut) output += "\n(stopped after 120 s)";
+    std::ifstream in(file, std::ios::binary);
+    std::stringstream after;
+    after << in.rdbuf();
+    fs::remove_all(dir, ec);
+    r["output"] = output;
+    r["changed"] = after.str() != design && !timedOut;
+    if (after.str() != design && !timedOut) r["json"] = after.str();
+    return r;
+}
+
 /// Project files under the root (4 folders deep, at most 500), relative paths.
 Json projectFiles(const std::string& root) {
     Json list = Json::array();
@@ -216,6 +413,22 @@ int main(int argc, char** argv) {
     options.allowedRoot = home ? std::string(home) : fs::current_path(ec).string();
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
     options.lessonDirs = sieda::mcp::lessonDirsFromEnvironment();
+    {   // Built-in AI models: beside the executable (release archives carry sieda-circuit-v1.gguf), share/sieda/models,
+        // a build folder inside the source tree, then SIEDA_MODELS_DIRS.
+        const fs::path exe = fs::weakly_canonical(fs::absolute(argv[0], ec), ec).parent_path();
+        for (const fs::path& d : {exe, exe / ".." / "share" / "sieda" / "models", exe / ".." / "SiEDA" / "Resources" / "Models"})
+            if (fs::is_directory(d, ec)) options.modelDirs.push_back(fs::weakly_canonical(d, ec).string());
+        if (const char* env = std::getenv("SIEDA_MODELS_DIRS")) {
+#ifdef _WIN32
+            const char sep = ';';
+#else
+            const char sep = ':';
+#endif
+            std::stringstream ss(env);
+            for (std::string d; std::getline(ss, d, sep);)
+                if (!d.empty()) options.modelDirs.push_back(d);
+        }
+    }
     options.activityLog = sieda::mcp::defaultActivityLogDir();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -232,11 +445,12 @@ int main(int argc, char** argv) {
         else if (a == "--no-browser") browser = false;
         else if (a == "--library-dir") options.libraryDirs.push_back(fs::absolute(value(), ec).string());
         else if (a == "--lessons-dir") options.lessonDirs.push_back(fs::absolute(value(), ec).string());
+        else if (a == "--models-dir") options.modelDirs.push_back(fs::absolute(value(), ec).string());
         else if (a == "--activity-log") options.activityLog = fs::absolute(value(), ec).string();
         else if (a == "--no-activity-log") options.activityLog.clear();
         else if (a == "--version") return std::puts("sieda-studio " SIEDA_STUDIO_VERSION), 0;
         else {
-            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>]\n");
+            std::fprintf(stderr, "usage: sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir>] [--activity-log <dir> | --no-activity-log] [--lessons-dir <dir>] [--models-dir <dir>]\n");
             return 2;
         }
     }
@@ -309,6 +523,34 @@ int main(int argc, char** argv) {
             server.setActor(r.path == "/rpc" ? "user" : "");  // the page is the user; /mcp is an AI client
             const std::string out = server.handle(r.body);
             reply(client, 200, "application/json", out.empty() ? "{}" : out);
+        } else if (r.method == "GET" && r.path == "/plugins") {
+            Json j = Json::object();
+            j["folder"] = pluginFolder().string();
+            j["plugins"] = pluginList();
+            reply(client, 200, "application/json", j.dump());
+        } else if (r.method == "POST" && r.path == "/plugins/run") {
+            // The page asks; the design goes to the plug-in as saved JSON and its changes come back as one undo step.
+            Json ask;
+            try {
+                ask = Json::parse(r.body);
+            } catch (const std::exception&) {
+            }
+            server.setActor("user");
+            const Json exported = server.callTool("project_export_json", Json::object());
+            const std::string design = exported.get("content").items()[0].get("text").asString();
+            Json result = runPlugin(ask.get("name").asString(), design, ask.get("sandbox").asBool(true));
+            if (result.has("json")) {
+                Json args = Json::object();
+                args["json"] = result.get("json");
+                const Json applied = server.callTool("project_load_json", args);
+                if (applied.get("isError").asBool(false))
+                    result["output"] = result.get("output").asString() + "\n" +
+                                       applied.get("content").items()[0].get("text").asString();
+                else
+                    result["applied"] = true;
+                result["json"] = Json();
+            }
+            reply(client, 200, "application/json", result.dump());
         } else if (r.method == "POST" && r.path == "/quit") {
             reply(client, 200, "application/json", "{}");
             running = false;

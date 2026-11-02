@@ -27,7 +27,7 @@ jobs:
             cmake --build "/tmp/$dir" --parallel --target sieda-cli sieda-mcp sieda-studio
           done
           for tool in sieda-cli sieda-mcp sieda-studio; do cmp "/tmp/a/$tool" "/tmp/b/$tool"; done
-          mkdir dist && cp /tmp/a/sieda-cli /tmp/a/sieda-mcp /tmp/a/sieda-studio packaging/linux/sieda-studio.desktop packaging/linux/sieda-studio.png dist/
+          mkdir dist && cp /tmp/a/sieda-cli /tmp/a/sieda-mcp /tmp/a/sieda-studio packaging/linux/sieda-studio.desktop packaging/linux/sieda-studio.png SiEDA/Resources/Models/sieda-circuit-v1.gguf dist/
           tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
             -czf sieda-linux-x86_64.tar.gz -C dist .
       - uses: actions/upload-artifact@v4
@@ -51,8 +51,8 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSIEDA_BUILD_TESTS=OFF -DSIEDA_HARFBUZZ=OFF
           cmake --build build --parallel --target sieda-cli sieda-mcp sieda-studio
-          mkdir dist && cp build/sieda-cli.exe build/sieda-mcp.exe build/sieda-studio.exe dist/
-          cd dist && zip -9 ../sieda-windows-x86_64.zip *.exe
+          mkdir dist && cp build/sieda-cli.exe build/sieda-mcp.exe build/sieda-studio.exe SiEDA/Resources/Models/sieda-circuit-v1.gguf dist/
+          cd dist && zip -9 ../sieda-windows-x86_64.zip *.exe *.gguf
       - uses: actions/upload-artifact@v4
         with:
           name: windows

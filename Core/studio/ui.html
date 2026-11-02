@@ -91,9 +91,12 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
 <div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
 <div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
-<section data-tab="3D"><div class="row optbar"><label>View</label><select id="view3d" onchange="draw()"><option>iso</option><option>top</option><option>bottom</option><option>front</option><option>back</option><option>left</option><option>right</option></select></div><div class="view dark3d" id="v3d"></div></section>
-<section data-tab="Simulate"><div class="row optbar"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option></select>
-<span id="simArgs"></span><button class="primary" onclick="simulate()">Run</button></div><div id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
+<section data-tab="3D"><div class="row optbar"><label>Camera</label><select id="view3d" onchange="v3.pitch=v3.yaw=null;draw()"><option value="iso">Isometric</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="front">Front</option><option value="back">Back</option><option value="left">Left</option><option value="right">Right</option></select>
+<label>Explode</label><input id="explode3d" type="range" min="0" max="1" step="0.05" value="0" style="width:110px" onchange="draw()"><label><input type="checkbox" id="section3d" onchange="draw()"> Section</label><input id="sectionY" type="range" min="0" max="100" step="0.5" value="50" style="width:110px" onchange="if($('section3d').checked)draw()"><span id="sectionAt" class="info"></span>
+<label><input type="checkbox" id="fold3d" checked onchange="draw()"> Fold Flex</label><button onclick="v3.hidden.clear();v3.isolate=null;draw()">Show All</button><span class="info">Drag to orbit, Shift-drag pans, wheel zooms, click a part to pick it.</span></div>
+<div class="work"><aside class="side"><div class="card" style="flex:1;overflow:auto"><b>Parts</b><div id="parts3d"></div></div></aside><div class="view dark3d" id="v3d"></div><aside class="side"><div class="card"><b>Part</b><div id="pick3d" class="info">Click a part on the board.</div></div></aside></div></section>
+<section data-tab="Simulate"><div class="row optbar"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option><option value="live">Live (run the board)</option></select>
+<span id="simArgs"></span><button class="primary" id="simRun" onclick="simulate()">Run</button></div><div id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
 <section data-tab="Checks"><div class="row optbar"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
 <button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"><p class="info empty">Run ERC, DRC or Verify design to list every problem here.</p></div></section>
 <section data-tab="BOM"><div class="row optbar"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
@@ -101,9 +104,19 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <div class="row"><label>Repository</label><input id="repo" placeholder="owner/name" style="flex:1;min-width:200px"><label>Branch</label><input id="branch" value="main" style="width:110px"><button onclick="cloud('connect')">Connect</button></div>
 <div class="row" style="margin-top:8px"><input id="msg" placeholder="What changed (commit message)" style="flex:1;min-width:200px"><button onclick="cloud('pull')">Pull</button><button class="primary" onclick="cloud('push')">Push</button><button onclick="cloud('share')">Share links</button><button onclick="cloud('status')">Status</button></div></div>
 <div id="cloudOut"></div></section>
+<section data-tab="Git"><div class="row optbar"><b>Git</b><span id="gitFolder" class="info"></span><span style="flex:1"></span><label>Branch</label><select id="gitBranch" onchange="git('switch',{branch:this.value})"></select><button onclick="git('status')">Refresh</button></div>
+<div id="gitNoRepo" class="card" hidden><p class="info">This folder is not a Git repository.</p><button class="primary" onclick="git('init')">Create Repository Here</button></div>
+<div id="gitRepo" class="work" hidden><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="card"><b>Changes</b><pre id="gitChanges" style="max-height:120px;overflow:auto"></pre>
+<div class="row"><input id="gitMsg" placeholder="Commit message" style="flex:1"><button class="primary" onclick="if($('gitMsg').value.trim())git('commit',{message:$('gitMsg').value}).then(()=>$('gitMsg').value='')">Save and Commit All</button><button onclick="git('diff')">Show Changes</button></div>
+<div class="row" style="margin-top:6px"><input id="gitRef" placeholder="Branch or tag name" style="flex:1"><button onclick="git('branch',{branch:$('gitRef').value})">New Branch</button><button onclick="git('tag',{name:$('gitRef').value})">Tag</button><button onclick="git('pull')">Pull</button><button onclick="git('push')">Push</button></div></div>
+<div class="card" style="flex:1;overflow:auto"><b>History</b><pre id="gitLog"></pre></div></div><div class="card" style="flex:1;overflow:auto;min-width:0"><b>Diff</b><pre id="gitDiff" class="info">Show Changes lists what changed since the last commit.</pre></div></div>
+<div class="card"><div class="row"><input id="gitUrl" placeholder="Clone from URL" style="flex:1"><input id="gitDir" placeholder="into folder (inside the root)" style="width:200px"><button onclick="git('clone',{url:$('gitUrl').value,dir:$('gitDir').value||'.'})">Clone…</button></div><pre id="gitOut" class="info"></pre></div></section>
+<section data-tab="AI"><div class="row optbar"><b>Super Intelligence</b><label>Model</label><select id="aiModel" onchange="pref('studio.aiModel',this.value);aiModeShow()"></select><label>Mode</label><select id="aiMode" onchange="pref('studio.aiMode',this.value)"><option value="design">Design a circuit</option><option value="chat">Ask about this design</option></select><button onclick="aiModels()">Refresh</button><span id="aiInfo" class="info"></span></div>
+<div id="aiLog" class="card" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px"><p class="info">SiEDA's own AI runs on this computer: nothing leaves it. Choose a model, describe the circuit you need (e.g. “5 V linear regulator from 12 V”) and it is drawn on the schematic, or ask about the open design.</p></div>
+<div class="row" style="flex:none"><textarea id="aiInput" rows="2" style="flex:1;height:56px;min-height:56px;resize:vertical" placeholder="Describe a circuit or ask a question (Enter sends, Shift+Enter for a new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"></textarea><button class="primary" id="aiSendBtn" onclick="aiSend()">Send</button></div></section>
 <section data-tab="Tools"><div class="row"><input id="toolFilter" placeholder="Filter tools" oninput="listTools()" style="flex:1"><select id="tool" onchange="pickTool()" style="flex:2"></select></div>
 <div class="card"><div id="toolDesc" class="info"></div></div><textarea id="toolArgs">{}</textarea><div class="row"><button class="primary" onclick="runTool()">Run tool</button><span class="info">Every SiEDA feature is an MCP tool; arguments are JSON.</span></div><pre id="toolOut"></pre></section>
-</div><footer id="status">Ready.</footer>
+</div><footer id="status">Ready.</footer><span id="coBadge" hidden style="position:fixed;right:12px;bottom:4px;font-size:12.5px;padding:1px 8px;border-radius:9px;background:#2b8a3e;color:#fff;cursor:default"></span>
 <dialog id="dlg"><b id="dlgTitle"></b><ul id="dlgList"></ul><div class="row"><input id="dlgInput" style="flex:1"><button class="primary" id="dlgOk">OK</button><button onclick="dlg.close()">Cancel</button></div></dialog>
 <dialog id="formDlg"><b id="formTitle"></b><p id="formDesc" class="info"></p><div id="formFields"></div>
 <div class="row"><button class="primary" id="formRun">Run</button><button onclick="formDlg.close()">Close</button></div><pre id="formOut" hidden></pre><div id="formImg"></div></dialog>
@@ -120,6 +133,7 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <h4 data-en="Mouse and Trackpad">Mouse and Trackpad</h4>
 <label class="chk"><input type="checkbox" id="setWheel"><span data-en="Mouse wheel pans (hold Ctrl to zoom)">Mouse wheel pans (hold Ctrl to zoom)</span></label>
 <label class="chk"><input type="checkbox" id="setReverse"><span data-en="Reverse zoom direction">Reverse zoom direction</span></label>
+<h4 data-en="Plug-ins">Plug-ins</h4><label class="chk"><input type="checkbox" id="setPluginSandbox"><span data-en="Sandbox plug-ins (no network; they write only in their copy of the project)">Sandbox plug-ins (no network; they write only in their copy of the project)</span></label>
 <h4 data-en="Advanced">Advanced</h4><div class="row"><button onclick="exportSettings()" data-en="Export Settings…">Export Settings…</button><button onclick="$('setImport').click()" data-en="Import Settings…">Import Settings…</button>
 <input type="file" id="setImport" accept=".json,application/json" hidden onchange="importSettings(this.files[0])"><button onclick="resetSettings()" data-en="Reset All Preferences…">Reset All Preferences…</button></div></div>
 <div data-sp="appearance" hidden><div class="ff"><span data-en="App Theme">App Theme</span><select id="setTheme"><option value="navy">Midnight Navy</option>
@@ -150,7 +164,7 @@ async function run(name,args={}){status("Running "+name+"…");document.body.sty
   if(data&&data.committed===false)status(name+": not done. "+(data.note||(data.issues||[]).join("; "))+(data.tooClose?" ("+data.tooClose.join(", ")+")":""),"warning");else status(name+" done.","okc");return {data,img,svg};}finally{document.body.style.cursor="";}}
 async function act(name,args){const r=await run(name,args);const keep=$("status").textContent,cls=$("status").className;await refresh(true);status(keep,cls);return r;}
 async function refresh(force){const s=await (await fetch("/state",{headers:{"X-Sieda-Token":TOKEN}})).json();state=s;
- if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev)scheduleAutosave();rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;layerOptions();}catch{}draw();}
+ if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev){scheduleAutosave();if(sim.on)setTimeout(liveStart);}rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;state.board=sum.board;layerOptions();}catch{}draw();}
 const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
 function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
  const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
@@ -178,7 +192,7 @@ function padAt(pt,lim){let best=null,d0=lim;for(const p of snap.pads||[]){const 
 function boardPart(pt){const cs=snap.courtyards||[];for(const k of cs)if(pt[0]>=k.x0&&pt[0]<=k.x1&&pt[1]>=k.y0&&pt[1]<=k.y1)return(snap.components||[]).find(c=>c.id===k.component);return null;}
 const padName=p=>{const c=(snap.components||[]).find(c=>c.id===p.component);return c?c.ref+"."+((c.pins||[])[p.pin]||{name:p.number}).name:"";};
 const netName=i=>((snap.nets||[]).find(n=>n.index===i)||{}).name;
-function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
+function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();if(el.id==="v3d"){const i=el.querySelector("img"),q=v3.picks.find(p=>p.ref===v3.picked);if(i&&q){o.setAttribute("viewBox",`0 0 ${i.naturalWidth} ${i.naturalHeight}`);const [x0,y0,x1,y1]=q.box;shape(o,"rect",{x:x0,y:y0,width:x1-x0,height:y1-y0,fill:"none",stroke:"#ffd43b","stroke-width":2,"stroke-dasharray":"6 4"});}return;}const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
  if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"none",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}
  if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"none",stroke:"#5b8dff","stroke-width":0.2,"stroke-dasharray":"0.6 0.4"});}
  if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});
@@ -436,9 +450,9 @@ async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
  if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
  if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];if(l[0]==="i")args.layers=[+l.slice(1)];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
- if(tab==="3D"){const r=await run("render_3d",{view:$("view3d").value,width:1200});showImage("v3d","data:image/png;base64,"+r.img);}
- if(tab==="BOM")bom();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
-function simForm(){const k=$("simKind").value;$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
+ if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
+ if(tab==="BOM")bom();if(tab==="Git")git("status");if(tab==="AI"&&!$("aiModel").options.length)aiModels();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
+function simForm(){const k=$("simKind").value;if(k!=="live")liveStop();$("simRun").hidden=k==="live";if(k==="live"){liveForm();return;}$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
  :k==="ac"?`<label>From</label> <input id="simStart" value="1" style="width:80px"> <label>To</label> <input id="simStop" value="1MEG" style="width:90px">`:"";}
 const fmt=v=>{const a=Math.abs(v);if(!isFinite(v))return"—";if(a!==0&&(a<1e-3||a>=1e4))return v.toExponential(3);return(+v.toPrecision(5)).toString();};
 function plot(xs,series,opt){const W=900,H=320,L=64,R=16,T=14,B=36,el=document.createElementNS(NS,"svg");el.setAttribute("viewBox",`0 0 ${W} ${H}`);el.setAttribute("class","plot");
@@ -460,6 +474,125 @@ async function simulate(){const k=$("simKind").value,out=$("simOut");out.replace
   const r=await run("sim_ac",{start:$("simStart").value,stop:$("simStop").value,maxPoints:300});out.append(plot(r.data.frequency,r.data.nets.map(n=>({name:n.name+" (dB)",values:n.magnitudeDb})),{xlabel:"frequency (Hz)",logx:true}));
   out.insertAdjacentHTML("beforeend","<table style='margin-top:10px'><tr><th>Net</th><th>−3 dB (Hz)</th><th>Peak (dB)</th><th>Phase margin (°)</th></tr>"+r.data.nets.map(n=>`<tr><td>${esc(n.name)}</td><td>${n.metrics.f3dbHz?fmt(n.metrics.f3dbHz):"—"}</td><td>${fmt(n.metrics.peakDb)}</td><td>${n.metrics.phaseMarginDeg!=null?fmt(n.metrics.phaseMarginDeg):"—"}</td></tr>`).join("")+"</table>");}
  catch(e){out.innerHTML=`<pre class=error>${esc(e.message)}</pre>`;}}
+// Live simulation (MCP sim_live / sim_firmware), as the macOS LiveSimulation: simulated time follows the wall clock
+// times the speed, LEDs glow with their current, switches are clicked while it runs, a serial monitor per MCU, a scope.
+const LIVE_SPEEDS=[0.01,0.1,1,10],LIVE_RES=[10e-6,50e-6,100e-6,500e-6];
+let sim={on:false,paused:false,timer:0,last:0,st:null,pending:[],scopeT:[],scopeV:{},nets:new Set(),window:2,rtf:0};
+async function liveCall(args){const r=await rpc("tools/call",{name:"sim_live",arguments:args});const t=(r.content||[]).find(c=>c.type==="text");const d=t?JSON.parse(t.text||"{}"):{};if(r.isError)throw new Error(d.text||t&&t.text||"failed");return d;}
+function liveForm(){const o=(a,v,f)=>a.map(x=>`<option value="${x}"${x===v?" selected":""}>${f(x)}</option>`).join("");
+ $("simArgs").innerHTML=`<label>${tr("Speed")}</label> <select id="liveSpeed">${o(LIVE_SPEEDS,+pref("studio.liveSpeed")||1,x=>x+"×")}</select> <label>${tr("Resolution")}</label> <select id="liveRes">${o(LIVE_RES,+pref("studio.liveRes")||50e-6,x=>Math.round(x*1e6)+" µs")}</select>
+ <button class="primary" id="liveGo" onclick="sim.on?liveStop():liveStart()">${tr(sim.on?"Stop":"Start")}</button> <button id="livePause" onclick="sim.paused=!sim.paused;liveView()" ${sim.on?"":"disabled"}>${tr(sim.paused?"Resume":"Pause")}</button> <span id="liveRtf" class="info"></span>`;
+ $("liveSpeed").onchange=e=>pref("studio.liveSpeed",e.target.value);$("liveRes").onchange=e=>pref("studio.liveRes",e.target.value);liveFirmware();}
+async function liveFirmware(){try{await loadSnap();}catch{}const mcus=(snap.components||[]).filter(c=>c.mcu);if(!mcus.length){if(!sim.on)$("simOut").innerHTML=`<p class="info empty">${tr("Click Start to run the board: LEDs light, switches click and microcontrollers run their firmware.")}</p>`;return;}
+ let ex=[];try{ex=(await run("sim_firmware",{action:"examples"})).data.examples||[];}catch{}
+ if(sim.on)return;$("simOut").innerHTML=`<div class="card"><b>${tr("Firmware")}</b>`+mcus.map(c=>`<div class="row" style="margin-top:6px"><b style="width:60px">${esc(c.ref)}</b><span class="info" style="width:220px">${esc(c.mcu.firmwareName||tr("No firmware"))}</span>
+  <select data-fw="${c.id}"><option value="">${tr("Example…")}</option>${ex.map(e=>`<option value="${esc(e.id)}">${esc(e.name)} (${esc(e.model)})</option>`).join("")}</select>
+  <button onclick="liveHex(${c.id})">${tr("Load .hex…")}</button><button onclick="act('sim_firmware',{action:'clear',component:${c.id}}).then(liveFirmware)">${tr("Clear")}</button></div>`).join("")+`</div>`;
+ for(const s of document.querySelectorAll("[data-fw]"))s.onchange=async e=>{if(e.target.value){await act("sim_firmware",{action:"set",component:+e.target.dataset.fw,example:e.target.value});liveFirmware();}};}
+function liveHex(id){const files=(state.files||[]).filter(f=>/\.hex$/i.test(f));ask("Firmware (.hex) for the microcontroller",files.map(f=>({t:f,v:f})),"",p=>act("sim_firmware",{action:"set",component:id,path:p}).then(liveFirmware));}
+async function liveStart(){liveStop();try{await loadSnap();sim.st=await liveCall({action:"start"});}catch(e){$("simOut").innerHTML=`<pre class=error>${esc(e.message)}</pre>`;return;}
+ sim.on=true;sim.paused=false;sim.scopeT=[];sim.scopeV={};const idx=new Set((sim.st.nets||[]).map(n=>n.index));if(![...sim.nets].every(i=>idx.has(i))||!sim.nets.size)sim.nets=new Set((sim.st.nets||[]).slice(0,2).map(n=>n.index));
+ sim.last=performance.now();status(tr("Live simulation running"),"okc");liveForm();liveView();liveTick();}
+function liveStop(){clearTimeout(sim.timer);if(sim.on){sim.on=false;liveCall({action:"stop"}).catch(()=>{});status(tr("Live simulation stopped"));if($("liveGo"))liveForm();}}
+async function liveTick(){if(!sim.on)return;const now=performance.now(),wall=Math.min((now-sim.last)/1000,0.2);sim.last=now;
+ if(!sim.paused){const speed=+$("liveSpeed").value,res=+$("liveRes").value,duration=Math.max(res,wall*speed),t0=performance.now();
+  try{for(const p of sim.pending.splice(0))await liveCall(p);const st=await liveCall({action:"run",duration,step:Math.min(res,duration),tracePoints:120});if(!sim.on)return;sim.st=st;liveScope(st.trace||{});sim.rtf=duration/Math.max(wall,(performance.now()-t0)/1000,1e-3);liveView();}
+  catch(e){sim.on=false;liveForm();$("simOut").innerHTML=`<pre class=error>${esc(e.message)}</pre>`;return;}}
+ else liveView();sim.timer=setTimeout(liveTick,33);}
+function liveScope(tr_){const T=tr_.time||[];if(!T.length)return;const n0=sim.scopeT.length;sim.scopeT.push(...T);
+ for(const s of tr_.nets||[]){if(!sim.nets.has(s.index))continue;const v=sim.scopeV[s.index]||(sim.scopeV[s.index]={name:s.name,values:Array(n0).fill(s.values[0]||0)});v.values.push(...s.values);}
+ const cut=sim.scopeT[sim.scopeT.length-1]-sim.window;let drop=sim.scopeT.findIndex(t=>t>=cut);drop=Math.max(drop,sim.scopeT.length-4000,0);
+ if(drop>0){sim.scopeT.splice(0,drop);for(const k in sim.scopeV)sim.scopeV[k].values.splice(0,drop);}for(const k in sim.scopeV)if(!sim.nets.has(+k))delete sim.scopeV[k];}
+function livePress(id,down){const s=(sim.st.switches||[]).find(x=>x.component===id);if(!s)return;let closed;if(s.momentary)closed=down;else{if(!down)return;closed=!s.closed;}s.closed=closed;sim.pending.push({action:"switch",component:id,closed});liveView();}
+function liveSend(id){const i=$("ser"+id);if(!i.value)return;sim.pending.push({action:"serial",component:id,text:i.value+"\n"});i.value="";}
+function liveView(){const st=sim.st||{},out=$("simOut");if(!sim.on&&!st.time)return;if($("liveRtf"))$("liveRtf").textContent=`t = ${fmt(st.time||0)} s · ${sim.paused?tr("Paused"):sim.rtf.toFixed(2)+"× "+tr("real time")}`;
+ if($("livePause"))$("livePause").textContent=tr(sim.paused?"Resume":"Pause");
+ let box=$("liveBox");if(!box){out.innerHTML=`<div id="liveBox"><div class="row" id="liveParts"></div><div class="card"><b>${tr("Scope")}</b> <span id="liveNets"></span><div id="liveScope"></div></div><div id="liveMcus"></div><div class="card"><b>${tr("Nets")}</b><div id="liveVolts"></div></div></div>`;box=$("liveBox");}
+ $("liveParts").innerHTML=(st.leds||[]).map(l=>`<div class="card" style="text-align:center;min-width:70px"><div style="width:26px;height:26px;margin:auto;border-radius:50%;background:rgba(255,${80+120*l.brightness|0},40,${0.15+0.85*l.brightness});box-shadow:0 0 ${18*l.brightness|0}px rgba(255,120,40,${l.brightness})"></div>${esc(l.ref)}<div class=info>${fmt(l.current*1000)} mA</div></div>`).join("")
+  +(st.switches||[]).map(s=>`<div class="card" style="text-align:center;min-width:70px"><button data-sw="${s.component}" class="${s.closed?"primary":""}">${esc(s.ref)}</button><div class=info>${tr(s.closed?"Closed":"Open")}${s.momentary?" · "+tr("push"):""}</div></div>`).join("");
+ for(const b of document.querySelectorAll("[data-sw]")){const id=+b.dataset.sw;b.onmousedown=()=>livePress(id,true);b.onmouseup=b.onmouseleave=()=>livePress(id,false);}
+ $("liveNets").innerHTML=(st.nets||[]).map(n=>`<label style="margin-right:8px"><input type="checkbox" data-sn="${n.index}"${sim.nets.has(n.index)?" checked":""}> ${esc(n.name)}</label>`).join("");
+ for(const c of document.querySelectorAll("[data-sn]"))c.onchange=e=>{const i=+e.target.dataset.sn;e.target.checked?sim.nets.add(i):sim.nets.delete(i);};
+ const ser=Object.values(sim.scopeV);$("liveScope").replaceChildren(ser.length&&sim.scopeT.length>1?plot(sim.scopeT,ser,{xlabel:"time (s)"}):document.createTextNode(""));
+ const mc=$("liveMcus");for(const m of st.mcus||[]){let c=$("mcu"+m.component);if(!c){mc.insertAdjacentHTML("beforeend",`<div class="card" id="mcu${m.component}"><b>${esc(m.ref)}</b> <span class=info data-ms></span><pre class="serial" style="max-height:160px;overflow:auto;background:#0f1520;color:#9fe59f;padding:6px"></pre><div class=row><input id="ser${m.component}" placeholder="${tr("Send to the serial port")}" onkeydown="if(event.key==='Enter')liveSend(${m.component})" style="flex:1"><button onclick="liveSend(${m.component})">${tr("Send")}</button></div></div>`);c=$("mcu"+m.component);}
+  c.querySelector("[data-ms]").textContent=`${m.model} · ${m.status||""} · ${(m.clockHz/1e6).toFixed(1)} MHz`;const pre=c.querySelector("pre");if(pre.textContent!==m.serial){pre.textContent=m.serial||"";pre.scrollTop=pre.scrollHeight;}}
+ $("liveVolts").innerHTML="<table><tr><th>Net</th><th>Voltage (V)</th></tr>"+(st.nets||[]).map(n=>`<tr><td>${esc(n.name)}</td><td>${fmt(n.voltage)}</td></tr>`).join("")+"</table>";}
+// Interactive 3D (MCP render_3d), as the macOS 3D view: orbit by dragging (pitch / yaw), camera presets, parts hidden or
+// isolated, explode, section cut, rigid-flex fold, and a click picks a part (render_3d picks) to show it in the editors.
+let v3={pitch:null,yaw:null,hidden:new Set(),isolate:null,picks:[],picked:null,busy:false,again:0};
+const VIEW_ANGLES={iso:[34.4,31.5],top:[89.99,0],bottom:[-89.99,0],front:[11.5,0],back:[11.5,180],left:[11.5,-90],right:[11.5,90]};
+function args3d(width){const a={view:$("view3d").value,width,picks:true,explode:+$("explode3d").value,fold:$("fold3d").checked};if(v3.pitch!=null){a.pitch=v3.pitch;a.yaw=v3.yaw;}
+ if(v3.hidden.size)a.hide=[...v3.hidden];if(v3.isolate)a.isolate=[v3.isolate];
+ const h=(state.board||{}).height||100;if($("section3d").checked){a.section=+$("sectionY").value/100*h;$("sectionAt").textContent=`y = ${a.section.toFixed(1)} mm`;}else $("sectionAt").textContent="";return a;}
+async function render3d(width){if(v3.busy){v3.again=width;return;}v3.busy=true;
+ try{const r=await rpc("tools/call",{name:"render_3d",arguments:args3d(width)});const img=(r.content||[]).find(c=>c.type==="image"),t=(r.content||[]).find(c=>c.type==="text");
+  if(r.isError)throw new Error(t&&t.text);v3.picks=(t?JSON.parse(t.text).parts:null)||[];showImage("v3d","data:image/png;base64,"+img.data);}catch(e){status("render_3d: "+e.message,"error");}
+ finally{v3.busy=false;if(v3.again){const w=v3.again;v3.again=0;render3d(w);}}}
+function parts3d(){const list=(snap.components||[]).filter(c=>c.pcb&&c.pcb.placed!==false&&c.footprint);
+ $("parts3d").innerHTML=list.map(c=>`<div class="row" style="gap:4px;margin:2px 0"><input type="checkbox" title="${tr("Show")}" data-h3="${esc(c.ref)}" style="width:auto"${v3.hidden.has(c.ref)?"":" checked"}><a href="#" data-p3="${esc(c.ref)}" style="flex:1;color:inherit;text-decoration:none">${esc(c.ref)} <span class=info>${esc(c.value||"")}</span></a><button data-i3="${esc(c.ref)}" class="${v3.isolate===c.ref?"primary":""}" title="${tr("Show only this part")}">${tr("Only")}</button></div>`).join("")||`<span class=info>${tr("No parts on the board yet.")}</span>`;
+ for(const e of document.querySelectorAll("[data-h3]"))e.onchange=()=>{e.checked?v3.hidden.delete(e.dataset.h3):v3.hidden.add(e.dataset.h3);render3d(1200);};
+ for(const e of document.querySelectorAll("[data-i3]"))e.onclick=()=>{v3.isolate=v3.isolate===e.dataset.i3?null:e.dataset.i3;parts3d();render3d(1200);};
+ for(const e of document.querySelectorAll("[data-p3]"))e.onclick=ev=>{ev.preventDefault();pick3d(e.dataset.p3);};}
+function pick3d(ref){v3.picked=ref;const c=(snap.components||[]).find(c=>c.ref===ref);if(!c){$("pick3d").textContent=tr("Click a part on the board.");return;}const b=c.pcb||{};
+ $("pick3d").innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.value||"")}</div><div class=info>${esc(c.footprint||"")}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation||0}° · ${tr(b.bottom?"bottom":"top")}</div>
+ <div class="row" style="margin-top:6px;flex-wrap:wrap"><button onclick="probe3d('Board')">${tr("Show in PCB")}</button><button onclick="probe3d('Schematic')">${tr("Show in Schematic")}</button><button onclick="v3.hidden.add(v3.picked);parts3d();render3d(1200)">${tr("Hide")}</button><button onclick="v3.isolate=v3.picked;parts3d();render3d(1200)">${tr("Only")}</button></div>`;
+ for(const e of document.querySelectorAll("[data-p3]"))e.style.fontWeight=e.dataset.p3===ref?"700":"";overlay($("v3d"));}
+async function probe3d(tab){const ref=v3.picked,c=(snap.components||[]).find(c=>c.ref===ref)||{};if(tab==="Schematic"&&c.sheet)$("sheet").value=c.sheet;await selectTab(tab);selectPart(tab==="Board"?"pcb":"sch",ref);}
+function orbit3d(){const el=$("v3d");panZoom(el);
+ el.onpress=(at,e)=>{if(e.shiftKey)return false;const [p0,y0]=v3.pitch!=null?[v3.pitch,v3.yaw]:VIEW_ANGLES[$("view3d").value];const start={x:e.clientX,y:e.clientY,p0,y0,moved:false,i:el.querySelector("img")};
+  const move=ev=>{const dx=ev.clientX-start.x,dy=ev.clientY-start.y;if(!start.moved&&Math.hypot(dx,dy)<4)return;start.moved=true;v3.yaw=((start.y0-dx*0.5)%360+540)%360-180;v3.pitch=Math.max(-89.9,Math.min(89.9,start.p0+dy*0.4));render3d(560);};
+  const up=ev=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);if(start.moved){render3d(1200);return;}
+   const v=views.v3d,i=start.i;if(!i)return;const r=el.getBoundingClientRect(),px=(ev.clientX-r.left-v.x)/v.k,py=(ev.clientY-r.top-v.y)/v.k;
+   let best=null;for(const p of v3.picks){const [x0,y0,x1,y1]=p.box;if(px>=x0&&px<=x1&&py>=y0&&py<=y1){const a=(x1-x0)*(y1-y0);if(!best||a<best.a)best={ref:p.ref,a};}}
+   if(best)pick3d(best.ref);};
+  addEventListener("mousemove",move);addEventListener("mouseup",up);return true;};}
+// Git (MCP project_git), as the macOS app's Git window: the project's folder — status, commit, diff, branches, tags,
+// pull / push, history and clone.
+async function git(action,args={}){$("gitOut").textContent="git "+action+"…";
+ try{const r=await run("project_git",{action,...args}),d=r.data;$("gitFolder").textContent=d.folder||"";$("gitOut").textContent=d.output||"";
+  if(d.diff!==undefined){$("gitDiff").className="";$("gitDiff").innerHTML=esc((d.stat?d.stat+"\n\n":"")+(d.diff||tr("No changes"))).split("\n").map(l=>l[0]==="+"&&!l.startsWith("+++")?`<span style="color:#51cf66">${l}</span>`:l[0]==="-"&&!l.startsWith("---")?`<span style="color:#ff6b6b">${l}</span>`:l).join("\n");}
+  if(d.repository===false){$("gitNoRepo").hidden=false;$("gitRepo").hidden=true;$("gitBranch").replaceChildren();return;}
+  if(d.repository){$("gitNoRepo").hidden=true;$("gitRepo").hidden=false;$("gitChanges").textContent=(d.changes||[]).join("\n")||tr("No changes");$("gitLog").textContent=(d.history||[]).join("\n");
+   $("gitBranch").innerHTML=(d.branches||[]).map(b=>`<option${b===d.branch?" selected":""}>${esc(b)}</option>`).join("");}
+  if(action==="init")return git("status");if(["switch","pull","clone","commit"].includes(action))refresh(true);}
+ catch(e){$("gitOut").textContent=e.message;}}
+// Live collaboration (MCP project_live), as the macOS app's: each edit is saved to the shared file a second later, the
+// file is checked every 2 s and a teammate's save merged in (three-way), and who else has it open shows in the corner.
+let co={on:false,timer:0,saveT:0,busy:false,conflicts:[]};
+async function coToggle(){if(co.on){co.on=false;clearInterval(co.timer);clearTimeout(co.saveT);try{await run("project_live",{action:"leave"});}catch{}$("coBadge").hidden=true;status(tr("Live collaboration off"));return;}
+ if(!state.project){status(tr("Save the project in a shared folder first (Save As…)."),"warning");return;}
+ const user=pref("studio.userName")||prompt(tr("Your name shown to the others"),"");if(user)pref("studio.userName",user);
+ try{const r=await run("project_live",{action:"join",...(user?{user}:{})});co.on=true;co.conflicts=[];coBadge(r.data);co.timer=setInterval(()=>coSync(false),2000);status(tr("Live collaboration on"),"okc");}catch{}}
+async function coSync(save){if(!co.on||co.busy)return;co.busy=true;
+ try{const r=await rpc("tools/call",{name:"project_live",arguments:{action:"sync",save}});const t=(r.content||[]).find(c=>c.type==="text"),d=t?JSON.parse(t.text):{};
+  if(r.isError){status("project_live: "+(t&&t.text),"error");return;}
+  if(d.merged){co.conflicts=d.conflicts||[];await refresh(true);status(co.conflicts.length?tr("Merged a teammate's changes")+" — "+co.conflicts.length+" "+tr("conflicting field(s) kept yours"):tr("Merged a teammate's changes"),co.conflicts.length?"warning":"okc");}
+  else if(d.note)status(d.note,"warning");coBadge(d);}catch{}finally{co.busy=false;}}
+function coBadge(d){const b=$("coBadge"),peers=(d.peers||[]).map(p=>p.user);b.hidden=false;b.textContent="● "+tr("Live")+(peers.length?" · "+peers.join(", "):"")+(co.conflicts.length?" · "+co.conflicts.length+" ⚠":"");
+ b.title=(peers.length?tr("Also editing")+": "+(d.peers||[]).map(p=>p.user+" ("+p.host+")").join(", "):tr("No one else has the file open"))+(co.conflicts.length?"\n"+co.conflicts.join("\n"):"");}
+// Super Intelligence (MCP project_assistant), as the macOS window's Local / Own LLM: SiEDA's engine runs a .gguf model on
+// this computer; Design adds the planned circuit to the schematic, Ask answers about the open design.
+async function aiModels(){try{const d=(await run("project_assistant",{action:"models"})).data,m=d.models||[],keep=pref("studio.aiModel");
+ $("aiModel").innerHTML=m.map(x=>`<option value="${esc(x.file)}"${x.file===keep?" selected":""}>${esc(x.file)} (${x.megabytes} MB${x.circuit?", "+tr("SiEDA circuit model"):""})</option>`).join("");
+ $("aiMode").value=pref("studio.aiMode")||"design";$("aiInfo").textContent=m.length?"":tr("No models yet: put a .gguf file in the root's Models folder.");aiModeShow();}catch{}}
+function aiModeShow(){const c=/^sieda-circuit/.test($("aiModel").value);$("aiMode").disabled=c;if(c)$("aiMode").value="design";}
+function aiBubble(who,html){const d=document.createElement("div");d.className="card";d.style.cssText=who==="me"?"align-self:flex-end;max-width:75%;background:var(--accent,#3b6fe0);color:#fff":"align-self:flex-start;max-width:85%";d.innerHTML=html;$("aiLog").append(d);$("aiLog").scrollTop=$("aiLog").scrollHeight;return d;}
+async function aiSend(){const msg=$("aiInput").value.trim(),model=$("aiModel").value;if(!msg||!model)return;$("aiInput").value="";aiBubble("me",esc(msg));
+ const b=aiBubble("ai",`<span class=info>${tr("Thinking…")}</span>`),t0=performance.now();$("aiSendBtn").disabled=true;
+ try{const r=await run("project_assistant",{action:"ask",model,message:msg,mode:$("aiMode").value}),d=r.data,sec=((performance.now()-t0)/1000).toFixed(1);
+  if(d.added){b.innerHTML=`<b>${esc(d.title||tr("Circuit"))}</b><div>${tr("Added to the schematic")}: ${esc(d.added.join(", "))} · ${d.links} ${tr("links")}</div>`+(d.failed?`<div class=warning>${esc(d.failed.join("; "))}</div>`:"")+`<div class=info>${sec} s</div><button onclick="selectTab('Schematic')">${tr("Show in Schematic")}</button> <button onclick="act('project_undo',{})">${tr("Undo")}</button>`;await refresh(true);}
+  else b.innerHTML=(d.note?`<div class=warning>${esc(d.note)}</div>`:"")+`<div style="white-space:pre-wrap">${esc(d.reply||JSON.stringify(d.plan||{},null,1))}</div><div class=info>${sec} s</div>`;}
+ catch(e){b.innerHTML=`<span class=error>${esc(e.message)}</span>`;}finally{$("aiSendBtn").disabled=false;}}
+// Plug-ins (the macOS app's Design → Plug-ins): executables in the user's plug-in folder, run by Studio itself on a copy
+// of the design (SIEDA_PROJECT); a changed copy replaces the design as one undo step.
+async function plugins(){const r=await (await fetch("/plugins",{headers:{"X-Sieda-Token":TOKEN}})).json(),list=r.plugins||[];
+ ask(tr("Plug-ins")+" — "+r.folder,list.length?list.map(n=>({t:n,v:n})):[{t:tr("No plug-ins yet: put an executable script in this folder."),v:""}],"",n=>{if(n)runPlugin(n);});$("dlgInput").hidden=true;dlg.addEventListener("close",()=>$("dlgInput").hidden=false,{once:true});}
+async function runPlugin(name){status(tr("Running")+" "+name+"…");
+ try{const r=await (await fetch("/plugins/run",{method:"POST",headers:{"X-Sieda-Token":TOKEN,"Content-Type":"application/json"},body:JSON.stringify({name,sandbox:pref("studio.pluginSandbox")!=="0"})})).json();
+  if(r.error){status(r.error,"error");return;}if(r.applied)await refresh(true);
+  status(name+": "+(r.applied?tr("design changed (Undo takes it back)"):tr("no changes to the design")),r.applied?"okc":"");
+  if((r.output||"").trim()){$("formTitle").textContent=name;$("formDesc").textContent="";$("formFields").replaceChildren();$("formRun").hidden=true;$("formOut").hidden=false;$("formOut").textContent=r.output;$("formImg").replaceChildren();formDlg.showModal();formDlg.addEventListener("close",()=>$("formRun").hidden=false,{once:true});}}
+ catch(e){status(e.message,"error");}}
 function showChecks(r){const v=r.data.violations||[];$("checkSummary").innerHTML=`<span class="${r.data.errors?"error":r.data.warnings?"warning":"okc"}">${esc(r.data.status||"")}: ${r.data.errors||0} errors, ${r.data.warnings||0} warnings, ${r.data.infos||0} notes</span>`;
  $("checks").innerHTML=v.length?"<table><tr><th>Severity</th><th>Code</th><th>Message</th><th>Parts</th></tr>"+v.map(x=>`<tr><td class="${esc(x.severity)}">${esc(x.severity)}</td><td>${esc(x.code)}</td><td>${esc(x.message)}</td><td>${esc((x.refs||[]).join(", "))}</td></tr>`).join("")+"</table>":"<p class=okc>Nothing to report.</p>";selectTab("Checks");}
 async function verify(){const r=await run("verify_design",{});const rows=[];for(const s of r.data.stages||[])for(const f of s.findings||[])rows.push(f);showChecks({data:{status:r.data.passed?"passed":"failed",errors:r.data.errors,warnings:r.data.warnings,infos:r.data.infos,violations:rows.map(f=>({severity:f.severity,code:f.code,message:f.message,refs:[]}))}});}
@@ -509,14 +642,15 @@ const MENUS={
   ["Check Partitions Against Base…",F("pcb_partitions",{action:"check"})],["Routing Policy…",F("pcb_routing_policies")],["Check Variants",()=>variantCheck()],0,
   ["Team Rule Pack"],["Save Rule Pack…",F("pcb_rule_pack",{action:"save",path:"team.rules.json"})],["Apply Rule Pack…",F("pcb_rule_pack",{action:"apply",path:"team.rules.json"})],
   ["Compare with Rule Pack…",F("pcb_rule_pack",{action:"check",path:"team.rules.json"})],0,
-  ["Industry Profile…",F("project_set_info")],["Design Rules…",F("pcb_set_board")],["Verify Design",()=>{selectTab("Checks");verify();}]],
+  ["Industry Profile…",F("project_set_info")],["Design Rules…",F("pcb_set_board")],["Verify Design",()=>{selectTab("Checks");verify();}],["Plug-ins…",()=>plugins()]],
  "Board Setup":[["Board…",F("pcb_set_board")],["Board Outline…",F("pcb_set_outline")],["Stack-up…",F("pcb_set_stackup")],["Blind / Buried Vias (HDI)…",F("pcb_set_hdi")],
   ["Manufacturer Rules…",F("pcb_dfm_pack")],["Custom Rules…",F("pcb_custom_rules")],["Net Widths…",F("pcb_set_net_width")],["Length Rules…",F("pcb_length_rules")],
   ["Pair Rules…",F("pcb_pair_rules")],["Keep-outs…",F("pcb_set_keepouts")],["Mechanical Limits…",F("pcb_mechanical_limits")],["Production Panel…",F("pcb_panel")],
   ["Copper Thieving…",F("pcb_copper_thieving")],["Boards…",F("pcb_boards")],["Signal Integrity…",F("si_set_options")],["Field Solver…",F("si_field_solver")]],
  "Team":[["Company Library…",()=>companyLibrary()],["Compare with Another Version…",F("project_diff")],["Merge Versions…",F("project_merge")],
   ["Design Review…",F("project_review_comments")],["Add Review Comment…",F("project_review_comment")],["Approvals…",F("verify_approvals")],
-  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")]],
+  ["Requirements…",F("verify_requirements")],["Measurements…",F("verify_measurements")],["Waivers…",F("verify_waivers")],["Cloud Sync",()=>selectTab("Cloud")],["Git…",()=>selectTab("Git")],["Live Collaboration",()=>coToggle()]],
+ "Window":[["Super Intelligence",()=>selectTab("AI")]],
  "Help":[["Lessons…",()=>lessons()],["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
 function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
   it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");
@@ -601,7 +735,7 @@ function settings(){$("setTheme").value=pref("studio.theme")||"navy";$("setLang"
  $("setLang").value=pref("studio.lang")||"en";$("setTheme").onchange=()=>setTheme(pref("studio.theme",$("setTheme").value));
  $("setLang").onchange=()=>setLanguage(pref("studio.lang",$("setLang").value));
  const box=(id,key,on)=>{$(id).checked=on?pref(key)!=="0":pref(key)==="1";$(id).onchange=()=>pref(key,$(id).checked?"1":"0");};
- box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");
+ box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");box("setPluginSandbox","studio.pluginSandbox",true);
  const field=(id,key,def)=>{$(id).value=pref(key)||def;$(id).onchange=()=>pref(key,$(id).value);};
  field("setFolder","studio.projectFolder","");field("setDelay","studio.autosaveSeconds","3");field("setLayers","studio.newLayers","");field("setTrack","studio.newTrack","");field("setClear","studio.newClear","");
  const pane=n=>{document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st===n));document.querySelectorAll("#setDlg [data-sp]").forEach(d=>d.hidden=d.dataset.sp!==n);};
@@ -614,7 +748,7 @@ async function importSettings(file){if(!file)return;try{const j=JSON.parse(await
 function resetSettings(){if(!confirm(tr("Reset all preferences?")))return;try{Object.keys(studioKeys()).forEach(k=>localStorage.removeItem(k));}catch{}location.reload();}
 // Settings › General: save the open project a pause after each change; give a new project the chosen layers / track / clearance.
 let autosaveTimer=null;
-function scheduleAutosave(){clearTimeout(autosaveTimer);if(pref("studio.autosave")!=="1"||!state.project)return;
+function scheduleAutosave(){clearTimeout(autosaveTimer);if(co.on){clearTimeout(co.saveT);co.saveT=setTimeout(()=>coSync(true),1000);return;}if(pref("studio.autosave")!=="1"||!state.project)return;
  autosaveTimer=setTimeout(()=>run("project_save",{}).catch(()=>{}),1000*(Number(pref("studio.autosaveSeconds"))||3));}
 async function applyNewProjectDefaults(){const a={},n=k=>Number(pref(k));if([1,2,4,6].includes(n("studio.newLayers")))a.layers=n("studio.newLayers");
  if(n("studio.newTrack")>0.05)a.trackWidth=n("studio.newTrack");if(n("studio.newClear")>0.05)a.clearance=n("studio.newClear");if(Object.keys(a).length)await act("pcb_set_board",a);}
@@ -683,7 +817,7 @@ function workspacePicker(){$("wsPicker").innerHTML=WORKSPACES.map(([id,title,ico
  iconize($("wsPicker"));$("wsPicker").querySelectorAll("[data-ws]").forEach(b=>{b.onclick=()=>selectTab(b.dataset.ws);b.classList.toggle("on",b.dataset.ws===tab);});}
 function selectTab(name){tab=name;document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.dataset.tab===name));
  document.querySelectorAll("#wsPicker [data-ws]").forEach(b=>b.classList.toggle("on",b.dataset.ws===name));if(WORKSPACES.some(w=>w[0]===name))pref("studio.workspace",name);draw();}
-iconize();workspacePicker();
+iconize();workspacePicker();orbit3d();
 addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
  if(!typing&&!e.ctrlKey&&!e.metaKey){const k=tab==="Board"?"pcb":tab==="Schematic"?"sch":null,key=e.key.toLowerCase();
   if(k==="pcb"&&live){if(e.key==="Escape")liveStep("cancel");if(e.key==="Enter")liveStep("commit");if(key==="v")liveStep("via");if(key==="backspace"||key==="escape"||key==="enter"||key==="v")return;}

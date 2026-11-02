@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -58,6 +59,9 @@ struct McpOptions {
     /// Folders of an organisation's own lessons (<name>.lesson.json, "sieda.lesson/1"): read-only, listed by
     /// project_lessons beside the built-in ones. Set only by whoever starts the server (--lessons-dir, SIEDA_LESSONS_DIRS).
     std::vector<std::string> lessonDirs;
+    /// Folders holding built-in-engine models (.gguf) for project_assistant, besides the root's Models/ folder. Set only by
+    /// whoever starts the server (sieda-studio: beside its executable, --models-dir, SIEDA_MODELS_DIRS).
+    std::vector<std::string> modelDirs;
     /// Who every call comes from in the activity log ("user" for a host's own UI); "" = the AI client's name.
     std::string actor;
 
@@ -148,6 +152,13 @@ public:
     Json callToolUnlogged(const std::string& name, const Json& arguments);
     /// The lesson running (project_lessons, Lessons.cpp; null = none) and the step the learner is on.
     Json lesson;
+    /// sim_live: the running live simulation (a SiedaLiveSim*, freed with sieda_live_free), or empty.
+    std::shared_ptr<void> liveSim;
+    /// project_live: {path, base (the file as last read / merged / written), user, host} while co-editing, else null.
+    Json coEdit;
+    /// project_assistant: the open model (a SiedaLlm*, closed with sieda_llm_close) and its file.
+    std::shared_ptr<void> llm;
+    std::string llmPath;
     int lessonStep = 0;
 
     bool toolEnabled(const McpTool& tool) const;
@@ -215,8 +226,16 @@ std::string renderPcbPng(const SiedaProject& project, const std::vector<int>& la
 /// 3D view tools: parts left out (hide / isolate, by component id), explode (0 = none, 1 = parts lifted one board
 /// size off both sides), a section cut at board y (mm; NaN = none), rigid-flex folded, and a free camera (degrees;
 /// NaN = the view's own).
+/// A part's box on a render_3d picture (pixels), for click-to-pick.
+struct Render3dPick {
+    int component;
+    std::string ref;
+    double x0, y0, x1, y1;
+};
 struct Render3dOptions {
     std::set<int> hidden;
+    /// Filled with each shown part's screen box when set.
+    std::vector<Render3dPick>* picks = nullptr;
     double explode = 0;
     double section = NAN;
     bool fold = true;

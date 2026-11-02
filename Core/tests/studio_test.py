@@ -35,8 +35,17 @@ def check_translations():
 def main():
     check_script()
     check_translations()
-    with tempfile.TemporaryDirectory() as root:
-        p = subprocess.Popen([sys.argv[1], "--no-browser", "--root", root], stdout=subprocess.PIPE, text=True)
+    with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as data:
+        # A plug-in in the user's plug-in folder (XDG_DATA_HOME/SiEDA/Plugins) that edits the design's copy.
+        plugins = os.path.join(data, "SiEDA", "Plugins")
+        os.makedirs(plugins)
+        script = os.path.join(plugins, "retune")
+        with open(script, "w") as f:
+            f.write("#!%s\nimport os\nprint('retuning R1')\np = os.environ['SIEDA_PROJECT']\n"
+                    "t = open(p).read()\nopen(p, 'w').write(t.replace('\"330\"', '\"470\"'))\n" % sys.executable)
+        os.chmod(script, 0o755)
+        env = dict(os.environ, XDG_DATA_HOME=data)
+        p = subprocess.Popen([sys.argv[1], "--no-browser", "--root", root], stdout=subprocess.PIPE, text=True, env=env)
         try:
             url = p.stdout.readline().split("SiEDA Studio: ")[1].strip()
             port, token = int(url.split(":")[2].split("/")[0]), url.split("t=")[1]
@@ -58,6 +67,23 @@ def main():
             bearer = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
             status, body = call("project_summary", {}, bearer)
             assert status == 200 and "LED indicator" in body, "MCP endpoint with the bearer token"
+            if os.name != "nt":
+                assert request(port, "GET", "/plugins")[0] == 403, "plug-ins without the token"
+                listed = json.loads(request(port, "GET", "/plugins", headers=auth)[1])
+                assert listed["plugins"] == ["retune"], listed
+                run = lambda body: json.loads(request(port, "POST", "/plugins/run", json.dumps(body), auth)[1])
+                assert "error" in run({"name": "../retune", "sandbox": False}), "only plug-ins from the folder"
+                r = run({"name": "retune", "sandbox": False})
+                assert r.get("applied") and "retuning R1" in r["output"], r
+                design = lambda: call("project_export_json", {}, auth)[1]
+                assert '\\"470\\"' in design(), "the plug-in's change is the design"
+                call("project_undo", {}, auth)
+                assert '\\"330\\"' in design(), "one undo step takes it back"
+                r = run({"name": "retune", "sandbox": True})
+                # Sandboxed: applied where bubblewrap runs; a clear refusal without it (or where it may not make namespaces).
+                # (macOS: sandbox-exec, which a CI runner may not allow either: then its own message is the output.)
+                assert r.get("applied") or "bubblewrap" in r.get("error", "") or "bwrap" in r.get("output", "") or \
+                    (sys.platform == "darwin" and "output" in r), r
             status, words = request(port, "GET", "/i18n?lang=de", headers=auth)
             assert status == 200 and json.loads(words).get("File") == "Datei", "German interface words"
             assert request(port, "GET", "/i18n?lang=xx", headers=auth)[1] == "{}", "unknown language"

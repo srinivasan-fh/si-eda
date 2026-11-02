@@ -20652,6 +20652,109 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_ai_assistant_designs_with_the_built_in_circuit_model) {
+    const auto root = mcpRoot("assistant");
+    auto opts = mcpOptions(root);
+    opts.modelDirs = {std::string(SIEDA_DOCS_DIR) + "/../SiEDA/Resources/Models"};
+    mcp::McpServer s(opts);
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    const Json models = data(s.callTool("project_assistant", Json::parse(R"({"action":"models"})")));
+    CHECK(models.get("models").size() >= 1 && models.get("models").items()[0].get("circuit").asBool(false));
+    CHECK(s.callTool("project_assistant", Json::parse(R"({"action":"ask","model":"../x.gguf","message":"hi"})")).get("isError").asBool(false));
+    Json r = s.callTool("project_assistant", Json::parse(R"({"action":"ask","model":"sieda-circuit-v1.gguf","message":"Design an LED indicator"})"));
+    CHECK(!r.get("isError").asBool(true));
+    const Json d = data(r);
+    CHECK(d.get("added").size() >= 3 && d.get("links").asInt() >= 3 && !d.has("failed"));
+    CHECK(d.get("plan").dump().find("\"led\"") != std::string::npos);
+    // A request naming a circuit the model knows is asked by that circuit's title.
+    const Json reg = data(s.callTool("project_assistant", Json::parse(R"({"action":"ask","model":"sieda-circuit-v1.gguf","message":"5 V linear regulator from 12 V","apply":false})")));
+    CHECK(reg.get("plan").get("title").asString().find("Regulator") != std::string::npos);
+    CHECK(!s.callTool("project_assistant", Json::parse(R"({"action":"forget"})")).get("isError").asBool(true));
+}
+
+TEST(mcp_live_collaboration_merges_teammates_saves_and_lists_them) {
+    const auto root = mcpRoot("coedit");
+    mcp::McpServer alice(mcpOptions(root)), bob(mcpOptions(root));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    auto call = [](mcp::McpServer& s, const char* name, const char* args) { return s.callTool(name, Json::parse(args)); };
+    CHECK(call(alice, "project_live", R"({"action":"sync"})").get("isError").asBool(false));  // nothing saved yet
+    CHECK(!call(alice, "project_load_example", R"({"id":"led_indicator"})").get("isError").asBool(true));
+    CHECK(!call(alice, "project_save_as", R"({"path":"shared/led.siedaproj"})").get("isError").asBool(true));
+    CHECK(!call(bob, "project_open", R"({"path":"shared/led.siedaproj"})").get("isError").asBool(true));
+    CHECK(!call(alice, "project_live", R"({"action":"join","user":"alice"})").get("isError").asBool(true));
+    const Json joined = data(call(bob, "project_live", R"({"action":"join","user":"bob"})"));
+    CHECK(joined.get("peers").size() == 1 && joined.get("peers").items()[0].get("user").asString() == "alice");
+    CHECK(!call(alice, "schematic_set_value", R"({"ref":"R1","value":"680"})").get("isError").asBool(true));
+    CHECK(data(call(alice, "project_live", R"({"action":"sync","save":true})")).get("saved").asBool(false));
+    CHECK(!call(bob, "pcb_set_board", R"({"width":42})").get("isError").asBool(true));
+    const Json merged = data(call(bob, "project_live", R"({"action":"sync","save":true})"));
+    CHECK(merged.get("merged").asBool(false) && merged.get("conflicts").size() == 0);
+    const std::string bobs = data(call(bob, "project_export_json", "{}")).dump();
+    CHECK(bobs.find("\"680\"") != std::string::npos);  // alice's change, kept with bob's own
+    const Json back = data(call(alice, "project_live", R"({"action":"sync"})"));
+    CHECK(back.get("merged").asBool(false));
+    CHECK(data(call(alice, "project_export_json", "{}")).get("board").get("width").asNumber() == 42);
+    CHECK(!call(bob, "project_live", R"({"action":"leave"})").get("isError").asBool(true));
+    CHECK(data(call(alice, "project_live", R"({"action":"status"})")).get("peers").size() == 0);
+}
+
+TEST(mcp_git_commits_branches_diffs_and_switches_the_project_folder) {
+    if (std::system("git --version > /dev/null 2>&1") != 0) return;  // no git on this machine
+    const auto root = mcpRoot("git");
+    mcp::McpServer s(mcpOptions(root));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    auto git = [&](const char* args) { return s.callTool("project_git", Json::parse(args)); };
+    CHECK(!s.callTool("project_load_example", Json::parse(R"({"id":"led_indicator"})")).get("isError").asBool(true));
+    CHECK(!s.callTool("project_save_as", Json::parse(R"({"path":"work/led.siedaproj"})")).get("isError").asBool(true));
+    CHECK(!data(git(R"({"action":"status"})")).get("repository").asBool(true));
+    CHECK(git(R"({"action":"commit","message":"x"})").get("isError").asBool(false));  // not a repository yet
+    CHECK(!git(R"({"action":"init"})").get("isError").asBool(true));
+    Json c = git(R"({"action":"commit","message":"First design"})");
+    CHECK(!c.get("isError").asBool(true));
+    CHECK(data(c).get("history").size() == 1);
+    CHECK(data(c).get("changes").size() == 0);
+    const std::string main = data(c).get("branch").asString();
+    CHECK(!git(R"({"action":"tag","name":"v1"})").get("isError").asBool(true));
+    CHECK(git(R"({"action":"tag","name":"-bad"})").get("isError").asBool(false));
+    CHECK(!git(R"({"action":"branch","branch":"rev-b"})").get("isError").asBool(true));
+    CHECK(!s.callTool("schematic_set_value", Json::parse(R"({"ref":"R1","value":"680"})")).get("isError").asBool(true));
+    const Json d = data(git(R"({"action":"diff"})"));
+    CHECK(d.get("diff").asString().find("680") != std::string::npos);
+    CHECK(!git(R"({"action":"commit","message":"R1 680"})").get("isError").asBool(true));
+    Json back = git(("{\"action\":\"switch\",\"branch\":\"" + main + "\"}").c_str());
+    CHECK(!back.get("isError").asBool(true));
+    CHECK(data(back).get("branches").size() == 2);
+    CHECK(data(git(R"({"action":"status"})")).get("history").items()[0].asString().find("v1") != std::string::npos);
+    const Json proj = data(s.callTool("project_export_json", Json::object()));
+    CHECK(proj.dump().find("\"680\"") == std::string::npos);  // reopened as on the first branch
+    CHECK(git(R"({"action":"clone","url":"ext::sh -c touch% /tmp/x"})").get("isError").asBool(false));
+    CHECK(git(R"({"action":"diff","file":"../x"})").get("isError").asBool(false));
+}
+
+TEST(mcp_live_simulation_runs_the_board_and_takes_firmware) {
+    const auto root = mcpRoot("live");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!s.callTool("project_load_example", Json::parse(R"({"id":"led_indicator"})")).get("isError").asBool(true));
+    auto data = [](const Json& r) { return Json::parse(r.get("content").items()[0].get("text").asString()); };
+    CHECK(s.callTool("sim_live", Json::parse(R"({"action":"run"})")).get("isError").asBool(false));  // not started
+    Json started = s.callTool("sim_live", Json::parse(R"({"action":"start"})"));
+    CHECK(!started.get("isError").asBool(true));
+    Json run = s.callTool("sim_live", Json::parse(R"({"action":"run","duration":0.02,"step":1e-4,"tracePoints":40})"));
+    CHECK(!run.get("isError").asBool(true));
+    const Json st = data(run);
+    CHECK(st.get("running").asBool(false));
+    CHECK_NEAR(st.get("time").asNumber(), 0.02, 1e-9);
+    CHECK(!st.get("leds").items().empty());
+    CHECK(st.get("leds").items()[0].get("brightness").asNumber() > 0.1);
+    CHECK(st.get("trace").get("time").items().size() == 40);
+    CHECK(!data(s.callTool("sim_live", Json::parse(R"({"action":"stop"})"))).get("running").asBool(true));
+    CHECK(s.callTool("sim_live", Json::parse(R"({"action":"state"})")).get("isError").asBool(false));
+    const Json ex = data(s.callTool("sim_firmware", Json::parse(R"({"action":"examples"})")));
+    CHECK(!ex.get("examples").items().empty());
+    CHECK(s.callTool("sim_firmware", Json::parse(R"({"action":"set","component":0,"example":"button_interrupt"})"))
+              .get("isError").asBool(false));  // not a microcontroller
+}
+
 TEST(mcp_activity_log_records_who_did_what) {
     const auto root = mcpRoot("activity");
     mcp::McpOptions o = mcpOptions(root);
@@ -26573,6 +26676,17 @@ TEST(mcp_render_3d_hides_isolates_explodes_and_cuts) {
     CHECK(image(R"({"width": 320, "pitch": 10, "yaw": 80})") != plain);
     CHECK(image(R"({"width": 320, "view": "front", "section": 0})") != image(R"({"width": 320, "view": "front"})"));
     CHECK(mcpFailed(mcpTool(s, "render_3d", Json::parse(R"({"hide": ["NOPE9"]})"))));
+    // picks: each shown part's box on the picture (click to cross-probe); the picture itself is unchanged.
+    Json picked = mcpTool(s, "render_3d", Json::parse(R"({"width": 320, "picks": true, "hide": ["R1"]})"));
+    CHECK(picked.get("content").items()[1].get("data").asString("") == image(R"({"width": 320, "hide": ["R1"]})"));
+    const Json parts = Json::parse(picked.get("content").items()[0].get("text").asString()).get("parts");
+    CHECK(parts.size() >= 2);
+    for (const auto& p : parts.items()) {
+        CHECK(p.get("ref").asString() != "R1");
+        const auto& b = p.get("box").items();
+        CHECK(b[0].asNumber() < b[2].asNumber() && b[1].asNumber() < b[3].asNumber());
+        CHECK(b[0].asNumber() >= 0 && b[2].asNumber() <= 320);
+    }
 }
 
 TEST(thermal_map_balances_power_and_spreads_through_copper) {

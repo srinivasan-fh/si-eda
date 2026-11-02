@@ -1034,7 +1034,29 @@ std::string render3dPng(const SiedaProject& project, const std::string& view, in
     if (std::isfinite(options.pitchDeg)) pitch = options.pitchDeg * M_PI / 180;
     if (std::isfinite(options.yawDeg)) yaw = options.yawDeg * M_PI / 180;
     int h = 0;
-    const std::vector<uint8_t> rgb = rasterizeMesh(m, pitch, yaw, width, h, false, options.section);
+    double f[10];
+    const std::vector<uint8_t> rgb = rasterizeMesh(m, pitch, yaw, width, h, false, options.section, f);
+    if (options.picks) {  // each shown part's screen box (courtyard from the board up to ~2 mm), for click picking
+        const auto& pcb = project.project.pcb;
+        const double t = pcb.settings.thickness;
+        const double lift = options.explode > 0 ? std::clamp(options.explode, 0.0, 1.0) *
+                                                      std::max(4.0, 0.3 * std::max(pcb.settings.width, pcb.settings.height))
+                                                : 0.0;
+        for (const auto& c : project.project.schematic.components()) {
+            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded() || options.hidden.count(c.id)) continue;
+            const Rect r = pcb.courtyard(c);
+            const double ya = c.pcb.bottom ? -t - lift : lift, yb = c.pcb.bottom ? -t - lift - 2.0 : lift + 2.0;
+            Render3dPick p{c.id, c.ref, 1e30, 1e30, -1e30, -1e30};
+            for (double x : {r.x0, r.x1})
+                for (double z : {r.y0, r.y1})
+                    for (double y : {ya, yb}) {
+                        const double px = ((x * f[0] + y * f[1] + z * f[2]) - f[6]) * f[8] + f[9];
+                        const double py = (f[7] - (x * f[3] + y * f[4] + z * f[5])) * f[8] + f[9];
+                        p.x0 = std::min(p.x0, px), p.y0 = std::min(p.y0, py), p.x1 = std::max(p.x1, px), p.y1 = std::max(p.y1, py);
+                    }
+            options.picks->push_back(p);
+        }
+    }
     const int w = std::clamp(width, 64, 2048);
     std::string raw;
     raw.reserve(static_cast<size_t>(h) * (w * 3 + 1));
@@ -1082,7 +1104,8 @@ namespace sieda {
 
 std::string zlibStream(const std::string& data, size_t stride) { return mcp::zlibCompress(data, stride); }
 
-std::vector<uint8_t> rasterizeMesh(const Mesh& m, double pitch, double yaw, int width, int& height, bool white, double sectionZ) {
+std::vector<uint8_t> rasterizeMesh(const Mesh& m, double pitch, double yaw, int width, int& height, bool white, double sectionZ,
+                                   double* frame) {
     const bool cut = std::isfinite(sectionZ);
     const Vec3 d{std::cos(pitch) * std::sin(yaw), std::sin(pitch), std::cos(pitch) * std::cos(yaw)};
     Vec3 right = Vec3{0, 1, 0}.cross(d);
@@ -1100,6 +1123,10 @@ std::vector<uint8_t> rasterizeMesh(const Mesh& m, double pitch, double yaw, int 
     const int w = std::clamp(width, 64, 2048);
     const double margin = w * 0.04, scale = nv ? (w - 2 * margin) / std::max(1e-6, x1 - x0) : 1;
     const int h = height = std::clamp(static_cast<int>((y1 - y0) * scale + 2 * margin), 64, 2048);
+    if (frame) {
+        const double f[10] = {right.x, right.y, right.z, up.x, up.y, up.z, x0, y1, scale, margin};
+        std::copy(f, f + 10, frame);
+    }
     std::vector<uint8_t> rgb(static_cast<size_t>(w) * h * 3);
     for (int y = 0; y < h; ++y)  // background: white (drawings) or a dark vertical gradient
         for (int x = 0; x < w; ++x) {

@@ -110,3 +110,10 @@ API key, and no network once the model file is downloaded.
 
 The same engine is available as `sieda-cli --chat model.gguf "question"` and through the C API (`sieda_llm_open`,
 `sieda_llm_chat` with a streaming callback, `sieda_llm_close`).
+
+## On Linux and Windows (SiEDA Studio)
+
+Window → Super Intelligence runs the same engine through MCP `project_assistant`: SiEDA's circuit model ships beside
+`sieda-studio` in the release archives, other .gguf models go in the root's `Models/` folder (or `--models-dir`,
+`SIEDA_MODELS_DIRS`). A request naming a circuit the model knows is asked by that circuit's title (its card,
+`sieda-circuit-v1.json`), and the values the request fixes are computed by `circuitPlanValues`, as on the Mac.
