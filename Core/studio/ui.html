@@ -97,6 +97,24 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 :root[data-theme="matrix"]{--bg:#06110a;--panel:#0b1a10;--ink:#c8f7d4;--mute:#6fae80;--line:#173a22;--accent:#2fd36b;--bar:#030a05}
 :root[data-theme="graphite"]{--bg:#1c1d20;--panel:#26282c;--ink:#e8e8ea;--mute:#a0a3aa;--line:#3a3d43;--accent:#8e9bb5;--bar:#141518}
 :root[data-theme="light"]{--bg:#f4f6fa;--panel:#fff;--ink:#17202e;--mute:#5d6b80;--line:#d9dfe8;--accent:#3b6fe0;--bar:#16233a}
+
+/* ── Desktop look (Windows / Linux): the system's own font, thin scrollbars in the theme, chrome that does not select
+   as text, focus rings like the Mac's, the right-click menu and shortcut hints. ── */
+:root.os-win body{font-family:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,sans-serif}
+:root.os-mac body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif}
+:root.os-linux body{font-family:Inter,Cantarell,Ubuntu,"Noto Sans","DejaVu Sans",system-ui,sans-serif}
+:root{color-scheme:dark}:root[data-theme="light"]{color-scheme:light}
+*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--mute) 45%,transparent) transparent}
+header,footer,nav,.strip,.optbar,.tools,.seg,.drop,.pcbctx,button,label,th,.card>b,.view,aside.devices>b{user-select:none;-webkit-user-select:none}
+:focus{outline:none}:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 75%,transparent);outline-offset:1px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 40%,transparent)}
+.drop kbd,.pcbctx kbd,#keysDlg kbd{float:right;margin-left:28px;font:inherit;font-size:12px;color:var(--mute)}.drop button:hover kbd,.pcbctx button:hover kbd,.pcbctx button:focus kbd{color:inherit}
+#keysDlg kbd{float:none;margin:0;font-family:ui-monospace,Consolas,Menlo,monospace}#keysDlg h4{margin:12px 0 4px;color:var(--mute);font-size:12px;text-transform:uppercase}
+.pcbctx{position:fixed;z-index:300;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px;min-width:230px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:13px}
+.pcbctx button{display:block;width:100%;text-align:left;border:0;background:none;padding:5px 10px;border-radius:5px;color:var(--ink)}
+.pcbctx button:hover:not([disabled]),.pcbctx button:focus-visible{background:var(--accent);color:#fff;outline:none}.pcbctx button[disabled]{opacity:.45;cursor:default}
+.pcbctx hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+#quickDlg{min-width:0;width:360px}#quickDlg .ff{grid-template-columns:90px 1fr}
 </style></head><body>
 <header><div class="menurow"><b>SiEDA</b><span id="menubar"></span></div><div class="toolrow"><div class="lead"><span class="name" id="name">No project</span></div>
 <div class="seg" id="wsPicker" role="tablist"></div><div class="trail"><button class="tb" onclick="undo()" title="Undo"><i class="ico" data-ico="undo"></i></button>
@@ -248,7 +266,7 @@ async function refresh(force){const s=await (await fetch("/state",{headers:{"X-S
  if(!force&&s.revision===rev)return;if(rev>=0&&s.revision!==rev){scheduleAutosave();if(sim.on)setTimeout(liveStart);}rev=s.revision;try{const sum=(await run("project_summary")).data;$("name").textContent=(sum.name||"Untitled")+(s.project?" — "+s.project:" (not saved)");document.title=(sum.name||"Untitled")+" — SiEDA Studio";if(s.project)pref("studio.lastProject",s.project);$("sheet").max=sum.sheets||1;state.layers=sum.board&&sum.board.layers;state.board=sum.board;layerOptions();}catch{}draw();}
 const views={};let tool={sch:"select",pcb:"select"},snap={},sel={sch:null,pcb:null},pend=null,drag=null,marks=[];
 function panZoom(el){if(views[el.id])return views[el.id];const v={x:0,y:0,k:1,fit:true,vb:[0,0,1,1]};views[el.id]=v;let pan=null;
- const apply=()=>{const st=el.querySelector(".stage");if(st)st.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;};v.apply=apply;
+ const apply=()=>{const st=el.querySelector(".stage");if(st){const d=devicePixelRatio||1;st.style.transform=`translate(${Math.round(v.x*d)/d}px,${Math.round(v.y*d)/d}px) scale(${v.k})`;}};v.apply=apply;
  v.doFit=()=>{const i=el.querySelector("img");if(!i||!i.naturalWidth)return;v.k=Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight);v.x=(el.clientWidth-i.naturalWidth*v.k)/2;v.y=(el.clientHeight-i.naturalHeight*v.k)/2;apply();};
  v.at=e=>{const r=el.getBoundingClientRect(),i=el.querySelector("img");if(!i)return[0,0];const px=(e.clientX-r.left-v.x)/v.k,py=(e.clientY-r.top-v.y)/v.k;return[v.vb[0]+px/i.naturalWidth*v.vb[2],v.vb[1]+py/i.naturalHeight*v.vb[3]];};
  el.onwheel=e=>{e.preventDefault();if(pref("studio.wheelPans")==="1"&&!e.ctrlKey&&!e.metaKey){v.x-=e.shiftKey?e.deltaY:e.deltaX;v.y-=e.shiftKey?0:e.deltaY;v.fit=false;apply();return;}
@@ -951,6 +969,8 @@ const MENUS={
   ["Order Boards…",F("output_fab_quote")],0,["Check Library Updates…",F("library_updates")],0,["Quit",()=>quit()]],
  "Edit":[["Undo",()=>undo()],["Redo",()=>redo()],0,["Find…",F("schematic_find")],["Replace…",F("schematic_replace")],["Annotate…",F("schematic_annotate")],
   ["Align…",F("schematic_align")],["Rename Net…",F("schematic_rename")],0,["Command Palette…",()=>palette()]],
+ "View":[["Zoom In",()=>zoomView(1.25)],["Zoom Out",()=>zoomView(0.8)],["Zoom to Fit",()=>fitView()],["Zoom to Selection",()=>fitSelection()],
+  ["Zoom to Area",()=>armZoomArea()],0,["Enter Focus Mode",()=>focusMode()]],
  "Schematic":[["Run Electrical Rule Check",()=>run("schematic_erc").then(showChecks)],["Validate Circuit",()=>run("schematic_validate").then(showChecks)],0,
   ["Sheets…",F("schematic_sheets")],["Edit Sheet…",F("schematic_sheet_edit")],["Move to Sheet…",F("schematic_move_to_sheet")],["Bus…",F("schematic_add_bus")],
   ["Bus Labels…",F("schematic_bus_labels")],["Net Class…",F("schematic_net_class")],["Net Rules…",F("schematic_net_rules")],["Directive…",F("schematic_add_directive")],
@@ -975,7 +995,7 @@ const MENUS={
  "Window":[["Super Intelligence",()=>selectTab("AI")]],
  "Help":[["Lessons…",()=>lessons()],["Command Palette…",()=>palette()],["Keyboard Shortcuts",()=>shortcuts()],["Settings…",()=>settings()],["All Engine Commands",()=>selectTab("Tools")]]};
 function menuBar(){$("menubar").innerHTML=Object.keys(MENUS).map(m=>`<span class="mb"><button data-m="${esc(m)}">${esc(tr(m))}</button><div class="drop">${MENUS[m].map((it,i)=>
-  it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}</button>`).join("")}</div></span>`).join("");
+  it===0?"<hr>":it.length===1?`<div class="sub">${esc(tr(it[0]))}</div>`:`<button data-i="${i}">${esc(tr(it[0]))}${KEYS[it[0]]?`<kbd>${KEYS[it[0]]}</kbd>`:""}</button>`).join("")}</div></span>`).join("");
  document.querySelectorAll("#menubar .mb").forEach(mb=>{const m=mb.querySelector("[data-m]").dataset.m;
   mb.querySelector("[data-m]").onclick=e=>{e.stopPropagation();const open=mb.classList.contains("open");closeMenus();if(!open)mb.classList.add("open");};
   mb.querySelector("[data-m]").onmouseenter=()=>{if(document.querySelector("#menubar .open")&&!mb.classList.contains("open")){closeMenus();mb.classList.add("open");}};
@@ -1036,9 +1056,16 @@ async function palette(){if(!tools.length)await loadTools();
  $("dlgTitle").textContent=tr("Command Palette…");$("dlgInput").value="";$("dlgInput").oninput=show;show();
  $("dlgList").onclick=e=>{const v=e.target.dataset.v;if(v!==undefined){dlg.close();items[v].f();}};
  $("dlgOk").onclick=()=>{const first=$("dlgList").querySelector("li");dlg.close();if(first)items[first.dataset.v].f();};dlg.showModal();$("dlgInput").focus();}
-function shortcuts(){alert(tr("Keyboard Shortcuts")+"\n\nCtrl+K  "+tr("Command Palette…")+"\nCtrl+S  "+tr("Save")+"\nCtrl+Z  "+tr("Undo")+"\nCtrl+Shift+Z / Ctrl+Y  "+tr("Redo")+
- "\n\nSchematic: S select, W wire, L label, G ground, P place, R rotate, Delete\nBoard: S select, X route, D pair, V via, M measure, H highlight net, R rotate, F flip, K lock, Delete"+
- Object.entries(jpref("studio.quickKeys")).map(([d,id])=>"\nAlt+"+d+"  "+id.split("\t").map(tr).join(" › ")).join(""));}
+function shortcuts(){let d=$("keysDlg");if(!d){d=document.createElement("dialog");d.id="keysDlg";document.body.append(d);}
+ const row=(label,k)=>`<tr><td>${esc(label)}</td><td><kbd>${esc(k)}</kbd></td></tr>`,P=["SiEDA","KiCad","Altium","Eagle"],cur=pref("studio.canvasKeys")||"SiEDA";
+ const tools=[["PCB: Select (Via While Routing)","select"],["PCB: Route","route"],["PCB: Length Tuning","tune"],["PCB: Pan","pan"],["PCB: Rotate","rotate"],["PCB: Flip Side","flip"],["PCB: Refill Pours","refill"]];
+ d.innerHTML=`<b>${esc(tr("Keyboard Shortcuts"))}</b><div style="max-height:62vh;overflow:auto"><h4>${esc(tr("Menu Commands"))}</h4><table>${Object.entries(KEYS).map(([l,k])=>row(tr(l),k)).join("")}</table>
+ <h4>${esc(tr("Canvas Tool Keys"))}</h4><label>${esc(tr("Canvas Key Preset"))} <select id="keysPreset">${P.map(n=>`<option${n===cur?" selected":""}>${n}</option>`).join("")}</select></label>
+ <table>${tools.map(([l,id])=>keyLabel(id)?row(tr(l),keyLabel(id)):"").join("")}${row(tr("Rotate"),"Space")}${row(tr("Highlight Net"),"Shift+H")}${row(tr("Zoom In"),"+")}${row(tr("Zoom Out"),"-")}
+ ${row(tr("Zoom to Fit"),"0 / Home")}${row(tr("Zoom to Area"),"Z")}${row(tr("Zoom to Selection"),"Shift+Z")}${row(tr("Delete"),"Delete")}${row(tr("Cancel"),"Esc")}${row(tr("Measure"),"M")}${row(tr("Lock"),"K")}
+ ${row(tr("Schematic"),"S W L G P R")}${Object.entries(jpref("studio.quickKeys")).map(([n,id])=>row(id.split("\t").map(tr).join(" › "),"Alt+"+n)).join("")}</table></div>
+ <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="primary" autofocus onclick="keysDlg.close()">${esc(tr("Done"))}</button></div>`;
+ $("keysPreset").onchange=e=>{pref("studio.canvasKeys",e.target.value);translateDom();shortcuts();};if(!d.open)d.showModal();}
 
 // Interface language (the macOS app's 20 tables, the keys Studio shows; GET /i18n) and theme (the macOS themes).
 const LANGS=[["en","English"],["zh-Hant","繁體中文"],["ko","한국어"],["zh-Hans","简体中文"],["ja","日本語"],["ms","Bahasa Melayu"],["nl","Nederlands"],["de","Deutsch"],
@@ -1192,4 +1219,262 @@ setTheme(pref("studio.theme"));
  const last=pref("studio.workspace");selectTab(WORKSPACES.some(w=>w[0]===last)?last:"Schematic");await refresh(true);
  // Like the macOS app: reopen the project last opened or saved (Settings › General can turn it off).
  if(!state.project&&pref("studio.reopenLast")!=="0"&&pref("studio.lastProject")){try{await act("project_open",{path:pref("studio.lastProject")});}catch{status(tr("Ready."));}}setInterval(()=>refresh(false).catch(()=>status("SiEDA Studio is not running.","error")),2000);})();
+// ── Desktop PCB editor (Windows / Linux): the macOS PCB editor's keys, menu shortcuts (⌘ = Ctrl) and right-click menu.
+// Plain keys on the Board tab are handled here first (capture phase); everything else falls through to the handler above.
+const OS=/Windows/.test(navigator.userAgent)?"win":/Mac OS X|Macintosh/.test(navigator.userAgent)?"mac":"linux";
+document.documentElement.classList.add("os-"+OS);
+Object.assign(KEYS,{"New Project":"Ctrl+N","Open…":"Ctrl+O","Save As…":"Ctrl+Shift+S","Export Fabrication Package…":"Ctrl+Shift+E",
+ "Run Electrical Rule Check":"Ctrl+Shift+K","Validate Circuit":"Ctrl+Shift+L","Auto Route Board":"Ctrl+Shift+R","Verify Design":"Ctrl+Alt+V",
+ "Keyboard Shortcuts":"Ctrl+/","Zoom In":"Ctrl+=","Zoom Out":"Ctrl+-","Zoom to Fit":"Ctrl+0","Zoom to Selection":"Ctrl+Alt+0","Enter Focus Mode":"F11",
+ "DC Operating Point":"Ctrl+Shift+D","Redo":OS==="win"?"Ctrl+Y":"Ctrl+Shift+Z"});
+const menuItem=(m,label)=>{const it=(MENUS[m]||[]).find(x=>x&&x[0]===label);if(it){noteMenuUse(m,label);it[1](label);}};
+// View: zoom / pan / fit of the canvas on screen (the schematic's too, as the Mac's View menu).
+const canvasId=()=>tab==="Board"?"pcbView":tab==="Schematic"?"schView":null,mouseAt={};
+for(const id of["pcbView","schView"]){const el=$(id);el.addEventListener("mousemove",e=>{const r=el.getBoundingClientRect();mouseAt[id]=[e.clientX-r.left,e.clientY-r.top];});el.addEventListener("mouseleave",()=>delete mouseAt[id]);}
+function zoomView(f,id=canvasId()){const v=id&&views[id];if(!v)return;const r=$(id).getBoundingClientRect(),p=mouseAt[id]||[r.width/2,r.height/2];
+ v.x=p[0]-(p[0]-v.x)*f;v.y=p[1]-(p[1]-v.y)*f;v.k*=f;v.fit=false;v.apply();}
+function panView(dx,dy,id=canvasId()){const v=id&&views[id];if(!v)return;const r=$(id).getBoundingClientRect();v.x-=dx*r.width;v.y-=dy*r.height;v.fit=false;v.apply();}
+function fitView(id=canvasId()){const v=id&&views[id];if(v){v.fit=true;v.doFit();}}
+function zoomRect(id,b){const v=views[id],el=$(id),i=el.querySelector("img");if(!v||!i||!i.naturalWidth||!(b[2]>b[0])||!(b[3]>b[1]))return;
+ const px=x=>(x-v.vb[0])/v.vb[2]*i.naturalWidth,py=y=>(y-v.vb[1])/v.vb[3]*i.naturalHeight,w=el.clientWidth,h=el.clientHeight;
+ v.k=Math.min(w/(px(b[2])-px(b[0])),h/(py(b[3])-py(b[1])));v.x=w/2-px((b[0]+b[2])/2)*v.k;v.y=h/2-py((b[1]+b[3])/2)*v.k;v.fit=false;v.apply();}
+function selectionBox(){if(canvasId()==="schView"){const c=sel.sch&&sheetParts().find(c=>c.ref===sel.sch);return c?schBox(c):null;}
+ const b=[1e9,1e9,-1e9,-1e9],add=(x0,y0,x1,y1)=>{b[0]=Math.min(b[0],x0);b[1]=Math.min(b[1],y0);b[2]=Math.max(b[2],x1);b[3]=Math.max(b[3],y1);};
+ for(const ref of pcbSelection()){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)add(k.x0,k.y0,k.x1,k.y1);}
+ for(const t of snap.tracks||[])if((selW&&!selW.via&&t.id===selW.id)||routeSel.includes(t.id))add(Math.min(t.ax,t.bx),Math.min(t.ay,t.by),Math.max(t.ax,t.bx),Math.max(t.ay,t.by));
+ const via=selW&&selW.via&&(snap.vias||[]).find(v=>v.id===selW.id);if(via)add(via.x,via.y,via.x,via.y);
+ return b[2]>=b[0]?[b[0]-1.5,b[1]-1.5,b[2]+1.5,b[3]+1.5]:null;}
+function fitSelection(){const id=canvasId(),b=id&&selectionBox();if(b)zoomRect(id,b);else fitView();}
+function armZoomArea(){if(tab!=="Board"){fitView();return;}zoomArmed=true;pcbBanner();status(tr("Drag a rectangle to zoom to."));}
+function focusMode(){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});}
+// Selection: several parts (shift-click), one part, or a whole route ("Select Whole Route").
+let routeSel=[];const pcbSelection=()=>multi.size?[...multi]:sel.pcb?[sel.pcb]:[];
+async function eachPart(op){for(const ref of pcbSelection()){const c=(snap.components||[]).find(c=>c.ref===ref),b=(c&&c.pcb)||{};
+  if(op==="rotate")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:((b.rotation||0)+90)%360});if(op==="flip")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,bottom:!b.bottom});}
+ if(sel.pcb)selectPart("pcb",sel.pcb);else if(multi.size)showMulti();}
+async function refillPours(){await refresh(true);await draw();status(tr("Pours are refilled after every change."),"okc");}
+async function deleteSelectedCopper(){const tracks=routeSel.length?routeSel:selW&&!selW.via?[selW.id]:[],vias=selW&&selW.via?[selW.id]:[];if(!tracks.length&&!vias.length)return;
+ routeSel=[];selW=null;await act("pcb_remove_copper",{...(tracks.length?{tracks}:{}),...(vias.length?{vias}:{})});selectPart("pcb",null);}
+function pcbHint(t){if($("pcbHint"))$("pcbHint").textContent=t;}
+// Tool keys as Settings › Shortcuts on the Mac: the standard keys, or a preset's (two keys typed within 1.5 s: "p t").
+const PCB_KEYS={select:"v",route:"x",tune:"t",pan:"h",rotate:"r",flip:"f",refill:"b"};
+const PCB_PRESETS={SiEDA:{},KiCad:{tune:"7",pan:""},Altium:{route:"p t",tune:"",flip:"l",pan:""},
+ Eagle:{select:"m o",route:"r o",tune:"m e",pan:"",rotate:"r t",flip:"m i",refill:"r a"}};
+let seqKey=null,seqAt=0;
+function pcbToolKey(typed){const pre=PCB_PRESETS[pref("studio.canvasKeys")]||{},keys=Object.keys(PCB_KEYS).map(id=>[id,(pre[id]??PCB_KEYS[id]).replace(/ /g,"")]).filter(k=>k[1]);
+ if(seqKey&&Date.now()-seqAt<1500){const s=seqKey+typed;seqKey=null;const hit=keys.find(k=>k[1]===s);if(hit)return hit[0];}
+ seqKey=null;const one=keys.find(k=>k[1]===typed);if(one)return one[0];
+ if(keys.some(k=>k[1].length===2&&k[1][0]===typed)){seqKey=typed;seqAt=Date.now();return"…";}return null;}
+const keyLabel=id=>((PCB_PRESETS[pref("studio.canvasKeys")]||{})[id]??PCB_KEYS[id]).toUpperCase().replace(" ",", ");
+let spaceHeld=false,spaceUsed=false;
+function pcbKey(e){const k=e.key,low=k.length===1?k.toLowerCase():k;
+ if(k===" "){if(!e.repeat){spaceHeld=true;spaceUsed=false;}return true;}
+ if(live){if(k==="Escape"){liveStep("cancel");return true;}if(k==="Enter"){liveStep("commit");return true;}
+  // The select key places a via while routing and goes on on the other side; with Shift, the next layer the other way.
+  if(low.length===1&&pcbToolKey(low)==="select"){const n=state.layers||2,l=live.pv?live.pv.layer:0,layer=e.shiftKey?(l>0?l-1:n-1):undefined;
+   liveQueue(async()=>{if(!live||!live.pv)return;live.pv=await routeCall({action:"via",...(layer!==undefined?{layer}:{})});liveNote(live.pv);overlay($("pcbView"));});}return true;}
+ if(k==="Enter"){if(shapePts.length)closeShape();return true;}
+ if(k==="Escape"){seqKey=null;if(shapePts.length){shapePts=[];overlay($("pcbView"));}else if(zoomArmed){zoomArmed=false;pcbBanner();status(tr("Ready."));}
+  else if(tool.pcb!=="select")setTool("pcb","select");else if(hl!==null){hl=null;overlay($("pcbView"));}else{routeSel=[];selW=null;multi.clear();selectPart("pcb",null);}return true;}
+ if(k==="Delete"||k==="Backspace"){deleteSelectedCopper();return true;}
+ const pan={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[k];if(pan){const s=e.shiftKey?0.5:0.125;panView(pan[0]*s,pan[1]*s);return true;}
+ if(k==="Home"||k==="0"){fitView();return true;}if(k==="+"||k==="="){zoomView(1.25);return true;}if(k==="-"||k==="_"){zoomView(0.8);return true;}
+ if(k==="z"){armZoomArea();return true;}if(k==="Z"){fitSelection();return true;}if(k==="H"){toggleHighlight();return true;}
+ if(low.length!==1)return false;const t=pcbToolKey(low);if(t==="…")return true;
+ if(t==="select"||t==="route"||t==="tune"||t==="pan"){setTool("pcb",t);if(t==="tune")pcbHint(tr("Click a track to tune its net's length."));if(t==="pan")pcbHint(tr("Drag to pan the board."));return true;}
+ if(t==="rotate"){eachPart("rotate");return true;}if(t==="flip"){eachPart("flip");return true;}if(t==="refill"){refillPours();return true;}
+ // Studio's own single keys (the tool strip's tips): S select, D pair, M measure, K lock.
+ const extra={s:"select",d:"pair",m:"measure"}[low];if(extra){setTool("pcb",extra);return true;}if(low==="k"&&sel.pcb){partOp("lock");return true;}return false;}
+addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||document.activeElement.isContentEditable;
+ const done=()=>{e.preventDefault();e.stopImmediatePropagation();};
+ if(!pcbMenu.hidden&&e.key==="Escape"){done();closePcbMenu();return;}
+ if(document.querySelector("dialog[open]"))return;
+ const ctrl=e.ctrlKey||e.metaKey,low=e.key.length===1?e.key.toLowerCase():e.key,digit=/^Digit\d$/.test(e.code)?e.code.slice(5):null;
+ if(e.key==="F11"){done();focusMode();return;}
+ if(ctrl&&!typing){
+  if(e.altKey&&!e.shiftKey){if(digit==="0"){done();fitSelection();}else if(e.code==="KeyV"){done();menuItem("Design","Verify Design");}return;}
+  if(e.shiftKey){const m={KeyS:["File","Save As…"],KeyE:["File","Export Fabrication Package…"],KeyK:["Schematic","Run Electrical Rule Check"],
+    KeyL:["Schematic","Validate Circuit"],KeyR:["Design","Auto Route Board"]}[e.code];
+   if(m){done();menuItem(m[0],m[1]);return;}if(e.code==="KeyD"){done();selectTab("Simulate");$("simKind").value="op";simForm();simulate();}return;}
+  if(low==="n"){done();menuItem("File","New Project");return;}if(low==="o"){done();menuItem("File","Open…");return;}if(low==="/"){done();shortcuts();return;}
+  if(canvasId()&&(low==="="||low==="+")){done();zoomView(1.25);return;}if(canvasId()&&low==="-"){done();zoomView(0.8);return;}if(canvasId()&&low==="0"){done();fitView();return;}
+  if(digit&&+digit>=1&&+digit<=WORKSPACES.length){done();selectTab(WORKSPACES[+digit-1][0]);}return;}
+ if(tab!=="Board"||typing||ctrl||e.altKey)return;if(pcbKey(e))done();},true);
+addEventListener("keyup",e=>{if(e.key!==" "||tab!=="Board"||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;e.preventDefault();
+ if(spaceHeld&&!spaceUsed&&!live)eachPart("rotate");spaceHeld=false;},true);
+// Pointer: Space + drag and the Pan tool pan, the Length Tuning tool tunes the clicked track, zoom-to-area takes a drag.
+{const el=$("pcbView"),press=el.onpress,release=el.onrelease;
+ el.onpress=(pt,e)=>{if(spaceHeld){spaceUsed=true;return false;}if(zoomArmed){drag={el,marquee:true,zoomArea:true,from:pt,at:pt};return true;}
+  if(tool.pcb==="pan")return false;if(tool.pcb==="tune"){const w=wireAt(pt);if(w&&!w.via){selectWire(w,pt);trackOp("tune");}else status(tr("Click a track to tune its net's length."),"warning");return true;}
+  if(tool.pcb==="select")routeSel=[];return press(pt,e);};
+ el.onrelease=(pt,d)=>{if(!d.zoomArea)return release(pt,d);zoomArmed=false;pcbBanner();status(tr("Ready."));overlay(el);
+  zoomRect("pcbView",[Math.min(pt[0],d.from[0]),Math.min(pt[1],d.from[1]),Math.max(pt[0],d.from[0]),Math.max(pt[1],d.from[1])]);};}
+{const base=overlay;overlay=function(el){base(el);if(el.id!=="pcbView"||!routeSel.length)return;const o=el.querySelector(".over");if(!o)return;
+ for(const t of snap.tracks||[])if(routeSel.includes(t.id))shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#5b8dff","stroke-width":t.width+0.2,"stroke-linecap":"round",opacity:0.6});};}
+// Keys in tool tips (after each translation): the header's Undo / Redo / Check and the board's Select / Route tools.
+{const base=translateDom;translateDom=function(){base();const keys={undo:"Ctrl+Z",redo:KEYS.Redo,check:"Ctrl+Alt+V"};
+ document.querySelectorAll("header .tb").forEach(b=>{const k=/undo\(/.test(b.getAttribute("onclick"))?keys.undo:/redo\(/.test(b.getAttribute("onclick"))?keys.redo:/verify\(/.test(b.getAttribute("onclick"))?keys.check:"";
+  if(k&&!b.title.endsWith(`(${k})`))b.title+=` (${k})`;});
+ for(const id of["select","route"]){const b=document.querySelector(`#pcbTools [data-t="${id}"]`),k=keyLabel(id);if(b&&k&&!b.title.endsWith(`(${k})`))b.title+=` (${k})`;}};}
+// Right-click menu, item for item the Mac canvas menu's: a pad / track's net, a track, a via, a part, or the empty board.
+const pcbMenu=document.createElement("div");pcbMenu.className="pcbctx";pcbMenu.hidden=true;pcbMenu.setAttribute("role","menu");document.body.append(pcbMenu);
+function closePcbMenu(){pcbMenu.hidden=true;}
+addEventListener("mousedown",e=>{if(!pcbMenu.contains(e.target))closePcbMenu();if(e.button===2&&$("pcbView").contains(e.target))e.stopPropagation();},true);
+addEventListener("blur",()=>{closePcbMenu();spaceHeld=false;});addEventListener("resize",closePcbMenu);
+function showPcbMenu(items,x,y){pcbMenu.innerHTML=items.map((it,i)=>it===0?"<hr>":`<button role="menuitem" data-i="${i}"${it[2]===false?" disabled":""}>${esc(it.label||tr(it[0]))}${it.key?`<kbd>${esc(it.key)}</kbd>`:""}</button>`).join("");
+ pcbMenu.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{closePcbMenu();items[b.dataset.i][1]();});pcbMenu.hidden=false;
+ const w=pcbMenu.offsetWidth,h=pcbMenu.offsetHeight;pcbMenu.style.left=Math.max(4,Math.min(x,innerWidth-w-4))+"px";pcbMenu.style.top=Math.max(4,Math.min(y,innerHeight-h-4))+"px";
+ const first=pcbMenu.querySelector("button:not([disabled])");if(first)first.focus({preventScroll:true});}
+pcbMenu.addEventListener("keydown",e=>{if(e.key!=="ArrowDown"&&e.key!=="ArrowUp")return;e.preventDefault();e.stopPropagation();
+ const bs=[...pcbMenu.querySelectorAll("button:not([disabled])")],i=bs.indexOf(document.activeElement),n=bs[(i+(e.key==="ArrowDown"?1:bs.length-1))%bs.length];if(n)n.focus();});
+const padHit=pt=>(snap.pads||[]).find(p=>Math.abs(p.x-pt[0])<=p.w/2&&Math.abs(p.y-pt[1])<=p.h/2);
+const inPoly=(pt,ps)=>{let c=false;for(let i=0,j=ps.length-1;i<ps.length;j=i++){const a=ps[i],b=ps[j];if((a.y>pt[1])!==(b.y>pt[1])&&pt[0]<(b.x-a.x)*(pt[1]-a.y)/(b.y-a.y)+a.x)c=!c;}return c;};
+const named=(label,f,on)=>{const it=[label,f,on];it.label=label;return it;};
+$("pcbView").addEventListener("contextmenu",async e=>{e.preventDefault();if(live||!views.pcbView)return;const pt=views.pcbView.at(e),pad=padHit(pt),w=pad?null:wireAt(pt),x=e.clientX,y=e.clientY;
+ const net=pad?pad.net:w&&!w.via?w.net:null,items=[];
+ if(net!==null&&net!==undefined&&net>=0)items.push(named(hl===net?tr("Clear Net Highlight"):tr("Highlight Net"),()=>{hl=hl===net?null:net;overlay($("pcbView"));}),0);
+ if(w&&w.via){items.push(["Delete Via",()=>act("pcb_remove_copper",{vias:[w.id]})]);showPcbMenu(items,x,y);return;}
+ if(w){if(!routeSel.includes(w.id)){routeSel=[];selectWire(w,pt);}const ids=()=>routeSel.length?routeSel:[w.id];
+  items.push(["Split Track Here",()=>act("pcb_edit_copper",{action:"split",tracks:[w.id],x:r3(pt[0]),y:r3(pt[1])})],
+   ["Merge Tracks",()=>act("pcb_edit_copper",{action:"merge",tracks:ids()})],
+   ["Select Whole Route",()=>{routeSel=(snap.tracks||[]).filter(t=>t.net===w.net).map(t=>t.id);overlay($("pcbView"));}],
+   ["Minimise Vias",()=>act("pcb_edit_copper",{action:"minimize_vias"})],0,["Delete",()=>deleteSelectedCopper()]);showPcbMenu(items,x,y);return;}
+ const part=boardPart(pt);
+ if(part){if(!pcbSelection().includes(part.ref)){multi.clear();selW=null;routeSel=[];selectPart("pcb",part.ref);}const n=pcbSelection().length,al=m=>()=>act("pcb_align",{refs:pcbSelection(),mode:m});
+  const rot=["Rotate",()=>eachPart("rotate")],flip=["Flip",()=>eachPart("flip")];rot.key=keyLabel("rotate");flip.key=keyLabel("flip");
+  items.push(rot,flip,0,["Align Left",al("left"),n>=2],["Align Right",al("right"),n>=2],["Align Top",al("top"),n>=2],["Align Bottom",al("bottom"),n>=2],
+   ["Align Horizontal Centres",al("centreY"),n>=2],["Align Vertical Centres",al("centreX"),n>=2],["Distribute Horizontally",al("distributeX"),n>=3],["Distribute Vertically",al("distributeY"),n>=3]);
+  showPcbMenu(items,x,y);return;}
+ let sum={};try{sum=(await run("pcb_summary")).data||{};sum.referenceLayers=(await run("project_snapshot",{sections:["referenceLayers"]})).data.referenceLayers||[];}catch{}
+ const kos=sum.keepouts||[];kos.forEach((ko,i)=>{if(pt[0]>=ko.x0&&pt[0]<=ko.x1&&pt[1]>=ko.y0&&pt[1]<=ko.y1)items.push(["Delete Keep-out",()=>act("pcb_set_keepouts",{keepouts:kos.filter((_,j)=>j!==i)})],
+  named(ko.barrier?tr("Make Plain Keep-out"):tr("Make Isolation Barrier"),()=>act("pcb_set_keepouts",{keepouts:kos.map((k,j)=>j===i?{...k,barrier:!ko.barrier}:k)})));});
+ (sum.cutouts||[]).forEach((c,i)=>{const ps=(c.points||c||[]).map(q=>Array.isArray(q)?{x:q[0],y:q[1]}:q);if(ps.length>=3&&inPoly(pt,ps))items.push(["Delete Cutout",()=>act("pcb_cutouts",{action:"remove",index:i})]);});
+ (sum.zones||[]).forEach((z,i)=>{const ps=z.polygon||[];if(ps.length>=3&&inPoly(pt,ps))items.push(["Delete Pour",()=>act("pcb_remove_pour",{index:i})]);});
+ (sum.referenceLayers||[]).forEach((l,i)=>{const name=l.name||String(l),shown=l.visible!==false;
+  items.push(named((shown?tr("Hide Reference Layer %@"):tr("Show Reference Layer %@")).replace("%@",name),()=>act("pcb_reference_layer",{index:i,visible:!shown})),
+   named(tr("Remove Reference Layer %@").replace("%@",name),()=>act("pcb_reference_layer",{index:i,remove:true})));});
+ const refill=["Refill Pours",()=>refillPours(),(sum.zones||[]).length>0];refill.key=keyLabel("refill");
+ items.push(["Merge Tracks",()=>act("pcb_edit_copper",{action:"merge"}),(snap.tracks||[]).length>0],["Minimise Vias",()=>act("pcb_edit_copper",{action:"minimize_vias"}),(snap.vias||[]).length>0],
+  refill,["Zoom to Fit",()=>fitView("pcbView")]);showPcbMenu(items,x,y);});
+// ── Desktop schematic editor: the macOS schematic canvas's keys (tool keys and presets, X / Y mirror, Space, arrows
+// nudge, Ctrl+C / X / V / D / A, Ctrl+Alt+arrows align, Ctrl+↑ parent sheet, Ctrl+F find), its right-click menu and the
+// double-click quick edit (designator and value).
+const SCH_KEYS={select:"v",wire:"w",bus:"b",noConnect:"q",label:"l",ground:"g",place:"p",text:"t",pan:"h",rotate:"r",mirrorX:"x",mirrorY:"y",corner:"/"};
+const SCH_PRESETS={SiEDA:{},KiCad:{place:"a",ground:"p",select:"",pan:""},Altium:{wire:"p w",label:"p n",ground:"p o",place:"p p",text:"p t",pan:""},
+ Eagle:{select:"m o",wire:"n e",bus:"b u",noConnect:"",label:"l a",ground:"s u",place:"a d",text:"t e",pan:"",rotate:"r o",mirrorX:"m i",mirrorY:"",corner:""}};
+let schSeq=null,schSeqAt=0,schMulti=new Set(),schClip="";
+function schToolKey(typed){const pre=SCH_PRESETS[pref("studio.canvasKeys")]||{},keys=Object.keys(SCH_KEYS).map(id=>[id,(pre[id]??SCH_KEYS[id]).replace(/ /g,"")]).filter(k=>k[1]);
+ if(schSeq&&Date.now()-schSeqAt<1500){const s=schSeq+typed;schSeq=null;const hit=keys.find(k=>k[1]===s);if(hit)return hit[0];}
+ schSeq=null;const one=keys.find(k=>k[1]===typed);if(one)return one[0];
+ if(keys.some(k=>k[1].length===2&&k[1][0]===typed)){schSeq=typed;schSeqAt=Date.now();return"…";}return null;}
+const schKeyLabel=id=>((SCH_PRESETS[pref("studio.canvasKeys")]||{})[id]??SCH_KEYS[id]).toUpperCase().replace(" ",", ");
+const schSelection=()=>schMulti.size?[...schMulti]:sel.sch?[sel.sch]:[];
+function schSelect(refs){schMulti=new Set(refs.length>1?refs:[]);selectPart("sch",refs.length===1?refs[0]:null);if(refs.length>1)status(refs.length+" "+tr("parts selected"));}
+const schPart=ref=>sheetParts().find(c=>c.ref===ref);
+const schWorld=()=>{const v=views.schView,el=$("schView"),m=mouseAt.schView;if(!v||!m)return null;const r=el.getBoundingClientRect();return v.at({clientX:r.left+m[0],clientY:r.top+m[1]});};
+async function schEach(f){const refs=schSelection();for(const ref of refs)await f(ref);if(sel.sch)selectPart("sch",sel.sch);else overlay($("schView"));}
+const schRotate=()=>schEach(ref=>act("schematic_move_component",{ref,rotate:90}));
+const schMirror=axis=>schEach(ref=>act("schematic_move_component",{ref,mirror:axis}));
+async function schDelete(){const refs=schSelection(),h=schWorld(),hov=!refs.length&&h&&partAt(h);for(const ref of refs.length?refs:hov?[hov.ref]:[])await act("schematic_remove_component",{ref});schMulti.clear();selectPart("sch",null);}
+async function schCopy(cut){const refs=schSelection();if(!refs.length)return;const r=await run("schematic_edit",{action:"copy",refs});schClip=r.data.clip;
+ try{await navigator.clipboard.writeText(schClip);}catch{}if(cut)await schDelete();else status(tr("Copy")+": "+refs.join(", "));}
+async function schPaste(text,at){const clip=/sieda\.schematic-clip/.test(text||"")?text:schClip;if(!clip)return;let dx=20,dy=20;
+ if(at){try{const cs=JSON.parse(clip).components||[],xs=cs.map(c=>c.x??(c.position||{}).x).filter(isFinite),ys=cs.map(c=>c.y??(c.position||{}).y).filter(isFinite);
+  if(xs.length){dx=snapTo(at[0]-Math.min(...xs),10);dy=snapTo(at[1]-Math.min(...ys),10);}}catch{}}
+ const r=await act("schematic_edit",{action:"paste",clip,dx,dy,sheet:+$("sheet").value||1});if(r&&r.data.refs)schSelect(r.data.refs);}
+async function schDuplicate(){const refs=schSelection();if(!refs.length)return;const r=await act("schematic_edit",{action:"duplicate",refs});if(r&&r.data.refs)schSelect(r.data.refs);}
+const schSelectAll=()=>schSelect(sheetParts().map(c=>c.ref));
+function schSameValue(){const keys=new Set(schSelection().map(schPart).filter(Boolean).map(c=>c.kind+"|"+c.value));schSelect(sheetParts().filter(c=>keys.has(c.kind+"|"+c.value)).map(c=>c.ref));}
+function schConnected(nets){if(!nets){nets=new Set();for(const ref of schSelection())for(const p of(schPart(ref)||{}).pins||[])if(p.net>=0)nets.add(p.net);}
+ if(nets.size)schSelect(sheetParts().filter(c=>(c.pins||[]).some(p=>nets.has(p.net))).map(c=>c.ref));}
+async function parentSheet(){const r=await run("schematic_sheets"),cur=+$("sheet").value||1,s=(r.data.sheets||[]).find(s=>s.id===cur);if(s&&s.parent>0){$("sheet").value=s.parent;draw();}}
+// Quick edit (double-click, Edit Properties…): designator and value, a net label's name.
+function quickEdit(ref){const c=schPart(ref);if(!c)return;let d=$("quickDlg");if(!d){d=document.createElement("dialog");d.id="quickDlg";document.body.append(d);}
+ const label=/^#/.test(c.ref);d.innerHTML=`<b>${esc(label?tr("Net Label"):tr("Edit Properties"))}</b>${label?"":`<label class="ff"><span>${esc(tr("Designator"))}</span><input id="qeRef" value="${esc(c.ref)}"></label>`}
+ <label class="ff"><span>${esc(label?tr("Net name"):tr("Value"))}</span><input id="qeVal" value="${esc(c.value)}"></label><div class="row" style="justify-content:flex-end"><button onclick="quickDlg.close()">${esc(tr("Cancel"))}</button><button class="primary" id="qeOk">${esc(tr("OK"))}</button></div>`;
+ const ok=async()=>{const v=$("qeVal").value.trim(),nr=$("qeRef")?$("qeRef").value.trim():c.ref;d.close();if(v&&v!==c.value)await act("schematic_set_value",{ref:c.ref,value:v});
+  if(nr&&nr!==c.ref){await act("schematic_rename",{ref:c.ref,newRef:nr});selectPart("sch",nr);}};
+ $("qeOk").onclick=ok;d.querySelectorAll("input").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();ok();}});d.showModal();($("qeRef")||$("qeVal")).select();}
+let schSpace=false,schSpaceUsed=false;
+function schKey(e){const k=e.key,low=k.length===1?k.toLowerCase():k;
+ if(k===" "){if(!e.repeat){schSpace=true;schSpaceUsed=false;}return true;}
+ if(k==="Escape"){schSeq=null;pend=null;drag=null;setTool("sch","select");schMulti.clear();selectPart("sch",null);return true;}
+ if(k==="Delete"||k==="Backspace"){schDelete();return true;}
+ const dir={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[k];
+ if(dir){const s=e.shiftKey?5:1;if(schSelection().length&&tool.sch==="select")schEach(ref=>{const c=schPart(ref);return c&&act("schematic_move_component",{ref,x:c.x+dir[0]*10*s,y:c.y+dir[1]*10*s});});
+  else panView(dir[0]*(e.shiftKey?0.5:0.125),dir[1]*(e.shiftKey?0.5:0.125));return true;}
+ if(k==="Home"||k==="0"){fitView();return true;}if(k==="+"||k==="="){zoomView(1.25);return true;}if(k==="-"||k==="_"){zoomView(0.8);return true;}
+ if(k==="Z"){fitSelection();return true;}
+ if(low.length!==1)return false;let t=schToolKey(low);if(t==="…")return true;
+ if(t==="rotate"){schRotate();return true;}if(t==="mirrorX"){schMirror("x");return true;}if(t==="mirrorY"){schMirror("y");return true;}
+ if(t==="noConnect")t="noconnect";  // the tool strip's id
+ if(t==="select"||t==="wire"||t==="label"||t==="ground"||t==="place"||t==="pan"||t==="noconnect"||t==="bus"){setTool("sch",t);
+  if(t==="noconnect")hint("schHint",tr("Click a pin to mark it not connected."));if(t==="pan")hint("schHint",tr("Drag to pan the sheet."));return true;}
+ if(t==="text"||t==="corner")return true;  // sheet notes and wire corners: the Mac canvas's own drawing
+ if(low==="s"){setTool("sch","select");return true;}return false;}
+addEventListener("keydown",e=>{if(tab!=="Schematic"||document.querySelector("dialog[open]"))return;const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||document.activeElement.isContentEditable;
+ if(typing)return;const done=()=>{e.preventDefault();e.stopImmediatePropagation();},ctrl=e.ctrlKey||e.metaKey,low=e.key.length===1?e.key.toLowerCase():e.key;
+ if(!pcbMenu.hidden)return;
+ if(ctrl&&e.altKey&&/^Arrow/.test(e.key)){done();const refs=schSelection();if(refs.length>=2)act("schematic_align",{refs,mode:{ArrowLeft:"left",ArrowRight:"right",ArrowUp:"top",ArrowDown:"bottom"}[e.key],byOutline:true});return;}
+ if(ctrl&&!e.altKey&&!e.shiftKey){const f={c:()=>schCopy(false),x:()=>schCopy(true),d:()=>schDuplicate(),a:()=>schSelectAll(),f:()=>menuItem("Edit","Find…"),ArrowUp:()=>parentSheet(),
+   r:()=>{selectTab("Simulate");$("simKind").value="live";simForm();}}[low];if(f){done();f();}return;}
+ if(ctrl||e.altKey)return;if(schKey(e))done();},true);
+addEventListener("paste",e=>{if(tab!=="Schematic"||/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.querySelector("dialog[open]"))return;e.preventDefault();schPaste(e.clipboardData.getData("text"),null);});
+addEventListener("keyup",e=>{if(e.key!==" "||tab!=="Schematic"||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;e.preventDefault();if(schSpace&&!schSpaceUsed)schRotate();schSpace=false;},true);
+{const el=$("schView"),press=el.onpress;
+ el.onpress=(pt,e)=>{if(schSpace){schSpaceUsed=true;return false;}if(tool.sch==="pan")return false;
+  if(tool.sch==="noconnect"){const p=nearPin(pt,12);if(p)act("schematic_set_no_connect",{pin:p.ref+"."+p.pin});else status(tr("No pin there."),"warning");return true;}
+  if(tool.sch==="select"&&e&&e.shiftKey){const c=partAt(pt);if(c){if(sel.sch)schMulti.add(sel.sch);sel.sch=null;schMulti.has(c.ref)?schMulti.delete(c.ref):schMulti.add(c.ref);schSelect([...schMulti]);}return true;}
+  if(tool.sch==="select")schMulti.clear();return press(pt,e);};
+ el.ondbl=()=>{const h=schWorld(),c=h&&partAt(h);if(!c)return false;drag=null;selectPart("sch",c.ref);quickEdit(c.ref);return true;};}
+{const base=overlay;overlay=function(el){base(el);if(el.id!=="schView"||!schMulti.size)return;const o=el.querySelector(".over");if(!o)return;
+ for(const ref of schMulti){const c=schPart(ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}};}
+const segHit=(pt,a,b,lim)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy,u=l?Math.max(0,Math.min(1,((pt[0]-a[0])*dx+(pt[1]-a[1])*dy)/l)):0;return Math.hypot(pt[0]-a[0]-u*dx,pt[1]-a[1]-u*dy)<=lim;};
+$("schView").addEventListener("contextmenu",async e=>{e.preventDefault();if(!views.schView)return;const pt=views.schView.at(e),c=partAt(pt),x=e.clientX,y=e.clientY,items=[];
+ if(c){if(!schSelection().includes(c.ref))schSelect([c.ref]);const k=(it,key)=>{it.key=key;return it;};
+  items.push(["Edit Properties…",()=>quickEdit(c.ref)]);
+  if(c.customPart||c.custom)items.push(["Edit Symbol…",()=>selectTab("Library")]);
+  if((c.pins||[]).length>=8)items.push(["Plan Pins…",()=>form("schematic_pin_map",{ref:c.ref,action:"plan"})],["Export Pin Map…",()=>form("schematic_pin_map",{ref:c.ref,action:"export"})],["Assign Pins from File…",()=>form("schematic_pin_map",{ref:c.ref,action:"assign"})]);
+  const rot=k(["Rotate",schRotate],schKeyLabel("rotate")),mx=k(["Mirror Horizontally",()=>schMirror("x")],schKeyLabel("mirrorX")),
+   my=k(["Mirror Vertically",()=>schMirror("y")],schKeyLabel("mirrorY")),dup=k(["Duplicate",schDuplicate],"Ctrl+D"),cp=k(["Copy",()=>schCopy(false)],"Ctrl+C");
+  const refs=schSelection(),label=/^#NL/.test(c.ref);
+  items.push(0,rot,mx,my,dup,cp,0,["Select Same Value",schSameValue],["Select Connected Parts",()=>schConnected()],
+   ["Connect Touching Pins and Wires",()=>act("schematic_edit",{action:"connect_touching",refs})],
+   named(c.locked?tr("Unlock"):tr("Lock"),()=>act("schematic_edit",{action:"lock",refs,locked:!c.locked})));
+  if(label)items.push(named(c.power?tr("Show as Label"):tr("Show as Power Symbol"),()=>act("schematic_edit",{action:"power_style",refs,power:!c.power})));
+  items.push(0,["Delete",()=>schDelete()]);showPcbMenu(items,x,y);return;}
+ let wires=[];try{wires=(await run("project_snapshot",{sections:["wires"]})).data.wires||[];}catch{}
+ const sheet=+$("sheet").value||1,onSheet=w=>{const c=(snap.components||[]).find(c=>c.id===(w.a||{}).component);return!c||c.sheet===sheet;},
+  w=wires.find(w=>onSheet(w)&&[[w.ax,w.ay],[w.bx,w.ay],[w.bx,w.by],[w.ax,w.by]].some((q,i,a)=>segHit(pt,q,a[(i+1)%4],4)||segHit(pt,[w.ax,w.ay],[w.bx,w.by],4)));
+ if(w){items.push(["Select Connected Parts",()=>schConnected(new Set([w.net]))],["Clean Up Wires",()=>act("schematic_edit",{action:"cleanup_wires",sheet})],0,
+   ["Delete Wire",()=>act("schematic_disconnect",{wire:w.id})]);showPcbMenu(items,x,y);return;}
+ items.push(["Paste Here",()=>schPaste(schClip,pt),!!schClip],["Select All",schSelectAll],["Clean Up Wires",()=>act("schematic_edit",{action:"cleanup_wires",sheet})],0,["Zoom to Fit",()=>fitView("schView")]);
+ showPcbMenu(items,x,y);});
+// ── Desktop Library editor: as the Mac's Footprint Editor, Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y) undo and redo the pad edits
+// (their own history while pads are being edited) and Delete removes the selected pad.
+const lpHist={undo:[],redo:[],last:null,restoring:false,part:""};
+{const base=lpCheck;lpCheck=function(...a){const now=lp.custom?JSON.stringify(lp.custom):null;
+ if(lpHist.part!==lp.editId){lpHist.part=lp.editId;lpHist.undo=[];lpHist.redo=[];lpHist.last=null;}
+ if(!lpHist.restoring&&now!==lpHist.last){if(lpHist.last!==null&&now!==null){lpHist.undo.push(lpHist.last);if(lpHist.undo.length>100)lpHist.undo.shift();lpHist.redo=[];}
+  if(now===null){lpHist.undo=[];lpHist.redo=[];}lpHist.last=now;}return base.apply(this,a);};}
+function lpHistory(back){const from=back?lpHist.undo:lpHist.redo,to=back?lpHist.redo:lpHist.undo;if(!lp.custom||!from.length)return false;
+ to.push(JSON.stringify(lp.custom));const s=from.pop();lp.custom=JSON.parse(s);lpHist.last=s;lp.sel=Math.min(Math.max(lp.sel,0),lp.custom.lands.length-1);
+ lpHist.restoring=true;try{lpPad();lpCheck();}finally{lpHist.restoring=false;}return true;}
+addEventListener("keydown",e=>{if(tab!=="Library"||document.querySelector("dialog[open]")||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||!lp.custom)return;
+ const ctrl=e.ctrlKey||e.metaKey,low=e.key.toLowerCase(),done=()=>{e.preventDefault();e.stopImmediatePropagation();};
+ if(ctrl&&!e.altKey&&low==="z"){done();lpHistory(!e.shiftKey);return;}if(ctrl&&!e.altKey&&low==="y"){done();lpHistory(false);return;}
+ if(!ctrl&&!e.altKey&&(e.key==="Delete"||e.key==="Backspace")&&lp.sel>=0){done();lpDelPad();}},true);
+// ── Desktop Checks and Simulation: as on the Mac, clicking a check selects its parts and shows them in their editor
+// (zoomed to a board location), and clicking a part's row in the DC results selects that part.
+let checkRows=[];
+const onBoard=v=>/^(DRC|DFM|DFA|MECH|PLACE|RULE|ROUTE|REL|FLEX|PANEL)_/.test(v.code||"")||(!!(v.x||v.y)&&!/^(ERC|VAL)_/.test(v.code||""));
+{const base=showChecks;showChecks=function(r){checkRows=(r&&r.data&&r.data.violations)||[];base(r);
+ const trs=[...document.querySelectorAll("#checks tr")].slice(1);trs.forEach((row,i)=>{const v=checkRows[i];if(!v||!((v.refs||[]).length||v.x||v.y))return;row.dataset.v=i;row.style.cursor="pointer";row.title=onBoard(v)?tr("Show in PCB"):tr("Show in Schematic");});};}
+$("checks").addEventListener("click",async e=>{const row=e.target.closest("tr[data-v]");if(!row)return;const v=checkRows[+row.dataset.v],refs=v.refs||[];
+ const board=onBoard(v);
+ if(board){await selectTab("Board");multi.clear();selW=null;if(refs.length>1){refs.forEach(r=>multi.add(r));showMulti();}else selectPart("pcb",refs[0]||null);
+  if(v.x||v.y){const f=()=>zoomRect("pcbView",[v.x-4,v.y-4,v.x+4,v.y+4]);if(views.pcbView&&$("pcbView").querySelector("img"))setTimeout(f,300);else setTimeout(f,1200);}}
+ else{const c=(snap.components||[]).find(c=>c.ref===refs[0]);if(c&&c.sheet)$("sheet").value=c.sheet;await selectTab("Schematic");schSelect(refs);}});
+$("simOut").addEventListener("click",e=>{const td=e.target.closest("tr")&&e.target.closest("tr").firstElementChild,ref=td&&td.textContent.trim();
+ if(ref&&(snap.components||[]).some(c=>c.ref===ref)){sel.sch=null;schSelect([ref]);status(ref);}});
 </script></body></html>
