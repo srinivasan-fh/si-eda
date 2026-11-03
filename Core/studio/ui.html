@@ -1112,4 +1112,17 @@ addEventListener("keydown",e=>{if(tab!=="Library"||document.querySelector("dialo
  const ctrl=e.ctrlKey||e.metaKey,low=e.key.toLowerCase(),done=()=>{e.preventDefault();e.stopImmediatePropagation();};
  if(ctrl&&!e.altKey&&low==="z"){done();lpHistory(!e.shiftKey);return;}if(ctrl&&!e.altKey&&low==="y"){done();lpHistory(false);return;}
  if(!ctrl&&!e.altKey&&(e.key==="Delete"||e.key==="Backspace")&&lp.sel>=0){done();lpDelPad();}},true);
+// ── Desktop Checks and Simulation: as on the Mac, clicking a check selects its parts and shows them in their editor
+// (zoomed to a board location), and clicking a part's row in the DC results selects that part.
+let checkRows=[];
+const onBoard=v=>/^(DRC|DFM|DFA|MECH|PLACE|RULE|ROUTE|REL|FLEX|PANEL)_/.test(v.code||"")||(!!(v.x||v.y)&&!/^(ERC|VAL)_/.test(v.code||""));
+{const base=showChecks;showChecks=function(r){checkRows=(r&&r.data&&r.data.violations)||[];base(r);
+ const trs=[...document.querySelectorAll("#checks tr")].slice(1);trs.forEach((row,i)=>{const v=checkRows[i];if(!v||!((v.refs||[]).length||v.x||v.y))return;row.dataset.v=i;row.style.cursor="pointer";row.title=onBoard(v)?tr("Show in PCB"):tr("Show in Schematic");});};}
+$("checks").addEventListener("click",async e=>{const row=e.target.closest("tr[data-v]");if(!row)return;const v=checkRows[+row.dataset.v],refs=v.refs||[];
+ const board=onBoard(v);
+ if(board){await selectTab("Board");multi.clear();selW=null;if(refs.length>1){refs.forEach(r=>multi.add(r));showMulti();}else selectPart("pcb",refs[0]||null);
+  if(v.x||v.y){const f=()=>zoomRect("pcbView",[v.x-4,v.y-4,v.x+4,v.y+4]);if(views.pcbView&&$("pcbView").querySelector("img"))setTimeout(f,300);else setTimeout(f,1200);}}
+ else{const c=(snap.components||[]).find(c=>c.ref===refs[0]);if(c&&c.sheet)$("sheet").value=c.sheet;await selectTab("Schematic");schSelect(refs);}});
+$("simOut").addEventListener("click",e=>{const td=e.target.closest("tr")&&e.target.closest("tr").firstElementChild,ref=td&&td.textContent.trim();
+ if(ref&&(snap.components||[]).some(c=>c.ref===ref)){sel.sch=null;schSelect([ref]);status(ref);}});
 </script></body></html>
