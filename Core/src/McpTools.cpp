@@ -3429,7 +3429,13 @@ void projectTools(Table& t) {
               if (s.projectPath().empty()) throw ToolError("Save the project in a shared folder first (project_save_as).");
               const std::string path = s.projectPath();
               if (action == "join" || !live.isObject() || live.get("path").asString() != path) {
-                  if (action != "join") throw ToolError("Not live: join first.");
+                  if (action != "join") {
+                      // Another project was opened (or saved elsewhere): stop co-editing the old file.
+                      leave();
+                      j["live"] = false;
+                      j["note"] = "Live collaboration stopped: the open project is no longer the shared file.";
+                      return out(j);
+                  }
                   leave();
                   if (!fs::exists(path)) s.writeFile(path, takeText(sieda_project_save_json(P(s))));
                   live = obj();
@@ -3551,8 +3557,14 @@ void projectTools(Table& t) {
                   if (!urlOk) throw ToolError("Give an https://, ssh:// or git@host:path URL.");
                   const std::string parent = s.resolvePath(argStr(a, "dir", "."), true);
                   fs::create_directories(parent);
-                  std::string name = fs::path(url.substr(url.find_last_of("/:") + 1)).stem().string();
-                  if (name.empty() || name[0] == '.' || name[0] == '-') throw ToolError("Cannot name a folder after " + url);
+                  std::string name = url.substr(url.find_last_of("/:") + 1);
+                  if (name.size() > 4 && name.compare(name.size() - 4, 4, ".git") == 0) name.resize(name.size() - 4);
+                  // Only a plain folder name: a backslash (a separator on Windows), ".." or an option never gets through.
+                  const bool plain = !name.empty() && name[0] != '.' && name[0] != '-' &&
+                                     std::all_of(name.begin(), name.end(), [](unsigned char c) {
+                                         return std::isalnum(c) || c == '.' || c == '_' || c == '-';
+                                     });
+                  if (!plain) throw ToolError("Cannot name a folder after " + url);
                   const fs::path target = fs::path(parent) / name;
                   if (fs::exists(target)) throw ToolError(target.string() + " already exists.");
                   j["output"] = must({"clone", "--", url, name}, parent);

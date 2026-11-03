@@ -20696,6 +20696,10 @@ TEST(mcp_live_collaboration_merges_teammates_saves_and_lists_them) {
     CHECK(data(call(alice, "project_export_json", "{}")).get("board").get("width").asNumber() == 42);
     CHECK(!call(bob, "project_live", R"({"action":"leave"})").get("isError").asBool(true));
     CHECK(data(call(alice, "project_live", R"({"action":"status"})")).get("peers").size() == 0);
+    // Opening another project ends co-editing of the shared file (no error every sync).
+    CHECK(!call(alice, "project_save_as", R"({"path":"shared/other.siedaproj"})").get("isError").asBool(true));
+    const Json moved = data(call(alice, "project_live", R"({"action":"sync"})"));
+    CHECK(!moved.get("live").asBool(true) && moved.has("note"));
 }
 
 TEST(mcp_git_commits_branches_diffs_and_switches_the_project_folder) {
@@ -20729,6 +20733,7 @@ TEST(mcp_git_commits_branches_diffs_and_switches_the_project_folder) {
     CHECK(proj.dump().find("\"680\"") == std::string::npos);  // reopened as on the first branch
     CHECK(git(R"({"action":"clone","url":"ext::sh -c touch% /tmp/x"})").get("isError").asBool(false));
     CHECK(git(R"({"action":"diff","file":"../x"})").get("isError").asBool(false));
+    CHECK(git(R"({"action":"clone","url":"https://example.invalid/a\\..\\..\\evil"})").get("isError").asBool(false));
 }
 
 TEST(mcp_live_simulation_runs_the_board_and_takes_firmware) {

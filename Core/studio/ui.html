@@ -566,6 +566,7 @@ async function coToggle(){if(co.on){co.on=false;clearInterval(co.timer);clearTim
 async function coSync(save){if(!co.on||co.busy)return;co.busy=true;
  try{const r=await rpc("tools/call",{name:"project_live",arguments:{action:"sync",save}});const t=(r.content||[]).find(c=>c.type==="text"),d=t?JSON.parse(t.text):{};
   if(r.isError){status("project_live: "+(t&&t.text),"error");return;}
+  if(d.live===false){co.on=false;clearInterval(co.timer);clearTimeout(co.saveT);$("coBadge").hidden=true;status(d.note||tr("Live collaboration off"),"warning");return;}
   if(d.merged){co.conflicts=d.conflicts||[];await refresh(true);status(co.conflicts.length?tr("Merged a teammate's changes")+" — "+co.conflicts.length+" "+tr("conflicting field(s) kept yours"):tr("Merged a teammate's changes"),co.conflicts.length?"warning":"okc");}
   else if(d.note)status(d.note,"warning");coBadge(d);}catch{}finally{co.busy=false;}}
 function coBadge(d){const b=$("coBadge"),peers=(d.peers||[]).map(p=>p.user);b.hidden=false;b.textContent="● "+tr("Live")+(peers.length?" · "+peers.join(", "):"")+(co.conflicts.length?" · "+co.conflicts.length+" ⚠":"");
