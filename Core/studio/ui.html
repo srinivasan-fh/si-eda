@@ -32,7 +32,45 @@ section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:1
 .strip{display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:8px}.strip.vertical{flex-direction:column;align-self:flex-start}
 .strip button{border:0;background:none;padding:6px 7px;border-radius:6px;display:flex}.strip button:hover{background:var(--bg)}.strip select{margin:3px}
 .optbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;flex:none;min-height:36px}.row>.optbar{flex:1}
-#pcbView{background:#0b111c}
+#pcbView{background:var(--pcbbg)}
+.banner[hidden],.fpanel[hidden],.dpicker[hidden],.pgroup[hidden]{display:none!important}.libcol .pgroup .row input{width:70px}
+#schView{background:#0a1224}.edbody{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px;color:var(--tp)}
+section.ed table{background:color-mix(in srgb,var(--deep) 60%,transparent);border-color:var(--edge);color:var(--tp);font-size:12.5px}section.ed th{background:var(--deep);color:var(--sky);font-size:11px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}section.ed td,section.ed th{border-bottom-color:var(--edge)}
+section.ed tr:hover td{background:color-mix(in srgb,var(--blue) 12%,transparent)}section.ed .card{background:color-mix(in srgb,var(--deep) 70%,transparent);border-color:var(--edge)}section.ed .plot{border-color:var(--edge)}
+#v3d{background:#0a1224}#parts3d label{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ts)}.libcol{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px}.libprev{width:400px}.libprev .plot{height:330px;border:1px solid var(--edge);border-radius:8px;flex:none}#lpSym{background:#0a1224}#lpFp{background:#050a17}.dpicker select[size]{flex:1}.libcol .pgroup input,.libcol .pgroup select,.libcol textarea{background:var(--navy);border-color:var(--edge);color:var(--tp)}.libprev button,.libcol button{font-size:12px;padding:3px 9px;background:var(--navy);border-color:var(--edge);color:var(--tp)}.libprev .tools button.on{background:var(--blue);color:#fff}.dpicker{width:220px;flex:none;background:var(--deep);border-right:1px solid var(--edge);display:flex;flex-direction:column;gap:6px;padding:10px;min-height:0;font-size:12.5px}.dpicker select{flex:1;min-height:100px;width:100%;background:var(--navy);border-color:var(--edge);color:var(--tp)}.dpicker input{width:100%;background:var(--navy);border-color:var(--edge);color:var(--tp)}
+.sheetbar button{border:0;background:none;color:var(--ts);padding:3px 8px;border-radius:5px}.sheetbar button.on{background:color-mix(in srgb,var(--blue) 35%,transparent);color:var(--tp);font-weight:600}
+/* The macOS editors' chrome (EditorChrome.swift: ToolStrip, OptionsBar; Theme / AppTheme colours per app theme). */
+:root{--navy:#0a1224;--deep:#0f1f40;--dblue:#1a3b7a;--blue:#3378f5;--lb:#73adff;--sky:#7dd4fc;--ice:#cce8ff;--tmute:#6b87b8;--gridc:#293d66;--pcbbg:#050a17;--edge:#3378f54d;--tp:#fff;--ts:#c4d4f0}
+:root[data-theme="matrix"]{--navy:#020a04;--deep:#06200e;--dblue:#0c4a1c;--blue:#00b33c;--lb:#4fe07a;--sky:#00ff41;--ice:#d2ffdc;--tmute:#6faf7f;--gridc:#0f3a18;--pcbbg:#010602;--edge:#00b33c4d}
+:root[data-theme="graphite"]{--navy:#16181c;--deep:#22252b;--dblue:#3a3f48;--blue:#4f7fc9;--lb:#a9b6c8;--sky:#8fc3e8;--ice:#eceff3;--tmute:#8a919c;--gridc:#2e323a;--pcbbg:#0e0f11;--edge:#4f7fc94d}
+:root[data-theme="light"]{--navy:#f7f8fa;--deep:#e9edf3;--dblue:#c9d3e2;--blue:#1f5fd1;--lb:#2e3a4d;--sky:#0b63c4;--ice:#111827;--tmute:#5b6576;--gridc:#c9d0da;--pcbbg:#14171c;--edge:#1f5fd14d;--tp:#17202e;--ts:#3a4558}
+section.ed{padding:0;gap:0;overflow:hidden;background:var(--navy)}.edrow{flex:1;display:flex;min-height:0}.edcol{flex:1;display:flex;flex-direction:column;min-width:0}
+.vstrip{width:44px;flex:none;display:flex;flex-direction:column;gap:4px;padding:8px 5px;background:var(--deep);border-right:1px solid var(--edge);overflow-y:auto;scrollbar-width:none}
+.hstrip{display:flex;gap:4px;padding:3px 8px;background:var(--deep);border-bottom:1px solid var(--edge);overflow-x:auto;flex:none;scrollbar-width:none}
+.vstrip button,.hstrip button{width:34px;height:30px;flex:none;border:0;border-radius:7px;background:none;color:var(--lb);display:flex;align-items:center;justify-content:center;padding:0}
+.vstrip button .ico,.hstrip button .ico{width:17px;height:17px}.vstrip button.on,.hstrip button.on{background:var(--blue);color:#fff}.vstrip button:hover:not(.on),.hstrip button:hover:not(.on){background:#ffffff14}
+.vstrip hr{border:0;border-top:1px solid var(--edge);margin:2px 4px;flex:none}.hstrip hr{border:0;border-left:1px solid var(--edge);margin:4px 2px;height:22px}
+.edbar{display:flex;gap:8px;align-items:center;padding:4px 10px;background:var(--deep);border-bottom:1px solid var(--edge);flex:none;overflow-x:auto;white-space:nowrap;min-height:38px;font-size:12.5px;color:var(--lb);scrollbar-width:thin}
+.edbar select,.edbar input,.edbar button{font-size:12px;padding:3px 7px;background:var(--navy);border-color:var(--edge);color:var(--tp)}.edbar input[type=checkbox]{padding:0}.edbar label{display:flex;gap:4px;align-items:center;color:var(--ts)}
+.edbar button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.edbar .vd{width:1px;height:18px;background:var(--edge);flex:none}.edbar .sp{flex:1}
+.segc{display:inline-flex;border:1px solid var(--edge);border-radius:6px;overflow:hidden;flex:none}.segc button{border:0!important;border-radius:0!important;background:var(--navy)!important;color:var(--ts)!important;padding:3px 9px}.segc button.on{background:var(--blue)!important;color:#fff!important}
+.badge{display:inline-flex;gap:5px;align-items:center;padding:2px 8px;border-radius:10px;background:var(--dblue);color:var(--ice);font-size:11.5px}
+.edstage{flex:1;position:relative;min-height:0;overflow:hidden}.edstage>.view{position:absolute;inset:0;border:0;border-radius:0;min-height:0}
+.fpanel{position:absolute;z-index:3;background:linear-gradient(135deg,color-mix(in srgb,var(--deep) 85%,transparent),color-mix(in srgb,var(--navy) 90%,transparent));border:1px solid var(--edge);border-radius:12px;padding:10px;font-size:12px;color:var(--ts)}
+#layersPanel{top:10px;right:10px;width:210px;max-height:calc(100% - 20px);overflow:auto}#layersPanel h6{margin:0 0 4px;font-size:11px;font-weight:700;color:var(--sky);display:flex;justify-content:space-between;align-items:center}
+#layersPanel hr{border:0;border-top:1px solid var(--edge);margin:6px 0}.lrow{display:flex;gap:8px;align-items:center;padding:3px 6px;border-radius:5px;cursor:pointer}.lrow.on{background:color-mix(in srgb,var(--blue) 30%,transparent);color:var(--tp)}
+.lrow .eye{width:18px;color:var(--sky);cursor:pointer}.lrow .eye.off{color:var(--tmute)}.sw{width:12px;height:12px;border-radius:3px;flex:none}.leg{display:flex;gap:8px;align-items:center;padding:1px 6px;font-size:11px}.leg i{width:18px;height:4px;border-radius:2px}
+#layersPanel select{font-size:11px;padding:1px 4px;background:var(--navy);border-color:var(--edge);color:var(--tp)}
+#pcbNav{bottom:10px;right:10px;width:200px;padding:6px}#pcbNav img{width:100%;display:block}#pcbNav svg{position:absolute;left:6px;top:6px}
+.banner{position:absolute;z-index:3;top:10px;left:50%;transform:translateX(-50%);padding:6px 12px;border-radius:14px;background:color-mix(in srgb,var(--deep) 95%,transparent);border:1px solid color-mix(in srgb,var(--blue) 50%,transparent);color:var(--tp);font-size:12.5px;white-space:nowrap;display:flex;gap:8px;align-items:center}
+.layertabs{display:flex;background:var(--deep);border-top:1px solid var(--edge);overflow-x:auto;flex:none;scrollbar-width:none}.layertabs button{border:0;border-radius:0;background:none;padding:5px 12px;font-size:12px;color:var(--ts);display:flex;gap:6px;align-items:center;border-right:1px solid var(--edge);white-space:nowrap}
+.layertabs button.on{background:color-mix(in srgb,var(--blue) 45%,transparent);color:#fff}.layertabs button.off{color:var(--tmute)}
+.inspector{width:270px;flex:none;background:color-mix(in srgb,var(--deep) 65%,transparent);border-left:1px solid var(--edge);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:16px;font-size:13px;color:var(--tp)}
+.ph{font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.02em}.pgroup{border:1px solid color-mix(in srgb,var(--blue) 25%,transparent);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,color-mix(in srgb,var(--deep) 85%,transparent),color-mix(in srgb,var(--navy) 90%,transparent))}
+.pgroup>h5{margin:0;font-size:11px;font-weight:600;color:var(--lb)}.prow{display:flex;justify-content:space-between;gap:8px;align-items:center}.prow>span:first-child{color:var(--tmute)}.prow>span:last-child{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+.prow input,.prow select{width:120px;font-size:12px;padding:3px 6px;background:var(--navy);border-color:var(--edge);color:var(--tp)}.pbtns{display:flex;gap:6px;flex-wrap:wrap}.pbtns button{font-size:12px;padding:3px 9px;background:var(--navy);border-color:var(--edge);color:var(--tp)}
+.phead{display:flex;gap:10px;align-items:center}.phead .pi{width:40px;height:40px;border-radius:8px;background:color-mix(in srgb,var(--blue) 20%,transparent);display:flex;align-items:center;justify-content:center;color:var(--lb)}.phead b{font-size:17px}.phead small{display:block;color:var(--tmute)}
+.inspector .info,.inspector .error,.inspector .warning{font-size:12px}
 aside.devices{width:220px;display:flex;flex-direction:column;gap:6px;min-height:0}aside.devices select{width:100%;flex:1;min-height:120px}aside.devices input{width:100%}
 table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
@@ -65,41 +103,83 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <button class="tb" onclick="redo()" title="Redo"><i class="ico" data-ico="redo"></i></button>
 <button class="tb" onclick="selectTab('Checks');verify()" title="Verify Design"><i class="ico" data-ico="seal"></i><span>Check</span></button></div></div></header>
 <div class="main">
-<section data-tab="Schematic"><div class="row"><div class="tools strip" id="schTools"><button data-t="select" title="Select / move (drag a part; R rotates, Delete removes)"><i class="ico" data-ico="cursor"></i></button><button data-t="wire" title="Wire: click a pin, then another (W)"><i class="ico" data-ico="wire"></i></button><button data-t="label" title="Net label on a pin (L)"><i class="ico" data-ico="tag"></i></button><button data-t="ground" title="Ground a pin (G)"><i class="ico" data-ico="ground"></i></button><button data-t="place" title="Place the part chosen on the right (P)"><i class="ico" data-ico="place"></i></button></div><div class="optbar"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()"><button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info" id="schHint"></span></div></div><div class="work"><aside class="devices"><b>Devices</b><input id="devSearch" placeholder="Search devices" oninput="filterKinds()"><select id="kind" size="14"></select><b>Standard Parts</b><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()"><select id="partHits" size="6"></select><div class="info">Choose, then click Place and click the sheet.</div></aside><div class="view" id="schView"></div><aside class="side"><div class="card"><b>Part</b><div id="schSel" class="info">Click a part to select it.</div></div></aside></div></section>
-<section data-tab="Board"><div class="row optbar"><label>Layers</label><select id="layers" onchange="draw()"><option value="">All</option><option value="0">Top copper</option><option value="b">Bottom copper</option></select>
-<button class="primary" onclick="act('pcb_autoplace',{all:true,decoupling:true})">Auto Place</button><button class="primary" onclick="act('pcb_autoroute',{})">Auto Route</button>
-<button onclick="act('pcb_fit_board',{})">Fit Board</button><button onclick="drcMarks()">Run DRC</button>
-<button onclick="act('pcb_teardrops',{})" title="Teardrops where tracks meet pads and vias">Teardrops</button><button onclick="act('pcb_edit_copper',{action:'gloss'})" title="Pull every track tight">Gloss</button>
-<button onclick="act('pcb_edit_copper',{action:'minimize_vias'})" title="Route nets again with fewer vias (kept only when better)">Fewer vias</button><button onclick="act('pcb_stitch_vias',{})" title="Stitch the ground pours together">Stitch GND</button>
-<button onclick="outlineDialog()" title="Board shape">Outline…</button><button onclick="act('pcb_rooms',{action:'place'})" title="Move parts outside their room into it">Place rooms</button><button onclick="variantCheck()" title="Check the board as each assembly variant is built">Check variants</button></div>
-<div class="row optbar"><select id="routeMode" title="What the router does with other nets' copper"><option value="shove">Push aside</option><option value="walkaround">Walk around</option><option value="highlight">Highlight collisions</option></select><span class="info" id="pcbHint"></span></div>
-<div class="work"><div class="tools strip vertical" id="pcbTools"><button data-t="select" title="Select / move (drag a part; R rotates, F flips side, K locks)"><i class="ico" data-ico="cursor"></i></button><button data-t="route" title="Route live: click a pad and move, click fixes, V via, Enter finishes (X)"><i class="ico" data-ico="route"></i></button><button data-t="pair" title="Differential pair: click a pad of either member (D)"><i class="ico" data-ico="pair"></i></button><button data-t="via" title="Via on the net of the nearest pad (V)"><i class="ico" data-ico="via"></i></button><button data-t="rip" title="Remove the copper of a pad's net"><i class="ico" data-ico="scissors"></i></button><button data-t="measure" title="Measure between two points (M)"><i class="ico" data-ico="ruler"></i></button><button data-t="pour" title="Copper pour: click its corners, double-click to close"><i class="ico" data-ico="pour"></i></button><button data-t="keepout" title="Keep-out: drag a rectangle"><i class="ico" data-ico="keepout"></i></button><button data-t="cutout" title="Board cutout: click its corners, double-click to close"><i class="ico" data-ico="cutout"></i></button><button data-t="hole" title="Mounting hole (M3)"><i class="ico" data-ico="hole"></i></button></div><div class="view" id="pcbView"></div><div class="side"><div class="card"><b>Selection</b><div id="pcbSel" class="info">Click a part, track or via. Shift-click or shift-drag selects several parts.</div></div><div class="card"><b>DRC</b><div id="drcList" class="info">Run DRC to mark problems on the board.</div></div></div></div></section>
-<section data-tab="Library"><div class="row optbar"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
+<section data-tab="Schematic" class="ed"><div class="edrow"><aside class="dpicker" id="devPicker"><div class="ph" data-en="DEVICES">DEVICES</div><input id="devSearch" placeholder="Search devices" oninput="filterKinds()"><select id="kind" size="14"></select>
+<div class="ph" data-en="STANDARD PARTS">STANDARD PARTS</div><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()"><select id="partHits" size="6"></select><div class="info">Choose, then click Place and click the sheet.</div></aside>
+<div class="edcol"><div class="hstrip" id="schTools">
+<button data-t="select" title="Select / move (V)"><i class="ico" data-ico="cursor"></i></button>
+<button data-t="pan" title="Pan (H)"><i class="ico" data-ico="hand"></i></button>
+<button data-t="wire" title="Wire (W) — click two pins"><i class="ico" data-ico="line"></i></button>
+<button data-t="bus" title="Bus (B) — click the corners, click the last point again (or Return) to name it"><i class="ico" data-ico="busline"></i></button>
+<button data-t="noconnect" title="No connect (Q) — click a pin to mark it intentionally open"><i class="ico" data-ico="xmark"></i></button><hr>
+<button data-t="place" title="Place selected device (P)"><i class="ico" data-ico="placedev"></i></button>
+<button data-t="ground" title="Place ground (G)"><i class="ico" data-ico="groundpin"></i></button>
+<button data-t="label" title="Place net label (L)"><i class="ico" data-ico="tag"></i></button>
+<button data-t="vsource" title="Place voltage source"><i class="ico" data-ico="bolt"></i></button><hr>
+<button data-sa="rotate" title="Rotate selection (Space or R)"><i class="ico" data-ico="rotate"></i></button>
+<button data-sa="delete" title="Delete selection (⌫)"><i class="ico" data-ico="trash"></i></button><hr>
+<button data-sa="picker" title="Show/hide device picker"><i class="ico" data-ico="sidebar"></i></button>
+<button data-sa="zoomarea" title="Zoom to area (Z) — drag a rectangle"><i class="ico" data-ico="zoomin"></i></button></div>
+<div class="edbar" id="schOpts"><i class="ico" data-ico="wrench" id="schWrench" style="color:var(--blue)"></i><button class="tb" onclick="form('schematic_find')" title="Find & Replace across every sheet (⌘F)"><i class="ico" data-ico="search"></i></button>
+<button class="tb" onclick="form('output_schematic_pdf')" title="PDF of every sheet with bookmarks, frames and title blocks"><i class="ico" data-ico="doc"></i></button><button class="tb" onclick="run('schematic_erc').then(showChecks)" title="Run Electrical Rule Check"><i class="ico" data-ico="seal"></i></button>
+<span class="sp"></span><span id="schCount" style="color:var(--sky)"></span><span class="segc"><button onclick="schZoom(1/1.25)" title="Zoom Out">−</button><button id="schZoomL" onclick="schZoom(0)" title="Zoom to Fit">100%</button><button onclick="schZoom(1.25)" title="Zoom In">+</button></span></div>
+<div class="edbar sheetbar" id="sheetBar"></div><input id="sheet" type="number" min="1" value="1" hidden onchange="draw()"><span id="schHint" hidden></span>
+<div class="edstage"><div class="view" id="schView"></div><div class="banner" id="schBanner" hidden></div></div></div>
+<aside class="inspector"><div class="ph" data-en="PROPERTIES">PROPERTIES</div><div id="schSel"></div></aside></div></section>
+<section data-tab="Board" class="ed"><div class="edrow"><div class="vstrip" id="pcbTools">
+<button data-t="select" title="Select / move footprints; drag a track or via to shove it (V)"><i class="ico" data-ico="cursor"></i></button>
+<button data-t="pan" title="Pan (H)"><i class="ico" data-ico="hand"></i></button>
+<button data-t="route" title="Route tracks (X): click a pad, click to place corners, V adds a via, Enter or double-click finishes, Esc cancels"><i class="ico" data-ico="route"></i></button>
+<button data-t="tune" title="Tune length (T): click a track, set the target, Enter adds the meanders, Esc cancels"><i class="ico" data-ico="tune"></i></button><hr>
+<button data-t="pour" title="Draw a copper pour on the active layer: click its corners, double-click closes"><i class="ico" data-ico="pour"></i></button>
+<button data-t="outline" title="Draw the board outline: click its corners, double-click closes"><i class="ico" data-ico="pentagon"></i></button>
+<button data-t="cutout" title="Draw a board cutout inside the board: click its corners, double-click closes"><i class="ico" data-ico="scissors"></i></button>
+<button data-t="keepout" title="Draw a routing keep-out: drag a rectangle (no tracks or vias inside)"><i class="ico" data-ico="nosign"></i></button>
+<button data-t="dimension" title="Add a drawing dimension: drag from one point to the other"><i class="ico" data-ico="ruler"></i></button><hr>
+<button data-a="rotate" title="Rotate footprint (Space or R)"><i class="ico" data-ico="rotate"></i></button>
+<button data-a="flip" title="Flip to other side (F)"><i class="ico" data-ico="flip"></i></button><hr>
+<button data-a="autoplace" title="Auto-place all footprints"><i class="ico" data-ico="autoplace"></i></button>
+<button data-a="fit" title="Fit board to components"><i class="ico" data-ico="fitboard"></i></button>
+<button data-a="autoroute" title="Auto Route (⇧⌘R)"><i class="ico" data-ico="autoroute"></i></button>
+<button data-a="fanout" title="Fan out the selected parts: an escape track and a via on each pad that still needs one"><i class="ico" data-ico="fanout"></i></button>
+<button data-a="teardrops" title="Teardrops where the selected tracks (or every track) meet pads and vias; again removes them"><i class="ico" data-ico="drop"></i></button>
+<button data-a="gloss" title="Gloss: pull the selected routes (or every route) tight and retrace them shorter"><i class="ico" data-ico="wand"></i></button>
+<button data-a="stitch" title="Via stitching: ground vias wherever ground pours or planes overlap on two layers"><i class="ico" data-ico="stitch"></i></button>
+<button data-a="match" title="Match lengths: tune the nets of the selected tracks (a bus) to the longest of them"><i class="ico" data-ico="equal"></i></button>
+<button data-a="clear" title="Clear all tracks and vias"><i class="ico" data-ico="eraser"></i></button>
+<button data-a="drc" title="Design rule check"><i class="ico" data-ico="seal"></i></button><hr>
+<button data-a="layers" title="Layers panel"><i class="ico" data-ico="layers"></i></button>
+<button data-a="nav" title="Navigator overview (N)"><i class="ico" data-ico="map"></i></button>
+<button data-a="zoomarea" title="Zoom to area (Z) — drag a rectangle"><i class="ico" data-ico="zoomin"></i></button><hr>
+<button data-t="via" title="Via on the net of the nearest pad"><i class="ico" data-ico="via"></i></button>
+<button data-t="rip" title="Remove the copper of a pad's net"><i class="ico" data-ico="ripnet"></i></button>
+<button data-t="measure" title="Measure between two points (M)"><i class="ico" data-ico="measure"></i></button>
+<button data-t="hole" title="Mounting hole (M3)"><i class="ico" data-ico="hole"></i></button></div>
+<div class="edcol"><div class="edbar" id="pcbOpts"></div><div class="edstage"><div class="view" id="pcbView"></div><div class="fpanel" id="layersPanel"></div><div class="fpanel" id="pcbNav" hidden></div><div class="banner" id="pcbBanner" hidden></div></div><div class="layertabs" id="layerTabs"></div></div>
+<aside class="inspector" id="pcbInspector"><div class="ph" data-en="PROPERTIES">PROPERTIES</div><div id="pcbSel"></div><div class="pgroup" id="drcBox" hidden><h5 data-en="Design Rule Check">Design Rule Check</h5><div id="drcList" class="info"></div></div><span class="info" id="pcbHint" hidden></span></aside></div></section>
+<section data-tab="Library" class="ed"><div class="edrow"><aside class="dpicker"><div class="ph" data-en="LIBRARY">LIBRARY</div><select id="lpOpen" size="20" onchange="lpOpen(this.value)"><option value="">New part</option></select></aside>
+<div class="edcol"><div class="edbar"><label>Name</label><input id="lpName" value="NEWPART" style="width:140px" oninput="lpUpdate()"><label>Prefix</label><input id="lpPrefix" value="U" style="width:50px" oninput="lpUpdate()">
 <label>Package</label><select id="lpPkg" onchange="lp.custom=null;lpUpdate()"></select><label>Pads</label><input id="lpCount" type="number" min="1" max="1024" value="8" style="width:70px" onchange="lp.custom=null;lpPinCount();lpUpdate()">
 <label>Pitch</label><input id="lpPitch" placeholder="auto" style="width:70px" onchange="lp.custom=null;lpUpdate()"><button onclick="lpEditPads()" title="Turn the package into pads you can drag and edit">Edit pads</button>
-<button class="primary" id="lpSave" onclick="lpCreate()">Create and place</button></div>
-<div class="row optbar"><label>Open part</label><select id="lpOpen" onchange="lpOpen(this.value)" onfocus="lpParts()"><option value="">New part</option></select>
-<button onclick="lpFromFootprint()" title="Start the pads from a library footprint">From footprint…</button><button onclick="$('lpIpc').hidden=!$('lpIpc').hidden" title="IPC-7351 pads from the datasheet's lead dimensions">IPC calculator…</button>
+<button class="primary" id="lpSave" onclick="lpCreate()">Create and place</button></div><div class="edbar"><button onclick="lpFromFootprint()" title="Start the pads from a library footprint">From footprint…</button><button onclick="$('lpIpc').hidden=!$('lpIpc').hidden" title="IPC-7351 pads from the datasheet's lead dimensions">IPC calculator…</button>
 <button onclick="lpModel()" title="STEP / VRML / STL / OBJ file in the root folder">3D model…</button><span id="lpModelName" class="info"></span>
 <input id="lpMfr" placeholder="Manufacturer" style="width:130px" oninput="lpUpdate()"><input id="lpDesc" placeholder="Description" style="width:180px" oninput="lpUpdate()"><input id="lpDs" placeholder="Datasheet URL" style="width:180px" oninput="lpUpdate()"><span id="lpScore" class="info"></span></div>
-<div class="card" id="lpIpc" hidden><b>IPC-7351B pads</b> <select id="ipcFam"><option>gullwing</option><option>chip</option><option>qfn</option></select> <select id="ipcDen"><option>nominal</option><option>most</option><option>least</option></select>
-<span class="row" style="margin-top:6px"><label>L</label><input id="ipcLmin" placeholder="min" style="width:64px"><input id="ipcLmax" placeholder="max" style="width:64px"><label>S</label><input id="ipcSmin" placeholder="min" style="width:64px"><input id="ipcSmax" placeholder="max" style="width:64px"><label>W</label><input id="ipcWmin" placeholder="min" style="width:64px"><input id="ipcWmax" placeholder="max" style="width:64px"><label>Pins</label><input id="ipcPins" style="width:54px"><label>Pitch</label><input id="ipcPitch" style="width:64px"><button class="primary" onclick="lpIpcApply()">Use these pads</button><span id="ipcOut" class="info"></span></span></div>
-<div class="work"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div class="row"><b>Symbol</b><span class="info">Drag a pin to another side of the body.</span><button onclick="lp.layout=null;lpUpdate()">Auto-arrange</button>
-<span class="tools" id="symTools"><button data-g="line">Line</button><button data-g="rect">Rectangle</button><button data-g="circle">Circle</button></span><button onclick="lp.symG=[];lpUpdate()">Clear drawings</button></div>
-<svg id="lpSym" class="plot" style="height:300px"></svg><div class="row"><b>Footprint</b><span class="info" id="lpFpHint">Choose Edit pads to move, resize, add or remove pads.</span>
-<span class="tools" id="fpTools"><button data-g="silk">Silk line</button><button data-g="fab">Fab line</button></span><button onclick="lp.fpLines=[];lpUpdate()">Clear lines</button></div><svg id="lpFp" class="plot" style="height:300px;background:#1b2230"></svg></div>
-<div class="side" style="width:360px"><div class="card"><b>Pins</b> <button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button>
+<div class="libcol"><div class="pgroup" id="lpIpc" hidden><h5>IPC-7351B pads</h5> <select id="ipcFam"><option>gullwing</option><option>chip</option><option>qfn</option></select> <select id="ipcDen"><option>nominal</option><option>most</option><option>least</option></select>
+<span class="row" style="margin-top:6px"><label>L</label><input id="ipcLmin" placeholder="min" style="width:64px"><input id="ipcLmax" placeholder="max" style="width:64px"><label>S</label><input id="ipcSmin" placeholder="min" style="width:64px"><input id="ipcSmax" placeholder="max" style="width:64px"><label>W</label><input id="ipcWmin" placeholder="min" style="width:64px"><input id="ipcWmax" placeholder="max" style="width:64px"><label>Pins</label><input id="ipcPins" style="width:54px"><label>Pitch</label><input id="ipcPitch" style="width:64px"><button class="primary" onclick="lpIpcApply()">Use these pads</button><span id="ipcOut" class="info"></span></span></div><div class="pgroup"><h5 data-en="Pins">Pins</h5><div class="pbtns"><button onclick="lpAddPin()">Add</button> <button onclick="$('lpTable').hidden=!$('lpTable').hidden">Paste table…</button></div>
 <div id="lpTable" hidden><textarea id="lpTableText" placeholder="number, name, type — one pin per line (CSV or tab-separated, as copied from a datasheet)"></textarea><button onclick="lpPaste()">Use these pins</button></div>
-<div id="lpPins" style="max-height:300px;overflow:auto;margin-top:6px"></div></div><div class="card"><b>Pad</b><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="card"><b>Checks</b><div id="lpChecks" class="info"></div></div></div></div></section>
-<section data-tab="3D"><div class="row optbar"><label>Camera</label><select id="view3d" onchange="v3.pitch=v3.yaw=null;draw()"><option value="iso">Isometric</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="front">Front</option><option value="back">Back</option><option value="left">Left</option><option value="right">Right</option></select>
+<div id="lpPins" style="margin-top:6px"></div></div><div class="pgroup"><h5 data-en="Pad">Pad</h5><div id="lpPad" class="info">Choose Edit pads, then click a pad.</div></div><div class="pgroup"><h5 data-en="Checks">Checks</h5><div id="lpChecks" class="info"></div></div></div></div>
+<aside class="inspector libprev"><div class="ph" data-en="SYMBOL">SYMBOL</div><div class="pbtns"><button onclick="lp.layout=null;lpUpdate()">Auto-arrange</button>
+<span class="tools" id="symTools"><button data-g="line">Line</button><button data-g="rect">Rectangle</button><button data-g="circle">Circle</button></span><button onclick="lp.symG=[];lpUpdate()">Clear drawings</button></div><span class="info">Drag a pin to another side of the body.</span><svg id="lpSym" class="plot"></svg>
+<div class="ph" data-en="FOOTPRINT">FOOTPRINT</div><div class="pbtns"><span class="tools" id="fpTools"><button data-g="silk">Silk line</button><button data-g="fab">Fab line</button></span><button onclick="lp.fpLines=[];lpUpdate()">Clear lines</button></div><span class="info" id="lpFpHint">Choose Edit pads to move, resize, add or remove pads.</span><svg id="lpFp" class="plot"></svg></aside></div></section>
+<section data-tab="3D" class="ed"><div class="edbar"><i class="ico" data-ico="camera" title="View"></i><select id="view3d" onchange="v3.pitch=v3.yaw=null;draw()"><option value="iso">Isometric</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="front">Front</option><option value="back">Back</option><option value="left">Left</option><option value="right">Right</option></select>
 <label>Explode</label><input id="explode3d" type="range" min="0" max="1" step="0.05" value="0" style="width:110px" onchange="draw()"><label><input type="checkbox" id="section3d" onchange="draw()"> Section</label><input id="sectionY" type="range" min="0" max="100" step="0.5" value="50" style="width:110px" onchange="if($('section3d').checked)draw()"><span id="sectionAt" class="info"></span>
-<label><input type="checkbox" id="fold3d" checked onchange="draw()"> Fold Flex</label><button onclick="v3.hidden.clear();v3.isolate=null;draw()">Show All</button><span class="info">Drag to orbit, Shift-drag pans, wheel zooms, click a part to pick it.</span></div>
-<div class="work"><aside class="side"><div class="card" style="flex:1;overflow:auto"><b>Parts</b><div id="parts3d"></div></div></aside><div class="view dark3d" id="v3d"></div><aside class="side"><div class="card"><b>Part</b><div id="pick3d" class="info">Click a part on the board.</div></div></aside></div></section>
-<section data-tab="Simulate"><div class="row optbar"><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option><option value="live">Live (run the board)</option></select>
-<span id="simArgs"></span><button class="primary" id="simRun" onclick="simulate()">Run</button></div><div id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
-<section data-tab="Checks"><div class="row optbar"><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
-<button class="primary" onclick="verify()">Verify design</button><span id="checkSummary"></span></div><div id="checks"><p class="info empty">Run ERC, DRC or Verify design to list every problem here.</p></div></section>
-<section data-tab="BOM"><div class="row optbar"><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div id="bom"></div></section>
+<label><input type="checkbox" id="fold3d" checked onchange="draw()"> Fold Flex</label><span class="sp"></span><button onclick="v3.hidden.clear();v3.isolate=null;v3.pitch=v3.yaw=null;draw()" title="Reset View">Show All</button></div>
+<div class="edrow"><aside class="dpicker" style="overflow:auto"><div class="ph" data-en="PARTS">PARTS</div><div id="parts3d"></div></aside><div class="edstage"><div class="view dark3d" id="v3d"></div><div class="fpanel" style="left:10px;bottom:10px;padding:6px 10px;font-size:11.5px" data-en="Drag to orbit, Shift-drag pans, wheel zooms, click a part to pick it.">Drag to orbit, Shift-drag pans, wheel zooms, click a part to pick it.</div></div>
+<aside class="inspector"><div class="ph" data-en="PROPERTIES">PROPERTIES</div><div class="pgroup"><div id="pick3d" class="info">Click a part on the board.</div></div></aside></div></section>
+<section data-tab="Simulate" class="ed"><div class="edbar"><i class="ico" data-ico="sim" style="color:var(--blue)"></i><label>Analysis</label><select id="simKind" onchange="simForm()"><option value="op">DC operating point</option><option value="tran">Transient</option><option value="ac">AC sweep</option><option value="live">Live (run the board)</option></select>
+<span id="simArgs"></span><button class="primary" id="simRun" onclick="simulate()">Run</button></div><div class="edbody" id="simOut"><p class="info empty">Choose an analysis and click Run.</p></div></section>
+<section data-tab="Checks" class="ed"><div class="edbar"><i class="ico" data-ico="seal" style="color:var(--blue)"></i><button onclick="run('schematic_erc').then(showChecks)">ERC</button><button onclick="run('pcb_drc').then(showChecks)">DRC</button>
+<button class="primary" onclick="verify()">Verify design</button><span class="sp"></span><span id="checkSummary"></span></div><div class="edbody" id="checks"><p class="info empty">Run ERC, DRC or Verify design to list every problem here.</p></div></section>
+<section data-tab="BOM" class="ed"><div class="edbar"><i class="ico" data-ico="bom" style="color:var(--blue)"></i><button onclick="bom()">Refresh</button><button onclick="fab()">Fabrication package…</button></div><div class="edbody" id="bom"></div></section>
 <section data-tab="Cloud"><div class="card"><b>GitHub cloud sync</b><p class="info">Your project syncs through a GitHub repository with your own git sign-in (Git Credential Manager, <code>gh auth login</code> or SSH keys). A public repository's links open for anyone; a private one's for its collaborators only.</p>
 <div class="row"><label>Repository</label><input id="repo" placeholder="owner/name" style="flex:1;min-width:200px"><label>Branch</label><input id="branch" value="main" style="width:110px"><button onclick="cloud('connect')">Connect</button></div>
 <div class="row" style="margin-top:8px"><input id="msg" placeholder="What changed (commit message)" style="flex:1;min-width:200px"><button onclick="cloud('pull')">Pull</button><button class="primary" onclick="cloud('push')">Push</button><button onclick="cloud('share')">Share links</button><button onclick="cloud('status')">Status</button></div></div>
@@ -137,7 +217,8 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <h4 data-en="Advanced">Advanced</h4><div class="row"><button onclick="exportSettings()" data-en="Export Settings…">Export Settings…</button><button onclick="$('setImport').click()" data-en="Import Settings…">Import Settings…</button>
 <input type="file" id="setImport" accept=".json,application/json" hidden onchange="importSettings(this.files[0])"><button onclick="resetSettings()" data-en="Reset All Preferences…">Reset All Preferences…</button></div></div>
 <div data-sp="appearance" hidden><div class="ff"><span data-en="App Theme">App Theme</span><select id="setTheme"><option value="navy">Midnight Navy</option>
-<option value="matrix">Matrix Green</option><option value="graphite">Graphite</option><option value="light">Light</option></select></div></div>
+<option value="matrix">Matrix Green</option><option value="graphite">Graphite</option><option value="light">Light</option></select></div>
+<div class="ff"><span data-en="Board Units">Board Units</span><select id="setUnit"><option>mm</option><option>cm</option><option>mil</option><option>in</option><option>ft</option><option>pt</option></select></div></div>
 <div data-sp="language" hidden><div class="ff"><span data-en="Interface language">Interface language</span><select id="setLang"></select></div>
 <p class="info" data-en="The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.">The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.</p></div>
 <div class="row"><button class="primary" onclick="setDlg.close()" data-en="Done">Done</button></div></dialog>
@@ -182,7 +263,8 @@ function showImage(id,src,vb){const el=$(id),v=panZoom(el),i=new Image();if(vb)v
 const svgSrc=t=>"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(t)));
 const viewBox=t=>{const m=/viewBox="([^"]+)"/.exec(t);return m?m[1].trim().split(/[ ,]+/).map(Number):null;};
 const NS="http://www.w3.org/2000/svg";function shape(o,tag,a){const n=document.createElementNS(NS,tag);for(const k in a)n.setAttribute(k,a[k]);o.append(n);return n;}
-async function loadSnap(){const r=await run("project_snapshot",{sections:["components","pads","courtyards","nets","tracks","vias"]});snap=r.data;
+async function loadSnap(){const r=await run("project_snapshot",{sections:tab==="Board"?["components","pads","courtyards","nets","tracks","vias","zoneFills","zones","board","ratsnest"]:["components","pads","courtyards","nets","tracks","vias"]});snap=r.data;
+ if(tab==="Board")try{const q=await rpc("tools/call",{name:"pcb_boards",arguments:{action:"list"}});boardList=JSON.parse(q.content[0].text);}catch{boardList=null;}
  try{const q=await rpc("tools/call",{name:"pcb_rooms",arguments:{action:"list"}});boardRooms=JSON.parse(q.content[0].text).rooms||[];}catch{boardRooms=[];}status("Ready.");}
 const sheetParts=()=>(snap.components||[]).filter(c=>c.sheet===(+$("sheet").value||1));
 function schBox(c){let xs=[c.x],ys=[c.y];for(const p of c.pins||[]){xs.push(p.x);ys.push(p.y);}const m=12;return[Math.min(...xs)-m,Math.min(...ys)-m,Math.max(...xs)+m,Math.max(...ys)+m];}
@@ -193,24 +275,22 @@ function boardPart(pt){const cs=snap.courtyards||[];for(const k of cs)if(pt[0]>=
 const padName=p=>{const c=(snap.components||[]).find(c=>c.id===p.component);return c?c.ref+"."+((c.pins||[])[p.pin]||{name:p.number}).name:"";};
 const netName=i=>((snap.nets||[]).find(n=>n.index===i)||{}).name;
 function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();if(el.id==="v3d"){const i=el.querySelector("img"),q=v3.picks.find(p=>p.ref===v3.picked);if(i&&q){o.setAttribute("viewBox",`0 0 ${i.naturalWidth} ${i.naturalHeight}`);const [x0,y0,x1,y1]=q.box;shape(o,"rect",{x:x0,y:y0,width:x1-x0,height:y1-y0,fill:"none",stroke:"#ffd43b","stroke-width":2,"stroke-dasharray":"6 4"});}return;}const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
- if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"none",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}
- if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"none",stroke:"#5b8dff","stroke-width":0.2,"stroke-dasharray":"0.6 0.4"});}
- if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});
+ if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(51,120,245,.12)",stroke:"#fafaff","stroke-width":1.6,"stroke-dasharray":"6 4"});}}
+ if(sch&&busPts.length)shape(o,"polyline",{points:busPts.map(q=>q.join(",")).join(" "),fill:"none",stroke:"#73adff","stroke-width":4,"stroke-dasharray":"8 4"});
+ if(sch&&drag&&drag.zoom&&drag.at){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:"rgba(51,120,245,.12)",stroke:"#7dd4fc","stroke-width":1.5,"stroke-dasharray":"5 3"});}
+ if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(51,120,245,.12)",stroke:PCB_C.selection,"stroke-width":1.6*pxW()});}
+ if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});const PX=sch?1:pxW();
  if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
   if(sch){const c=sheetParts().find(c=>c.ref===drag.ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0]+dx,y:b[1]+dy,width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2});}}
-  else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.2)",stroke:"#5b8dff","stroke-width":0.2});}}
+  else{const c=(snap.components||[]).find(c=>c.ref===drag.ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0+dx,y:k.y0+dy,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(51,120,245,.12)",stroke:PCB_C.selection,"stroke-width":1.6*PX});}}
  if(el.id==="pcbView")boardOverlay(o);
  if(!sch&&live&&live.pv)drawLive(o,live.pv);
- if(!sch)for(const m of marks)shape(o,"circle",{cx:m.x,cy:m.y,r:0.8,fill:"none",stroke:m.severity==="error"?"#ff3b3b":"#ffb300","stroke-width":0.25});}
+ if(!sch){for(const m of marks)if(m.severity==="error"||!m.severity)shape(o,"circle",{cx:m.x,cy:m.y,r:8*PX,fill:"none",stroke:PCB_C.error,"stroke-width":2*PX});const f=marks[drcAt];if(f)shape(o,"circle",{cx:f.x,cy:f.y,r:14*PX,fill:"none",stroke:PCB_C.warning,"stroke-width":2.5*PX});}}
 const snapTo=(v,g)=>Math.round(v/g)*g;
 function hint(id,t){$(id).textContent=t;}
-function setTool(kind,t,keep){tool[kind]=t;pend=null;if(!keep){shapePts=[];meas=null;}document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+function setTool(kind,t,keep){if(kind==="sch"&&t!=="bus")busPts=[];tool[kind]=t;pend=null;if(!keep){shapePts=[];meas=null;}document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t||(t==="pair"&&b.dataset.t==="route")));if(kind==="pcb"){if(t==="pair")PS().pair=true;pcbOpts();pcbBanner();}else schWrench();
  hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules; drag a track or via to push it and its neighbours); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click a pad and move: the track follows the mouse and pushes other nets aside. Click fixes a corner, V drops a via, double-click or Enter finishes, Esc cancels.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed.",pair:"Click a pad of a differential pair: both members follow the mouse together.",measure:"Click two points.",pour:"Click the pour's corners; double-click or Enter closes it.",keepout:"Drag a rectangle: no tracks, vias or pours inside.",cutout:"Click the cutout's corners; double-click or Enter closes it.",hole:"Click where the mounting hole goes."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
-function selectPart(kind,ref){sel[kind]=ref;const box=$(kind+"Sel");if(!ref){box.textContent="Click a part to select it.";}else if(kind==="sch"){const c=sheetParts().find(c=>c.ref===ref)||{};
- box.innerHTML=`<div><b>${esc(ref)}</b></div><label>Value</label><input id="selVal" value="${esc(c.value)}"><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('mirror')">Mirror</button><button onclick="partOp('delete')">Delete</button></div>`;
- $("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});}else{const c=(snap.components||[]).find(c=>c.ref===ref)||{},b=c.pcb||{};
- box.innerHTML=`<div><b>${esc(ref)}</b> ${esc(c.footprint)}</div><div class=info>${(+b.x).toFixed(2)}, ${(+b.y).toFixed(2)} mm · ${b.rotation}° · ${b.bottom?"bottom":"top"}${b.locked?" · locked":""}</div><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('flip')">Flip side</button><button onclick="partOp('lock')">${b.locked?"Unlock":"Lock"}</button><button onclick="act('pcb_fanout',{ref:'${esc(ref)}',shove:true})" title="Escape track and via on every SMD pad">Fan out</button></div>
- <label>Rotation (°)</label><input id="selRot" type="number" step="any" value="${b.rotation||0}">`;$("selRot").onchange=e=>act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:+e.target.value});}
+function selectPart(kind,ref){sel[kind]=ref;if(kind==="sch"){schInspector(ref);schWrench();}else pcbInspectPart(ref);
  overlay($(kind==="sch"?"schView":"pcbView"));}
 async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)return;
  if(k==="sch"){if(op==="rotate")await act("schematic_move_component",{ref,rotate:90});if(op==="mirror")await act("schematic_move_component",{ref,mirror:"x"});if(op==="delete"){await act("schematic_remove_component",{ref});selectPart(k,null);}}
@@ -218,61 +298,309 @@ async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)r
   if(op==="flip")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,bottom:!b.bottom});if(op==="lock")await act("pcb_lock_footprint",{ref,locked:!b.locked});}
  if(sel[k])selectPart(k,sel[k]);}
 async function schPress(pt,e){const t=tool.sch;
+ if(schZoomArmed){drag={el:$("schView"),zoom:true,from:pt,at:pt};return true;}
+ if(t==="pan")return false;
+ if(t==="bus"){const q=[snapTo(pt[0],10),snapTo(pt[1],10)],l=busPts[busPts.length-1];if(l&&l[0]===q[0]&&l[1]===q[1]){schBus();return true;}busPts.push(q);schWrench();overlay($("schView"));return true;}
+ if(t==="vsource"){const k=[...$("kind").options].find(o=>/voltage|vsource|dc source/i.test(o.value+" "+o.textContent));if(k)await act("schematic_add_component",{kind:k.value,x:snapTo(pt[0],10),y:snapTo(pt[1],10),sheet:+$("sheet").value||1});return true;}
  if(t==="select"){const c=partAt(pt);selectPart("sch",c?c.ref:null);if(!c)return false;drag={el:$("schView"),ref:c.ref,from:pt,at:pt,x:c.x,y:c.y};return true;}
  if(t==="place"){const kind=$("partHits").value||$("kind").value;if(!kind)return true;const x=snapTo(pt[0],10),y=snapTo(pt[1],10),sheet=+$("sheet").value||1;
   if($("partHits").value)await act("library_add_part",{name:kind,x,y,sheet});else await act("schematic_add_component",{kind,x,y,sheet});return true;}
  const p=nearPin(pt,12);if(!p){status("No pin there.","warning");return true;}
  if(t==="wire"){if(!pend){pend={el:$("schView"),...p};overlay($("schView"));return true;}const a=pend;pend=null;if(a.ref+"."+a.pin!==p.ref+"."+p.pin)await act("schematic_connect",{from:a.ref+"."+a.pin,to:p.ref+"."+p.pin});return true;}
  if(t==="label"){const net=prompt("Net name for "+p.ref+"."+p.pin,netName(p.net)&&!/^N\$/.test(netName(p.net))?netName(p.net):"");if(net)await act("schematic_net_label",{net,pins:[p.ref+"."+p.pin]});return true;}
- if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}return false;}
-async function schRelease(pt,d){const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
+ if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}
+ if(t==="noconnect"){await act("schematic_set_no_connect",{pin:p.ref+"."+p.pin});return true;}return false;}
+async function schRelease(pt,d){if(d.zoom){schZoomArmed=false;schWrench();const v=views.schView,i=$("schView").querySelector("img"),el=$("schView");if(v&&i){const w=Math.abs(pt[0]-d.from[0]),h=Math.abs(pt[1]-d.from[1]),pxu=i.naturalWidth/v.vb[2];
+  if(w<5||h<5){schZoom(2);return;}v.k=Math.min(el.clientWidth/(w*pxu),el.clientHeight/(h*pxu));v.x=el.clientWidth/2-((Math.min(pt[0],d.from[0])+w/2-v.vb[0])*pxu)*v.k;v.y=el.clientHeight/2-((Math.min(pt[1],d.from[1])+h/2-v.vb[1])*pxu)*v.k;v.fit=false;v.apply();schZoomLabel();}overlay($("schView"));return;}const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
 async function pcbPress(pt,e){const t=tool.pcb;
- if(t==="select"){const c=boardPart(pt),w=!c&&wireAt(pt);
+ if(zoomArmed){drag={el:$("pcbView"),zoom:true,from:pt,at:pt};return true;}
+ if(t==="pan")return false;
+ if(t==="tune"){const w=wireAt(pt);if(w&&!w.via)selectWire(w,pt);else status(tr("Click a track to tune its net."),"warning");return true;}
+ if(t==="dimension"){drag={el:$("pcbView"),dim:true,from:pt,at:pt};return true;}
+ if(t==="select"){const c=PS().pickParts?boardPart(pt):null,w=!c&&wireAt(pt);
   if(e&&e.shiftKey){selW=null;if(c){if(sel.pcb)multi.add(sel.pcb);multi.has(c.ref)?multi.delete(c.ref):multi.add(c.ref);sel.pcb=null;showMulti();return true;}drag={el:$("pcbView"),marquee:true,from:pt,at:pt};return true;}
   multi.clear();selW=null;
-  if(w){liveBegin(w.via?{action:"via_drag",id:w.id,x:pt[0],y:pt[1]}:{action:"drag",id:w.id,x:pt[0],y:pt[1]});drag={el:$("pcbView"),live:true,from:pt,w};return true;}selectPart("pcb",c?c.ref:null);if(!c)return false;drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
+  if(w){liveBegin(w.via?{action:"via_drag",id:w.id,x:pt[0],y:pt[1]}:{action:"drag",id:w.id,x:pt[0],y:pt[1]});drag={el:$("pcbView"),live:true,from:pt,w};return true;}selectPart("pcb",c?c.ref:null);if(!c){selZ=zoneAt(pt);pcbInspector();overlay($("pcbView"));return false;}drag={el:$("pcbView"),ref:c.ref,from:pt,at:pt,x:c.pcb.x,y:c.pcb.y,force:!!(e&&e.altKey)};return true;}
  const p=padAt(pt,2);
  if(t==="measure"){meas=meas&&!meas.b?{a:meas.a,b:pt}:{a:pt};const m=meas;if(m.b)status(`${Math.hypot(m.b[0]-m.a[0],m.b[1]-m.a[1]).toFixed(3)} mm (Δx ${(m.b[0]-m.a[0]).toFixed(3)}, Δy ${(m.b[1]-m.a[1]).toFixed(3)})`,"okc");overlay($("pcbView"));return true;}
- if(t==="pour"||t==="cutout"){shapePts.push([+pt[0].toFixed(3),+pt[1].toFixed(3)]);overlay($("pcbView"));return true;}
+ if(t==="pour"||t==="cutout"||t==="outline"){shapePts.push([+pt[0].toFixed(3),+pt[1].toFixed(3)]);overlay($("pcbView"));return true;}
  if(t==="keepout"){drag={el:$("pcbView"),keepout:true,from:pt,at:pt};return true;}
  if(t==="hole"){await act("pcb_add_mounting_hole",{x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
- if(t==="pair"){if(!p){status("Click a pad of a differential pair.","warning");return true;}liveBegin({action:"pair",x:p.x,y:p.y,layer:curLayer()});setTool("pcb","route",true);return true;}
+ if(t==="pair"||(t==="route"&&PS().pair&&!live)){if(!p){status("Click a pad of a differential pair.","warning");return true;}liveBegin({action:"pair",x:p.x,y:p.y,layer:curLayer()});setTool("pcb","route",true);return true;}
  if(t==="route"){if(live){liveMove(pt);await liveStep(live.pv&&live.pv.reachedTarget?"commit":"fix");return true;}
   const w=wireAt(pt),at=p?[p.x,p.y]:w?pt:null;if(!at){status("Start on a pad or a track.","warning");return true;}
   liveBegin({action:"begin",x:at[0],y:at[1],layer:w&&!p&&!w.via?w.layer:curLayer()});return true;}
  if(t==="via"){if(!p){status("Click near a pad of the net.","warning");return true;}await act("pcb_add_via",{net:netName(p.net),x:+pt[0].toFixed(3),y:+pt[1].toFixed(3)});return true;}
  if(t==="rip"){if(p&&confirm("Remove every track and via of "+netName(p.net)+"?"))await act("pcb_remove_copper",{net:netName(p.net)});return true;}return false;}
-async function pcbRelease(pt,d){if(d.live){const moved=Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1])>0.02;await liveStep(moved?"commit":"cancel");if(!moved)selectWire(d.w,d.from);return;}
+async function pcbRelease(pt,d){if(d.zoom){zoomArmed=false;pcbBanner();zoomTo(d.from,pt);return;}
+ if(d.dim){const len=Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1]);if(len<0.2){overlay($("pcbView"));return;}
+  const dims=((snap.board||{}).dimensions||[]).map(x=>({a:x.a,b:x.b,offset:x.offset}));dims.push({a:{x:r3(d.from[0]),y:r3(d.from[1])},b:{x:r3(pt[0]),y:r3(pt[1])},offset:3});await act("pcb_set_outline",{dimensions:dims});return;}if(d.live){const moved=Math.hypot(pt[0]-d.from[0],pt[1]-d.from[1])>0.02;await liveStep(moved?"commit":"cancel");if(!moved)selectWire(d.w,d.from);return;}
  if(d.marquee){const r=[Math.min(pt[0],d.from[0]),Math.min(pt[1],d.from[1]),Math.max(pt[0],d.from[0]),Math.max(pt[1],d.from[1])];
   for(const k of snap.courtyards||[])if(k.x1>=r[0]&&k.x0<=r[2]&&k.y1>=r[1]&&k.y0<=r[3]){const c=(snap.components||[]).find(c=>c.id===k.component);if(c)multi.add(c.ref);}if(sel.pcb)multi.add(sel.pcb);sel.pcb=null;showMulti();return;}
  if(d.keepout){const x0=Math.min(pt[0],d.from[0]),y0=Math.min(pt[1],d.from[1]),x1=Math.max(pt[0],d.from[0]),y1=Math.max(pt[1],d.from[1]);if(x1-x0<0.2||y1-y0<0.2){overlay($("pcbView"));return;}
   const ko=(await run("pcb_summary")).data.keepouts||[];ko.push({name:"Keep-out "+(ko.length+1),x0:r3(x0),y0:r3(y0),x1:r3(x1),y1:r3(y1),layer:-1,tracks:true,vias:true,pours:true});await act("pcb_set_keepouts",{keepouts:ko});return;}const dx=pt[0]-d.from[0],dy=pt[1]-d.from[1];if(Math.hypot(dx,dy)>0.05)await act("pcb_place_footprint",{ref:d.ref,x:+(d.x+dx).toFixed(3),y:+(d.y+dy).toFixed(3),grid:0.05,force:d.force||undefined});else overlay($("pcbView"));}
+// PCB workspace as the macOS PCBEditorView draws it: the board drawn here from project_snapshot with the Theme board
+// colours (copper by net role or by layer, active layer on top, the others dimmed), the LayersPanel (eyes, swatches,
+// presets, selection filters), LayerTabs, the OptionsBar of the active tool and the PROPERTIES inspector.
+const PCB_C={top:"#e63833",bottom:"#4073fa",inner:["#fad640","#4dd166","#ff9433","#e666d9"],power:"#ff4038",ground:"#458cff",negative:"#bd6bff",
+ sigTop:"#fad64d",sigBottom:"#59db7a",sigInner:["#4ddbf2","#ff9e40","#ff85cc","#b8f252"],pad:"#dbb861",via:"#c7ccd6",silk:"#e0f0ff",rats:"#bfd9ff",board:"#121419",
+ error:"#ff6166",warning:"#ffb84d",selection:"#fafaff"};
+const MASKC={green:"#0a6633",black:"#0d0d0f",blue:"#0a216b",red:"#c20a0a",yellow:"#edbd0a",white:"#ebedf0",purple:"#521f70"};
+const UNITS={mm:[1,1,3],cm:[10,1,4],mil:[254,10000,2],in:[254,10,5],ft:[3048,10,6],pt:[254,720,3]};
+const fmtL=(mm,u=true)=>{const k=pref("studio.unit")||"mm",r=UNITS[k]||UNITS.mm;return(mm*r[1]/r[0]).toFixed(r[2])+(u?" "+k:"");};
+const parseL=t=>{const k=pref("studio.unit")||"mm",r=UNITS[k]||UNITS.mm,m=/^\s*([-+.\d,eE]+)\s*([a-z"]*)\s*$/.exec(String(t));if(!m)return NaN;const v=+m[1].replace(",","."),u=UNITS[m[2]]||(m[2]?null:r);return u?v*u[0]/u[1]:NaN;};
+let pcbS=null,boardList=null,selZ=null,hoverNet=null,hoverAt=null,zoomArmed=false,drcAll=[],drcAt=-1,drcRun=false;
+const PS=()=>pcbS||(pcbS=Object.assign({vis:{},active:0,byNet:true,pickParts:true,pickCopper:true,pourClear:false,panel:true,nav:false,mode:"shove",posture:"45",anyAngle:false,
+ tdrops:false,tdStyle:"straight",pair:false,width:0,pourNet:"",preset:""},jpref("studio.pcb")));
+const savePS=()=>jpref("studio.pcb",PS());
+const pcbVis=k=>{const v=PS().vis[k];return v===undefined?!["mask","paste","fab"].includes(k):v;};
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const layerCol=(l,n)=>l===0?PCB_C.top:l===Math.max(1,n)-1?PCB_C.bottom:PCB_C.inner[(l-1)%4];
+const sigCol=(l,n)=>l===0?PCB_C.sigTop:l===Math.max(1,n)-1?PCB_C.sigBottom:PCB_C.sigInner[(l-1)%4];
+const netCol=(role,l,n)=>role==="power"?PCB_C.power:role==="ground"?PCB_C.ground:role==="negative"?PCB_C.negative:sigCol(l,n);
+const groundNet=()=>((snap.nets||[]).find(n=>n.role==="ground")||{name:"GND"}).name;
+function pxW(){const v=views.pcbView,i=$("pcbView").querySelector("img");return v&&i&&i.naturalWidth?v.vb[2]/(i.naturalWidth*v.k):0.05;}
+let pcbVC=0;function pcbViewChanged(){if(pcbVC)return;pcbVC=requestAnimationFrame(()=>{pcbVC=0;overlay($("pcbView"));pcbNav();zoomLabel();});}
+function pcbLayers(){const n=Math.max(1,(snap.board||{}).layerCount||state.layers||2),L=[];
+ for(let i=0;i<n;i++)L.push(["c"+i,i===0?tr("Top Layer"):i===n-1?tr("Bottom Layer"):tr("Inner %d Layer").replace("%d",i),layerCol(i,n)]);
+ const m=MASKC[(snap.board||{}).solderMask]||MASKC.green;
+ return L.concat([["silk",tr("Top Overlay"),PCB_C.silk],["bsilk",tr("Bottom Overlay"),PCB_C.silk+"80"],["rats",tr("Ratsnest"),PCB_C.rats],["court",tr("Courtyard"),cssVar("--lb")],
+  ["outline",tr("Keep-Out / Outline"),cssVar("--sky")],["mask",tr("Solder Mask"),m],["paste",tr("Paste"),"#bfbfbf"],["fab",tr("Fabrication"),PCB_C.warning]]);}
+// The board as an SVG picture in board millimetres (the overlay and clicks map through its viewBox).
+function boardSvg(){const s=PS(),b=snap.board||{},n=Math.max(1,b.layerCount||2),W=b.width||50,H=b.height||40,act=Math.min(s.active,n-1),f=v=>+(+v).toFixed(4);
+ const roles={};for(const x of snap.nets||[])roles[x.index]=x.role;const cc=(net,l)=>s.byNet?netCol(roles[net]||"signal",l,n):layerCol(l,n);
+ const ol=(b.outline||[]).length>=3?b.outline:null;let x0=0,y0=0,x1=W,y1=H;
+ for(const p of ol||[]){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+ for(const k of snap.courtyards||[]){x0=Math.min(x0,k.x0);y0=Math.min(y0,k.y0-1.5);x1=Math.max(x1,k.x1);y1=Math.max(y1,k.y1);}
+ x0-=4;y0-=4;x1+=4;y1+=4;const vw=x1-x0,vh=y1-y0,PW=2400,ppm=PW/vw,px=1/ppm,bg=cssVar("--pcbbg")||"#050a17",sky=cssVar("--sky")||"#7dd4fc",lb=cssVar("--lb")||"#73adff";
+ let pitch=0.1;for(const g of[0.1,0.25,0.5,1,2.5,5,10,25])if(g*ppm>=10){pitch=g;break;}
+ const o=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(x0)} ${f(y0)} ${f(vw)} ${f(vh)}" width="${PW}" height="${Math.round(PW*vh/vw)}"><defs><pattern id="g" width="${pitch}" height="${pitch}" patternUnits="userSpaceOnUse"><rect width="${f(px)}" height="${f(px)}" fill="${cssVar("--gridc")||"#293d66"}" opacity=".7"/></pattern></defs>`,
+  `<rect x="${f(x0)}" y="${f(y0)}" width="${f(vw)}" height="${f(vh)}" fill="${bg}"/>`];
+ const poly=pts=>"M"+pts.map(p=>f(p.x)+" "+f(p.y)).join("L")+"Z";
+ let edge=ol?poly(ol):`M0.8 0H${f(W-0.8)}A.8 .8 0 0 1 ${f(W)} .8V${f(H-0.8)}A.8 .8 0 0 1 ${f(W-0.8)} ${f(H)}H.8A.8 .8 0 0 1 0 ${f(H-0.8)}V.8A.8 .8 0 0 1 .8 0Z`;
+ const cuts=(b.cutouts||[]).filter(c=>c.length>=3).map(poly).join("");
+ o.push(`<path d="${edge}${cuts}" fill="${PCB_C.board}" fill-rule="evenodd"/><rect x="0" y="0" width="${f(W)}" height="${f(H)}" fill="url(#g)"/>`);
+ if(pcbVis("outline")){o.push(`<path d="${edge}${cuts}" fill="none" stroke="${sky}" stroke-width="${f(1.5*px)}"/>`);
+  if(!ol&&b.edgeClearance)o.push(`<rect x="${b.edgeClearance}" y="${b.edgeClearance}" width="${f(W-2*b.edgeClearance)}" height="${f(H-2*b.edgeClearance)}" fill="none" stroke="${sky}" stroke-opacity=".25" stroke-width="${f(px)}" stroke-dasharray="${f(4*px)} ${f(4*px)}"/>`);
+  for(const k of b.keepouts||[]){const c=k.barrier?"#ff9500":PCB_C.error;o.push(`<rect x="${k.x0}" y="${k.y0}" width="${f(k.x1-k.x0)}" height="${f(k.y1-k.y0)}" fill="${c}" fill-opacity="${k.barrier?.18:.08}" stroke="${c}" stroke-opacity=".8" stroke-width="${f(px)}" stroke-dasharray="${f(6*px)} ${f(3*px)}"/><text x="${k.x0}" y="${f(k.y0-2*px)}" font-size="${f(10*px)}" fill="${c}" font-family="system-ui,sans-serif">${esc(k.name||"")}</text>`);}
+  for(const d of b.dimensions||[]){const L=Math.hypot(d.b.x-d.a.x,d.b.y-d.a.y);if(L<1e-6)continue;const off=d.offset??3,nx=-(d.b.y-d.a.y)/L*off,ny=(d.b.x-d.a.x)/L*off;
+   o.push(`<path d="M${d.a.x} ${d.a.y}L${f(d.a.x+nx)} ${f(d.a.y+ny)}L${f(d.b.x+nx)} ${f(d.b.y+ny)}L${d.b.x} ${d.b.y}" fill="none" stroke="${sky}" stroke-opacity=".8" stroke-width="${f(px)}"/><text x="${f((d.a.x+d.b.x)/2+nx)}" y="${f((d.a.y+d.b.y)/2+ny-2*px)}" text-anchor="middle" font-size="${f(10*px)}" fill="${sky}" font-family="system-ui,sans-serif">${L.toFixed(2)}</text>`);}}
+ for(const z of snap.zones||[])if(z.layer<n&&pcbVis("c"+z.layer)&&(z.polygon||[]).length>=3)o.push(`<path d="${poly(z.polygon)}" fill="none" stroke="${layerCol(z.layer,n)}" stroke-width="${f(px)}" stroke-dasharray="${f(5*px)} ${f(3*px)}"/>`);
+ for(const z of [...(snap.zoneFills||[])].sort((a,c)=>c.layer-a.layer)){if(z.layer>=n||!pcbVis("c"+z.layer))continue;const r=z.rects||[];let d="";
+  for(let i=0;i+3<r.length;i+=4)d+=`M${f(r[i])} ${f(r[i+1])}H${f(r[i+2])}V${f(r[i+3])}H${f(r[i])}Z`;o.push(`<path d="${d}" fill="${cc(z.net,z.layer)}" fill-opacity="${z.layer===act?.32:.14}"/>`);}
+ for(const h of b.holes||[])o.push(`<circle cx="${h.x}" cy="${h.y}" r="${h.keepout/2}" fill="none" stroke="${sky}" stroke-opacity=".6" stroke-width="${f(px)}" stroke-dasharray="${f(3*px)} ${f(3*px)}"/><circle cx="${h.x}" cy="${h.y}" r="${h.drill/2}" fill="${bg}" stroke="${sky}" stroke-width="${f(px)}"/>`);
+ const padShape=(p,fill,op)=>{if(p.outline){let d="";for(let i=0;i+1<p.outline.length;i+=2)d+=(i?"L":"M")+f(p.x+p.outline[i])+" "+f(p.y+p.outline[i+1]);return`<path d="${d}Z" fill="${fill}" fill-opacity="${op}" fill-rule="evenodd"/>`;}
+  const rx=Math.min(p.w,p.h)*(p.round?0.5:(p.corner||0.15));return`<rect x="${f(p.x-p.w/2)}" y="${f(p.y-p.h/2)}" width="${f(p.w)}" height="${f(p.h)}" rx="${f(rx)}" fill="${fill}" fill-opacity="${op}"/>`;};
+ const seg=t=>{if(!t.arc||t.cx===undefined)return`M${f(t.ax)} ${f(t.ay)}L${f(t.bx)} ${f(t.by)}`;const r=f(Math.hypot(t.ax-t.cx,t.ay-t.cy)),sw=((t.mx-t.ax)*(t.by-t.my)-(t.my-t.ay)*(t.bx-t.mx))>0?1:0;
+  return`M${f(t.ax)} ${f(t.ay)}A${r} ${r} 0 0 ${sw} ${f(t.mx)} ${f(t.my)}A${r} ${r} 0 0 ${sw} ${f(t.bx)} ${f(t.by)}`;};
+ const order=[];for(let l=n-1;l>=0;l--)if(l!==act)order.push(l);order.push(act);
+ for(const l of order){if(!pcbVis("c"+l))continue;const on=l===act,batch={};
+  for(const t of snap.tracks||[])if(t.layer===l){const k=cc(t.net,l)+"|"+t.width;(batch[k]=batch[k]||[]).push(seg(t));}
+  for(const[k,ds]of Object.entries(batch)){const[c,w]=k.split("|");o.push(`<path d="${ds.join("")}" fill="none" stroke="${c}" stroke-opacity="${on?1:.45}" stroke-width="${Math.max(+w,px)}" stroke-linecap="round" stroke-linejoin="round"/>`);}
+  for(const p of snap.pads||[])if(!p.throughHole&&(p.layer>=0?p.layer:(p.bottom?n-1:0))===l)o.push(padShape(p,PCB_C.pad,on?1:.45));}
+ if([...Array(n).keys()].some(l=>pcbVis("c"+l))){for(const p of snap.pads||[])if(p.throughHole){
+   o.push(p.npth?`<circle cx="${p.x}" cy="${p.y}" r="${f(p.w/2)}" fill="none" stroke="${sky}" stroke-width="${f(px)}"/>`:padShape(p,PCB_C.pad,1));
+   if(p.drill)o.push(`<circle cx="${p.x}" cy="${p.y}" r="${f(p.drill/2)}" fill="${bg}"/>`);}
+  for(const v of snap.vias||[]){o.push(`<circle cx="${v.x}" cy="${v.y}" r="${f(v.diameter/2)}" fill="${PCB_C.via}"/>`);
+   if(v.kind&&v.kind!=="through")o.push(`<circle cx="${v.x}" cy="${v.y}" r="${f(v.diameter/2+0.05)}" fill="none" stroke="${v.kind==="microvia"?cssVar("--ice"):lb}" stroke-width="${f(px)}"/>`);
+   o.push(`<circle cx="${v.x}" cy="${v.y}" r="${f(v.drill/2)}" fill="${bg}"/>`);}}
+ if(pcbVis("mask")){let d=edge;for(const p of snap.pads||[])if(p.throughHole||!p.bottom)d+=`M${f(p.x-p.w/2-0.05)} ${f(p.y-p.h/2-0.05)}h${f(p.w+0.1)}v${f(p.h+0.1)}h${f(-p.w-0.1)}Z`;
+  o.push(`<path d="${d}" fill="${MASKC[b.solderMask]||MASKC.green}" fill-opacity=".45" fill-rule="evenodd"/>`);}
+ if(pcbVis("paste")){let d="";for(const p of snap.pads||[])if(!p.throughHole)d+=`M${f(p.x-p.w/2)} ${f(p.y-p.h/2)}h${f(p.w)}v${f(p.h)}h${f(-p.w)}Z`;o.push(`<path d="${d}" fill="#c7c7c7" fill-opacity=".85"/>`);}
+ const comp={};for(const c of snap.components||[])comp[c.id]=c;const pin1={};for(const p of snap.pads||[])if(p.number===1&&!pin1[p.component])pin1[p.component]=p;
+ const lines=(k,fab,col,op)=>{const L=k.lines||[];let d="";for(let i=0;i+5<L.length;i+=6)if(!!L[i+5]===fab)d+=`M${f(L[i])} ${f(L[i+1])}L${f(L[i+2])} ${f(L[i+3])}`;return d?`<path d="${d}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="${f(Math.max(px,0.12))}" stroke-linecap="round"/>`:"";};
+ const mono='font-family="ui-monospace,Menlo,Consolas,monospace"';
+ if(pcbVis("fab"))for(const k of snap.courtyards||[]){const c=comp[k.component]||{},w=k.x1-k.x0,h=k.y1-k.y0,ix=Math.min(0.25,w/4),iy=Math.min(0.25,h/4);
+  o.push(`<rect x="${f(k.x0+ix)}" y="${f(k.y0+iy)}" width="${f(w-2*ix)}" height="${f(h-2*iy)}" fill="none" stroke="${PCB_C.warning}" stroke-opacity=".85" stroke-width="${f(px)}"/>`+lines(k,true,PCB_C.warning,1));
+  const p=pin1[k.component];if(p)o.push(`<circle cx="${p.x}" cy="${p.y}" r=".2" fill="${PCB_C.warning}"/>`);
+  o.push(`<text x="${f((k.x0+k.x1)/2)}" y="${f((k.y0+k.y1)/2)}" dominant-baseline="middle" text-anchor="middle" font-size="${f(Math.min(0.8,h/2))}" fill="${PCB_C.warning}" ${mono}>${esc(c.ref||"")}</text>`);}
+ for(const k of snap.courtyards||[]){const c=comp[k.component]||{},bot=!!(c.pcb&&c.pcb.bottom),w=k.x1-k.x0,h=k.y1-k.y0;
+  if(pcbVis("court"))o.push(`<rect x="${k.x0}" y="${k.y0}" width="${f(w)}" height="${f(h)}" fill="none" stroke="${lb}" stroke-opacity=".35" stroke-width="${f(0.8*px)}" stroke-dasharray="${f(3*px)} ${f(3*px)}"/>`);
+  if(pcbVis(bot?"bsilk":"silk")){const op=bot?.35:.9;o.push(`<rect x="${f(k.x0+.15)}" y="${f(k.y0+.15)}" width="${f(Math.max(0,w-.3))}" height="${f(Math.max(0,h-.3))}" fill="none" stroke="${PCB_C.silk}" stroke-opacity="${op}" stroke-width="${f(Math.max(0.6*px,0.12))}"/>`+lines(k,false,PCB_C.silk,op));
+   o.push(`<text x="${f((k.x0+k.x1)/2)}" y="${f(k.y0-0.2)}" text-anchor="middle" font-size="${f(Math.max(0.6,Math.min(1.2,w*0.45)))}" font-weight="600" fill="${PCB_C.silk}" fill-opacity="${bot?.5:1}" ${mono}>${esc(c.ref||"")}</text>`);}}
+ if(pcbVis("rats")&&(snap.ratsnest||[]).length)o.push(`<path d="${snap.ratsnest.map(l=>`M${f(l.ax)} ${f(l.ay)}L${f(l.bx)} ${f(l.by)}`).join("")}" fill="none" stroke="${PCB_C.rats}" stroke-opacity=".75" stroke-width="${f(px)}"/>`);
+ return o.join("")+"</svg>";}
+let pcbSrc="";function pcbRender(){if(!snap.board)return;const t=boardSvg();pcbSrc=svgSrc(t);showImage("pcbView",pcbSrc,viewBox(t));setTimeout(()=>{pcbNav();zoomLabel();},50);}
+// Layers panel (LayersPanel), layer tabs (LayerTabs) and the navigator.
+function pcbChrome(){pcbTables();layersPanel();layerTabs();pcbOpts();pcbInspector();pcbBanner();
+ document.querySelectorAll("#pcbTools [data-a=layers]").forEach(b=>b.classList.toggle("on",PS().panel));document.querySelectorAll("#pcbTools [data-a=nav]").forEach(b=>b.classList.toggle("on",PS().nav));}
+function layersPanel(){const s=PS(),el=$("layersPanel"),n=Math.max(1,(snap.board||{}).layerCount||state.layers||2);el.hidden=!s.panel;if(!s.panel)return;
+ const leg=(c,t)=>`<div class="leg"><i style="background:${c}"></i>${esc(t)}</div>`;
+ let h=`<h6>${esc(tr("COPPER COLOURS"))}</h6><div class="segc" style="margin-bottom:4px"><button class="${s.byNet?"on":""}" onclick="pcbSet('byNet',true)">${esc(tr("By Net"))}</button><button class="${s.byNet?"":"on"}" onclick="pcbSet('byNet',false)">${esc(tr("By Layer"))}</button></div>`;
+ if(s.byNet){h+=leg(PCB_C.power,tr("Power +"))+leg(PCB_C.ground,tr("Ground −"))+leg(PCB_C.negative,tr("Negative rail"));for(let i=0;i<n;i++)h+=leg(sigCol(i,n),tr("Signal")+" · "+layerName(i));}
+ h+=`<hr><h6>${esc(tr("SELECTABLE"))}</h6><div style="display:flex;gap:10px"><label><input type="checkbox" ${s.pickParts?"checked":""} onchange="pcbSet('pickParts',this.checked)"> ${esc(tr("Parts"))}</label><label><input type="checkbox" ${s.pickCopper?"checked":""} onchange="pcbSet('pickCopper',this.checked)"> ${esc(tr("Tracks & Vias"))}</label></div>`;
+ h+=`<hr><h6>${esc(tr("LAYERS"))}<select title="${esc(tr("Show a set of layers: all, one side, copper only, or the assembly drawing"))}" onchange="layerPreset(this.value);this.value=''"><option value="">${esc(tr("Presets"))}</option>${[["All Layers",tr("All Layers")],["Top Side",tr("Top Side")],["Bottom Side",tr("Bottom Side")],["Copper Only",tr("Copper Only")],["Assembly",tr("Assembly")]].map(([p,l])=>`<option value="${p}">${esc(l)}</option>`).join("")}</select></h6>`;
+ for(const[k,name,col]of pcbLayers()){const v=pcbVis(k),on=k==="c"+Math.min(s.active,n-1);
+  h+=`<div class="lrow${on?" on":""}" onclick="layerClick('${k}')"><span class="eye${v?"":" off"}" onclick="event.stopPropagation();layerEye('${k}')" title="${esc(v?tr("Hide"):tr("Show"))}"><i class="ico" style="width:15px;height:15px" data-ico="${v?"eye":"eyeslash"}"></i></span><span class="sw" style="background:${col}"></span><span>${esc(name)}</span></div>`;}
+ el.innerHTML=h;iconize(el);}
+function layerTabs(){const s=PS(),n=Math.max(1,(snap.board||{}).layerCount||state.layers||2);
+ $("layerTabs").innerHTML=pcbLayers().map(([k,name,col])=>{const on=k==="c"+Math.min(s.active,n-1);
+  return`<button class="${on?"on":pcbVis(k)?"":"off"}" onclick="layerClick('${k}',true)" title="${esc(k[0]==="c"?tr("Make %@ the active layer").replace("%@",name):tr("Overlay layer — show or hide it in the Layers panel"))}"><span class="sw" style="background:${col};width:10px;height:10px;border-radius:2px"></span>${esc(name)}</button>`;}).join("");}
+function pcbSet(k,v){PS()[k]=v;savePS();pcbChrome();if(["byNet","active"].includes(k))pcbRender();}
+function layerEye(k){const s=PS();s.vis[k]=!pcbVis(k);savePS();layersPanel();layerTabs();pcbRender();}
+function layerClick(k,tabOnly){if(k[0]==="c"){PS().active=+k.slice(1);savePS();layersPanel();layerTabs();pcbRender();}else if(!tabOnly)layerEye(k);}
+function layerPreset(p){if(!p)return;const s=PS(),n=Math.max(1,(snap.board||{}).layerCount||2),keys=pcbLayers().map(x=>x[0]),on={
+ "All Layers":keys,"Top Side":["c0","silk","mask","paste","court","outline","rats"],"Bottom Side":["c"+(n-1),"bsilk","court","outline","rats"],
+ "Copper Only":[...Array(n).keys()].map(i=>"c"+i).concat(["outline"]),"Assembly":["fab","silk","bsilk","outline"]}[p];for(const k of keys)s.vis[k]=on.includes(k);savePS();layersPanel();layerTabs();pcbRender();}
+function pcbNav(){const el=$("pcbNav");el.hidden=!PS().nav||!pcbSrc;if(el.hidden)return;const v=views.pcbView,img=$("pcbView").querySelector("img");if(!v||!img||!img.naturalWidth)return;
+ if(!el.querySelector("img")||el.dataset.src!==String(pcbSrc.length)){el.innerHTML=`<img src="${pcbSrc}"><svg></svg>`;el.dataset.src=String(pcbSrc.length);
+  el.onclick=e=>{const r=el.querySelector("img").getBoundingClientRect(),view=$("pcbView"),fx=(e.clientX-r.left)/r.width,fy=(e.clientY-r.top)/r.height;
+   v.x=view.clientWidth/2-fx*img.naturalWidth*v.k;v.y=view.clientHeight/2-fy*img.naturalHeight*v.k;v.fit=false;v.apply();pcbViewChanged();};}
+ const ni=el.querySelector("img"),w=ni.clientWidth,h=ni.clientHeight,sv=el.querySelector("svg"),view=$("pcbView"),s=w/(img.naturalWidth*v.k);
+ sv.setAttribute("width",w);sv.setAttribute("height",h);sv.innerHTML=`<rect x="${-v.x*s}" y="${-v.y*s}" width="${view.clientWidth*s}" height="${view.clientHeight*s}" fill="rgba(51,120,245,.15)" stroke="${cssVar("--sky")}" stroke-width="1.5"/>`;}
+function zoomTo(a,b){const v=views.pcbView,img=$("pcbView").querySelector("img"),view=$("pcbView");if(!v||!img)return;
+ const pxmm=img.naturalWidth/v.vb[2],w=Math.abs(b[0]-a[0]),h=Math.abs(b[1]-a[1]);if(w<0.2||h<0.2){const c=[(a[0]+b[0])/2,(a[1]+b[1])/2];zoomStep(2,c);return;}
+ v.k=Math.min(view.clientWidth/(w*pxmm),view.clientHeight/(h*pxmm));v.x=view.clientWidth/2-((Math.min(a[0],b[0])+w/2-v.vb[0])*pxmm)*v.k;v.y=view.clientHeight/2-((Math.min(a[1],b[1])+h/2-v.vb[1])*pxmm)*v.k;v.fit=false;v.apply();pcbViewChanged();}
+function zoomStep(f,c){const v=views.pcbView,img=$("pcbView").querySelector("img"),view=$("pcbView");if(!v||!img)return;let mx=view.clientWidth/2,my=view.clientHeight/2;
+ if(c){const pxmm=img.naturalWidth/v.vb[2];mx=v.x+(c[0]-v.vb[0])*pxmm*v.k;my=v.y+(c[1]-v.vb[1])*pxmm*v.k;}v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;v.apply();pcbViewChanged();}
+function zoomFit(){const v=views.pcbView;if(v){v.fit=true;v.doFit();pcbViewChanged();}}
+function fitK(){const v=views.pcbView,img=$("pcbView").querySelector("img"),view=$("pcbView");return img&&img.naturalWidth?Math.min(view.clientWidth/img.naturalWidth,view.clientHeight/img.naturalHeight):1;}
+function zoomLabel(){const z=$("pcbZoom"),v=views.pcbView;if(z&&v)z.textContent=Math.round(v.k/fitK()*100)+"%";}
+function zoneAt(pt){const zs=snap.zones||[];for(let i=zs.length-1;i>=0;i--){const z=zs[i],P=z.polygon||[];if(P.length<3||!pcbVis("c"+z.layer))continue;let c=false;
+  for(let a=0,b=P.length-1;a<P.length;b=a++)if((P[a].y>pt[1])!==(P[b].y>pt[1])&&pt[0]<(P[b].x-P[a].x)*(pt[1]-P[a].y)/(P[b].y-P[a].y)+P[a].x)c=!c;if(c)return i;}return null;}
+function pcbHover(pt){hoverAt=pt;const p=live?null:padAt(pt,1.2),net=p&&p.net>=0?p.net:null;if(net!==hoverNet||shapePts.length){hoverNet=net;overlay($("pcbView"));}}
+function pcbBanner(){const el=$("pcbBanner"),t=tool.pcb;let m="";if(zoomArmed)m=tr("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels");
+ else if(t==="keepout")m=tr("Keep-out — drag a rectangle · Esc ends");else if(t==="dimension")m=tr("Dimension — drag from one point to the other · Esc ends");
+ else if(["pour","outline","cutout"].includes(t))m=tr("Click the corners; double-click or Enter closes the shape · Esc cancels");
+ else if((snap.ratsnest||[]).length&&!live&&t==="select"){const k=snap.ratsnest.length;el.innerHTML=`<span style="color:var(--sky)">⟿</span>${esc((k===1?tr("1 connection is not routed yet"):tr("%d connections are not routed yet")).replace("%d",k))}<button class="primary" style="font-size:12px;padding:2px 9px" onclick="pcbAction('autoroute')">${esc(tr("Auto Route"))}</button>`;el.hidden=false;return;}
+ el.hidden=!m;el.textContent=m;}
+function drcFocus(i){const m=marks[i];if(!m)return;drcAt=i;zoomTo([m.x-4,m.y-4],[m.x+4,m.y+4]);}
+function drcStep(d){if(!marks.length)return;drcFocus(((drcAt<0&&d<0?0:drcAt)+d+marks.length)%marks.length);}
+// The OptionsBar of the macOS PCB editor for the active tool.
+function pcbOpts(){const el=$("pcbOpts");if(!el)return;const s=PS(),b=snap.board||{},t=tool.pcb,o=[],vd='<span class="vd"></span>';
+ const seg=(key,opts,title)=>`<span class="segc"${title?` title="${esc(title)}"`:""}>${opts.map(([v,l])=>`<button class="${s[key]===v?"on":""}" onclick="pcbSet('${key}',${JSON.stringify(v).replace(/"/g,"&quot;")})">${esc(l)}</button>`).join("")}</span>`;
+ const chk=(key,l,title)=>`<label title="${esc(title)}"><input type="checkbox" ${s[key]?"checked":""} onchange="pcbSet('${key}',this.checked)"> ${esc(l)}</label>`;
+ const bl=boardList&&boardList.boards?boardList.boards:null;
+ if(bl&&bl.length>1)o.push(`<select title="${esc(tr("Boards of this project: one schematic, several boards. Each board places and routes its own parts."))}" onchange="act('pcb_boards',{action:'activate',board:+this.value})">${bl.map((x,i)=>`<option value="${i}"${(x.active||i===boardList.active)?" selected":""}>${esc(x.name||x)}</option>`).join("")}</select>`);
+ o.push(`<button class="primary" onclick="pcbAction('autoroute')" title="${esc(tr("Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)"))}">${esc(tr("Auto Route"))}</button>`);
+ o.push(`<select id="pcbPreset" title="${esc(tr("Autorouter strategy: presets, quality passes, routing part of the board and the routing report"))}" onchange="pcbSet('preset',this.value)"><option value="">${esc(tr("Routing Strategy"))}</option>${(pcbPresets||[]).map(p=>`<option value="${esc(p.name)}"${p.name===s.preset?" selected":""}>${esc(p.title||p.name)}</option>`).join("")}</select>`);
+ if(t==="pour")o.push(vd+`<select title="${esc(tr("Net of the pour you draw (on the active layer)"))}" onchange="PS().pourNet=this.value;savePS()"><option value="">${esc(tr("Ground"))}</option>${(snap.nets||[]).filter(x=>x.name).map(x=>`<option${x.name===s.pourNet?" selected":""}>${esc(x.name)}</option>`).join("")}</select>`);
+ if(t==="tune")o.push(vd+`<label>${esc(tr("Target"))} <input id="tuneTarget" style="width:70px" placeholder="${esc(tr("group"))}"></label><button onclick="tuneApply()" title="${esc(tr("Add the previewed meanders to the board (Enter)"))}">${esc(tr("Apply"))}</button>`);
+ else if(t!=="pan")o.push(vd+seg("mode",[["shove",tr("Shove")],["walkaround",tr("Walk around")],["highlight",tr("Highlight")]],tr("Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red")));
+ if(t==="route"||t==="pair"){o.push(seg("posture",[["45","45°"],["90","90°"]])+chk("anyAngle",tr("Any angle"),tr("Route and drag at any angle: the head is one straight track to the pointer"))
+  +chk("tdrops",tr("Auto teardrops"),tr("Teardrops where each finished route meets pads and vias"))+seg("tdStyle",[["straight",tr("Straight")],["curved",tr("Curved")]],tr("Teardrop outline: straight fans, or curved flares into pads and vias"))
+  +chk("pair",tr("Differential pair"),tr("Route both nets of a differential pair (X_P / X_N) together at the pair gap"))
+  +`<select title="${esc(tr("Width of the tracks the Route tool lays: the net class rule, or a fixed width"))}" onchange="pcbSet('width',+this.value)"><option value="0">${esc(tr("Rule width"))}</option>${[0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.8,1,1.5].map(w=>`<option value="${w}"${w===s.width?" selected":""}>${w} mm</option>`).join("")}</select>`);}
+ const lc=b.layerCount||state.layers||2;
+ o.push(vd+`<i class="ico" data-ico="layers" style="color:var(--blue)"></i><select title="${esc(tr("Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards"))}" onchange="act('pcb_set_board',{layers:+this.value})">${[1,2,4,6,8,10,12,14,16,18,20,22,24].map(k=>`<option value="${k}"${k===lc?" selected":""}>${k} ${esc(k===1?tr("layer"):tr("layers"))}</option>`).join("")}</select>`);
+ o.push(`<select title="${esc(tr("Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces"))}" onchange="act('pcb_set_board',{rulePreset:this.value})">${(rulePresets||[{name:b.rulePreset}]).map(p=>`<option${p.name===b.rulePreset?" selected":""} title="${esc(p.description||"")}">${esc(p.name||"")}</option>`).join("")}</select>`);
+ o.push(`<button onclick="form('pcb_set_board',{},'Board Setup')" title="${esc(tr("Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes"))}">${esc(tr("Board Setup"))}</button>`);
+ const fld=(id,l,v,dis)=>`<label>${esc(tr(l))} <input id="${id}" style="width:54px" value="${v}"${dis?" disabled":""} onkeydown="if(event.key==='Enter')boardApply()"> <small style="color:var(--tmute)">mm</small></label>`;const cust=(b.outline||[]).length>=3;
+ o.push(vd+fld("bW","Board W",(+b.width||0).toFixed(1),cust)+fld("bH","H",(+b.height||0).toFixed(1),cust)+fld("bT","Track",(+b.trackWidth||0).toFixed(2))+fld("bC","Clr",(+b.clearance||0).toFixed(2))+`<button onclick="boardApply()">${esc(tr("Apply"))}</button>`);
+ o.push('<span class="sp"></span>');
+ if(drcRun){const e=drcAll.filter(v=>v.severity==="error").length;o.push(`<span class="badge">✓ ${esc(e?"DRC "+e:tr("DRC clean"))}</span>`+(e?`<button class="tb" onclick="drcStep(-1)" title="${esc(tr("Previous design rule error: zoom to it"))}">‹</button><button class="tb" onclick="drcStep(1)" title="${esc(tr("Next design rule error: zoom to it"))}">›</button>`:""));}
+ o.push(`<span class="segc"><button onclick="zoomStep(1/1.25)" title="${esc(tr("Zoom Out"))}">−</button><button id="pcbZoom" onclick="zoomFit()" title="${esc(tr("Zoom to Fit"))}">100%</button><button onclick="zoomStep(1.25)" title="${esc(tr("Zoom In"))}">+</button></span>`);
+ el.innerHTML=o.join("");iconize(el);zoomLabel();}
+let pcbPresets=null,rulePresets=null;
+async function pcbTables(){if(pcbPresets)return;try{pcbPresets=(await run("pcb_autoroute_presets")).data.presets.filter(p=>!["nets","netclass","area"].includes(p.name));rulePresets=(await run("pcb_rule_presets")).data.presets;}catch{}pcbOpts();}
+async function boardApply(){const b=snap.board||{},n=id=>{const v=+$(id).value;return isFinite(v)&&v>0?v:undefined;};
+ const a={trackWidth:n("bT"),clearance:n("bC")};if((b.outline||[]).length<3){a.width=n("bW");a.height=n("bH");}await act("pcb_set_board",a);}
+async function tuneApply(){if(!selW||selW.via){status(tr("Click a track to tune its net."),"warning");return;}const v=$("tuneTarget").value.trim();await act("pcb_edit_copper",{action:"tune",tracks:[selW.id],target:v?parseL(v):0});}
+const selRefs=()=>sel.pcb?[sel.pcb]:[...multi];
+async function pcbAction(a){const refs=selRefs(),trk=selW&&!selW.via?[selW.id]:null;
+ if(a==="layers"){PS().panel=!PS().panel;savePS();pcbChrome();return;}if(a==="nav"){PS().nav=!PS().nav;savePS();pcbChrome();pcbNav();return;}
+ if(a==="zoomarea"){zoomArmed=true;pcbBanner();return;}if(a==="drc")return drcMarks();
+ if(a==="rotate"||a==="flip"){if(!refs.length){status(tr("Click a part to select it."),"warning");return;}
+  for(const ref of refs){const c=(snap.components||[]).find(c=>c.ref===ref),b=(c&&c.pcb)||{};await run("pcb_place_footprint",a==="rotate"?{ref,x:b.x,y:b.y,rotation:((b.rotation||0)+90)%360}:{ref,x:b.x,y:b.y,bottom:!b.bottom});}await refresh(true);if(sel.pcb)selectPart("pcb",sel.pcb);return;}
+ if(a==="autoplace")return act("pcb_autoplace",{all:true,decoupling:true});if(a==="fit")return act("pcb_fit_board",{});
+ if(a==="autoroute")return act("pcb_autoroute",PS().preset?{preset:PS().preset}:{});
+ if(a==="fanout"){if(!refs.length){status(tr("Click a part to select it."),"warning");return;}for(const ref of refs)await run("pcb_fanout",{ref,shove:true});return refresh(true);}
+ if(a==="teardrops"){const r=await run("pcb_teardrops",trk?{trackIds:trk}:{});if(!r.data.added)await run("pcb_teardrops",{...(trk?{trackIds:trk}:{}),remove:true});return refresh(true);}
+ if(a==="gloss")return act("pcb_edit_copper",trk?{action:"gloss",tracks:trk}:{action:"gloss"});if(a==="stitch")return act("pcb_stitch_vias",{});
+ if(a==="match"){if(!trk){status(tr("Click a track to tune its net."),"warning");return;}return act("pcb_edit_copper",{action:"tune",tracks:trk,target:0});}
+ if(a==="clear")return act("pcb_clear_routing",{});}
+// PROPERTIES (InspectorView): the selected footprint, track, via or pour, else the board.
+const prow=(l,v)=>`<div class="prow"><span>${esc(l)}</span><span>${v}</span></div>`;
+const pgroup=(t,body)=>`<div class="pgroup"><h5>${esc(t)}</h5>${body}</div>`;
+const phead=(ico,title,sub)=>`<div class="phead"><span class="pi"><i class="ico" data-ico="${ico}"></i></span><div><b>${esc(title)}</b><small>${esc(sub)}</small></div></div>`;
+function pcbInspector(){const box=$("pcbSel");if(!box)return;if(sel.pcb)return pcbInspectPart(sel.pcb);if(multi.size>1)return showMulti();
+ const b=snap.board||{},nm=i=>esc(netName(i)||"—"),L=l=>esc(layerName(l));let h="";
+ if(selW&&selW.via){const v=(snap.vias||[]).find(v=>v.id===selW.id);if(!v){selW=null;return pcbInspector();}
+  h=phead("via",tr("Via")+" "+v.id,v.netName||"")+pgroup(tr("Via"),prow(tr("Net"),nm(v.net))+prow(tr("Position"),fmtL(v.x,false)+", "+fmtL(v.y))+prow(tr("Diameter"),fmtL(v.diameter))+prow(tr("Drill"),fmtL(v.drill))+prow(tr("Layers"),L(v.fromLayer??0)+" – "+L(v.toLayer??(b.layerCount||2)-1))+prow(tr("Kind"),esc(v.kind||"through"))
+   +`<div class="pbtns"><button onclick="toggleHighlight()">${esc(tr("Highlight net"))}</button><button onclick="act('pcb_remove_copper',{vias:[${v.id}]})">${esc(tr("Delete"))}</button></div>`);}
+ else if(selW){const t=(snap.tracks||[]).find(t=>t.id===selW.id);if(!t){selW=null;return pcbInspector();}
+  const opts=Array.from({length:b.layerCount||state.layers||2},(_,i)=>`<option value="${i}"${i===t.layer?" selected":""}>${L(i)}</option>`).join("");
+  h=phead("route",tr("Track")+" "+t.id,t.netName||"")+pgroup(tr("Track"),prow(tr("Net"),nm(t.net))+`<div class="prow"><span>${esc(tr("Layer"))}</span><select id="twL">${opts}</select></div>`
+   +`<div class="prow"><span>${esc(tr("Width"))}</span><input id="twW" value="${fmtL(t.width,false)}"></div>`+prow(tr("Length"),fmtL(Math.hypot(t.bx-t.ax,t.by-t.ay)))+prow(tr("Start"),fmtL(t.ax,false)+", "+fmtL(t.ay))+prow(tr("End"),fmtL(t.bx,false)+", "+fmtL(t.by))
+   +`<label class="chk"><input id="twK" type="checkbox"${t.locked?" checked":""}> ${esc(tr("Locked"))}</label>`
+   +`<div class="pbtns"><button onclick="trackOp('split')">${esc(tr("Split here"))}</button><button onclick="trackOp('tune')">${esc(tr("Tune length…"))}</button><button onclick="trackOp('gloss')">${esc(tr("Gloss"))}</button><button onclick="toggleHighlight()">${esc(tr("Highlight net"))}</button><button onclick="act('pcb_remove_copper',{tracks:[${t.id}]})">${esc(tr("Delete"))}</button></div>`);
+  box.innerHTML=h;iconize(box);const id=t.id;$("twW").onchange=e=>{const w=parseL(e.target.value);if(w>0)act("pcb_edit_copper",{action:"set",tracks:[id],width:w});};
+  $("twL").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[id],layer:+e.target.value});$("twK").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[id],locked:e.target.checked});return;}
+ else if(selZ!==null&&(snap.zones||[])[selZ]){const z=snap.zones[selZ],fills=(snap.zoneFills||[]).filter(f=>f.layer===z.layer&&netName(f.net)===z.net);
+  h=phead("pour",tr("Copper Pour"),z.net)+pgroup(tr("Copper Pour"),prow(tr("Net"),esc(z.net))+prow(tr("Layer"),L(z.layer))+prow(tr("Clearance"),fmtL(z.clearance))+prow(tr("Plane"),esc(z.plane?tr("Yes"):tr("No")))
+   +prow(tr("Area"),fills.reduce((a,f)=>a+(f.area||0),0).toFixed(1)+" mm²")+prow(tr("Islands"),fills.reduce((a,f)=>a+(f.islands||0),0))+`<div class="pbtns"><button onclick="act('pcb_remove_pour',{index:${selZ}});selZ=null">${esc(tr("Delete"))}</button></div>`);}
+ else{const placed=(snap.courtyards||[]).length;
+  h=phead("pcb",tr("Board"),b.rulePreset||"")+pgroup(tr("Board"),prow(tr("Size"),fmtL(b.width||0,false)+" × "+fmtL(b.height||0))+prow(tr("Layers"),b.layerCount||2)+prow(tr("Thickness"),fmtL(b.thickness||1.6))+prow(tr("Solder Mask"),esc((b.solderMask||"green").replace(/^./,c=>c.toUpperCase()))))
+   +pgroup(tr("Design Rules"),prow(tr("Track"),fmtL(b.trackWidth||0))+prow(tr("Clearance"),fmtL(b.clearance||0))+prow(tr("Via"),fmtL(b.viaDiameter||0,false)+" / "+fmtL(b.viaDrill||0)))
+   +pgroup(tr("Statistics"),prow(tr("Footprints"),placed)+prow(tr("Tracks"),(snap.tracks||[]).length)+prow(tr("Vias"),(snap.vias||[]).length)+prow(tr("Unrouted"),(snap.ratsnest||[]).length))
+   +`<p class="info">${esc(tr("Click a part, track or via. Shift-click or shift-drag selects several parts."))}</p>`;}
+ box.innerHTML=h;iconize(box);}
+function pcbInspectPart(ref){const box=$("pcbSel"),c=(snap.components||[]).find(c=>c.ref===ref);if(!c){sel.pcb=null;return pcbInspector();}selW=null;selZ=null;const b=c.pcb||{};
+ box.innerHTML=phead("pcb",c.ref,c.footprint||"")+pgroup(tr("General"),prow(tr("Designator"),esc(c.ref))+`<div class="prow"><span>${esc(tr("Value"))}</span><input id="selVal" value="${esc(c.value)}"></div>`)
+  +pgroup(tr("PCB Footprint"),prow(tr("Footprint"),esc(c.footprint||""))+(b.placed===false?`<p class="info">${esc(tr("Not placed yet"))}</p>`:prow(tr("Position"),fmtL(b.x,false)+", "+fmtL(b.y))
+   +`<div class="prow"><span>${esc(tr("Rotation"))}</span><input id="selRot" type="number" step="90" value="${b.rotation||0}"></div>`+prow(tr("Layer"),esc(b.bottom?tr("Bottom"):tr("Top")))
+   +`<label class="chk"><input id="selLock" type="checkbox"${b.locked?" checked":""}> ${esc(tr("Locked (Auto Place keeps it)"))}</label>`
+   +`<div class="pbtns"><button onclick="partOp('rotate')">↻ ${esc(tr("Rotate"))}</button><button onclick="partOp('flip')">⇋ ${esc(tr("Flip"))}</button><button onclick="act('pcb_fanout',{ref:'${esc(ref)}',shove:true})" title="${esc(tr("Escape track and via on every SMD pad"))}">${esc(tr("Fan out"))}</button></div>`))
+  +pgroup(tr("Pins"),(c.pins||[]).map(p=>`<div class="prow"><span style="font-family:ui-monospace,monospace;color:var(--tp)">${esc(p.name)}</span><span style="font-family:ui-monospace,monospace;color:${p.connected?"var(--lb)":p.noConnect?"var(--tmute)":PCB_C.warning}">${esc(p.noConnect&&!p.connected?tr("no connect"):netName(p.net)||"—")}</span></div>`).join(""));
+ iconize(box);$("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});
+ if($("selRot"))$("selRot").onchange=e=>act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:((+e.target.value%360)+360)%360});if($("selLock"))$("selLock").onchange=e=>act("pcb_lock_footprint",{ref,locked:e.target.checked});
+ overlay($("pcbView"));}
+document.querySelectorAll("#pcbTools [data-a]").forEach(b=>b.onclick=()=>pcbAction(b.dataset.a));
+// Schematic as the macOS SchematicEditorView: device picker, tool bar along the top, options bar, sheet bar, Midnight Navy
+// canvas (SchematicPalette.siedaDark over the engine's render: background, dot grid, wires, symbols, labels, pins) and PROPERTIES.
+const SCH_DARK={"#ffffff":"#0a1224","#8b1a1a":"#73adff","#1f6f3f":"#7dd4fc","#202020":"#cce8ff","#1a3d8b":"#7dd4fc","#555555":"#9ec7ff","#2a5caa":"#73adff","#fff7e6":"#1a2e57","#1f4f9f":"#7dd4fc"};
+function schDark(t){t=t.replace(/"(#[0-9a-fA-F]{6})"/g,(m,c)=>'"'+(SCH_DARK[c.toLowerCase()]||c)+'"');const vb=viewBox(t)||[0,0,1,1],k=t.indexOf('"/>')+3;
+ return t.slice(0,k)+`<defs><pattern id="sg" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="-0.9" y="-0.9" width="1.8" height="1.8" fill="#293d66"/></pattern><pattern id="sG" width="100" height="100" patternUnits="userSpaceOnUse"><rect x="-1.3" y="-1.3" width="2.6" height="2.6" fill="#1a3b7a"/></pattern></defs><rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="url(#sg)"/><rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="url(#sG)"/>`+t.slice(k);}
+let schSheets=[],busPts=[],schZoomArmed=false;
+async function schChrome(){try{const r=await rpc("tools/call",{name:"schematic_sheets",arguments:{}});const d=JSON.parse(r.content[0].text);schSheets=d.sheets||[];}catch{schSheets=[];}
+ const cur=+$("sheet").value||1;$("sheetBar").innerHTML=schSheets.map(x=>`<button class="${x.id===cur?"on":""}" onclick="schSheet(${x.id})">${esc("› ".repeat(x.depth||0)+x.name)}</button>`).join("")+`<button onclick="act('schematic_sheet_edit',{action:'add',name:'Sheet '+(schSheets.length+1),activate:true})" title="${esc(tr("Add Sheet"))}">+</button>`;
+ $("devPicker").hidden=pref("studio.schPicker")==="0";document.querySelectorAll("#schTools [data-sa=picker]").forEach(b=>b.classList.toggle("on",pref("studio.schPicker")!=="0"));schWrench();}
+function schSheet(id){$("sheet").value=id;rpc("tools/call",{name:"schematic_sheet_edit",arguments:{action:"activate",sheet:id}}).catch(()=>{});selectPart("sch",null);draw();}
+function schWrench(){const t=tool.sch,h={select:tr("Select / move (V)"),pan:tr("Pan (H)"),wire:tr("Wire (W) — click two pins"),bus:tr("Bus (B) — click the corners, click the last point again (or Return) to name it"),
+ noconnect:tr("No connect (Q) — click a pin to mark it intentionally open"),place:tr("Place selected device (P)"),ground:tr("Place ground (G)"),label:tr("Place net label (L)"),vsource:tr("Place voltage source")}[t]||"";
+ const w=$("schWrench");if(w)w.title=h;const n=$("schCount");if(n)n.textContent=sel.sch?tr("1 selected"):"";const b=$("schBanner");if(b){b.hidden=!schZoomArmed&&!busPts.length;b.textContent=schZoomArmed?tr("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels"):tr("Bus (B) — click the corners, click the last point again (or Return) to name it");}}
+function schZoom(f){const v=views.schView,el=$("schView");if(!v)return;if(!f){v.fit=true;v.doFit();}else{const mx=el.clientWidth/2,my=el.clientHeight/2;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;v.apply();}schZoomLabel();}
+function schZoomLabel(){const v=views.schView,i=$("schView").querySelector("img"),el=$("schView"),z=$("schZoomL");if(!v||!i||!z||!i.naturalWidth)return;z.textContent=Math.round(v.k/Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight)*100)+"%";}
+async function schAction(a){if(a==="picker"){pref("studio.schPicker",pref("studio.schPicker")==="0"?"1":"0");schChrome();return;}if(a==="zoomarea"){schZoomArmed=true;schWrench();return;}
+ if(!sel.sch){status(tr("Click a part to select it."),"warning");return;}partOp(a);}
+async function schBus(){const pts=busPts;busPts=[];schWrench();if(pts.length<2){overlay($("schView"));return;}const name=prompt(tr("Bus name with members, e.g. D[0..7]"),"D[0..7]");
+ if(name)await act("schematic_add_bus",{name,points:pts.map(q=>({x:q[0],y:q[1]}))});else overlay($("schView"));}
+function schInspector(ref){const box=$("schSel"),c=ref&&sheetParts().find(c=>c.ref===ref);
+ if(!c){const sh=schSheets.find(x=>x.id===(+$("sheet").value||1))||{},parts=sheetParts();box.innerHTML=phead("schematic",sh.name||tr("Sheet"),tr("Sheet")+" "+(sh.id||1))+pgroup(tr("Sheet"),prow(tr("Name"),esc(sh.name||""))+prow(tr("Parts"),parts.length)+prow(tr("Nets"),(snap.nets||[]).filter(n=>n.pinCount>1).length))+`<p class="info">${esc(tr("Click a part to select it."))}</p>`;iconize(box);return;}
+ box.innerHTML=phead("schematic",c.ref,c.footprint||c.customPart||"")+pgroup(tr("General"),prow(tr("Designator"),esc(c.ref))+`<div class="prow"><span>${esc(tr("Value"))}</span><input id="selVal" value="${esc(c.value)}"></div>`
+  +`<div class="pbtns"><button onclick="partOp('rotate')">↻ ${esc(tr("Rotate"))}</button><button onclick="partOp('mirror')">⇋ ${esc(tr("Mirror"))}</button><button onclick="partOp('delete')">${esc(tr("Delete"))}</button></div>`)
+  +(c.footprint?pgroup(tr("PCB Footprint"),prow(tr("Footprint"),esc(c.footprint))+(c.pcb&&c.pcb.placed?prow(tr("Position"),fmtL(c.pcb.x,false)+", "+fmtL(c.pcb.y))+prow(tr("Rotation"),(c.pcb.rotation||0)+"°")+prow(tr("Layer"),esc(c.pcb.bottom?tr("Bottom"):tr("Top"))):`<p class="info">${esc(tr("Not placed yet"))}</p>`)):"")
+  +pgroup(tr("Pins"),(c.pins||[]).map(p=>`<div class="prow"><span style="font-family:ui-monospace,monospace;color:var(--tp)">${esc(p.name)}</span><span style="font-family:ui-monospace,monospace;color:${p.connected?"var(--lb)":p.noConnect?"var(--tmute)":PCB_C.warning}">${esc(p.noConnect&&!p.connected?tr("no connect"):netName(p.net)||"—")}</span></div>`).join(""));
+ iconize(box);$("selVal").onchange=e=>act("schematic_set_value",{ref:c.ref,value:e.target.value});}
+document.querySelectorAll("#schTools [data-sa]").forEach(b=>b.onclick=()=>schAction(b.dataset.sa));
 // Live routing (pcb_route_live): the router works on a copy; moves are coalesced so the head keeps up with the mouse.
 let live=null,liveQ=Promise.resolve(),liveAt=null;
 const liveQueue=f=>(liveQ=liveQ.then(f).catch(e=>{status(e.message,"warning");}));
-async function liveCall(args){const r=await rpc("tools/call",{name:"pcb_route_live",arguments:args}),t=((r.content||[])[0]||{}).text||"";if(r.isError)throw new Error(t);try{return JSON.parse(t);}catch{return{};}}
+async function routeCall(args){const r=await rpc("tools/call",{name:"pcb_route_live",arguments:args}),t=((r.content||[])[0]||{}).text||"";if(r.isError)throw new Error(t);try{return JSON.parse(t);}catch{return{};}}
 const r3=v=>+(+v).toFixed(3);
 function liveNote(pv){status((pv.blocked?"Blocked: ":"")+(pv.status||"Routing")+(pv.length?` · ${(+pv.length).toFixed(2)} mm`:"")+(pv.reachedTarget?" · on target: click or Enter to finish":""),pv.blocked?"warning":"");}
-function liveBegin(args){live={pv:null};const mode=$("routeMode")?$("routeMode").value:"shove";
- liveQueue(async()=>{try{live.pv=await liveCall({...args,x:r3(args.x),y:r3(args.y),mode});liveNote(live.pv);}catch(e){live=null;throw e;}overlay($("pcbView"));});}
+function liveBegin(args){live={pv:null};const s=PS(),mode=s.mode,posture=s.anyAngle?"free":s.posture;
+ liveQueue(async()=>{try{live.pv=await routeCall({...args,x:r3(args.x),y:r3(args.y),mode,posture,width:s.width||0});liveNote(live.pv);}catch(e){live=null;throw e;}overlay($("pcbView"));});}
 function liveMove(pt){if(!live)return;const queued=!!liveAt;liveAt=pt;if(queued)return;
- liveQueue(async()=>{const q=liveAt;liveAt=null;if(!live||!live.pv||!q)return;live.pv=await liveCall({action:"move",x:r3(q[0]),y:r3(q[1])});liveNote(live.pv);overlay($("pcbView"));});}
+ liveQueue(async()=>{const q=liveAt;liveAt=null;if(!live||!live.pv||!q)return;live.pv=await routeCall({action:"move",x:r3(q[0]),y:r3(q[1])});liveNote(live.pv);overlay($("pcbView"));});}
 function liveStep(action){if(!live)return liveQ;return liveQueue(async()=>{if(!live||!live.pv)return;
- if(action==="cancel"){await liveCall({action});live=null;status("Route cancelled.");overlay($("pcbView"));return;}
- if(action!=="commit"){live.pv=await liveCall({action});liveNote(live.pv);overlay($("pcbView"));return;}
- let note="";try{const r=await liveCall({action});note=`Routed: ${(r.addedTracks||[]).length} tracks, ${(r.addedVias||[]).length} vias${(r.removedTracks||[]).length?", "+(r.removedTracks||[]).length+" moved":""}.`;}
+ if(action==="cancel"){await routeCall({action});live=null;status("Route cancelled.");overlay($("pcbView"));return;}
+ if(action!=="commit"){live.pv=await routeCall({action});liveNote(live.pv);overlay($("pcbView"));return;}
+ let note="";try{const r=await routeCall({action});note=`Routed: ${(r.addedTracks||[]).length} tracks, ${(r.addedVias||[]).length} vias${(r.removedTracks||[]).length?", "+(r.removedTracks||[]).length+" moved":""}.`;
+ const ids=(r.addedTracks||[]).map(t=>t.id).filter(x=>x!==undefined);if(PS().tdrops&&ids.length)await run("pcb_teardrops",{trackIds:ids,style:PS().tdStyle});}
  finally{live=null;await refresh(true);if(note)status(note,"okc");}});}
 function segDist(p,t){const dx=t.bx-t.ax,dy=t.by-t.ay,l=dx*dx+dy*dy,u=l?Math.max(0,Math.min(1,((p[0]-t.ax)*dx+(p[1]-t.ay)*dy)/l)):0;return Math.hypot(p[0]-t.ax-u*dx,p[1]-t.ay-u*dy);}
-function wireAt(pt){const lay=$("layers").value,last=(state.layers||2)-1,shown=l=>!lay||(lay==="b"?l===last:lay[0]==="i"?l===+lay.slice(1):l===0);
+function wireAt(pt){const shown=l=>pcbVis("c"+l);if(!PS().pickCopper)return null;
  for(const v of snap.vias||[])if(Math.hypot(v.x-pt[0],v.y-pt[1])<=(v.diameter||0.6)/2+0.1)return{via:true,id:v.id};
  let best=null,d0=1e9;for(const t of snap.tracks||[]){if(!shown(t.layer))continue;const d=segDist(pt,t);if(d<=(t.width||0.25)/2+0.15&&d<d0){d0=d;best=t;}}return best;}
-const layerColour=l=>l===0?"#ff5a4a":l===(state.layers||2)-1?"#4a8dff":"#e0c040";
+const layerColour=l=>layerCol(l,state.layers||2);
 function drawLive(o,pv){const hidden=new Set(pv.hiddenTracks||[]),line=(t,c,op,dash)=>shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:c,"stroke-width":Math.max(t.width||0.2,0.1),"stroke-linecap":"round",opacity:op,...(dash?{"stroke-dasharray":dash}:{})});
  for(const t of snap.tracks||[])if(hidden.has(t.id))line({...t,width:(t.width||0.2)+0.1},"#10141c",0.9);
  for(const v of snap.vias||[])if((pv.hiddenVias||[]).includes(v.id))shape(o,"circle",{cx:v.x,cy:v.y,r:(v.diameter||0.6)/2+0.05,fill:"#10141c"});
  for(const t of pv.shovedTracks||[])line(t,"#ff9f1a",0.95);
  for(const t of pv.placed||[])line(t,layerColour(t.layer),0.95);
- for(const t of pv.head||[])line(t,pv.blocked?"#ff3b3b":layerColour(t.layer),0.75,"0.5 0.25");
+ for(const t of pv.head||[]){line(t,pv.blocked?PCB_C.warning:layerColour(t.layer),0.5);shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:pv.blocked?PCB_C.warning:cssVar("--ice"),"stroke-width":pxW(),"stroke-linecap":"round"});}
+ for(const c of pv.collisions||[])shape(o,"circle",{cx:c.x,cy:c.y,r:6*pxW(),fill:"none",stroke:PCB_C.error,"stroke-width":2*pxW()});
  for(const v of [...(pv.shovedVias||[]),...(pv.vias||[])])shape(o,"circle",{cx:v.x,cy:v.y,r:(v.diameter||0.6)/2,fill:"#c8c8c8",stroke:"#555","stroke-width":0.05});
  if(pv.endX!==undefined)shape(o,"circle",{cx:pv.endX,cy:pv.endY,r:0.35,fill:"none",stroke:"#fff","stroke-width":0.08});}
 // Library editor: the part is checked and drawn after every change (library_check_part preview) and added by library_create_part.
@@ -297,25 +625,25 @@ async function lpCheck(){let r;try{r=await rpc("tools/call",{name:"library_check
 function svgPoint(svg,e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return[q.x,q.y];}
 function lpFit(svg,x0,y0,x1,y1,m){svg.setAttribute("viewBox",`${x0-m} ${y0-m} ${x1-x0+2*m} ${y1-y0+2*m}`);svg.replaceChildren();}
 function lpDraw(){const part=lp.part;if(!part)return;const sym=part.symbol||{},hw=sym.halfWidth||30,hh=sym.halfHeight||20,S=$("lpSym");
- const ys=(sym.pins||[]).map(p=>p.y).concat([-hh,hh]),xs=(sym.pins||[]).map(p=>p.x).concat([-hw,hw]),top=Math.min(...ys)-12;lpFit(S,Math.min(...xs)-30,top-4,Math.max(...xs)+30,Math.max(...ys)+12,6);shape(S,"rect",{x:-hw,y:-hh,width:2*hw,height:2*hh,fill:"#fff8dc",stroke:"#8a1c1c","stroke-width":1.5});
+ const ys=(sym.pins||[]).map(p=>p.y).concat([-hh,hh]),xs=(sym.pins||[]).map(p=>p.x).concat([-hw,hw]),top=Math.min(...ys)-12;lpFit(S,Math.min(...xs)-30,top-4,Math.max(...xs)+30,Math.max(...ys)+12,6);shape(S,"rect",{x:-hw,y:-hh,width:2*hw,height:2*hh,fill:"#1a2e57",stroke:"#73adff","stroke-width":1.5});
  const tip={L:[-hw,0],R:[hw,0],T:[0,-hh],B:[0,hh]};
- for(const p of sym.pins||[]){const e=p.side==="L"||p.side==="R"?[tip[p.side][0],p.y]:[p.x,tip[p.side][1]];shape(S,"line",{x1:p.x,y1:p.y,x2:e[0],y2:e[1],stroke:"#8a1c1c","stroke-width":1.5});
+ for(const p of sym.pins||[]){const e=p.side==="L"||p.side==="R"?[tip[p.side][0],p.y]:[p.x,tip[p.side][1]];shape(S,"line",{x1:p.x,y1:p.y,x2:e[0],y2:e[1],stroke:"#73adff","stroke-width":1.5});
   const dot=shape(S,"circle",{cx:p.x,cy:p.y,r:3.5,fill:"#3b6fe0",style:"cursor:grab"});dot.onmousedown=ev=>{ev.preventDefault();lpDragPin(p,ev);};
   const inX=p.side==="L"?e[0]+4:p.side==="R"?e[0]-4:e[0],inY=p.side==="T"?e[1]+10:p.side==="B"?e[1]-4:e[1]+3.5;
-  shape(S,"text",{x:inX,y:inY,"font-size":9,"text-anchor":p.side==="L"?"start":p.side==="R"?"end":"middle",fill:"#17202e"}).textContent=p.name;
-  shape(S,"text",{x:(p.x+e[0])/2,y:(p.y+e[1])/2-3,"font-size":7,"text-anchor":"middle",fill:"#5d6b80"}).textContent=p.number;}
- for(const g of lp.symG){const [a,b]=g.points,st={fill:"none",stroke:"#8a1c1c","stroke-width":1.5};
+  shape(S,"text",{x:inX,y:inY,"font-size":9,"text-anchor":p.side==="L"?"start":p.side==="R"?"end":"middle",fill:"#cce8ff"}).textContent=p.name;
+  shape(S,"text",{x:(p.x+e[0])/2,y:(p.y+e[1])/2-3,"font-size":7,"text-anchor":"middle",fill:"#6b87b8"}).textContent=p.number;}
+ for(const g of lp.symG){const [a,b]=g.points,st={fill:"none",stroke:"#73adff","stroke-width":1.5};
   if(g.kind==="line")shape(S,"line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],...st});if(g.kind==="rect")shape(S,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),...st});
   if(g.kind==="circle")shape(S,"circle",{cx:a[0],cy:a[1],r:g.radius,...st});}
  S.onclick=e=>lpGraphicClick("sym",svgPoint(S,e));
- shape(S,"text",{x:0,y:top,"font-size":10,"text-anchor":"middle",fill:"#17202e"}).textContent=(part.refPrefix||"U")+"? "+part.name;
+ shape(S,"text",{x:0,y:top,"font-size":10,"text-anchor":"middle",fill:"#cce8ff"}).textContent=(part.refPrefix||"U")+"? "+part.name;
  const fp=part.footprintGeometry||{},F=$("lpFp"),cw=(fp.courtyardW||5)/2,ch=(fp.courtyardH||5)/2;lpFit(F,-cw,-ch,cw,ch,1);
  shape(F,"rect",{x:-cw,y:-ch,width:2*cw,height:2*ch,fill:"none",stroke:"#e0e0e0","stroke-width":0.05,"stroke-dasharray":"0.3 0.2"});
  if(fp.bodyW)shape(F,"rect",{x:-fp.bodyW/2,y:-fp.bodyD/2,width:fp.bodyW,height:fp.bodyD,fill:"none",stroke:"#f5d742","stroke-width":0.08});
  for(const l of lp.fpLines)shape(F,"line",{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:l[5]==="fab"?"#9fb7ff":"#f0f0f0","stroke-width":l[4],"stroke-linecap":"round"});
  F.onclick=e=>lpGraphicClick("fp",svgPoint(F,e));F.ondblclick=()=>{if(lp.gtool&&lp.gtool.kind==="poly")lpClosePoly();};
  if(lp.gpts&&lp.gpts.length)shape(F,"polyline",{points:lp.gpts.map(q=>q.join(",")).join(" "),fill:"rgba(232,184,74,.3)",stroke:"#e8b84a","stroke-width":0.05});
- (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,land=lp.custom&&lp.custom.lands[i],o=(land&&land[7])||{},a={fill:o.npth?"none":q.number===1?"#e8b84a":"#c9a227",stroke:sel?"#5b8dff":o.npth?"#888":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
+ (fp.pads||[]).forEach((q,i)=>{const sel=lp.custom&&i===lp.sel,land=lp.custom&&lp.custom.lands[i],o=(land&&land[7])||{},a={fill:o.npth?"none":q.number===1?"#e8b84a":"#dbb861",stroke:sel?"#5b8dff":o.npth?"#888":"none","stroke-width":0.1,style:lp.custom?"cursor:grab":""};
   const c=o.chamfer?Math.min(q.w,q.h)*o.chamfer:0,el=o.outline?shape(F,"polygon",{points:o.outline.map(p=>[q.x+p[0],q.y+p[1]].join(",")).join(" "),...a}):q.round?shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:Math.min(q.w,q.h)/2,...a})
    :c?shape(F,"polygon",{points:[[q.x-q.w/2+c,q.y-q.h/2],[q.x+q.w/2-c,q.y-q.h/2],[q.x+q.w/2,q.y-q.h/2+c],[q.x+q.w/2,q.y+q.h/2-c],[q.x+q.w/2-c,q.y+q.h/2],[q.x-q.w/2+c,q.y+q.h/2],[q.x-q.w/2,q.y+q.h/2-c],[q.x-q.w/2,q.y-q.h/2+c]].map(p=>p.join(",")).join(" "),...a})
    :shape(F,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:(o.corner||0)*Math.min(q.w,q.h),...a});
@@ -386,21 +714,11 @@ async function lpModel(){const path=prompt("3D model file in the root folder (ST
 async function lpInit(){if($("lpPkg").options.length)return;try{const r=await run("library_packages");$("lpPkg").innerHTML=r.data.packages.filter(p=>p!=="CUSTOM").map(p=>`<option>${esc(p)}</option>`).join("");}catch{}lpPinCount();lpParts();lpCheck();}
 // Board selection, highlight, measure and drawn shapes.
 let multi=new Set(),selW=null,hl=null,meas=null,shapePts=[];
-const curLayer=()=>{const l=$("layers").value;return l==="b"?(state.layers||2)-1:l[0]==="i"?+l.slice(1):0;};
-function layerOptions(){const n=state.layers||2,el=$("layers"),v=el.value;let h='<option value="">All</option><option value="0">Top copper</option>';
- for(let i=1;i<n-1;i++)h+=`<option value="i${i}">Inner ${i}</option>`;el.innerHTML=h+'<option value="b">Bottom copper</option>';el.value=[...el.options].some(o=>o.value===v)?v:"";}
-const layerName=l=>l===0?"Top":l===(state.layers||2)-1?"Bottom":"Inner "+l;
-function selectWire(w,at){if(!w)return;sel.pcb=null;multi.clear();const box=$("pcbSel");
- if(w.via){const v=(snap.vias||[]).find(v=>v.id===w.id)||{};selW={via:true,id:w.id,net:v.net};
-  box.innerHTML=`<div><b>Via ${w.id}</b> ${esc(v.netName||"")}</div><div class=info>${(+v.x).toFixed(3)}, ${(+v.y).toFixed(3)} mm · ⌀ ${v.diameter} / drill ${v.drill}</div><div class="row" style="margin-top:6px"><button onclick="toggleHighlight()">Highlight net</button><button onclick="act('pcb_remove_copper',{vias:[${w.id}]})">Delete</button></div>`;}
- else{const t=(snap.tracks||[]).find(t=>t.id===w.id)||w;selW={via:false,id:w.id,net:t.net,at};
-  const opts=Array.from({length:state.layers||2},(_,i)=>`<option value="${i}"${i===t.layer?" selected":""}>${layerName(i)}</option>`).join("");
-  box.innerHTML=`<div><b>Track ${w.id}</b> ${esc(t.netName||"")}</div><div class=info>${Math.hypot(t.bx-t.ax,t.by-t.ay).toFixed(3)} mm long</div>
-  <label>Width (mm)</label><input id="twW" type="number" step="0.05" value="${t.width}"><label>Layer</label><select id="twL" style="width:100%">${opts}</select>
-  <label><input id="twK" type="checkbox" style="width:auto"${t.locked?" checked":""}> Locked</label>
-  <div class="row" style="margin-top:6px"><button onclick="trackOp('split')">Split here</button><button onclick="trackOp('tune')">Tune length…</button><button onclick="trackOp('gloss')">Gloss</button><button onclick="toggleHighlight()">Highlight net</button><button onclick="act('pcb_remove_copper',{tracks:[${w.id}]})">Delete</button></div>`;
-  $("twW").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],width:+e.target.value});$("twL").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],layer:+e.target.value});
-  $("twK").onchange=e=>act("pcb_edit_copper",{action:"set",tracks:[w.id],locked:e.target.checked});}overlay($("pcbView"));}
+const curLayer=()=>Math.min(PS().active,(state.layers||2)-1);
+function layerOptions(){if(tab==="Board")pcbChrome();}
+const layerName=l=>l===0?tr("Top"):l===(state.layers||2)-1?tr("Bottom"):tr("Inner %d").replace("%d",l);
+function selectWire(w,at){if(!w)return;sel.pcb=null;multi.clear();selZ=null;const t=w.via?(snap.vias||[]).find(v=>v.id===w.id):(snap.tracks||[]).find(t=>t.id===w.id);
+ selW={via:!!w.via,id:w.id,net:(t||w).net,at};pcbInspector();overlay($("pcbView"));}
 async function trackOp(op){if(!selW)return;const id=selW.id;
  if(op==="split"&&selW.at)await act("pcb_edit_copper",{action:"split",tracks:[id],x:r3(selW.at[0]),y:r3(selW.at[1])});
  if(op==="gloss")await act("pcb_edit_copper",{action:"gloss",tracks:[id]});
@@ -415,41 +733,44 @@ async function replicate(){const refs=[...multi],v=prompt(`Target groups, the sa
 function toggleHighlight(){const net=selW?selW.net:null;hl=hl!==null&&hl===net?null:net;if(hl===null&&!selW)status("Select a track or via, then highlight its net (H).");overlay($("pcbView"));}
 async function closeShape(){const pts=shapePts;shapePts=[];if(pts.length<3){status("A shape needs three or more corners.","warning");overlay($("pcbView"));return;}
  const points=pts.map(q=>({x:q[0],y:q[1]}));
- if(tool.pcb==="pour"){const net=prompt("Pour net","GND");if(net)await act("pcb_add_pour",{net,layer:curLayer(),polygon:points});else overlay($("pcbView"));}
- else await act("pcb_cutouts",{action:"add",points});}
+ if(tool.pcb==="pour")await act("pcb_add_pour",{net:PS().pourNet||groundNet(),layer:curLayer(),polygon:points});
+ else if(tool.pcb==="outline")await act("pcb_set_outline",{points});else await act("pcb_cutouts",{action:"add",points});}
 async function outlineDialog(){const v=prompt("Board shape: rectangle W H, rounded W H R, or circle D (mm)","rounded 50 40 3");if(!v)return;const [k,a,b,c]=v.trim().split(/\s+/);
  await act("pcb_set_outline",{preset:k,width:+a,height:+(b||a),param:+(c||0)});}
-function boardOverlay(o){const vb=views.pcbView&&views.pcbView.vb;
- if(hl!==null&&vb){shape(o,"rect",{x:vb[0],y:vb[1],width:vb[2],height:vb[3],fill:"rgba(0,0,0,.55)"});
-  for(const t of snap.tracks||[])if(t.net===hl)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#ffe14d","stroke-width":t.width,"stroke-linecap":"round"});
-  for(const q of snap.pads||[])if(q.net===hl)shape(o,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,fill:"#ffe14d"});
-  for(const v of snap.vias||[])if(v.net===hl)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2,fill:"#ffe14d"});}
- if(selW){if(selW.via){const v=(snap.vias||[]).find(v=>v.id===selW.id);if(v)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2+0.15,fill:"none",stroke:"#5b8dff","stroke-width":0.12});}
-  else{const t=(snap.tracks||[]).find(t=>t.id===selW.id);if(t)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:"#5b8dff","stroke-width":t.width+0.2,"stroke-linecap":"round",opacity:0.6});}}
- for(const ref of multi){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(91,141,255,.15)",stroke:"#5b8dff","stroke-width":0.15});}
- if(drag&&drag.at&&(drag.marquee||drag.keepout)){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:drag.keepout?"rgba(255,80,80,.15)":"rgba(91,141,255,.1)",stroke:drag.keepout?"#ff5050":"#5b8dff","stroke-width":0.12,"stroke-dasharray":"0.5 0.3"});}
- for(const r of boardRooms){shape(o,"rect",{x:r.x0,y:r.y0,width:r.x1-r.x0,height:r.y1-r.y0,fill:"none",stroke:r.outside.length?"#ff9f1a":"#b48cff","stroke-width":0.12,"stroke-dasharray":"1 0.5"});
-  shape(o,"text",{x:r.x0,y:r.y0-0.3,"font-size":0.9,fill:"#b48cff"}).textContent=r.name;}
- if(meas){shape(o,"circle",{cx:meas.a[0],cy:meas.a[1],r:0.25,fill:"#00e0c0"});if(meas.b){shape(o,"line",{x1:meas.a[0],y1:meas.a[1],x2:meas.b[0],y2:meas.b[1],stroke:"#00e0c0","stroke-width":0.1});
-  const t=shape(o,"text",{x:(meas.a[0]+meas.b[0])/2,y:(meas.a[1]+meas.b[1])/2-0.4,"font-size":1.1,fill:"#00e0c0","text-anchor":"middle"});t.textContent=Math.hypot(meas.b[0]-meas.a[0],meas.b[1]-meas.a[1]).toFixed(3)+" mm";}}
- if(shapePts.length){shape(o,"polyline",{points:shapePts.map(q=>q.join(",")).join(" "),fill:tool.pcb==="pour"?"rgba(224,180,60,.25)":"rgba(255,255,255,.15)",stroke:tool.pcb==="pour"?"#e0b43c":"#fff","stroke-width":0.12});
-  for(const q of shapePts)shape(o,"circle",{cx:q[0],cy:q[1],r:0.2,fill:"#fff"});}}
+function boardOverlay(o){const PX=pxW(),ice=cssVar("--ice"),sky=cssVar("--sky"),net=hl!==null?hl:hoverNet;
+ // The hovered pad's net (or the highlighted one) in ice blue over its copper, as the macOS canvas draws it.
+ if(net!==null&&net>=0){for(const t of snap.tracks||[])if(t.net===net&&pcbVis("c"+t.layer))shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:ice,"stroke-width":Math.max(t.width,PX),"stroke-linecap":"round"});
+  for(const q of snap.pads||[])if(q.net===net)shape(o,"rect",{x:q.x-q.w/2,y:q.y-q.h/2,width:q.w,height:q.h,rx:Math.min(q.w,q.h)*(q.round?0.5:(q.corner||0.15)),fill:ice});
+  for(const v of snap.vias||[])if(v.net===net)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2,fill:ice});}
+ if(selW){if(selW.via){const v=(snap.vias||[]).find(v=>v.id===selW.id);if(v)shape(o,"circle",{cx:v.x,cy:v.y,r:v.diameter/2+2*PX,fill:"none",stroke:PCB_C.selection,"stroke-width":2*PX});}
+  else{const t=(snap.tracks||[]).find(t=>t.id===selW.id);if(t)shape(o,"line",{x1:t.ax,y1:t.ay,x2:t.bx,y2:t.by,stroke:PCB_C.selection,"stroke-width":2*PX,"stroke-linecap":"round",opacity:0.9});}}
+ if(selZ!==null){const z=(snap.zones||[])[selZ];if(z&&z.polygon)shape(o,"polygon",{points:z.polygon.map(q=>q.x+","+q.y).join(" "),fill:"rgba(51,120,245,.12)",stroke:PCB_C.selection,"stroke-width":1.6*PX});}
+ for(const ref of multi){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(51,120,245,.12)",stroke:PCB_C.selection,"stroke-width":1.6*PX});}
+ if(drag&&drag.at&&(drag.marquee||drag.keepout||drag.zoom)){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:drag.keepout?"rgba(255,97,102,.08)":"rgba(51,120,245,.12)",stroke:drag.keepout?PCB_C.error:sky,"stroke-width":PX,"stroke-dasharray":`${5*PX} ${3*PX}`});}
+ if(drag&&drag.at&&drag.dim)shape(o,"line",{x1:drag.from[0],y1:drag.from[1],x2:drag.at[0],y2:drag.at[1],stroke:sky,"stroke-width":PX});
+ for(const r of boardRooms){shape(o,"rect",{x:r.x0,y:r.y0,width:r.x1-r.x0,height:r.y1-r.y0,fill:"none",stroke:r.outside.length?"#ff9f1a":"#30c0b0","stroke-width":PX,"stroke-dasharray":`${3*PX} ${3*PX}`});
+  shape(o,"text",{x:r.x0,y:r.y1+11*PX,"font-size":10*PX,fill:"#30c0b0"}).textContent=r.name;}
+ if(meas){shape(o,"circle",{cx:meas.a[0],cy:meas.a[1],r:3*PX,fill:"#00e0c0"});if(meas.b){shape(o,"line",{x1:meas.a[0],y1:meas.a[1],x2:meas.b[0],y2:meas.b[1],stroke:"#00e0c0","stroke-width":1.5*PX});
+  const t=shape(o,"text",{x:(meas.a[0]+meas.b[0])/2,y:(meas.a[1]+meas.b[1])/2-5*PX,"font-size":12*PX,fill:"#00e0c0","text-anchor":"middle"});t.textContent=fmtL(Math.hypot(meas.b[0]-meas.a[0],meas.b[1]-meas.a[1]));}}
+ if(shapePts.length){const pts=[...shapePts,...(hoverAt?[hoverAt]:[])];shape(o,"polyline",{points:pts.map(q=>q.join(",")).join(" "),fill:"none",stroke:sky,"stroke-width":1.5*PX,"stroke-dasharray":`${5*PX} ${3*PX}`});
+  for(const q of shapePts)shape(o,"circle",{cx:q[0],cy:q[1],r:2.5*PX,fill:sky});}}
 async function makeRoom(){const refs=[...multi],name=prompt("Room name","Room "+((boardRooms.length||0)+1));if(!name)return;let b=null;
  for(const ref of refs){const c=(snap.components||[]).find(c=>c.ref===ref),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)b=b?[Math.min(b[0],k.x0),Math.min(b[1],k.y0),Math.max(b[2],k.x1),Math.max(b[3],k.y1)]:[k.x0,k.y0,k.x1,k.y1];}
  if(!b)return;const rooms=boardRooms.map(r=>({name:r.name,refs:r.refs,x0:r.x0,y0:r.y0,x1:r.x1,y1:r.y1}));rooms.push({name,refs,x0:r3(b[0]-1),y0:r3(b[1]-1),x1:r3(b[2]+1),y1:r3(b[3]+1)});await act("pcb_rooms",{action:"set",rooms});}
-async function variantCheck(){const r=(await run("pcb_variant_check")).data;
+async function variantCheck(){const r=(await run("pcb_variant_check")).data;$("drcBox").hidden=false;
  $("drcList").innerHTML=r.variants.map(v=>`<div class="${v.ok?"okc":"warning"}"><b>${esc(v.variant)}</b>: ${v.ok?"OK":""}${v.openNets.length?" open nets "+esc(v.openNets.join(", ")):""}${v.overlaps.length?" overlaps "+esc(v.overlaps.map(p=>p.join("/")).join(", ")):""}${v.unfitted.length?" · not fitted "+esc(v.unfitted.join(", ")):""}</div>`).join("")
   +(r.alternates.length?`<div class=info>Alternates (never fitted together): ${esc(r.alternates.map(p=>p.join("/")).join(", "))}</div>`:"");status(r.ok?"Every variant checks out.":"Some variants need work: see the panel.",r.ok?"okc":"warning");}
 let boardRooms=[];
-async function drcMarks(){const r=await run("pcb_drc");marks=(r.data.violations||[]).filter(v=>v.x||v.y);
- $("drcList").innerHTML=marks.length?marks.slice(0,40).map(m=>`<div class="${esc(m.severity)}">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):"<span class=okc>No located problems.</span>";overlay($("pcbView"));}
+async function drcMarks(){const r=await run("pcb_drc");drcRun=true;drcAll=r.data.violations||[];marks=drcAll.filter(v=>(v.x||v.y)&&v.code!=="DRC_UNROUTED");drcAt=-1;
+ $("drcBox").hidden=false;$("drcList").innerHTML=drcAll.length?drcAll.slice(0,60).map(m=>`<div class="${esc(m.severity)}" style="cursor:pointer" onclick="drcFocus(${marks.indexOf(m)})">${esc(m.code)}: ${esc(m.message)}</div>`).join(""):`<span class=okc>${esc(tr("DRC clean"))}</span>`;
+ pcbOpts();overlay($("pcbView"));}
 function filterKinds(){const q=$("devSearch").value.toLowerCase();[...$("kind").options].forEach(o=>o.hidden=!!q&&!o.textContent.toLowerCase().includes(q));}
 async function searchParts(){const r=await run("library_search",{query:$("partQuery").value,limit:30});
  $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
- if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
- if(tab==="Board"){const l=$("layers").value,args={format:"svg",width:1600};if(l==="0")args.layers=[0];if(l==="b")args.layers=[(state.layers||2)-1];if(l[0]==="i")args.layers=[+l.slice(1)];const r=await run("render_pcb",args);showImage("pcbView",svgSrc(r.svg),viewBox(r.svg));}
+ if(tab==="Schematic"){schChrome();const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});const t=schDark(r.svg);showImage("schView",svgSrc(t),viewBox(t));setTimeout(schZoomLabel,60);}
+ if(tab==="Board"){pcbChrome();pcbRender();}
  if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
  if(tab==="BOM")bom();if(tab==="Git")git("status");if(tab==="AI"&&!$("aiModel").options.length)aiModels();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
 function simForm(){const k=$("simKind").value;if(k!=="live")liveStop();$("simRun").hidden=k==="live";if(k==="live"){liveForm();return;}$("simArgs").innerHTML=k==="tran"?`<label>Stop</label> <input id="simStop" value="10m" style="width:80px"> <label>Step</label> <input id="simStep" placeholder="auto" style="width:80px">`
@@ -724,7 +1045,7 @@ const LANGS=[["en","English"],["zh-Hant","繁體中文"],["ko","한국어"],["zh
  ["vi","Tiếng Việt"],["fil","Filipino"],["hi","हिन्दी"],["te","తెలుగు"],["as","অসমীয়া"],["gu","ગુજરાતી"],["kn","ಕನ್ನಡ"],["ml","മലയാളം"],["mr","मराठी"],["or","ଓଡ଼ିଆ"],["pa","ਪੰਜਾਬੀ"],["ta","தமிழ்"]];
 let words={};const tr=t=>words[t]||t;
 const pref=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v);}catch{}return v||"";};
-function translateDom(){document.querySelectorAll("nav button,section button,section label,section b,section th,section div.info,section p,header .tb span,dialog [data-en],footer").forEach(el=>{
+function translateDom(){document.querySelectorAll("nav button,section button,section label,section b,section th,section div.info,section p,header .tb span,dialog [data-en],section [data-en],footer").forEach(el=>{
   if(el.children.length)return;const en=el.dataset.en||(el.dataset.en=el.textContent.trim());if(en)el.textContent=tr(en);});
  document.querySelectorAll("[title],[placeholder]").forEach(el=>{for(const a of["title","placeholder"]){const v=el.getAttribute(a);if(!v)continue;
   const k="en"+a;if(!el.dataset[k])el.dataset[k]=v;el.setAttribute(a,tr(el.dataset[k]));}});menuBar();workspacePicker();}
@@ -738,7 +1059,7 @@ function settings(){$("setTheme").value=pref("studio.theme")||"navy";$("setLang"
  const box=(id,key,on)=>{$(id).checked=on?pref(key)!=="0":pref(key)==="1";$(id).onchange=()=>pref(key,$(id).checked?"1":"0");};
  box("setReopen","studio.reopenLast",true);box("setAutosave","studio.autosave");box("setWheel","studio.wheelPans");box("setReverse","studio.reverseZoom");box("setPluginSandbox","studio.pluginSandbox",true);
  const field=(id,key,def)=>{$(id).value=pref(key)||def;$(id).onchange=()=>pref(key,$(id).value);};
- field("setFolder","studio.projectFolder","");field("setDelay","studio.autosaveSeconds","3");field("setLayers","studio.newLayers","");field("setTrack","studio.newTrack","");field("setClear","studio.newClear","");
+ field("setFolder","studio.projectFolder","");field("setUnit","studio.unit","mm");field("setDelay","studio.autosaveSeconds","3");field("setLayers","studio.newLayers","");field("setTrack","studio.newTrack","");field("setClear","studio.newClear","");
  const pane=n=>{document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st===n));document.querySelectorAll("#setDlg [data-sp]").forEach(d=>d.hidden=d.dataset.sp!==n);};
  document.querySelectorAll("#setTabs [data-st]").forEach(b=>b.onclick=()=>pane(b.dataset.st));pane("general");setDlg.showModal();}
 const studioKeys=()=>{const out={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith("studio."))out[k]=localStorage.getItem(k);}}catch{}return out;};
@@ -810,6 +1131,36 @@ const ICONS={schematic:SVG("<path d='M1 9H4L5 6L7 12L9 6L11 12L13 6L14 9H17'/>")
  keepout:SVG("<rect x='2.5' y='2.5' width='13' height='13' rx='1' stroke-dasharray='2.5 2'/><path d='M6 6L12 12M12 6L6 12'/>"),
  cutout:SVG("<rect x='2' y='2' width='14' height='14' rx='2'/><rect x='6' y='6' width='6' height='6' stroke-dasharray='2 1.5'/>",1.3),
  hole:SVG("<circle cx='9' cy='9' r='6.5'/><circle cx='9' cy='9' r='3.5'/><path d='M9 1.5V4M9 14V16.5M1.5 9H4M14 9H16.5'/>",1.2),
+ // The macOS PCB tool strip's SF Symbols, redrawn as outlines (hand.raised, waveform.path, pentagon, nosign, rotate.right, …).
+ hand:SVG("<path d='M6 9.5V4a1.1 1.1 0 0 1 2.2 0V8.5M8.2 8V2.8a1.1 1.1 0 0 1 2.2 0V8.5M10.4 8.3V3.6a1.1 1.1 0 0 1 2.2 0V9M12.6 9V6a1.1 1.1 0 0 1 2.2 0V11c0 3-2 5.5-5 5.5S5.5 15 4.3 13L2.6 10a1.1 1.1 0 0 1 1.9-1.1L6 11'/>",1.2),
+ tune:SVG("<path d='M1 9H3V5H5V13H7V5H9V13H11V5H13V13H15V9H17'/>",1.3),
+ pentagon:SVG("<path d='M9 1.8L16.4 7.2L13.6 15.9H4.4L1.6 7.2Z'/>"),
+ nosign:SVG("<circle cx='9' cy='9' r='6.8'/><path d='M4.2 13.8L13.8 4.2'/>"),
+ rotate:SVG("<path d='M14.5 9.5A5.5 5.5 0 1 1 9 4H13'/><path d='M10.8 1.6L13.2 4L10.8 6.4'/>"),
+ flip:SVG("<path d='M9 1.5V16.5' stroke-dasharray='1.5 1.5'/><path d='M7 4L2 13H7Z'/><path d='M11 4L16 13H11Z'/>",1.3),
+ autoplace:SVG("<rect x='2' y='2' width='14' height='14' rx='1.5'/><path d='M6.7 2V16M11.3 2V16M2 6.7H16M2 11.3H16'/><rect x='2' y='2' width='4.7' height='4.7' fill='#000'/>",1.2),
+ fitboard:SVG("<rect x='1.5' y='3' width='15' height='12' rx='2'/><path d='M12.5 6L9.8 8.7M9.8 6.5V8.7H12M5.5 12L8.2 9.3M8.2 11.5V9.3H6'/>",1.2),
+ autoroute:SVG("<circle cx='3.3' cy='3.3' r='2' fill='#000'/><circle cx='14.7' cy='14.7' r='2' fill='#000'/><path d='M3.3 5.3V8.5Q3.3 10.5 5.3 10.5H12.7Q14.7 10.5 14.7 12.5V12.7'/>",1.4),
+ fanout:SVG("<path d='M2 2L7 7M2 2H6M2 2V6M16 16L11 11M16 16H12M16 16V12'/>"),
+ drop:SVG("<path d='M9 1.8C9 1.8 3.8 8 3.8 11.2A5.2 5.2 0 0 0 14.2 11.2C14.2 8 9 1.8 9 1.8Z'/>"),
+ wand:SVG("<path d='M2 16L11 7M10 6L12 8'/><path d='M13.5 1.5V4.5M12 3H15M15.5 7.5V9.5M14.5 8.5H16.5M7 1.5V3.5M6 2.5H8'/>",1.3),
+ stitch:SVG("<circle cx='4' cy='4' r='1.5'/><circle cx='9' cy='4' r='1.5'/><circle cx='14' cy='4' r='1.5'/><circle cx='4' cy='9' r='1.5'/><circle cx='9' cy='9' r='1.5'/><circle cx='14' cy='9' r='1.5'/><circle cx='4' cy='14' r='1.5'/><circle cx='9' cy='14' r='1.5'/><circle cx='14' cy='14' r='1.5'/>",1.2),
+ equal:SVG("<rect x='2' y='2' width='14' height='14' rx='3'/><path d='M5.5 7H12.5M5.5 11H12.5'/>"),
+ eraser:SVG("<path d='M6.5 15.5L2.2 11.2a1.2 1.2 0 0 1 0-1.7L9.5 2.2a1.2 1.2 0 0 1 1.7 0L15.8 6.8a1.2 1.2 0 0 1 0 1.7L8.8 15.5ZM5.7 6L12 12.3M6.5 15.5H16'/>",1.3),
+ layers:SVG("<path d='M9 2L16 5.5L9 9L2 5.5Z'/><path d='M2 9L9 12.5L16 9M2 12.5L9 16L16 12.5'/>",1.3),
+ map:SVG("<path d='M1.5 4L6.5 2L11.5 4L16.5 2V14L11.5 16L6.5 14L1.5 16Z'/><path d='M6.5 2V14M11.5 4V16'/>",1.3),
+ zoomin:SVG("<circle cx='7.5' cy='7.5' r='5.5'/><path d='M11.5 11.5L16.5 16.5M7.5 5V10M5 7.5H10'/>"),
+ ripnet:SVG("<circle cx='9' cy='9' r='6.8'/><path d='M5.5 9H12.5'/>"),
+ line:SVG("<path d='M3 15L15 3'/>",1.6),busline:SVG("<path d='M2 5H16M2 9H16M2 13H16'/>",1.6),xmark:SVG("<path d='M4 4L14 14M14 4L4 14'/>",1.7),
+ placedev:SVG("<rect x='5.5' y='1.5' width='11' height='11' rx='2'/><path d='M1.5 5.5V14.5A2 2 0 0 0 3.5 16.5H12.5M11 4.5V9.5M8.5 7H13.5'/>",1.3),
+ groundpin:SVG("<path d='M9 1.5V11M3.5 11H14.5M3 16H15'/><path d='M5.5 7.5L9 11L12.5 7.5'/>",1.4),bolt:SVG("<circle cx='9' cy='9' r='7'/><path d='M10 3.5L6 10H9L8 14.5L12 8H9Z'/>",1.2),
+ trash:SVG("<path d='M2.5 4.5H15.5M7 4.5V2.5H11V4.5M4 4.5L5 16H13L14 4.5M7.5 7.5V13M10.5 7.5V13'/>",1.3),sidebar:SVG("<rect x='1.5' y='2.5' width='15' height='13' rx='2'/><path d='M6.5 2.5V15.5M3 5.5H5M3 8H5M3 10.5H5'/>",1.3),
+ wrench:SVG("<path d='M11.5 2A4 4 0 0 0 7.8 7.4L2 13.2L4.8 16L10.6 10.2A4 4 0 0 0 16 6.5L13.5 9L10.8 8.2L10 5.5L12.5 3A4 4 0 0 0 11.5 2Z'/>",1.2),
+ search:SVG("<circle cx='7.5' cy='7.5' r='5.5'/><path d='M11.5 11.5L16.5 16.5'/>"),doc:SVG("<path d='M4 1.5H11L14.5 5V16.5H4Z'/><path d='M11 1.5V5H14.5M6.5 9H12M6.5 11.5H12M6.5 14H10'/>",1.3),
+ camera:SVG("<path d='M2 6A1.5 1.5 0 0 1 3.5 4.5H5.5L7 2.5H11L12.5 4.5H14.5A1.5 1.5 0 0 1 16 6V14A1.5 1.5 0 0 1 14.5 15.5H3.5A1.5 1.5 0 0 1 2 14Z'/><circle cx='9' cy='9.5' r='3'/>",1.3),
+ eye:SVG("<path d='M1.5 9C3.5 5 6 3.5 9 3.5S14.5 5 16.5 9C14.5 13 12 14.5 9 14.5S3.5 13 1.5 9Z'/><circle cx='9' cy='9' r='2.6'/>",1.3),
+ eyeslash:SVG("<path d='M1.5 9C3.5 5 6 3.5 9 3.5S14.5 5 16.5 9C14.5 13 12 14.5 9 14.5S3.5 13 1.5 9Z'/><circle cx='9' cy='9' r='2.6'/><path d='M2.5 2.5L15.5 15.5'/>",1.3),
+ measure:SVG("<path d='M1.5 9H16.5M4 6.5L1.5 9L4 11.5M14 6.5L16.5 9L14 11.5M6 5V7M9 5V7M12 5V7'/>",1.3),
  undo:SVG("<path d='M6.5 4L3 7.5L6.5 11'/><path d='M3 7.5H11A4 4 0 0 1 11 15.5H8'/>"),redo:SVG("<path d='M11.5 4L15 7.5L11.5 11'/><path d='M15 7.5H7A4 4 0 0 0 7 15.5H10'/>")};
 const WORKSPACES=[["Schematic","Schematic","schematic"],["Library","Library","library"],["Board","PCB Layout","pcb"],["3D","3D Viewer","threeD"],
  ["Simulate","Simulation","sim"],["Checks","Design Checks","seal"],["BOM","BOM","bom"]];
@@ -830,9 +1181,9 @@ addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(documen
    const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",d:"pair",v:"via",s:"select",m:"measure"};if(keys[key])setTool(k,keys[key]);
    if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&/^Digit[1-9]$/.test(e.code)&&runQuickKey(e.code.slice(5))){e.preventDefault();return;}if((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.shiftKey&&e.key.toLowerCase()==="z"))&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();redo();return;}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
-panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
-panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{pcbPress(pt,e);return tool.pcb!=="select"||e.shiftKey||!!boardPart(pt)||!!wireAt(pt);};$("pcbView").onrelease=pcbRelease;
-$("pcbView").onhover=pt=>{if(!live)return false;liveMove(pt);return true;};$("pcbView").ondbl=()=>{if(live){liveStep("commit");return true;}if(shapePts.length){closeShape();return true;}return false;};
+panZoom($("schView"));$("schView").onpress=(pt,e)=>{const grab=schZoomArmed||(tool.sch!=="select"&&tool.sch!=="pan")||!!partAt(pt);schPress(pt,e);return grab;};$("schView").ondbl=()=>{if(busPts.length){schBus();return true;}return false;};$("schView").addEventListener("wheel",()=>requestAnimationFrame(schZoomLabel));$("schView").onrelease=schRelease;
+panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{const grab=zoomArmed||(tool.pcb!=="select"&&tool.pcb!=="pan")||(tool.pcb==="select"&&(e.shiftKey||(PS().pickParts&&!!boardPart(pt))||!!wireAt(pt)));pcbPress(pt,e);return grab;};$("pcbView").onrelease=pcbRelease;
+$("pcbView").onhover=pt=>{pcbHover(pt);if(!live)return false;liveMove(pt);return true;};$("pcbView").addEventListener("wheel",()=>pcbViewChanged());$("pcbView").addEventListener("mousemove",e=>{if(e.buttons)pcbViewChanged();});$("pcbView").ondbl=()=>{if(live){liveStep("commit");return true;}if(shapePts.length){closeShape();return true;}return false;};
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
 setTheme(pref("studio.theme"));
 (async()=>{await setLanguage(pref("studio.lang"));await rpc("initialize",{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"sieda-studio",version:"1"}});setTool("sch","select");setTool("pcb","select");
