@@ -32,9 +32,46 @@ def check_translations():
     missing = subprocess.run([sys.executable, tool, "--missing"], capture_output=True, text=True).stdout.strip()
     assert not missing, "Studio strings without translations:\n" + missing
 
+def check_app_window():
+    """Linux: the page opens in a window of its own (a Chromium-family browser's --app), started without a shell;
+    --no-browser opens nothing."""
+    if not sys.platform.startswith("linux"):
+        return
+    import time
+    with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as bin_dir:
+        marker = os.path.join(bin_dir, "started")
+        for name in ("microsoft-edge", "microsoft-edge-stable", "google-chrome", "google-chrome-stable", "chromium",
+                     "chromium-browser", "brave-browser", "xdg-open"):
+            path = os.path.join(bin_dir, name)
+            with open(path, "w") as f:
+                f.write('#!/bin/sh\necho "%s $*" >> "%s"\n' % (name, marker))
+            os.chmod(path, 0o755)
+        env = dict(os.environ, PATH=bin_dir)
+        for opens in (False, True):
+            args = [sys.argv[1], "--root", root, "--no-activity-log"] + ([] if opens else ["--no-browser"])
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, text=True, env=env)
+            try:
+                url = p.stdout.readline().split("SiEDA Studio: ")[1].strip()
+                port, token = int(url.split(":")[2].split("/")[0]), url.split("t=")[1]
+                for _ in range(50 if opens else 10):
+                    if os.path.exists(marker):
+                        break
+                    time.sleep(0.1)
+                started = open(marker).read() if os.path.exists(marker) else ""
+                if opens:
+                    assert started == "microsoft-edge --app=%s\n" % url, started
+                else:
+                    assert started == "", "--no-browser started " + started
+                request(port, "POST", "/quit", "{}", {"X-Sieda-Token": token})
+                assert p.wait(timeout=30) == 0
+            finally:
+                if p.poll() is None:
+                    p.kill()
+
 def main():
     check_script()
     check_translations()
+    check_app_window()
     with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as data:
         # A plug-in in the user's plug-in folder (XDG_DATA_HOME/SiEDA/Plugins) that edits the design's copy.
         plugins = os.path.join(data, "SiEDA", "Plugins")
