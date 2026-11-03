@@ -97,6 +97,15 @@ def main():
             auth = {"X-Sieda-Token": token, "Content-Type": "application/json"}
             status, body = call("project_load_example", {"id": "led_indicator"}, auth)
             assert status == 200 and not json.loads(body)["result"].get("isError"), body
+            # The schematic canvas's commands (copy / paste / duplicate as the Mac's ⌘C / ⌘V / ⌘D), undone again.
+            edit = lambda args: json.loads(json.loads(call("schematic_edit", args, auth)[1])["result"]["content"][0]["text"])
+            clip = edit({"action": "copy", "refs": ["R1"]})["clip"]
+            assert "sieda.schematic-clip" in clip, clip[:200]
+            assert len(edit({"action": "paste", "clip": clip, "dx": 40, "dy": 0})["refs"]) == 1
+            assert len(edit({"action": "duplicate", "refs": ["R1"]})["refs"]) == 1
+            assert edit({"action": "lock", "refs": ["R1"]})["changed"] == 1
+            for _ in range(3):
+                call("project_undo", {}, auth)
             status, body = call("project_save_as", {"path": "designs/led.siedaproj"}, auth)
             assert status == 200 and not json.loads(body)["result"].get("isError"), body
             state = json.loads(request(port, "GET", "/state", headers=auth)[1])

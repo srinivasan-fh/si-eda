@@ -76,6 +76,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,input:focus,text
 .pcbctx button{display:block;width:100%;text-align:left;border:0;background:none;padding:5px 10px;border-radius:5px;color:var(--ink)}
 .pcbctx button:hover:not([disabled]),.pcbctx button:focus-visible{background:var(--accent);color:#fff;outline:none}.pcbctx button[disabled]{opacity:.45;cursor:default}
 .pcbctx hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+#quickDlg{min-width:0;width:360px}#quickDlg .ff{grid-template-columns:90px 1fr}
 </style></head><body>
 <header><div class="menurow"><b>SiEDA</b><span id="menubar"></span></div><div class="toolrow"><div class="lead"><span class="name" id="name">No project</span></div>
 <div class="seg" id="wsPicker" role="tablist"></div><div class="trail"><button class="tb" onclick="undo()" title="Undo"><i class="ico" data-ico="undo"></i></button>
@@ -992,15 +993,109 @@ $("pcbView").addEventListener("contextmenu",async e=>{e.preventDefault();if(live
   items.push(rot,flip,0,["Align Left",al("left"),n>=2],["Align Right",al("right"),n>=2],["Align Top",al("top"),n>=2],["Align Bottom",al("bottom"),n>=2],
    ["Align Horizontal Centres",al("centreY"),n>=2],["Align Vertical Centres",al("centreX"),n>=2],["Distribute Horizontally",al("distributeX"),n>=3],["Distribute Vertically",al("distributeY"),n>=3]);
   showPcbMenu(items,x,y);return;}
- let sum={};try{sum=(await run("pcb_summary")).data||{};}catch{}
+ let sum={};try{sum=(await run("pcb_summary")).data||{};sum.referenceLayers=(await run("project_snapshot",{sections:["referenceLayers"]})).data.referenceLayers||[];}catch{}
  const kos=sum.keepouts||[];kos.forEach((ko,i)=>{if(pt[0]>=ko.x0&&pt[0]<=ko.x1&&pt[1]>=ko.y0&&pt[1]<=ko.y1)items.push(["Delete Keep-out",()=>act("pcb_set_keepouts",{keepouts:kos.filter((_,j)=>j!==i)})],
   named(ko.barrier?tr("Make Plain Keep-out"):tr("Make Isolation Barrier"),()=>act("pcb_set_keepouts",{keepouts:kos.map((k,j)=>j===i?{...k,barrier:!ko.barrier}:k)})));});
  (sum.cutouts||[]).forEach((c,i)=>{const ps=(c.points||c||[]).map(q=>Array.isArray(q)?{x:q[0],y:q[1]}:q);if(ps.length>=3&&inPoly(pt,ps))items.push(["Delete Cutout",()=>act("pcb_cutouts",{action:"remove",index:i})]);});
- (sum.pours||[]).forEach((z,i)=>{const ps=z.polygon||[];if(ps.length>=3&&inPoly(pt,ps))items.push(["Delete Pour",()=>act("pcb_remove_pour",{index:i})]);});
+ (sum.zones||[]).forEach((z,i)=>{const ps=z.polygon||[];if(ps.length>=3&&inPoly(pt,ps))items.push(["Delete Pour",()=>act("pcb_remove_pour",{index:i})]);});
  (sum.referenceLayers||[]).forEach((l,i)=>{const name=l.name||String(l),shown=l.visible!==false;
   items.push(named((shown?tr("Hide Reference Layer %@"):tr("Show Reference Layer %@")).replace("%@",name),()=>act("pcb_reference_layer",{index:i,visible:!shown})),
    named(tr("Remove Reference Layer %@").replace("%@",name),()=>act("pcb_reference_layer",{index:i,remove:true})));});
- const refill=["Refill Pours",()=>refillPours(),(sum.pours||[]).length>0];refill.key=keyLabel("refill");
+ const refill=["Refill Pours",()=>refillPours(),(sum.zones||[]).length>0];refill.key=keyLabel("refill");
  items.push(["Merge Tracks",()=>act("pcb_edit_copper",{action:"merge"}),(snap.tracks||[]).length>0],["Minimise Vias",()=>act("pcb_edit_copper",{action:"minimize_vias"}),(snap.vias||[]).length>0],
   refill,["Zoom to Fit",()=>fitView("pcbView")]);showPcbMenu(items,x,y);});
+// ── Desktop schematic editor: the macOS schematic canvas's keys (tool keys and presets, X / Y mirror, Space, arrows
+// nudge, Ctrl+C / X / V / D / A, Ctrl+Alt+arrows align, Ctrl+↑ parent sheet, Ctrl+F find), its right-click menu and the
+// double-click quick edit (designator and value).
+const SCH_KEYS={select:"v",wire:"w",bus:"b",noConnect:"q",label:"l",ground:"g",place:"p",text:"t",pan:"h",rotate:"r",mirrorX:"x",mirrorY:"y",corner:"/"};
+const SCH_PRESETS={SiEDA:{},KiCad:{place:"a",ground:"p",select:"",pan:""},Altium:{wire:"p w",label:"p n",ground:"p o",place:"p p",text:"p t",pan:""},
+ Eagle:{select:"m o",wire:"n e",bus:"b u",noConnect:"",label:"l a",ground:"s u",place:"a d",text:"t e",pan:"",rotate:"r o",mirrorX:"m i",mirrorY:"",corner:""}};
+let schSeq=null,schSeqAt=0,schMulti=new Set(),schClip="";
+function schToolKey(typed){const pre=SCH_PRESETS[pref("studio.canvasKeys")]||{},keys=Object.keys(SCH_KEYS).map(id=>[id,(pre[id]??SCH_KEYS[id]).replace(/ /g,"")]).filter(k=>k[1]);
+ if(schSeq&&Date.now()-schSeqAt<1500){const s=schSeq+typed;schSeq=null;const hit=keys.find(k=>k[1]===s);if(hit)return hit[0];}
+ schSeq=null;const one=keys.find(k=>k[1]===typed);if(one)return one[0];
+ if(keys.some(k=>k[1].length===2&&k[1][0]===typed)){schSeq=typed;schSeqAt=Date.now();return"…";}return null;}
+const schKeyLabel=id=>((SCH_PRESETS[pref("studio.canvasKeys")]||{})[id]??SCH_KEYS[id]).toUpperCase().replace(" ",", ");
+const schSelection=()=>schMulti.size?[...schMulti]:sel.sch?[sel.sch]:[];
+function schSelect(refs){schMulti=new Set(refs.length>1?refs:[]);selectPart("sch",refs.length===1?refs[0]:null);if(refs.length>1)status(refs.length+" "+tr("parts selected"));}
+const schPart=ref=>sheetParts().find(c=>c.ref===ref);
+const schWorld=()=>{const v=views.schView,el=$("schView"),m=mouseAt.schView;if(!v||!m)return null;const r=el.getBoundingClientRect();return v.at({clientX:r.left+m[0],clientY:r.top+m[1]});};
+async function schEach(f){const refs=schSelection();for(const ref of refs)await f(ref);if(sel.sch)selectPart("sch",sel.sch);else overlay($("schView"));}
+const schRotate=()=>schEach(ref=>act("schematic_move_component",{ref,rotate:90}));
+const schMirror=axis=>schEach(ref=>act("schematic_move_component",{ref,mirror:axis}));
+async function schDelete(){const refs=schSelection(),h=schWorld(),hov=!refs.length&&h&&partAt(h);for(const ref of refs.length?refs:hov?[hov.ref]:[])await act("schematic_remove_component",{ref});schMulti.clear();selectPart("sch",null);}
+async function schCopy(cut){const refs=schSelection();if(!refs.length)return;const r=await run("schematic_edit",{action:"copy",refs});schClip=r.data.clip;
+ try{await navigator.clipboard.writeText(schClip);}catch{}if(cut)await schDelete();else status(tr("Copy")+": "+refs.join(", "));}
+async function schPaste(text,at){const clip=/sieda\.schematic-clip/.test(text||"")?text:schClip;if(!clip)return;let dx=20,dy=20;
+ if(at){try{const cs=JSON.parse(clip).components||[],xs=cs.map(c=>c.x??(c.position||{}).x).filter(isFinite),ys=cs.map(c=>c.y??(c.position||{}).y).filter(isFinite);
+  if(xs.length){dx=snapTo(at[0]-Math.min(...xs),10);dy=snapTo(at[1]-Math.min(...ys),10);}}catch{}}
+ const r=await act("schematic_edit",{action:"paste",clip,dx,dy,sheet:+$("sheet").value||1});if(r&&r.data.refs)schSelect(r.data.refs);}
+async function schDuplicate(){const refs=schSelection();if(!refs.length)return;const r=await act("schematic_edit",{action:"duplicate",refs});if(r&&r.data.refs)schSelect(r.data.refs);}
+const schSelectAll=()=>schSelect(sheetParts().map(c=>c.ref));
+function schSameValue(){const keys=new Set(schSelection().map(schPart).filter(Boolean).map(c=>c.kind+"|"+c.value));schSelect(sheetParts().filter(c=>keys.has(c.kind+"|"+c.value)).map(c=>c.ref));}
+function schConnected(nets){if(!nets){nets=new Set();for(const ref of schSelection())for(const p of(schPart(ref)||{}).pins||[])if(p.net>=0)nets.add(p.net);}
+ if(nets.size)schSelect(sheetParts().filter(c=>(c.pins||[]).some(p=>nets.has(p.net))).map(c=>c.ref));}
+async function parentSheet(){const r=await run("schematic_sheets"),cur=+$("sheet").value||1,s=(r.data.sheets||[]).find(s=>s.id===cur);if(s&&s.parent>0){$("sheet").value=s.parent;draw();}}
+// Quick edit (double-click, Edit Properties…): designator and value, a net label's name.
+function quickEdit(ref){const c=schPart(ref);if(!c)return;let d=$("quickDlg");if(!d){d=document.createElement("dialog");d.id="quickDlg";document.body.append(d);}
+ const label=/^#/.test(c.ref);d.innerHTML=`<b>${esc(label?tr("Net Label"):tr("Edit Properties"))}</b>${label?"":`<label class="ff"><span>${esc(tr("Designator"))}</span><input id="qeRef" value="${esc(c.ref)}"></label>`}
+ <label class="ff"><span>${esc(label?tr("Net name"):tr("Value"))}</span><input id="qeVal" value="${esc(c.value)}"></label><div class="row" style="justify-content:flex-end"><button onclick="quickDlg.close()">${esc(tr("Cancel"))}</button><button class="primary" id="qeOk">${esc(tr("OK"))}</button></div>`;
+ const ok=async()=>{const v=$("qeVal").value.trim(),nr=$("qeRef")?$("qeRef").value.trim():c.ref;d.close();if(v&&v!==c.value)await act("schematic_set_value",{ref:c.ref,value:v});
+  if(nr&&nr!==c.ref){await act("schematic_rename",{ref:c.ref,newRef:nr});selectPart("sch",nr);}};
+ $("qeOk").onclick=ok;d.querySelectorAll("input").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();ok();}});d.showModal();($("qeRef")||$("qeVal")).select();}
+let schSpace=false,schSpaceUsed=false;
+function schKey(e){const k=e.key,low=k.length===1?k.toLowerCase():k;
+ if(k===" "){if(!e.repeat){schSpace=true;schSpaceUsed=false;}return true;}
+ if(k==="Escape"){schSeq=null;pend=null;drag=null;setTool("sch","select");schMulti.clear();selectPart("sch",null);return true;}
+ if(k==="Delete"||k==="Backspace"){schDelete();return true;}
+ const dir={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[k];
+ if(dir){const s=e.shiftKey?5:1;if(schSelection().length&&tool.sch==="select")schEach(ref=>{const c=schPart(ref);return c&&act("schematic_move_component",{ref,x:c.x+dir[0]*10*s,y:c.y+dir[1]*10*s});});
+  else panView(dir[0]*(e.shiftKey?0.5:0.125),dir[1]*(e.shiftKey?0.5:0.125));return true;}
+ if(k==="Home"||k==="0"){fitView();return true;}if(k==="+"||k==="="){zoomView(1.25);return true;}if(k==="-"||k==="_"){zoomView(0.8);return true;}
+ if(k==="Z"){fitSelection();return true;}
+ if(low.length!==1)return false;const t=schToolKey(low);if(t==="…")return true;
+ if(t==="rotate"){schRotate();return true;}if(t==="mirrorX"){schMirror("x");return true;}if(t==="mirrorY"){schMirror("y");return true;}
+ if(t==="bus"){menuItem("Schematic","Bus…");return true;}
+ if(t==="select"||t==="wire"||t==="label"||t==="ground"||t==="place"||t==="pan"||t==="noConnect"){setTool("sch",t);
+  if(t==="noConnect")hint("schHint",tr("Click a pin to mark it not connected."));if(t==="pan")hint("schHint",tr("Drag to pan the sheet."));return true;}
+ if(t==="text"||t==="corner")return true;  // sheet notes and wire corners: the Mac canvas's own drawing
+ if(low==="s"){setTool("sch","select");return true;}return false;}
+addEventListener("keydown",e=>{if(tab!=="Schematic"||document.querySelector("dialog[open]"))return;const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||document.activeElement.isContentEditable;
+ if(typing)return;const done=()=>{e.preventDefault();e.stopImmediatePropagation();},ctrl=e.ctrlKey||e.metaKey,low=e.key.length===1?e.key.toLowerCase():e.key;
+ if(!pcbMenu.hidden)return;
+ if(ctrl&&e.altKey&&/^Arrow/.test(e.key)){done();const refs=schSelection();if(refs.length>=2)act("schematic_align",{refs,mode:{ArrowLeft:"left",ArrowRight:"right",ArrowUp:"top",ArrowDown:"bottom"}[e.key],byOutline:true});return;}
+ if(ctrl&&!e.altKey&&!e.shiftKey){const f={c:()=>schCopy(false),x:()=>schCopy(true),d:()=>schDuplicate(),a:()=>schSelectAll(),f:()=>menuItem("Edit","Find…"),ArrowUp:()=>parentSheet(),
+   r:()=>{selectTab("Simulate");$("simKind").value="live";simForm();}}[low];if(f){done();f();}return;}
+ if(ctrl||e.altKey)return;if(schKey(e))done();},true);
+addEventListener("paste",e=>{if(tab!=="Schematic"||/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.querySelector("dialog[open]"))return;e.preventDefault();schPaste(e.clipboardData.getData("text"),null);});
+addEventListener("keyup",e=>{if(e.key!==" "||tab!=="Schematic"||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;e.preventDefault();if(schSpace&&!schSpaceUsed)schRotate();schSpace=false;},true);
+{const el=$("schView"),press=el.onpress;
+ el.onpress=(pt,e)=>{if(schSpace){schSpaceUsed=true;return false;}if(tool.sch==="pan")return false;
+  if(tool.sch==="noConnect"){const p=nearPin(pt,12);if(p)act("schematic_set_no_connect",{pin:p.ref+"."+p.pin});else status(tr("No pin there."),"warning");return true;}
+  if(tool.sch==="select"&&e&&e.shiftKey){const c=partAt(pt);if(c){if(sel.sch)schMulti.add(sel.sch);sel.sch=null;schMulti.has(c.ref)?schMulti.delete(c.ref):schMulti.add(c.ref);schSelect([...schMulti]);}return true;}
+  if(tool.sch==="select")schMulti.clear();return press(pt,e);};
+ el.ondbl=()=>{const h=schWorld(),c=h&&partAt(h);if(!c)return false;drag=null;selectPart("sch",c.ref);quickEdit(c.ref);return true;};}
+{const base=overlay;overlay=function(el){base(el);if(el.id!=="schView"||!schMulti.size)return;const o=el.querySelector(".over");if(!o)return;
+ for(const ref of schMulti){const c=schPart(ref);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(59,111,224,.12)",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}};}
+const segHit=(pt,a,b,lim)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy,u=l?Math.max(0,Math.min(1,((pt[0]-a[0])*dx+(pt[1]-a[1])*dy)/l)):0;return Math.hypot(pt[0]-a[0]-u*dx,pt[1]-a[1]-u*dy)<=lim;};
+$("schView").addEventListener("contextmenu",async e=>{e.preventDefault();if(!views.schView)return;const pt=views.schView.at(e),c=partAt(pt),x=e.clientX,y=e.clientY,items=[];
+ if(c){if(!schSelection().includes(c.ref))schSelect([c.ref]);const k=(it,key)=>{it.key=key;return it;};
+  items.push(["Edit Properties…",()=>quickEdit(c.ref)]);
+  if(c.customPart||c.custom)items.push(["Edit Symbol…",()=>selectTab("Library")]);
+  if((c.pins||[]).length>=8)items.push(["Plan Pins…",()=>form("schematic_pin_map",{ref:c.ref,action:"plan"})],["Export Pin Map…",()=>form("schematic_pin_map",{ref:c.ref,action:"export"})],["Assign Pins from File…",()=>form("schematic_pin_map",{ref:c.ref,action:"assign"})]);
+  const rot=k(["Rotate",schRotate],schKeyLabel("rotate")),mx=k(["Mirror Horizontally",()=>schMirror("x")],schKeyLabel("mirrorX")),
+   my=k(["Mirror Vertically",()=>schMirror("y")],schKeyLabel("mirrorY")),dup=k(["Duplicate",schDuplicate],"Ctrl+D"),cp=k(["Copy",()=>schCopy(false)],"Ctrl+C");
+  const refs=schSelection(),label=/^#NL/.test(c.ref);
+  items.push(0,rot,mx,my,dup,cp,0,["Select Same Value",schSameValue],["Select Connected Parts",()=>schConnected()],
+   ["Connect Touching Pins and Wires",()=>act("schematic_edit",{action:"connect_touching",refs})],
+   named(c.locked?tr("Unlock"):tr("Lock"),()=>act("schematic_edit",{action:"lock",refs,locked:!c.locked})));
+  if(label)items.push(named(c.power?tr("Show as Label"):tr("Show as Power Symbol"),()=>act("schematic_edit",{action:"power_style",refs,power:!c.power})));
+  items.push(0,["Delete",()=>schDelete()]);showPcbMenu(items,x,y);return;}
+ let wires=[];try{wires=(await run("project_snapshot",{sections:["wires"]})).data.wires||[];}catch{}
+ const sheet=+$("sheet").value||1,onSheet=w=>{const c=(snap.components||[]).find(c=>c.id===(w.a||{}).component);return!c||c.sheet===sheet;},
+  w=wires.find(w=>onSheet(w)&&[[w.ax,w.ay],[w.bx,w.ay],[w.bx,w.by],[w.ax,w.by]].some((q,i,a)=>segHit(pt,q,a[(i+1)%4],4)||segHit(pt,[w.ax,w.ay],[w.bx,w.by],4)));
+ if(w){items.push(["Select Connected Parts",()=>schConnected(new Set([w.net]))],["Clean Up Wires",()=>act("schematic_edit",{action:"cleanup_wires",sheet})],0,
+   ["Delete Wire",()=>act("schematic_disconnect",{wire:w.id})]);showPcbMenu(items,x,y);return;}
+ items.push(["Paste Here",()=>schPaste(schClip,pt),!!schClip],["Select All",schSelectAll],["Clean Up Wires",()=>act("schematic_edit",{action:"cleanup_wires",sheet})],0,["Zoom to Fit",()=>fitView("schView")]);
+ showPcbMenu(items,x,y);});
 </script></body></html>

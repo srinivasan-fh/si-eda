@@ -603,6 +603,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_find` | read | Finds text in designators, values, net labels, net names (and pins) across every sheet. |
 | `schematic_replace` | edit | Replaces text in part values and net label names. |
 | `schematic_align` | edit | Aligns or distributes parts: left, right, top, bottom, centerX, centerY, distributeX, distributeY. |
+| `schematic_edit` | edit | The schematic editor's commands (as the macOS app's canvas menu): copy refs → clip (parts and the wires between them, "sieda.schematic-clip/1"); paste clip on sheet (offset dx / dy grid units, new designators) → refs; duplicate refs beside themselves; cleanup_wires removes bends on straight runs of sheet; connect_touching joins refs' pins to what they touch; lock refs (locked true / false); power_style draws net labels refs as power symbols (power true) or flags. |
 | `schematic_sheets` | read | The sheets with hierarchy (parent, depth), component counts, ports and the active sheet. |
 | `schematic_block` | edit | Reusable design blocks. |
 | `schematic_sheet_edit` | edit | Sheet commands (multi-page schematics): add (name, parent; activate: true makes the new page the one new parts go to), rename (sheet, name), activate (sheet: new parts go there), remove (sheet, deleteContents), set_parent (sheet, parent), repeat (sheet, count: a multi-channel block), place_entries (sheet = child, x, y: its sheet entries on the parent), size (sheet, size "A4"… or ""). |
