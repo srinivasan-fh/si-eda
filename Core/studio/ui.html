@@ -787,7 +787,7 @@ async function searchParts(){const r=await run("library_search",{query:$("partQu
  $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
- if(tab==="Schematic"){schChrome();const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});const t=schDark(r.svg);showImage("schView",svgSrc(t),viewBox(t));setTimeout(schZoomLabel,60);}
+ if(tab==="Schematic"){schChrome();const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});const t=schDark(r.svg);showImage("schView",svgSrc(t),viewBox(t));setTimeout(schZoomLabel,60);schInspector(sel.sch);}
  if(tab==="Board"){pcbChrome();pcbRender();}
  if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
  if(tab==="BOM")bom();if(tab==="Git")git("status");if(tab==="AI"&&!$("aiModel").options.length)aiModels();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
