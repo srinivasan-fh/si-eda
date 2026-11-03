@@ -33,6 +33,9 @@ section{flex:1;display:none;flex-direction:column;min-width:0;padding:12px;gap:1
 .strip button{border:0;background:none;padding:6px 7px;border-radius:6px;display:flex}.strip button:hover{background:var(--bg)}.strip select{margin:3px}
 .optbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;flex:none;min-height:36px}.row>.optbar{flex:1}
 #pcbView{background:var(--pcbbg)}
+.banner[hidden],.fpanel[hidden],.dpicker[hidden]{display:none!important}
+#schView{background:#0a1224}.dpicker{width:220px;flex:none;background:var(--deep);border-right:1px solid var(--edge);display:flex;flex-direction:column;gap:6px;padding:10px;min-height:0;font-size:12.5px}.dpicker select{flex:1;min-height:100px;width:100%;background:var(--navy);border-color:var(--edge);color:var(--tp)}.dpicker input{width:100%;background:var(--navy);border-color:var(--edge);color:var(--tp)}
+.sheetbar button{border:0;background:none;color:var(--ts);padding:3px 8px;border-radius:5px}.sheetbar button.on{background:color-mix(in srgb,var(--blue) 35%,transparent);color:var(--tp);font-weight:600}
 /* The macOS editors' chrome (EditorChrome.swift: ToolStrip, OptionsBar; Theme / AppTheme colours per app theme). */
 :root{--navy:#0a1224;--deep:#0f1f40;--dblue:#1a3b7a;--blue:#3378f5;--lb:#73adff;--sky:#7dd4fc;--ice:#cce8ff;--tmute:#6b87b8;--gridc:#293d66;--pcbbg:#050a17;--edge:#3378f54d;--tp:#fff;--ts:#c4d4f0}
 :root[data-theme="matrix"]{--navy:#020a04;--deep:#06200e;--dblue:#0c4a1c;--blue:#00b33c;--lb:#4fe07a;--sky:#00ff41;--ice:#d2ffdc;--tmute:#6faf7f;--gridc:#0f3a18;--pcbbg:#010602;--edge:#00b33c4d}
@@ -97,7 +100,28 @@ dialog ul{list-style:none;padding:0;max-height:50vh;overflow:auto}dialog li{padd
 <button class="tb" onclick="redo()" title="Redo"><i class="ico" data-ico="redo"></i></button>
 <button class="tb" onclick="selectTab('Checks');verify()" title="Verify Design"><i class="ico" data-ico="seal"></i><span>Check</span></button></div></div></header>
 <div class="main">
-<section data-tab="Schematic"><div class="row"><div class="tools strip" id="schTools"><button data-t="select" title="Select / move (drag a part; R rotates, Delete removes)"><i class="ico" data-ico="cursor"></i></button><button data-t="wire" title="Wire: click a pin, then another (W)"><i class="ico" data-ico="wire"></i></button><button data-t="label" title="Net label on a pin (L)"><i class="ico" data-ico="tag"></i></button><button data-t="ground" title="Ground a pin (G)"><i class="ico" data-ico="ground"></i></button><button data-t="place" title="Place the part chosen on the right (P)"><i class="ico" data-ico="place"></i></button></div><div class="optbar"><label>Sheet</label><input id="sheet" type="number" min="1" value="1" style="width:70px" onchange="draw()"><button onclick="run('schematic_erc').then(showChecks)">Run ERC</button><span class="info" id="schHint"></span></div></div><div class="work"><aside class="devices"><b>Devices</b><input id="devSearch" placeholder="Search devices" oninput="filterKinds()"><select id="kind" size="14"></select><b>Standard Parts</b><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()"><select id="partHits" size="6"></select><div class="info">Choose, then click Place and click the sheet.</div></aside><div class="view" id="schView"></div><aside class="side"><div class="card"><b>Part</b><div id="schSel" class="info">Click a part to select it.</div></div></aside></div></section>
+<section data-tab="Schematic" class="ed"><div class="edrow"><aside class="dpicker" id="devPicker"><div class="ph" data-en="DEVICES">DEVICES</div><input id="devSearch" placeholder="Search devices" oninput="filterKinds()"><select id="kind" size="14"></select>
+<div class="ph" data-en="STANDARD PARTS">STANDARD PARTS</div><input id="partQuery" placeholder="or search the catalog…" onkeydown="if(event.key==='Enter')searchParts()"><select id="partHits" size="6"></select><div class="info">Choose, then click Place and click the sheet.</div></aside>
+<div class="edcol"><div class="hstrip" id="schTools">
+<button data-t="select" title="Select / move (V)"><i class="ico" data-ico="cursor"></i></button>
+<button data-t="pan" title="Pan (H)"><i class="ico" data-ico="hand"></i></button>
+<button data-t="wire" title="Wire (W) — click two pins"><i class="ico" data-ico="line"></i></button>
+<button data-t="bus" title="Bus (B) — click the corners, click the last point again (or Return) to name it"><i class="ico" data-ico="busline"></i></button>
+<button data-t="noconnect" title="No connect (Q) — click a pin to mark it intentionally open"><i class="ico" data-ico="xmark"></i></button><hr>
+<button data-t="place" title="Place selected device (P)"><i class="ico" data-ico="placedev"></i></button>
+<button data-t="ground" title="Place ground (G)"><i class="ico" data-ico="groundpin"></i></button>
+<button data-t="label" title="Place net label (L)"><i class="ico" data-ico="tag"></i></button>
+<button data-t="vsource" title="Place voltage source"><i class="ico" data-ico="bolt"></i></button><hr>
+<button data-sa="rotate" title="Rotate selection (Space or R)"><i class="ico" data-ico="rotate"></i></button>
+<button data-sa="delete" title="Delete selection (⌫)"><i class="ico" data-ico="trash"></i></button><hr>
+<button data-sa="picker" title="Show/hide device picker"><i class="ico" data-ico="sidebar"></i></button>
+<button data-sa="zoomarea" title="Zoom to area (Z) — drag a rectangle"><i class="ico" data-ico="zoomin"></i></button></div>
+<div class="edbar" id="schOpts"><i class="ico" data-ico="wrench" id="schWrench" style="color:var(--blue)"></i><button class="tb" onclick="form('schematic_find')" title="Find & Replace across every sheet (⌘F)"><i class="ico" data-ico="search"></i></button>
+<button class="tb" onclick="form('output_schematic_pdf')" title="PDF of every sheet with bookmarks, frames and title blocks"><i class="ico" data-ico="doc"></i></button><button class="tb" onclick="run('schematic_erc').then(showChecks)" title="Run Electrical Rule Check"><i class="ico" data-ico="seal"></i></button>
+<span class="sp"></span><span id="schCount" style="color:var(--sky)"></span><span class="segc"><button onclick="schZoom(1/1.25)" title="Zoom Out">−</button><button id="schZoomL" onclick="schZoom(0)" title="Zoom to Fit">100%</button><button onclick="schZoom(1.25)" title="Zoom In">+</button></span></div>
+<div class="edbar sheetbar" id="sheetBar"></div><input id="sheet" type="number" min="1" value="1" hidden onchange="draw()"><span id="schHint" hidden></span>
+<div class="edstage"><div class="view" id="schView"></div><div class="banner" id="schBanner" hidden></div></div></div>
+<aside class="inspector"><div class="ph" data-en="PROPERTIES">PROPERTIES</div><div id="schSel"></div></aside></div></section>
 <section data-tab="Board" class="ed"><div class="edrow"><div class="vstrip" id="pcbTools">
 <button data-t="select" title="Select / move footprints; drag a track or via to shove it (V)"><i class="ico" data-ico="cursor"></i></button>
 <button data-t="pan" title="Pan (H)"><i class="ico" data-ico="hand"></i></button>
@@ -250,7 +274,9 @@ function boardPart(pt){const cs=snap.courtyards||[];for(const k of cs)if(pt[0]>=
 const padName=p=>{const c=(snap.components||[]).find(c=>c.id===p.component);return c?c.ref+"."+((c.pins||[])[p.pin]||{name:p.number}).name:"";};
 const netName=i=>((snap.nets||[]).find(n=>n.index===i)||{}).name;
 function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChildren();if(el.id==="v3d"){const i=el.querySelector("img"),q=v3.picks.find(p=>p.ref===v3.picked);if(i&&q){o.setAttribute("viewBox",`0 0 ${i.naturalWidth} ${i.naturalHeight}`);const [x0,y0,x1,y1]=q.box;shape(o,"rect",{x:x0,y:y0,width:x1-x0,height:y1-y0,fill:"none",stroke:"#ffd43b","stroke-width":2,"stroke-dasharray":"6 4"});}return;}const sch=el.id==="schView",s=sch?sel.sch:sel.pcb;
- if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"none",stroke:"#3b6fe0","stroke-width":2,"stroke-dasharray":"6 4"});}}
+ if(sch&&s){const c=sheetParts().find(c=>c.ref===s);if(c){const b=schBox(c);shape(o,"rect",{x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:"rgba(51,120,245,.12)",stroke:"#fafaff","stroke-width":1.6,"stroke-dasharray":"6 4"});}}
+ if(sch&&busPts.length)shape(o,"polyline",{points:busPts.map(q=>q.join(",")).join(" "),fill:"none",stroke:"#73adff","stroke-width":4,"stroke-dasharray":"8 4"});
+ if(sch&&drag&&drag.zoom&&drag.at){const a=drag.from,b=drag.at;shape(o,"rect",{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(b[0]-a[0]),height:Math.abs(b[1]-a[1]),fill:"rgba(51,120,245,.12)",stroke:"#7dd4fc","stroke-width":1.5,"stroke-dasharray":"5 3"});}
  if(!sch&&s){const c=(snap.components||[]).find(c=>c.ref===s),k=c&&(snap.courtyards||[]).find(k=>k.component===c.id);if(k)shape(o,"rect",{x:k.x0,y:k.y0,width:k.x1-k.x0,height:k.y1-k.y0,fill:"rgba(51,120,245,.12)",stroke:PCB_C.selection,"stroke-width":1.6*pxW()});}
  if(pend&&pend.el===el)shape(o,"circle",{cx:pend.x,cy:pend.y,r:sch?6:0.6,fill:"none",stroke:"#e0a000","stroke-width":sch?2:0.2});const PX=sch?1:pxW();
  if(drag&&drag.el===el&&drag.at){const dx=drag.at[0]-drag.from[0],dy=drag.at[1]-drag.from[1];
@@ -261,11 +287,9 @@ function overlay(el){const o=el.querySelector(".over");if(!o)return;o.replaceChi
  if(!sch){for(const m of marks)if(m.severity==="error"||!m.severity)shape(o,"circle",{cx:m.x,cy:m.y,r:8*PX,fill:"none",stroke:PCB_C.error,"stroke-width":2*PX});const f=marks[drcAt];if(f)shape(o,"circle",{cx:f.x,cy:f.y,r:14*PX,fill:"none",stroke:PCB_C.warning,"stroke-width":2.5*PX});}}
 const snapTo=(v,g)=>Math.round(v/g)*g;
 function hint(id,t){$(id).textContent=t;}
-function setTool(kind,t,keep){tool[kind]=t;pend=null;if(!keep){shapePts=[];meas=null;}document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t||(t==="pair"&&b.dataset.t==="route")));if(kind==="pcb"){if(t==="pair")PS().pair=true;pcbOpts();pcbBanner();}
+function setTool(kind,t,keep){if(kind==="sch"&&t!=="bus")busPts=[];tool[kind]=t;pend=null;if(!keep){shapePts=[];meas=null;}document.querySelectorAll(`#${kind}Tools [data-t]`).forEach(b=>b.classList.toggle("on",b.dataset.t===t||(t==="pair"&&b.dataset.t==="route")));if(kind==="pcb"){if(t==="pair")PS().pair=true;pcbOpts();pcbBanner();}else schWrench();
  hint(kind+"Hint",{select:"Drag a part to move it (on the board, Alt-drag ignores the spacing rules; drag a track or via to push it and its neighbours); drag empty space to pan; wheel zooms.",wire:"Click the first pin, then the second.",label:"Click a pin to name its net.",ground:"Click a pin to ground it.",place:"Click the sheet where the part goes.",route:"Click a pad and move: the track follows the mouse and pushes other nets aside. Click fixes a corner, V drops a via, double-click or Enter finishes, Esc cancels.",via:"Click where the via goes (it takes the nearest pad's net).",rip:"Click a pad: its net's tracks and vias are removed.",pair:"Click a pad of a differential pair: both members follow the mouse together.",measure:"Click two points.",pour:"Click the pour's corners; double-click or Enter closes it.",keepout:"Drag a rectangle: no tracks, vias or pours inside.",cutout:"Click the cutout's corners; double-click or Enter closes it.",hole:"Click where the mounting hole goes."}[t]||"");overlay($(kind==="sch"?"schView":"pcbView"));}
-function selectPart(kind,ref){sel[kind]=ref;const box=$(kind+"Sel");if(!ref){box.textContent="Click a part to select it.";}else if(kind==="sch"){const c=sheetParts().find(c=>c.ref===ref)||{};
- box.innerHTML=`<div><b>${esc(ref)}</b></div><label>Value</label><input id="selVal" value="${esc(c.value)}"><div class="row" style="margin-top:6px"><button onclick="partOp('rotate')">Rotate</button><button onclick="partOp('mirror')">Mirror</button><button onclick="partOp('delete')">Delete</button></div>`;
- $("selVal").onchange=e=>act("schematic_set_value",{ref,value:e.target.value});}else pcbInspectPart(ref);
+function selectPart(kind,ref){sel[kind]=ref;if(kind==="sch"){schInspector(ref);schWrench();}else pcbInspectPart(ref);
  overlay($(kind==="sch"?"schView":"pcbView"));}
 async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)return;
  if(k==="sch"){if(op==="rotate")await act("schematic_move_component",{ref,rotate:90});if(op==="mirror")await act("schematic_move_component",{ref,mirror:"x"});if(op==="delete"){await act("schematic_remove_component",{ref});selectPart(k,null);}}
@@ -273,14 +297,20 @@ async function partOp(op){const k=tab==="Board"?"pcb":"sch",ref=sel[k];if(!ref)r
   if(op==="flip")await act("pcb_place_footprint",{ref,x:b.x,y:b.y,bottom:!b.bottom});if(op==="lock")await act("pcb_lock_footprint",{ref,locked:!b.locked});}
  if(sel[k])selectPart(k,sel[k]);}
 async function schPress(pt,e){const t=tool.sch;
+ if(schZoomArmed){drag={el:$("schView"),zoom:true,from:pt,at:pt};return true;}
+ if(t==="pan")return false;
+ if(t==="bus"){const q=[snapTo(pt[0],10),snapTo(pt[1],10)],l=busPts[busPts.length-1];if(l&&l[0]===q[0]&&l[1]===q[1]){schBus();return true;}busPts.push(q);schWrench();overlay($("schView"));return true;}
+ if(t==="vsource"){const k=[...$("kind").options].find(o=>/voltage|vsource|dc source/i.test(o.value+" "+o.textContent));if(k)await act("schematic_add_component",{kind:k.value,x:snapTo(pt[0],10),y:snapTo(pt[1],10),sheet:+$("sheet").value||1});return true;}
  if(t==="select"){const c=partAt(pt);selectPart("sch",c?c.ref:null);if(!c)return false;drag={el:$("schView"),ref:c.ref,from:pt,at:pt,x:c.x,y:c.y};return true;}
  if(t==="place"){const kind=$("partHits").value||$("kind").value;if(!kind)return true;const x=snapTo(pt[0],10),y=snapTo(pt[1],10),sheet=+$("sheet").value||1;
   if($("partHits").value)await act("library_add_part",{name:kind,x,y,sheet});else await act("schematic_add_component",{kind,x,y,sheet});return true;}
  const p=nearPin(pt,12);if(!p){status("No pin there.","warning");return true;}
  if(t==="wire"){if(!pend){pend={el:$("schView"),...p};overlay($("schView"));return true;}const a=pend;pend=null;if(a.ref+"."+a.pin!==p.ref+"."+p.pin)await act("schematic_connect",{from:a.ref+"."+a.pin,to:p.ref+"."+p.pin});return true;}
  if(t==="label"){const net=prompt("Net name for "+p.ref+"."+p.pin,netName(p.net)&&!/^N\$/.test(netName(p.net))?netName(p.net):"");if(net)await act("schematic_net_label",{net,pins:[p.ref+"."+p.pin]});return true;}
- if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}return false;}
-async function schRelease(pt,d){const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
+ if(t==="ground"){await act("schematic_connect_to_ground",{pins:[p.ref+"."+p.pin]});return true;}
+ if(t==="noconnect"){await act("schematic_set_no_connect",{pin:p.ref+"."+p.pin});return true;}return false;}
+async function schRelease(pt,d){if(d.zoom){schZoomArmed=false;schWrench();const v=views.schView,i=$("schView").querySelector("img"),el=$("schView");if(v&&i){const w=Math.abs(pt[0]-d.from[0]),h=Math.abs(pt[1]-d.from[1]),pxu=i.naturalWidth/v.vb[2];
+  if(w<5||h<5){schZoom(2);return;}v.k=Math.min(el.clientWidth/(w*pxu),el.clientHeight/(h*pxu));v.x=el.clientWidth/2-((Math.min(pt[0],d.from[0])+w/2-v.vb[0])*pxu)*v.k;v.y=el.clientHeight/2-((Math.min(pt[1],d.from[1])+h/2-v.vb[1])*pxu)*v.k;v.fit=false;v.apply();schZoomLabel();}overlay($("schView"));return;}const dx=snapTo(pt[0]-d.from[0],10),dy=snapTo(pt[1]-d.from[1],10);if(dx||dy)await act("schematic_move_component",{ref:d.ref,x:d.x+dx,y:d.y+dy});else overlay($("schView"));}
 async function pcbPress(pt,e){const t=tool.pcb;
  if(zoomArmed){drag={el:$("pcbView"),zoom:true,from:pt,at:pt};return true;}
  if(t==="pan")return false;
@@ -515,6 +545,33 @@ function pcbInspectPart(ref){const box=$("pcbSel"),c=(snap.components||[]).find(
  if($("selRot"))$("selRot").onchange=e=>act("pcb_place_footprint",{ref,x:b.x,y:b.y,rotation:((+e.target.value%360)+360)%360});if($("selLock"))$("selLock").onchange=e=>act("pcb_lock_footprint",{ref,locked:e.target.checked});
  overlay($("pcbView"));}
 document.querySelectorAll("#pcbTools [data-a]").forEach(b=>b.onclick=()=>pcbAction(b.dataset.a));
+// Schematic as the macOS SchematicEditorView: device picker, tool bar along the top, options bar, sheet bar, Midnight Navy
+// canvas (SchematicPalette.siedaDark over the engine's render: background, dot grid, wires, symbols, labels, pins) and PROPERTIES.
+const SCH_DARK={"#ffffff":"#0a1224","#8b1a1a":"#73adff","#1f6f3f":"#7dd4fc","#202020":"#cce8ff","#1a3d8b":"#7dd4fc","#555555":"#9ec7ff","#2a5caa":"#73adff","#fff7e6":"#1a2e57","#1f4f9f":"#7dd4fc"};
+function schDark(t){t=t.replace(/"(#[0-9a-fA-F]{6})"/g,(m,c)=>'"'+(SCH_DARK[c.toLowerCase()]||c)+'"');const vb=viewBox(t)||[0,0,1,1],k=t.indexOf('"/>')+3;
+ return t.slice(0,k)+`<defs><pattern id="sg" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="-0.9" y="-0.9" width="1.8" height="1.8" fill="#293d66"/></pattern><pattern id="sG" width="100" height="100" patternUnits="userSpaceOnUse"><rect x="-1.3" y="-1.3" width="2.6" height="2.6" fill="#1a3b7a"/></pattern></defs><rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="url(#sg)"/><rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="url(#sG)"/>`+t.slice(k);}
+let schSheets=[],busPts=[],schZoomArmed=false;
+async function schChrome(){try{const r=await rpc("tools/call",{name:"schematic_sheets",arguments:{}});const d=JSON.parse(r.content[0].text);schSheets=d.sheets||[];}catch{schSheets=[];}
+ const cur=+$("sheet").value||1;$("sheetBar").innerHTML=schSheets.map(x=>`<button class="${x.id===cur?"on":""}" onclick="schSheet(${x.id})">${esc("› ".repeat(x.depth||0)+x.name)}</button>`).join("")+`<button onclick="act('schematic_sheet_edit',{action:'add',name:'Sheet '+(schSheets.length+1),activate:true})" title="${esc(tr("Add Sheet"))}">+</button>`;
+ $("devPicker").hidden=pref("studio.schPicker")==="0";document.querySelectorAll("#schTools [data-sa=picker]").forEach(b=>b.classList.toggle("on",pref("studio.schPicker")!=="0"));schWrench();}
+function schSheet(id){$("sheet").value=id;rpc("tools/call",{name:"schematic_sheet_edit",arguments:{action:"activate",sheet:id}}).catch(()=>{});selectPart("sch",null);draw();}
+function schWrench(){const t=tool.sch,h={select:tr("Select / move (V)"),pan:tr("Pan (H)"),wire:tr("Wire (W) — click two pins"),bus:tr("Bus (B) — click the corners, click the last point again (or Return) to name it"),
+ noconnect:tr("No connect (Q) — click a pin to mark it intentionally open"),place:tr("Place selected device (P)"),ground:tr("Place ground (G)"),label:tr("Place net label (L)"),vsource:tr("Place voltage source")}[t]||"";
+ const w=$("schWrench");if(w)w.title=h;const n=$("schCount");if(n)n.textContent=sel.sch?tr("1 selected"):"";const b=$("schBanner");if(b){b.hidden=!schZoomArmed&&!busPts.length;b.textContent=schZoomArmed?tr("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels"):tr("Bus (B) — click the corners, click the last point again (or Return) to name it");}}
+function schZoom(f){const v=views.schView,el=$("schView");if(!v)return;if(!f){v.fit=true;v.doFit();}else{const mx=el.clientWidth/2,my=el.clientHeight/2;v.x=mx-(mx-v.x)*f;v.y=my-(my-v.y)*f;v.k*=f;v.fit=false;v.apply();}schZoomLabel();}
+function schZoomLabel(){const v=views.schView,i=$("schView").querySelector("img"),el=$("schView"),z=$("schZoomL");if(!v||!i||!z||!i.naturalWidth)return;z.textContent=Math.round(v.k/Math.min(el.clientWidth/i.naturalWidth,el.clientHeight/i.naturalHeight)*100)+"%";}
+async function schAction(a){if(a==="picker"){pref("studio.schPicker",pref("studio.schPicker")==="0"?"1":"0");schChrome();return;}if(a==="zoomarea"){schZoomArmed=true;schWrench();return;}
+ if(!sel.sch){status(tr("Click a part to select it."),"warning");return;}partOp(a);}
+async function schBus(){const pts=busPts;busPts=[];schWrench();if(pts.length<2){overlay($("schView"));return;}const name=prompt(tr("Bus name with members, e.g. D[0..7]"),"D[0..7]");
+ if(name)await act("schematic_add_bus",{name,points:pts.map(q=>({x:q[0],y:q[1]}))});else overlay($("schView"));}
+function schInspector(ref){const box=$("schSel"),c=ref&&sheetParts().find(c=>c.ref===ref);
+ if(!c){const sh=schSheets.find(x=>x.id===(+$("sheet").value||1))||{},parts=sheetParts();box.innerHTML=phead("schematic",sh.name||tr("Sheet"),tr("Sheet")+" "+(sh.id||1))+pgroup(tr("Sheet"),prow(tr("Name"),esc(sh.name||""))+prow(tr("Parts"),parts.length)+prow(tr("Nets"),(snap.nets||[]).filter(n=>n.pinCount>1).length))+`<p class="info">${esc(tr("Click a part to select it."))}</p>`;iconize(box);return;}
+ box.innerHTML=phead("schematic",c.ref,c.footprint||c.customPart||"")+pgroup(tr("General"),prow(tr("Designator"),esc(c.ref))+`<div class="prow"><span>${esc(tr("Value"))}</span><input id="selVal" value="${esc(c.value)}"></div>`
+  +`<div class="pbtns"><button onclick="partOp('rotate')">↻ ${esc(tr("Rotate"))}</button><button onclick="partOp('mirror')">⇋ ${esc(tr("Mirror"))}</button><button onclick="partOp('delete')">${esc(tr("Delete"))}</button></div>`)
+  +(c.footprint?pgroup(tr("PCB Footprint"),prow(tr("Footprint"),esc(c.footprint))+(c.pcb&&c.pcb.placed?prow(tr("Position"),fmtL(c.pcb.x,false)+", "+fmtL(c.pcb.y))+prow(tr("Rotation"),(c.pcb.rotation||0)+"°")+prow(tr("Layer"),esc(c.pcb.bottom?tr("Bottom"):tr("Top"))):`<p class="info">${esc(tr("Not placed yet"))}</p>`)):"")
+  +pgroup(tr("Pins"),(c.pins||[]).map(p=>`<div class="prow"><span style="font-family:ui-monospace,monospace;color:var(--tp)">${esc(p.name)}</span><span style="font-family:ui-monospace,monospace;color:${p.connected?"var(--lb)":p.noConnect?"var(--tmute)":PCB_C.warning}">${esc(p.noConnect&&!p.connected?tr("no connect"):netName(p.net)||"—")}</span></div>`).join(""));
+ iconize(box);$("selVal").onchange=e=>act("schematic_set_value",{ref:c.ref,value:e.target.value});}
+document.querySelectorAll("#schTools [data-sa]").forEach(b=>b.onclick=()=>schAction(b.dataset.sa));
 // Live routing (pcb_route_live): the router works on a copy; moves are coalesced so the head keeps up with the mouse.
 let live=null,liveQ=Promise.resolve(),liveAt=null;
 const liveQueue=f=>(liveQ=liveQ.then(f).catch(e=>{status(e.message,"warning");}));
@@ -711,7 +768,7 @@ async function searchParts(){const r=await run("library_search",{query:$("partQu
  $("partHits").innerHTML=[...(r.data.parts||[]),...(r.data.libraryParts||[])].map(p=>`<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.description||"")}</option>`).join("");}
 async function draw(){try{
  if(tab==="Schematic"||tab==="Board")await loadSnap();
- if(tab==="Schematic"){const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});showImage("schView",svgSrc(r.svg),viewBox(r.svg));}
+ if(tab==="Schematic"){schChrome();const r=await run("render_schematic",{format:"svg",width:1600,sheet:+$("sheet").value||1});const t=schDark(r.svg);showImage("schView",svgSrc(t),viewBox(t));setTimeout(schZoomLabel,60);}
  if(tab==="Board"){pcbChrome();pcbRender();}
  if(tab==="3D"){await loadSnap();parts3d();await render3d(1200);}
  if(tab==="BOM")bom();if(tab==="Git")git("status");if(tab==="AI"&&!$("aiModel").options.length)aiModels();if(tab==="Tools"&&!tools.length)loadTools();if(tab==="Simulate"&&!$("simArgs").children.length)simForm();if(tab==="Library")lpInit();}catch(e){}}
@@ -1092,6 +1149,12 @@ const ICONS={schematic:SVG("<path d='M1 9H4L5 6L7 12L9 6L11 12L13 6L14 9H17'/>")
  map:SVG("<path d='M1.5 4L6.5 2L11.5 4L16.5 2V14L11.5 16L6.5 14L1.5 16Z'/><path d='M6.5 2V14M11.5 4V16'/>",1.3),
  zoomin:SVG("<circle cx='7.5' cy='7.5' r='5.5'/><path d='M11.5 11.5L16.5 16.5M7.5 5V10M5 7.5H10'/>"),
  ripnet:SVG("<circle cx='9' cy='9' r='6.8'/><path d='M5.5 9H12.5'/>"),
+ line:SVG("<path d='M3 15L15 3'/>",1.6),busline:SVG("<path d='M2 5H16M2 9H16M2 13H16'/>",1.6),xmark:SVG("<path d='M4 4L14 14M14 4L4 14'/>",1.7),
+ placedev:SVG("<rect x='5.5' y='1.5' width='11' height='11' rx='2'/><path d='M1.5 5.5V14.5A2 2 0 0 0 3.5 16.5H12.5M11 4.5V9.5M8.5 7H13.5'/>",1.3),
+ groundpin:SVG("<path d='M9 1.5V11M3.5 11H14.5M3 16H15'/><path d='M5.5 7.5L9 11L12.5 7.5'/>",1.4),bolt:SVG("<circle cx='9' cy='9' r='7'/><path d='M10 3.5L6 10H9L8 14.5L12 8H9Z'/>",1.2),
+ trash:SVG("<path d='M2.5 4.5H15.5M7 4.5V2.5H11V4.5M4 4.5L5 16H13L14 4.5M7.5 7.5V13M10.5 7.5V13'/>",1.3),sidebar:SVG("<rect x='1.5' y='2.5' width='15' height='13' rx='2'/><path d='M6.5 2.5V15.5M3 5.5H5M3 8H5M3 10.5H5'/>",1.3),
+ wrench:SVG("<path d='M11.5 2A4 4 0 0 0 7.8 7.4L2 13.2L4.8 16L10.6 10.2A4 4 0 0 0 16 6.5L13.5 9L10.8 8.2L10 5.5L12.5 3A4 4 0 0 0 11.5 2Z'/>",1.2),
+ search:SVG("<circle cx='7.5' cy='7.5' r='5.5'/><path d='M11.5 11.5L16.5 16.5'/>"),doc:SVG("<path d='M4 1.5H11L14.5 5V16.5H4Z'/><path d='M11 1.5V5H14.5M6.5 9H12M6.5 11.5H12M6.5 14H10'/>",1.3),
  eye:SVG("<path d='M1.5 9C3.5 5 6 3.5 9 3.5S14.5 5 16.5 9C14.5 13 12 14.5 9 14.5S3.5 13 1.5 9Z'/><circle cx='9' cy='9' r='2.6'/>",1.3),
  eyeslash:SVG("<path d='M1.5 9C3.5 5 6 3.5 9 3.5S14.5 5 16.5 9C14.5 13 12 14.5 9 14.5S3.5 13 1.5 9Z'/><circle cx='9' cy='9' r='2.6'/><path d='M2.5 2.5L15.5 15.5'/>",1.3),
  measure:SVG("<path d='M1.5 9H16.5M4 6.5L1.5 9L4 11.5M14 6.5L16.5 9L14 11.5M6 5V7M9 5V7M12 5V7'/>",1.3),
@@ -1115,7 +1178,7 @@ addEventListener("keydown",e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(documen
    const keys=k==="sch"?{w:"wire",l:"label",g:"ground",p:"place",s:"select"}:{x:"route",d:"pair",v:"via",s:"select",m:"measure"};if(keys[key])setTool(k,keys[key]);
    if(k==="pcb"&&key==="f"&&sel.pcb)partOp("flip");if(k==="pcb"&&key==="k"&&sel.pcb)partOp("lock");}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&/^Digit[1-9]$/.test(e.code)&&runQuickKey(e.code.slice(5))){e.preventDefault();return;}if((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.shiftKey&&e.key.toLowerCase()==="z"))&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();redo();return;}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();save();}if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
 for(const k of["sch","pcb"])document.querySelectorAll(`#${k}Tools [data-t]`).forEach(b=>b.onclick=()=>setTool(k,b.dataset.t));
-panZoom($("schView"));$("schView").onpress=(pt,e)=>{schPress(pt,e);return tool.sch!=="select"||!!partAt(pt);};$("schView").onrelease=schRelease;
+panZoom($("schView"));$("schView").onpress=(pt,e)=>{const grab=schZoomArmed||(tool.sch!=="select"&&tool.sch!=="pan")||!!partAt(pt);schPress(pt,e);return grab;};$("schView").ondbl=()=>{if(busPts.length){schBus();return true;}return false;};$("schView").addEventListener("wheel",()=>requestAnimationFrame(schZoomLabel));$("schView").onrelease=schRelease;
 panZoom($("pcbView"));$("pcbView").onpress=(pt,e)=>{const grab=zoomArmed||(tool.pcb!=="select"&&tool.pcb!=="pan")||(tool.pcb==="select"&&(e.shiftKey||(PS().pickParts&&!!boardPart(pt))||!!wireAt(pt)));pcbPress(pt,e);return grab;};$("pcbView").onrelease=pcbRelease;
 $("pcbView").onhover=pt=>{pcbHover(pt);if(!live)return false;liveMove(pt);return true;};$("pcbView").addEventListener("wheel",()=>pcbViewChanged());$("pcbView").addEventListener("mousemove",e=>{if(e.buttons)pcbViewChanged();});$("pcbView").ondbl=()=>{if(live){liveStep("commit");return true;}if(shapePts.length){closeShape();return true;}return false;};
 addEventListener("resize",()=>Object.values(views).forEach(v=>v.fit&&v.doFit()));
