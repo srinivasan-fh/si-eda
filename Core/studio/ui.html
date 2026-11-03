@@ -1098,4 +1098,18 @@ $("schView").addEventListener("contextmenu",async e=>{e.preventDefault();if(!vie
    ["Delete Wire",()=>act("schematic_disconnect",{wire:w.id})]);showPcbMenu(items,x,y);return;}
  items.push(["Paste Here",()=>schPaste(schClip,pt),!!schClip],["Select All",schSelectAll],["Clean Up Wires",()=>act("schematic_edit",{action:"cleanup_wires",sheet})],0,["Zoom to Fit",()=>fitView("schView")]);
  showPcbMenu(items,x,y);});
+// ── Desktop Library editor: as the Mac's Footprint Editor, Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y) undo and redo the pad edits
+// (their own history while pads are being edited) and Delete removes the selected pad.
+const lpHist={undo:[],redo:[],last:null,restoring:false,part:""};
+{const base=lpCheck;lpCheck=function(...a){const now=lp.custom?JSON.stringify(lp.custom):null;
+ if(lpHist.part!==lp.editId){lpHist.part=lp.editId;lpHist.undo=[];lpHist.redo=[];lpHist.last=null;}
+ if(!lpHist.restoring&&now!==lpHist.last){if(lpHist.last!==null&&now!==null){lpHist.undo.push(lpHist.last);if(lpHist.undo.length>100)lpHist.undo.shift();lpHist.redo=[];}
+  if(now===null){lpHist.undo=[];lpHist.redo=[];}lpHist.last=now;}return base.apply(this,a);};}
+function lpHistory(back){const from=back?lpHist.undo:lpHist.redo,to=back?lpHist.redo:lpHist.undo;if(!lp.custom||!from.length)return false;
+ to.push(JSON.stringify(lp.custom));const s=from.pop();lp.custom=JSON.parse(s);lpHist.last=s;lp.sel=Math.min(Math.max(lp.sel,0),lp.custom.lands.length-1);
+ lpHist.restoring=true;try{lpPad();lpCheck();}finally{lpHist.restoring=false;}return true;}
+addEventListener("keydown",e=>{if(tab!=="Library"||document.querySelector("dialog[open]")||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||!lp.custom)return;
+ const ctrl=e.ctrlKey||e.metaKey,low=e.key.toLowerCase(),done=()=>{e.preventDefault();e.stopImmediatePropagation();};
+ if(ctrl&&!e.altKey&&low==="z"){done();lpHistory(!e.shiftKey);return;}if(ctrl&&!e.altKey&&low==="y"){done();lpHistory(false);return;}
+ if(!ctrl&&!e.altKey&&(e.key==="Delete"||e.key==="Backspace")&&lp.sel>=0){done();lpDelPad();}},true);
 </script></body></html>
