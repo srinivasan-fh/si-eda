@@ -3429,7 +3429,13 @@ void projectTools(Table& t) {
               if (s.projectPath().empty()) throw ToolError("Save the project in a shared folder first (project_save_as).");
               const std::string path = s.projectPath();
               if (action == "join" || !live.isObject() || live.get("path").asString() != path) {
-                  if (action != "join") throw ToolError("Not live: join first.");
+                  if (action != "join") {
+                      // Another project was opened (or saved elsewhere): stop co-editing the old file.
+                      leave();
+                      j["live"] = false;
+                      j["note"] = "Live collaboration stopped: the open project is no longer the shared file.";
+                      return out(j);
+                  }
                   leave();
                   if (!fs::exists(path)) s.writeFile(path, takeText(sieda_project_save_json(P(s))));
                   live = obj();
@@ -3551,8 +3557,14 @@ void projectTools(Table& t) {
                   if (!urlOk) throw ToolError("Give an https://, ssh:// or git@host:path URL.");
                   const std::string parent = s.resolvePath(argStr(a, "dir", "."), true);
                   fs::create_directories(parent);
-                  std::string name = fs::path(url.substr(url.find_last_of("/:") + 1)).stem().string();
-                  if (name.empty() || name[0] == '.' || name[0] == '-') throw ToolError("Cannot name a folder after " + url);
+                  std::string name = url.substr(url.find_last_of("/:") + 1);
+                  if (name.size() > 4 && name.compare(name.size() - 4, 4, ".git") == 0) name.resize(name.size() - 4);
+                  // Only a plain folder name: a backslash (a separator on Windows), ".." or an option never gets through.
+                  const bool plain = !name.empty() && name[0] != '.' && name[0] != '-' &&
+                                     std::all_of(name.begin(), name.end(), [](unsigned char c) {
+                                         return std::isalnum(c) || c == '.' || c == '_' || c == '-';
+                                     });
+                  if (!plain) throw ToolError("Cannot name a folder after " + url);
                   const fs::path target = fs::path(parent) / name;
                   if (fs::exists(target)) throw ToolError(target.string() + " already exists.");
                   j["output"] = must({"clone", "--", url, name}, parent);
@@ -5266,6 +5278,59 @@ void schematicTools(Table& t) {
               check(n >= 0, "Could not align");
               Json j = obj();
               j["moved"] = n;
+              return out(j);
+          });
+    t.add("schematic", "schematic_edit", "Schematic editing commands", Kind::Edit, false,
+          "The schematic editor's commands (as the macOS app's canvas menu): copy refs → clip (parts and the wires "
+          "between them, \"sieda.schematic-clip/1\"); paste clip on sheet (offset dx / dy grid units, new designators) → "
+          "refs; duplicate refs beside themselves; cleanup_wires removes bends on straight runs of sheet; "
+          "connect_touching joins refs' pins to what they touch; lock refs (locked true / false); power_style draws "
+          "net labels refs as power symbols (power true) or flags.",
+          Schema()
+              .str("action", "What to do", true, {"copy", "paste", "duplicate", "cleanup_wires", "connect_touching", "lock", "power_style"})
+              .array("refs", "Designators", "string")
+              .str("clip", "paste: the clip from copy")
+              .num("dx", "paste / duplicate: x offset (grid units)").num("dy", "paste / duplicate: y offset (grid units)")
+              .integer("sheet", "paste / cleanup_wires: sheet (default the active one)")
+              .boolean("locked", "lock: true locks (default), false unlocks").boolean("power", "power_style: true = power symbol"),
+          [](McpServer& s, const Json& a) {
+              SiedaProject* p = P(s);
+              const std::string act = requireStr(a, "action");
+              std::vector<int> ids;
+              for (const auto& r : a.get("refs").items()) ids.push_back(componentId(*p, r));
+              Json idList = Json::array();
+              for (int id : ids) idList.push(id);
+              Json j = obj();
+              auto paste = [&](const std::string& clip, double dx, double dy) {
+                  Json opts = obj();
+                  opts["dx"] = dx, opts["dy"] = dy;
+                  const Json made = takeJson(sieda_paste_components(p, clip.c_str(), opts.dump().c_str()));
+                  check(made.isArray(), "Nothing to paste: the clip is not a SiEDA schematic clip");
+                  Json refs = Json::array();
+                  for (const auto& id : made.items())
+                      if (const Component* c = p->project.schematic.find(id.asInt(-1))) refs.push(c->ref);
+                  j["refs"] = refs;
+              };
+              if (act == "copy" || act == "duplicate") {
+                  check(!ids.empty(), "refs: the parts to " + act);
+                  const std::string clip = takeText(sieda_copy_components(p, idList.dump().c_str()));
+                  check(!clip.empty(), "Could not copy those parts");
+                  if (act == "copy") j["clip"] = clip;
+                  else paste(clip, argNum(a, "dx", 20), argNum(a, "dy", 20));
+              } else if (act == "paste") {
+                  if (a.has("sheet")) sieda_set_active_sheet(p, argInt(a, "sheet", 1));
+                  paste(requireStr(a, "clip"), argNum(a, "dx", 0), argNum(a, "dy", 0));
+              } else if (act == "cleanup_wires") {
+                  j["removed"] = sieda_cleanup_wires(p, argInt(a, "sheet", p->project.schematic.activeSheet()));
+              } else {
+                  check(!ids.empty(), "refs: the parts to change");
+                  int n = 0;
+                  for (int id : ids)
+                      n += act == "connect_touching" ? sieda_connect_touching(p, id, 1)
+                           : act == "lock"           ? sieda_set_component_locked(p, id, argBool(a, "locked", true) ? 1 : 0)
+                                                     : sieda_set_label_power(p, id, argBool(a, "power", true) ? 1 : 0);
+                  j[act == "connect_touching" ? "joins" : "changed"] = n;
+              }
               return out(j);
           });
     // ---- sheets & hierarchy

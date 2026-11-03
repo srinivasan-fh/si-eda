@@ -1,12 +1,12 @@
 // sieda-studio — SiEDA's desktop app on Linux and Windows (and macOS): the core serves its interface on this computer's
-// loopback interface and opens it in the system browser. Every action is an MCP tool call (docs/STUDIO.md).
+// loopback interface and opens it in a window of its own (Edge / Chrome / Chromium `--app`, else the default browser). Every action is an MCP tool call (docs/STUDIO.md).
 //
 //   sieda-studio [--root <dir>] [--project <file>] [--port <n>] [--no-browser] [--library-dir <dir> …]
 //
 //   --root <dir>      folder projects are opened from and outputs written to (default: your home folder)
 //   --project <file>  project to open at start
 //   --port <n>        port on 127.0.0.1 (default: any free port)
-//   --no-browser      print the address without opening a browser
+//   --no-browser      print the address without opening a window or browser
 //   --library-dir     a KiCad library folder to search and place parts from (read-only; also SIEDA_LIBRARY_DIRS)
 //   --activity-log <dir> / --no-activity-log   where the dated activity log goes (default the per-user log folder):
 //                     the page's actions are logged as "user", an AI client's on /mcp by its name
@@ -17,6 +17,7 @@
 // the Host header must name the loopback address (DNS rebinding). /mcp takes the same token as a bearer token, so
 // `sieda-mcp --connect http://127.0.0.1:<port>/mcp --token <token>` lets an AI client edit the open design live.
 #include <algorithm>
+#include <cctype>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +28,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -38,6 +40,7 @@ using Socket = SOCKET;
 #define closeSocket closesocket
 #else
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
 #include <netinet/in.h>
@@ -170,10 +173,83 @@ std::string queryValue(const std::string& query, const std::string& key) {
     return {};
 }
 
+// The page opens like a desktop app: in a window of its own (no tabs, no address bar) when Edge or Chrome / Chromium
+// is installed (`--app=<url>`), else in the default browser as before. No shell is involved anywhere: the program is
+// started with an argument vector (posix_spawn) or CreateProcess with a fixed quoted command line, and the address is
+// only ever our own "http://127.0.0.1:<port>/?t=<hex>" (checked: nothing that could break out of the quotes).
+#if !defined(__APPLE__)
+bool safeUrl(const std::string& url) {
+    return url.rfind("http://127.0.0.1:", 0) == 0 &&
+           std::all_of(url.begin(), url.end(), [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || std::strchr(":/.?=_-", c); });
+}
+#endif
+
+#ifdef _WIN32
+bool openAppWindow(const std::string& url) {
+    // Edge ships with Windows 10 / 11; Chrome per machine or per user.
+    const char* bases[] = {"ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"};
+    const char* apps[] = {"Microsoft\\Edge\\Application\\msedge.exe", "Google\\Chrome\\Application\\chrome.exe"};
+    for (const char* app : apps)
+        for (const char* base : bases) {
+            const char* dir = std::getenv(base);
+            if (!dir || !*dir) continue;
+            const std::string exe = std::string(dir) + "\\" + app;
+            if (GetFileAttributesA(exe.c_str()) == INVALID_FILE_ATTRIBUTES) continue;
+            std::string cmd = "\"" + exe + "\" \"--app=" + url + "\"";
+            STARTUPINFOA si{};
+            si.cb = sizeof(si);
+            PROCESS_INFORMATION pi{};
+            if (!CreateProcessA(exe.c_str(), cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) continue;
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+            return true;
+        }
+    return false;
+}
+#elif !defined(__APPLE__)
+/// Starts `program` (a name looked up on PATH) with argv; its output goes to /dev/null and it is reaped when it exits.
+bool spawnQuiet(const char* program, const std::vector<std::string>& args) {
+    std::string path;
+    const char* dirs = std::getenv("PATH");
+    for (std::string list = dirs ? dirs : "/usr/bin:/bin"; !list.empty();) {
+        const size_t colon = list.find(':');
+        const std::string dir = list.substr(0, colon);
+        list = colon == std::string::npos ? std::string() : list.substr(colon + 1);
+        if (dir.empty()) continue;
+        const std::string candidate = dir + "/" + program;
+        if (access(candidate.c_str(), X_OK) == 0) { path = candidate; break; }
+    }
+    if (path.empty()) return false;
+    std::vector<char*> argv{const_cast<char*>(program)};
+    for (const std::string& a : args) argv.push_back(const_cast<char*>(a.c_str()));
+    argv.push_back(nullptr);
+    posix_spawn_file_actions_t files;
+    posix_spawn_file_actions_init(&files);
+    posix_spawn_file_actions_addopen(&files, 1, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&files, 2, "/dev/null", O_WRONLY, 0);
+    pid_t pid = 0;
+    const bool ok = posix_spawn(&pid, path.c_str(), &files, nullptr, argv.data(), environ) == 0;
+    posix_spawn_file_actions_destroy(&files);
+    if (ok) std::thread([pid] { int st = 0; waitpid(pid, &st, 0); }).detach();
+    return ok;
+}
+
+bool openAppWindow(const std::string& url) {
+    for (const char* app : {"microsoft-edge", "microsoft-edge-stable", "google-chrome", "google-chrome-stable", "chromium",
+                            "chromium-browser", "brave-browser"})
+        if (spawnQuiet(app, {"--app=" + url})) return true;
+    return false;
+}
+#endif
+
 void openBrowser(const std::string& url) {
 #ifdef _WIN32
+    if (safeUrl(url) && openAppWindow(url)) return;
     ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
+#if !defined(__APPLE__)
+    if (safeUrl(url) && openAppWindow(url)) return;
+#endif
 #ifdef __APPLE__
     const char* opener = "open";
 #else
