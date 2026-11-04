@@ -281,6 +281,24 @@ void runCalls(McpServer& s, const Json& calls, const std::string& what) {
 
 }  // namespace
 
+std::vector<std::string> modelDirsFor(const std::string& exe) {
+    std::vector<std::string> out;
+    std::error_code ec;
+    const fs::path dir = fs::weakly_canonical(fs::absolute(exe, ec), ec).parent_path();
+    for (const fs::path& d : {dir, dir / ".." / "share" / "sieda" / "models", dir / ".." / "SiEDA" / "Resources" / "Models"})
+        if (!dir.empty() && fs::is_directory(d, ec)) out.push_back(fs::weakly_canonical(d, ec).string());
+    const char* env = std::getenv("SIEDA_MODELS_DIRS");
+#ifdef _WIN32
+    const char sep = ';';
+#else
+    const char sep = ':';
+#endif
+    std::stringstream ss(env ? env : "");
+    for (std::string d; std::getline(ss, d, sep);)
+        if (!d.empty()) out.push_back(d);
+    return out;
+}
+
 std::vector<std::string> lessonDirsFromEnvironment() {
     std::vector<std::string> out;
     const char* env = std::getenv("SIEDA_LESSONS_DIRS");

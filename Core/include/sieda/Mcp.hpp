@@ -206,6 +206,10 @@ private:
 std::string defaultActivityLogDir();
 /// SIEDA_LESSONS_DIRS split like PATH (':' — ';' on Windows): an organisation's lesson folders.
 std::vector<std::string> lessonDirsFromEnvironment();
+/// Folders of built-in-engine models (.gguf) for project_assistant, for a server started as `exe`: beside it (the release
+/// archives carry sieda-circuit-v1.gguf), ../share/sieda/models, a build folder inside the source tree
+/// (../SiEDA/Resources/Models), then SIEDA_MODELS_DIRS. Only existing folders.
+std::vector<std::string> modelDirsFor(const std::string& exe);
 /// Appends one line to <dir>/<UTC date>.log (folder created): "time<TAB>actor<TAB>action<TAB>fields…". Tabs and
 /// line breaks in the fields become spaces. Never throws; safe from several threads.
 void appendActivity(const std::string& dir, const std::string& actor, const std::string& action,

@@ -70,6 +70,7 @@ cmake --build build -j --target sieda-mcp
 | `--tools <list>` | Offer only these groups / tools / prefixes, e.g. `--tools project,schematic,sim_*,pcb_drc`. |
 | `--docs <dir>` | Folder of the guides served as `sieda://docs/<name>` (default: the repository's `docs/`). |
 | `--library-dir <dir>` | A KiCad library folder that `library_search` / `library_add_part` use (`"Library:Symbol"`); repeatable, read-only, also `SIEDA_LIBRARY_DIRS` ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). |
+| `--models-dir <dir>` | A folder of `.gguf` models for `project_assistant` (the built-in AI); repeatable, also `SIEDA_MODELS_DIRS`. Beside the executable and `../share/sieda/models` are searched too, so SiEDA's circuit model shipped with the release is found ([AI.md](AI.md)). |
 | `--connect <url>` | Bridge mode: no local engine, forward stdin / stdout to the app's live endpoint (see [Live app mode](#live-app-mode)); with `--token <t>` (or `SIEDA_MCP_TOKEN`) and `--timeout <s>`. |
 | `--list-tools-markdown`, `--list-tools` | Print the tool reference (Markdown, as below) or the tool table (JSON) and exit. |
 
