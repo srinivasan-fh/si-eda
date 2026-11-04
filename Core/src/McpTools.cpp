@@ -9157,7 +9157,7 @@ void siTools(Table& t) {
               .boolean("waveforms", "Include the waveforms (default false)"),
           [](McpServer& s, const Json& a) {
               Json r = takeJson(sieda_si_net_json(P(s), requireStr(a, "net").c_str(), argNum(a, "seriesOhms", -1)));
-              if (r.has("error")) throw ToolError(r.get("error").asString("?"));
+              if (!r.get("error").asString("").empty()) throw ToolError(r.get("error").asString());  // an empty error = none
               if (!argBool(a, "waveforms", false) && r.isObject()) {
                   Json slim = obj();
                   for (const auto& [k, v] : r.fields())
@@ -9199,7 +9199,7 @@ void siTools(Table& t) {
               .str("fMax", "Highest frequency"),
           [](McpServer& s, const Json& a) {
               Json r = takeJson(sieda_si_channel_json(P(s), optionsFrom(a).c_str()));
-              if (r.has("error")) throw ToolError(r.get("error").asString("?"));
+              if (!r.get("error").asString("").empty()) throw ToolError(r.get("error").asString());  // an empty error = none
               if (r.isObject()) {
                   r["freq"] = decimate(r.get("freq"), 100);
                   Json curves = Json::array();
@@ -9785,7 +9785,7 @@ void teamTools(Table& t) {
                                 o = readFileArg(s, requireStr(a, "ours")).asString(),
                                 th = readFileArg(s, requireStr(a, "theirs")).asString();
               Json r = takeJson(sieda_merge_projects(b.c_str(), o.c_str(), th.c_str()));
-              if (r.has("error")) throw ToolError(r.get("error").asString());
+              if (!r.get("error").asString("").empty()) throw ToolError(r.get("error").asString());  // an empty error = none
               Json j = obj();
               j["written"] = s.writeFile(requireStr(a, "path"), r.get("merged").dump(true));
               j["conflicts"] = r.get("conflicts");
@@ -9806,7 +9806,7 @@ void teamTools(Table& t) {
           [](McpServer& s, const Json& a) {
               Json q = a;
               Json r = takeJson(sieda_review_command(P(s), q.dump().c_str()));
-              if (r.has("error")) throw ToolError(r.get("error").asString());
+              if (!r.get("error").asString("").empty()) throw ToolError(r.get("error").asString());  // an empty error = none
               Json all = takeJson(sieda_review_json(P(s)));
               all["id"] = r.get("id");
               return out(all);

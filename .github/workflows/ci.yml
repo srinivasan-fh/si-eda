@@ -2,7 +2,14 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# One run per commit: a branch's pushes are checked through its pull request, and a newer push
+# cancels the older run. macOS machines are scarce, so the two macOS jobs run one after another.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   core:
@@ -115,6 +122,7 @@ jobs:
 
   app:
     name: macOS app (Xcode)
+    needs: core
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4

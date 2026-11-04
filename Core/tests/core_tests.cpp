@@ -20652,6 +20652,52 @@ TEST(mcp_initialize_handshake) {
 
 // Every tool call lands in the dated activity log: who (the AI client named by initialize, or the host's "user"),
 // the tool, the outcome ("changed" when the design changed), the project and the arguments.
+TEST(mcp_idea_to_fabrication_in_one_session) {
+    // Every stage joined up: an idea in words → the built-in AI draws the circuit → the board is updated, placed and
+    // routed → checks → the fabrication package. Each step is the MCP tool the apps and AI clients use.
+    const auto root = mcpRoot("idea_to_fab");
+    auto opts = mcpOptions(root);
+    opts.modelDirs = mcp::modelDirsFor(std::string(SIEDA_DOCS_DIR) + "/../build/x");
+    opts.modelDirs.push_back(std::string(SIEDA_DOCS_DIR) + "/../SiEDA/Resources/Models");
+    mcp::McpServer s(opts);
+    auto call = [&](const char* tool, const char* args) {
+        Json r = s.callTool(tool, Json::parse(args));
+        if (r.get("isError").asBool(false)) std::printf("    %s: %s\n", tool, r.get("content").items()[0].get("text").asString().c_str());
+        CHECK(!r.get("isError").asBool(true));
+        return Json::parse(r.get("content").items()[0].get("text").asString("{}"));
+    };
+    call("project_new", R"({"name":"Idea to board"})");
+    const Json designed = call("project_assistant", R"({"action":"ask","model":"sieda-circuit-v1.gguf","message":"LED indicator"})");
+    CHECK(designed.get("added").size() >= 3 && !designed.has("failed"));
+    CHECK(call("schematic_erc", "{}").get("errors").asInt(1) == 0);
+    call("pcb_update_from_schematic", "{}");
+    call("pcb_autoplace", R"({"all":true})");
+    call("pcb_autoroute", "{}");
+    const Json drc = call("pcb_drc", "{}");
+    CHECK(drc.get("errors").asInt(1) == 0);
+    CHECK(drc.get("unrouted").size() == 0);
+    call("verify_design", "{}");
+    const Json fab = call("output_fabrication_package", R"({"dir":"fab"})");
+    CHECK(std::filesystem::exists(std::filesystem::path(root) / "fab"));
+    size_t files = 0;
+    for (const auto& e : std::filesystem::recursive_directory_iterator(std::filesystem::path(root) / "fab")) files += e.is_regular_file();
+    CHECK(files >= 10);
+    call("project_save_as", R"({"path":"idea.siedaproj"})");
+}
+
+TEST(mcp_si_net_analysis_answers_for_a_routed_net) {
+    // Its result always carries an "error" field, empty when the analysis worked: that is not a failure.
+    const auto root = mcpRoot("si_net");
+    mcp::McpServer s(mcpOptions(root));
+    CHECK(!s.callTool("project_load_example", Json::parse(R"({"id":"smps_230vac"})")).get("isError").asBool(true));
+    Json r = s.callTool("si_net_analysis", Json::parse(R"({"net":"PFC_GATE"})"));
+    CHECK(!r.get("isError").asBool(true));
+    CHECK(Json::parse(r.get("content").items()[0].get("text").asString()).get("name").asString() == "PFC_GATE");
+    Json bad = s.callTool("si_net_analysis", Json::parse(R"({"net":"NO_SUCH_NET"})"));
+    CHECK(bad.get("isError").asBool(false));
+    CHECK(bad.get("content").items()[0].get("text").asString().find("NO_SUCH_NET") != std::string::npos);
+}
+
 TEST(mcp_ai_assistant_designs_with_the_built_in_circuit_model) {
     const auto root = mcpRoot("assistant");
     auto opts = mcpOptions(root);

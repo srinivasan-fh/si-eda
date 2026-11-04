@@ -489,22 +489,7 @@ int main(int argc, char** argv) {
     options.allowedRoot = home ? std::string(home) : fs::current_path(ec).string();
     options.libraryDirs = sieda::ExternalLibraries::foldersFromEnvironment();
     options.lessonDirs = sieda::mcp::lessonDirsFromEnvironment();
-    {   // Built-in AI models: beside the executable (release archives carry sieda-circuit-v1.gguf), share/sieda/models,
-        // a build folder inside the source tree, then SIEDA_MODELS_DIRS.
-        const fs::path exe = fs::weakly_canonical(fs::absolute(argv[0], ec), ec).parent_path();
-        for (const fs::path& d : {exe, exe / ".." / "share" / "sieda" / "models", exe / ".." / "SiEDA" / "Resources" / "Models"})
-            if (fs::is_directory(d, ec)) options.modelDirs.push_back(fs::weakly_canonical(d, ec).string());
-        if (const char* env = std::getenv("SIEDA_MODELS_DIRS")) {
-#ifdef _WIN32
-            const char sep = ';';
-#else
-            const char sep = ':';
-#endif
-            std::stringstream ss(env);
-            for (std::string d; std::getline(ss, d, sep);)
-                if (!d.empty()) options.modelDirs.push_back(d);
-        }
-    }
+    options.modelDirs = sieda::mcp::modelDirsFor(argv[0]);  // built-in AI models (project_assistant)
     options.activityLog = sieda::mcp::defaultActivityLogDir();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
