@@ -1,0 +1,1327 @@
+# Frozen by tools/fetch_catalog_parts.py --discover-tht (category, library, symbol, name, manufacturer, description, reference prefix, footprint override). Edit by re-running --discover-tht.
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	MKDS-1,5-2-5.08	Phoenix Contact	Screw terminal block 2 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	MKDS-1,5-3-5.08	Phoenix Contact	Screw terminal block 3 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-3-5.08_1x03_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	MKDS-1,5-4-5.08	Phoenix Contact	Screw terminal block 4 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	MKDS-1,5-5-5.08	Phoenix Contact	Screw terminal block 5 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5-5.08_1x05_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	MKDS-1,5-6-5.08	Phoenix Contact	Screw terminal block 6 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-6-5.08_1x06_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	MKDS-1,5-7-5.08	Phoenix Contact	Screw terminal block 7 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-7-5.08_1x07_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	MKDS-1,5-8-5.08	Phoenix Contact	Screw terminal block 8 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-8-5.08_1x08_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	MKDS-1,5-9-5.08	Phoenix Contact	Screw terminal block 9 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-9-5.08_1x09_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	MKDS-1,5-10-5.08	Phoenix Contact	Screw terminal block 10 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-10-5.08_1x10_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	MKDS-1,5-11-5.08	Phoenix Contact	Screw terminal block 11 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-11-5.08_1x11_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	MKDS-1,5-12-5.08	Phoenix Contact	Screw terminal block 12 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-12-5.08_1x12_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	MKDS-1,5-13-5.08	Phoenix Contact	Screw terminal block 13 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-13-5.08_1x13_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	MKDS-1,5-14-5.08	Phoenix Contact	Screw terminal block 14 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-14-5.08_1x14_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	MKDS-1,5-15-5.08	Phoenix Contact	Screw terminal block 15 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-15-5.08_1x15_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	MKDS-1,5-16-5.08	Phoenix Contact	Screw terminal block 16 way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole	J	TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-16-5.08_1x16_P5.08mm_Horizontal
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	B2B-XH-A	JST	JST XH wire-to-board header 2 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	B3B-XH-A	JST	JST XH wire-to-board header 3 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	B4B-XH-A	JST	JST XH wire-to-board header 4 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	B5B-XH-A	JST	JST XH wire-to-board header 5 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	B6B-XH-A	JST	JST XH wire-to-board header 6 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B6B-XH-A_1x06_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	B7B-XH-A	JST	JST XH wire-to-board header 7 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B7B-XH-A_1x07_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	B8B-XH-A	JST	JST XH wire-to-board header 8 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B8B-XH-A_1x08_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	B9B-XH-A	JST	JST XH wire-to-board header 9 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B9B-XH-A_1x09_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	B10B-XH-A	JST	JST XH wire-to-board header 10 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B10B-XH-A_1x10_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	B11B-XH-A	JST	JST XH wire-to-board header 11 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B11B-XH-A_1x11_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	B12B-XH-A	JST	JST XH wire-to-board header 12 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B12B-XH-A_1x12_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	B13B-XH-A	JST	JST XH wire-to-board header 13 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B13B-XH-A_1x13_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	B14B-XH-A	JST	JST XH wire-to-board header 14 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B14B-XH-A_1x14_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	B15B-XH-A	JST	JST XH wire-to-board header 15 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B15B-XH-A_1x15_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	B16B-XH-A	JST	JST XH wire-to-board header 16 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B16B-XH-A_1x16_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x20	B20B-XH-A	JST	JST XH wire-to-board header 20 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_XH_B20B-XH-A_1x20_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	B2B-PH-K	JST	JST PH wire-to-board header 2 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	B3B-PH-K	JST	JST PH wire-to-board header 3 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B3B-PH-K_1x03_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	B4B-PH-K	JST	JST PH wire-to-board header 4 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	B5B-PH-K	JST	JST PH wire-to-board header 5 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B5B-PH-K_1x05_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	B6B-PH-K	JST	JST PH wire-to-board header 6 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	B7B-PH-K	JST	JST PH wire-to-board header 7 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B7B-PH-K_1x07_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	B8B-PH-K	JST	JST PH wire-to-board header 8 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	B9B-PH-K	JST	JST PH wire-to-board header 9 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B9B-PH-K_1x09_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	B10B-PH-K	JST	JST PH wire-to-board header 10 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B10B-PH-K_1x10_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	B11B-PH-K	JST	JST PH wire-to-board header 11 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B11B-PH-K_1x11_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	B12B-PH-K	JST	JST PH wire-to-board header 12 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B12B-PH-K_1x12_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	B13B-PH-K	JST	JST PH wire-to-board header 13 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B13B-PH-K_1x13_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	B14B-PH-K	JST	JST PH wire-to-board header 14 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B14B-PH-K_1x14_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	B15B-PH-K	JST	JST PH wire-to-board header 15 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B15B-PH-K_1x15_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	B16B-PH-K	JST	JST PH wire-to-board header 16 way, 2.00 mm, 2 A, vertical, through-hole	J	Connector_JST:JST_PH_B16B-PH-K_1x16_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	B2B-EH-A	JST	JST EH wire-to-board header 2 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B2B-EH-A_1x02_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	B3B-EH-A	JST	JST EH wire-to-board header 3 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	B4B-EH-A	JST	JST EH wire-to-board header 4 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B4B-EH-A_1x04_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	B5B-EH-A	JST	JST EH wire-to-board header 5 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B5B-EH-A_1x05_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	B6B-EH-A	JST	JST EH wire-to-board header 6 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B6B-EH-A_1x06_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	B7B-EH-A	JST	JST EH wire-to-board header 7 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B7B-EH-A_1x07_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	B8B-EH-A	JST	JST EH wire-to-board header 8 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B8B-EH-A_1x08_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	B9B-EH-A	JST	JST EH wire-to-board header 9 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B9B-EH-A_1x09_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	B10B-EH-A	JST	JST EH wire-to-board header 10 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B10B-EH-A_1x10_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	B11B-EH-A	JST	JST EH wire-to-board header 11 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B11B-EH-A_1x11_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	B12B-EH-A	JST	JST EH wire-to-board header 12 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B12B-EH-A_1x12_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	B13B-EH-A	JST	JST EH wire-to-board header 13 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B13B-EH-A_1x13_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	B14B-EH-A	JST	JST EH wire-to-board header 14 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B14B-EH-A_1x14_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	B15B-EH-A	JST	JST EH wire-to-board header 15 way, 2.50 mm, 3 A, vertical, through-hole	J	Connector_JST:JST_EH_B15B-EH-A_1x15_P2.50mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	B2P-VH	JST	JST VH wire-to-board header 2 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B2P-VH_1x02_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	B3P-VH	JST	JST VH wire-to-board header 3 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B3P-VH_1x03_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	B4P-VH	JST	JST VH wire-to-board header 4 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B4P-VH_1x04_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	B5P-VH	JST	JST VH wire-to-board header 5 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B5P-VH_1x05_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	B6P-VH	JST	JST VH wire-to-board header 6 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B6P-VH_1x06_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	B7P-VH	JST	JST VH wire-to-board header 7 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B7P-VH_1x07_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	B8P-VH	JST	JST VH wire-to-board header 8 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B8P-VH_1x08_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	B9P-VH	JST	JST VH wire-to-board header 9 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B9P-VH_1x09_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	B10P-VH	JST	JST VH wire-to-board header 10 way, 3.96 mm, 10 A, vertical, through-hole	J	Connector_JST:JST_VH_B10P-VH_1x10_P3.96mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	22-27-21021 (KK 254)	Molex	Molex KK 254 wire-to-board header 2 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-02A_1x02_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	22-27-21031 (KK 254)	Molex	Molex KK 254 wire-to-board header 3 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-03A_1x03_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	22-27-21041 (KK 254)	Molex	Molex KK 254 wire-to-board header 4 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-04A_1x04_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	22-27-21051 (KK 254)	Molex	Molex KK 254 wire-to-board header 5 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-05A_1x05_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	22-27-21061 (KK 254)	Molex	Molex KK 254 wire-to-board header 6 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	22-27-21071 (KK 254)	Molex	Molex KK 254 wire-to-board header 7 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-07A_1x07_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	22-27-21081 (KK 254)	Molex	Molex KK 254 wire-to-board header 8 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	22-27-21091 (KK 254)	Molex	Molex KK 254 wire-to-board header 9 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-09A_1x09_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	22-27-21101 (KK 254)	Molex	Molex KK 254 wire-to-board header 10 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-10A_1x10_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	22-27-21111 (KK 254)	Molex	Molex KK 254 wire-to-board header 11 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-11A_1x11_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	22-27-21121 (KK 254)	Molex	Molex KK 254 wire-to-board header 12 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-12A_1x12_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	22-27-21131 (KK 254)	Molex	Molex KK 254 wire-to-board header 13 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-13A_1x13_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	22-27-21141 (KK 254)	Molex	Molex KK 254 wire-to-board header 14 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-14A_1x14_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	22-27-21151 (KK 254)	Molex	Molex KK 254 wire-to-board header 15 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-15A_1x15_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	22-27-21161 (KK 254)	Molex	Molex KK 254 wire-to-board header 16 way, 2.54 mm, friction lock, vertical, through-hole	J	Connector_Molex:Molex_KK-254_AE-6410-16A_1x16_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x03_Odd_Even	IDC-Header_2x03_P2.54mm	Generic	Shrouded IDC box header 2 × 3 (6 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x04_Odd_Even	IDC-Header_2x04_P2.54mm	Generic	Shrouded IDC box header 2 × 4 (8 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x04_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x05_Odd_Even	IDC-Header_2x05_P2.54mm	Generic	Shrouded IDC box header 2 × 5 (10 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x05_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x06_Odd_Even	IDC-Header_2x06_P2.54mm	Generic	Shrouded IDC box header 2 × 6 (12 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x06_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x07_Odd_Even	IDC-Header_2x07_P2.54mm	Generic	Shrouded IDC box header 2 × 7 (14 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x07_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x08_Odd_Even	IDC-Header_2x08_P2.54mm	Generic	Shrouded IDC box header 2 × 8 (16 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x08_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x09_Odd_Even	IDC-Header_2x09_P2.54mm	Generic	Shrouded IDC box header 2 × 9 (18 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x09_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x10_Odd_Even	IDC-Header_2x10_P2.54mm	Generic	Shrouded IDC box header 2 × 10 (20 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x10_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x11_Odd_Even	IDC-Header_2x11_P2.54mm	Generic	Shrouded IDC box header 2 × 11 (22 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x11_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x12_Odd_Even	IDC-Header_2x12_P2.54mm	Generic	Shrouded IDC box header 2 × 12 (24 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x12_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x13_Odd_Even	IDC-Header_2x13_P2.54mm	Generic	Shrouded IDC box header 2 × 13 (26 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x13_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x15_Odd_Even	IDC-Header_2x15_P2.54mm	Generic	Shrouded IDC box header 2 × 15 (30 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x15_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x17_Odd_Even	IDC-Header_2x17_P2.54mm	Generic	Shrouded IDC box header 2 × 17 (34 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x17_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x20_Odd_Even	IDC-Header_2x20_P2.54mm	Generic	Shrouded IDC box header 2 × 20 (40 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x22_Odd_Even	IDC-Header_2x22_P2.54mm	Generic	Shrouded IDC box header 2 × 22 (44 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x22_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x25_Odd_Even	IDC-Header_2x25_P2.54mm	Generic	Shrouded IDC box header 2 × 25 (50 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x25_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x30_Odd_Even	IDC-Header_2x30_P2.54mm	Generic	Shrouded IDC box header 2 × 30 (60 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x30_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_02x32_Odd_Even	IDC-Header_2x32_P2.54mm	Generic	Shrouded IDC box header 2 × 32 (64 pins), 2.54 mm, odd / even numbering, vertical, through-hole	J	Connector_IDC:IDC-Header_2x32_P2.54mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	PinHeader_1x02_P2.00mm	Generic	Pin header 1 × 2, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x02_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	PinHeader_1x03_P2.00mm	Generic	Pin header 1 × 3, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x03_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	PinHeader_1x04_P2.00mm	Generic	Pin header 1 × 4, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x04_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	PinHeader_1x05_P2.00mm	Generic	Pin header 1 × 5, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x05_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	PinHeader_1x06_P2.00mm	Generic	Pin header 1 × 6, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x06_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	PinHeader_1x07_P2.00mm	Generic	Pin header 1 × 7, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x07_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	PinHeader_1x08_P2.00mm	Generic	Pin header 1 × 8, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x08_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	PinHeader_1x09_P2.00mm	Generic	Pin header 1 × 9, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x09_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	PinHeader_1x10_P2.00mm	Generic	Pin header 1 × 10, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x10_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	PinHeader_1x11_P2.00mm	Generic	Pin header 1 × 11, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x11_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	PinHeader_1x12_P2.00mm	Generic	Pin header 1 × 12, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x12_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	PinHeader_1x13_P2.00mm	Generic	Pin header 1 × 13, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x13_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	PinHeader_1x14_P2.00mm	Generic	Pin header 1 × 14, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x14_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	PinHeader_1x15_P2.00mm	Generic	Pin header 1 × 15, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x15_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	PinHeader_1x16_P2.00mm	Generic	Pin header 1 × 16, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x16_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x17	PinHeader_1x17_P2.00mm	Generic	Pin header 1 × 17, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x17_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x18	PinHeader_1x18_P2.00mm	Generic	Pin header 1 × 18, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x18_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x19	PinHeader_1x19_P2.00mm	Generic	Pin header 1 × 19, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x19_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x20	PinHeader_1x20_P2.00mm	Generic	Pin header 1 × 20, 2.00 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.00mm:PinHeader_1x20_P2.00mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x02	PinHeader_1x02_P1.27mm	Generic	Pin header 1 × 2, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x03	PinHeader_1x03_P1.27mm	Generic	Pin header 1 × 3, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x03_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x04	PinHeader_1x04_P1.27mm	Generic	Pin header 1 × 4, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x04_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x05	PinHeader_1x05_P1.27mm	Generic	Pin header 1 × 5, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x05_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x06	PinHeader_1x06_P1.27mm	Generic	Pin header 1 × 6, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x07	PinHeader_1x07_P1.27mm	Generic	Pin header 1 × 7, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x07_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x08	PinHeader_1x08_P1.27mm	Generic	Pin header 1 × 8, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x09	PinHeader_1x09_P1.27mm	Generic	Pin header 1 × 9, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x09_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x10	PinHeader_1x10_P1.27mm	Generic	Pin header 1 × 10, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x10_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x11	PinHeader_1x11_P1.27mm	Generic	Pin header 1 × 11, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x11_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x12	PinHeader_1x12_P1.27mm	Generic	Pin header 1 × 12, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x12_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x13	PinHeader_1x13_P1.27mm	Generic	Pin header 1 × 13, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x13_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x14	PinHeader_1x14_P1.27mm	Generic	Pin header 1 × 14, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x14_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x15	PinHeader_1x15_P1.27mm	Generic	Pin header 1 × 15, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x15_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x16	PinHeader_1x16_P1.27mm	Generic	Pin header 1 × 16, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x16_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x17	PinHeader_1x17_P1.27mm	Generic	Pin header 1 × 17, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x17_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x18	PinHeader_1x18_P1.27mm	Generic	Pin header 1 × 18, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x18_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x19	PinHeader_1x19_P1.27mm	Generic	Pin header 1 × 19, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x19_P1.27mm_Vertical
+Through-Hole · Connectors	Connector_Generic	Conn_01x20	PinHeader_1x20_P1.27mm	Generic	Pin header 1 × 20, 1.27 mm pitch, vertical, through-hole	J	Connector_PinHeader_1.27mm:PinHeader_1x20_P1.27mm_Vertical
+Through-Hole · Connectors	Connector	Barrel_Jack	PJ-102AH	CUI Devices	DC barrel jack 2.1 mm centre pin, 5.5 mm sleeve, horizontal, through-hole	J	Connector_BarrelJack:BarrelJack_Horizontal
+Through-Hole · Connectors	Connector	USB_B	USB-B1HSxx	On Shore Technology	USB 2.0 type-B receptacle, right-angle, through-hole	J	Connector_USB:USB_B_OST_USB-B1HSxx_Horizontal
+Through-Hole · Connectors	Connector	RJ45	54602-908LF	Amphenol	RJ45 8P8C modular jack, unshielded, right-angle, through-hole	J	Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal
+Through-Hole · Connectors	Connector_Audio	AudioJack3	SJ1-3533NG	CUI Devices	3.5 mm stereo audio jack (TRS), right-angle, through-hole	J	Connector_Audio:Jack_3.5mm_CUI_SJ1-3533NG_Horizontal
+Through-Hole · Switches	Switch	SW_DIP_x01	SW_DIP_SPSTx01_Slide	Generic	DIP switch, 1 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx01_Slide_9.78x4.72mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x02	SW_DIP_SPSTx02_Slide	Generic	DIP switch, 2 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx02_Slide_9.78x7.26mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x03	SW_DIP_SPSTx03_Slide	Generic	DIP switch, 3 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx03_Slide_9.78x9.8mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x04	SW_DIP_SPSTx04_Slide	Generic	DIP switch, 4 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx04_Slide_9.78x12.34mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x05	SW_DIP_SPSTx05_Slide	Generic	DIP switch, 5 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx05_Slide_9.78x14.88mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x06	SW_DIP_SPSTx06_Slide	Generic	DIP switch, 6 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx06_Slide_9.78x17.42mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x07	SW_DIP_SPSTx07_Slide	Generic	DIP switch, 7 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx07_Slide_9.78x19.96mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x08	SW_DIP_SPSTx08_Slide	Generic	DIP switch, 8 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx08_Slide_9.78x22.5mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x09	SW_DIP_SPSTx09_Slide	Generic	DIP switch, 9 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx09_Slide_9.78x25.04mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x10	SW_DIP_SPSTx10_Slide	Generic	DIP switch, 10 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx10_Slide_9.78x27.58mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x11	SW_DIP_SPSTx11_Slide	Generic	DIP switch, 11 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx11_Slide_9.78x30.12mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_DIP_x12	SW_DIP_SPSTx12_Slide	Generic	DIP switch, 12 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole	SW	Button_Switch_THT:SW_DIP_SPSTx12_Slide_9.78x32.66mm_W7.62mm_P2.54mm
+Through-Hole · Switches	Switch	SW_Push	SW_PUSH_6mm	Generic	Tactile push button 6 × 6 mm, 4 pins, 4.3 mm actuator, through-hole	SW	Button_Switch_THT:SW_PUSH_6mm
+Through-Hole · Switches	Switch	SW_Push	SW_PUSH_6mm_H9.5mm	Generic	Tactile push button 6 × 6 mm, 4 pins, 9.5 mm actuator, through-hole	SW	Button_Switch_THT:SW_PUSH_6mm_H9.5mm
+Through-Hole · Switches	Switch	SW_Push	SW_PUSH_6mm_H13mm	Generic	Tactile push button 6 × 6 mm, 4 pins, 13 mm actuator, through-hole	SW	Button_Switch_THT:SW_PUSH_6mm_H13mm
+Through-Hole · Switches	Switch	SW_SPDT	OS102011MS2Q	C&K	Slide switch SPDT, 2.54 mm, straight, through-hole	SW	Button_Switch_THT:SW_Slide_SPDT_Straight_CK_OS102011MS2Q
+Through-Hole · Switches	Switch	SW_SPDT	OS102011MA1Q	C&K	Slide switch SPDT, 2.54 mm, right-angle, through-hole	SW	Button_Switch_THT:SW_Slide_SPDT_Angled_CK_OS102011MA1Q
+Through-Hole · Passives	Device	R_Potentiometer	3296W	Bourns	Trimmer potentiometer 3/8 in. square, 25 turn, top adjust, through-hole	RV	Potentiometer_THT:Potentiometer_Bourns_3296W_Vertical
+Through-Hole · Passives	Device	R_Potentiometer	3386P	Bourns	Trimmer potentiometer 3/8 in. square, single turn, top adjust, through-hole	RV	Potentiometer_THT:Potentiometer_Bourns_3386P_Vertical
+Through-Hole · Passives	Device	R_Potentiometer	RK09K1110	Alps Alpine	Rotary potentiometer 9 mm, single gang, vertical, through-hole	RV	Potentiometer_THT:Potentiometer_Alps_RK09K_Single_Vertical
+Through-Hole · Passives	Device	R_Potentiometer	RK0971221	Alps Alpine	Rotary potentiometer 9 mm, single gang, right-angle, through-hole	RV	Potentiometer_THT:Potentiometer_Alps_RK097_Single_Horizontal
+Through-Hole · Passives	Device	R_Potentiometer	PTV09A-4020F	Bourns	Rotary potentiometer 9 mm, single gang, vertical, through-hole	RV	Potentiometer_THT:Potentiometer_Bourns_PTV09A-1_Single_Vertical
+Through-Hole · Passives	Device	R_Potentiometer	PT10LV10	Piher (Amphenol)	Trimmer potentiometer 10 mm, single turn, vertical, through-hole	RV	Potentiometer_THT:Potentiometer_Piher_PT-10-V10_Vertical
+Through-Hole · Timing	Device	Crystal	Crystal_HC49-4H	Generic	Quartz crystal, HC-49/4H (HC-49/S) low profile can, 4.88 mm lead spacing, through-hole	Y	Crystal:Crystal_HC49-4H_Vertical
+Through-Hole · Timing	Device	Crystal	Crystal_HC49-U	Generic	Quartz crystal, HC-49/U can, 4.88 mm lead spacing, through-hole	Y	Crystal:Crystal_HC49-U_Vertical
+Through-Hole · Timing	Device	Crystal	Crystal_C26-LF	Generic	32.768 kHz tuning-fork crystal, 2 × 6 mm cylinder, vertical, through-hole	Y	Crystal:Crystal_C26-LF_D2.1mm_L6.5mm_Vertical
+Through-Hole · Timing	Device	Crystal	Crystal_C38-LF	Generic	32.768 kHz tuning-fork crystal, 3 × 8 mm cylinder, vertical, through-hole	Y	Crystal:Crystal_C38-LF_D3.0mm_L8.0mm_Vertical
+Through-Hole · Passives	Device	Buzzer	Buzzer_12x9.5RM7.6	Generic	Piezo / magnetic buzzer 12x9.5RM7.6, through-hole	BZ	Buzzer_Beeper:Buzzer_12x9.5RM7.6
+Through-Hole · Passives	Device	Buzzer	Buzzer_TDK_PS1240P02BT_D12.2mm_H6.5mm	Generic	Piezo / magnetic buzzer TDK PS1240P02BT D12.2mm H6.5mm, through-hole	BZ	Buzzer_Beeper:Buzzer_TDK_PS1240P02BT_D12.2mm_H6.5mm
+Through-Hole · Passives	Device	Fuse	0031.8201	Schurter	Fuse holder for 5 × 20 mm cartridge fuses, open clip, horizontal, through-hole	F	Fuse:Fuseholder_Cylinder-5x20mm_Schurter_0031_8201_Horizontal_Open
+Through-Hole · Passives	Device	Fuse	372 (TR5)	Littelfuse	Radial TR5 fuse, 8.5 mm body, through-hole	F	Fuse:Fuse_Littelfuse_372_D8.50mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.4mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.4mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.5mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.5mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.6mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.6mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.7mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.7mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.8mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.8mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W3.9mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W3.9mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4.2mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4.2mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4.3mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4.3mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4.5mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4.5mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4.8mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4.8mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4.9mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4.9mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W4mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W4mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W5.1mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W5.1mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W5.4mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W5.4mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W5.5mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W5.5mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D7mm_W5.7mm_P5mm	Generic	Metal-oxide varistor, 7 mm disc, through-hole	RV	Varistor:RV_Disc_D7mm_W5.7mm_P5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W3.9mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W3.9mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.2mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.2mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.3mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.3mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.4mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.4mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.5mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.5mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.6mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.6mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.7mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.7mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4.8mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4.8mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W4mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W4mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W5.1mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W5.1mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W5.4mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W5.4mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W5.8mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W5.8mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W5mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W5mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W6.1mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W6.1mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W6.2mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W6.2mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W6.3mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W6.3mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W6.7mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W6.7mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W7.1mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W7.1mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W7.5mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W7.5mm_P7.5mm
+Through-Hole · Passives	Device	Varistor	RV_Disc_D12mm_W7.9mm_P7.5mm	Generic	Metal-oxide varistor, 12 mm disc, through-hole	RV	Varistor:RV_Disc_D12mm_W7.9mm_P7.5mm
+Through-Hole · Diodes	Diode	1N4001	1N4001	Vishay	50V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4002	1N4002	Vishay	100V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4003	1N4003	Vishay	200V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4004	1N4004	Vishay	400V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4005	1N4005	Vishay	600V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4006	1N4006	Vishay	800V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4007	1N4007	Vishay	1000V 1A General Purpose Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N4148	1N4148	Nexperia	100V 0.15A standard switching diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N4149	1N4149	Generic	75V Vrm 0.5A Ifsm standard switching diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N4151	1N4151	Generic	75V 0.5A standard switching diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N4448	1N4448	Nexperia	100V 0.15A High-speed standard diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N4933	1N4933	Vishay	Fast Switching Plastic Rectifier, VRRM 50V, IF(AV) 1.0A, trr 200ns, DO-41	D	
+Through-Hole · Diodes	Diode	1N4934	1N4934	Vishay	Fast Switching Plastic Rectifier, VRRM 100V, IF(AV) 1.0A, trr 200ns, DO-41	D	
+Through-Hole · Diodes	Diode	1N4935	1N4935	Vishay	Fast Switching Plastic Rectifier, VRRM 200V, IF(AV) 1.0A, trr 200ns, DO-41	D	
+Through-Hole · Diodes	Diode	1N4936	1N4936	Vishay	Fast Switching Plastic Rectifier, VRRM 400V, IF(AV) 1.0A, trr 200ns, DO-41	D	
+Through-Hole · Diodes	Diode	1N4937	1N4937	Vishay	Fast Switching Plastic Rectifier, VRRM 600V, IF(AV) 1.0A, trr 200ns, DO-41	D	
+Through-Hole · Diodes	Diode	1N5400	1N5400	Vishay	50V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5401	1N5401	Vishay	100V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5402	1N5402	Vishay	200V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5403	1N5403	Vishay	300V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5404	1N5404	Vishay	400V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5405	1N5405	Vishay	500V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5406	1N5406	Vishay	600V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5407	1N5407	Vishay	800V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5408	1N5408	Vishay	1000V 3A General Purpose Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5711	1N5711	Generic	70V 33mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N5712	1N5712	Generic	20V 75mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N5817	1N5817	Vishay	20V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N5818	1N5818	Vishay	30V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	1N5820	1N5820	Vishay	20V 3A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5821	1N5821	Vishay	30V 3A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5822	1N5822	Vishay	40V 3A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	1N5908	1N5908	STMicroelectronics	1500W (10/1000 μs) Unidirectional TVS Diode, VRM = 5V (IRM = 300 μA at 25°C), VBR = 6V, DO-201AE	D	
+Through-Hole · Diodes	Diode	1N6263	1N6263	STMicroelectronics	60V 15mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N6857	1N6857	Generic	20V 150mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N6858	1N6858	Generic	70V 75mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	1N914	1N914	Vishay	100V 0.3A Small Signal Fast Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BA157	BA157	Vishay	400V 1A Fast recovery Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	BA158	BA158	Vishay	600V 1A Fast recovery Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	BA159	BA159	Vishay	1000V 1A Fast recovery Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	BA243	BA243	Generic	20V 0.1A silicon planar diode for VHF tuner band selection, DO-35	D	
+Through-Hole · Diodes	Diode	BA244	BA244	Generic	20V 0.1A silicon planar diode for VHF tuner band selection, DO-35	D	
+Through-Hole · Diodes	Diode	BA282	BA282	Generic	35V 0.1A Band Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BA283	BA283	Generic	35V 0.1A Band Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT41	BAT41	Vishay	100V 0.1A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT42	BAT42	Vishay	30V 0.2A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT43	BAT43	Vishay	30V 0.2A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT46	BAT46	Vishay	100V 0.15A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT48RL	BAT48RL	STMicroelectronics	40V 0.35A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT85	BAT85	Nexperia	30V 0.2A Schottky barrier single diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT86	BAT86	Nexperia	50V 0.2A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAT86S	BAT86S	Vishay	50V 0.2A Small Signal Schottky Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAV17	BAV17	Vishay	20V 0.25A Small Signal Switching Diode, High Voltage, DO-35	D	
+Through-Hole · Diodes	Diode	BAV18	BAV18	Vishay	50V 0.25A Small Signal Switching Diode, High Voltage, DO-35	D	
+Through-Hole · Diodes	Diode	BAV19	BAV19	Vishay	100V 0.25A Small Signal Switching Diode, High Voltage, DO-35	D	
+Through-Hole · Diodes	Diode	BAV20	BAV20	Vishay	150V 0.25A Small Signal Switching Diode, High Voltage, DO-35	D	
+Through-Hole · Diodes	Diode	BAV21	BAV21	Vishay	200V 0.25A Small Signal Switching Diode, High Voltage, DO-35	D	
+Through-Hole · Diodes	Diode	BAW75	BAW75	Vishay	25V 0.45A Small Signal Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAW76	BAW76	Vishay	50V 0.3A Small Signal Fast Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BAY93	BAY93	Generic	20V 0.115A Very Fast Switching Diode, DO-35	D	
+Through-Hole · Diodes	Diode	BYV79-100	BYV79-100	Generic	100V 14A Ultrafast Rectifier Diode, TO-220	D	
+Through-Hole · Diodes	Diode	BYV79-150	BYV79-150	Generic	150V 14A Ultrafast Rectifier Diode, TO-220	D	
+Through-Hole · Diodes	Diode	BYV79-200	BYV79-200	Generic	200V 14A Ultrafast Rectifier Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D02060A	C3D02060A	Generic	600V, 2A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D02060F	C3D02060F	Generic	600V, 2A, SiC Schottky Diode, TO-220F	D	
+Through-Hole · Diodes	Diode	C3D03060A	C3D03060A	Generic	600V, 3A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D03060F	C3D03060F	Generic	600V, 3A, SiC Schottky Diode, TO-220F	D	
+Through-Hole · Diodes	Diode	C3D04060A	C3D04060A	Generic	600V, 4A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D04060F	C3D04060F	Generic	600V, 4A, SiC Schottky Diode, TO-220F	D	
+Through-Hole · Diodes	Diode	C3D04065A	C3D04065A	Generic	650V, 4A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D06060A	C3D06060A	Generic	600V, 6A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D06060F	C3D06060F	Generic	600V, 6A, SiC Schottky Diode, TO-220F	D	
+Through-Hole · Diodes	Diode	C3D06065A	C3D06065A	Generic	650V, 6A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D06065I	C3D06065I	Generic	650V, 6A, SiC Schottky Diode, Isolated TO-220	D	
+Through-Hole · Diodes	Diode	C3D08060A	C3D08060A	Generic	600V, 8A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D08065A	C3D08065A	Generic	650V, 8A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D08065I	C3D08065I	Generic	650V, 8A, SiC Schottky Diode, Isolated TO-220	D	
+Through-Hole · Diodes	Diode	C3D10060A	C3D10060A	Generic	600V, 10A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D10065A	C3D10065A	Generic	650V, 10A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D10065I	C3D10065I	Generic	650V, 10A, SiC Schottky Diode, Isolated TO-220	D	
+Through-Hole · Diodes	Diode	C3D10170H	C3D10170H	Generic	1700V, 10A, SiC Schottky Diode, TO-247	D	
+Through-Hole · Diodes	Diode	C3D12065A	C3D12065A	Generic	650V, 12A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D16060D	C3D16060D	Generic	600V, 16A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C3D16065A	C3D16065A	Generic	650V, 16A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C3D16065D	C3D16065D	Generic	650V, 16A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C3D20060D	C3D20060D	Generic	600V, 20A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C3D20065D	C3D20065D	Generic	650V, 20A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C3D25170H	C3D25170H	Generic	1700V, 25A, SiC Schottky Diode, TO-247	D	
+Through-Hole · Diodes	Diode	C3D30065D	C3D30065D	Generic	650V, 30A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C4D02120A	C4D02120A	Generic	1200V, 2A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D05120A	C4D05120A	Generic	1200V, 5A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D08120A	C4D08120A	Generic	1200V, 8A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D10120A	C4D10120A	Generic	1200V, 10A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D10120D	C4D10120D	Generic	1200V, 10A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C4D10120H	C4D10120H	Generic	1200V, 10A, SiC Schottky Diode, TO-247	D	
+Through-Hole · Diodes	Diode	C4D15120A	C4D15120A	Generic	1200V, 15A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D15120D	C4D15120D	Generic	1200V, 15A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C4D15120H	C4D15120H	Generic	1200V, 15A, SiC Schottky Diode, TO-247	D	
+Through-Hole · Diodes	Diode	C4D20120A	C4D20120A	Generic	1200V, 20A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	C4D20120D	C4D20120D	Generic	1200V, 20A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C4D20120H	C4D20120H	Generic	1200V, 20A, SiC Schottky Diode, TO-247	D	
+Through-Hole · Diodes	Diode	C4D30120D	C4D30120D	Generic	1200V, 30A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C4D40120D	C4D40120D	Generic	1200V, 40A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	C5D50065D	C5D50065D	Generic	650V, 50A, SiC Schottky Diode, TO-247-3	D	
+Through-Hole · Diodes	Diode	CSD01060A	CSD01060A	Generic	600V, 1A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	CVFD20065A	CVFD20065A	Generic	650V, 20A, SiC Schottky Diode, TO-220	D	
+Through-Hole · Diodes	Diode	DB3	DB3	Generic	32V 2A Bidirectional trigger diode, DO-35	D	
+Through-Hole · Diodes	Diode	DB4	DB4	Generic	34V 2A Bidirectional trigger diode, DO-35	D	
+Through-Hole · Diodes	Diode	DC34	DC34	Generic	40V 2A Bidirectional trigger diode, DO-35	D	
+Through-Hole · Diodes	Diode	DSB2810	DSB2810	Generic	20V 75mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	DSB5712	DSB5712	Generic	20V 75mA Schottky diode, DO-35	D	
+Through-Hole · Diodes	Diode	MBR340	MBR340	onsemi	40V 3A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	MBR735	MBR735	onsemi	35V 7.5A Schottky Barrier Rectifier Diode, TO-220	D	
+Through-Hole · Diodes	Diode	MBR745	MBR745	onsemi	45V 7.5A Schottky Barrier Rectifier Diode, TO-220	D	
+Through-Hole · Diodes	Diode	SB120	SB120	Diodes Inc.	20V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	SB130	SB130	Diodes Inc.	30V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	SB140	SB140	Diodes Inc.	40V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	SB150	SB150	Diodes Inc.	50V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	SB160	SB160	Diodes Inc.	60V 1A Schottky Barrier Rectifier Diode, DO-41	D	
+Through-Hole · Diodes	Diode	SB5H100	SB5H100	Vishay	100V 5A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	SB5H90	SB5H90	Vishay	90V 5A Schottky Barrier Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	STBR3008WY	STBR3008WY	STMicroelectronics	800V, 30A, General Purpose Rectifier Diode, DO-247	D	
+Through-Hole · Diodes	Diode	STBR3012WY	STBR3012WY	STMicroelectronics	1200V, 30A, General Purpose Rectifier Diode, DO-247	D	
+Through-Hole · Diodes	Diode	STBR6008WY	STBR6008WY	STMicroelectronics	800V, 60A, General Purpose Rectifier Diode, DO-247	D	
+Through-Hole · Diodes	Diode	STBR6012WY	STBR6012WY	STMicroelectronics	1200V, 60A, General Purpose Rectifier Diode, DO-247	D	
+Through-Hole · Diodes	Diode	UF5400	UF5400	Vishay	50V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5401	UF5401	Vishay	100V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5402	UF5402	Vishay	200V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5403	UF5403	Vishay	300V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5404	UF5404	Vishay	400V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5405	UF5405	Vishay	500V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5406	UF5406	Vishay	600V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5407	UF5407	Vishay	800V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode	UF5408	UF5408	Vishay	1000V 3A Soft Recovery Ultrafast Rectifier Diode, DO-201AD	D	
+Through-Hole · Diodes	Diode_Bridge	B125C1500G	B125C1500G	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 125V Vrms, 1.5A If, WOG package	D	
+Through-Hole · Diodes	Diode_Bridge	B125C2300-1500A	B125C2300-1500A	Generic	Silicon Bridge Rectifier, 125V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B125C2300-1500B	B125C2300-1500B	Generic	Silicon Bridge Rectifier, 125V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B125C800DM	B125C800DM	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 125V Vrms, 0.8A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	B125R	B125R	Generic	Single-Phase Bridge Rectifier, 125V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	B250C1500G	B250C1500G	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 250V Vrms, 1.5A If, WOG package	D	
+Through-Hole · Diodes	Diode_Bridge	B250C2300-1500A	B250C2300-1500A	Generic	Silicon Bridge Rectifier, 250V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B250C2300-1500B	B250C2300-1500B	Generic	Silicon Bridge Rectifier, 250V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B250C800DM	B250C800DM	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 250V Vrms, 0.8A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	B250R	B250R	Generic	Single-Phase Bridge Rectifier, 250V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	B380C1500G	B380C1500G	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 380V Vrms, 1.5A If, WOG package	D	
+Through-Hole · Diodes	Diode_Bridge	B380C2300-1500A	B380C2300-1500A	Generic	Silicon Bridge Rectifier, 380V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B380C2300-1500B	B380C2300-1500B	Generic	Silicon Bridge Rectifier, 380V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B380C800DM	B380C800DM	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 380V Vrms, 0.8A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	B380R	B380R	Generic	Single-Phase Bridge Rectifier, 380V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	B40C1500G	B40C1500G	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 40V Vrms, 1.5A If, WOG package	D	
+Through-Hole · Diodes	Diode_Bridge	B40C2300-1500A	B40C2300-1500A	Generic	Silicon Bridge Rectifier, 40V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B40C2300-1500B	B40C2300-1500B	Generic	Silicon Bridge Rectifier, 40V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B40C800DM	B40C800DM	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 40V Vrms, 0.8A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	B40R	B40R	Generic	Single-Phase Bridge Rectifier, 40V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	B500C2300-1500A	B500C2300-1500A	Generic	Silicon Bridge Rectifier, 500V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B500R	B500R	Generic	Single-Phase Bridge Rectifier, 500V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	B700C2300-1500B	B700C2300-1500B	Generic	Silicon Bridge Rectifier, 500V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B80C1500G	B80C1500G	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 80V Vrms, 1.5A If, WOG package	D	
+Through-Hole · Diodes	Diode_Bridge	B80C2300-1500A	B80C2300-1500A	Generic	Silicon Bridge Rectifier, 80V Vrms, 1.5A If, pins=-AA+, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B80C2300-1500B	B80C2300-1500B	Generic	Silicon Bridge Rectifier, 80V Vrms, 1.5A If, pins=-A+A, SIL-package	D	
+Through-Hole · Diodes	Diode_Bridge	B80C800DM	B80C800DM	Vishay	Glass Passivated Single-Phase Bridge Rectifier, 80V Vrms, 0.8A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	B80R	B80R	Generic	Single-Phase Bridge Rectifier, 80V Vrms, 1.6A If, WOG-like package	D	
+Through-Hole · Diodes	Diode_Bridge	DF005M	DF005M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 35V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF01M	DF01M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 70V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF02M	DF02M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 140V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF04M	DF04M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 280V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF06M	DF06M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 420V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF08M	DF08M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 560V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DF10M	DF10M	Vishay	Miniature Glass Passivated Single-Phase Bridge Rectifiers, 700V Vrms, 1.0A If, DIP-4	D	
+Through-Hole · Diodes	Diode_Bridge	DMA40U1800GU	DMA40U1800GU	Generic	575V Vrms, 40A If, GUFP(X025B)	D	
+Through-Hole · Diodes	Diode_Bridge	DNA40U2200GU	DNA40U2200GU	Generic	690V Vrms, 40A If, GUFP(X025B)	D	
+Through-Hole · Diodes	Diode_Bridge	GBU4A	GBU4A	Vishay	Single-Phase Bridge Rectifier, 35V Vrms, 4.0A If, GBU package	D	
+Through-Hole · Diodes	Diode_Bridge	GBU4B	GBU4B	Vishay	Single-Phase Bridge Rectifier, 70V Vrms, 4.0A If, GBU package	D	
+Through-Hole · Diodes	Diode_Bridge	GBU4D	GBU4D	Vishay	Single-Phase Bridge Rectifier, 140V Vrms, 4.0A If, GBU package	D	
+Through-Hole · Transistors	Transistor_BJT	2N2219	2N2219	onsemi	800mA Ic, 50V Vce, NPN Transistor, TO-39	Q	
+Through-Hole · Transistors	Transistor_BJT	2N2646	2N2646	Generic	Unijunction Transistor, TO-18	Q	
+Through-Hole · Transistors	Transistor_BJT	2N2647	2N2647	Generic	Unijunction Transistor, TO-18	Q	
+Through-Hole · Transistors	Transistor_BJT	2N3055	2N3055	onsemi	15A Ic, 60V Vce, Power NPN Transistor, TO-3	Q	
+Through-Hole · Transistors	Transistor_BJT	2N3904	2N3904	onsemi	0.2A Ic, 40V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2N3905	2N3905	Generic	-0.2A Ic, -40V Vce, Small Signal PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2N3906	2N3906	onsemi	-0.2A Ic, -40V Vce, Small Signal PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2SA1015	2SA1015	Toshiba	-0.15A Ic, -50V Vce, Low Noise Audio PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2SB631	2SB631	Generic	-1A Ic, -100V Vce, High Voltage Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	2SB817	2SB817	Generic	-12A Ic, -140V Vce, Silicon Power PNP Transistors, TO-3PB	Q	
+Through-Hole · Transistors	Transistor_BJT	2SC1815	2SC1815	Toshiba	0.15A Ic, 50V Vce, Low Noise Audio NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2SC1941	2SC1941	Generic	50mA Ic, 160V Vce, Audio High Voltage NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	2SC1945	2SC1945	Generic	6A Ic, 80V Vce, Silicon 27MHz RF Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	2SD1047	2SD1047	STMicroelectronics	12A Ic, 140V Vce, Silicon Power NPN Transistors, TO-3PB	Q	
+Through-Hole · Transistors	Transistor_BJT	2SD600	2SD600	Generic	1A Ic, 100V Vce, High Voltage Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BC107	BC107	Generic	0.1A Ic, 50V Vce, Low Noise General Purpose NPN Transistor, TO-18	Q	
+Through-Hole · Transistors	Transistor_BJT	BC108	BC108	Generic	0.1A Ic, 30V Vce, Low Noise General Purpose NPN Transistor, TO-18	Q	
+Through-Hole · Transistors	Transistor_BJT	BC109	BC109	Generic	0.2A Ic, 25V Vce, Low Noise General Purpose NPN Transistor, TO-18	Q	
+Through-Hole · Transistors	Transistor_BJT	BC140	BC140	Generic	1A Ic, 40V Vce, NPN Transistor, TO-39	Q	
+Through-Hole · Transistors	Transistor_BJT	BC141	BC141	Generic	1A Ic, 60V Vce, NPN Transistor, TO-39	Q	
+Through-Hole · Transistors	Transistor_BJT	BC160	BC160	Generic	1A Ic, 40V Vce, Power PNP Transistor, TO-39	Q	
+Through-Hole · Transistors	Transistor_BJT	BC161	BC161	Generic	1A Ic, 60V Vce, Power PNP Transistor, TO-39	Q	
+Through-Hole · Transistors	Transistor_BJT	BC212	BC212	Generic	0.3A Ic, 50V Vce, PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC237	BC237	onsemi	100mA Ic, 50V Vce, Epitaxial Silicon NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC240	BC240	onsemi	50mA Ic, 40V Vce, RF Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC307	BC307	onsemi	100mA Ic, 45V Vce, Epitaxial Silicon PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC327	BC327	onsemi	0.8A Ic, 45V Vce, PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC328	BC328	Generic	0.8A Ic, 25V Vce, PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC337	BC337	Generic	0.8A Ic, 45V Vce, NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC338	BC338	Generic	0.8A Ic, 25V Vce, NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC413	BC413	Generic	0.1A Ic, 30V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC413B	BC413B	Generic	0.1A Ic, 30V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC413C	BC413C	Generic	0.1A Ic, 30V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC414	BC414	Generic	0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC414B	BC414B	Generic	0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC414C	BC414C	Generic	0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC516	BC516	onsemi	1A Ic, 30V Vce, Darlington PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC517	BC517	onsemi	1A Ic, 30V Vce, Darlington NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC546	BC546	onsemi	0.1A Ic, 65V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC547	BC547	onsemi	0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC548	BC548	onsemi	0.1A Ic, 30V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC549	BC549	onsemi	0.1A Ic, 30V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC550	BC550	onsemi	0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC556	BC556	onsemi	0.1A Ic, 65V Vce, PNP Small Signal Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC557	BC557	onsemi	0.1A Ic, 45V Vce, PNP Small Signal Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC558	BC558	onsemi	0.1A Ic, 30V Vce, PNP Small Signal Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC559	BC559	onsemi	0.1A Ic, 30V Vce, PNP Small Signal Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC560	BC560	onsemi	0.1A Ic, 45V Vce, PNP Small Signal Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BC636	BC636	onsemi	1A Ic, 45V Vce, PNP Medium Power Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	BD135	BD135	STMicroelectronics	1.5A Ic, 45V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD136	BD136	STMicroelectronics	1.5A Ic, 45V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD137	BD137	STMicroelectronics	1.5A Ic, 60V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD138	BD138	STMicroelectronics	1.5A Ic, 60V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD139	BD139	STMicroelectronics	1.5A Ic, 80V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD140	BD140	STMicroelectronics	1.5A Ic, 80V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD233	BD233	Generic	2A Ic, 45V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD234	BD234	Generic	2A Ic, 45V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD235	BD235	Generic	2A Ic, 60V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD236	BD236	Generic	60V Vce, 2A, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD237	BD237	Generic	2A Ic, 80V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD238	BD238	Generic	2A Ic, 80V Vce, Low Voltage Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD433	BD433	Generic	4A Ic, 22V Vce, Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD434	BD434	Generic	4A Ic, 22V Vce, Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD435	BD435	Generic	4A Ic, 32V Vce, Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD436	BD436	Generic	4A Ic, 32V Vce, Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD437	BD437	Generic	4A Ic, 45V Vce, Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD438	BD438	Generic	4A Ic, 45V Vce, Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD439	BD439	Generic	4A Ic, 60V Vce, Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD440	BD440	Generic	4A Ic, 60V Vce, Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD441	BD441	Generic	4A Ic, 80V Vce, Power NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD442	BD442	Generic	4A Ic, 80V Vce, Power PNP Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BD909	BD909	STMicroelectronics	15A, Silicon Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BD910	BD910	STMicroelectronics	15A, Silicon Power PNP Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BD911	BD911	STMicroelectronics	15A, Silicon Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BD912	BD912	STMicroelectronics	BD910, 15A, Silicon Power PNP Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW93	BDW93	onsemi	12A Ic, 45V Vce, Power Darlington NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW93A	BDW93A	onsemi	12A Ic, 60V Vce, Power Darlington NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW93B	BDW93B	onsemi	12A Ic, 80V Vce, Power Darlington NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW93C	BDW93C	onsemi	12A Ic, 100V Vce, Power Darlington NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW94	BDW94	Generic	12A Ic, 45V Vce, Power Darlington PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW94A	BDW94A	Generic	12A Ic, 60V Vce, Power Darlington PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW94B	BDW94B	Generic	12A Ic, 80V Vce, Power Darlington PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BDW94C	BDW94C	Generic	12A Ic, 100V Vce, Power Darlington PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BF199	BF199	Generic	50mA Ic, 25V Vce, NPN Radio Frequency Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BF457	BF457	Generic	0.1A Ic, 160V Vce, High Voltage NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BF458	BF458	Generic	0.1A Ic, 250V Vce, High Voltage NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BF459	BF459	Generic	0.1A Ic, 300V Vce, High Voltage NPN Transistor, TO-126	Q	
+Through-Hole · Transistors	Transistor_BJT	BUT11	BUT11	onsemi	5A Ic, 400V Vce, Silicon Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	BUT11A	BUT11A	onsemi	5A Ic, 450V Vce, Silicon Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	MAT02	MAT02	Generic	20mA Ic, 40V Vce, Precision Dual Monolithic Low Noise, Low Offset Transistor, TO-78	Q	
+Through-Hole · Transistors	Transistor_BJT	MJ2955	MJ2955	onsemi	-15A Ic, -60V Vce, Power PNP Transistor, TO-3	Q	
+Through-Hole · Transistors	Transistor_BJT	MJE13003	MJE13003	onsemi	1.5A Ic, 400V Vce, Silicon Switching Power NPN Transistor, TO-225	Q	
+Through-Hole · Transistors	Transistor_BJT	MJE13005G	MJE13005G	onsemi	4A Ic, 400V Vce, Silicon Switching Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	MJE13007G	MJE13007G	onsemi	8A Ic, 400V Vce, Silicon Switching Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	MJE13009G	MJE13009G	onsemi	12A Ic, 400V Vce, Silicon Switching Power NPN Transistors, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	MPSA42	MPSA42	onsemi	0.5A Ic, 300V Vce, NPN High Voltage Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	MPSA92	MPSA92	onsemi	0.5A Ic, 300V Vce, PNP High Voltage Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	PN2222A	PN2222A	onsemi	1A Ic, 40V Vce, NPN Transistor, General Purpose Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	S8050	S8050	Generic	0.7A Ic, 20V Vce, Low Voltage High Current NPN Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	S8550	S8550	Generic	0.7A Ic, 20V Vce, Low Voltage High Current PNP Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP121	TIP121	onsemi	5A Ic, 80V Vce, Silicon Darlington Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP122	TIP122	onsemi	5A Ic, 100V Vce, Silicon Darlington Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP125	TIP125	onsemi	5A Ic, 60V Vce, Silicon Darlington Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP126	TIP126	onsemi	5A Ic, 80V Vce, Silicon Darlington Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP127	TIP127	onsemi	5A Ic, 100V Vce, Silicon Darlington Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP2955	TIP2955	onsemi	-15A Ic, -60V Vce, Power PNP Transistor, TO-218	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP2955G	TIP2955G	onsemi	-15A Ic, -60V Vce, Power PNP Transistor, TO-247	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP3055	TIP3055	onsemi	15A Ic, 60V Vce, Power NPN Transistor, TO-218	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP3055G	TIP3055G	onsemi	15A Ic, 60V Vce, Power NPN Transistor, TO-247	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP41	TIP41	Generic	6A Ic, 40V Vce, Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP41A	TIP41A	Generic	6A Ic, 60V Vce, Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP41B	TIP41B	Generic	6A Ic, 80V Vce, Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP41C	TIP41C	Generic	6A Ic, 100V Vce, Power NPN Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP42	TIP42	Generic	-6A Ic, -40V Vce, Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP42A	TIP42A	Generic	-6A Ic, -60V Vce, Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP42B	TIP42B	Generic	-6A Ic, -80V Vce, Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_BJT	TIP42C	TIP42C	Generic	-6A Ic, -100V Vce, Power PNP Transistor, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	2N3819	2N3819	Generic	20mA Id, 25V Vgs, N-Channel JFET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	2N7000	2N7000	Vishay	0.2A Id, 200V Vds, N-Channel MOSFET, 2.6V Logic Level, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF244A	BF244A	Generic	50mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF244B	BF244B	Generic	50mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF244C	BF244C	Generic	10mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF245A	BF245A	onsemi	50mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF245B	BF245B	onsemi	10mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BF245C	BF245C	onsemi	10mA Id, 30V Vgs, N-Channel FET Transistor, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BS107	BS107	onsemi	0.25A Id, 200V Vds, N-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BS108	BS108	Generic	0.25A Id, 200V Vds, N-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BS170	BS170	onsemi	0.5A Id, 60V Vds, N-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BS250	BS250	Vishay	-0.18A Id, -45V Vds, P-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	BUZ11	BUZ11	Generic	30A Id, 50V Vds, N-Channel Power MOSFET, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	BUZ31	BUZ31	Generic	14.5A Id, 200V Vds, SIPMOS Power Transistor, N-Channel MOSFET, 0.2 ohms Rds, normal level (Vgs(th) = 2.1 .. 3.0 .. 4.0V), TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	BUZ31H3046	BUZ31H3046	Infineon	14.5A Id, 200V Vds, SIPMOS Power Transistor, N-Channel MOSFET, 0.2 ohms Rds, normal level (Vgs(th) = 2.1 .. 3.0 .. 4.0V), TO-262	Q	
+Through-Hole · Transistors	Transistor_FET	BUZ31L	BUZ31L	Generic	13.5A Id, 200V Vds, SIPMOS Power Transistor, N-Channel MOSFET, 0.2 ohms Rds, logic level (Vgs(th) = 1.2 .. 1.6 .. 2.0V), TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0025120D	C2M0025120D	Generic	90A Id, 1200V Vds, 25mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0040120D	C2M0040120D	Generic	60A Id, 1200V Vds, 40mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0045170D	C2M0045170D	Generic	72A Id, 1700V Vds, 45mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0080120D	C2M0080120D	Generic	36A Id, 1200V Vds, 80mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0160120D	C2M0160120D	Generic	19A Id, 1200V Vds, 160mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M0280120D	C2M0280120D	Generic	10A Id, 1200V Vds, 280mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C2M1000170D	C2M1000170D	Generic	5A Id, 1700V Vds, 1000mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0030090K	C3M0030090K	Generic	63A Id, 900V Vds, 30mOhm, N-Channel SiC MOSFET, TO-247-4	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0065090D	C3M0065090D	Generic	36A Id, 900V Vds, 65mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0075120K	C3M0075120K	Generic	30A Id, 1200V Vds, 75mOhm, N-Channel SiC MOSFET, TO-247-4	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0120090D	C3M0120090D	Generic	23A Id, 900V Vds, 120mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0120100K	C3M0120100K	Generic	22A Id, 1000V Vds, 120mOhm, N-Channel SiC MOSFET, TO-247-4	Q	
+Through-Hole · Transistors	Transistor_FET	C3M0280090D	C3M0280090D	Generic	11.5A Id, 900V Vds, 280mOhm, N-Channel SiC MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	FQP27P06	FQP27P06	onsemi	-27A Id, -60V Vds, QFET P-Channel MOSFET, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	IF3602	IF3602	Generic	Ultra Low Noise: 0.35 nV/√Hz Typical, Dual Matched N-Channel JFET, TO-78-8	Q	
+Through-Hole · Transistors	Transistor_FET	IPP060N06N	IPP060N06N	Infineon	45A Id, 60V Vds, Single N-Channel Power MOSFET, 6mOhm Ron, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	IRF3205	IRF3205	Infineon	110A Id, 55V Vds, Single N-Channel HEXFET Power MOSFET, 8mOhm Ron, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRF4905	IRF4905	Infineon	-74A Id, -55V Vds, Single P-Channel HEXFET Power MOSFET, 20mOhm Ron, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRF740	IRF740	Vishay	10A Id, 400V Vds, N-Channel Power MOSFET, 500mOhm Rds, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRF840A	IRF840A	Vishay	N-Channel MOSFET, 8A Id, 500V Vds, 850mΩ Rds, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	IRF9540N	IRF9540N	Infineon	-23A Id, -100V Vds, 117mOhm Rds, P-Channel HEXFET Power MOSFET, TO-220	Q	
+Through-Hole · Transistors	Transistor_FET	IRFI4019H	IRFI4019H	Infineon	8.7A Id, 150V Vds, 80mOhm Rds, Dual Half Bridge N-Channel MOSFET, TO-220-5	Q	
+Through-Hole · Transistors	Transistor_FET	IRFI4020H	IRFI4020H	Infineon	9.1A Id, 200V Vds, 80mOhm Rds, Dual Half Bridge N-Channel MOSFET, TO-220-5	Q	
+Through-Hole · Transistors	Transistor_FET	IRFI4212H	IRFI4212H	Infineon	11A Id, 100V Vds, 58mOhm Rds, Dual Half Bridge N-Channel MOSFET, TO-220-5	Q	
+Through-Hole · Transistors	Transistor_FET	IRFP4468PbF	IRFP4468PbF	Infineon	195A Id, 100V Vds, N-Channel Power MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	IRFP4668PbF	IRFP4668PbF	Infineon	130A Id, 200V Vds, N-Channel Power MOSFET, TO-247	Q	
+Through-Hole · Transistors	Transistor_FET	IRLIZ44N	IRLIZ44N	Infineon	30A Id, 55V Vds, 22mOhm Rds, N-Channel HEXFET Power MOSFET, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRLZ24	IRLZ24	Vishay	17A Id, 60V Vds, N-Channel Power MOSFET, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRLZ34N	IRLZ34N	Infineon	30A Id, 55V Vds, 35mOhm Rds, N-Channel HEXFET Power MOSFET, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	IRLZ44N	IRLZ44N	Infineon	47A Id, 55V Vds, 22mOhm Rds Single N-Channel HEXFET Power MOSFET, TO-220AB	Q	
+Through-Hole · Transistors	Transistor_FET	TP0610L	TP0610L	Vishay	-0.18A Id, -60V Vds, P-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_FET	VP0610L	VP0610L	Vishay	-0.18A Id, -60V Vds, P-Channel MOSFET, TO-92	Q	
+Through-Hole · Transistors	Transistor_Array	MC1413BP	MC1413BP	onsemi	High Voltage, High Current Darlington Transistor Arrays, TTL/CMOS-compatible, PDIP-16	U	
+Through-Hole · Transistors	Transistor_Array	MC1413P	MC1413P	onsemi	High Voltage, High Current Darlington Transistor Arrays, PDIP-16	U	
+Through-Hole · Transistors	Transistor_Array	TBD62785APG	TBD62785APG	Toshiba	8-Channel Source Type Transistor Array, TTL and CMOS compatible, 500mA, 50V, DIP-18-18W	U	
+Through-Hole · Transistors	Triac_Thyristor	BT136-500	BT136-500	Generic	4A RMS, 500V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT136-600	BT136-600	Generic	4A RMS, 500V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT136-800	BT136-800	Generic	4A RMS, 800V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT138-600	BT138-600	Nexperia	12A RMS, 600V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT138-800	BT138-800	Nexperia	12A RMS, 800V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT139-600	BT139-600	Generic	16A RMS, 600V Off-State Voltage, 4Q Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT169B	BT169B	Generic	0.5A Ion, 200V Voff, Thyristors logic level, Silicon Controlled Rectifier (Thyristor), TO-92	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT169D	BT169D	Generic	0.5A Ion, 400V Voff, Thyristors logic level, Silicon Controlled Rectifier (Thyristor), TO-92	Q	
+Through-Hole · Transistors	Triac_Thyristor	BT169G	BT169G	Generic	0.5A Ion, 600V Voff, Thyristors logic level, Silicon Controlled Rectifier (Thyristor), TO-92	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-600B	BTA16-600B	STMicroelectronics	16A RMS, 600V Off-State Voltage, 50mA Sensitivity, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-600BW	BTA16-600BW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 50mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-600C	BTA16-600C	STMicroelectronics	16A RMS, 600V Off-State Voltage, 35mA Sensitivity, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-600CW	BTA16-600CW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 35mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-600SW	BTA16-600SW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 10mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-800B	BTA16-800B	STMicroelectronics	16A RMS, 800V Off-State Voltage, 50mA Sensitivity, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-800BW	BTA16-800BW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 50mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-800C	BTA16-800C	STMicroelectronics	16A RMS, 800V Off-State Voltage, 35mA Sensitivity, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-800CW	BTA16-800CW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 35mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTA16-800SW	BTA16-800SW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 10mA Sensitivity, Snubberless, Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-600B	BTB16-600B	STMicroelectronics	16A RMS, 600V Off-State Voltage, 50mA Sensitivity, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-600BW	BTB16-600BW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 50mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-600C	BTB16-600C	STMicroelectronics	16A RMS, 600V Off-State Voltage, 35mA Sensitivity, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-600CW	BTB16-600CW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 35mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-600SW	BTB16-600SW	STMicroelectronics	16A RMS, 600V Off-State Voltage, 10mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-800B	BTB16-800B	STMicroelectronics	16A RMS, 800V Off-State Voltage, 50mA Sensitivity, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-800BW	BTB16-800BW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 50mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-800C	BTB16-800C	STMicroelectronics	16A RMS, 800V Off-State Voltage, 35mA Sensitivity, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-800CW	BTB16-800CW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 35mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	BTB16-800SW	BTB16-800SW	STMicroelectronics	16A RMS, 800V Off-State Voltage, 10mA Sensitivity, Snubberless, Non-Insulated, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC106	TIC106	Generic	5A Ion, 400-800V Voff, Silicon Controlled Rectifier (Thyristor), TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC116	TIC116	Generic	8A Ion, 400-800V Voff, Silicon Controlled Rectifier (Thyristor), TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC126	TIC126	Generic	12A Ion, 400-800V Voff, Silicon Controlled Rectifier (Thyristor), TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC206	TIC206	Generic	4A RMS, 400-700V Off-State Voltage, Sensitive Gate Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC216	TIC216	Generic	6A RMS, 400-800V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Transistors	Triac_Thyristor	TIC226	TIC226	Generic	8A RMS, 400-800V Off-State Voltage, Triac, TO-220	Q	
+Through-Hole · Regulators	Regulator_Linear	AP7384-28V	AP7384-28V	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 2.8V, Wide Input Voltage Range 40V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	AP7384-33V	AP7384-33V	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 3.3V, Wide Input Voltage Range 40V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	AP7384-50V	AP7384-50V	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 5V, Wide Input Voltage Range 40V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	AP7384-70V	AP7384-70V	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 7V, Wide Input Voltage Range 40V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	KA378R05	KA378R05	onsemi	Positive 3A 35V Linear Regulator with Disable Pin, LDO, Fixed Output 5V, TO-220F-4L	U	
+Through-Hole · Regulators	Regulator_Linear	KA378R12C	KA378R12C	onsemi	Positive 3A 35V Linear Regulator with Disable Pin, LDO, Fixed Output 12V, TO-220F-4L	U	
+Through-Hole · Regulators	Regulator_Linear	KA378R33	KA378R33	onsemi	Positive 3A 35V Linear Regulator with Disable Pin, LDO, Fixed Output 3.3V, TO-220F-4L	U	
+Through-Hole · Regulators	Regulator_Linear	L200	L200	Generic	Adjustable voltage and current regulator, 2A, 36V	U	
+Through-Hole · Regulators	Regulator_Linear	L78L05_TO92	L78L05_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L06_TO92	L78L06_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 6V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L08_TO92	L78L08_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 8V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L09_TO92	L78L09_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 9V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L10_TO92	L78L10_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 10V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L12_TO92	L78L12_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 12V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L15_TO92	L78L15_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 15V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L18_TO92	L78L18_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 18V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L24_TO92	L78L24_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 24V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L78L33_TO92	L78L33_TO92	STMicroelectronics	Positive 100mA 30V Linear Regulator, Fixed Output 3.3V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L79L05_TO92	L79L05_TO92	Generic	Negative 100mA -30V Linear Regulator, Fixed Output -5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L79L08_TO92	L79L08_TO92	Generic	Negative 100mA -30V Linear Regulator, Fixed Output -5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L79L12_TO92	L79L12_TO92	Generic	Negative 100mA -30V Linear Regulator, Fixed Output -5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	L79L15_TO92	L79L15_TO92	Generic	Negative 100mA -30V Linear Regulator, Fixed Output -5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LD1086V-DG	LD1086V-DG	STMicroelectronics	Positive, 1.5A 30V, Linear Regulator, Adjustable, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LD1086V18-DG	LD1086V18-DG	STMicroelectronics	Positive, 1.5A 30V, Linear Regulator, Fixed Output 1.8V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LD1086V33-DG	LD1086V33-DG	STMicroelectronics	Positive, 1.5A 30V, Linear Regulator, Fixed Output 3.3V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LD1117V	LD1117V	STMicroelectronics	800 mA Variable Low Drop Positive Voltage Regulator (ldo). Max input 15V. Output from 1.25V to 25V. TO-220-3	U	
+Through-Hole · Regulators	Regulator_Linear	LD1117V18	LD1117V18	STMicroelectronics	800 mA Fixed Low Drop Positive Voltage Regulator (LDO). Max input 15V. Fixed Output 1.8V. TO-220-3	U	
+Through-Hole · Regulators	Regulator_Linear	LD1117V33	LD1117V33	STMicroelectronics	800 mA Fixed Low Drop Positive Voltage Regulator (ldo). Max input 15V. Fixed Output 3.3V. TO-220-3	U	
+Through-Hole · Regulators	Regulator_Linear	LD1117V50	LD1117V50	STMicroelectronics	800 mA Fixed Low Drop Positive Voltage Regulator (ldo). Max input 15V. Fixed Output 5.0V. TO-220-3	U	
+Through-Hole · Regulators	Regulator_Linear	LF120_TO220	LF120_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 12.0V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF15_TO220	LF15_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 1.5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF18_TO220	LF18_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 1.8V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF25_TO220	LF25_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 2.5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF33_TO220	LF33_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 3.3V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF47_TO220	LF47_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 4.7V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF50_TO220	LF50_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 5.0V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF60_TO220	LF60_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 6.0V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF80_TO220	LF80_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 8.0V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF85_TO220	LF85_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 8.5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LF90_TO220	LF90_TO220	STMicroelectronics	Low-drop Voltage Regulator, Io up to 500mA, Fixed Vo 9.0V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM1117T-2.5	LM1117T-2.5	Texas Instruments	800mA Low-Dropout Linear Regulator, 2.5V fixed output, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM1117T-3.3	LM1117T-3.3	Texas Instruments	800mA Low-Dropout Linear Regulator, 3.3V fixed output, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM1117T-5.0	LM1117T-5.0	Texas Instruments	800mA Low-Dropout Linear Regulator, 5.0V fixed output, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM1117T-ADJ	LM1117T-ADJ	Texas Instruments	800mA Low-Dropout Linear Regulator, adjustable output, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM117_TO3	LM117_TO3	Texas Instruments	1,5A 35V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM117_TO39	LM117_TO39	Texas Instruments	500mA 35V Adjustable Linear Regulator, TO-39	U	
+Through-Hole · Regulators	Regulator_Linear	LM137_TO3	LM137_TO3	Texas Instruments	Negative 1.5A 35V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM150_TO3	LM150_TO3	Texas Instruments	3A 33V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM2931-3.3_TO220	LM2931-3.3_TO220	Texas Instruments	Positive 100 mA 60V Linear Low Dropout Regulator, Fixed Output 3.3V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM2931-5.0_TO220	LM2931-5.0_TO220	Texas Instruments	Positive 100 mA 60V Linear Low Dropout Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM2931-ADJ_TO92	LM2931-ADJ_TO92	Texas Instruments	100mA Low drop-out regulator, Adjustable Output, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM2931AZ-5.0_TO92	LM2931AZ-5.0_TO92	Texas Instruments	100mA Low drop-out regulator, Fixed Output 5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM2936-3.0_TO92	LM2936-3.0_TO92	Texas Instruments	50mA Ultra-Low Quiescent Current LDO Voltage Regulator, 3.0V fixed output, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM2936-3.3_TO92	LM2936-3.3_TO92	Texas Instruments	50mA Ultra-Low Quiescent Current LDO Voltage Regulator, 3.3V fixed output, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM2936-5.0_TO92	LM2936-5.0_TO92	Texas Instruments	50mA Ultra-Low Quiescent Current LDO Voltage Regulator, 5.0V fixed output, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM317L_TO92	LM317L_TO92	Texas Instruments	100mA 35V Adjustable Linear Regulator, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM317_TO-220	LM317_TO-220	Texas Instruments	1.5A 35V Adjustable Linear Regulator, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM317_TO3	LM317_TO3	Texas Instruments	1.5A 35V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM317_TO39	LM317_TO39	Texas Instruments	500mA 35V Adjustable Linear Regulator, TO-39	U	
+Through-Hole · Regulators	Regulator_Linear	LM337L_TO92	LM337L_TO92	Texas Instruments	Negative 100mA 35V Adjustable Linear Regulator, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM337_TO220	LM337_TO220	Texas Instruments	Negative 1.5A 35V Adjustable Linear Regulator, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM337_TO3	LM337_TO3	Texas Instruments	Negative 1.5A 35V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM337_TO39	LM337_TO39	Texas Instruments	Negative 500mA 35V Adjustable Linear Regulator, TO-39	U	
+Through-Hole · Regulators	Regulator_Linear	LM341T-05_TO220	LM341T-05_TO220	Texas Instruments	Positive 500mA 35V Linear Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM341T-12_TO220	LM341T-12_TO220	Texas Instruments	Positive 500mA 35V Linear Regulator, Fixed Output 12V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM341T-15_TO220	LM341T-15_TO220	Texas Instruments	Positive 500mA 35V Linear Regulator, Fixed Output 15V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM350_TO220	LM350_TO220	onsemi	3A 33V Adjustable Linear Regulator, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM350_TO3	LM350_TO3	Texas Instruments	3A 33V Adjustable Linear Regulator, TO-3	U	
+Through-Hole · Regulators	Regulator_Linear	LM723_DIP14	LM723_DIP14	Texas Instruments	Linear Regulator (adjustable), DIP-14	U	
+Through-Hole · Regulators	Regulator_Linear	LM723_TO100	LM723_TO100	Texas Instruments	Linear Regulator (adjustable), TO-100	U	
+Through-Hole · Regulators	Regulator_Linear	LM7805_TO220	LM7805_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7806_TO220	LM7806_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 6V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7808_TO220	LM7808_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 8V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7809_TO220	LM7809_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 9V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7810_TO220	LM7810_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 10V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7812_TO220	LM7812_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 12V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7815_TO220	LM7815_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 15V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7818_TO220	LM7818_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 18V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7824_TO220	LM7824_TO220	onsemi	Positive 1A 35V Linear Regulator, Fixed Output 24V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM78L05_TO92	LM78L05_TO92	onsemi	Positive 100mA 30V Linear Regulator, Fixed Output 5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM78L12_TO92	LM78L12_TO92	onsemi	Positive 100mA 30V Linear Regulator, Fixed Output 12V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM78M05_TO220	LM78M05_TO220	onsemi	Positive 500mA 35V Linear Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7905_TO220	LM7905_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7906_TO220	LM7906_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 6V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7908_TO220	LM7908_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 8V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7909_TO220	LM7909_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 9V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7910_TO220	LM7910_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 10V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7912_TO220	LM7912_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 12V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7915_TO220	LM7915_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 15V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7918_TO220	LM7918_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 18V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM7924_TO220	LM7924_TO220	onsemi	Negative 1A 35V Linear Regulator, Fixed Output 24V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM79L05_TO92	LM79L05_TO92	Texas Instruments	3-Terminal Negative Regulator, -5V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM79L12_TO92	LM79L12_TO92	Texas Instruments	3-Terminal Negative Regulator, -12V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM79L15_TO92	LM79L15_TO92	Texas Instruments	3-Terminal Negative Regulator, -15V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LM79M05_TO220	LM79M05_TO220	onsemi	Negative 500mA 35V Linear Regulator, Fixed Output 5V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM79M12_TO220	LM79M12_TO220	onsemi	Negative 500mA 35V Linear Regulator, Fixed Output 12V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LM79M15_TO220	LM79M15_TO220	onsemi	Negative 500mA 35V Linear Regulator, Fixed Output 15V, TO-220	U	
+Through-Hole · Regulators	Regulator_Linear	LP2950-3.0_TO92	LP2950-3.0_TO92	Texas Instruments	Positive 100mA 30V Linear Micropower Voltage Regulator, Fixed Output 3.0V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LP2950-3.3_TO92	LP2950-3.3_TO92	Texas Instruments	Positive 100mA 30V Linear Micropower Voltage Regulator, Fixed Output 3.3V, TO-92	U	
+Through-Hole · Regulators	Regulator_Linear	LP2950-5.0_TO92	LP2950-5.0_TO92	Texas Instruments	Micropower Voltage Regulators with Shutdown, 100mA, Fixed Output 5.0V, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	ADR1399KHZ	ADR1399KHZ	Analog Devices	Oven-Compensated, Buried Zener, 7.05 V Voltage Reference, TO-46-4	U	
+Through-Hole · Regulators	Reference_Voltage	LM285Z-1.2	LM285Z-1.2	onsemi	1.235V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM285Z-2.5	LM285Z-2.5	onsemi	2.5V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM285Z-ADJ	LM285Z-ADJ	Texas Instruments	Adjustable Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM385BZ-1.2	LM385BZ-1.2	onsemi	1.235V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM385BZ-2.5	LM385BZ-2.5	onsemi	2.5V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM385Z-1.2	LM385Z-1.2	onsemi	1.235V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM385Z-2.5	LM385Z-2.5	onsemi	2.5V Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM385Z-ADJ	LM385Z-ADJ	Texas Instruments	Adjustable Micropower Voltage Reference Diodes, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM399	LM399	Analog Devices	Precision Reference, 6.95V, Buried Zener Diode with Thermal Shielding Can, TO-46-4	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-10	LM4040LP-10	Texas Instruments	10.00V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-2.0	LM4040LP-2.0	Texas Instruments	2.048V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-2.5	LM4040LP-2.5	Texas Instruments	2.500V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-3	LM4040LP-3	Texas Instruments	3.000V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-4.1	LM4040LP-4.1	Texas Instruments	4.096V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-5	LM4040LP-5	Texas Instruments	5.000V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4040LP-8.2	LM4040LP-8.2	Texas Instruments	8.192V Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LM4041LP-ADJ	LM4041LP-ADJ	Texas Instruments	Adjustable Precision Micropower Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LT1634CCZ-1.25	LT1634CCZ-1.25	Analog Devices	1.25V Micropower Precision Shunt Voltage Reference, TO-92	U	
+Through-Hole · Regulators	Reference_Voltage	LT1634CCZ-2.5	LT1634CCZ-2.5	Analog Devices	2.5V Micropower Precision Shunt Voltage Reference, TO-92	U	
+Through-Hole · Power Modules	Converter_DCDC	C11204-01	C11204-01	Generic	SiPM supply temperature compendsated, input 5V, output 20V-90V, UART	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-12_1.0-W36-C	OKI-78SR-12_1.0-W36-C	Murata	1.0A Step-Down DC/DC-Regulator, 15-36V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Vertical	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-12_1.0-W36H-C	OKI-78SR-12_1.0-W36H-C	Murata	1.0A Step-Down DC/DC-Regulator, 15-36V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Horizontal	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-3.3_1.5-W36-C	OKI-78SR-3.3_1.5-W36-C	Murata	1.5A Step-Down DC/DC-Regulator, 7-36V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Vertical	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-3.3_1.5-W36H-C	OKI-78SR-3.3_1.5-W36H-C	Murata	1.5A Step-Down DC/DC-Regulator, 7-36V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Horizontal	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-5_1.5-W36-C	OKI-78SR-5_1.5-W36-C	Murata	1.5A Step-Down DC/DC-Regulator, 7-36V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Vertical	PS	
+Through-Hole · Power Modules	Converter_DCDC	OKI-78SR-5_1.5-W36H-C	OKI-78SR-5_1.5-W36H-C	Murata	1.5A Step-Down DC/DC-Regulator, 7-36V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Horizontal	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-781.5-0.5	R-781.5-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 4.75-30V input, 1.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-781.8-0.5	R-781.8-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 4.75-32V input, 1.8V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-781.8-1.0	R-781.8-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 4.75-18V input, 1.8V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-7812-0.5	R-7812-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 15-32V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-7815-0.5	R-7815-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 18-32V input, 15V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-782.5-0.5	R-782.5-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 4.75-18V input, 2.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-782.5-1.0	R-782.5-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 4.75-18V input, 2.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-783.3-0.5	R-783.3-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 4.75-18V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-783.3-1.0	R-783.3-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 4.75-18V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-785.0-0.5	R-785.0-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 6.5-18V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-785.0-1.0	R-785.0-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 6.5-18V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-786.5-0.5	R-786.5-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 8-32V input, 6.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B1.2-2.0	R-78B1.2-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 4.75-32V input, 1.2V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B1.5-2.0	R-78B1.5-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 4.75-32V input, 1.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B1.8-2.0	R-78B1.8-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 4.75-32V input, 1.8V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B12-2.0	R-78B12-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 15-32V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B15-2.0	R-78B15-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 18-32V input, 15V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B2.5-2.0	R-78B2.5-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 4.75-32V input, 2.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B3.3-2.0	R-78B3.3-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 4.75-32V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B5.0-2.0	R-78B5.0-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 6.5-32V input, 5.0V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78B9.0-2.0	R-78B9.0-2.0	Power Integrations	2A Step-Down DC/DC-Regulator, 11-32V input, 9.0V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C1.8-1.0	R-78C1.8-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 5-42V input, 1.8V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C12-1.0	R-78C12-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 15-42V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C15-1.0	R-78C15-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 18-42V input, 15V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C3.3-1.0	R-78C3.3-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 6-42V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C5.0-1.0	R-78C5.0-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 7-42V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78C9.0-1.0	R-78C9.0-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 12-42V input, 9V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E12-0.5	R-78E12-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 15-28V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E15-0.5	R-78E15-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 18-28V input, 15V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E3.3-0.5	R-78E3.3-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 6-28V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E3.3-1.0	R-78E3.3-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 6-28V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E5.0-0.5	R-78E5.0-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 7-28V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E5.0-1.0	R-78E5.0-1.0	Power Integrations	1A Step-Down DC/DC-Regulator, 7-28V input, 5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78E9.0-0.5	R-78E9.0-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 12-28V input, 9V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB12-0.5	R-78HB12-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 17-72V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB15-0.5	R-78HB15-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 20-72V input, 15V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB24-0.3	R-78HB24-0.3	Power Integrations	300mA Step-Down DC/DC-Regulator, 36-72V input, 24V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB3.3-0.5	R-78HB3.3-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 9-72V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB5.0-0.5	R-78HB5.0-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 9-72V input, 5.0V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB6.5-0.5	R-78HB6.5-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 9-72V input, 6.5V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78HB9.0-0.5	R-78HB9.0-0.5	Power Integrations	500mA Step-Down DC/DC-Regulator, 14-72V input, 9.0V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3	PS	
+Through-Hole · Power Modules	Converter_DCDC	R-78S3.3-0.1	R-78S3.3-0.1	Power Integrations	100mA Step-Up DC/DC-Regulator, 0.65-3.15V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP4	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-24120	TSR0.5-24120	Power Integrations	0.5A step-down regulator, fixed 12V output voltage, 15-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2415	TSR0.5-2415	Power Integrations	0.5A step-down regulator, fixed 1.5V output voltage, 4.75-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-24150	TSR0.5-24150	Power Integrations	0.5A step-down regulator, fixed 15V output voltage, 18-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2418	TSR0.5-2418	Power Integrations	0.5A step-down regulator, fixed 1.8V output voltage, 4.75-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2425	TSR0.5-2425	Power Integrations	0.5A step-down regulator, fixed 2.5V output voltage, 4.75-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2433	TSR0.5-2433	Power Integrations	0.5A step-down regulator, fixed 3.3V output voltage, 4.75-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2450	TSR0.5-2450	Power Integrations	0.5A step-down regulator, fixed 5V output voltage, 6.5-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2465	TSR0.5-2465	Power Integrations	0.5A step-down regulator, fixed 6.5V output voltage, 8-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.5-2490	TSR0.5-2490	Power Integrations	0.5A step-down regulator, fixed 9V output voltage, 11-32V input voltage, TO-220 compatible LM78xx replacement, SIP-3	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.6-48120WI	TSR0.6-48120WI	Power Integrations	0.6A step-down regulator, fixed 12V output voltage, 17-72V input voltage, TO-220 compatible LM78xx replacement	PS	
+Through-Hole · Power Modules	Converter_DCDC	TSR0.6-48150WI	TSR0.6-48150WI	Power Integrations	0.6A step-down regulator, fixed 15V output voltage, 20-72V input voltage, TO-220 compatible LM78xx replacement	PS	
+Through-Hole · Power Modules	Converter_ACDC	BAC05S05DC	BAC05S05DC	Murata	5V, 1A, 5W, Isolated, AC-DC	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M03	HLK-10M03	Generic	Compact AC/DC board mount power module 10W 3.3V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M05	HLK-10M05	Generic	Compact AC/DC board mount power module 10W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M09	HLK-10M09	Generic	Compact AC/DC board mount power module 10W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M12	HLK-10M12	Generic	Compact AC/DC board mount power module 10W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M15	HLK-10M15	Generic	Compact AC/DC board mount power module 10W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-10M24	HLK-10M24	Generic	Compact AC/DC board mount power module 10W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M03A	HLK-12M03A	Generic	Compact AC/DC board mount power module 12W 3.3V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M05A	HLK-12M05A	Generic	Compact AC/DC board mount power module 12W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M09A	HLK-12M09A	Generic	Compact AC/DC board mount power module 12W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M12A	HLK-12M12A	Generic	Compact AC/DC board mount power module 12W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M15A	HLK-12M15A	Generic	Compact AC/DC board mount power module 12W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-12M24A	HLK-12M24A	Generic	Compact AC/DC board mount power module 12W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-20M05	HLK-20M05	Generic	Compact AC/DC board mount power module 20W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-20M09	HLK-20M09	Generic	Compact AC/DC board mount power module 20W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-20M12	HLK-20M12	Generic	Compact AC/DC board mount power module 20W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-20M15	HLK-20M15	Generic	Compact AC/DC board mount power module 20W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-20M24	HLK-20M24	Generic	Compact AC/DC board mount power module 20W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M03	HLK-2M03	Generic	Compact AC/DC board mount power module 2W 3.3V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M05	HLK-2M05	Generic	Compact AC/DC board mount power module 2W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M09	HLK-2M09	Generic	Compact AC/DC board mount power module 2W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M12	HLK-2M12	Generic	Compact AC/DC board mount power module 2W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M15	HLK-2M15	Generic	Compact AC/DC board mount power module 2W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-2M24	HLK-2M24	Generic	Compact AC/DC board mount power module 2W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M05	HLK-30M05	Generic	Compact AC/DC board mount power module 30W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M05C	HLK-30M05C	Generic	Compact AC/DC board mount power module 30W 5V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M09	HLK-30M09	Generic	Compact AC/DC board mount power module 30W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M09C	HLK-30M09C	Generic	Compact AC/DC board mount power module 30W 9V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M12	HLK-30M12	Generic	Compact AC/DC board mount power module 30W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M12C	HLK-30M12C	Generic	Compact AC/DC board mount power module 30W 12V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M15	HLK-30M15	Generic	Compact AC/DC board mount power module 30W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M15C	HLK-30M15C	Generic	Compact AC/DC board mount power module 30W 15V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M24	HLK-30M24	Generic	Compact AC/DC board mount power module 30W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-30M24C	HLK-30M24C	Generic	Compact AC/DC board mount power module 30W 24V	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M03	HLK-5M03	Generic	Compact AC/DC board mount power module 5W, 3.3V 1.5A	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M05	HLK-5M05	Generic	Compact AC/DC board mount power module 5W, 5V 1A	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M09	HLK-5M09	Generic	Compact AC/DC board mount power module 5W, 9V 0.560A	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M12	HLK-5M12	Generic	Compact AC/DC board mount power module 5W, 12V 0.420A	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M15	HLK-5M15	Generic	Compact AC/DC board mount power module 5W, 15V 0.333A	PS	
+Through-Hole · Power Modules	Converter_ACDC	HLK-5M24	HLK-5M24	Generic	Compact AC/DC board mount power module 5W, 24V 0.208A	PS	
+Through-Hole · Optocouplers	Isolator	6N135	6N135	Generic	High Speed Optocoupler, TTL Compatible, CTR 18%, DIP8	U	
+Through-Hole · Optocouplers	Isolator	6N136	6N136	Generic	High Speed Optocoupler, TTL Compatible, CTR 24%, DIP8	U	
+Through-Hole · Optocouplers	Isolator	CPC-5002	CPC-5002	Generic	Dual High Speed CMOS Compatible Optocoupler, dV/dt 5000/us, VCM 20, -0.3V to 6.5V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	EL817	EL817	Generic	DC Optocoupler, Vce 35V, DIP-4	U	
+Through-Hole · Optocouplers	Isolator	HCNW2201	HCNW2201	Generic	Opto Coupler, 1kV/us, 50V CMR, Schmitt trigger output, WDIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCNW2211	HCNW2211	Generic	Opto Coupler, 10kV/us, 1kV CMR, Schmitt trigger output, WDIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2201	HCPL-2201	Generic	Opto Coupler, 1kV/us, 50V CMR, Schmitt trigger output, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2202	HCPL-2202	Generic	Opto Coupler, 1kV/us, 50V CMR, Schmitt trigger output, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2211	HCPL-2211	Generic	Opto Coupler, 5kV/us, 300V CMR, Schmitt trigger output, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2212	HCPL-2212	Generic	Opto Coupler, 5kV/us, 300V CMR, Schmitt trigger output, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2601	HCPL-2601	Generic	Single High Speed LSTTL/TTL Compatible Optocoupler with enable, dV/dt 10000V/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2611	HCPL-2611	Generic	Single High Speed LSTTL/TTL Compatible Optocoupler with enable, dV/dt 15000V/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-261A	HCPL-261A	Generic	Single High Speed HCMOS/LSTTL/TTL Compatible Optocoupler with enable, dV/dt 1000/us, VCM 50, -0.5V to 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-261N	HCPL-261N	Generic	Single High Speed HCMOS/LSTTL/TTL Compatible Optocoupler with enable, dV/dt 1000/us, VCM 1000, -0.5V to 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2630	HCPL-2630	Generic	Dual High Speed LSTTL/TTL Compatible Optocoupler, dV/dt 5000/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-2631	HCPL-2631	Generic	Dual High Speed LSTTL/TTL Compatible Optocoupler, dV/dt 10000/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-263A	HCPL-263A	Generic	Dual High Speed HCMOS/LSTTL/TTL Compatible Optocoupler, dV/dt 1000/us, VCM 50, -0.5V to 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-263N	HCPL-263N	Generic	Dual High Speed HCMOS/LSTTL/TTL Compatible Optocoupler, dV/dt 1000/us, VCM 1000, -0.5V to 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-4661	HCPL-4661	Generic	Dual High Speed LSTTL/TTL Compatible Optocoupler, dV/dt 15000/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	HCPL-9000	HCPL-9000	Generic	High Speed Digital Isolator, CMOS, excellent transient immunity, active-low logic output enable, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	LTV-814	LTV-814	Generic	AC/DC Optocoupler, Vce 35V, CTR 20%, DIP4	U	
+Through-Hole · Optocouplers	Isolator	LTV-817	LTV-817	Generic	DC Optocoupler, Vce 35V, CTR 50%, DIP-4	U	
+Through-Hole · Optocouplers	Isolator	LTV-817M	LTV-817M	Generic	DC Optocoupler, Vce 35V, CTR 50%, DIP-4	U	
+Through-Hole · Optocouplers	Isolator	LTV-824	LTV-824	Generic	Dual AC/DC Optocoupler, Vce 35V, CTR 20%, DIP8	U	
+Through-Hole · Optocouplers	Isolator	LTV-827	LTV-827	Generic	Dual DC Optocoupler, Vce 35V, CTR 50%, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	LTV-827M	LTV-827M	Generic	DC Optocoupler, Vce 35V, CTR 50%, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	LTV-844	LTV-844	Generic	Quad AC/DC Optocoupler, Vce 35V, CTR 20%, DIP16	U	
+Through-Hole · Optocouplers	Isolator	LTV-847	LTV-847	Generic	Quad DC Optocoupler, Vce 35V, CTR 50%, DIP-16	U	
+Through-Hole · Optocouplers	Isolator	LTV-847M	LTV-847M	Generic	DC Optocoupler, Vce 35V, CTR 50%, DIP-16	U	
+Through-Hole · Optocouplers	Isolator	MID400	MID400	onsemi	AC Line Monitor Logic-Out Device, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	NSL-32	NSL-32	Generic	Optocoupler, LED Input, Photocell Output	U	
+Through-Hole · Optocouplers	Isolator	PC827	PC827	Generic	Dual DC Optocoupler, Vce 35V, CTR 50%, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	PC837	PC837	Generic	DC Triple Optocoupler, Vce 35V, CTR 50-300%, DIP12	U	
+Through-Hole · Optocouplers	Isolator	PC847	PC847	Generic	DC Quad Optocoupler, Vce 35V, CTR 50-300%, DIP16	U	
+Through-Hole · Optocouplers	Isolator	SFH601-1	SFH601-1	Vishay	Optocoupler, phototransistor output with base connection, CTR 40-80%, Vceo 100V, Viso 5000Vrms, DIP-6	U	
+Through-Hole · Optocouplers	Isolator	SFH601-2	SFH601-2	Vishay	Optocoupler, phototransistor output with base connection, CTR 63-125%, Vceo 100V, Viso 5000Vrms, DIP-6	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-1	SFH617A-1	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-80, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-1X001	SFH617A-1X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-80, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, cUL, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-1X006	SFH617A-1X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-80, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-1X016	SFH617A-1X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-80, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, cUL, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-2	SFH617A-2	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-125, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-2X001	SFH617A-2X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-125, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-2X006	SFH617A-2X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-125, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-2X016	SFH617A-2X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-125, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-3	SFH617A-3	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-200, -55 to +110 degree Celsius, UL, BSI, FIMKO, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-3X001	SFH617A-3X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-200, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-3X006	SFH617A-3X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-200, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-3X016	SFH617A-3X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-200, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-4	SFH617A-4	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 160-320, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-4X001	SFH617A-4X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 160-320, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-4X006	SFH617A-4X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 160-320, -55 to +110 degree Celsius, UL, BSI, FIMKO, cUL, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH617A-4X016	SFH617A-4X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 160-320, -55 to +110 degree Celsius, VDE, UL, BSI, FIMKO, wide THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-1	SFH620A-1	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-125, UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-1X001	SFH620A-1X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-125 VDE, UL, CUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-1X006	SFH620A-1X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 40-125, UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-2	SFH620A-2	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-200 UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-2X001	SFH620A-2X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-200 VDE, UL, CUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-2X006	SFH620A-2X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-200 UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-2X016	SFH620A-2X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 63-200 VDE, UL, CUL, BSI, SMD-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-3	SFH620A-3	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-320 UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-3X001	SFH620A-3X001	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-320 VDE, UL, CUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-3X006	SFH620A-3X006	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-320 UL, cUL, BSI, THT PDIP-4	U	
+Through-Hole · Optocouplers	Isolator	SFH620A-3X016	SFH620A-3X016	Vishay	Optocoupler, Phototransistor Output, 5300 VRMS, VCEO 70V, CTR% 100-320 VDE, UL, CUL, BSI, SMD-4	U	
+Through-Hole · Optocouplers	Isolator	TIL111	TIL111	Generic	DC Optocoupler, Phototransistor NPN, DIP6	U	
+Through-Hole · Optocouplers	Isolator	TLP3021	TLP3021	Toshiba	Photo-Triac, Vdrm 400V, Ift 15mA, DIP6	U	
+Through-Hole · Optocouplers	Isolator	TLP3022	TLP3022	Toshiba	Photo-Triac, Vdrm 400V, Ift 10mA, DIP6	U	
+Through-Hole · Optocouplers	Isolator	TLP3023	TLP3023	Toshiba	Photo-Triac, Vdrm 400V, Ift 5mA, DIP6	U	
+Through-Hole · Optocouplers	Isolator	TLP627	TLP627	Toshiba	DC Darlington Optocoupler, Vce 300V, CTR 1000%, DIP4	U	
+Through-Hole · Optocouplers	Isolator	TLP627-2	TLP627-2	Toshiba	DC Dual Darlington Optocoupler, Vce 300V, CTR 1000%, DIP8	U	
+Through-Hole · Optocouplers	Isolator	TLP627-4	TLP627-4	Toshiba	DC Quad Darlington Optocoupler, Vce 300V, CTR 1000%, DIP16	U	
+Through-Hole · Optocouplers	Isolator	TLP785	TLP785	Toshiba	DC Optocoupler, Vce 80V, CTR 50-200%, DIP4	U	
+Through-Hole · Optocouplers	Isolator	TLP785F	TLP785F	Toshiba	DC Optocoupler, Vce 80V, CTR 50-200%, DIP4F	U	
+Through-Hole · Optocouplers	Isolator	VO2601	VO2601	Vishay	Single High Speed CMOS Compatible Optocoupler with enable, dV/dt 5000/us, VCM 50, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VO2611	VO2611	Vishay	Single High Speed CMOS Compatible Optocoupler with enable, dV/dt 15000/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VO2630	VO2630	Vishay	Dual High Speed CMOS Compatible Optocoupler, dV/dt 1000/us, VCM 10, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VO2631	VO2631	Vishay	Dual High Speed CMOS Compatible Optocoupler, dV/dt 5000/us, VCM 50, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VO4661	VO4661	Vishay	Dual High Speed CMOS Compatible Optocoupler, dV/dt 15000/us, VCM 1000, max 7V VCC, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VOA300	VOA300	Generic	Linear Optocoupler, High Gain Stability, 5300VRMS isolation, 200 kHz Bandwidth, DIP-8	U	
+Through-Hole · Optocouplers	Isolator	VTL5C	VTL5C	Generic	Low Cost Axial Vactrols	U	
+Through-Hole · Relays	Relay	ADW11	ADW11	Generic	Panasonic, 8A/16A, Small Polarized Latching Power Relays, Single coil, 1 Form A	K	
+Through-Hole · Relays	Relay	AZSR131-1AE-12D	AZSR131-1AE-12D	Generic	SPST, Closing Contact, 277VAC 35A max, 12V DC coil voltage	K	
+Through-Hole · Relays	Relay	COTO_3602_Split	COTO_3602_Split	Generic	Low thermal EMF DPST-NO reed relay, 150V 0.25A, 30.48x16.76x12.06mm	K	
+Through-Hole · Relays	Relay	COTO_3650_Split	COTO_3650_Split	Generic	Low thermal EMF 3PST-NO reed relay, 150V 0.25A, similar to 3660 but with independent shield, 30.48x16.76x12.06mm	K	
+Through-Hole · Relays	Relay	COTO_3660_Split	COTO_3660_Split	Generic	Low thermal EMF 3PST-NO reed relay, 150V 0.25A, similar to 3650 but with shared shield/contact, 30.48x16.76x12.06mm	K	
+Through-Hole · Relays	Relay	DR-24V	DR-24V	Generic	5V DC, Single side stable, Polarized Coil, High speed	K	
+Through-Hole · Relays	Relay	DR-3V	DR-3V	Generic	3V DC, Single side stable, Polarized Coil, High speed	K	
+Through-Hole · Relays	Relay	DR-5V	DR-5V	Generic	5V DC, Single side stable, Polarized Coil, High speed	K	
+Through-Hole · Relays	Relay	DR-L-3V	DR-L-3V	Generic	3V DC, 1 Latching Polarized Coil, High speed	K	
+Through-Hole · Relays	Relay	DR-L2-3V_Form1	DR-L2-3V_Form1	Generic	3V DC, 2 Latching Polarized Coils, Set A1, High speed	K	
+Through-Hole · Relays	Relay	DR-L2-3V_Form2	DR-L2-3V_Form2	Generic	3V DC, 2 Latching Polarized Coils, Set B1, High speed	K	
+Through-Hole · Relays	Relay	EC2-12NU	EC2-12NU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), non-latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 12V DC coil	K	
+Through-Hole · Relays	Relay	EC2-12SNU	EC2-12SNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), single coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 12V DC coil	K	
+Through-Hole · Relays	Relay	EC2-12TNU	EC2-12TNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), double coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 12V DC coil	K	
+Through-Hole · Relays	Relay	EC2-24NU	EC2-24NU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), non-latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 24V DC coil	K	
+Through-Hole · Relays	Relay	EC2-24SNU	EC2-24SNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), single coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 24V DC coil	K	
+Through-Hole · Relays	Relay	EC2-24TNU	EC2-24TNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), double coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 24V DC coil	K	
+Through-Hole · Relays	Relay	EC2-3NU	EC2-3NU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), non-latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 3V DC coil	K	
+Through-Hole · Relays	Relay	EC2-3SNU	EC2-3SNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), single coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 3V DC coil	K	
+Through-Hole · Relays	Relay	EC2-3TNU	EC2-3TNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), double coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 3V DC coil	K	
+Through-Hole · Relays	Relay	EC2-4.5NU	EC2-4.5NU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), non-latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 4.5V DC coil	K	
+Through-Hole · Relays	Relay	EC2-4.5SNU	EC2-4.5SNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), single coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 4.5V DC coil	K	
+Through-Hole · Relays	Relay	EC2-4.5TNU	EC2-4.5TNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), double coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 4.5V DC coil	K	
+Through-Hole · Relays	Relay	EC2-5NU	EC2-5NU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), non-latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 5V DC coil	K	
+Through-Hole · Relays	Relay	EC2-5SNU	EC2-5SNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), single coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 5V DC coil	K	
+Through-Hole · Relays	Relay	EC2-5TNU	EC2-5TNU	Generic	General purpose signal relay, Kemet EC2 Series, DPDT (2 Form C), double coil latching, through hole, 60W/125VA, 220VDC/250VAC, 2A, 5V DC coil	K	
+Through-Hole · Relays	Relay	FINDER-30.22	FINDER-30.22	Generic	FINDER 30.52, Dual Pole Relay, Subminiature 5mm Pitch, 2A	K	
+Through-Hole · Relays	Relay	FINDER-34.51	FINDER-34.51	Generic	Ultra-slim 1 Pole - 6A SPDT relay	K	
+Through-Hole · Relays	Relay	FINDER-36.11	FINDER-36.11	Generic	FINDER 36.11, SPDT relay, 10A	K	
+Through-Hole · Relays	Relay	FINDER-40.11	FINDER-40.11	Generic	PCB SPDT relay, 10A	K	
+Through-Hole · Relays	Relay	FINDER-40.11-2016	FINDER-40.11-2016	Generic	PCB SPDT relay, 16A	K	
+Through-Hole · Relays	Relay	FINDER-40.31	FINDER-40.31	Generic	FINDER 40.31, Single Pole Relay, 3.5mm Pitch, 10A	K	
+Through-Hole · Relays	Relay	FINDER-40.41	FINDER-40.41	Generic	PCB SPDT relay, 10A	K	
+Through-Hole · Relays	Relay	FINDER-40.51	FINDER-40.51	Generic	FINDER 40.51, Single Pole Relay, 5mm Pitch, 10A	K	
+Through-Hole · Relays	Relay	FINDER-40.52	FINDER-40.52	Generic	FINDER 40.52, Dual Pole Relay, 5mm Pitch, 10A	K	
+Through-Hole · Relays	Relay	FINDER-41.52	FINDER-41.52	Generic	FINDER 41.52, Dual Pole Relay, 5mm Pitch, 8A	K	
+Through-Hole · Relays	Relay	FINDER-44.52	FINDER-44.52	Generic	FINDER 44.52, Dual Pole Relay, 5mm Pitch, 6A	K	
+Through-Hole · Relays	Relay	FINDER-44.62	FINDER-44.62	Generic	FINDER 44.62, Dual Pole Relay, 5mm Pitch, 10A	K	
+Through-Hole · Relays	Relay	FRT5	FRT5	Generic	FORWARD INDUSTRIAL, Miniature Dual Pole Relay, DIP-like package	K	
+Through-Hole · Relays	Relay	FRT5_separated	FRT5_separated	Generic	FORWARD INDUSTRIAL, Miniature Dual Pole Relay, DIP-like package, separate subsymbols	K	
+Through-Hole · Relays	Relay	Fujitsu_FTR-F1A	Fujitsu_FTR-F1A	Generic	Fujitsu Low Profile Power Relay	K	
+Through-Hole · Relays	Relay	Fujitsu_FTR-F1C	Fujitsu_FTR-F1C	Generic	Fujitsu Low Profile Power Relay	K	
+Through-Hole · Relays	Relay	G2RL-1	G2RL-1	Generic	General Purpose Low Profile Relay SPDT Through Hole, Omron G2RL series, 12A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-1-E	G2RL-1-E	Generic	General Purpose Low Profile Relay SPDT Through Hole High Capacity, Omron G2RL series, 16A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-1-H	G2RL-1-H	Generic	General Purpose Low Profile Relay SPDT Through Hole, Omron G2RL series, High Sensitivity, 10A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-1A	G2RL-1A	Generic	General Purpose Low Profile Relay SPST Through Hole, Omron G2RL series, Normally Open, 12A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-1A-E	G2RL-1A-E	Generic	General Purpose Low Profile Relay SPST Through Hole High Capacity, Omron G2RL series, Normally Open, 16A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-1A-H	G2RL-1A-H	Generic	General Purpose Low Profile Relay SPST Through Hole, Omron G2RL series, Normally Open, High Sensitivity, 10A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-2	G2RL-2	Generic	General Purpose Low Profile Relay DPDT Through Hole, Omron G2RL series, 8A 250VAC	K	
+Through-Hole · Relays	Relay	G2RL-2A	G2RL-2A	Generic	General Purpose Low Profile Relay DPST Through Hole, Omron G2RL series, Normally Open, 8A 250VAC	K	
+Through-Hole · Relays	Relay	G5LE-1	G5LE-1	Generic	Omron G5LE relay, Miniature Single Pole, SPDT, 10A	K	
+Through-Hole · Relays	Relay	G5NB	G5NB	Generic	PCB Power Relay, SPST-NO, 7A (250 VAC), 5A (30 VDC)	K	
+Through-Hole · Relays	Relay	G5Q-1	G5Q-1	Generic	Omron G5G relay, Miniature Single Pole, SPDT, 10A	K	
+Through-Hole · Relays	Relay	G5Q-1A	G5Q-1A	Generic	Omron G5Q relay, Miniature Single Pole, SPST-NO, 10A	K	
+Through-Hole · Relays	Relay	G5V-1	G5V-1	Generic	Ultra-miniature, Highly Sensitive SPDT Relay for Signal Circuits	K	
+Through-Hole · Relays	Relay	G5V-2	G5V-2	Generic	Relay Miniature Omron DPDT	K	
+Through-Hole · Relays	Relay	G5V-2_Split	G5V-2_Split	Generic	Relay Miniature Omron DPDT	K	
+Through-Hole · Relays	Relay	G6A	G6A	Generic	Industry-Standard 2-pole relay, designed to switch 2A Signal Loads, Single-side Stable	K	
+Through-Hole · Relays	Relay	G6AK	G6AK	Generic	Industry-Standard 2-pole relay, designed to switch 2A Signal Loads, Double-winding Latching	K	
+Through-Hole · Relays	Relay	G6AU	G6AU	Generic	Industry-Standard 2-pole relay, designed to switch 2A Signal Loads, Single-winding Latching	K	
+Through-Hole · Relays	Relay	G6E	G6E	Generic	Omron Subminiature Sensitive SPDT Signal Switching Relay, Single-Side Stable	K	
+Through-Hole · Relays	Relay	G6EU	G6EU	Generic	Omron G6E relay, Subminiature, Sensitive SPDT Signal Switching Relay, Single-winding latching	K	
+Through-Hole · Relays	Relay	G6HU-2	G6HU-2	Generic	Omron Ultracompact, Ultrasensitive DPDT Relay, Single-winding Latching	K	
+Through-Hole · Relays	Relay	JQC-3FF-005-1H	JQC-3FF-005-1H	Generic	Subminiature High Power SPST NO Relay, 5V Coil nom. 0.36W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-005-1Z	JQC-3FF-005-1Z	Generic	Subminiature High Power SPDT Relay, 5V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-006-1H	JQC-3FF-006-1H	Generic	Subminiature High Power SPST NO Relay, 6V Coil nom. 0.36W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-006-1Z	JQC-3FF-006-1Z	Generic	Subminiature High Power SPDT Relay, 6V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-009-1H	JQC-3FF-009-1H	Generic	Subminiature High Power SPST NO Relay, 9V Coil nom. 0.36W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-009-1Z	JQC-3FF-009-1Z	Generic	Subminiature High Power SPDT Relay, 9V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-012-1H	JQC-3FF-012-1H	Generic	Subminiature High Power SPST NO Relay, 12V Coil nom. 0.36W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-012-1Z	JQC-3FF-012-1Z	Generic	Subminiature High Power SPDT Relay, 12V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-018-1H	JQC-3FF-018-1H	Generic	Subminiature High Power SPST NO Relay, 18V Coil nom. 0.36W, 10A switching current, max 15A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-018-1Z	JQC-3FF-018-1Z	Generic	Subminiature High Power SPDT Relay, 18V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-024-1H	JQC-3FF-024-1H	Generic	Subminiature High Power SPST NO Relay, 24V Coil nom. 0.36W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-024-1Z	JQC-3FF-024-1Z	Generic	Subminiature High Power SPDT Relay, 24V Coil nom. 0.36W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-048-1H	JQC-3FF-048-1H	Generic	Subminiature High Power SPST NO Relay, 48V Coil nom. 0.51W, 15A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JQC-3FF-048-1Z	JQC-3FF-048-1Z	Generic	Subminiature High Power SPDT Relay, 48V Coil nom. 0.51W, 10A switching current, max 10A@277VAC/28VDC	K	
+Through-Hole · Relays	Relay	JW2	JW2	Generic	General Purpose Relay DPDT (2 Form C) Through Hole, Panasonic JW series	K	
+Through-Hole · Relays	Relay	Omron_G6K-2	Omron_G6K-2	Generic	Miniature 2-pole relay, Single-side Stable	K	
+Through-Hole · Relays	Relay	Omron_G6KU-2	Omron_G6KU-2	Generic	Miniature 2-pole relay, Single-winding Latching	K	
+Through-Hole · Relays	Relay_SolidState	34.81-7048	34.81-7048	Generic	Ultra-Slim Solid-State Relay, 0.1A, 48V DC output switching	K	
+Through-Hole · Relays	Relay_SolidState	34.81-8240	34.81-8240	Generic	Ultra-slim - Solid State Relay, 2A, 240V AC output, Zero crossing switching	K	
+Through-Hole · Relays	Relay_SolidState	34.81-9024	34.81-9024	Generic	Ultra-Slim Solid-State Relay, 2A, 24V DC output switching	K	
+Through-Hole · Relays	Relay_SolidState	AQH0213	AQH0213	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 10mA, IT 300mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH0223	AQH0223	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 10mA, IT 300mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH1213	AQH1213	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 10mA, IT 600mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH1223	AQH1223	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 10mA, IT 600mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH2213	AQH2213	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 10mA, IT 900mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH2223	AQH2223	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 10mA, IT 900mA, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH3213	AQH3213	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 10mA, IT 1.2A, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQH3223	AQH3223	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 10mA, IT 1.2A, DIP-7	K	
+Through-Hole · Relays	Relay_SolidState	AQY280EH	AQY280EH	Generic	Solid State Relay (Photo MOSFET) 350V, 0.13A, 25Ohm, DIP-4	K	
+Through-Hole · Relays	Relay_SolidState	AQY282EH	AQY282EH	Generic	Solid State Relay (Photo MOSFET) 60V, 0.5A, 2.5Ohm, DIP-4	K	
+Through-Hole · Relays	Relay_SolidState	AQY284EH	AQY284EH	Generic	Solid State Relay (Photo MOSFET) 400V, 0.12A, 35Ohm, DIP-4	K	
+Through-Hole · Relays	Relay_SolidState	FOD420	FOD420	onsemi	Random Phase Opto-Triac, Vdrm 600V, Ift 0.75mA, Itm 300mA, DIP6	K	
+Through-Hole · Relays	Relay_SolidState	FOD4208	FOD4208	onsemi	Random Phase Opto-Triac, Vdrm 800V, Ift 0.75mA, Itm 300mA, DIP6	K	
+Through-Hole · Relays	Relay_SolidState	FOD4216	FOD4216	onsemi	Random Phase Opto-Triac, Vdrm 600V, Ift 0.75mA, Itm 300mA, DIP6	K	
+Through-Hole · Relays	Relay_SolidState	FOD4218	FOD4218	onsemi	Random Phase Opto-Triac, Vdrm 800V, Ift 0.75mA, Itm 300mA, DIP6	K	
+Through-Hole · Relays	Relay_SolidState	HHG1D-1	HHG1D-1	Generic	NCR zero cross solid state relay 1A, 2A, 3A, 4A	K	
+Through-Hole · Relays	Relay_SolidState	LAA110	LAA110	Generic	Dual Single-Pole, Normally Open OptoMOS® Relay, DIP-8	K	
+Through-Hole · Relays	Relay_SolidState	LBB110	LBB110	Generic	Dual Single-Pole, Normally Closed OptoMOS® Relay, DIP-8	K	
+Through-Hole · Relays	Relay_SolidState	LCC110	LCC110	Generic	1-Form-C OptoMOS® Relay, DIP-8	K	
+Through-Hole · Relays	Relay_SolidState	S102S01	S102S01	Generic	Random Phase Opto-Triac, Vdrm 400V, Ift 8mA, IT 8A	K	
+Through-Hole · Relays	Relay_SolidState	S102S02	S102S02	Generic	Zero Cross Opto-Triac, Vdrm 400V, Ift 8mA, IT 8A	K	
+Through-Hole · Relays	Relay_SolidState	S112S01	S112S01	Generic	Random Phase Opto-Triac, Vdrm 400V, Ift 8mA, IT 12A	K	
+Through-Hole · Relays	Relay_SolidState	S116S01	S116S01	Generic	Random Phase Opto-Triac, Vdrm 400V, Ift 8mA, IT 16A	K	
+Through-Hole · Relays	Relay_SolidState	S116S02	S116S02	Generic	Zero Cross Opto-Triac, Vdrm 400V, Ift 8mA, IT 16A	K	
+Through-Hole · Relays	Relay_SolidState	S202S01	S202S01	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 8mA, IT 8A	K	
+Through-Hole · Relays	Relay_SolidState	S202S02	S202S02	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 8mA, IT 8A	K	
+Through-Hole · Relays	Relay_SolidState	S212S01	S212S01	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 8mA, IT 12A	K	
+Through-Hole · Relays	Relay_SolidState	S216S01	S216S01	Generic	Random Phase Opto-Triac, Vdrm 600V, Ift 8mA, IT 16A	K	
+Through-Hole · Relays	Relay_SolidState	S216S02	S216S02	Generic	Zero Cross Opto-Triac, Vdrm 600V, Ift 8mA, IT 16A	K	
+Through-Hole · Relays	Relay_SolidState	TLP222A	TLP222A	Toshiba	MOSFET Photorelay 1-Form-A, Voff 60V, Ion 0,5A, DIP4	K	
+Through-Hole · Relays	Relay_SolidState	TLP222A-2	TLP222A-2	Toshiba	Dual MOSFET Photorelay 1-Form-A, Voff 60V, Ion 0,5A, DIP8	K	
+Through-Hole · Relays	Relay_SolidState	TLP3542	TLP3542	Toshiba	Photo MOSFET optically coupled, ON 4A, 50mohm, OFF state 20V, Isolation 2500 VRMS, DIP-5-6	K	
+Through-Hole · Relays	Relay_SolidState	TLP3543	TLP3543	Toshiba	Photo MOSFET optically coupled, ON 4A, 50mohm, OFF state 20V, Isolation 2500 VRMS, DIP-6	K	
+Through-Hole · Relays	Relay_SolidState	TLP3544	TLP3544	Toshiba	Photo MOSFET optically coupled, ON 3.5A, 60mohm, OFF state 40V, Isolation 2500 VRMS, DIP-6	K	
+Through-Hole · Relays	Relay_SolidState	TLP3545	TLP3545	Toshiba	Photo MOSFET optically coupled, ON 3A, 70mohm, OFF state 60V, Isolation 2500 VRMS, DIP-6	K	
+Through-Hole · Relays	Relay_SolidState	TLP3546	TLP3546	Toshiba	Photo MOSFET optically coupled, ON 2A, 200mohm, OFF state 100V, Isolation 2500 VRMS, DIP-6	K	
+Through-Hole · ICs	Timer	8253	8253	Generic	Programmable Interval Timer, PDIP-24	U	
+Through-Hole · ICs	Timer	8254	8254	Generic	Programmable Interval Timer, PDIP-24	U	
+Through-Hole · ICs	Timer	8284	8284	Generic	Clock Generator and Driver for i8086/88 Microcontrollers, PDIP-18	U	
+Through-Hole · ICs	Timer	82C54	82C54	Generic	CHMOS Programmable Interval Timer, PDIP-24	U	
+Through-Hole · ICs	Timer	ICM7209	ICM7209	Generic	Timebase generator, DIP-8	U	
+Through-Hole · ICs	Timer	MN3101	MN3101	Generic	Clock Generator Driver/Driver for MN3000 Series BBD (bucket brigade device), -8V to -16V, DIP-8	U	
+Through-Hole · ICs	Timer	MN3102	MN3102	Generic	Clock Generator Driver/Driver for MN3000 Series BBD (bucket brigade device), 4V to 10V, DIP-8	U	
+Through-Hole · ICs	Timer	SA555P	SA555P	Texas Instruments	Precision Timers, 555 compatible, PDIP-8	U	
+Through-Hole · ICs	Timer	SE555P	SE555P	Texas Instruments	Precision Timers, 555 compatible, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	LM675	LM675	Texas Instruments	Power Operational Amplifier, TO-220-5	U	
+Through-Hole · ICs	Amplifier_Operational	OPA121KM	OPA121KM	Generic	Operational Amplifier, TO-99	U	
+Through-Hole · ICs	Amplifier_Operational	OPA121KP	OPA121KP	Generic	Operational Amplifier, DIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	OPA2604AP	OPA2604AP	Generic	Dual FET-Input, Low-Distortion Operational Amplifier, DIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	OPA340P	OPA340P	Texas Instruments	Single Single-Supply, Rail-to-Rail Operational Amplifier, MicroAmplifier Series, DIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	OPA551P	OPA551P	Texas Instruments	High-Voltage High-Current Operational Amplifier, bandwidth 3MHz, slew-rate 15V/us, DIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	OPA552P	OPA552P	Texas Instruments	High-Voltage High-Current Operational Amplifier, bandwidth 12MHz, slew-rate 24V/us, DIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	TLE2141ACP	TLE2141ACP	Texas Instruments	Operational Amplifier, 500 uV offset voltage, 0-70°C, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	TLE2141AIP	TLE2141AIP	Texas Instruments	Operational Amplifier, 500 uV offset voltage, -40 to 105°C, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	TLE2141CP	TLE2141CP	Texas Instruments	Operational Amplifier, 900 uV offset voltage, 0-70°C, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	TLE2141IP	TLE2141IP	Texas Instruments	Operational Amplifier, 900 uV offset voltage, -40 to 105°C, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Operational	TLV2371P	TLV2371P	Texas Instruments	Rail-to-Rail Input/Output Operational Amplifier, PDIP-8	U	
+Through-Hole · ICs	Amplifier_Audio	CXA1034P	CXA1034P	Generic	Stereo Headphone Amplifier, VCC = 1.8 .. 7.5V, DIP-16	U	
+Through-Hole · ICs	Amplifier_Audio	LM1875	LM1875	Texas Instruments	20W Audio Power Amplifier, TO-220-5	U	
+Through-Hole · ICs	Amplifier_Audio	LM2876	LM2876	Texas Instruments	Overture Audio Power Amplifier Series High-Performance 40W Audio Power Amplifier w/Mute, TO-220-11	U	
+Through-Hole · ICs	Amplifier_Audio	LM3886	LM3886	Texas Instruments	Overture Audio Power Amplifier Series High-Performance 68W Audio Power Amplifier w/Mute, TO-220-11	U	
+Through-Hole · ICs	Amplifier_Audio	LM4950TA	LM4950TA	Texas Instruments	Boomer Audio Power Amplifier Series 7.5W Mono-BTL or 3.1W Stereo Audio Power Amplifier, TO-220-9 (Texas NEC0009A)	U	
+Through-Hole · ICs	Amplifier_Audio	SSM2017P	SSM2017P	Analog Devices	Self-Contained Audio Preamplifier, DIP-8	U	
+Through-Hole · ICs	Amplifier_Audio	SSM2018	SSM2018	Analog Devices	Trimless Voltage Controlled Amplifier, DIP-16	U	
+Through-Hole · ICs	Amplifier_Audio	SSM2120	SSM2120	Analog Devices	Dynamic Range Pprocessor/Dual VCA, DIP-22	U	
+Through-Hole · ICs	Amplifier_Audio	SSM2122	SSM2122	Analog Devices	Dynamic Range Pprocessor/Dual VCA, DIP-16	U	
+Through-Hole · ICs	Amplifier_Audio	STK433_Sanyo	STK433_Sanyo	Generic	2-Channel 5 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK435_Sanyo	STK435_Sanyo	Generic	2-Channel 7 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK436_Sanyo	STK436_Sanyo	Generic	2-Channel 10 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK437_Sanyo	STK437_Sanyo	Generic	2-Channel 12 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK439_Sanyo	STK439_Sanyo	Generic	2-Channel 16 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK441_Sanyo	STK441_Sanyo	Generic	2-Channel 24 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	STK443_Sanyo	STK443_Sanyo	Generic	2-Channel 28 Wmin Audio Frequency Power Amplifier, 4010, SIP-15	U	
+Through-Hole · ICs	Amplifier_Audio	TDA2003	TDA2003	STMicroelectronics	10W Car Radio Audio Amplifier, TO-220-5	U	
+Through-Hole · ICs	Amplifier_Audio	TDA2005	TDA2005	STMicroelectronics	20W Bridge/Stereo Amplifier for Car Radio, TO-220-11	U	
+Through-Hole · ICs	Amplifier_Audio	TDA2030	TDA2030	STMicroelectronics	14W Hi-Fi Audio Amplifier, TO-220-5	U	
+Through-Hole · ICs	Amplifier_Audio	TDA2050	TDA2050	STMicroelectronics	32W Hi-Fi Audio Amplifier, TO-220-5	U	
+Through-Hole · ICs	Amplifier_Audio	TDA7264	TDA7264	STMicroelectronics	25W + 25W stereo amplifier with mute and standby, TO-220-8	U	
+Through-Hole · ICs	Amplifier_Audio	TDA7265	TDA7265	STMicroelectronics	25W +25W Stereo Amplifier with Mute & St-by, TO-220-11	U	
+Through-Hole · ICs	Amplifier_Audio	TDA7265B	TDA7265B	STMicroelectronics	30W + 30W Stereo Amplifier with Mute and Standby, TO-220-11	U	
+Through-Hole · ICs	Amplifier_Audio	TDA7266	TDA7266	STMicroelectronics	7+7W Dual Bridge Amplifier, TO-220-15	U	
+Through-Hole · ICs	Amplifier_Audio	TDA7266M	TDA7266M	STMicroelectronics	7W Mono Bridge Amplifier, TO-220-15	U	
+Through-Hole · ICs	Comparator	LM319H	LM319H	Texas Instruments	High Speed Dual Comparator, TO-100-10	U	
+Through-Hole · ICs	Interface_UART	16450	16450	Generic	PC16450, Universal Asynchronous Receiver/Transmitter, PDIP-40	U	
+Through-Hole · ICs	Interface_UART	8250	8250	Generic	PC8250A, Universal Asynchronous Receiver/Transmitter, PDIP-40	U	
+Through-Hole · ICs	Interface_UART	8252	8252	Generic	Universal Asynchronous Receiver/Transmitter, PDIP-28	U	
+Through-Hole · ICs	Interface_UART	MC6850	MC6850	Generic	Asynchronous Communications Interface Adapter 1MHz, DIP-40	U	
+Through-Hole · ICs	Interface_UART	MC68A50	MC68A50	Generic	Asynchronous Communications Interface Adapter 1.5MHz, DIP-40	U	
+Through-Hole · ICs	Interface_UART	MC68B50	MC68B50	Generic	Asynchronous Communications Interface Adapter 2MHz, DIP-40	U	
+Through-Hole · ICs	Interface_UART	SN65LBC176P	SN65LBC176P	Texas Instruments	Differential bus transceiver, DIP-8	U	
+Through-Hole · ICs	Interface_UART	SN75176AP	SN75176AP	Texas Instruments	Differential RS-422/RS-485 bus transceiver, DIP-8	U	
+Through-Hole · ICs	Interface_UART	SN75LBC176P	SN75LBC176P	Texas Instruments	Differential bus transceiver, DIP-8	U	
+Through-Hole · ICs	Interface_UART	SNJ55LBC176JG	SNJ55LBC176JG	Texas Instruments	Differential bus transceiver, ceramic DIP-8	U	
+Through-Hole · ICs	Interface_UART	SP3481CP	SP3481CP	Generic	3.3V Low Power Half-Duplex RS-485 Transceiver 10Mbps, DIP8	U	
+Through-Hole · ICs	Interface_UART	SP3481EP	SP3481EP	Generic	Industrial 3.3V Low Power Half-Duplex RS-485 Transceiver 10Mbps, DIP8	U	
+Through-Hole · ICs	Interface_UART	SP3485CP	SP3485CP	Generic	3.3V Low Power Half-Duplex RS-485 Transceiver 10Mbps, DIP8	U	
+Through-Hole · ICs	Interface_UART	SP3485EP	SP3485EP	Generic	Industrial 3.3V Low Power Half-Duplex RS-485 Transceiver 10Mbps, DIP8	U	
+Through-Hole · ICs	Interface_Expansion	PCF8574AP	PCF8574AP	NXP	8-bit I/O Expander, I2C interface, interrupt output, fixed address bits 0b0111xxx, DIP-16	U	
+Through-Hole · ICs	Interface_Expansion	PCF8574P	PCF8574P	NXP	8-bit I/O Expander, I2C interface, interrupt output, fixed address bits 0b0100xxx, DIP-16	U	
+Through-Hole · ICs	Analog_ADC	ICL7106CPL	ICL7106CPL	Renesas	3 1/2 Digit, LCD Display, A/D Converter, DIP-40	U	
+Through-Hole · ICs	Analog_ADC	ICL7107CPL	ICL7107CPL	Renesas	3 1/2 Digit, LED Display, A/D Converter, DIP-40	U	
+Through-Hole · ICs	Analog_DAC	DAC1006LCN	DAC1006LCN	Generic	Double-Buffered D to A Converters, DIP-20	U	
+Through-Hole · ICs	Analog_DAC	DAC1007LCN	DAC1007LCN	Generic	Double-Buffered D to A Converters, DIP-20	U	
+Through-Hole · ICs	Analog_DAC	DAC1008LCN	DAC1008LCN	Generic	Double-Buffered D to A Converters, DIP-20	U	
+Through-Hole · ICs	Analog_DAC	MC1408_DIP	MC1408_DIP	Generic	8-bit multiplying DAC	U	
+Through-Hole · ICs	Memory_EEPROM	DS2431	DS2431	Analog Devices	1024-bit, 1-Wire® EEPROM chip, TO-92	U	
+Through-Hole · ICs	Memory_EEPROM	DS28E07	DS28E07	Analog Devices	1024-bit, 1-Wire® EEPROM chip, TO-92	U	
+Through-Hole · ICs	Memory_EEPROM	KM28C64A	KM28C64A	Generic	EEPROM 8K x 8, 5V, Not in Production, DIP-28	U	
+Through-Hole · ICs	Memory_EEPROM	KM28C65A	KM28C65A	Generic	EEPROM 8K x 8, 5V, Not in Production, DIP-28	U	
+Through-Hole · ICs	Memory_EEPROM	TMS4C1050N	TMS4C1050N	Generic	Field Memory, 262264 x 4 bit, [Obsolete 1992-01]	U	
+Through-Hole · ICs	Driver_Motor	L298N	L298N	STMicroelectronics	Dual full bridge motor driver, up to 46V, 4A, Multiwatt15-V	U	
+Through-Hole · ICs	Driver_Motor	SLA7042M	SLA7042M	Generic	Unipolar PWM high-current motor driver	U	
+Through-Hole · ICs	Driver_Motor	SLA7044M	SLA7044M	Generic	Unipolar PWM high-current motor driver	U	
+Through-Hole · ICs	Driver_Motor	SN754410NE	SN754410NE	Texas Instruments	Quadruple Half-H Driver, DIP-16	U	
+Through-Hole · ICs	Driver_Motor	STK672-040-E	STK672-040-E	onsemi	Stepper motor driver with microstepping controller, 1.5A	U	
+Through-Hole · ICs	Driver_Motor	STK672-080-E	STK672-080-E	onsemi	Stepper motor driver with microstepping controller, 2.8A	U	
+Through-Hole · ICs	Driver_LED	MC14495P	MC14495P	Generic	C-MOS BCD-TO-SEVEN-SEGMENT 4-BIT LATCH / DECODER DRIVER, DIP-16	U	
+Through-Hole · ICs	Driver_LED	RCD-24	RCD-24	Generic	LED Driver DC/DC Converter, input 4.5 to 36V, output current 0.3 to 1.2A	U	
+Through-Hole · ICs	Driver_LED	STP08CP05B	STP08CP05B	STMicroelectronics	8-bit constant current LED sink driver, 5..100mA output current, 20V driving capability, 3.0..5.5V power supply, DIP-16	U	
+Through-Hole · ICs	Driver_LED	TLC5940NT	TLC5940NT	Texas Instruments	16-Channel LED Driver With DOT Correction and Grayscale PWM Control, DIP package	U	
+Through-Hole · Sensors	Sensor_Temperature	DS1821C	DS1821C	Analog Devices (Maxim)	Programmable Digital Thermostat and Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS1822	DS1822	Analog Devices (Maxim)	Econo 1-Wire Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS1822-PAR	DS1822-PAR	Analog Devices (Maxim)	Econo 1-Wire Parasite-Power Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS18B20	DS18B20	Analog Devices (Maxim)	Programmable Resolution 1-Wire Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS18B20-PAR	DS18B20-PAR	Analog Devices (Maxim)	1-Wire Parasite-Power Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS18S20	DS18S20	Analog Devices (Maxim)	High-Precision 1-Wire Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	DS18S20-PAR	DS18S20-PAR	Analog Devices (Maxim)	1-Wire Parasite-Power Digital Thermometer TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	KTY83	KTY83	NXP	KTY83 series silicon temperature sensors, polarized, SOD68	U	
+Through-Hole · Sensors	Sensor_Temperature	KTY84	KTY84	NXP	KTY84 series silicon temperature sensors, polarized, SOD68	U	
+Through-Hole · Sensors	Sensor_Temperature	LM35-LP	LM35-LP	Texas Instruments	Precision centigrade temperature sensor, TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	LMT01LPG	LMT01LPG	Texas Instruments	0.5°C Accurate 2-Pin Digital Output Temperature Sensor With Pulse Count Interface. TO-92-2 package	U	
+Through-Hole · Sensors	Sensor_Temperature	MAX31820	MAX31820	Analog Devices (Maxim)	1-Wire Ambient Temperature Sensor TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	MAX31820PAR	MAX31820PAR	Analog Devices (Maxim)	1-Wire, Parasite-Power, Ambient Temperature Sensor TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	TSIC206-TO92	TSIC206-TO92	Generic	Digital temperature sensor, range -50 ... +150 °C, 0.5 K accuracy, TO-92	U	
+Through-Hole · Sensors	Sensor_Temperature	TSIC306-TO92	TSIC306-TO92	Generic	Digital temperature sensor, range -50 ... +150 °C, 0.3 K accuracy, TO-92	U	
+Through-Hole · Sensors	Sensor_Magnetic	AH452UA	AH452UA	Generic	High sensitivity omnipolar Hall effect switch, Bop=±50G, Brp=±30G, TO-92S (3-pin SIP)	U	
+Through-Hole · Sensors	Sensor_Optical	A1050	A1050	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	A1060	A1060	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	A9013	A9013	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	A9050	A9050	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	A9060	A9060	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	BP103	BP103	Generic	NPN Phototransistor	U	
+Through-Hole · Sensors	Sensor_Optical	BP103B	BP103B	Generic	NPN phototransistor	U	
+Through-Hole · Sensors	Sensor_Optical	BP103BF	BP103BF	Generic	NPN phototransistor with daylight filter	U	
+Through-Hole · Sensors	Sensor_Optical	BP104	BP104	Vishay	Silicon PIN Photodiode	U	
+Through-Hole · Sensors	Sensor_Optical	BPW21	BPW21	Generic	Silicon Photodiode for the visible spectral range, TO-5 package	U	
+Through-Hole · Sensors	Sensor_Optical	BPW34	BPW34	Vishay	Silicon PIN Photodiode	U	
+Through-Hole · Sensors	Sensor_Optical	BPW40	BPW40	Generic	Phototransistor NPN	U	
+Through-Hole · Sensors	Sensor_Optical	BPW42	BPW42	Generic	NPN phototransistor	U	
+Through-Hole · Sensors	Sensor_Optical	BPW82	BPW82	Vishay	Silicon PIN Photodiode with Daylight Blocking Filter	U	
+Through-Hole · Sensors	Sensor_Optical	BPW85	BPW85	Vishay	Silicon NPN Phototransistor, Ica = 0.8-8mA, T-1	U	
+Through-Hole · Sensors	Sensor_Optical	BPW85A	BPW85A	Vishay	Silicon NPN Phototransistor, Ica = 0.8-2.5mA, T-1	U	
+Through-Hole · Sensors	Sensor_Optical	BPW85B	BPW85B	Vishay	Silicon NPN Phototransistor, Ica = 1.5-4mA, T-1	U	
+Through-Hole · Sensors	Sensor_Optical	BPW85C	BPW85C	Vishay	Silicon NPN Phototransistor, Ica = 3-8mA, T-1	U	
+Through-Hole · Sensors	Sensor_Optical	BPX61	BPX61	Generic	Silicon Photodiode for the visible spectral range	U	
+Through-Hole · Sensors	Sensor_Optical	BPX65	BPX65	Generic	Silicon PIN Photodiode, TO-18 package	U	
+Through-Hole · Sensors	Sensor_Optical	BPY62	BPY62	Generic	NPN Phototransistor	U	
+Through-Hole · Sensors	Sensor_Optical	C12880MA	C12880MA	Generic	Micro spectrometer 340 to 850nm resolution 15nm	U	
+Through-Hole · Sensors	Sensor_Optical	LDR03	LDR03	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	LDR07	LDR07	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	LPT80A	LPT80A	Generic	NPN phototransistor	U	
+Through-Hole · Sensors	Sensor_Optical	M9960	M9960	Generic	light dependent resistor	U	
+Through-Hole · Sensors	Sensor_Optical	S13360-3025CS	S13360-3025CS	Generic	Multi-Pixel Photon Counter with 25µm pixel pitch	U	
+Through-Hole · Sensors	Sensor_Optical	S13360-3050CS	S13360-3050CS	Generic	Multi-Pixel Photon Counter with 50µm pixel pitch	U	
+Through-Hole · Sensors	Sensor_Optical	S13360-3075CS	S13360-3075CS	Generic	Multi-Pixel Photon Counter with 75µm pixel pitch	U	
+Through-Hole · Sensors	Sensor_Optical	S5971	S5971	Generic	Si PIN Photodiode, 0.1 GHz, TO-18-3	U	
+Through-Hole · Displays	Display_Character	AD-121F2	AD-121F2	Generic	Single Digit 7-segment RGB LED Display, 1-inch digit height, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12CGKWA	CA56-12CGKWA	Generic	4 digit 7 segment Green LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12EWA	CA56-12EWA	Generic	4 digit 7 segment high efficiency red LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12SEKWA	CA56-12SEKWA	Generic	4 digit 7 segment super bright orange LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12SRWA	CA56-12SRWA	Generic	4 digit 7 segment super bright red LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12SURKWA	CA56-12SURKWA	Generic	4 digit 7 segment hyper red LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CA56-12SYKWA	CA56-12SYKWA	Generic	4 digit 7 segment super bright yellow LED, common anode	DS	
+Through-Hole · Displays	Display_Character	CC56-12CGKWA	CC56-12CGKWA	Generic	4 digit 7 segment green LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12EWA	CC56-12EWA	Generic	4 digit 7 segment high efficiency red LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12GWA	CC56-12GWA	Generic	4 digit 7 segment green LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12SEKWA	CC56-12SEKWA	Generic	4 digit 7 segment super bright orange LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12SRWA	CC56-12SRWA	Generic	4 digit 7 segment super bright red LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12SURKWA	CC56-12SURKWA	Generic	4 digit 7 segment hyper red LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12SYKWA	CC56-12SYKWA	Generic	4 digit 7 segment super bright yellow LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	CC56-12YWA	CC56-12YWA	Generic	4 digit 7 segment yellow LED, common cathode	DS	
+Through-Hole · Displays	Display_Character	D148K	D148K	Generic	One digit 7 segment yellowish-green LED, low current, common cathode	DS	
+Through-Hole · Displays	Display_Character	D168K	D168K	Generic	One digit 7 segment ultra bright red LED, low current, common cathode	DS	
+Through-Hole · Displays	Display_Character	D198K	D198K	Generic	One digit 7 segment orangish-red LED, low current, common cathode	DS	
+Through-Hole · Displays	Display_Character	D1X8K-14BL	D1X8K-14BL	Generic	One digit 7 segment ultra bright blue LED, low current, common cathode	DS	
+Through-Hole · Displays	Display_Character	DA04-11CGKWA	DA04-11CGKWA	Generic	Double 7 segment green LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11EWA	DA04-11EWA	Generic	Double 7 segment high efficient red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11GWA	DA04-11GWA	Generic	Double 7 segment green LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11SEKWA	DA04-11SEKWA	Generic	Double 7 segment super bright orange LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11SRWA	DA04-11SRWA	Generic	Double 7 segment super bright red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11SURKWA	DA04-11SURKWA	Generic	Double 7 segment hyper red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA04-11SYKWA	DA04-11SYKWA	Generic	Double 7 segment super bright yellow LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11CGKWA	DA56-11CGKWA	Generic	Double digit 7 segment green LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11EWA	DA56-11EWA	Generic	Double digit 7 segment high efficient red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11GWA	DA56-11GWA	Generic	Double digit 7 segment green LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11SEKWA	DA56-11SEKWA	Generic	Double digit 7 segment super bright orange LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11SRWA	DA56-11SRWA	Generic	Double digit 7 segment super bright red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11SURKWA	DA56-11SURKWA	Generic	Double digit 7 segment hyper red LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11SYKWA	DA56-11SYKWA	Generic	Double digit 7 segment super bright yellow LED common anode	DS	
+Through-Hole · Displays	Display_Character	DA56-11YWA	DA56-11YWA	Generic	Double digit 7 segment super bright yellow LED common anode	DS	
+Through-Hole · Displays	Display_Character	DC56-11CGKWA	DC56-11CGKWA	Generic	Double digit 7 segment green LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11EWA	DC56-11EWA	Generic	Double digit 7 segment super bright red LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11GWA	DC56-11GWA	Generic	Double digit 7 segment green LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11SEKWA	DC56-11SEKWA	Generic	Double digit 7 segment super bright orange LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11SRWA	DC56-11SRWA	Generic	Double digit 7 segment super bright red LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11SURKWA	DC56-11SURKWA	Generic	Double digit 7 segment hyper red LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11SYKWA	DC56-11SYKWA	Generic	Double digit 7 segment super bright yellow LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DC56-11YWA	DC56-11YWA	Generic	Double digit 7 segment yellow LED common cathode	DS	
+Through-Hole · Displays	Display_Character	DE113-XX-XX	DE113-XX-XX	Generic	3 and half digit 7 segment transmissive standard LCD with LO BAT, pin length 7.5mm, -20°C to +70°C, 3V-5V VDD	DS	
+Through-Hole · Displays	Display_Character	DE114-RS-20	DE114-RS-20	Generic	3 and half digit 7 segment reflective standard LCD with ~~ and BAT, pin length 6.35mm, -20°C to +70°C, 3V-5V VDD	DS	
+Through-Hole · Displays	Display_Character	DE122-XX-XX	DE122-XX-XX	Generic	6 digit 7 segment reflective standard LCD, pin length 6.35mm, -20°C to +70°C, 3V-5V VDD	DS	
+Through-Hole · Displays	Display_Character	DE170-XX-XX	DE170-XX-XX	Generic	3 and half digit 7 segment reflective standard LCD with arrow, pin length 7.5mm, -20°C to +70°C, 3V-5V VDD	DS	
+Through-Hole · Displays	Display_Character	ELD-426SYGWA	ELD-426SYGWA	Generic	Double 7 segment brilliant yellow green LED common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7401	HDSP-7401	Generic	One digit 7 segment yellow, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7403	HDSP-7403	Generic	One digit 7 segment yellow, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7501	HDSP-7501	Generic	One digit 7 segment high efficiency red, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7503	HDSP-7503	Generic	One digit 7 segment high efficiency red, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7507	HDSP-7507	Generic	+-1 overflow 7 segment high efficiency red, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7508	HDSP-7508	Generic	+-1 overflow 7 segment high efficiency red, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7801	HDSP-7801	Generic	One digit 7 segment green, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7803	HDSP-7803	Generic	One digit 7 segment green, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7807	HDSP-7807	Generic	+-1 overflow 7 segment green, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-7808	HDSP-7808	Generic	+-1 overflow 7 segment green, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-A151	HDSP-A151	Generic	One digit 7 segment red, common anode	DS	
+Through-Hole · Displays	Display_Character	HDSP-A153	HDSP-A153	Generic	One digit 7 segment red, common cathode	DS	
+Through-Hole · Displays	Display_Character	HDSP-A401	HDSP-A401	Generic	One digit 7 segment orange, common anode	DS	
+Through-Hole · Timing	Oscillator	CXO_DIP14	CXO_DIP14	Generic	Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	CXO_DIP8	CXO_DIP8	Generic	Crystal Clock Oscillator, DIP8-style metal package	X	
+Through-Hole · Timing	Oscillator	DGOF5S3	DGOF5S3	Generic	HCMOS Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	GTXO-14T	GTXO-14T	Generic	Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	GTXO-14V	GTXO-14V	Generic	Voltage-Controlled Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	GTXO-S14T	GTXO-S14T	Generic	3.3 & 5V Stratum 3 Sinewave TCXO, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	GTXO-S14V	GTXO-S14V	Generic	3.3 & 5V Stratum 3 Sinewave TCXO, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	MV267	MV267	Generic	5/10 MHz Low Phase-Noise Precision OCXO, Morion MV267	X	
+Through-Hole · Timing	Oscillator	MV317	MV317	Generic	60, 80, 100, 120 & 122.76 MHz OCXO, Morion MV317	X	
+Through-Hole · Timing	Oscillator	OCXO-14	OCXO-14	Generic	Voltage-Controlled Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	SG-51	SG-51	Generic	CMOS Crystal Clock Oscillator, DIP14-style plastic package	X	
+Through-Hole · Timing	Oscillator	SG-531	SG-531	Generic	CMOS Crystal Clock Oscillator, DIP8-style plastic package	X	
+Through-Hole · Timing	Oscillator	SG-8002DB	SG-8002DB	Generic	Crystal Clock Oscillator, DIP14-style plastic package	X	
+Through-Hole · Timing	Oscillator	SG-8002DC	SG-8002DC	Generic	Crystal Clock Oscillator, DIP8-style plastic package	X	
+Through-Hole · Timing	Oscillator	TCXO-14	TCXO-14	Generic	Temperature Compensated Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	TFT660	TFT660	Generic	Crystal Clock Oscillator, DIP8-style metal package	X	
+Through-Hole · Timing	Oscillator	TFT680	TFT680	Generic	Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Timing	Oscillator	VC-81	VC-81	Generic	Voltage-Controlled Crystal Clock Oscillator, DIP8-style metal package	X	
+Through-Hole · Timing	Oscillator	VC-83	VC-83	Generic	Voltage-Controlled Crystal Clock Oscillator, DIP8-style metal package	X	
+Through-Hole · Timing	Oscillator	VTCXO-14	VTCXO-14	Generic	Voltage-Controlled Crystal Clock Oscillator, DIP14-style metal package	X	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny2313-20P	ATtiny2313-20P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny2313A-P	ATtiny2313A-P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny2313V-10P	ATtiny2313V-10P	Microchip	10MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny24-20P	ATtiny24-20P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny24A-P	ATtiny24A-P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny24V-10P	ATtiny24V-10P	Microchip	10MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny25-20P	ATtiny25-20P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny25V-10P	ATtiny25V-10P	Microchip	10MHz, 2kB Flash, 128B SRAM, 128B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny26-16P	ATtiny26-16P	Microchip	16MHz, 2kB Flash, 128B SRAM, 128B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny261A-P	ATtiny261A-P	Microchip	20MHz, 2kB Flash, 128B SRAM, 128B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny26L-8P	ATtiny26L-8P	Microchip	8MHz, 2kB Flash, 128B SRAM, 128B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny28L-4P	ATtiny28L-4P	Microchip	4MHz, 2kB Flash, No SRAM, No EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny28V-1P	ATtiny28V-1P	Microchip	1.2MHz, 2kB Flash, No SRAM, No EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny4313-P	ATtiny4313-P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny44-20P	ATtiny44-20P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny44A-P	ATtiny44A-P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny44V-10P	ATtiny44V-10P	Microchip	10MHz, 4kB Flash, 256B SRAM, 256B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny45-20P	ATtiny45-20P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny45V-10P	ATtiny45V-10P	Microchip	10MHz, 4kB Flash, 256B SRAM, 256B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny461-20P	ATtiny461-20P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny461A-P	ATtiny461A-P	Microchip	20MHz, 4kB Flash, 256B SRAM, 256B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny461V-10P	ATtiny461V-10P	Microchip	10MHz, 4kB Flash, 256B SRAM, 256B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny48-P	ATtiny48-P	Microchip	12MHz, 4kB Flash, 256B SRAM, 64B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny84-20P	ATtiny84-20P	Microchip	20MHz, 8kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny84A-P	ATtiny84A-P	Microchip	20MHz, 8kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny84V-10P	ATtiny84V-10P	Microchip	10MHz, 8kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, DIP-14	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny85-20P	ATtiny85-20P	Microchip	20MHz, 8kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny85V-10P	ATtiny85V-10P	Microchip	10MHz, 8kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, DIP-8	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny861-20P	ATtiny861-20P	Microchip	20MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny861A-P	ATtiny861A-P	Microchip	20MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny861V-10P	ATtiny861V-10P	Microchip	10MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATtiny	ATtiny88-P	ATtiny88-P	Microchip	12MHz, 8kB Flash, 512B SRAM, 64B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega164A-P	ATmega164A-P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega164P-20P	ATmega164P-20P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega164PA-P	ATmega164PA-P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega164PV-10P	ATmega164PV-10P	Microchip	10MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168-20P	ATmega168-20P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168A-P	ATmega168A-P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168P-20P	ATmega168P-20P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168PA-P	ATmega168PA-P	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168PV-10P	ATmega168PV-10P	Microchip	10MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega168V-10P	ATmega168V-10P	Microchip	10MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega16A-P	ATmega16A-P	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega16L-8P	ATmega16L-8P	Microchip	8MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega32-16P	ATmega32-16P	Microchip	16MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega324A-P	ATmega324A-P	Microchip	20MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega324P-20P	ATmega324P-20P	Microchip	20MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega324PA-P	ATmega324PA-P	Microchip	20MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega324PV-10P	ATmega324PV-10P	Microchip	10MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega328-P	ATmega328-P	Microchip	20MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega328P-P	ATmega328P-P	Microchip	20MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega32A-P	ATmega32A-P	Microchip	16MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega32L-8P	ATmega32L-8P	Microchip	8MHz, 32kB Flash, 2kB SRAM, 1kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48-20P	ATmega48-20P	Microchip	20MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48A-P	ATmega48A-P	Microchip	20MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48P-20P	ATmega48P-20P	Microchip	20MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48PA-P	ATmega48PA-P	Microchip	20MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48PV-10P	ATmega48PV-10P	Microchip	10MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega48V-10P	ATmega48V-10P	Microchip	10MHz, 4kB Flash, 512B SRAM, 256B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644-20P	ATmega644-20P	Microchip	20MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644A-P	ATmega644A-P	Microchip	20MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644P-20P	ATmega644P-20P	Microchip	20MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644PA-P	ATmega644PA-P	Microchip	20MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644PV-10P	ATmega644PV-10P	Microchip	10MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega644V-10P	ATmega644V-10P	Microchip	10MHz, 64kB Flash, 4kB SRAM, 2kB EEPROM, JTAG, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega8-16P	ATmega8-16P	Microchip	16MHz, 8kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega8515-16P	ATmega8515-16P	Microchip	16MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega8515L-8P	ATmega8515L-8P	Microchip	8MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega8535-16P	ATmega8535-16P	Microchip	16MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega8535L-8P	ATmega8535L-8P	Microchip	8MHz, 8kB Flash, 512B SRAM, 512B EEPROM, DIP-40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega88-20P	ATmega88-20P	Microchip	20MHz, 8kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_ATmega	ATmega88A-P	ATmega88A-P	Microchip	20MHz, 8kB Flash, 1kB SRAM, 512B EEPROM, DIP-28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F2550-ISP	PIC18F2550-ISP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4331-IP	PIC18F4331-IP	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F442-IP	PIC18F442-IP	Microchip	16K Flash, 768B SRAM, 256 EEPROM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4431-IP	PIC18F4431-IP	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4450-IP	PIC18F4450-IP	Microchip	16K Flash, 8K SRAM, USB, nanoWatt XLP, PDIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4455-IP	PIC18F4455-IP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4458-IP	PIC18F4458-IP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, 12-Bit A/D, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F448-IP	PIC18F448-IP	Microchip	16K Flash, 768B SRAM, 256 EEPROM, CAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4480-IP	PIC18F4480-IP	Microchip	32K Flash, 768B SRAM, 256 EEPROM, ECAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F44J10-IP	PIC18F44J10-IP	Microchip	16K Flash, 1K SRAM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F452-IP	PIC18F452-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4550-IP	PIC18F4550-IP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4553-IP	PIC18F4553-IP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, 12-Bit A/D, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F458-IP	PIC18F458-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, CAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F4580-IP	PIC18F4580-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, ECAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18F45J10-IP	PIC18F45J10-IP	Microchip	32K Flash, 1K SRAM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF13K50-EP	PIC18LF13K50-EP	Microchip	8K Flash, 512 SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF14K50-EP	PIC18LF14K50-EP	Microchip	16K Flash, 768 SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP20	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF2331-ISP	PIC18LF2331-ISP	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF2431-ISP	PIC18LF2431-ISP	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF2450-ISP	PIC18LF2450-ISP	Microchip	16K Flash, 8K SRAM, USB, nanoWatt XLP, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF2455-ISP	PIC18LF2455-ISP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF2550-ISP	PIC18LF2550-ISP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, SPDIP28	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4331-IP	PIC18LF4331-IP	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF442-IP	PIC18LF442-IP	Microchip	16K Flash, 768B SRAM, 256 EEPROM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4431-IP	PIC18LF4431-IP	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4450-IP	PIC18LF4450-IP	Microchip	16K Flash, 8K SRAM, USB, nanoWatt XLP, PDIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4455-IP	PIC18LF4455-IP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4458-IP	PIC18LF4458-IP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, 12-Bit A/D, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF448-IP	PIC18LF448-IP	Microchip	16K Flash, 768B SRAM, 256 EEPROM, CAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4480-IP	PIC18LF4480-IP	Microchip	32K Flash, 768B SRAM, 256 EEPROM, ECAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF44J10-IP	PIC18LF44J10-IP	Microchip	16K Flash, 1K SRAM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF452-IP	PIC18LF452-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, ADC, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4550-IP	PIC18LF4550-IP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4553-IP	PIC18LF4553-IP	Microchip	32K Flash, 2K SRAM, 256 EEPROM, USB, 12-Bit A/D, nanoWatt XLP, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF458-IP	PIC18LF458-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, CAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4580-IP	PIC18LF4580-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, ECAN, DIP40	U	
+Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF45J10-IP	PIC18LF45J10-IP	Microchip	32K Flash, 1K SRAM, ADC, DIP40	U	
