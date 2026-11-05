@@ -3,7 +3,7 @@
 # Using SiEDA from any AI: the MCP server
 
 SiEDA speaks the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). Any MCP client — Claude Desktop,
-Claude Code, Cursor, VS Code, ChatGPT desktop, or a local LLM host — can open SiEDA projects, capture schematics,
+Claude Code, Cursor, VS Code, the si-llm CLI, ChatGPT desktop, or a local LLM host — can open SiEDA projects, capture schematics,
 search the part catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at the design as a
 picture and write fabrication files. The AI works with the same engine the app uses; nothing runs in the cloud except
 the AI client itself.
@@ -224,6 +224,30 @@ settings.
 
 The `inputs` entry makes VS Code ask for the token once and keep it out of the file (the snippet in SiEDA's settings
 has it inline instead — fine for a user configuration, not for a file you commit).
+
+### si-llm
+
+[si-llm](https://github.com/kernelsrinivas/si-llm) is a small PCB / CAD language model whose CLI carries its own MCP
+client: it turns a sentence into tool calls and asks before each one (`si mode auto|semi|man` sets how often). It
+starts stdio servers by a command, so add SiEDA headless (from the si-llm checkout):
+
+```bash
+python3 -m py.si.cli mcp add sieda --command "/path/to/si-eda/build/sieda-mcp --root /Users/me/Designs"
+python3 -m py.si.cli mcp list          # sieda  stdio  connected  project_new, …
+```
+
+or live, on the design open in the app (the token goes on the command line: si-llm's client sends no header and
+cannot set an environment variable):
+
+```bash
+python3 -m py.si.cli mcp add sieda-app --command "/path/to/si-eda/build/sieda-mcp --connect http://127.0.0.1:39717/mcp --token <token>"
+```
+
+Both land in si-llm's `model/mcp.json` (`"transport": "stdio"`). Its client refuses a command holding
+`; & | $ < >` or a backtick, or longer than 240 characters: use plain paths without spaces. It waits 8 s for each answer,
+so a long whole-board `pcb_autoroute` is better started from another client or the app. si-llm calls a tool by its
+name on whichever connected server lists it (`pcb_drc` reaches SiEDA's). CTest `sieda_mcp_si_llm` speaks to
+`sieda-mcp` exactly as that client does.
 
 ### ChatGPT
 

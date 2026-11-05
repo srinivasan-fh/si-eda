@@ -8728,6 +8728,11 @@ final class MCPLiveEndpointTests: XCTestCase {
                        MCPLiveServer.claudeDesktopConfig(url: "u", token: "T", bridgePath: "/b")] {
             XCTAssertNotNil(try? JSONSerialization.jsonObject(with: Data(config.utf8)), config)
         }
+        // si-llm's client refuses ; & | ` $ < > in the command it is given (py/si/mcp_client.py `_safe_target`).
+        let siLlm = MCPLiveServer.siLlmCommand(url: "http://127.0.0.1:39717/mcp", token: "T", bridgePath: "/b/sieda-mcp")
+        XCTAssertEqual(siLlm, "python3 -m py.si.cli mcp add sieda-app --command \"/b/sieda-mcp --connect http://127.0.0.1:39717/mcp --token T\"")
+        let target = siLlm.components(separatedBy: "--command \"")[1].dropLast()
+        XCTAssertFalse(target.contains { ";&|`$<>\n".contains($0) })
     }
 
     func testRealLoopbackRoundTrip() async throws {

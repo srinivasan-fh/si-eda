@@ -203,6 +203,10 @@ if(SIEDA_BUILD_TESTS)
         add_test(NAME sieda_mcp_stdio
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_stdio_test.py
                          $<TARGET_FILE:sieda-mcp> ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures/mcp/transcript.jsonl)
+        # The si-llm CLI's MCP client protocol (initialize without params, one line per reply within 8 s).
+        add_test(NAME sieda_mcp_si_llm
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_si_llm_client_test.py
+                         $<TARGET_FILE:sieda-mcp>)
         # The Python API (python/sieda.py) drives sieda-mcp end to end.
         add_test(NAME sieda_python_api
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_sieda.py $<TARGET_FILE:sieda-mcp>)

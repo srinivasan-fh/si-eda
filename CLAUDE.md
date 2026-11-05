@@ -263,7 +263,7 @@
   127.0.0.1 only, bearer token in the Keychain, Origin / Host check): `SiEDA/App/MCPEndpoint.swift` (listener, HTTP
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
-  reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
+  reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`). The si-llm CLI (github.com/kernelsrinivas/si-llm) is a supported client: stdio by command (initialize without params, 8 s per answer, no ; & | $ < > ` in the command, live mode via `--token`); CTest `sieda_mcp_si_llm`, app snippet `MCPLiveServer.siLlmCommand`, docs/MCP.md "si-llm".
 - Fabrication drawing PDF `exportBoardDrawingPdf` (declared in `Documents.hpp`, written in `SchematicPdf.cpp` with its
   `Canvas`: dimensions `BoardSettings::dimensions`, drill map + table, stack-up legend, notes) and the revision table
   `Project::revisions` (both saved only when present; title blocks of both PDFs); net-length CSV `exportNetLengthReport`.
