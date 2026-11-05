@@ -156,25 +156,29 @@ struct ContentView: View {
                 .disabled(!store.canRedo)
                 .help("Redo (⇧⌘Z)")
         }
-        // The workspace group in the centre of the header; on the right the fabrication export, the AI menu and the
-        // inspector toggle. Simulate lives in the Simulation workspace.
+        // The workspace group in the centre of the header with the fabrication export beside it; on the right only
+        // the AI menu and the inspector toggle. Simulate lives in the Simulation workspace.
         ToolbarItem(placement: .principal) {
-            Picker("Workspace", selection: $store.workspace) {
-                ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    Label { Text(LocalizedStringKey(w.title)) } icon: { w.icon }.tag(w)
+            HStack(spacing: 8) {
+                Picker("Workspace", selection: $store.workspace) {
+                    ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
+                        Label { Text(LocalizedStringKey(w.title)) } icon: { w.icon }.tag(w)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelStyle(.iconOnly)
+                .help("Switch workspace (⌘1 – ⌘7)")
+                // Fabrication, the step after the BOM: beside the workspace group.
+                Button { Task { await store.exportFabricationPackage() } } label: {
+                    Label("Export Fabrication Package…", systemImage: "shippingbox")
+                }
+                .labelStyle(.iconOnly)
+                .disabled(store.isBusy)
+                .help("Export fabrication package (⇧⌘E)")
             }
-            .pickerStyle(.segmented)
-            .labelStyle(.iconOnly)
-            .help("Switch workspace (⌘1 – ⌘7)")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { Task { await store.exportFabricationPackage() } } label: {
-                Label("Export Fabrication Package…", systemImage: "shippingbox")
-            }
-            .disabled(store.isBusy)
-            .help("Export fabrication package (⇧⌘E)")
-
+        // .automatic = the trailing edge on macOS (.primaryAction would sit toward the leading side).
+        ToolbarItemGroup(placement: .automatic) {
             Menu {
                 Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 if settings.aiEnabled {
