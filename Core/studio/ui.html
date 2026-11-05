@@ -117,7 +117,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,input:focus,text
 #quickDlg{min-width:0;width:360px}#quickDlg .ff{grid-template-columns:90px 1fr}
 </style></head><body>
 <header><div class="menurow"><b>SiEDA</b><span id="menubar"></span></div><div class="toolrow"><div class="lead"><span class="name" id="name">No project</span></div>
-<div class="seg" id="wsPicker" role="tablist"></div><div class="trail"><button class="tb" onclick="undo()" title="Undo"><i class="ico" data-ico="undo"></i></button>
+<div class="seg" id="wsPicker" role="tablist"></div><div class="trail"><button class="tb" onclick="menuItem('File','Export Fabrication Package…')" title="Export Fabrication Package…"><i class="ico" data-ico="box"></i></button><button class="tb" onclick="undo()" title="Undo"><i class="ico" data-ico="undo"></i></button>
 <button class="tb" onclick="redo()" title="Redo"><i class="ico" data-ico="redo"></i></button>
 </div></div></header>
 <div class="main">
@@ -1180,7 +1180,7 @@ const ICONS={schematic:SVG("<path d='M1 9H4L5 6L7 12L9 6L11 12L13 6L14 9H17'/>")
  threeD:SVG("<path d='M1 10.5L9 6.5L17 10.5L9 14.5Z'/><path d='M1 10.5V12.5L9 16.5L17 12.5V10.5M9 14.5V16.5'/><path d='M6 6L9 4.5L12 6L9 7.5Z'/><path d='M6 6V9L9 10.5L12 9V6M9 7.5V10.5'/>",1.4),
  sim:SVG("<rect x='1.25' y='2.25' width='15.5' height='13.5' rx='2.5'/><path d='M3.5 9C5 3.75 7.25 3.75 9 9S13 14.25 14.5 9'/>"),
  seal:SVG("<path d='M9 1.5L10.6 3L12.8 2.7L13.5 4.8L15.5 5.8L15 8L16.2 9.9L14.6 11.4L14.6 13.6L12.5 14.1L11.2 15.9L9 15.3L6.8 15.9L5.5 14.1L3.4 13.6L3.4 11.4L1.8 9.9L3 8L2.5 5.8L4.5 4.8L5.2 2.7L7.4 3Z'/><path d='M6.2 9.2L8.2 11.1L11.8 6.9'/>",1.3),
- bom:SVG("<rect x='1.75' y='2.25' width='14.5' height='13.5' rx='2'/><path d='M1.75 6.25H16.25M1.75 9.5H16.25M1.75 12.75H16.25M6.25 6.25V15.75'/>"),
+ box:SVG("<path d='M9 2L16 5.5V12.5L9 16L2 12.5V5.5Z'/><path d='M2 5.5L9 9L16 5.5M9 9V16M5.5 3.8L12.5 7.3'/>"),bom:SVG("<rect x='1.75' y='2.25' width='14.5' height='13.5' rx='2'/><path d='M1.75 6.25H16.25M1.75 9.5H16.25M1.75 12.75H16.25M6.25 6.25V15.75'/>"),
  cursor:SVG("<path d='M4 2L4 15L7.5 11.5L10 16.5L12 15.5L9.5 10.5L14.5 10.5Z'/>",1.3),
  wire:SVG("<circle cx='3' cy='14' r='1.6'/><path d='M4.5 14H9V4H13.5'/><circle cx='15' cy='4' r='1.6'/>"),
  tag:SVG("<path d='M2 5H11L15.5 9L11 13H2Z'/><circle cx='6' cy='9' r='1'/>"),
