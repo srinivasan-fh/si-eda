@@ -256,9 +256,14 @@ The standard library covers the usual robotics, automotive and industrial produc
 New footprint types: BGA (JEDEC ball names), TO-263 / D²PAK and SOT-223 with the tab tied to the datasheet's pin, Multiwatt-15 (staggered), SON / DFN with a drain tab, exposed pads on TQFP, and 3225 / 3215 / cylinder crystals.
 
 **Package choice for passives.** Pick a resistor, capacitor, inductor, diode or LED and choose its package in the Inspector. The choice is undoable, saved with the project, and the PCB, 3D view and BOM follow it.
-- Resistors: 0402, 0603, 0805, 1206, axial through-hole.
-- Capacitors: chip sizes, ceramic disc, tantalum A/B, radial electrolytic.
-- Diodes: SOD-123, SMA, DO-41.
+- Resistors: 0402, 0603, 0805, 1206; axial through-hole DIN0204 (1/8 W) to DIN0516 (3 W), 5.08–25.4 mm lead spacing.
+- Capacitors: chip sizes, tantalum A/B; ceramic disc 3 / 5 / 7.5 mm, film box 7.2–18 mm (5–15 mm spacing), radial
+  electrolytic 5–18 mm.
+- Inductors: chip sizes; axial and radial (10 / 12 mm) through-hole.
+- Diodes: SOD-123, SMA; DO-35, DO-41, DO-15, DO-201AD through-hole. LEDs: 0603, 0805, 3 mm and 5 mm through-hole.
+
+Each through-hole size has the pads, drills and lead spacing of KiCad's footprint of the same name (a diode's or LED's
+square pad marks the cathode), and the BOM names its family (Axial, Radial, Disc, Film box, DO-35 …).
 
 **General-purpose catalog.** 152 more parts most boards use, on their orderable packages with KiCad pinouts:
 - **MCUs:** STM32F030 / F103RB / F303 / F411RE / F429ZI / G031 / G071 / L072 / L476 / WB55 / C011, ESP32-C3, ESP32-S3,
@@ -326,6 +331,28 @@ exactly, its datasheet names the manufacturer, and the core registers it with ev
 `Core/src/StandardCatalogExtra.inc`). AI prompts do not carry the whole catalog: they get the parts the brief names or
 matches (with pins, at most 40 parts / 1800 pins), a few staples, the parts the plan already uses and an index of the
 categories (`SiEDA/AI/CatalogDigest.swift`).
+
+**Through-hole catalog (1638 parts, categories "Through-Hole · …").** Every through-hole part family KiCad's libraries
+carry with an orderable symbol or a generic one on a through-hole footprint:
+- **Diodes and bridges:** 1N4148, 1N400x, 1N58xx, zeners, bridge rectifiers (174).
+- **Transistors:** TO-92 / TO-220 / TO-247 BJTs and MOSFETs, Darlington arrays, triacs and thyristors (202).
+- **Regulators and references:** 78xx / 79xx, LM317 and friends in TO-220 / TO-92, TL431-type references (120).
+- **Power modules:** SIP DC/DC (RECOM, TRACO …) and AC/DC modules (99).
+- **Optocouplers and relays:** DIP optocouplers, signal and power relays, solid-state relays (198).
+- **DIP ICs:** 74xx and 4000 logic, op-amps, comparators, timers, UART / ADC / DAC / EEPROM / driver chips and ATtiny /
+  ATmega / PIC18 microcontrollers (509).
+- **Displays, sensors, timing:** 7-segment and dot displays, TO-92 temperature sensors, optical sensors, HC-49 and
+  32.768 kHz crystals, DIP oscillators (130).
+- **Connectors:** Phoenix MKDS 5.08 mm screw terminals (2–16 way), JST XH / PH / EH / VH and Molex KK 254 headers, IDC
+  box headers 2 × 3…32, 2.00 / 1.27 mm pin headers, D-sub, DC barrel jack, USB-B, RJ45 (143).
+- **Switches and passives:** DIP switches (1–12 way), 6 mm tact switches (all four legs), slide switches, trimmers and
+  potentiometers, buzzers, fuse holders, varistors (63).
+
+A part's pins are its KiCad symbol's and its pads its KiCad footprint's (drills included); a symbol that names no
+footprint but whose footprint filter offers a DIP (74xx / 4000 logic, op-amps) is listed as `<name>-DIP<n>`. The
+list is frozen in `tools/catalog_tht_parts.tsv` (`tools/fetch_catalog_parts.py --discover-tht`); `--tht` writes
+`Core/src/StandardCatalogTht.inc`. Four parts whose KiCad land pattern overlaps or whose slot reads larger than its
+pad are left out (`EXCLUDE`).
 
 `tools/fetch_catalog_parts.py` regenerates the catalog (it needs network access to gitlab.com).
 

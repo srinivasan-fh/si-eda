@@ -66,7 +66,7 @@ CapacitorParasitics capacitorParasitics(const std::string& footprint, double far
     } else if (f.find("RADIAL") != std::string::npos || f.rfind("CP_", 0) == 0) {
         p.esl = 5e-9;
         p.esr = std::clamp(0.3 * std::pow(c / 100e-6, -0.5), 0.02, 3.0);
-    } else if (f.find("DISC") != std::string::npos || f.find("THT") != std::string::npos) {
+    } else if (f.find("DISC") != std::string::npos || f.find("THT") != std::string::npos || f.rfind("C_RECT", 0) == 0) {
         p.esl = 3e-9;
         p.esr = 0.1;
     } else {

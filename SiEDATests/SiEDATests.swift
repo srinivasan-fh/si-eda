@@ -3481,7 +3481,8 @@ final class PartsCatalogTests: XCTestCase {
         store.autoPlace(all: true)
         let resistor = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor })
         let options = try XCTUnwrap(resistor.packageOptions)
-        XCTAssertEqual(options.map(\.label), ["0402", "0603", "0805", "1206", "Axial THT (1/4 W)"])
+        XCTAssertEqual(Array(options.map(\.label).prefix(5)), ["0402", "0603", "0805", "1206", "Axial THT (1/4 W)"])
+        XCTAssertTrue(options.contains { $0.label == "Axial DIN0414 (2 W), 20.32 mm" })  // the through-hole sizes
         XCTAssertEqual(resistor.footprint, "R_0805")
         XCTAssertNil(resistor.package)
 

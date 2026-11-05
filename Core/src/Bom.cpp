@@ -39,6 +39,15 @@ std::string packageCode(const Component& c) {
     if (fp == "CP_Radial_THT") return "Radial";
     if (fp == "R_Axial_THT") return "Axial";
     if (fp == "C_Disc_THT") return "Disc";
+    if (fp.rfind("R_Axial", 0) == 0 || fp.rfind("L_Axial", 0) == 0) return "Axial";
+    if (fp.rfind("CP_Radial", 0) == 0 || fp.rfind("L_Radial", 0) == 0) return "Radial";
+    if (fp.rfind("C_Disc", 0) == 0) return "Disc";
+    if (fp.rfind("C_Rect", 0) == 0) return "Film box";
+    if (fp.rfind("D_DO-35", 0) == 0) return "DO-35";
+    if (fp.rfind("D_DO-15", 0) == 0) return "DO-15";
+    if (fp.rfind("D_DO-201AD", 0) == 0) return "DO-201AD";
+    if (fp.rfind("LED_D3.0mm", 0) == 0) return "3 mm THT";
+    if (fp.rfind("LED_D5.0mm", 0) == 0) return "5 mm THT";
     if (fp.rfind("SOIC8", 0) == 0) return "SOIC-8";
     if (fp.rfind("PinHeader", 0) == 0) return "2.54 mm header";
     return footprintLabel(c);
