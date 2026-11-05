@@ -55,6 +55,7 @@ struct SettingsView: View {
     }
 
     @AppStorage("settings.pane") private var paneID = Pane.general.rawValue
+    @EnvironmentObject private var language: LanguageSettings
     private var pane: Pane { Pane(rawValue: paneID) ?? .general }
 
     var body: some View {
@@ -75,6 +76,41 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.navy)
         .background(ThemedWindowBackground())
+        .background(SettingsWindowChrome(title: LanguageSettings.localized("Settings", code: language.code)))
+    }
+
+    /// Keeps the Settings window a standard titled window: title bar with its close / minimise buttons (without a
+    /// TabView root the window could come up without them) and the window's title.
+    private struct SettingsWindowChrome: NSViewRepresentable {
+        let title: String
+        func makeNSView(context: Context) -> NSView { ChromeView(title: title) }
+        func updateNSView(_ view: NSView, context: Context) {
+            (view as? ChromeView)?.title = title
+            (view as? ChromeView)?.apply()
+        }
+
+        final class ChromeView: NSView {
+            var title: String
+            init(title: String) {
+                self.title = title
+                super.init(frame: .zero)
+            }
+            required init?(coder: NSCoder) { nil }
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                apply()
+            }
+            func apply() {
+                guard let window else { return }
+                window.styleMask.insert([.titled, .closable, .miniaturizable])
+                window.titleVisibility = .visible
+                window.titlebarAppearsTransparent = false
+                window.title = title
+                for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton] {
+                    window.standardWindowButton(kind)?.isHidden = false
+                }
+            }
+        }
     }
 
     private var sidebar: some View {
