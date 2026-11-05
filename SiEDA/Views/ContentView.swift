@@ -156,7 +156,9 @@ struct ContentView: View {
                 .disabled(!store.canRedo)
                 .help("Redo (⇧⌘Z)")
         }
-        ToolbarItem(placement: .principal) {
+        // Right side of the header: the workspace group, then the AI menu and the inspector toggle. Simulate and
+        // Export live in their groups (the Simulation workspace, File → Export Fabrication Package…).
+        ToolbarItemGroup(placement: .primaryAction) {
             Picker("Workspace", selection: $store.workspace) {
                 ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
                     Label { Text(LocalizedStringKey(w.title)) } icon: { w.icon }.tag(w)
@@ -165,8 +167,7 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
             .help("Switch workspace (⌘1 – ⌘7)")
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
+
             Menu {
                 Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 if settings.aiEnabled {
@@ -188,19 +189,6 @@ struct ContentView: View {
                 }
             }
             .help(settings.aiEnabled ? "AI model used by the design agents" : "AI assistance is off — SiEDA works fully manually")
-
-            Button {
-                Task {
-                    await store.simulateDC()
-                    store.workspace = .simulation
-                }
-            } label: { Label("Simulate", systemImage: "play.circle") }
-                .help("DC operating point (⇧⌘D)")
-
-            Button { Task { await store.exportFabricationPackage() } } label: {
-                Label("Export", systemImage: "shippingbox")
-            }
-            .help("Export fabrication package (⇧⌘E)")
 
             Button { setInspector(!showInspector) } label: { Label("Inspector", systemImage: "sidebar.trailing") }
         }
