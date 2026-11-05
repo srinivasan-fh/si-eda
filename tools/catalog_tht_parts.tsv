@@ -1325,3 +1325,319 @@ Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4553-IP	PIC18LF4553-
 Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF458-IP	PIC18LF458-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, CAN, DIP40	U	
 Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF4580-IP	PIC18LF4580-IP	Microchip	32K Flash, 1536B SRAM, 256 EEPROM, ECAN, DIP40	U	
 Through-Hole · Microcontrollers	MCU_Microchip_PIC18	PIC18LF45J10-IP	PIC18LF45J10-IP	Microchip	32K Flash, 1K SRAM, ADC, DIP40	U	
+Through-Hole · Logic	74xx	7400	7400-DIP14	Texas Instruments	quad 2-input NAND gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	7402	7402-DIP14	Texas Instruments	quad 2-input NOR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74469	74469-DIP24	Texas Instruments	8-bit synchronous up/down counter, parallel load and hold capability (obsolete), through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	7454	7454-DIP14	Texas Instruments	And-Nor (Y = /(AB + CD + EF + GH) ), DIP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74AHC04	74AHC04-DIP14	Nexperia	Hex Inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74AHC240	74AHC240-DIP20	Texas Instruments	8-bit Buffer/Line Driver 3-state Inverting, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHC273	74AHC273-DIP20	Nexperia	8-bit D Flip-Flop, reset, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHC373	74AHC373-DIP20	Nexperia	8-bit Latch, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHC374	74AHC374-DIP20	Nexperia	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHC541	74AHC541-DIP20	Texas Instruments	8-bit Buffer/Line Driver 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHC595	74AHC595-DIP16	Nexperia	8-bit serial in/out Shift Register 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74AHCT04	74AHCT04-DIP14	Nexperia	Hex Inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74AHCT123	74AHCT123-DIP16	Texas Instruments	Dual retriggerable monostable multivibrator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74AHCT125	74AHCT125-DIP14	Texas Instruments	Quadruple Bus Buffer Gates With 3-State Outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74AHCT240	74AHCT240-DIP20	Nexperia	8-bit Buffer/Line Driver 3-state Inverting, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHCT273	74AHCT273-DIP20	Nexperia	8-bit D Flip-Flop, reset, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHCT373	74AHCT373-DIP20	Texas Instruments	8-bit Latch, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHCT374	74AHCT374-DIP20	Nexperia	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHCT541	74AHCT541-DIP20	Texas Instruments	8-bit Buffer/Line Driver 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74AHCT595	74AHCT595-DIP16	Nexperia	8-bit serial in/out Shift Register 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74CBT3861	74CBT3861-DIP24	Texas Instruments	10-bit FET bus switch, through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	74CBTD3861	74CBTD3861-DIP24	Texas Instruments	10-bit FET Bus switch, through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	74CBTLV3861	74CBTLV3861-DIP24	Texas Instruments	Low-voltage 10-bit FET bus switch, through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	74HC00	74HC00-DIP14	Texas Instruments	quad 2-input NAND gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC02	74HC02-DIP14	Texas Instruments	quad 2-input NOR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC04	74HC04-DIP14	Nexperia	Hex Inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC123	74HC123-DIP16	Nexperia	Dual retriggerable monostable multivibrator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC137	74HC137-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer with address latches, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC138	74HC138-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer inverting, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC14	74HC14-DIP14	Texas Instruments	Hex inverter schmitt trigger, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC164	74HC164-DIP14	Nexperia	8-bit serial-in parallel-out shift register, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC165	74HC165-DIP16	Nexperia	Shift Register, 8-bit, Parallel Load, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC173	74HC173-DIP16	Texas Instruments	4-bit D-type Register, 3 state out, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC192	74HC192-DIP16	Texas Instruments	Synchronous 4-bit Up/Down (2 clk) counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC193	74HC193-DIP16	Nexperia	Synchronous 4-bit Up/Down (2 clk) counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC237	74HC237-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer with address latches, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC238	74HC238-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC240	74HC240-DIP20	Nexperia	8-bit Buffer/Line Driver 3-state Inverting, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC245	74HC245-DIP20	Texas Instruments	Octal BUS Transceivers, 3-State outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC273	74HC273-DIP20	Nexperia	8-bit D Flip-Flop, reset, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC373	74HC373-DIP20	Texas Instruments	8-bit Latch, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC374	74HC374-DIP20	Texas Instruments	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC4051	74HC4051-DIP16	Texas Instruments	8-channel analog multiplexer/demultiplexer, DIP-16/SOIC-16/TSSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC4060	74HC4060-DIP16	STMicroelectronics	Binary counter (14-stages) and oscillator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC590	74HC590-DIP16	Nexperia	8-bit Binary Counter with Output Register 3-State Outputs, SOIC-16/TSSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC590A	74HC590A-DIP16	Texas Instruments	8-bit Binary Counter with Output Register 3-State Outputs, DIP-16/SOIC-16/SOIC-16W, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC594	74HC594-DIP16	Texas Instruments	8-Bit Shift Registers With Output Registers, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC595	74HC595-DIP16	Texas Instruments	8-bit serial in/out Shift Register 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC596	74HC596-DIP16	Nexperia	8-bit serial in/out Shift Register Open Collector Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC688	74HC688-DIP20	Texas Instruments	8-bit magnitude comparator, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HC74	74HC74-DIP14	Nexperia	Dual D Flip-flop, Set & Reset, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HC85	74HC85-DIP16	Nexperia	4-bit Comparator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HC86	74HC86-DIP14	Texas Instruments	Quad 2-input XOR, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HCT00	74HCT00-DIP14	Texas Instruments	quad 2-input NAND gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HCT02	74HCT02-DIP14	Texas Instruments	quad 2-input NOR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HCT04	74HCT04-DIP14	Nexperia	Hex Inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HCT123	74HCT123-DIP16	Nexperia	Dual retriggerable monostable multivibrator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT137	74HCT137-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer with address latches, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT138	74HCT138-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer inverting, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT164	74HCT164-DIP14	Nexperia	8-bit serial-in parallel-out shift register, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74HCT173	74HCT173-DIP16	Texas Instruments	4-bit D-type Register, 3 state out, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT193	74HCT193-DIP16	Nexperia	Synchronous 4-bit Up/Down (2 clk) counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT237	74HCT237-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer with address latches, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT238	74HCT238-DIP16	Texas Instruments	3-to-8 line decoder/multiplexer, DIP-16/SOIC-16/SSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT240	74HCT240-DIP20	Nexperia	8-bit buffer; 3-state; inverting, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT273	74HCT273-DIP20	Nexperia	8-bit D Flip-Flop, reset, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT373	74HCT373-DIP20	Texas Instruments	8-bit Latch, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT374	74HCT374-DIP20	Texas Instruments	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT4051	74HCT4051-DIP16	Texas Instruments	8-channel analog multiplexer/demultiplexer, DIP-16/SOIC-16/TSSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT541	74HCT541-DIP20	Texas Instruments	8-bit Buffer/Line Driver 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT574	74HCT574-DIP20	Texas Instruments	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT595	74HCT595-DIP16	Nexperia	8-bit serial in/out Shift Register 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT596	74HCT596-DIP16	Nexperia	8-bit serial in/out Shift Register Open Collector Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74HCT688	74HCT688-DIP20	Texas Instruments	8-bit magnitude comparator, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74HCT85	74HCT85-DIP16	Nexperia	4-bit Comparator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LCX07	74LCX07-DIP14	STMicroelectronics	CMOS hex buffer (open drain) with 5V tolerant inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS00	74LS00-DIP14	Texas Instruments	quad 2-input NAND gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS01	74LS01-DIP14	Generic	quad 2-input NAND gate, open collector outputs NRND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS02	74LS02-DIP14	Texas Instruments	quad 2-input NOR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS03	74LS03-DIP14	Texas Instruments	Quad 2-input NAND open collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS04	74LS04-DIP14	Texas Instruments	Hex Inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS05	74LS05-DIP14	Texas Instruments	Inverter Open Collect, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS06	74LS06-DIP14	Texas Instruments	Inverter Open Collect, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS06N	74LS06N-DIP14	Texas Instruments	Inverter Open Collect, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS07	74LS07-DIP14	Texas Instruments	Hex Buffers and Drivers With Open Collector High Voltage Outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS08	74LS08-DIP14	Texas Instruments	Quad And2, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS09	74LS09-DIP14	Texas Instruments	Quad 2-input AND Open Collect, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS10	74LS10-DIP14	Texas Instruments	Triple 3-input NAND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS107	74LS107-DIP14	Texas Instruments	Dual JK Flip-Flop, reset, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS109	74LS109-DIP16	Texas Instruments	Dual JK Flip-Flop, Set & Reset, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS11	74LS11-DIP14	Texas Instruments	Triple 3-input AND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS112	74LS112-DIP16	Texas Instruments	dual JK Flip-Flop, Set & Reset, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS113	74LS113-DIP14	Texas Instruments	dual JK flip-flop, Set, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS114	74LS114-DIP14	Texas Instruments	Dual JK flip-flop, common Clock & Reset, Set, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS12	74LS12-DIP14	Texas Instruments	Triple 3-input NAND Open Collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS121	74LS121-DIP14	Texas Instruments	monostable multivibrator with Schmitt-trigger inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS122	74LS122-DIP14	Texas Instruments	Retriggerable Monostable, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS123	74LS123-DIP16	Texas Instruments	Dual retriggerable Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS125	74LS125-DIP14	Texas Instruments	Quad buffer 3-State outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS126	74LS126-DIP14	Texas Instruments	Quad buffer 3-State outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS13	74LS13-DIP14	Texas Instruments	Dual 4-input NAND Schmitt trigger, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS132	74LS132-DIP14	Texas Instruments	Quad 2-input NAND Schmitt trigger, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS133	74LS133-DIP16	Texas Instruments	NAND 13-input, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS136	74LS136-DIP14	Texas Instruments	Quad 2-input XOR Open Collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS137	74LS137-DIP16	Texas Instruments	Decoder 3 to 8, address latches, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS138	74LS138-DIP16	Texas Instruments	Decoder 3 to 8 active low outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS139	74LS139-DIP16	Texas Instruments	Dual Decoder 1 of 4, Active low outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS14	74LS14-DIP14	Texas Instruments	Hex inverter schmitt trigger, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS145	74LS145-DIP16	Texas Instruments	Decoder 1 to 10, Open Collector, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS147	74LS147-DIP16	Texas Instruments	Priority Encoder, 10 to 4, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS148	74LS148-DIP16	Texas Instruments	Priority Encoder 3 to 8 cascadable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS15	74LS15-DIP14	Texas Instruments	Triple 3-input AND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS151	74LS151-DIP16	Texas Instruments	Multiplexer 8 to 1, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS153	74LS153-DIP16	Texas Instruments	Dual Multiplexer 4 to 1, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS154	74LS154-DIP24	Texas Instruments	Decoder 4 to 16, through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	74LS155	74LS155-DIP16	Texas Instruments	Dual 2 to 4 lines Decoder/Demultiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS156	74LS156-DIP16	Texas Instruments	Dual 2 to 4 lines Decoder/Demultiplexer, Open Collector, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS157	74LS157-DIP16	Texas Instruments	Quad 2 to 1 line Multiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS158	74LS158-DIP16	Texas Instruments	Quad 2 to 1 multiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS160	74LS160-DIP16	Texas Instruments	Synchronous 4-bit programmable decimal Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS161	74LS161-DIP16	Texas Instruments	Synchronous 4-bit programmable binary Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS162	74LS162-DIP16	Texas Instruments	Synchronous 4-bit programmable decimal Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS163	74LS163-DIP16	Texas Instruments	Synchronous 4-bit programmable binary Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS165	74LS165-DIP16	Texas Instruments	Shift Register 8-bit, parallel load, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS166	74LS166-DIP16	Texas Instruments	Shift Register 8-bit, parallel load, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS168	74LS168-DIP16	Texas Instruments	Synchronous 4-bit Up/Down Decimal counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS169	74LS169-DIP16	Texas Instruments	Synchronous 4-bit Up/Down binary counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS170	74LS170-DIP16	Texas Instruments	4 x 4 Register Files Open Collector, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS173	74LS173-DIP16	Texas Instruments	4-bit D-type Register, 3 state out, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS174	74LS174-DIP16	Texas Instruments	Hex D-type Flip-Flop, reset, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS175	74LS175-DIP16	Texas Instruments	4-bit D Flip-Flop, reset, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS181	74LS181-DIP24	Generic	Arithmetic logic unit, through-hole DIP-24	U	Package_DIP:DIP-24_W7.62mm
+Through-Hole · Logic	74xx	74LS182	74LS182-DIP16	Texas Instruments	Carry generator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS190	74LS190-DIP16	Texas Instruments	4-bit Synchronous Up/Down BCD Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS191	74LS191-DIP16	Texas Instruments	4-bit Synchronous Up/Down binary Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS192	74LS192-DIP16	Texas Instruments	Synchronous 4-bit Up/Down (2 clk) counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS193	74LS193-DIP16	Texas Instruments	Synchronous 4-bit Up/Down (2 clk) counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS194	74LS194-DIP16	Texas Instruments	Shift Register 4-bit Bidirectional, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS195	74LS195-DIP16	Texas Instruments	Shift Register 4-bit, parallel, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS196	74LS196-DIP14	Texas Instruments	4 (3+1)-bit presettable BCD counter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS197	74LS197-DIP14	Texas Instruments	4 (3+1)-bit presettable binary counter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS21	74LS21-DIP14	Texas Instruments	Dual 4-input AND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS221	74LS221-DIP16	Texas Instruments	Dual Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS240	74LS240-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, active-low enables, inverting outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS240_Split	74LS240_Split-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, active-low enables, inverting outputs, split symbol, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS241	74LS241-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, complementary enables, non-inverting outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS241_Split	74LS241_Split-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, complementary enables, non-inverting outputs, split symbol, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS242	74LS242-DIP14	Generic	quad bus transceiver, inverting 3-state outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS243	74LS243-DIP14	Texas Instruments	4-bit Bus Transceiver, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS244	74LS244-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, active-low enables, non-inverting outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS244_Split	74LS244_Split-DIP20	Texas Instruments	Octal Buffer and Line Driver With 3-State Output, active-low enables, non-inverting outputs, split symbol, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS245	74LS245-DIP20	Texas Instruments	Octal BUS Transceivers, 3-State outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS246	74LS246-DIP16	Texas Instruments	BCD to 7-segment Decoder Open Collector active Low, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS247	74LS247-DIP16	Texas Instruments	BCD to 7 segments Decoder Open Collector active Low, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS248	74LS248-DIP16	Texas Instruments	BCD to 7-segment Decoder, Active High, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS249	74LS249-DIP16	Texas Instruments	BCD to 7-segment Decoder, Open collector, Active High, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS251	74LS251-DIP16	Texas Instruments	Multiplexer 8 to 1, 3-state Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS253	74LS253-DIP16	Texas Instruments	Dual Multiplexer 4 to 1, 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS256	74LS256-DIP16	Generic	dual 4-bit addressable latch, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS257	74LS257-DIP16	Texas Instruments	Quad 2 to 1 Multiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS258	74LS258-DIP16	Texas Instruments	Quad 2 to 1 Multiplexer, inverting, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS259	74LS259-DIP16	Texas Instruments	8-bit addressable latch, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS26	74LS26-DIP14	Texas Instruments	Quad 2-input NAND Open collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS27	74LS27-DIP14	Texas Instruments	Triple 3-input NOR, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS273	74LS273-DIP20	Texas Instruments	8-bit D Flip-Flop, reset, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS279	74LS279-DIP16	Texas Instruments	Quad SR latch, DIP-16/SOIC-16/SOIC-16W, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS28	74LS28-DIP14	Generic	quad 2-input NOR buffer NRND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS280	74LS280-DIP14	Texas Instruments	Parity Generator/Checker, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS283	74LS283-DIP16	Texas Instruments	4-bit full Adder, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS295	74LS295-DIP14	Texas Instruments	4-bit bidirectional register, 3-state outputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS298	74LS298-DIP16	Texas Instruments	Quad 2 to 1 multiplexer with storage, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS299	74LS299-DIP20	Texas Instruments	8-bit Universal shift/storage Register, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS30	74LS30-DIP14	Texas Instruments	8-input NAND, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS32	74LS32-DIP14	Texas Instruments	Quad 2-input OR, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS322	74LS322-DIP20	Texas Instruments	8-bit shift register, sign extend, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS323	74LS323-DIP20	Texas Instruments	8-bit Universal Shift/Storage Register, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS33	74LS33-DIP14	Texas Instruments	Quad 2-input NOR, Open collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS348	74LS348-DIP16	Texas Instruments	8 to 3 lines Priority Encoder, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS352	74LS352-DIP16	Texas Instruments	Dual 4 to 1 line Multiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS353	74LS353-DIP16	Texas Instruments	Dual 4 to 1 line Multiplexer, inverter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS365	74LS365-DIP16	Texas Instruments	Hex Bus Driver, 3-State Outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS366	74LS366-DIP16	Texas Instruments	Hex Bus Driver inverter, 3-state outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS367	74LS367-DIP16	Texas Instruments	Hex Bus Driver 3-state outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS368	74LS368-DIP16	Texas Instruments	Hex Bus Driver inverter, 3-state outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS37	74LS37-DIP14	Texas Instruments	quad 2-input NAND buffer, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS373	74LS373-DIP20	Texas Instruments	8-bit Latch, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS374	74LS374-DIP20	Texas Instruments	8-bit Register, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS375	74LS375-DIP16	Texas Instruments	4-bit Latch, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS377	74LS377-DIP20	Texas Instruments	8-bit Register, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS378	74LS378-DIP16	Texas Instruments	6-bit Register, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS379	74LS379-DIP16	Texas Instruments	4-bit Register, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS38	74LS38-DIP14	Texas Instruments	Quad Buffer 2-input NAND Open collector, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS385	74LS385-DIP20	Texas Instruments	Quad serial Adder, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS386	74LS386-DIP14	Texas Instruments	Quad 2-input XOR, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS390	74LS390-DIP16	Texas Instruments	Dual BCD 4-bit counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS393	74LS393-DIP14	Texas Instruments	Dual BCD 4-bit counter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	74xx	74LS395	74LS395-DIP16	Texas Instruments	4-bit universal shift register, 3-state outputs, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS398	74LS398-DIP20	Texas Instruments	Quad 2 to 1 line Multiplexer, 3-state outputs, through-hole DIP-20	U	Package_DIP:DIP-20_W7.62mm
+Through-Hole · Logic	74xx	74LS399	74LS399-DIP16	Texas Instruments	Quad 2 to 1 line multiplexer with storage, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	74xx	74LS42	74LS42-DIP16	Texas Instruments	4 to 10 line Decoder, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	14528	14528-DIP16	onsemi	Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	14529	14529-DIP16	Generic	Dual 4 to 1 Multiplexer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	14538	14538-DIP16	onsemi	Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4001	4001-DIP14	Renesas	Quad Nor 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4002	4002-DIP14	Renesas	Dual 4 input NOR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4007UB	4007UB-DIP14	Nexperia	Dual complementary pair and inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4009	4009-DIP16	Generic	Hex Buffer Inverter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4010	4010-DIP16	Texas Instruments	Hex Buffer, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	40106	40106-DIP14	Nexperia	Hex Schmitt trigger inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4011	4011-DIP14	Renesas	Quad Nand 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4012	4012-DIP14	Renesas	Dual 4 inputs Nand, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4013	4013-DIP14	onsemi	Dual D FlipFlop, Set & reset, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4016	4016-DIP14	Texas Instruments	Quad Analog Switches, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4017	4017-DIP16	Renesas	Johnson Counter ( 10 outputs ), through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4020	4020-DIP16	Renesas	Binary counter 14 stages (asynchronous), through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4021	4021-DIP16	Nexperia	8-bit static shift register, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4022	4022-DIP16	Renesas	Johnson Counter (8 states), through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4023	4023-DIP14	Renesas	Triple Nand 3 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4025	4025-DIP14	Renesas	Triple Nor 3 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4027	4027-DIP16	Renesas	Dual JK FlipFlop, set & reset, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4028	4028-DIP16	Renesas	Decoder 4 to 10 lines, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4029	4029-DIP16	Renesas	Up/Down Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4040	4040-DIP16	Renesas	Binary Counter 12 stages (Asynchronous), through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4046	4046-DIP16	Nexperia	Phase Comp & VCO, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4047	4047-DIP14	Texas Instruments	Monostable/Astable Multivibrator, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4051	4051-DIP16	Renesas	Analog Multiplexer 8 to 1 lins, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4052	4052-DIP16	Renesas	Dual Analog Multiplexer 4 to 1 line, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4053	4053-DIP16	Renesas	Triple analog Multiplexer 2 to 1 line, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4056	4056-DIP16	Texas Instruments	BCD to 7-Segment Decoder/Driver, Strobed-Latch Function, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4060	4060-DIP16	STMicroelectronics	Binary counter (14-stages) and oscillator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4066	4066-DIP14	Texas Instruments	Quad Analog Switches, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4069	4069-DIP14	Renesas	Hex inverter, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4070	4070-DIP14	Renesas	Quad Xor 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4071	4071-DIP14	Renesas	Quad Or 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4072	4072-DIP14	Renesas	Dual 4 input OR gate, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4073	4073-DIP14	Renesas	Triple And 3 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4075	4075-DIP14	Renesas	Triple Or 3 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4077	4077-DIP14	Renesas	Quad Xnor 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4081	4081-DIP14	Renesas	Quad And 2 inputs, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · Logic	4xxx	4098	4098-DIP16	Texas Instruments	Dual Monostable Multivibrator, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4504	4504-DIP16	Texas Instruments	CMOS Hex Voltage-Level Shifter for TTL-to-CMOS or CMOS-to-CMOS, DIP-16/SOIC-16/TSSOP-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4510	4510-DIP16	Generic	4 bits programmable counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4518	4518-DIP16	Renesas	Dual BCD Up-Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4520	4520-DIP16	Renesas	Dual Binary Up-Counter, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4528	4528-DIP16	Generic	Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4538	4538-DIP16	Nexperia	Monostable, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · Logic	4xxx	4543	4543-DIP16	Texas Instruments	BCD to 7-segment latch/decoder/driver, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	AD797	AD797-DIP8	Analog Devices	Ultralow Distortion, Ultralow Noise Op Amp, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	AD817	AD817-DIP8	Analog Devices	High Speed, Low Power Wide Supply Range Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	ADA4075-2	ADA4075-2-DIP8	Analog Devices	Ultralow Noise Amplifier at Lower Power, SOIC-8/LFCSP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	CA3080	CA3080-DIP8	Renesas	2MHz, Operational Transconductance Amplifier (OTA), gM spread 2:1, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	CA3080A	CA3080A-DIP8	Renesas	2MHz, Operational Transconductance Amplifier (OTA), gM spread 1.6:1, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	CA3130	CA3130-DIP8	Renesas	15MHz, BiMOS Operational Amplifier with MOSFET Input/CMOS Output, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	CA3140	CA3140-DIP8	Renesas	4.5MHz, BiMOS Operational Amplifier with MOSFET Input/Bipolar Output, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF155	LF155-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF156	LF156-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF256	LF256-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF257	LF257-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF351N	LF351N-DIP8	STMicroelectronics	Wide bandwidth single JFET operational amplifier, DIP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF355	LF355-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF356	LF356-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LF357	LF357-DIP8	Texas Instruments	Single JFET Input Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM101	LM101-DIP8	Texas Instruments	Operational Amplifier, DIP-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM13600	LM13600-DIP16	Generic	Dual Operational Transconductance Amplifiers with Linearizing Diodes and Buffers, DIP-16/SOIC-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM13700	LM13700-DIP16	Texas Instruments	Dual Operational Transconductance Amplifiers with Linearizing Diodes and Buffers, DIP-16/SOIC-16, through-hole DIP-16	U	Package_DIP:DIP-16_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM201	LM201-DIP8	Texas Instruments	Operational Amplifier, DIP-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM2902	LM2902-DIP14	Texas Instruments	Low-Power, Quad-Operational Amplifiers, DIP-14/SOIC-14/SSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM2904	LM2904-DIP8	Texas Instruments	Dual Operational Amplifiers, DIP-8/SOIC-8/TSSOP-8/VSSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM301	LM301-DIP8	Texas Instruments	Operational Amplifier, DIP-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM318H	LM318H-DIP8	Texas Instruments	Operational Amplifier, TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM318M	LM318M-DIP8	Texas Instruments	Operational Amplifier, SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM318N	LM318N-DIP8	Texas Instruments	Operational Amplifier, DIP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM324	LM324-DIP14	Texas Instruments	Low-Power, Quad-Operational Amplifiers, DIP-14/SOIC-14/SSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM324A	LM324A-DIP14	Texas Instruments	Low-Power, Quad-Operational Amplifiers, DIP-14/SOIC-14/SSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM358	LM358-DIP8	Texas Instruments	Low-Power, Dual Operational Amplifiers, DIP-8/SOIC-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM4250	LM4250-DIP8	Texas Instruments	Programmable Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM4562	LM4562-DIP8	Texas Instruments	Dual High-Performance, High-Fidelity Audio Operational Amplifier, DIP-8/SOIC-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM6172	LM6172-DIP8	Texas Instruments	Dual High Speed, Low Power, Low Distortion, Voltage Feedback Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM6361	LM6361-DIP8	Texas Instruments	Single High Speed Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM7332	LM7332-DIP8	Texas Instruments	Dual Rail-to-Rail Input and Output 30-V, Wide Voltage Range, High Output, Operational Amplifier, SOIC-8/SSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LM741	LM741-DIP8	Texas Instruments	Operational Amplifier, DIP-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMC6062	LMC6062-DIP8	Texas Instruments	Precision CMOS Dual Micropower Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMC6082	LMC6082-DIP8	Texas Instruments	Precision CMOS Dual Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMC6482	LMC6482-DIP8	Texas Instruments	Dual CMOS Rail-to-Rail Input and Output Operational Amplifier, DIP-8/SOIC-8, SSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMC6484	LMC6484-DIP14	Texas Instruments	Quad CMOS Rail-to-Rail Input and Output Operational Amplifier, DIP-14/SOIC-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMV324	LMV324-DIP14	Texas Instruments	Quad Low-Voltage Rail-to-Rail Output Operational Amplifier, SOIC-14/SSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LMV358	LMV358-DIP8	Texas Instruments	Dual Low-Voltage Rail-to-Rail Output Operational Amplifiers, SOIC-8/SSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LT1012	LT1012-DIP8	Analog Devices	Single Picoamp Input Current, Microvolt Offset, Low Noise Op Amp, DIP-8/SOIC-8/TO-5-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LT1363	LT1363-DIP8	Analog Devices	70MHz, 1000V/µs Operational Amplifier, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LT1492	LT1492-DIP8	Analog Devices	5MHz, 3V/µs, Low Power, Single Supply, Dual Precision Op Amps, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LT6234	LT6234-DIP8	Analog Devices	Dual 60MHz, Rail-to-Rail Output, 1.9nV/√Hz, 1.2mA, Operational Amplifier, SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LT6237	LT6237-DIP8	Analog Devices	Dual 215MHz, Rail-to-Rail Output, 1.1nV/√Hz, 3.5mA, Operational Amplifier, MSOP-8/DFN-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	LTC1152	LTC1152-DIP8	Analog Devices	Rail-to-Rail Input, Rail-to-Rail Output, Zero-Drift Op Amp, DIP-8, SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33078	MC33078-DIP8	onsemi	Low Noise, Dual Operational Amplifiers, DIP-8/SOIC-8/SSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33079	MC33079-DIP14	onsemi	Low Noise, Quad Operational Amplifiers, DIP-14/SOIC-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33172	MC33172-DIP8	onsemi	Dual Single Supply 3.0V to 44V, Low Power Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33174	MC33174-DIP14	onsemi	Quad Single Supply 3.0V to 44V, Low Power Operational Amplifiers, DIP-14/SOIC-14/TSSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33178	MC33178-DIP8	onsemi	Dual Low Power, Low Noise Operational Amplifiers, DIP-8/SOIC-8/SSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MC33179	MC33179-DIP14	onsemi	Quad Low Power, Low Noise Operational Amplifiers, DIP-14/SOIC-14/SSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP6004	MCP6004-DIP14	Microchip	1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP602	MCP602-DIP8	Microchip	Dual 2.7V to 6.0V Single Supply CMOS Op Amps, DIP-8/SOIC-8/TSSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP6022	MCP6022-DIP8	Microchip	Dual Operational Amplifiers, Rail-to-Rail Input/Output, DIP-8/SOIC-8/TSSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP604	MCP604-DIP14	Microchip	Quad 2.7V to 6.0V Single Supply CMOS Op Amps, DIP-14/SOIC-14/TSSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP6L92	MCP6L92-DIP8	Microchip	10 MHz, 850 µA Op Amps, SOIC-8/MSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP6L94	MCP6L94-DIP14	Microchip	10 MHz, 850 µA Op Amps, SOIC-14/TSSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	MCP6V67EMS	MCP6V67EMS-DIP8	Microchip	Dual Operational Amplifiers, Zero-Drift, 80 kHz Bandwidth, 1.8V to 5.5V, Rail-to-Rail, MSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Amplifier_Operational	NE5532	NE5532-DIP8	Texas Instruments	Dual Low-Noise Operational Amplifiers, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	AD8561	AD8561-DIP8	Analog Devices	Ultrafast 7 ns Single Supply Comparator, DIP-8/SOIC-8/TSSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LM2901	LM2901-DIP14	STMicroelectronics	Quad Differential Comparators, DIP-14/SOIC-14/TSSOP-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Comparator	LM2903	LM2903-DIP8	Texas Instruments	Low-Power, Low-Offset Voltage, Dual Comparators, DIP-8/SOIC-8/SOP-8/TSSOP-8/VSSOP-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LM311	LM311-DIP8	STMicroelectronics	Voltage Comparator, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LM319	LM319-DIP14	Texas Instruments	High Speed Dual Comparator, DIP-14/SOIC-14, through-hole DIP-14	U	Package_DIP:DIP-14_W7.62mm
+Through-Hole · ICs	Comparator	LM393	LM393-DIP8	Texas Instruments	Low-Power, Low-Offset Voltage, Dual Comparators, DIP-8/SOIC-8/TO-99-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LT1011	LT1011-DIP8	Analog Devices	Voltage Comparator, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LT1016	LT1016-DIP8	Analog Devices	Single UltraFast Precision 10ns Comparator, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
+Through-Hole · ICs	Comparator	LT1116	LT1116-DIP8	Analog Devices	Single 12ns, Single Supply Ground-Sensing Comparator, DIP-8/SOIC-8, through-hole DIP-8	U	Package_DIP:DIP-8_W7.62mm
