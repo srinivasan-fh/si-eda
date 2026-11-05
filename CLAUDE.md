@@ -458,7 +458,7 @@
   cannot draw). Through-hole parts: `--discover-tht` freezes `tools/catalog_tht_parts.tsv` (generic symbols on KiCad
   THT footprints + library parts whose symbol names a THT footprint + `-DIP<n>` variants from footprint filters), `--tht`
   writes `Core/src/StandardCatalogTht.inc` (categories "Through-Hole · …", test `through_hole_catalog`); the built-in
-  passives' THT sizes are `Library.cpp` package variants with KiCad's pads (test `through_hole_passive_sizes_match_kicad`). RF modules (`RF_Module`) and Nordic aQFN parts use KiCad's exact land pattern (aQFN lands name
+  passives' THT sizes are `Library.cpp` package variants with KiCad's pads (test `through_hole_passive_sizes_match_kicad`). The three generated catalog files are constant tables (`tools/catalog_tables.py`, which the generator writes through; `addCatalogRows` in StandardParts.cpp builds the parts exactly as `catalog(...)` calls did): thousands of calls in one function took the compiler 10 minutes. `run.sh` prints one line per compiled file (`xcode_progress`; `--verbose` = the whole output); `SiEDA.xcworkspace` (root) is written by `tools/generate_xcodeproj.py` and opened by `./run.sh xcode`. RF modules (`RF_Module`) and Nordic aQFN parts use KiCad's exact land pattern (aQFN lands name
   their balls); chips KiCad lacks (ESP32-C6, ESP32-H2) come from Espressif's own KiCad library (`ESPRESSIF` in
   `tools/fetch_mcu_pinouts.py`), then Digi-Key's and SparkFun's (`COMMUNITY`); a footprint no
   parametric package draws falls back to its exact KiCad pads (through-hole ones with drills, centred). Catalog search words: `wordMatches` (core MCP) = `PartQuery.wordMatches` (app). AI prompts get a digest of the catalog (`SiEDA/AI/CatalogDigest.swift`), never the whole list.

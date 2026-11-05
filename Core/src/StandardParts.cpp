@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cmath>
 #include <tuple>
+#include <type_traits>
 
 namespace sieda {
 
@@ -67,6 +68,62 @@ void catalog(std::vector<StandardPart>& parts, const char* category, const char*
     p.spec.datasheet = std::string("Pinout and ") + footprint + " footprint from the " + manufacturer + " datasheet";
     p.footprint = footprint;
     parts.push_back(std::move(p));
+}
+
+/// The generated catalog files as constant tables (tools/catalog_tables.py): a part's pins and lands are runs of
+/// `pins` / `lands`, read here exactly as the catalog(...) calls they replace (thousands of calls in one function took
+/// the compiler minutes; constant tables take seconds).
+struct CatalogPin {
+    const char* number;
+    const char* name;
+    T type;
+};
+struct CatalogLand {
+    double x, y, w, h, drill = 0;
+    bool round = false;
+    const char* pin = nullptr;
+};
+struct CatalogRow {
+    const char *category, *name, *manufacturer, *description, *refPrefix, *package;
+    int pinCount;
+    double pitch, bodySize;
+    const char* footprint;
+    int pin0, pinN;
+    double bodyDepth;  // < 0: the catalog file set none
+    int land0, landN;
+};
+
+void addCatalogRows(std::vector<StandardPart>& parts, const CatalogRow* rows, size_t count, const CatalogPin* pins,
+                    const CatalogLand* lands) {
+    parts.reserve(parts.size() + count);
+    for (size_t r = 0; r < count; ++r) {
+        const CatalogRow& row = rows[r];
+        std::vector<std::tuple<const char*, const char*, T>> pinList;
+        pinList.reserve(static_cast<size_t>(row.pinN));
+        for (int i = 0; i < row.pinN; ++i) {
+            const CatalogPin& p = pins[row.pin0 + i];
+            pinList.emplace_back(p.number, p.name, p.type);
+        }
+        catalog(parts, row.category, row.name, row.manufacturer, row.description, row.refPrefix, row.package,
+                row.pinCount, row.pitch, row.bodySize, row.footprint, std::move(pinList));
+        if (row.bodyDepth >= 0) parts.back().spec.package.bodyDepth = row.bodyDepth;
+        if (row.landN > 0) {
+            auto& out = parts.back().spec.package.lands;
+            out.reserve(static_cast<size_t>(row.landN));
+            for (int i = 0; i < row.landN; ++i) {
+                const CatalogLand& l = lands[row.land0 + i];
+                std::remove_reference_t<decltype(out)>::value_type land;
+                land.x = l.x;
+                land.y = l.y;
+                land.w = l.w;
+                land.h = l.h;
+                land.drill = l.drill;
+                land.round = l.round;
+                land.pin = l.pin ? l.pin : "";
+                out.push_back(std::move(land));
+            }
+        }
+    }
 }
 
 /// Behavioural simulation models (datasheet typical values; pins by number).

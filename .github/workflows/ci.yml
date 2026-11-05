@@ -150,7 +150,8 @@ jobs:
       - name: Xcode project is up to date
         run: |
           python3 tools/generate_xcodeproj.py
-          git diff --exit-code -- SiEDA.xcodeproj
+          git diff --exit-code -- SiEDA.xcodeproj SiEDA.xcworkspace
+          test -z "$(git status --porcelain -- SiEDA.xcodeproj SiEDA.xcworkspace)"
       - name: Interface translations are complete
         run: |
           python3 tools/check_localization.py

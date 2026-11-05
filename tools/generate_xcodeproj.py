@@ -393,6 +393,17 @@ with open(os.path.join(ws, "xcshareddata", "IDEWorkspaceChecks.plist"), "w") as 
             '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n'
             '\t<key>IDEDidComputeMac32BitWarning</key>\n\t<true/>\n</dict>\n</plist>\n')
 
+# A workspace at the repository root (open SiEDA.xcworkspace in Xcode): the app project, with room for more.
+root_ws = os.path.join(os.path.dirname(PROJECT) or ".", "SiEDA.xcworkspace")
+os.makedirs(os.path.join(root_ws, "xcshareddata"), exist_ok=True)
+with open(os.path.join(root_ws, "contents.xcworkspacedata"), "w") as f:
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n<Workspace\n   version = "1.0">\n'
+            '   <FileRef\n      location = "group:SiEDA.xcodeproj">\n   </FileRef>\n</Workspace>\n')
+with open(os.path.join(root_ws, "xcshareddata", "IDEWorkspaceChecks.plist"), "w") as f:
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+            '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n'
+            '\t<key>IDEDidComputeMac32BitWarning</key>\n\t<true/>\n</dict>\n</plist>\n')
+
 schemes = os.path.join(PROJECT, "xcshareddata", "xcschemes")
 os.makedirs(schemes, exist_ok=True)
 
