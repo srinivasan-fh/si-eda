@@ -29,6 +29,12 @@ struct RuleCheckView: View {
                         Label("Export Report…", systemImage: "square.and.arrow.up")
                     }
                     .disabled(store.verificationReport == nil)
+                    // Check, then hand the board to the fab from the same place (also File → ⇧⌘E).
+                    Button { Task { await store.exportFabricationPackage() } } label: {
+                        Label("Export Fabrication Package…", systemImage: "shippingbox")
+                    }
+                    .disabled(store.isBusy)
+                    .help("Export fabrication package (⇧⌘E)")
                     Spacer()
                 } else {
                     Button { store.runERC() } label: { Label("ERC", systemImage: "bolt.badge.checkmark") }
