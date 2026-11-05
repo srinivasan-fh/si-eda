@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
 
-# One run per commit: a branch's pushes are checked through its pull request, and a newer push
+# One run per commit: main and the LTS branches (docs/RELEASES.md) run on push; other branches' are checked through its pull request, and a newer push
 # cancels the older run. macOS machines are scarce, so the two macOS jobs run one after another.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.sha }}

@@ -24,7 +24,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P0 | Reliable undo / redo across editors | ✅ | compact state snapshots (`sieda_project_state_json`), one undo step per edit |
 | P0 | Autosave, crash recovery, backups | ✅ | autosave, crash reporter / recovery |
 | P0 | Accurate coordinates and units (mm / mil / inch) | ✅ | mm core; Settings → Board Units (mm / cm / mil / inch / ft / pt read-outs from exact ratios, ≥ 1 µm shown; Board Setup fields take a typed unit), the same unit in the footprint editor and inspector; user-entered coordinates on a 1 nm grid (`nm()`, exact in files and conversions) ✅; computed copper (tracks, vias) saved on the same grid, so a reopened board checks the same ✅; the fabrication package (Gerbers, drills, 3D model, drawing) is built from the board as saved, byte for byte the same before saving and after reopening ✅ |
-| P0 | Cross-platform desktop app (Windows, macOS, Linux) | 🟡 | SiEDA Studio on Linux and Windows ([STUDIO.md](STUDIO.md)): open / save, schematic editing (place, move, rotate, wire, label, ground), board editing (move, rotate, flip, lock, align, live push-and-shove routing and pairs, track / via edits, pours, keep-outs, cutouts, holes, measure, net highlight, DRC markers), part editor, simulation plots, 3D, checks, BOM, Auto Place / Route, fabrication outputs, every MCP tool, GitHub sync, macOS-style menus with a form for every engine command, Ctrl+K command palette, Undo / Redo, company library and rooms / partitions windows, team rule packs, the four app themes and the macOS app's 20 interface languages; core tests pass on Linux, macOS and Windows CI ✅ |
+| P0 | Cross-platform desktop app (Windows, macOS, Linux) | ✅ | the macOS app, and SiEDA Studio on Linux and Windows laid out like it (every editor interactive: schematic, PCB, footprint / symbol, 3D, simulation incl. live board runs) ([STUDIO.md](STUDIO.md)): open / save, schematic editing (place, move, rotate, wire, label, ground), board editing (move, rotate, flip, lock, align, live push-and-shove routing and pairs, track / via edits, pours, keep-outs, cutouts, holes, measure, net highlight, DRC markers), part editor, simulation plots, 3D, checks, BOM, Auto Place / Route, fabrication outputs, every MCP tool, GitHub sync, macOS-style menus with a form for every engine command, Ctrl+K command palette, Undo / Redo, company library and rooms / partitions windows, team rule packs, the four app themes and the macOS app's 20 interface languages; core tests pass on Linux, macOS and Windows CI ✅ |
 | P0 | Fast canvas: pan, zoom, select, manipulate | ✅ | culling, level of detail, measured per-edit budgets |
 | P0 | Save, reopen, copy, archive, recovery | ✅ | Save As, archive package planned in `ROADMAP.md` |
 | P0 | Human-readable, documented project file | ✅ | indented JSON; `docs/FILE_FORMAT.md` |
@@ -338,7 +338,7 @@ Where to look: the guides in `docs/` and the code map in `CLAUDE.md`.
 | P1 | Incremental DRC / rendering, large-board tests, fuzzing, profiling, OS matrix | ✅ | CTest budgets, libFuzzer, Ubuntu / macOS CI |
 | P1 | ➕ GPU rendering, ➕ multithreaded fill / DRC / 3D | ✅ | threaded fills and routing; Settings → GPU canvas rendering (Metal) |
 | P2 | Large-design optimisation, stress tests, ➕ public benchmarks | ✅ | `sieda_route_bench` |
-| P3 | Signed / reproducible builds, change control, LTS | 🟡 | signed release, SBOM, byte-identical CLI rebuild ✅; LTS ⏳ |
+| P3 | Signed / reproducible builds, change control, LTS | ✅ | signed release, SBOM, byte-identical CLI rebuild; tag checked against the CMake version; LTS lines of 24 months on `release/*` branches with CI ([RELEASES.md](RELEASES.md)) |
 
 ## 21. Hardware bring-up and test
 
@@ -404,6 +404,6 @@ limits today), regional pricing, education programmes, issue tracker, forum, par
 18. Fixed-point (nm) geometry database (~~user coordinates on a 1 nm grid~~ ✅, ~~saved copper and the fabrication package on the grid~~ ✅; router / pour arithmetic stays floating point by design), ~~inch units, file-format reference~~ ✅ and ~~migrator~~ ✅ (§1)
 19. ~~Rigid-flex folding in 3D~~ ✅, native MCAD connectors (~~FreeCAD, Fusion~~ ✅; SolidWorks, Onshape) (§8)
 20. Fab quote / order (~~order form, price-table estimate, order page~~ ✅; partner APIs), ~~Gerber-level package comparison~~ ✅ (§9 P2)
-21. Windows / Linux app (§1 P0): ~~SiEDA Studio (views, checks, outputs, every tool, GitHub sync)~~ ✅; interactive drawing editors
+21. ~~Windows / Linux app (§1 P0): SiEDA Studio (views, checks, outputs, every tool, GitHub sync), interactive drawing editors~~ ✅
 22. ~~Signed installers and auto-update, SBOM, reproducible builds (§19, §20)~~ ✅
 23. Enterprise: teams, RBAC, SSO, audit, self-hosting, PLM / ERP (§15, §19 P3)

@@ -243,6 +243,7 @@ Set-up details, keyboard shortcuts and every menu are in the [full feature list]
 | **[Moving from KiCad, Altium or Eagle](docs/MIGRATING.md)** | Bring your libraries and designs across |
 | **[Architecture](docs/ARCHITECTURE.md)** | The SwiftUI app, the C ABI and the C++ engine |
 | **[File format](docs/FILE_FORMAT.md)** | The `.siedaproj` project file |
+| **[Releases and LTS](docs/RELEASES.md)** | Version numbers and how long each release line gets fixes |
 | **[Security](SECURITY.md)** | How to report a vulnerability |
 
 ## Repository layout

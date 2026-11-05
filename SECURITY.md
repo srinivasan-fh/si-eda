@@ -30,4 +30,5 @@ without you.
 
 ## Supported versions
 
-Fixes go to `main`; there are no maintained release branches yet.
+Security fixes go to `main` and to every supported long-term-support line (`release/<MAJOR>.<MINOR>`, 24 months
+each; v1.0 is the first). The lines and their end dates are in [docs/RELEASES.md](docs/RELEASES.md).
