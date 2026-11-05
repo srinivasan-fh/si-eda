@@ -123,6 +123,25 @@ jobs:
             leak-*
             oom-*
 
+  app-xcode15:
+    # The app must keep building with Xcode 15.3 / Swift 5.10 (stricter about captured vars in concurrent code).
+    # Build only, after the main macOS job, so the two never wait on macOS machines at the same time.
+    name: macOS app builds with Xcode 15
+    needs: app
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 15.3 (else the oldest Xcode 15 on the image)
+        run: |
+          xc=/Applications/Xcode_15.3.app
+          [ -d "$xc" ] || xc=$(ls -d /Applications/Xcode_15*.app | sort -V | head -1)
+          sudo xcode-select -s "$xc/Contents/Developer"
+          xcodebuild -version
+      - name: Local runner builds the app (./run.sh build)
+        run: |
+          ./run.sh build
+          test -x build-app/Build/Products/Debug/SiEDA.app/Contents/MacOS/SiEDA
+
   app:
     name: macOS app (Xcode)
     runs-on: macos-15

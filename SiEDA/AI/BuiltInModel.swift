@@ -149,7 +149,7 @@ final class LocalModelStore: ObservableObject {
         let name = file ?? source.lastPathComponent
         guard name.lowercased().hasSuffix(".gguf"), tasks[name] == nil else { return }
         let delegate = DownloadDelegate { [weak self] fraction in
-            Task { @MainActor in self?.progress[name] = fraction }
+            Task { @MainActor [weak self] in self?.progress[name] = fraction }
         } finished: { [weak self] location, error in
             var failure = error
             if let location {
@@ -162,11 +162,12 @@ final class LocalModelStore: ObservableObject {
                     failure = error.localizedDescription
                 }
             }
-            Task { @MainActor in
+            let message = failure  // a constant: a captured var cannot cross into the task (Swift 5.10)
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.tasks[name] = nil
                 self.progress[name] = nil
-                if let failure { self.lastError = failure }
+                if let message { self.lastError = message }
                 self.refresh()
             }
         }
