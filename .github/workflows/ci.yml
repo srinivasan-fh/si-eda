@@ -124,17 +124,17 @@ jobs:
             oom-*
 
   app-xcode15:
-    # The app must keep building with Xcode 15.3 / Swift 5.10 (stricter about captured vars in concurrent code).
-    # Build only, after the main macOS job, so the two never wait on macOS machines at the same time.
-    name: macOS app builds with Xcode 15
+    # The app must keep building with the oldest Xcode a hosted runner still offers (issue #318 was Xcode 15.3 /
+    # Swift 5.10). GitHub retired the macos-14 image (Xcode 15) on 2 November 2026, so this job now takes the oldest
+    # Xcode on macos-15. Build only, after the main macOS job, so the two never wait on macOS machines at once.
+    name: macOS app builds with the oldest Xcode
     needs: app
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 15.3 (else the oldest Xcode 15 on the image)
+      - name: Select the oldest Xcode on the image
         run: |
-          xc=/Applications/Xcode_15.3.app
-          [ -d "$xc" ] || xc=$(ls -d /Applications/Xcode_15*.app | sort -V | head -1)
+          xc=$(ls -d /Applications/Xcode_[0-9]*.app | grep -v -i beta | sort -V | head -1)
           sudo xcode-select -s "$xc/Contents/Developer"
           xcodebuild -version
       - name: Local runner builds the app (./run.sh build)
