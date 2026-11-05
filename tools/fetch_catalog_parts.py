@@ -1525,12 +1525,67 @@ def discover_tht():
             kept += 1
         print(f"{lib}: {kept} parts")
         time.sleep(0.2)
+    rows += tht_dip(taken)
     with open(THT_LIST, "w", encoding="utf-8") as f:
         f.write("# Frozen by tools/fetch_catalog_parts.py --discover-tht (category, library, symbol, name, manufacturer, "
                 "description, reference prefix, footprint override). Edit by re-running --discover-tht.\n")
         for row in rows:
             f.write("\t".join(row) + "\n")
     print(f"{len(rows)} parts written to {THT_LIST}")
+
+
+# Logic and op-amp symbols that name no footprint but whose KiCad footprint filter offers a DIP (7.62 / 15.24 mm
+# rows): the DIP variant, pin n on DIP pin n as KiCad numbers it for every package of the symbol.
+THT_DIP = [("74xx", "Through-Hole · Logic", 200), ("4xxx", "Through-Hole · Logic", 120),
+           ("Amplifier_Operational", "Through-Hole · ICs", 60), ("Comparator", "Through-Hole · ICs", 20)]
+
+
+def tht_dip(taken):
+    rows = []
+    for lib, category, cap in THT_DIP:
+        kept = 0
+        symbols = library_symbols(lib)
+        prefetch(lib, [s for s in sorted(symbols) if "x" not in s])
+        for sym in sorted(symbols):
+            if kept >= cap:
+                break
+            if "x" in sym or len(sym) > 34 or sym in EXCLUDE:
+                continue
+            try:
+                (found, footprint), text = fetch_retry(lib, sym)
+            except Exception:
+                continue
+            if footprint:
+                continue  # names its own footprint: discovered above when that is through-hole
+            parent = re.search(r'\(extends "([^"]+)"\)', text)
+            ptext = kicad.fetch(lib, parent.group(1)) if parent else ""
+            filters = kicad.prop(text, "ki_fp_filters") or kicad.prop(ptext, "ki_fp_filters")
+            m = re.search(r"DIP[*?](\d*)\*?(W(7.62|15.24)mm)?", filters)
+            if not m or not found or not all(k.isdigit() for k in found):
+                continue
+            n = max(int(k) for k in found)
+            if n % 2 or n < 4 or (m.group(1) and int(m.group(1)) != n):
+                continue
+            width = m.group(3) or ("15.24" if n >= 24 and "W15.24" in filters else "7.62")
+            name = f"{sym}-DIP{n}"
+            if name.upper() in taken:
+                continue
+            desc = kicad.prop(text, "Description") or kicad.prop(text, "ki_description") or \
+                kicad.prop(ptext, "Description") or kicad.prop(ptext, "ki_description")
+            if not desc:
+                continue
+            datasheet = kicad.prop(text, "Datasheet") or kicad.prop(ptext, "Datasheet")
+            row = (category, lib, sym, name, maker_for(datasheet, lib) or "Generic",
+                   clean_text(desc + f", through-hole DIP-{n}"), "U", f"Package_DIP:DIP-{n}_W{width}mm")
+            try:
+                entry(*row, [])
+            except (SystemExit, Exception):
+                continue
+            taken.add(name.upper())
+            rows.append(row)
+            kept += 1
+        print(f"{lib} (DIP): {kept} parts")
+    return rows
 
 
 def tht():
@@ -1558,7 +1613,13 @@ def tht():
 
 
 if __name__ == "__main__":
-    if "--discover-tht" in sys.argv:
+    if "--discover-tht-dip" in sys.argv:  # adds the DIP variants to a list frozen before they were discovered
+        names = set()
+        for line in open(THT_LIST, encoding="utf-8"):
+            if not line.startswith("#") and line.strip(): names.add(line.split("\t")[3].upper())
+        with open(THT_LIST, "a", encoding="utf-8") as f:
+            for row in tht_dip(existing_names() | names): f.write("\t".join(row) + "\n")
+    elif "--discover-tht" in sys.argv:
         discover_tht()
     elif "--tht" in sys.argv:
         tht()
