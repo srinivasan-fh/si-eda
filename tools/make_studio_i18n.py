@@ -34,6 +34,7 @@ def studio_strings(html):
     """Strings Studio puts on screen: menu labels, tr("…") calls, element text, titles and placeholders."""
     found = set(re.findall(r'\["([^"\]]+?)"(?:,|\])', html))           # MENUS entries ["Label", …] / ["Header"]
     found |= set(re.findall(r'\btr\("([^"]+)"\)', html))
+    found |= set(re.findall(r'\["[^"]+","([^"]+)","[A-Za-z0-9]+"\]', html))  # WORKSPACES ["Board","PCB Layout","pcb"]
     found |= set(re.findall(r'^ "([^"]+)":\[', html, re.M))                    # MENUS titles
     found |= set(re.findall(r'\b(?:title|placeholder|data-en)="([^"]+)"', html))
     markup = html.split("<script>")[0] + "".join(re.findall(r"<dialog.*?</dialog>", html, re.S))
