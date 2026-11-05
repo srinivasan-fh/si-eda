@@ -10,6 +10,7 @@
 #   ./run.sh cli <file.siedaproj> [dir]   verify a saved project and write its fabrication files
 #   ./run.sh clean           remove local build folders
 #   ./run.sh doctor          check the tools this script needs
+#   add --verbose (-v) to any command to see the whole compiler output (default: one line per file compiled)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -114,10 +115,28 @@ run_cli() {
     "$CORE_BUILD/sieda-cli" "$@"
 }
 
+# Live build output: one short line per file compiled, every error and warning, and the result; the full log goes
+# to the file. --verbose (or SIEDA_VERBOSE=1) prints xcodebuild's whole output instead.
+xcode_progress() {
+    if [ "${SIEDA_VERBOSE:-0}" = 1 ]; then cat; return; fi
+    awk -v start="$(date +%s)" '
+        function elapsed() { "date +%s" | getline now; close("date +%s"); return now - start }
+        /^(CompileC|SwiftCompile|CompileSwift|SwiftDriverJobDiscovery|CompileSwiftSources) / {
+            for (i = 2; i <= NF; i++)
+                if ($i ~ /\.(cpp|c|mm|m|swift)$/) {
+                    n++; f = $i; sub(/.*\//, "", f)
+                    printf "  [%4d · %3ds] %s\n", n, elapsed(), f; fflush(); break
+                }
+            next
+        }
+        /^Ld / { printf "  linking SiEDA (%ds)\n", elapsed(); fflush(); next }
+        /(error|warning): |\*\* (BUILD|TEST) (SUCCEEDED|FAILED)|Test Case .* failed/ { print "  " $0; fflush() }'
+}
+
 xcodebuild_app() {
     xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
         -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
-        CODE_SIGN_IDENTITY=- build >"$1" 2>&1
+        CODE_SIGN_IDENTITY=- build 2>&1 | tee "$1" | xcode_progress
 }
 
 build_app() {
@@ -125,6 +144,7 @@ build_app() {
     sync_xcode_project
     step "Building SiEDA.app (Debug) — the first build takes a few minutes"
     local log="$APP_BUILD/xcodebuild.log"
+    echo "  full log: $log (./run.sh build --verbose prints all of it)"
     mkdir -p "$APP_BUILD"
     local status=0
     xcodebuild_app "$log" || status=$?
@@ -161,7 +181,7 @@ test_app() {
     local log="$APP_BUILD/xcodebuild-test.log"
     if ! xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
-            CODE_SIGN_IDENTITY=- test >"$log" 2>&1; then
+            CODE_SIGN_IDENTITY=- test 2>&1 | tee "$log" | xcode_progress; then
         show_build_errors "$log" "error: |Test Case .* failed|\\*\\* TEST FAILED" 30
         die "Xcode tests failed — full log: $log"
     fi
@@ -171,8 +191,8 @@ test_app() {
 open_xcode() {
     is_macos || die "Xcode is only available on macOS."
     sync_xcode_project
-    step "Opening $PROJECT — press ⌘R to build and run"
-    open "$PROJECT"
+    step "Opening SiEDA.xcworkspace — press ⌘R to build and run"
+    open "$ROOT/SiEDA.xcworkspace"
 }
 
 doctor() {
@@ -192,6 +212,12 @@ doctor() {
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }
 
+# --verbose anywhere: the builds print their whole output.
+args=()
+for a in "$@"; do
+    if [ "$a" = "--verbose" ] || [ "$a" = "-v" ]; then export SIEDA_VERBOSE=1; else args+=("$a"); fi
+done
+set -- ${args[@]+"${args[@]}"}
 command="${1:-}"
 [ $# -gt 0 ] && shift
 case "$command" in

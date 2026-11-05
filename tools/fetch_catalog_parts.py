@@ -12,6 +12,7 @@ import os, re, sys, urllib.parse, urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
 import fetch_mcu_pinouts as kicad  # noqa: E402  (shares the symbol fetching and pin parsing)
+from catalog_tables import tables  # noqa: E402  (catalog calls → constant tables: fast to compile)
 
 # Footprints for symbols that name none (generic op-amps, logic): the orderable variant's package.
 SOIC8 = "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
@@ -903,7 +904,7 @@ def main():
         except (SystemExit, Exception) as e:  # report every bad part at once
             errors.append(f"{name}: {e}")
     if errors: raise SystemExit("\n".join(errors))
-    open("Core/src/StandardCatalog.inc", "w").write("\n".join(out) + "\n")
+    open("Core/src/StandardCatalog.inc", "w").write(tables("\n".join(out) + "\n"))
     print("\n".join(summary))
 
 
@@ -1254,7 +1255,7 @@ def extra():
             errors.append(f"{row[3]}: {e}")
     if errors:
         raise SystemExit("\n".join(errors))
-    open(EXTRA_OUT, "w").write("\n".join(out) + "\n")
+    open(EXTRA_OUT, "w").write(tables("\n".join(out) + "\n"))
     print(f"{len(rows)} parts written to {EXTRA_OUT}")
 
 
@@ -1610,7 +1611,7 @@ def tht():
             errors.append(f"{row[3]}: {e}")
     if errors:
         raise SystemExit("\n".join(errors))
-    open(THT_OUT, "w").write("\n".join(out) + "\n")
+    open(THT_OUT, "w").write(tables("\n".join(out) + "\n"))
     print(f"{len(rows)} parts written to {THT_OUT}")
 
 
