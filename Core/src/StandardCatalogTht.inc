@@ -716,11 +716,6 @@ catalog(parts, "Through-Hole · Connectors", "54602-908LF", "Amphenol", "RJ45 8P
     {{"1", "P1", T::Passive}, {"2", "P2", T::Passive}, {"3", "P3", T::Passive}, {"4", "P4", T::Passive}, {"5", "P5", T::Passive}, {"6", "P6", T::Passive}, {"7", "P7", T::Passive}, {"8", "P8", T::Passive}});
 parts.back().spec.package.bodyDepth = 0;
 parts.back().spec.package.lands = {{-4.445, 1.27, 1.5, 1.5, 0.76, false, "1"}, {-3.175, -1.27, 1.5, 1.5, 0.76, true, "2"}, {-1.905, 1.27, 1.5, 1.5, 0.76, true, "3"}, {-0.635, -1.27, 1.5, 1.5, 0.76, true, "4"}, {0.635, 1.27, 1.5, 1.5, 0.76, true, "5"}, {1.905, -1.27, 1.5, 1.5, 0.76, true, "6"}, {3.175, 1.27, 1.5, 1.5, 0.76, true, "7"}, {4.445, -1.27, 1.5, 1.5, 0.76, true, "8"}};
-catalog(parts, "Through-Hole · Connectors", "SJ1-3533NG", "CUI Devices", "3.5 mm stereo audio jack (TRS), right-angle, through-hole", "J",
-    "LGA", 3, 0, 0, "Jack_3.5mm_CUI_SJ1-3533NG_Horizontal",
-    {{"R", "PR", T::Passive}, {"S", "PS", T::Passive}, {"T", "PT", T::Passive}});
-parts.back().spec.package.bodyDepth = 0;
-parts.back().spec.package.lands = {{1, 3.95, 2.8, 1.8, 2, true, "R"}, {-1, -3.95, 2.8, 1.8, 2, true, "S"}, {1, -1.55, 2.8, 1.8, 2, true, "T"}};
 catalog(parts, "Through-Hole · Switches", "SW_DIP_SPSTx01_Slide", "Generic", "DIP switch, 1 position SPST slide, 2.54 mm, 7.62 mm rows, through-hole", "SW",
     "LGA", 2, 0, 9.78, "SW_DIP_SPSTx01_Slide_9.78x4.72mm_W7.62mm_P2.54mm",
     {{"1", "P1", T::Passive}, {"2", "P2", T::Passive}});
@@ -2425,11 +2420,6 @@ catalog(parts, "Through-Hole · Transistors", "TIP42B", "Generic", "-6A Ic, -80V
 catalog(parts, "Through-Hole · Transistors", "TIP42C", "Generic", "-6A Ic, -100V Vce, Power PNP Transistor, TO-220", "Q",
     "TO220", 3, 0, 0, "TO-220-3_Vertical",
     {{"1", "B", T::Input}, {"2", "C", T::Passive}, {"3", "E", T::Passive}});
-catalog(parts, "Through-Hole · Transistors", "2N3819", "Generic", "20mA Id, 25V Vgs, N-Channel JFET Transistor, TO-92", "Q",
-    "LGA", 3, 0, 0, "TO-92",
-    {{"1", "D", T::Passive}, {"2", "G", T::Input}, {"3", "S", T::Passive}});
-parts.back().spec.package.bodyDepth = 0;
-parts.back().spec.package.lands = {{-1.27, 0.635, 1.3, 1.3, 0.75, false, "1"}, {0, -0.635, 1.3, 1.3, 0.75, true, "2"}, {1.27, 0.635, 1.3, 1.3, 0.75, true, "3"}};
 catalog(parts, "Through-Hole · Transistors", "2N7000", "Vishay", "0.2A Id, 200V Vds, N-Channel MOSFET, 2.6V Logic Level, TO-92", "Q",
     "LGA", 3, 0, 0, "TO-92_Inline",
     {{"1", "S", T::Passive}, {"2", "G", T::Input}, {"3", "D", T::Passive}});
@@ -3253,11 +3243,6 @@ catalog(parts, "Through-Hole · Regulators", "LT1634CCZ-2.5", "Analog Devices", 
     {{"1", "Test", T::Input}, {"2", "K", T::Passive}, {"3", "A", T::Passive}});
 parts.back().spec.package.bodyDepth = 0;
 parts.back().spec.package.lands = {{-1.27, 0, 1.05, 1.5, 0.75, false, "1"}, {0, 0, 1.05, 1.5, 0.75, true, "2"}, {1.27, 0, 1.05, 1.5, 0.75, true, "3"}};
-catalog(parts, "Through-Hole · Power Modules", "C11204-01", "Generic", "SiPM supply temperature compendsated, input 5V, output 20V-90V, UART", "PS",
-    "LGA", 16, 0, 0, "Converter_DCDC_Hamamatsu_C11204-1_THT",
-    {{"1", "Vs", T::PowerIn}, {"2", "GND", T::PowerIn}, {"3", "RXD", T::Input}, {"4", "TXD", T::Output}, {"5", "GND", T::PowerIn}, {"6", "NC", T::NoConnect}, {"7", "NC", T::NoConnect}, {"8", "GND", T::PowerIn}, {"9", "NC", T::NoConnect}, {"10", "Vo", T::PowerOut}, {"11", "NC", T::NoConnect}, {"12", "NC", T::NoConnect}, {"13", "NC", T::NoConnect}, {"14", "NC", T::NoConnect}, {"15", "GND", T::PowerIn}, {"16", "Temp", T::Input}});
-parts.back().spec.package.bodyDepth = 0;
-parts.back().spec.package.lands = {{-8.255, -5.715, 1.5, 1, 0.65, false, "1"}, {-8.255, -4.445, 1.5, 1, 0.65, true, "2"}, {-8.255, -3.175, 1.5, 1, 0.65, true, "3"}, {-8.255, -1.905, 1.5, 1, 0.65, true, "4"}, {-8.255, -0.635, 1.5, 1, 0.65, true, "5"}, {-8.255, 0.635, 1.5, 1, 0.65, true, "6"}, {-8.255, 1.905, 1.5, 1, 0.65, true, "7"}, {-8.255, 3.175, 1.5, 1, 0.65, true, "8"}, {-8.255, 4.445, 1.5, 1, 0.65, true, "9"}, {-8.255, 5.715, 1.5, 1, 0.65, true, "10"}, {8.255, 5.715, 1.5, 1, 0.65, true, "11"}, {8.255, 4.445, 1.5, 1, 0.65, true, "12"}, {8.255, 3.175, 1.5, 1, 0.65, true, "13"}, {8.255, 1.905, 1.5, 1, 0.65, true, "14"}, {8.255, 0.635, 1.5, 1, 0.65, true, "15"}, {8.255, -0.635, 1.5, 1, 0.65, true, "16"}};
 catalog(parts, "Through-Hole · Power Modules", "OKI-78SR-12_1.0-W36-C", "Murata", "1.0A Step-Down DC/DC-Regulator, 15-36V input, 12V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, OKI-78SR_Vertical", "PS",
     "LGA", 3, 0, 0, "Converter_DCDC_Murata_OKI-78SR_Vertical",
     {{"1", "IN", T::PowerIn}, {"2", "GND", T::PowerIn}, {"3", "OUT", T::PowerOut}});
@@ -4815,11 +4800,6 @@ catalog(parts, "Through-Hole · ICs", "DS2431", "Analog Devices", "1024-bit, 1-W
     {{"1", "GND", T::PowerIn}, {"2", "IO", T::Bidirectional}, {"3", "NC", T::NoConnect}});
 parts.back().spec.package.bodyDepth = 0;
 parts.back().spec.package.lands = {{-1.27, 0, 1.05, 1.5, 0.75, false, "1"}, {0, 0, 1.05, 1.5, 0.75, true, "2"}, {1.27, 0, 1.05, 1.5, 0.75, true, "3"}};
-catalog(parts, "Through-Hole · ICs", "DS28E07", "Analog Devices", "1024-bit, 1-Wire® EEPROM chip, TO-92", "U",
-    "LGA", 3, 0, 0, "TO-92",
-    {{"1", "GND", T::PowerIn}, {"2", "IO", T::Bidirectional}, {"3", "NC", T::NoConnect}});
-parts.back().spec.package.bodyDepth = 0;
-parts.back().spec.package.lands = {{-1.27, 0.635, 1.3, 1.3, 0.75, false, "1"}, {0, -0.635, 1.3, 1.3, 0.75, true, "2"}, {1.27, 0.635, 1.3, 1.3, 0.75, true, "3"}};
 catalog(parts, "Through-Hole · ICs", "KM28C64A", "Generic", "EEPROM 8K x 8, 5V, Not in Production, DIP-28", "U",
     "DIP", 28, 2.54, 15.24, "DIP-28_W15.24mm",
     {{"1", "NC", T::NoConnect}, {"2", "A12", T::Input}, {"3", "A7", T::Input}, {"4", "A6", T::Input}, {"5", "A5", T::Input}, {"6", "A4", T::Input}, {"7", "A3", T::Input}, {"8", "A2", T::Input}, {"9", "A1", T::Input}, {"10", "A0", T::Input}, {"11", "I/O0", T::Bidirectional}, {"12", "I/O1", T::Bidirectional}, {"13", "I/O2", T::Bidirectional}, {"14", "GND", T::PowerIn}, {"15", "I/O3", T::Bidirectional}, {"16", "I/O4", T::Bidirectional}, {"17", "I/O5", T::Bidirectional}, {"18", "I/O6", T::Bidirectional}, {"19", "I/O7", T::Bidirectional}, {"20", "nCE", T::Input}, {"21", "A10", T::Input}, {"22", "nOE", T::Input}, {"23", "A11", T::Input}, {"24", "A9", T::Input}, {"25", "A8", T::Input}, {"26", "NC", T::NoConnect}, {"27", "nWE", T::Input}, {"28", "VCC", T::PowerIn}});

@@ -1071,6 +1071,8 @@ EXCLUDE = {
     "MAX6374", "D3V3X8U9LP3810", "AUIPS6044G", "BTS40K2-1EJC", "BQ25798", "ADA4625-1ARDZ", "ADA4625-2ARDZ",
     "ADA4817-1ARD", "ADA4898-1YRDZ", "ADA4898-2", "IR4302", "IR4312", "IR4322", "LM4755TS", "LM4950TS", "MC3486N",
     "DAC7513_DCN", "A4950E", "A4950K", "A4953_LJ", "HIP2100_EPSOIC", "HIP2101_EPSOIC", "LM94021", "PIC18F2450-ISO",
+    # Through-hole: an oval slot read larger than its pad, TO-92 / sensor pads overlapping in KiCad's land pattern.
+    "SJ1-3533NG", "2N3819", "C11204-01", "DS28E07",
 }
 
 def maker_for(datasheet, lib):

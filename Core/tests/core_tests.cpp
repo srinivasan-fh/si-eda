@@ -5954,6 +5954,44 @@ TEST(library_footprints_keep_pads_apart) {
     }
 }
 
+TEST(through_hole_catalog) {
+    // The through-hole catalog (tools/fetch_catalog_parts.py --tht from KiCad's symbols and footprints): every part
+    // has only through-hole pads (or plain holes), pins numbered as KiCad's symbol, pads as its footprint.
+    size_t count = 0;
+    for (const auto& sp : standardParts()) {
+        if (sp.category.rfind("Through-Hole", 0) != 0) continue;
+        ++count;
+        auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+        bool tht = !part->footprint.pads.empty();
+        for (const auto& pad : part->footprint.pads) tht &= pad.throughHole || pad.npth;
+        if (!tht) std::printf("    %s: not all pads through-hole\n", sp.spec.name.c_str());
+        CHECK(tht);
+    }
+    CHECK(count >= 1600);
+    auto pinOf = [](const char* name, const char* number) -> std::string {
+        const StandardPart* sp = findStandardPart(name);
+        if (!sp) return "";
+        for (const auto& p : sp->spec.pins)
+            if (p.number == number) return p.name;
+        return "";
+    };
+    // KiCad's numbering: a DO-41 diode's pad 1 is its cathode; a TO-92 BC547 is C-B-E; DIP logic keeps VCC on 14.
+    CHECK(pinOf("1N4007", "1") == "K" && pinOf("1N4007", "2") == "A");
+    CHECK(pinOf("BC547", "1") == "C" && pinOf("BC547", "2") == "B" && pinOf("BC547", "3") == "E");
+    CHECK(pinOf("74HC00-DIP14", "14") == "VCC" && pinOf("74HC00-DIP14", "7") == "GND");
+    CHECK(findStandardPart("74HC00-DIP14")->spec.package.type == "DIP");
+    // Wire-to-board and screw terminals, tact switches with all four legs, trimmers.
+    const StandardPart* xh = findStandardPart("B2B-XH-A");
+    CHECK(xh && xh->spec.pins.size() == 2);
+    auto tact = CustomPartRegistry::instance().registerPart(findStandardPart("SW_PUSH_6mm")->spec);
+    CHECK(tact->footprint.pads.size() == 4);
+    auto block = CustomPartRegistry::instance().registerPart(findStandardPart("MKDS-1,5-2-5.08")->spec);
+    CHECK(block->footprint.pads.size() == 2 &&
+          std::fabs(std::fabs(block->footprint.pads[1].offset.x - block->footprint.pads[0].offset.x) - 5.08) < 1e-6);
+    CHECK(findStandardPart("3296W") && findStandardPart("3296W")->spec.pins.size() == 3);
+    CHECK(findStandardPart("LM358-DIP8") && findStandardPart("LM317_TO-220"));
+}
+
 TEST(general_purpose_catalog) {
     // The general-purpose catalog (tools/fetch_catalog_parts.py from the KiCad library): MCUs, op-amps, regulators,
     // interfaces, logic, drivers, memories, sensors, transistors and protection parts, each on its orderable package
