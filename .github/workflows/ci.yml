@@ -2,11 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
+    paths-ignore: ["**.md", "docs/**"]
   pull_request:
+    paths-ignore: ["**.md", "docs/**"]
 
-# One run per commit: a branch's pushes are checked through its pull request, and a newer push
-# cancels the older run. macOS machines are scarce, so the two macOS jobs run one after another.
+# One run per commit: main and the LTS branches (docs/RELEASES.md) run on push; other branches' are checked through its pull request, and a newer push
+# cancels the older run; a change to documentation only runs nothing. macOS minutes count ten times on a private
+# repository, so macOS has one job: it builds the core once (./run.sh build) for the app and the core tests.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
@@ -18,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15]
+        os: [ubuntu-latest]   # macOS: the core tests run in the app job below
     steps:
       - uses: actions/checkout@v4
       - name: HarfBuzz (PDF text shaping) and ngspice (simulator correlation)
@@ -122,7 +125,6 @@ jobs:
 
   app:
     name: macOS app (Xcode)
-    needs: core
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -134,10 +136,19 @@ jobs:
         run: |
           python3 tools/check_localization.py
           for f in SiEDA/Resources/*.lproj/Localizable.strings; do plutil -lint "$f" >/dev/null || exit 1; done
-      - name: Local runner builds the app (./run.sh build)
+      - name: Local runner builds the app and the core (./run.sh build)
         run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSIEDA_WARNINGS_AS_ERRORS=ON >/dev/null
           ./run.sh build
           test -x build-app/Build/Products/Debug/SiEDA.app/Contents/MacOS/SiEDA
+      - name: Core unit tests (macOS)
+        run: ctest --test-dir build --output-on-failure
+      - name: CLI pipeline and local runner (macOS)
+        run: |
+          mkdir -p fab && ./build/sieda-cli --demo fab
+          ./run.sh doctor
+          ./run.sh demo runner-demo
+          test -s runner-demo/verification_report.md
       - name: Build and test
         run: |
           set -o pipefail

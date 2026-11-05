@@ -2,6 +2,8 @@
 
 - README.md is the landing page (gallery from `docs/images/`, rendered by `sieda-mcp`; feature cards link to the guides); the
   detailed reference is `docs/FEATURES.md`, the guide index `docs/README.md`; every guide opens with the same nav bar.
+- Commits: author `Srinivasan <169058352+srinivasan-fh@users.noreply.github.com>` (the repository's git config);
+  Claude is the co-author: `Co-Authored-By: Claude <noreply@anthropic.com>` (no model name).
 - Core (C++): `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ./build/sieda_core_tests`
 - macOS app: `./run.sh` (builds the core, generates the Xcode project, runs the app).
 - Footprint Editor: core in `Core/src/CustomParts.cpp` (`landPatternFromFootprint`, `checkLandPattern`), app in
@@ -84,7 +86,7 @@
   returns `sequenceStarted` for its first key). Beginner mode `BeginnerMode` (`BeginnerGuide.swift`: guide bar, no library
   workspace). Editor view state that must survive a theme switch's rebuild lives in `ViewMemory` (EditorChrome.swift, `.remembers`).
   In-app Git: `GitClient` / `GitView` (Views/Common/GitView.swift: /usr/bin/git, no shell, `validRef` before a name
-  reaches git, `--` before a clone URL); Studio's Git tab through MCP `project_git` (McpTools.cpp, `cloud::git`: no hooks; clone URLs https / ssh / git@ only). Releases: `.github/workflows/release.yml` (signed + notarised DMG from secrets,
+  reaches git, `--` before a clone URL); Studio's Git tab through MCP `project_git` (McpTools.cpp, `cloud::git`: no hooks; clone URLs https / ssh / git@ only). Releases: `.github/workflows/release.yml` (tag = CMake version; LTS lines `release/*` 24 months, policy `docs/RELEASES.md`; signed + notarised DMG from secrets,
   never hard-coded; byte-identical Linux CLI rebuild; SBOM `tools/make_sbom.py`), update check `UpdateChecker`
   (UpdateChecker.swift; daily check off by default). Datasheet pins carry `page` / `confidence`
   (`DatasheetSchema.Citations` notes). User-entered board coordinates go through `nm()` (Geometry.hpp, 1 nm grid) in

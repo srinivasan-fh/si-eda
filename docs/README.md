@@ -58,6 +58,7 @@ Every guide in one place, grouped by what you are doing. Each one starts with it
 | [Lessons and shortcuts](LESSONS.md) | Step-by-step lessons checked against the design, your company's own lessons, personal shortcut suggestions |
 | [Team work](TEAM.md) | Version compare, Git diff / merge drivers, variants, review comments, co-editing |
 | [File format](FILE_FORMAT.md) | The `.siedaproj` project file |
+| [Releases and long-term support](RELEASES.md) | Version numbers, LTS lines (24 months), what a patch release fixes |
 | [Interface languages](LOCALIZATION.md) | The 20 interface languages and how to add strings |
 | [EDA checklist](EDA_CHECKLIST.md) | SiEDA against a best-in-class PCB EDA checklist |
 | [Roadmap](ROADMAP.md) | What is done and what comes next |
