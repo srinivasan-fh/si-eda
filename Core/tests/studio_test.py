@@ -16,6 +16,10 @@ def check_script():
         return
     html = open(os.path.join(os.path.dirname(__file__), "..", "studio", "ui.html"), encoding="utf-8").read()
     script = html.split("<script>", 1)[1].split("</script>", 1)[0]
+    # Overflowing bars scroll sideways under a plain mouse wheel (#331); a failed action never stays uncaught (#334);
+    # the Library editor's rows wrap instead of hiding Create and place (#332).
+    assert 'closest(".edbar,.layertabs,.seg")' in script and '"unhandledrejection"' in script
+    assert html.count('class="edbar wrap"') == 2 and "scrollbar-width:none}" not in html.split(".layertabs{", 1)[1][:200]
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
         f.write(script)
     try:
@@ -132,6 +136,7 @@ def main():
                     (sys.platform == "darwin" and "output" in r), r
             status, words = request(port, "GET", "/i18n?lang=de", headers=auth)
             assert status == 200 and json.loads(words).get("File") == "Datei", "German interface words"
+            assert json.loads(words).get("Design Checks") == "Designprüfungen", "workspace titles are translated (#333)"
             assert request(port, "GET", "/i18n?lang=xx", headers=auth)[1] == "{}", "unknown language"
             assert request(port, "GET", "/i18n?lang=de")[0] == 403, "translations without the token"
             assert request(port, "POST", "/quit", "{}", auth)[0] == 200
