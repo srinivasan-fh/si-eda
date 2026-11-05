@@ -177,7 +177,8 @@ struct ContentView: View {
                 .help("Export fabrication package (⇧⌘E)")
             }
         }
-        ToolbarItemGroup(placement: .primaryAction) {
+        // .automatic = the trailing edge on macOS (.primaryAction would sit toward the leading side).
+        ToolbarItemGroup(placement: .automatic) {
             Menu {
                 Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 if settings.aiEnabled {
