@@ -11,7 +11,7 @@ on:
 # cancels the older run; a change to documentation only runs nothing. macOS minutes count ten times on a private
 # repository, so macOS has one job: it builds the core once (./run.sh build) for the app and the core tests.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}  # a newer push to main / release cancels the older run
   cancel-in-progress: true
 
 jobs:
