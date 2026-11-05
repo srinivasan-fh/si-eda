@@ -132,7 +132,8 @@ Look lookOf(const Component& c, const FootprintDef& fp) {
         if (has("VARISTOR") || has("S10K") || has("S14K") || has("S20K") || has("NTC") || has("DISC") || has(" Y1") ||
             has(" Y2") || has("-Y1") || has("-Y2"))
             return Look::Disc;
-        if (has("AXIAL") || has("DO41") || has("DO-41") || has("DO201") || has("DO-201")) return Look::Axial;
+        if (has("AXIAL") || has("DO41") || has("DO-41") || has("DO201") || has("DO-201") || has("DO-35") || has("DO-15"))
+            return Look::Axial;
     }
     if (has("HEADER") || has("PINHEADER")) return Look::Header;
     const bool diodeRef = c.ref.size() > 1 && c.ref[0] == 'D' && std::isdigit(static_cast<unsigned char>(c.ref[1]));

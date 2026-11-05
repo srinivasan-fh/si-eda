@@ -2735,6 +2735,49 @@ TEST(production_parts_catalog) {
     CHECK(findStandardPart("LM7812")->spec.model.hasRegulator && findStandardPart("AMS1117-3.3")->spec.model.hasRegulator);
 }
 
+TEST(through_hole_passive_sizes_match_kicad) {
+    // Every through-hole size of the built-in passives, diodes and LEDs: pads, drills and pitch as KiCad's footprint
+    // of the same name; a diode's / LED's square pad is its cathode (KiCad's mark), an electrolytic's its + lead,
+    // axial resistors and inductors have none; the BOM names the package family.
+    const Library& lib = Library::instance();
+    struct Want { const char* name; double pitch, drill, pad; int square; const char* bom; };
+    const Want want[] = {
+        {"R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal", 5.08, 0.7, 1.4, -1, "Axial"},
+        {"R_Axial_DIN0414_L11.9mm_D4.5mm_P20.32mm_Horizontal", 20.32, 1.2, 2.4, -1, "Axial"},
+        {"C_Disc_D3.0mm_W1.6mm_P2.50mm", 2.5, 0.8, 1.6, -1, "Disc"},
+        {"C_Rect_L13.0mm_W5.0mm_P10.00mm_FKS3_FKP3_MKS4", 10.0, 1.0, 2.0, -1, "Film box"},
+        {"CP_Radial_D10.0mm_P5.00mm", 5.0, 1.0, 2.0, 0, "Radial"},
+        {"CP_Radial_D18.0mm_P7.50mm", 7.5, 1.2, 2.4, 0, "Radial"},
+        {"L_Radial_D12.0mm_P5.00mm_Fastron_11P", 5.0, 1.3, 2.6, -1, "Radial"},
+        {"D_DO-35_SOD27_P7.62mm_Horizontal", 7.62, 0.8, 1.6, 1, "DO-35"},
+        {"D_DO-201AD_P15.24mm_Horizontal", 15.24, 1.6, 3.2, 1, "DO-201AD"},
+        {"LED_D5.0mm", 2.54, 0.9, 1.8, 1, "5 mm THT"},
+    };
+    for (const Want& w : want) {
+        const FootprintDef* fp = lib.footprint(w.name);
+        CHECK(fp != nullptr);
+        if (!fp) continue;
+        CHECK(fp->pads.size() == 2 && fp->pads[0].throughHole && fp->pads[1].throughHole);
+        CHECK(std::fabs(fp->pads[1].offset.x - fp->pads[0].offset.x - w.pitch) < 1e-9);
+        CHECK(fp->pads[0].drill == w.drill && fp->pads[1].drill == w.drill && fp->pads[0].size.x == w.pad);
+        CHECK(fp->pads[0].round == (w.square != 0) && fp->pads[1].round == (w.square != 1));
+        CHECK(!fp->label.empty() && Library::packageLabel(w.name) == fp->label);
+        CHECK(fp->courtyardW >= w.pitch + w.pad);
+    }
+    // Every variant of every kind is a footprint, and a part takes one and reports it on the BOM.
+    for (ComponentKind k : {ComponentKind::Resistor, ComponentKind::Capacitor, ComponentKind::Inductor, ComponentKind::Diode,
+                            ComponentKind::LED})
+        for (const auto& v : Library::packageVariants(k)) CHECK(lib.footprint(v) != nullptr);
+    Project p;
+    const int d = p.schematic.addComponent(ComponentKind::Diode, "1N4148", {0, 0});
+    const int led = p.schematic.addComponent(ComponentKind::LED, "Red", {200, 0});
+    CHECK(p.schematic.setPackage(d, "D_DO-35_SOD27_P7.62mm_Horizontal"));
+    CHECK(p.schematic.setPackage(led, "LED_D5.0mm"));
+    CHECK(!p.schematic.setPackage(d, "LED_D5.0mm"));  // only the kind's own variants
+    const std::string bom = exportBomCsv(p.schematic);
+    CHECK(bom.find("DO-35") != std::string::npos && bom.find("5 mm THT") != std::string::npos);
+}
+
 TEST(passive_package_variants) {
     // Resistors, capacitors, inductors, diodes and LEDs can be fitted in the package the BOM calls for: chip sizes,
     // through-hole, tantalum and electrolytic capacitors, SMA / DO-41 diodes.
@@ -2747,7 +2790,7 @@ TEST(passive_package_variants) {
     }
     d = s.addComponent(ComponentKind::Diode, "1N4007", {500, 0});
     CHECK(r >= 0 && c >= 0 && d >= 0);
-    CHECK(Library::packageVariants(ComponentKind::Resistor).size() == 5);
+    CHECK(Library::packageVariants(ComponentKind::Resistor).size() == 12);
     CHECK(Library::packageVariants(ComponentKind::OpAmp).empty());
     for (ComponentKind k : {ComponentKind::Resistor, ComponentKind::Capacitor, ComponentKind::Inductor, ComponentKind::Diode,
                             ComponentKind::LED})
@@ -2771,7 +2814,7 @@ TEST(passive_package_variants) {
     for (const auto& j : snap.get("components").items()) {
         if (j.get("id").asInt() == c) {
             CHECK(j.get("footprint").asString() == "CP_Tant_B" && j.get("package").asString() == "CP_Tant_B");
-            CHECK(j.get("packageOptions").items().size() == 8);
+            CHECK(j.get("packageOptions").items().size() == Library::packageVariants(ComponentKind::Capacitor).size());
             sawOptions = true;
         }
     }

@@ -774,7 +774,7 @@ FOOTPRINTS = "https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-footp
 
 # Parts whose every pad is kept (a pin's extra pads as "NAME#n": shield tabs, a switch's paired legs), not only the
 # largest pad of each number.
-ALL_PADS = {"USB-C-RECEPTACLE-USB2", "TACTILE-SWITCH-6MM"}
+ALL_PADS = {"USB-C-RECEPTACLE-USB2", "TACTILE-SWITCH-6MM", "SW_PUSH_6mm", "SW_PUSH_6mm_H9.5mm", "SW_PUSH_6mm_H13mm"}
 
 
 def lands(footprint, named=False, tht=False, every=False):
@@ -1256,8 +1256,313 @@ def extra():
     print(f"{len(rows)} parts written to {EXTRA_OUT}")
 
 
+# ---------------------------------------------------------------- through-hole parts
+#
+# `--discover-tht` collects the through-hole parts: (1) the families of generic symbols on KiCad's through-hole
+# footprints (terminal blocks, JST / Molex wire-to-board headers, IDC box headers, DIP / tact / slide switches,
+# trimmers and potentiometers, crystals, buzzers, fuse holders, varistors, jacks, D-sub, USB-B, RJ45), each pad
+# numbered as the KiCad footprint numbers it and each pin as the KiCad symbol; (2) the orderable parts of the KiCad
+# libraries below whose symbol names a through-hole footprint (diodes, bridges, transistors, triacs, regulators,
+# optocouplers, relays, DIP logic / op-amps / MCUs, displays, oscillators, DC/DC and AC/DC modules). The list is
+# frozen in tools/catalog_tht_parts.tsv; `--tht` writes Core/src/StandardCatalogTht.inc from it. The other catalog
+# files are never touched by either.
+
+THT_LIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog_tht_parts.tsv")
+THT_OUT = "Core/src/StandardCatalogTht.inc"
+FP_TREE = ("https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-footprints/repository/tree"
+           "?path={}&per_page=100&page={}")
+
+# (KiCad library, SiEDA category, at most this many parts)
+THT_DISCOVER = [
+    ("Diode", "Through-Hole · Diodes", 160), ("Diode_Bridge", "Through-Hole · Diodes", 40),
+    ("Transistor_BJT", "Through-Hole · Transistors", 140), ("Transistor_FET", "Through-Hole · Transistors", 140),
+    ("Transistor_Array", "Through-Hole · Transistors", 20), ("Triac_Thyristor", "Through-Hole · Transistors", 40),
+    ("Regulator_Linear", "Through-Hole · Regulators", 100), ("Reference_Voltage", "Through-Hole · Regulators", 20),
+    ("Converter_DCDC", "Through-Hole · Power Modules", 60), ("Converter_ACDC", "Through-Hole · Power Modules", 40),
+    ("Isolator", "Through-Hole · Optocouplers", 80), ("Relay", "Through-Hole · Relays", 80),
+    ("Relay_SolidState", "Through-Hole · Relays", 40), ("Timer", "Through-Hole · ICs", 15),
+    ("Amplifier_Operational", "Through-Hole · ICs", 80), ("Amplifier_Audio", "Through-Hole · ICs", 25),
+    ("Comparator", "Through-Hole · ICs", 25), ("74xx", "Through-Hole · Logic", 150), ("4xxx", "Through-Hole · Logic", 100),
+    ("Interface_UART", "Through-Hole · ICs", 25), ("Interface_Expansion", "Through-Hole · ICs", 15),
+    ("Analog_ADC", "Through-Hole · ICs", 25), ("Analog_DAC", "Through-Hole · ICs", 20),
+    ("Memory_EEPROM", "Through-Hole · ICs", 25), ("Driver_Motor", "Through-Hole · ICs", 25),
+    ("Driver_LED", "Through-Hole · ICs", 15), ("Sensor_Temperature", "Through-Hole · Sensors", 25),
+    ("Sensor_Magnetic", "Through-Hole · Sensors", 20), ("Sensor_Optical", "Through-Hole · Sensors", 30),
+    ("Display_Character", "Through-Hole · Displays", 60), ("Oscillator", "Through-Hole · Timing", 40),
+    ("MCU_Microchip_ATtiny", "Through-Hole · Microcontrollers", 40),
+    ("MCU_Microchip_ATmega", "Through-Hole · Microcontrollers", 40),
+    ("MCU_Microchip_PIC12", "Through-Hole · Microcontrollers", 30), ("MCU_Microchip_PIC16", "Through-Hole · Microcontrollers", 60),
+    ("MCU_Microchip_PIC18", "Through-Hole · Microcontrollers", 40),
+]
+
+# KiCad footprint libraries with only through-hole parts, and those holding both (judged by the footprint's pads).
+THT_LIBS = ("Package_DIP", "Package_TO_SOT_THT", "Package_SIP", "Diode_THT", "Relay_THT", "Converter_DCDC",
+            "Converter_ACDC", "Display_7Segment", "OptoDevice", "Varistor", "Crystal", "Oscillator", "Buzzer_Beeper",
+            "Fuse", "Sensor", "Transformer_THT")
+
+
+def retrying(fn, *args):
+    import time, urllib.error
+    for attempt in range(6):
+        try:
+            return fn(*args)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            if attempt == 5: raise
+            time.sleep(3 * (attempt + 1))
+
+
+def footprint_names(lib):
+    """Every footprint of a KiCad footprint library (cached)."""
+    import json
+    cache = os.path.join(kicad.CACHE, f"fptree__{lib}.json")
+    if os.path.exists(cache):
+        return json.load(open(cache))
+    names, page = [], 1
+    while True:
+        url = FP_TREE.format(urllib.parse.quote(f"{lib}.pretty", safe=""), page)
+        items = json.loads(retrying(lambda u: urllib.request.urlopen(u, timeout=60).read(), url))
+        names += [i["name"][:-len(".kicad_mod")] for i in items if i["name"].endswith(".kicad_mod")]
+        if len(items) < 100:
+            break
+        page += 1
+    os.makedirs(kicad.CACHE, exist_ok=True)
+    json.dump(names, open(cache, "w"))
+    return names
+
+
+def footprint_text(footprint):
+    lib, name = footprint.split(":")
+    path = os.path.join(kicad.CACHE, f"fp__{name}.kicad_mod")
+    if not os.path.exists(path):
+        os.makedirs(kicad.CACHE, exist_ok=True)
+        url = FOOTPRINTS.format(urllib.parse.quote(f"{lib}.pretty/{name}.kicad_mod", safe=""))
+        data = retrying(lambda u: urllib.request.urlopen(u, timeout=60).read(), url)
+        open(path, "wb").write(data)
+    return open(path, encoding="utf-8").read()
+
+
+def is_tht(footprint):
+    """A footprint whose copper pads are all plated through-hole (mounting holes aside)."""
+    if not footprint or ":" not in footprint:
+        return False
+    lib = footprint.split(":")[0]
+    if not (lib in THT_LIBS or lib.endswith("_THT") or lib.startswith("Connector") or lib.startswith("TerminalBlock")
+            or lib.startswith("Button_Switch") or lib.startswith("Potentiometer")):
+        return False
+    try:
+        text = footprint_text(footprint)
+    except Exception:
+        return False
+    return " thru_hole " in text and " smd " not in text
+
+
+def tht_families():
+    """Generic symbols on KiCad's through-hole footprints, one part per footprint the library carries."""
+    rows = []
+
+    def pick(lib, pattern):
+        return sorted((n for n in footprint_names(lib) if re.search(pattern, n)),
+                      key=lambda n: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", n)])
+
+    def row(category, sym_lib, sym, name, maker, desc, ref, fp):
+        rows.append((category, sym_lib, sym, name, maker, desc, ref, fp))
+
+    con = "Through-Hole · Connectors"
+    for fp in pick("TerminalBlock_Phoenix", r"^TerminalBlock_Phoenix_MKDS-1,5-\d+-5.08_1x\d+_P5.08mm_Horizontal$"):
+        n = int(re.search(r"_1x(\d+)_", fp).group(1))
+        row(con, "Connector_Generic", f"Conn_01x{n:02d}", f"MKDS-1,5-{n}-5.08", "Phoenix Contact",
+            f"Screw terminal block {n} way, 5.08 mm pitch, 13.5 A / 250 V, wire 0.14–1.5 mm², through-hole", "J",
+            "TerminalBlock_Phoenix:" + fp)
+    families = [("XH", r"^JST_XH_B(\d+)B-XH-A_1x\d+_P2.50mm_Vertical$", "B{n}B-XH-A", "2.50 mm, 3 A"),
+                ("PH", r"^JST_PH_B(\d+)B-PH-K_1x\d+_P2.00mm_Vertical$", "B{n}B-PH-K", "2.00 mm, 2 A"),
+                ("EH", r"^JST_EH_B(\d+)B-EH-A_1x\d+_P2.50mm_Vertical$", "B{n}B-EH-A", "2.50 mm, 3 A"),
+                ("VH", r"^JST_VH_B(\d+)P-VH_1x\d+_P3.96mm_Vertical$", "B{n}P-VH", "3.96 mm, 10 A")]
+    for series, pattern, part, spec in families:
+        for fp in pick("Connector_JST", pattern):
+            n = int(re.search(pattern, fp).group(1))
+            row(con, "Connector_Generic", f"Conn_01x{n:02d}", part.format(n=n), "JST",
+                f"JST {series} wire-to-board header {n} way, {spec}, vertical, through-hole", "J", "Connector_JST:" + fp)
+    for fp in pick("Connector_Molex", r"^Molex_KK-254_AE-6410-\d+A_1x\d+_P2.54mm_Vertical$"):
+        n = int(re.search(r"_1x(\d+)_", fp).group(1))
+        row(con, "Connector_Generic", f"Conn_01x{n:02d}", f"22-27-21{n:02d}1 (KK 254)", "Molex",
+            f"Molex KK 254 wire-to-board header {n} way, 2.54 mm, friction lock, vertical, through-hole", "J",
+            "Connector_Molex:" + fp)
+    for fp in pick("Connector_IDC", r"^IDC-Header_2x\d+_P2.54mm_Vertical$"):
+        n = int(re.search(r"_2x(\d+)_", fp).group(1))
+        row(con, "Connector_Generic", f"Conn_02x{n:02d}_Odd_Even", f"IDC-Header_2x{n:02d}_P2.54mm", "Generic",
+            f"Shrouded IDC box header 2 × {n} ({2 * n} pins), 2.54 mm, odd / even numbering, vertical, through-hole",
+            "J", "Connector_IDC:" + fp)
+    for pitch in ("2.00", "1.27"):
+        for fp in pick(f"Connector_PinHeader_{pitch}mm", r"^PinHeader_1x\d+_P%smm_Vertical$" % re.escape(pitch)):
+            n = int(re.search(r"_1x(\d+)_", fp).group(1))
+            if n < 2 or n > 20: continue
+            row(con, "Connector_Generic", f"Conn_01x{n:02d}", fp.replace("_Vertical", ""), "Generic",
+                f"Pin header 1 × {n}, {pitch} mm pitch, vertical, through-hole", "J", f"Connector_PinHeader_{pitch}mm:" + fp)
+    for fp in pick("Connector_Dsub", r"^DSUB-(9|15|25)_(Male|Female)_Horizontal_P2.77x2.84mm_EdgePinOffset[\d.]+mm_Housed_MountingHolesOffset[\d.]+mm$"):
+        n, gender = re.search(r"DSUB-(\d+)_(Male|Female)", fp).groups()
+        sym = f"DB{n}_{'Pins' if gender == 'Male' else 'Socket'}" if n != "9" else f"DE9_{'Pins' if gender == 'Male' else 'Socket'}"
+        row(con, "Connector", sym, fp.split("_Horizontal")[0], "Generic",
+            f"D-sub {n} way {gender.lower()}, right-angle, housed, through-hole", "J", "Connector_Dsub:" + fp)
+    for sym, fp, name, maker, desc in [
+        ("Barrel_Jack", "Connector_BarrelJack:BarrelJack_Horizontal", "PJ-102AH", "CUI Devices",
+         "DC barrel jack 2.1 mm centre pin, 5.5 mm sleeve, horizontal, through-hole"),
+        ("USB_B", "Connector_USB:USB_B_OST_USB-B1HSxx_Horizontal", "USB-B1HSxx", "On Shore Technology",
+         "USB 2.0 type-B receptacle, right-angle, through-hole"),
+        ("RJ45", "Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal", "54602-908LF", "Amphenol",
+         "RJ45 8P8C modular jack, unshielded, right-angle, through-hole"),
+        ("AudioJack3", "Connector_Audio:Jack_3.5mm_CUI_SJ1-3533NG_Horizontal", "SJ1-3533NG", "CUI Devices",
+         "3.5 mm stereo audio jack (TRS), right-angle, through-hole"),
+    ]:
+        row(con, "Connector" if sym != "AudioJack3" else "Connector_Audio", sym, name, maker, desc, "J", fp)
+
+    sw = "Through-Hole · Switches"
+    for fp in pick("Button_Switch_THT", r"^SW_DIP_SPSTx\d+_Slide_9.78x[\d.]+mm_W7.62mm_P2.54mm$"):
+        n = int(re.search(r"SPSTx(\d+)_", fp).group(1))
+        row(sw, "Switch", f"SW_DIP_x{n:02d}", f"SW_DIP_SPSTx{n:02d}_Slide", "Generic",
+            f"DIP switch, {n} position SPST slide, 2.54 mm, 7.62 mm rows, through-hole", "SW", "Button_Switch_THT:" + fp)
+    for fp, desc in [("SW_PUSH_6mm", "Tactile push button 6 × 6 mm, 4 pins, 4.3 mm actuator, through-hole"),
+                     ("SW_PUSH_6mm_H9.5mm", "Tactile push button 6 × 6 mm, 4 pins, 9.5 mm actuator, through-hole"),
+                     ("SW_PUSH_6mm_H13mm", "Tactile push button 6 × 6 mm, 4 pins, 13 mm actuator, through-hole")]:
+        row(sw, "Switch", "SW_Push", fp, "Generic", desc, "SW", "Button_Switch_THT:" + fp)
+    row(sw, "Switch", "SW_SPDT", "OS102011MS2Q", "C&K", "Slide switch SPDT, 2.54 mm, straight, through-hole", "SW",
+        "Button_Switch_THT:SW_Slide_SPDT_Straight_CK_OS102011MS2Q")
+    row(sw, "Switch", "SW_SPDT", "OS102011MA1Q", "C&K", "Slide switch SPDT, 2.54 mm, right-angle, through-hole", "SW",
+        "Button_Switch_THT:SW_Slide_SPDT_Angled_CK_OS102011MA1Q")
+
+    pas = "Through-Hole · Passives"
+    for fp, name, maker, desc in [
+        ("Potentiometer_Bourns_3296W_Vertical", "3296W", "Bourns", "Trimmer potentiometer 3/8 in. square, 25 turn, top adjust"),
+        ("Potentiometer_Bourns_3386P_Vertical", "3386P", "Bourns", "Trimmer potentiometer 3/8 in. square, single turn, top adjust"),
+        ("Potentiometer_Alps_RK09K_Single_Vertical", "RK09K1110", "Alps Alpine", "Rotary potentiometer 9 mm, single gang, vertical"),
+        ("Potentiometer_Alps_RK097_Single_Horizontal", "RK0971221", "Alps Alpine", "Rotary potentiometer 9 mm, single gang, right-angle"),
+        ("Potentiometer_Bourns_PTV09A-1_Single_Vertical", "PTV09A-4020F", "Bourns", "Rotary potentiometer 9 mm, single gang, vertical"),
+        ("Potentiometer_Piher_PT-10-V10_Vertical", "PT10LV10", "Piher (Amphenol)", "Trimmer potentiometer 10 mm, single turn, vertical"),
+    ]:
+        row(pas, "Device", "R_Potentiometer", name, maker, desc + ", through-hole", "RV", "Potentiometer_THT:" + fp)
+    for fp, name, desc in [
+        ("Crystal_HC49-4H_Vertical", "Crystal_HC49-4H", "Quartz crystal, HC-49/4H (HC-49/S) low profile can, 4.88 mm lead spacing"),
+        ("Crystal_HC49-U_Vertical", "Crystal_HC49-U", "Quartz crystal, HC-49/U can, 4.88 mm lead spacing"),
+        ("Crystal_C26-LF_D2.1mm_L6.5mm_Vertical", "Crystal_C26-LF", "32.768 kHz tuning-fork crystal, 2 × 6 mm cylinder, vertical"),
+        ("Crystal_C38-LF_D3.0mm_L8.0mm_Vertical", "Crystal_C38-LF", "32.768 kHz tuning-fork crystal, 3 × 8 mm cylinder, vertical"),
+    ]:
+        row("Through-Hole · Timing", "Device", "Crystal", name, "Generic", desc + ", through-hole", "Y", "Crystal:" + fp)
+    for fp in pick("Buzzer_Beeper", r"^Buzzer_12x9.5RM7.6$|^Buzzer_TDK_PS1240P02BT_D12.2mm_H6.5mm$"):
+        row(pas, "Device", "Buzzer", fp, "Generic", "Piezo / magnetic buzzer " + fp.split("_", 1)[1].replace("_", " ") +
+            ", through-hole", "BZ", "Buzzer_Beeper:" + fp)
+    for fp, name, maker, desc in [
+        ("Fuseholder_Cylinder-5x20mm_Schurter_0031_8201_Horizontal_Open", "0031.8201", "Schurter",
+         "Fuse holder for 5 × 20 mm cartridge fuses, open clip, horizontal"),
+        ("Fuse_Littelfuse_372_D8.50mm", "372 (TR5)", "Littelfuse", "Radial TR5 fuse, 8.5 mm body"),
+    ]:
+        row(pas, "Device", "Fuse", name, maker, desc + ", through-hole", "F", "Fuse:" + fp)
+    for fp in pick("Varistor", r"^RV_Disc_D(7|10|12|15|21)mm_W[\d.]+mm_P(5|7.5)mm$"):
+        d = re.search(r"D(\d+)mm", fp).group(1)
+        row(pas, "Device", "Varistor", fp, "Generic", f"Metal-oxide varistor, {d} mm disc, through-hole", "RV", "Varistor:" + fp)
+    return rows
+
+
+def discover_tht():
+    import time
+    taken = existing_names() | set(p[3].upper() for p in PARTS)
+    for path in (EXTRA_LIST,):
+        for line in open(path, encoding="utf-8"):
+            if not line.startswith("#") and line.strip():
+                taken.add(line.split("\t")[3].upper())
+    rows = []
+    for row in tht_families():
+        if row[3].upper() in taken:
+            continue
+        try:
+            entry(*row, [])
+        except (SystemExit, Exception) as e:
+            print(f"family {row[3]}: left out ({e})")
+            continue
+        taken.add(row[3].upper())
+        rows.append(row)
+    print(f"families: {len(rows)} parts")
+    for lib, category, cap in THT_DISCOVER:
+        kept = 0
+        try:
+            symbols = library_symbols(lib)
+        except Exception as e:
+            print(f"{lib}: cannot list ({e})")
+            continue
+        wanted = [s for s in sorted(symbols) if "x" not in s and s.upper() not in taken and len(s) <= 40]
+        prefetch(lib, wanted)
+        for sym in sorted(symbols):
+            if kept >= cap:
+                break
+            if "x" in sym or sym.upper() in taken or len(sym) > 40 or sym in EXCLUDE:
+                continue
+            try:
+                (found, footprint), text = fetch_retry(lib, sym)
+            except Exception as e:
+                print(f"{lib}:{sym}: {e}")
+                continue
+            if not is_tht(footprint):
+                continue
+            datasheet = kicad.prop(text, "Datasheet")
+            parent = re.search(r'\(extends "([^"]+)"\)', text)
+            ptext = kicad.fetch(lib, parent.group(1)) if parent else ""
+            if not datasheet and parent:
+                datasheet = kicad.prop(ptext, "Datasheet")
+            desc = kicad.prop(text, "Description") or kicad.prop(text, "ki_description")
+            if not desc and parent:
+                desc = kicad.prop(ptext, "Description") or kicad.prop(ptext, "ki_description")
+            maker = maker_for(datasheet, lib) or "Generic"
+            if not desc:
+                continue
+            ref = {"Diode": "D", "Diode_Bridge": "D", "Transistor_BJT": "Q", "Transistor_FET": "Q",
+                   "Triac_Thyristor": "Q", "Relay": "K", "Relay_SolidState": "K", "Display_Character": "DS",
+                   "Oscillator": "X", "Converter_DCDC": "PS", "Converter_ACDC": "PS"}.get(lib, "U")
+            row = (category, lib, sym, sym, maker, clean_text(desc), ref, "")
+            try:
+                entry(*row, [])
+            except (SystemExit, Exception):
+                continue
+            taken.add(sym.upper())
+            rows.append(row)
+            kept += 1
+        print(f"{lib}: {kept} parts")
+        time.sleep(0.2)
+    with open(THT_LIST, "w", encoding="utf-8") as f:
+        f.write("# Frozen by tools/fetch_catalog_parts.py --discover-tht (category, library, symbol, name, manufacturer, "
+                "description, reference prefix, footprint override). Edit by re-running --discover-tht.\n")
+        for row in rows:
+            f.write("\t".join(row) + "\n")
+    print(f"{len(rows)} parts written to {THT_LIST}")
+
+
+def tht():
+    rows = []
+    for line in open(THT_LIST, encoding="utf-8"):
+        if line.startswith("#") or not line.strip():
+            continue
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) != 8:
+            raise SystemExit(f"bad line in {THT_LIST}: {line!r}")
+        if fields[3] not in EXCLUDE:
+            rows.append(tuple(fields))
+    out = ["// Generated by tools/fetch_catalog_parts.py --tht from tools/catalog_tht_parts.tsv and the KiCad symbol and",
+           "// footprint libraries (pins and pads as published there). Do not edit by hand.", ""]
+    summary, errors = [], []
+    for row in rows:
+        try:
+            out.extend(entry(*row, summary))
+        except (SystemExit, Exception) as e:
+            errors.append(f"{row[3]}: {e}")
+    if errors:
+        raise SystemExit("\n".join(errors))
+    open(THT_OUT, "w").write("\n".join(out) + "\n")
+    print(f"{len(rows)} parts written to {THT_OUT}")
+
+
 if __name__ == "__main__":
-    if "--discover" in sys.argv:
+    if "--discover-tht" in sys.argv:
+        discover_tht()
+    elif "--tht" in sys.argv:
+        tht()
+    elif "--discover" in sys.argv:
         discover()
     elif "--extra" in sys.argv:
         extra()

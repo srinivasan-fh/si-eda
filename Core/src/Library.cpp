@@ -48,11 +48,15 @@ FootprintDef sot23(const std::string& name) {
 
 /// Two-lead through-hole part (axial resistor / diode lying flat, ceramic disc, radial electrolytic standing up).
 FootprintDef twoLeadTht(const std::string& name, double pitch, double drill, double pad, double bodyW, double bodyD,
-                        double bodyH, float r, float g, float b, bool cylinder = false) {
+                        double bodyH, float r, float g, float b, bool cylinder = false, int squarePad = 0,
+                        const char* label = "") {
     FootprintDef fp;
     fp.name = name;
-    fp.pads.push_back({0, {-pitch / 2, 0}, {pad, pad}, true, drill, false});  // square pad 1 (anode side / +)
-    fp.pads.push_back({1, {pitch / 2, 0}, {pad, pad}, true, drill, true});
+    fp.label = label;
+    // squarePad: the pad drawn square (0 = pin 1: anode side / +; 1 = pin 2: a diode's cathode, as KiCad marks it;
+    // -1 = both round, an axial resistor or inductor).
+    fp.pads.push_back({0, {-pitch / 2, 0}, {pad, pad}, true, drill, squarePad != 0});
+    fp.pads.push_back({1, {pitch / 2, 0}, {pad, pad}, true, drill, squarePad != 1});
     fp.courtyardW = std::max(pitch + pad, bodyW) + 0.6;
     fp.courtyardH = std::max(pad, bodyD) + 0.6;
     fp.body = {bodyW, bodyD, bodyH, cylinder, r, g, b};
@@ -132,6 +136,45 @@ Library::Library() {
     footprints_.push_back(twoPadSmd("D_SMA", 4.0, 1.6, 2.0, 4.3, 2.6, 2.1, 0.12f, 0.12f, 0.13f));
     footprints_.push_back(twoLeadTht("D_DO41_THT", 10.16, 1.0, 2.0, 5.2, 2.7, 2.7, 0.08f, 0.08f, 0.09f));
     footprints_.push_back(twoPadSmd("LED_0603", 1.6, 0.9, 0.95, 1.6, 0.8, 0.6, 0.92f, 0.15f, 0.12f));
+    // More through-hole sizes, pad / drill / pitch as KiCad's footprints of the same name (Resistor_THT,
+    // Capacitor_THT, Inductor_THT, Diode_THT, LED_THT); the body from the name, its height a typical part's.
+    struct Tht { const char* name; double pitch, drill, pad, bodyW, bodyD, bodyH; float r, g, b; bool cyl; int square;
+                 const char* label; };
+    const float rr = 0.82f, rg = 0.71f, rb = 0.52f;  // resistor body
+    const Tht tht[] = {
+        {"R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal", 5.08, 0.7, 1.4, 3.6, 1.6, 1.6, rr, rg, rb, false, -1, "Axial DIN0204 (1/8 W), 5.08 mm"},
+        {"R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal", 7.62, 0.7, 1.4, 3.6, 1.6, 1.6, rr, rg, rb, false, -1, "Axial DIN0204 (1/8 W), 7.62 mm"},
+        {"R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal", 7.62, 0.8, 1.6, 6.3, 2.5, 2.5, rr, rg, rb, false, -1, "Axial DIN0207 (1/4 W), 7.62 mm"},
+        {"R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal", 12.70, 0.8, 1.6, 9.0, 3.2, 3.2, rr, rg, rb, false, -1, "Axial DIN0309 (1/2 W), 12.7 mm"},
+        {"R_Axial_DIN0411_L9.9mm_D3.6mm_P15.24mm_Horizontal", 15.24, 1.2, 2.4, 9.9, 3.6, 3.6, rr, rg, rb, false, -1, "Axial DIN0411 (1 W), 15.24 mm"},
+        {"R_Axial_DIN0414_L11.9mm_D4.5mm_P20.32mm_Horizontal", 20.32, 1.2, 2.4, 11.9, 4.5, 4.5, rr, rg, rb, false, -1, "Axial DIN0414 (2 W), 20.32 mm"},
+        {"R_Axial_DIN0516_L15.5mm_D5.0mm_P25.40mm_Horizontal", 25.40, 1.2, 2.4, 15.5, 5.0, 5.0, rr, rg, rb, false, -1, "Axial DIN0516 (3 W), 25.4 mm"},
+        {"C_Disc_D3.0mm_W1.6mm_P2.50mm", 2.5, 0.8, 1.6, 3.0, 1.6, 4.0, 0.86f, 0.55f, 0.15f, false, -1, "Ceramic disc 3 mm, 2.5 mm"},
+        {"C_Disc_D5.0mm_W2.5mm_P2.50mm", 2.5, 0.8, 1.6, 5.0, 2.5, 6.0, 0.86f, 0.55f, 0.15f, false, -1, "Ceramic disc 5 mm, 2.5 mm"},
+        {"C_Disc_D7.5mm_W2.5mm_P5.00mm", 5.0, 1.0, 2.0, 7.5, 2.5, 8.5, 0.86f, 0.55f, 0.15f, false, -1, "Ceramic disc 7.5 mm, 5 mm"},
+        {"C_Rect_L7.2mm_W2.5mm_P5.00mm", 5.0, 0.75, 1.5, 7.2, 2.5, 6.5, 0.85f, 0.20f, 0.15f, false, -1, "Film box 7.2 × 2.5 mm, 5 mm"},
+        {"C_Rect_L10.0mm_W4.0mm_P7.50mm_MKS4", 7.5, 1.0, 2.0, 10.0, 4.0, 9.0, 0.85f, 0.20f, 0.15f, false, -1, "Film box 10 × 4 mm, 7.5 mm"},
+        {"C_Rect_L13.0mm_W5.0mm_P10.00mm_FKS3_FKP3_MKS4", 10.0, 1.0, 2.0, 13.0, 5.0, 11.0, 0.85f, 0.20f, 0.15f, false, -1, "Film box 13 × 5 mm, 10 mm"},
+        {"C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3", 15.0, 1.2, 2.4, 18.0, 7.0, 14.0, 0.85f, 0.20f, 0.15f, false, -1, "Film box 18 × 7 mm, 15 mm"},
+        {"CP_Radial_D5.0mm_P2.00mm", 2.0, 0.8, 1.6, 5.0, 5.0, 11.0, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 5 mm, 2 mm"},
+        {"CP_Radial_D8.0mm_P3.50mm", 3.5, 0.8, 1.6, 8.0, 8.0, 11.5, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 8 mm, 3.5 mm"},
+        {"CP_Radial_D10.0mm_P5.00mm", 5.0, 1.0, 2.0, 10.0, 10.0, 12.5, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 10 mm, 5 mm"},
+        {"CP_Radial_D12.5mm_P5.00mm", 5.0, 1.2, 2.4, 12.5, 12.5, 20.0, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 12.5 mm, 5 mm"},
+        {"CP_Radial_D16.0mm_P7.50mm", 7.5, 1.2, 2.4, 16.0, 16.0, 25.0, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 16 mm, 7.5 mm"},
+        {"CP_Radial_D18.0mm_P7.50mm", 7.5, 1.2, 2.4, 18.0, 18.0, 35.5, 0.10f, 0.14f, 0.34f, true, 0, "Electrolytic radial 18 mm, 7.5 mm"},
+        {"L_Axial_L5.3mm_D2.2mm_P10.16mm_Horizontal_Vishay_IM-1", 10.16, 0.8, 1.6, 5.3, 2.2, 2.2, 0.35f, 0.35f, 0.38f, false, -1, "Axial 5.3 × 2.2 mm, 10.16 mm"},
+        {"L_Axial_L9.5mm_D4.0mm_P12.70mm_Horizontal_Fastron_SMCC", 12.70, 1.0, 2.0, 9.5, 4.0, 4.0, 0.35f, 0.35f, 0.38f, false, -1, "Axial 9.5 × 4 mm, 12.7 mm"},
+        {"L_Radial_D10.0mm_P5.00mm_Fastron_07P", 5.0, 1.3, 2.6, 10.0, 10.0, 12.0, 0.35f, 0.35f, 0.38f, true, -1, "Radial 10 mm, 5 mm"},
+        {"L_Radial_D12.0mm_P5.00mm_Fastron_11P", 5.0, 1.3, 2.6, 12.0, 12.0, 14.0, 0.35f, 0.35f, 0.38f, true, -1, "Radial 12 mm, 5 mm"},
+        {"D_DO-35_SOD27_P7.62mm_Horizontal", 7.62, 0.8, 1.6, 4.0, 2.0, 2.0, 0.85f, 0.35f, 0.20f, false, 1, "DO-35 THT (1N4148), 7.62 mm"},
+        {"D_DO-15_P12.70mm_Horizontal", 12.70, 1.2, 2.4, 7.6, 3.6, 3.6, 0.08f, 0.08f, 0.09f, false, 1, "DO-15 THT, 12.7 mm"},
+        {"D_DO-201AD_P15.24mm_Horizontal", 15.24, 1.6, 3.2, 9.5, 5.3, 5.3, 0.08f, 0.08f, 0.09f, false, 1, "DO-201AD THT (1N540x), 15.24 mm"},
+        {"LED_D3.0mm", 2.54, 0.9, 1.8, 3.0, 3.0, 5.3, 0.92f, 0.15f, 0.12f, true, 1, "3 mm THT"},
+        {"LED_D5.0mm", 2.54, 0.9, 1.8, 5.0, 5.0, 8.6, 0.92f, 0.15f, 0.12f, true, 1, "5 mm THT"},
+    };
+    for (const Tht& t : tht)
+        footprints_.push_back(twoLeadTht(t.name, t.pitch, t.drill, t.pad, t.bodyW, t.bodyD, t.bodyH, t.r, t.g, t.b, t.cyl,
+                                         t.square, t.label));
     footprints_.push_back(header2("PinHeader_1x02"));
     footprints_.push_back(sot23("SOT23_BJT"));
     footprints_.push_back(sot23("SOT23_FET"));
@@ -156,12 +199,27 @@ const ComponentDef& Library::component(ComponentKind kind) const {
 
 std::vector<std::string> Library::packageVariants(ComponentKind kind) {
     switch (kind) {
-        case ComponentKind::Resistor: return {"R_0402", "R_0603", "R_0805", "R_1206", "R_Axial_THT"};
+        case ComponentKind::Resistor:
+            return {"R_0402", "R_0603", "R_0805", "R_1206", "R_Axial_THT",
+                    "R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal", "R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal",
+                    "R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal", "R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal",
+                    "R_Axial_DIN0411_L9.9mm_D3.6mm_P15.24mm_Horizontal", "R_Axial_DIN0414_L11.9mm_D4.5mm_P20.32mm_Horizontal",
+                    "R_Axial_DIN0516_L15.5mm_D5.0mm_P25.40mm_Horizontal"};
         case ComponentKind::Capacitor:
-            return {"C_0402", "C_0603", "C_0805", "C_1206", "C_Disc_THT", "CP_Tant_A", "CP_Tant_B", "CP_Radial_THT"};
-        case ComponentKind::Inductor: return {"L_0603", "L_0805", "L_1206"};
-        case ComponentKind::Diode: return {"D_SOD123", "D_SMA", "D_DO41_THT"};
-        case ComponentKind::LED: return {"LED_0603", "LED_0805"};
+            return {"C_0402", "C_0603", "C_0805", "C_1206", "C_Disc_THT", "CP_Tant_A", "CP_Tant_B", "CP_Radial_THT",
+                    "C_Disc_D3.0mm_W1.6mm_P2.50mm", "C_Disc_D5.0mm_W2.5mm_P2.50mm", "C_Disc_D7.5mm_W2.5mm_P5.00mm",
+                    "C_Rect_L7.2mm_W2.5mm_P5.00mm", "C_Rect_L10.0mm_W4.0mm_P7.50mm_MKS4",
+                    "C_Rect_L13.0mm_W5.0mm_P10.00mm_FKS3_FKP3_MKS4", "C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
+                    "CP_Radial_D5.0mm_P2.00mm", "CP_Radial_D8.0mm_P3.50mm", "CP_Radial_D10.0mm_P5.00mm",
+                    "CP_Radial_D12.5mm_P5.00mm", "CP_Radial_D16.0mm_P7.50mm", "CP_Radial_D18.0mm_P7.50mm"};
+        case ComponentKind::Inductor:
+            return {"L_0603", "L_0805", "L_1206", "L_Axial_L5.3mm_D2.2mm_P10.16mm_Horizontal_Vishay_IM-1",
+                    "L_Axial_L9.5mm_D4.0mm_P12.70mm_Horizontal_Fastron_SMCC", "L_Radial_D10.0mm_P5.00mm_Fastron_07P",
+                    "L_Radial_D12.0mm_P5.00mm_Fastron_11P"};
+        case ComponentKind::Diode:
+            return {"D_SOD123", "D_SMA", "D_DO41_THT", "D_DO-35_SOD27_P7.62mm_Horizontal", "D_DO-15_P12.70mm_Horizontal",
+                    "D_DO-201AD_P15.24mm_Horizontal"};
+        case ComponentKind::LED: return {"LED_0603", "LED_0805", "LED_D3.0mm", "LED_D5.0mm"};
         default: return {};
     }
 }
@@ -176,7 +234,9 @@ std::string Library::packageLabel(const std::string& footprint) {
         {"D_DO41_THT", "DO-41 THT"}, {"LED_0603", "0603"}, {"LED_0805", "0805"},
     };
     auto it = labels.find(footprint);
-    return it == labels.end() ? footprint : it->second;
+    if (it != labels.end()) return it->second;
+    const FootprintDef* fp = instance().footprint(footprint);  // the through-hole sizes carry their own label
+    return fp && !fp->label.empty() ? fp->label : footprint;
 }
 
 const FootprintDef* Library::footprint(const std::string& name) const {

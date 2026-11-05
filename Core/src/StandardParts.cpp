@@ -627,6 +627,10 @@ std::vector<StandardPart> build() {
     // drivers, sensors, pin headers (generated: tools/fetch_catalog_parts.py --extra; frozen list in
     // tools/catalog_extra_parts.tsv).
 #include "StandardCatalogExtra.inc"
+    // Through-hole parts: connectors, switches, trimmers, crystals, fuse holders and the orderable THT parts of the
+    // KiCad libraries (diodes, transistors, regulators, optocouplers, relays, DIP ICs; generated:
+    // tools/fetch_catalog_parts.py --tht; frozen list in tools/catalog_tht_parts.tsv).
+#include "StandardCatalogTht.inc"
     // Microcontroller clock crystals in the packages fabs stock (HC-49 through-hole, 3225 SMD, 3215 / cylinder 32 kHz).
     parts.push_back(part("Timing", "Crystal_16MHz", "Generic", "16 MHz crystal, HC-49/S, ±30 ppm, 20 pF load (2 × 22 pF caps)",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
