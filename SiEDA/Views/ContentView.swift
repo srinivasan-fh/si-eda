@@ -190,13 +190,6 @@ struct ContentView: View {
             .help(settings.aiEnabled ? "AI model used by the design agents" : "AI assistance is off — SiEDA works fully manually")
 
             Button {
-                store.runERC()
-                if !store.snapshot.pads.isEmpty { store.runDRC() }
-                store.showChecks(.rules)
-            } label: { Label("Check", systemImage: "checkmark.seal") }
-                .help("Run ERC and DRC")
-
-            Button {
                 Task {
                     await store.simulateDC()
                     store.workspace = .simulation
