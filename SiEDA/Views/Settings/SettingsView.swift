@@ -2,31 +2,162 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// The Settings window, laid out like macOS System Settings: a sidebar of sections (each with its tinted icon tile,
+/// grouped) and the chosen section's page under a title header. The section last open comes back next time.
 struct SettingsView: View {
-    var body: some View {
-        TabView {
-            GeneralSettings()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            AIModelSettings()
-                .tabItem { Label("AI Models", systemImage: "sparkles") }
-            AppearanceSettings()
-                .tabItem { Label("Appearance", systemImage: "paintpalette") }
-            LanguageSettingsView()
-                .tabItem { Label("Language", systemImage: "globe") }
-            SupplierSettingsView()
-                .tabItem { Label("Suppliers", systemImage: "shippingbox") }
-            MCPSettingsView()
-                .tabItem { Label("AI Access (MCP)", systemImage: "dot.radiowaves.left.and.right") }
-            ShortcutSettings()
-                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
-            AboutSettings()
-                .tabItem { Label("About", systemImage: "info.circle") }
+    enum Pane: String, CaseIterable, Identifiable {
+        case general, appearance, language, shortcuts, aiModels, mcp, suppliers, about
+        var id: String { rawValue }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .general: "General"
+            case .appearance: "Appearance"
+            case .language: "Language"
+            case .shortcuts: "Shortcuts"
+            case .aiModels: "AI Models"
+            case .mcp: "AI Access (MCP)"
+            case .suppliers: "Suppliers"
+            case .about: "About"
+            }
         }
-        .frame(width: 680, height: 600)
-        // In the app theme, like the main window: its navy behind the forms and the window's tab bar.
+
+        var icon: String {
+            switch self {
+            case .general: "gearshape.fill"
+            case .appearance: "paintpalette.fill"
+            case .language: "globe"
+            case .shortcuts: "keyboard.fill"
+            case .aiModels: "sparkles"
+            case .mcp: "dot.radiowaves.left.and.right"
+            case .suppliers: "shippingbox.fill"
+            case .about: "info.circle.fill"
+            }
+        }
+
+        /// The icon tile's colour (fixed, like System Settings: the same in every app theme).
+        var tint: Color {
+            switch self {
+            case .general: Color(red: 0.55, green: 0.56, blue: 0.60)
+            case .appearance: Color(red: 0.20, green: 0.48, blue: 0.96)
+            case .language: Color(red: 0.16, green: 0.62, blue: 0.86)
+            case .shortcuts: Color(red: 0.45, green: 0.47, blue: 0.52)
+            case .aiModels: Color(red: 0.58, green: 0.36, blue: 0.92)
+            case .mcp: Color(red: 0.13, green: 0.65, blue: 0.47)
+            case .suppliers: Color(red: 0.95, green: 0.55, blue: 0.13)
+            case .about: Color(red: 0.36, green: 0.40, blue: 0.48)
+            }
+        }
+
+        /// Sidebar groups: the app, its AI, its data sources, about.
+        static let groups: [[Pane]] = [[.general, .appearance, .language, .shortcuts], [.aiModels, .mcp],
+                                        [.suppliers], [.about]]
+    }
+
+    @AppStorage("settings.pane") private var paneID = Pane.general.rawValue
+    private var pane: Pane { Pane(rawValue: paneID) ?? .general }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 214)
+                .background(Theme.deepBlue.opacity(0.55))
+            Divider()
+            VStack(spacing: 0) {
+                header
+                Divider()
+                page
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(width: 860, height: 640)
+        // In the app theme, like the main window: its navy behind the forms.
         .scrollContentBackground(.hidden)
         .background(Theme.navy)
         .background(ThemedWindowBackground())
+    }
+
+    private var sidebar: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(Pane.groups.enumerated()), id: \.offset) { index, group in
+                    if index > 0 { Spacer().frame(height: 12) }
+                    ForEach(group) { item in
+                        SidebarRow(pane: item, selected: item == pane) { paneID = item.rawValue }
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 14)
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            IconTile(pane: pane, size: 30)
+            Text(pane.title)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Spacer()
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
+    }
+
+    @ViewBuilder private var page: some View {
+        switch pane {
+        case .general: GeneralSettings()
+        case .appearance: AppearanceSettings()
+        case .language: LanguageSettingsView()
+        case .shortcuts: ShortcutSettings()
+        case .aiModels: AIModelSettings()
+        case .mcp: MCPSettingsView()
+        case .suppliers: SupplierSettingsView()
+        case .about: AboutSettings()
+        }
+    }
+
+    /// A section's icon: a white symbol on a rounded tile of its colour.
+    private struct IconTile: View {
+        let pane: Pane
+        var size: CGFloat = 22
+        var body: some View {
+            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                .fill(LinearGradient(colors: [pane.tint.opacity(0.92), pane.tint], startPoint: .top, endPoint: .bottom))
+                .frame(width: size, height: size)
+                .overlay(Image(systemName: pane.icon)
+                    .font(.system(size: size * 0.52, weight: .semibold))
+                    .foregroundStyle(.white))
+                .shadow(color: .black.opacity(0.18), radius: 0.5, y: 0.5)
+        }
+    }
+
+    private struct SidebarRow: View {
+        let pane: Pane
+        let selected: Bool
+        let action: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 9) {
+                    IconTile(pane: pane)
+                    Text(pane.title)
+                        .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? Color.white : Theme.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Theme.blue : (hovering ? Theme.blue.opacity(0.18) : .clear)))
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .accessibilityAddTraits(selected ? .isSelected : [])
+        }
     }
 }
 
