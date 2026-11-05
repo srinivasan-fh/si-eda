@@ -156,9 +156,9 @@ struct ContentView: View {
                 .disabled(!store.canRedo)
                 .help("Redo (⇧⌘Z)")
         }
-        // Right side of the header: the workspace group, then the AI menu and the inspector toggle. Simulate and
-        // Export live in their groups (the Simulation workspace, File → Export Fabrication Package…).
-        ToolbarItemGroup(placement: .primaryAction) {
+        // The workspace group in the centre of the header; on the right only the AI menu and the inspector toggle.
+        // Simulate and Export live in their groups (the Simulation workspace, Design Checks / File menu).
+        ToolbarItem(placement: .principal) {
             Picker("Workspace", selection: $store.workspace) {
                 ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
                     Label { Text(LocalizedStringKey(w.title)) } icon: { w.icon }.tag(w)
@@ -167,7 +167,8 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
             .help("Switch workspace (⌘1 – ⌘7)")
-
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 if settings.aiEnabled {
