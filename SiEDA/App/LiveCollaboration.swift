@@ -55,7 +55,7 @@ final class LiveCollaboration: ObservableObject {
             ticks = 0
             heartbeat()
             timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.tick() }
+                Task { @MainActor [weak self] in self?.tick() }
             }
             watch()
         } else {
@@ -70,7 +70,7 @@ final class LiveCollaboration: ObservableObject {
     func noteEdit() {
         guard enabled, url != nil else { return }
         pendingSave?.cancel()
-        let work = DispatchWorkItem { [weak self] in Task { @MainActor in self?.sync(save: true) } }
+        let work = DispatchWorkItem { [weak self] in Task { @MainActor [weak self] in self?.sync(save: true) } }
         pendingSave = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
     }
@@ -96,7 +96,7 @@ final class LiveCollaboration: ObservableObject {
         let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend],
                                                                queue: .main)
         source.setEventHandler { [weak self] in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.sync(save: false)
                 self?.watch()
             }

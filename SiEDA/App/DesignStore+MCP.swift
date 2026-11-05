@@ -563,12 +563,12 @@ final class MCPLiveServer: ObservableObject {
         self.endpoint = endpoint
         status = .starting
         endpoint.start(onState: { [weak self, weak endpoint] state in
-            Task { @MainActor in
+            Task { @MainActor [weak self, weak endpoint] in
                 guard let self, let endpoint, self.endpoint === endpoint else { return }
                 self.apply(state)
             }
         }, onConnections: { [weak self, weak endpoint] count in
-            Task { @MainActor in
+            Task { @MainActor [weak self, weak endpoint] in
                 guard let self, let endpoint, self.endpoint === endpoint else { return }
                 self.connections = count
             }

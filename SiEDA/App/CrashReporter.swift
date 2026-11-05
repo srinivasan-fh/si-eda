@@ -227,7 +227,7 @@ private func installFatalHandlers(path: String, header: String) {
 
     // A separate stack so a stack overflow can still be reported.
     let altSize = 128 * 1024
-    var alt = stack_t(ss_sp: UnsafeMutableRawPointer.allocate(byteCount: altSize, alignment: 16), ss_size: altSize, ss_flags: 0)
+    var alt = stack_t(ss_sp: UnsafeMutableRawPointer.allocate(byteCount: altSize, alignment: 16), ss_size: numericCast(altSize), ss_flags: 0)
     sigaltstack(&alt, nil)
 
     for (sig, _) in fatalSignals {
