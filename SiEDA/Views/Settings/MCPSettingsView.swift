@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Settings → AI Access (MCP): the live MCP server that lets an AI client on this Mac (Claude Code, Claude Desktop,
-/// Cursor, VS Code …) work on the design open in the window (docs/MCP.md, "Live app mode").
+/// Cursor, VS Code, si-llm …) work on the design open in the window (docs/MCP.md, "Live app mode").
 struct MCPSettingsView: View {
     @ObservedObject private var mcp = MCPLiveServer.shared
     @State private var showToken = false
@@ -173,6 +173,10 @@ struct MCPSettingsView: View {
                     copy: MCPLiveServer.cursorConfig(url: url, token: token))
             snippet("VS Code", MCPLiveServer.vsCodeConfig(url: url, token: shown),
                     copy: MCPLiveServer.vsCodeConfig(url: url, token: token))
+            snippet("si-llm", MCPLiveServer.siLlmCommand(url: url, token: shown,
+                                                          bridgePath: MCPLiveServer.bridgeExecutablePath),
+                    copy: MCPLiveServer.siLlmCommand(url: url, token: token,
+                                                     bridgePath: MCPLiveServer.bridgeExecutablePath))
         } header: {
             Text("Client setup")
         } footer: {

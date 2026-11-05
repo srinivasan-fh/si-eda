@@ -735,6 +735,12 @@ final class MCPLiveServer: ObservableObject {
         """
     }
 
+    /// si-llm's CLI MCP client (docs/MCP.md): a stdio command, the token as an argument (it sends no header, sets no
+    /// environment); its client refuses ; & | $ < > and backticks in the command.
+    static func siLlmCommand(url: String, token: String, bridgePath: String) -> String {
+        "python3 -m py.si.cli mcp add sieda-app --command \"\(bridgePath) --connect \(url) --token \(token)\""
+    }
+
     /// The sieda-mcp executable when it ships inside the app, else where a source build puts it.
     static var bridgeExecutablePath: String {
         Bundle.main.url(forAuxiliaryExecutable: "sieda-mcp")?.path ?? "/path/to/si-eda/build/sieda-mcp"
