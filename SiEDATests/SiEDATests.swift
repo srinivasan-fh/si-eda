@@ -9110,7 +9110,8 @@ final class IntelligenceWindowTests: XCTestCase {
         settings.provider = .offline
         let view = IntelligenceSetupView()
         XCTAssertEqual(IntelligenceSetupView.Step.allCases.count, 5)  // the Local LLM use case
-        XCTAssertEqual(IntelligenceSetupView.UseCase.allCases.count, 4)  // Cloud, Local, MCP + Cloud, Own LLM
+        XCTAssertEqual(IntelligenceSetupView.UseCase.allCases.count, 5)  // si-llm, Cloud, Local, MCP + Cloud, Own LLM
+        XCTAssertEqual(IntelligenceSetupView.UseCase.allCases.first, .siLlm)  // SiEDA's default model comes first
         let host = NSHostingView(rootView: view.environmentObject(settings).environmentObject(store))
         host.frame = NSRect(x: 0, y: 0, width: 720, height: 520)
         host.layoutSubtreeIfNeeded()
