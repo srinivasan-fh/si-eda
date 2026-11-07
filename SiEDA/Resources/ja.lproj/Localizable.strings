@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "マウスとトラックパッド";
 "Reverse zoom direction" = "ズーム方向を反転";
 "Mouse wheel pans (hold ⌘ to zoom)" = "マウスホイールでパン（⌘ を押しながらズーム）";
+"1. Start si-llm's server in its folder:" = "1. si-llm のフォルダでサーバーを起動します:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. このウインドウに接続します(先に MCP サーバーをオンにします):";
+"3. Ask in a sentence. Each change is one undo step." = "3. 文章で依頼します。各変更は 1 回の取り消し単位です。";
+"Allow" = "許可";
+"Always Allow" = "常に許可";
+"Ask si-llm…" = "si-llm に質問…";
+"Deny" = "拒否";
+"Live MCP server" = "ライブ MCP サーバー";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "si-llm のツール名を提供 (pcb_add、sch_wire …)";
+"SiEDA's default model" = "SiEDA の既定モデル";
+"si-llm is not running on this Mac." = "この Mac で si-llm が実行されていません。";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "SiEDA の既定モデル si-llm は独自のツール名で計画し、SiEDA が自分の部品とネットで作業します";

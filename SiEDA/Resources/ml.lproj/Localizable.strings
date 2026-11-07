@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "മൗസും ട്രാക്ക്പാഡും";
 "Reverse zoom direction" = "സൂം ദിശ വിപരീതമാക്കുക";
 "Mouse wheel pans (hold ⌘ to zoom)" = "മൗസ് വീൽ പാൻ ചെയ്യുന്നു (സൂമിന് ⌘ പിടിക്കുക)";
+"1. Start si-llm's server in its folder:" = "1. si-llm സെർവർ അതിന്റെ ഫോൾഡറിൽ ആരംഭിക്കുക:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. ഇത് ഈ വിൻഡോയുമായി ബന്ധിപ്പിക്കുക (ആദ്യം MCP സെർവർ ഓണാക്കുക):";
+"3. Ask in a sentence. Each change is one undo step." = "3. ഒരു വാക്യത്തിൽ ചോദിക്കുക. ഓരോ മാറ്റവും ഒരു പഴയപടിയാക്കൽ ഘട്ടമാണ്.";
+"Allow" = "അനുവദിക്കുക";
+"Always Allow" = "എപ്പോഴും അനുവദിക്കുക";
+"Ask si-llm…" = "si-llm നോട് ചോദിക്കുക…";
+"Deny" = "നിരസിക്കുക";
+"Live MCP server" = "ലൈവ് MCP സെർവർ";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "si-llm ടൂൾ പേരുകൾ നൽകുക (pcb_add, sch_wire …)";
+"SiEDA's default model" = "SiEDA യുടെ ഡിഫോൾട്ട് മോഡൽ";
+"si-llm is not running on this Mac." = "ഈ Mac ൽ si-llm പ്രവർത്തിക്കുന്നില്ല.";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "SiEDA യുടെ ഡിഫോൾട്ട് മോഡലായ si-llm സ്വന്തം ടൂൾ പേരുകളിൽ ആസൂത്രണം ചെയ്യുന്നു; SiEDA സ്വന്തം പാർട്ടുകളും നെറ്റുകളും ഉപയോഗിച്ച് ജോലി ചെയ്യുന്നു";

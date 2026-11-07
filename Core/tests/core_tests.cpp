@@ -20987,7 +20987,10 @@ TEST(mcp_tools_list_schemas) {
     Json r = mcpRequest(s, "tools/list");
     const Json& tools = r.get("result").get("tools");
     CHECK(tools.isArray());
-    CHECK(tools.size() == mcp::mcpTools().size());
+    // Every tool but si-llm's vocabulary, which only a server started for si-llm offers (McpOptions::siLlmTools).
+    size_t offered = 0;
+    for (const auto& t : mcp::mcpTools()) offered += t.group != "si_llm";
+    CHECK(tools.size() == offered);
     CHECK(tools.size() >= 100);
     std::set<std::string> names, groupsSeen;
     for (const auto& t : tools.items()) {
@@ -21037,6 +21040,50 @@ TEST(mcp_tools_list_schemas) {
     // The Markdown reference names every tool.
     const std::string md = mcp::mcpToolsMarkdown();
     for (const auto& n : names) CHECK(md.find("`" + n + "`") != std::string::npos);
+}
+
+// si-llm's planner calls its own tool names; a server started for it (sieda-mcp --si-llm) does real SiEDA work with them:
+// generic packages become catalog parts, a net between two references lands on the pins its name points at.
+TEST(mcp_si_llm_vocabulary_designs_on_sieda) {
+    const auto root = mcpRoot("si_llm");
+    {
+        mcp::McpServer plain(mcpOptions(root));  // not offered unless asked for
+        CHECK(mcpRequest(plain, "tools/list").dump().find("\"sch_wire\"") == std::string::npos);
+    }
+    mcp::McpOptions o = mcpOptions(root);
+    o.siLlmTools = true;
+    mcp::McpServer s(o);
+    CHECK(mcpRequest(s, "tools/list").dump().find("\"sch_wire\"") != std::string::npos);
+    auto call = [&](const char* tool, const char* args) {
+        Json r = s.callTool(tool, Json::parse(args));
+        return std::make_pair(!r.get("isError").asBool(false), r.get("content").items()[0].get("text").asString(""));
+    };
+    CHECK(call("project_new", "{}").first);
+    CHECK(call("project_save", R"({"path":"si.siedaproj"})").first);
+    CHECK(call("sch_add", R"({"ref":"u1","pkg":"ldo"})").first);
+    CHECK(call("pcb_add", R"({"ref":"R1","pkg":"RES","x":10,"y":10})").first);
+    CHECK(call("pcb_add", R"({"ref":"D1","pkg":"LED","x":20,"y":10})").first);
+    auto net = call("sch_wire", R"({"name":"3V3","a":"U1","b":"R1"})");
+    CHECK(net.first);
+    CHECK(net.second.find("U1.VOUT") != std::string::npos);  // a 3V3 net takes the LDO's output, not its input
+    CHECK(call("pcb_net", R"({"name":"LED","a":"R1","b":"D1.A"})").first);
+    CHECK(call("sch_wire", R"({"name":"GND","a":"D1.K","b":"U1"})").second.find("U1.GND") != std::string::npos);
+    auto refused = call("sch_wire", R"({"name":"SDA","a":"U1","b":"R1"})");  // an IC with no such pin names its pins
+    CHECK(!refused.first && refused.second.find("VIN") != std::string::npos);
+    CHECK(!call("sch_add", R"({"ref":"U9","pkg":"NOT-A-PART-XYZ"})").first);
+    auto status = call("pcb_status", "{}");
+    CHECK(status.second.find("3V3") != std::string::npos && status.second.find("D1") != std::string::npos);
+    CHECK(call("pcb_move", R"({"ref":"D1","x":30,"y":15})").first);
+    CHECK(call("pcb_rotate", R"({"ref":"D1","angle":90})").first);
+    CHECK(call("place_sheet", "{}").first);  // U1 was only in the schematic
+    CHECK(call("sch_erc", "{}").first);
+    // Every change went back to the open file: reopening it shows the parts and the named nets.
+    mcp::McpServer again(mcpOptions(root));
+    CHECK(!again.callTool("project_open", Json::parse(R"({"path":"si.siedaproj"})")).get("isError").asBool(false));
+    const std::string list = again.callTool("schematic_list_components", Json::object()).dump();
+    CHECK(list.find("\"U1\"") != std::string::npos && list.find("\"LED\"") != std::string::npos);
+    CHECK(call("pcb_delete", R"({"ref":"D1"})").first);
+    CHECK(call("pcb_status", "{}").second.find("D1") == std::string::npos);
 }
 
 TEST(mcp_protocol_errors) {
@@ -21118,12 +21165,16 @@ TEST(mcp_tool_failures_are_results) {
               .get("error").get("code").asInt(0) == -32602);
     // Every tool survives empty arguments (an error result or a result, never a throw or a protocol error).
     const auto root = mcpRoot("empty_args");
-    mcp::McpServer all(mcpOptions(root));
+    mcp::McpOptions everything = mcpOptions(root);
+    everything.siLlmTools = true;  // si-llm's tool names too (McpSiLlm.cpp)
+    mcp::McpServer all(everything);
     Json led = Json::object();
     led["id"] = "led_indicator";
     CHECK(!mcpFailed(mcpTool(all, "project_load_example", led)));
     for (const auto& t : mcp::mcpTools()) {
-        if (t.name == "project_new" || t.name == "project_load_example" || t.name == "pcb_autoroute") continue;
+        if (t.name == "project_new" || t.name == "project_load_example" || t.name == "pcb_autoroute" || t.name == "autoroute" ||
+            t.name == "pcb_reset")
+            continue;
         Json res = mcpTool(all, t.name);
         CHECK(res.isObject());
         CHECK(res.get("content").isArray());

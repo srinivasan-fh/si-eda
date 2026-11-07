@@ -62,6 +62,9 @@ struct McpOptions {
     /// Folders holding built-in-engine models (.gguf) for project_assistant, besides the root's Models/ folder. Set only by
     /// whoever starts the server (sieda-studio: beside its executable, --models-dir, SIEDA_MODELS_DIRS).
     std::vector<std::string> modelDirs;
+    /// Offer si-llm's tool vocabulary (group "si_llm": pcb_add, pcb_net, sch_add, sch_wire, pcb_flow …, McpSiLlm.cpp) so
+    /// the si-llm CLI's planner designs on SiEDA. Set only by whoever starts the server (sieda-mcp --si-llm).
+    bool siLlmTools = false;
     /// Who every call comes from in the activity log ("user" for a host's own UI); "" = the AI client's name.
     std::string actor;
 

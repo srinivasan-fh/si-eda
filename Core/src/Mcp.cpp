@@ -152,6 +152,7 @@ McpOptions McpOptions::fromJson(const Json& j) {
     McpOptions o;
     if (!j.isObject()) return o;
     o.readOnly = j.get("readOnly").asBool(false);
+    o.siLlmTools = j.get("siLlmTools").asBool(false);
     o.allowedRoot = j.get("allowedRoot").asString("");
     o.docsDir = j.get("docsDir").asString("");
     o.serverName = j.get("serverName").asString("sieda");
@@ -173,6 +174,7 @@ McpOptions McpOptions::fromJson(const Json& j) {
 Json McpOptions::toJson() const {
     Json j = Json::object();
     j["readOnly"] = readOnly;
+    if (siLlmTools) j["siLlmTools"] = true;
     j["allowedRoot"] = allowedRoot;
     Json f = Json::array();
     for (const auto& t : toolFilter) f.push(t);
@@ -574,7 +576,11 @@ std::string validateArguments(const Json& schema, const Json& args) {
 // ---- tool table ---------------------------------------------------------------------------------------------------
 
 const std::vector<McpTool>& mcpTools() {
-    static const std::vector<McpTool> tools = buildTools();
+    static const std::vector<McpTool> tools = [] {
+        auto all = buildTools();
+        for (auto& t : siLlmTools()) all.push_back(std::move(t));
+        return all;
+    }();
     return tools;
 }
 
@@ -589,6 +595,7 @@ const std::vector<std::pair<std::string, std::string>>& mcpToolGroups() {
         {"verify", "Design verification and domain (industry) checks."},
         {"output", "Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D models."},
         {"render", "Pictures of the schematic and the board (PNG or SVG)."},
+        {"si_llm", "si-llm's own tool names (sieda-mcp --si-llm): its generic parts become catalog parts, its nets land on pins."},
     };
     return groups;
 }
@@ -851,6 +858,10 @@ void McpServer::openProject(const std::string& path) {
 }
 
 bool McpServer::toolEnabled(const McpTool& tool) const {
+    // si-llm's vocabulary (pcb_add, sch_wire …) only for a server started for it, or a filter that names it.
+    const bool named = std::any_of(options_.toolFilter.begin(), options_.toolFilter.end(),
+                                   [&](const std::string& f) { return f == tool.name || f == tool.group; });
+    if (tool.group == "si_llm") return options_.siLlmTools || named;
     if (options_.toolFilter.empty()) return true;
     for (const auto& f : options_.toolFilter) {
         if (f == tool.name || f == tool.group) return true;

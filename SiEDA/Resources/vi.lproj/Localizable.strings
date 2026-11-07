@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "Chuột và bàn di chuột";
 "Reverse zoom direction" = "Đảo chiều thu phóng";
 "Mouse wheel pans (hold ⌘ to zoom)" = "Con lăn chuột di chuyển khung nhìn (giữ ⌘ để thu phóng)";
+"1. Start si-llm's server in its folder:" = "1. Khởi động máy chủ của si-llm trong thư mục của nó:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. Kết nối nó với cửa sổ này (bật máy chủ MCP trước):";
+"3. Ask in a sentence. Each change is one undo step." = "3. Hỏi bằng một câu. Mỗi thay đổi là một bước hoàn tác.";
+"Allow" = "Cho phép";
+"Always Allow" = "Luôn cho phép";
+"Ask si-llm…" = "Hỏi si-llm…";
+"Deny" = "Từ chối";
+"Live MCP server" = "Máy chủ MCP trực tiếp";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "Cung cấp tên công cụ của si-llm (pcb_add, sch_wire …)";
+"SiEDA's default model" = "Mô hình mặc định của SiEDA";
+"si-llm is not running on this Mac." = "si-llm không chạy trên máy Mac này.";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "si-llm, mô hình mặc định của SiEDA, lập kế hoạch bằng tên công cụ riêng; SiEDA thực hiện công việc với linh kiện và net của chính nó";

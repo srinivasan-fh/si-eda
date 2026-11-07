@@ -119,7 +119,8 @@ final class MCPStoreBridge {
     /// Options for the core: read-only and the folder files may be read from / written to ("" = no file access).
     static func optionsJSON(readOnly: Bool, allowedRoot: String, actor: String = "") -> String {
         var options: [String: Any] = ["readOnly": readOnly, "allowedRoot": allowedRoot, "serverName": "sieda-app"]
-        if !actor.isEmpty { options["actor"] = actor }  // the app's own menus: "user" in the activity log
+        if !actor.isEmpty { options["actor"] = actor }
+        if SiLlm.toolsEnabled { options["siLlmTools"] = true }  // si-llm's tool names (SiLlm.swift, core McpSiLlm.cpp)  // the app's own menus: "user" in the activity log
         if ActivityLog.enabled { options["activityLog"] = ActivityLog.folder.path }  // AI clients' calls, by client name
         guard let data = try? JSONSerialization.data(withJSONObject: options, options: [.sortedKeys]) else { return "{}" }
         return String(decoding: data, as: UTF8.self)

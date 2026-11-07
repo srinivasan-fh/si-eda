@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "鼠标与触控板";
 "Reverse zoom direction" = "反转缩放方向";
 "Mouse wheel pans (hold ⌘ to zoom)" = "鼠标滚轮平移（按住 ⌘ 缩放）";
+"1. Start si-llm's server in its folder:" = "1. 在 si-llm 的文件夹中启动其服务器:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. 将其连接到此窗口(请先打开 MCP 服务器):";
+"3. Ask in a sentence. Each change is one undo step." = "3. 用一句话提出请求。每次更改为一步撤销。";
+"Allow" = "允许";
+"Always Allow" = "始终允许";
+"Ask si-llm…" = "询问 si-llm…";
+"Deny" = "拒绝";
+"Live MCP server" = "实时 MCP 服务器";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "提供 si-llm 的工具名称 (pcb_add、sch_wire …)";
+"SiEDA's default model" = "SiEDA 的默认模型";
+"si-llm is not running on this Mac." = "si-llm 未在这台 Mac 上运行。";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "si-llm 是 SiEDA 的默认模型,用自己的工具名称进行规划;SiEDA 用自己的元件和网络完成工作";

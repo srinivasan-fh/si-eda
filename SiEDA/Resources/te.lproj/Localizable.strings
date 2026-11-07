@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "మౌస్ మరియు ట్రాక్‌ప్యాడ్";
 "Reverse zoom direction" = "జూమ్ దిశను తిప్పు";
 "Mouse wheel pans (hold ⌘ to zoom)" = "మౌస్ వీల్ ప్యాన్ చేస్తుంది (జూమ్ కోసం ⌘ పట్టుకోండి)";
+"1. Start si-llm's server in its folder:" = "1. si-llm సర్వర్‌ను దాని ఫోల్డర్‌లో ప్రారంభించండి:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. దీన్ని ఈ విండోకు కనెక్ట్ చేయండి (ముందుగా MCP సర్వర్‌ను ఆన్ చేయండి):";
+"3. Ask in a sentence. Each change is one undo step." = "3. ఒక వాక్యంలో అడగండి. ప్రతి మార్పు ఒక అన్‌డూ దశ.";
+"Allow" = "అనుమతించు";
+"Always Allow" = "ఎల్లప్పుడూ అనుమతించు";
+"Ask si-llm…" = "si-llm ని అడగండి…";
+"Deny" = "తిరస్కరించు";
+"Live MCP server" = "లైవ్ MCP సర్వర్";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "si-llm టూల్ పేర్లను అందించు (pcb_add, sch_wire …)";
+"SiEDA's default model" = "SiEDA డిఫాల్ట్ మోడల్";
+"si-llm is not running on this Mac." = "ఈ Mac లో si-llm నడవడం లేదు.";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "SiEDA డిఫాల్ట్ మోడల్ అయిన si-llm తన సొంత టూల్ పేర్లతో ప్రణాళిక వేస్తుంది; SiEDA తన భాగాలు మరియు నెట్‌లతో పని చేస్తుంది";

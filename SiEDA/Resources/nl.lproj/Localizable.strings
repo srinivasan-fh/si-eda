@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "Muis en trackpad";
 "Reverse zoom direction" = "Zoomrichting omkeren";
 "Mouse wheel pans (hold ⌘ to zoom)" = "Muiswiel schuift (houd ⌘ ingedrukt om te zoomen)";
+"1. Start si-llm's server in its folder:" = "1. Start de server van si-llm in de map ervan:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. Verbind hem met dit venster (zet eerst de MCP-server aan):";
+"3. Ask in a sentence. Each change is one undo step." = "3. Vraag het in één zin. Elke wijziging is één ongedaan-maakstap.";
+"Allow" = "Toestaan";
+"Always Allow" = "Altijd toestaan";
+"Ask si-llm…" = "Vraag si-llm…";
+"Deny" = "Weigeren";
+"Live MCP server" = "Live MCP-server";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "Toolnamen van si-llm aanbieden (pcb_add, sch_wire …)";
+"SiEDA's default model" = "Standaardmodel van SiEDA";
+"si-llm is not running on this Mac." = "si-llm draait niet op deze Mac.";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "si-llm, het standaardmodel van SiEDA, plant met eigen toolnamen; SiEDA doet het werk met eigen onderdelen en netten";

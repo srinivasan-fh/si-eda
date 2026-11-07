@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "Tetikus dan Pad Jejak";
 "Reverse zoom direction" = "Terbalikkan arah zum";
 "Mouse wheel pans (hold ⌘ to zoom)" = "Roda tetikus menggerakkan pandangan (tahan ⌘ untuk zum)";
+"1. Start si-llm's server in its folder:" = "1. Mulakan pelayan si-llm dalam foldernya:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. Sambungkannya ke tetingkap ini (hidupkan pelayan MCP dahulu):";
+"3. Ask in a sentence. Each change is one undo step." = "3. Tanya dalam satu ayat. Setiap perubahan ialah satu langkah buat asal.";
+"Allow" = "Benarkan";
+"Always Allow" = "Sentiasa Benarkan";
+"Ask si-llm…" = "Tanya si-llm…";
+"Deny" = "Tolak";
+"Live MCP server" = "Pelayan MCP langsung";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "Tawarkan nama alat si-llm (pcb_add, sch_wire …)";
+"SiEDA's default model" = "Model lalai SiEDA";
+"si-llm is not running on this Mac." = "si-llm tidak berjalan pada Mac ini.";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "si-llm, model lalai SiEDA, merancang dengan nama alatnya sendiri; SiEDA melakukan kerja dengan komponen dan netnya sendiri";

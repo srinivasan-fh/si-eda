@@ -62,6 +62,7 @@
 		445472D19D387B5FF2371B08 = {isa = PBXBuildFile; fileRef = 65884BAB0CDFF0EDFDC017EC; };
 		45D9A2131C48A567A8323A0B = {isa = PBXBuildFile; fileRef = 2CEB15A450C07489E6C393A5; };
 		45E5EF6FD2B587F42AE4D9F0 = {isa = PBXBuildFile; fileRef = BB5744A30C321A36A4D34103; };
+		45EB6CCFCC448F527A7732F2 = {isa = PBXBuildFile; fileRef = 6DA6E2F42E4B17DC552C87E7; };
 		482CD12CF3DD25314FE03C7D = {isa = PBXBuildFile; fileRef = 19A32AB05C4FC519DD459887; };
 		48FB3527518FE55EE06380A1 = {isa = PBXBuildFile; fileRef = FD0349E3F008C96C569E5F1F; };
 		490492F5B0B030AB5D57C454 = {isa = PBXBuildFile; fileRef = 0CF3E02226CCD062D60E465B; };
@@ -209,6 +210,7 @@
 		E138F2F67368416125FE5114 = {isa = PBXBuildFile; fileRef = 093215062DA71990759E16C7; };
 		E2863EF1680477E5EC6172CD = {isa = PBXBuildFile; fileRef = 6F713D3D022B8E6CABF26E5C; };
 		E39E12604687337239C21E5B = {isa = PBXBuildFile; fileRef = 2E8194B0F7B8AA32AE84594C; };
+		E41DE6D2961D9BBB2B0EA229 = {isa = PBXBuildFile; fileRef = 578EBF1B04E20EFFDC35DAF4; };
 		E48F305C4B73F61ECE6D047C = {isa = PBXBuildFile; fileRef = 94AEA8010C28DCB7576B2C06; };
 		E4D877983CE42E24E9251699 = {isa = PBXBuildFile; fileRef = 96DCFEC7FC2EB441F0D33A75; };
 		E5E9832B81B81A58A1A72832 = {isa = PBXBuildFile; fileRef = 2E647A6C898338BC192358C2; };
@@ -365,6 +367,7 @@
 		5689D44B83BBAA8851B618B6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Eye.hpp; sourceTree = "<group>"; };
 		569290EBF951B2FD578D316E = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ms; path = ms.lproj/Localizable.strings; sourceTree = "<group>"; };
 		57514CA6233BC5E032D148B4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Firmware.hpp; sourceTree = "<group>"; };
+		578EBF1B04E20EFFDC35DAF4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiLlm.swift; sourceTree = "<group>"; };
 		58148E5E798C943B11E59526 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PdfFont.cpp; sourceTree = "<group>"; };
 		58F96DD6305D8BE5F9AE341F = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Mechanical.cpp; sourceTree = "<group>"; };
 		595B7BB51B59F11A4E63355E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SpiceBuild.cpp; sourceTree = "<group>"; };
@@ -386,6 +389,7 @@
 		6D8A735A9BA47BCE68A8FF34 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DesignStore+Autoroute.swift"; sourceTree = "<group>"; };
 		6D8D082D1AA9A13D394E8505 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = mr; path = mr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		6D9B11BCCB86CECE0CFA37CB = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Touchstone.cpp; sourceTree = "<group>"; };
+		6DA6E2F42E4B17DC552C87E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = McpSiLlm.cpp; sourceTree = "<group>"; };
 		6F713D3D022B8E6CABF26E5C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		701D4FCC21A56548EC8B3529 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupplierClients.swift; sourceTree = "<group>"; };
 		7089356AD7C7932733B114A1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Channel.hpp; sourceTree = "<group>"; };
@@ -786,6 +790,7 @@
 				5B677B1CF7DF150184E961B2,
 				7240EC7A71DCA0DFCC205FBA,
 				D85C2F750F0E52C4DAEF698E,
+				578EBF1B04E20EFFDC35DAF4,
 			);
 			path = AI;
 			sourceTree = "<group>";
@@ -859,6 +864,7 @@
 				B3FB7A6C6435E513AE1809AC,
 				28B8FB83BF7C35C2362E414B,
 				4D41F9827D04F7BA52327380,
+				6DA6E2F42E4B17DC552C87E7,
 				E678464CCBE1C6E1B137FD21,
 				58F96DD6305D8BE5F9AE341F,
 				3C2308823BDD3E97BF487298,
@@ -1280,6 +1286,7 @@
 				68D48DAD17D325679CCABD65,
 				05D6128DD9BE6AF8A4BC311F,
 				0A145CF60493313A3256243D,
+				E41DE6D2961D9BBB2B0EA229,
 				A2CE916CEF229F47742B9BBA,
 				028535CF9713ADC0DD562876,
 				AA4041B8EB51252651559D68,
@@ -1431,6 +1438,7 @@
 				B578FB8A18545C46C71EC967,
 				0B8FFC1D04E584923D5EC8CF,
 				CC58FF941B8B7748D68E3997,
+				45EB6CCFCC448F527A7732F2,
 				CA95F87A81749BBF107458D3,
 				9EF1D7051E537E796130C713,
 				F5ED19940A18F7A56343C1C3,

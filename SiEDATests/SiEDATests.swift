@@ -8728,6 +8728,13 @@ final class MCPLiveEndpointTests: XCTestCase {
                        MCPLiveServer.claudeDesktopConfig(url: "u", token: "T", bridgePath: "/b")] {
             XCTAssertNotNil(try? JSONSerialization.jsonObject(with: Data(config.utf8)), config)
         }
+        // si-llm is the default model: the live server offers its tool names unless the setting is off.
+        let saved = UserDefaults.standard.object(forKey: SiLlm.toolsKey)
+        defer { UserDefaults.standard.set(saved, forKey: SiLlm.toolsKey) }
+        UserDefaults.standard.removeObject(forKey: SiLlm.toolsKey)
+        XCTAssertTrue(MCPStoreBridge.optionsJSON(readOnly: false, allowedRoot: "/r").contains("\"siLlmTools\":true"))
+        UserDefaults.standard.set(false, forKey: SiLlm.toolsKey)
+        XCTAssertFalse(MCPStoreBridge.optionsJSON(readOnly: false, allowedRoot: "/r").contains("siLlmTools"))
         // si-llm's client refuses ; & | ` $ < > in the command it is given (py/si/mcp_client.py `_safe_target`).
         let siLlm = MCPLiveServer.siLlmCommand(url: "http://127.0.0.1:39717/mcp", token: "T", bridgePath: "/b/sieda-mcp")
         XCTAssertEqual(siLlm, "python3 -m py.si.cli mcp add sieda-app --command \"/b/sieda-mcp --connect http://127.0.0.1:39717/mcp --token T\"")

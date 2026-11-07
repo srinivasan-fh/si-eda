@@ -2,7 +2,7 @@
 //
 // Newline-delimited JSON-RPC 2.0 on stdin / stdout (one message per line); logs go to stderr only.
 //
-//   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>] [--library-dir <dir> …] [--activity-log <dir> | --no-activity-log]
+//   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--si-llm] [--tools <list>] [--docs <dir>] [--library-dir <dir> …] [--activity-log <dir> | --no-activity-log]
 //   sieda-mcp --diff <old> <new> [--json] what changed between two project files (exit 1 when they differ)
 //   sieda-mcp --git-diff <git's 7 args>  the same as Git's external diff driver (docs/TEAM.md)
 //   sieda-mcp --merge <base> <ours> <theirs>  three-way merge into <ours> (Git's merge driver; exit 1 on conflicts)
@@ -14,6 +14,7 @@
 //
 //   --root <dir>       folder the server may open projects from and write outputs into (default: the current folder)
 //   --project <file>   project to open at start (inside the root)
+//   --si-llm           also offer si-llm's tool names (pcb_add, sch_wire, pcb_flow …; McpSiLlm.cpp) for the si-llm CLI
 //   --read-only        refuse every tool that changes the design, and every file write
 //   --tools <list>     comma-separated groups / tool names / prefixes* to offer (default all), e.g. "project,schematic,pcb"
 //   --docs <dir>       folder of the Markdown guides served as resources (default: the repository's docs/)
@@ -135,6 +136,8 @@ int main(int argc, char** argv) {
             project = value();
         } else if (a == "--read-only") {
             options.readOnly = true;
+        } else if (a == "--si-llm") {
+            options.siLlmTools = true;  // si-llm's tool names (pcb_add, sch_wire, pcb_flow …): McpSiLlm.cpp
         } else if (a == "--tools") {
             std::stringstream ss(value());
             for (std::string t; std::getline(ss, t, ',');)
