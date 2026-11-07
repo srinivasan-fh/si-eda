@@ -7,11 +7,12 @@ import SwiftUI
 /// engine (docs/AI.md, "Super Intelligence window").
 struct IntelligenceSetupView: View {
     enum UseCase: Hashable, CaseIterable, Identifiable {
-        case cloud, local, mcp, own
+        case siLlm, cloud, local, mcp, own  // si-llm first: SiEDA's default model
         var id: Self { self }
 
         var title: LocalizedStringKey {
             switch self {
+            case .siLlm: return "si-llm"
             case .cloud: return "Cloud LLM"
             case .local: return "Local LLM"
             case .mcp: return "MCP + Cloud LLM"
@@ -21,6 +22,7 @@ struct IntelligenceSetupView: View {
 
         var subtitle: LocalizedStringKey {
             switch self {
+            case .siLlm: return "SiEDA's default model"
             case .cloud: return "Claude, OpenAI, Gemini · SSO sign-in"
             case .local: return "Open models on our engine"
             case .mcp: return "Agent clients drive SiEDA"
@@ -30,6 +32,7 @@ struct IntelligenceSetupView: View {
 
         var icon: String {
             switch self {
+            case .siLlm: return "brain.head.profile"
             case .cloud: return "cloud"
             case .local: return "desktopcomputer"
             case .mcp: return "point.3.connected.trianglepath.dotted"
@@ -67,7 +70,8 @@ struct IntelligenceSetupView: View {
     @State private var step = Step.provider
     @State private var test = TestState.idle
     @State private var designed = false
-    @State private var useCase = UseCase.cloud
+    @State private var useCase = UseCase.siLlm
+    @State private var siLlm: SiLlm.Health?
     @State private var cloudKind = AIProviderKind.claude
     @State private var keyDraft = ""
     private let gpuName = MTLCreateSystemDefaultDevice()?.name
@@ -93,6 +97,10 @@ struct IntelligenceSetupView: View {
     private func status(_ useCase: UseCase) -> (text: LocalizedStringKey, on: Bool)? {
         let builtInModel = settings.model(for: .builtIn)
         switch useCase {
+        case .siLlm:
+            guard let health = siLlm else { return nil }
+            if health.drivesSiEDA { return ("Connected", true) }
+            return ("Listening", false)
         case .cloud:
             if Self.cloudKinds.contains(settings.provider), settings.hasCredentials(for: settings.provider) { return ("In Use", true) }
             return Self.cloudKinds.contains { settings.hasCredentials(for: $0) } ? ("Signed In", false) : nil
@@ -138,6 +146,7 @@ struct IntelligenceSetupView: View {
             Divider()
             Group {
                 switch useCase {
+                case .siLlm: SiLlmView()
                 case .cloud: cloudPage
                 case .local: setup
                 case .mcp: mcpPage.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -147,6 +156,7 @@ struct IntelligenceSetupView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 900, minHeight: 600)
+        .task(id: useCase) { siLlm = await SiLlm.health() }
     }
 
     /// Cloud LLM: the provider, its sign-in (vendor login, OpenRouter in the browser, organisation SSO or an API key),

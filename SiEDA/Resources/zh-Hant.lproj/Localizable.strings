@@ -1974,3 +1974,15 @@
 "Mouse and Trackpad" = "滑鼠與觸控式軌跡板";
 "Reverse zoom direction" = "反轉縮放方向";
 "Mouse wheel pans (hold ⌘ to zoom)" = "滑鼠滾輪平移（按住 ⌘ 縮放）";
+"1. Start si-llm's server in its folder:" = "1. 在 si-llm 的資料夾中啟動其伺服器:";
+"2. Connect it to this window (turn on the MCP server first):" = "2. 將其連接到此視窗(請先開啟 MCP 伺服器):";
+"3. Ask in a sentence. Each change is one undo step." = "3. 用一句話提出要求。每次變更為一步復原。";
+"Allow" = "允許";
+"Always Allow" = "永遠允許";
+"Ask si-llm…" = "詢問 si-llm…";
+"Deny" = "拒絕";
+"Live MCP server" = "即時 MCP 伺服器";
+"Offer si-llm's tool names (pcb_add, sch_wire …)" = "提供 si-llm 的工具名稱 (pcb_add、sch_wire …)";
+"SiEDA's default model" = "SiEDA 的預設模型";
+"si-llm is not running on this Mac." = "si-llm 未在這台 Mac 上執行。";
+"si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets" = "si-llm 是 SiEDA 的預設模型,用自己的工具名稱規劃;SiEDA 用自己的元件與網路完成工作";

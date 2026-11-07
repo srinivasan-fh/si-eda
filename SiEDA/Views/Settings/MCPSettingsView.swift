@@ -8,6 +8,7 @@ struct MCPSettingsView: View {
     @State private var showToken = false
     @State private var portDraft = ""
     @AppStorage(ActivityLog.enabledKey) private var keepActivityLog = true
+    @AppStorage(SiLlm.toolsKey) private var siLlmTools = true
 
     var body: some View {
         Form {
@@ -47,6 +48,8 @@ struct MCPSettingsView: View {
             Button("Show AI Audit Log") { NSWorkspace.shared.activateFileViewerSelecting([AIAudit.file]) }
                 .disabled(!FileManager.default.fileExists(atPath: AIAudit.file.path))
                 .help("Every tool an AI client called here: time, tool, whether it changed the design, the project")
+            Toggle("Offer si-llm's tool names (pcb_add, sch_wire …)", isOn: $siLlmTools)
+                .help("si-llm, SiEDA's default model, plans with its own tool names; SiEDA does the work with its own parts and nets")
             Toggle("Keep Activity Log", isOn: $keepActivityLog)
                 .help("One text file per day of every AI client's tool calls and your own edits, on this Mac only")
             Button("Show Activity Logs") { NSWorkspace.shared.activateFileViewerSelecting([ActivityLog.folder]) }

@@ -225,29 +225,55 @@ settings.
 The `inputs` entry makes VS Code ask for the token once and keep it out of the file (the snippet in SiEDA's settings
 has it inline instead — fine for a user configuration, not for a file you commit).
 
-### si-llm
+### si-llm (SiEDA's default model)
 
-[si-llm](https://github.com/kernelsrinivas/si-llm) is a small PCB / CAD language model whose CLI carries its own MCP
-client: it turns a sentence into tool calls and asks before each one (`si mode auto|semi|man` sets how often). It
-starts stdio servers by a command, so add SiEDA headless (from the si-llm checkout):
+[si-llm](https://github.com/kernelsrinivas/si-llm) is a PCB / CAD language model whose CLI and server carry their own
+MCP client: it turns a sentence into calls of **its own tool names** (`pcb_add`, `pcb_net`, `sch_add`, `sch_wire`,
+`pcb_flow` …) and asks before each change (`si mode auto|semi|man` sets how often). SiEDA offers those names (tool group
+`si_llm`, `Core/src/McpSiLlm.cpp`) and does the work with its own tools, so si-llm designs on real parts and nets:
+
+| si-llm tool | What SiEDA does |
+|---|---|
+| `sch_add` ref, pkg | Adds the part: RES / CAP / IND / DIODE / LED / BJT / FET / switch / fuse as built-ins, CONN = `Header_1x04`, ESP32 = ESP32-WROOM-32E, USB-C = USB-C-RECEPTACLE-USB2, LDO = AP2112K-3.3, IMU = LSM6DS3TR-C, MCU = ATMEGA328P-AU, BUCK = TPS62130RGT, ISO = ISO7741DWR, ANT = ANTENNA-2450AT18A100 (catalog pinouts from their datasheets), any other name as a catalog part |
+| `pcb_add` ref, pkg, x, y | The same, then Update PCB and places it at x, y mm |
+| `sch_wire` / `pcb_net` name, a, b | A net label of that name on both ends. An end is `REF.PIN`, or a reference whose pin the net's name picks (a pin of that name; GND → GND / VSS / EP; 3V3 → VCC / VDD / VOUT; 5V → VBUS / VIN …), or a two-pin part's free pin; an IC without such a pin is refused with its pin names |
+| `pcb_move` / `pcb_rotate` / `pcb_delete` | Moves, turns (multiples of 90°) or removes a part |
+| `place_sheet` | Update PCB + Auto Place (with decoupling) |
+| `autoroute` (`which: "rip"` removes the routing) | `pcb_autoroute` |
+| `set_outline` length, width | Board size |
+| `sch_erc` / `pcb_status` / `sim_dc` | ERC, parts and nets, DC operating point (one sentence each) |
+| `pcb_flow` | DRC, then the fabrication package into `fabrication/` when it passes |
+| `fab_gerber` / `asm_bom` / `asm_pos` | Gerbers into `gerbers/`, the BOM, the pick-and-place file |
+
+`pcb_drc` is SiEDA's own. Every answer is one plain sentence (si-llm shows the first content item as its reply), and
+when the server has a project file open each change is saved to it.
+
+**On the design open in the app (recommended).** Turn on Settings → AI Access (MCP) (it offers si-llm's names unless
+*Offer si-llm's tool names* is off), start si-llm's server in its folder and connect it, or use **Window → Super
+Intelligence → si-llm**, which shows both commands and talks to si-llm itself:
 
 ```bash
-python3 -m py.si.cli mcp add sieda --command "/path/to/si-eda/build/sieda-mcp --root /Users/me/Designs"
-python3 -m py.si.cli mcp list          # sieda  stdio  connected  project_new, …
+python3 -m py.si.server &
+python3 -m py.si.cli mcp add pcb --command "/Applications/SiEDA.app/Contents/MacOS/sieda-mcp --connect http://127.0.0.1:39717/mcp --token <token>"
+python3 -m py.si.cli "place esp32 as u1 at 40 30"
 ```
 
-or live, on the design open in the app (the token goes on the command line: si-llm's client sends no header and
-cannot set an environment variable):
+Naming the connection `pcb` makes SiEDA the server si-llm prefers for its PCB tools (remove its own `pcb` preset first
+with `mcp remove pcb`). The token goes on the command line: si-llm's client sends no header and sets no environment.
+
+**Headless**, on a project file (`--si-llm` offers the names; every change is saved to the file, so the app or Studio
+co-editing it shows the work):
 
 ```bash
-python3 -m py.si.cli mcp add sieda-app --command "/path/to/si-eda/build/sieda-mcp --connect http://127.0.0.1:39717/mcp --token <token>"
+python3 -m py.si.cli mcp add pcb --command "/path/to/si-eda/build/sieda-mcp --si-llm --root /Users/me/Designs --project board.siedaproj"
 ```
 
-Both land in si-llm's `model/mcp.json` (`"transport": "stdio"`). Its client refuses a command holding
-`; & | $ < >` or a backtick, or longer than 240 characters: use plain paths without spaces. It waits 8 s for each answer,
-so a long whole-board `pcb_autoroute` is better started from another client or the app. si-llm calls a tool by its
-name on whichever connected server lists it (`pcb_drc` reaches SiEDA's). CTest `sieda_mcp_si_llm` speaks to
-`sieda-mcp` exactly as that client does.
+Both land in si-llm's `model/mcp.json` (`"transport": "stdio"`). Its client refuses a command holding `; & | $ < >` or a
+backtick, or longer than 240 characters: use plain paths without spaces. It waits 8 s for each answer, so a long
+whole-board `autoroute` is better started from the app. Other clients never see the `si_llm` group unless a server is
+started with `--si-llm` (or `--tools si_llm`); the app's live server offers it while the setting is on. CTest
+`sieda_mcp_si_llm` speaks to `sieda-mcp --si-llm` exactly as si-llm's client does; test
+`mcp_si_llm_vocabulary_designs_on_sieda` covers the mapping.
 
 ### ChatGPT
 

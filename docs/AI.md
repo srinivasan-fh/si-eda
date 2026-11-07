@@ -8,9 +8,18 @@ Ollama, or the Offline Designer (reference circuits, no model).
 
 ## Super Intelligence window
 
-**Window → Super Intelligence…** (⌥⌘I) lists the four ways to use AI in SiEDA in a sidebar, each with a status badge
-(*In Use*, *Signed In*, *Connected*, *Listening*):
+**Window → Super Intelligence…** (⌥⌘I) lists the ways to use AI in SiEDA in a sidebar, each with a status badge
+(*In Use*, *Signed In*, *Connected*, *Listening*). It opens on si-llm, SiEDA's default model:
 
+0. **si-llm** — [si-llm](https://github.com/kernelsrinivas/si-llm), a PCB / CAD language model that runs as its own
+   small server on this Mac (`python3 -m py.si.server` in its folder, 127.0.0.1:8765). The page shows whether it runs
+   and is connected (*Listening* / *Connected*, with its model and size), the two commands that start it and connect it
+   to the live MCP server, and a conversation: a sentence goes to si-llm (`/ask`), it plans tool calls with its own
+   model, and each change it wants is shown with **Allow** / **Always Allow** / **Deny** (si-llm's approval, `/approve`);
+   allowed calls edit the open design, one undo step each. The live server offers si-llm's own tool names for it
+   (Settings → AI Access (MCP) → *Offer si-llm's tool names*, on by default; docs/MCP.md "si-llm"). si-llm drives the
+   design through MCP; the JSON design plans of the AI menu and the agents (Prompt Studio, datasheet import) still come
+   from the provider chosen below, since si-llm answers in tool calls, not plans. `SiEDA/AI/SiLlm.swift`.
 1. **Cloud LLM** — Claude, OpenAI, Gemini or OpenRouter: sign in (Claude Console / Google Cloud / OpenRouter in the
    browser, organisation SSO with OIDC + PKCE) or paste an API key, set the model, *Use for SiEDA's Agents* and
    *Test Connection* (the same account settings as Settings → AI).
