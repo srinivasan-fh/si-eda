@@ -21165,12 +21165,16 @@ TEST(mcp_tool_failures_are_results) {
               .get("error").get("code").asInt(0) == -32602);
     // Every tool survives empty arguments (an error result or a result, never a throw or a protocol error).
     const auto root = mcpRoot("empty_args");
-    mcp::McpServer all(mcpOptions(root));
+    mcp::McpOptions everything = mcpOptions(root);
+    everything.siLlmTools = true;  // si-llm's tool names too (McpSiLlm.cpp)
+    mcp::McpServer all(everything);
     Json led = Json::object();
     led["id"] = "led_indicator";
     CHECK(!mcpFailed(mcpTool(all, "project_load_example", led)));
     for (const auto& t : mcp::mcpTools()) {
-        if (t.name == "project_new" || t.name == "project_load_example" || t.name == "pcb_autoroute") continue;
+        if (t.name == "project_new" || t.name == "project_load_example" || t.name == "pcb_autoroute" || t.name == "autoroute" ||
+            t.name == "pcb_reset")
+            continue;
         Json res = mcpTool(all, t.name);
         CHECK(res.isObject());
         CHECK(res.get("content").isArray());
