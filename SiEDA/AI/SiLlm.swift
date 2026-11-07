@@ -92,7 +92,7 @@ enum SiLlm {
     }
 
     /// The command that connects si-llm to the app's live server (run in si-llm's folder).
-    static func connectCommand(url: String, token: String) -> String {
+    @MainActor static func connectCommand(url: String, token: String) -> String {
         MCPLiveServer.siLlmCommand(url: url, token: token, bridgePath: MCPLiveServer.bridgeExecutablePath)
     }
 }
